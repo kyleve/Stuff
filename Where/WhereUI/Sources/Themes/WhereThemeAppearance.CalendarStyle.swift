@@ -7,10 +7,10 @@ extension WhereThemeAppearance {
     public struct CalendarStyle: Codable, Hashable, Sendable {
         public var overview: Overview?
         public var monthSpacing: BThemeValue<Double>?
-        public var month: WhereThemeAppearance.CalendarStyle.MonthStyle?
+        @CopyOnWrite public var month: WhereThemeAppearance.CalendarStyle.MonthStyle? = nil
         public var dotSize: BThemeValue<Double>?
-        public var regionBand: WhereThemeAppearance.CalendarStyle.RegionBand?
-        public var day: WhereThemeAppearance.CalendarStyle.DayStyle?
+        @CopyOnWrite public var regionBand: WhereThemeAppearance.CalendarStyle.RegionBand? = nil
+        @CopyOnWrite public var day: WhereThemeAppearance.CalendarStyle.DayStyle? = nil
 
         public init() {}
 
@@ -111,7 +111,7 @@ extension WhereThemeAppearance.CalendarStyle {
         public var todayNumberColor: BThemeValue<ViewColorDescriptor>?
         public var unresolvedMarker: BThemeValue<ViewColorDescriptor>?
         public var unresolvedNumberColor: BThemeValue<ViewColorDescriptor>?
-        public var badge: WhereThemeAppearance.CalendarStyle.DayBadge?
+        @CopyOnWrite public var badge: WhereThemeAppearance.CalendarStyle.DayBadge? = nil
 
         public init() {}
 
@@ -198,8 +198,8 @@ extension WhereThemeAppearance.CalendarStyle {
         public var weekdayFontSize: BThemeValue<Double>?
         public var padding: BThemeValue<Double>?
         public var cornerRadius: BThemeValue<Double>?
-        public var plain: WhereThemeAppearance.CalendarStyle.MonthStyle.Card?
-        public var current: WhereThemeAppearance.CalendarStyle.MonthStyle.Card?
+        @CopyOnWrite public var plain: WhereThemeAppearance.CalendarStyle.MonthStyle.Card? = nil
+        @CopyOnWrite public var current: WhereThemeAppearance.CalendarStyle.MonthStyle.Card? = nil
         public var footerDividerSpacing: BThemeValue<Double>?
         public var footerSpacing: BThemeValue<Double>?
         public var footerRowSpacing: BThemeValue<Double>?
@@ -286,7 +286,8 @@ extension WhereThemeAppearance.CalendarStyle {
         public var cornerRadius: BThemeValue<Double>?
         public var continuationRadius: BThemeValue<Double>?
         public var verticalInset: BThemeValue<Double>?
-        public var planned: WhereThemeAppearance.CalendarStyle.RegionBand.Planned?
+        @CopyOnWrite public var planned: WhereThemeAppearance.CalendarStyle.RegionBand
+            .Planned? = nil
 
         public init() {}
 
@@ -525,5 +526,134 @@ extension WhereThemeAppearance.CalendarStyle {
                 path: path + ".regionBand",
             )
         }
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.overview = inheritPatch(overview, from: parent.overview)
+        result.monthSpacing = monthSpacing ?? parent.monthSpacing
+        result.month = inheritPatch(month, from: parent.month)
+        result.dotSize = dotSize ?? parent.dotSize
+        result.regionBand = inheritPatch(regionBand, from: parent.regionBand)
+        result.day = inheritPatch(day, from: parent.day)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.DayBadge: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.iconSize = iconSize ?? parent.iconSize
+        result.iconSpacing = iconSpacing ?? parent.iconSpacing
+        result.padding = padding ?? parent.padding
+        result.offset = offset ?? parent.offset
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.DayStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.minHeight = minHeight ?? parent.minHeight
+        result.numberSize = numberSize ?? parent.numberSize
+        result.numberFontSize = numberFontSize ?? parent.numberFontSize
+        result.numberDotSpacing = numberDotSpacing ?? parent.numberDotSpacing
+        result.dotSize = dotSize ?? parent.dotSize
+        result.dotOverlap = dotOverlap ?? parent.dotOverlap
+        result.dotStrokeWidth = dotStrokeWidth ?? parent.dotStrokeWidth
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.todayMarker = todayMarker ?? parent.todayMarker
+        result.todayNumberColor = todayNumberColor ?? parent.todayNumberColor
+        result.unresolvedMarker = unresolvedMarker ?? parent.unresolvedMarker
+        result.unresolvedNumberColor = unresolvedNumberColor ?? parent.unresolvedNumberColor
+        result.badge = inheritPatch(badge, from: parent.badge)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.MonthStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.sectionSpacing = sectionSpacing ?? parent.sectionSpacing
+        result.gridSpacing = gridSpacing ?? parent.gridSpacing
+        result.weekdayFontSize = weekdayFontSize ?? parent.weekdayFontSize
+        result.padding = padding ?? parent.padding
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.plain = inheritPatch(plain, from: parent.plain)
+        result.current = inheritPatch(current, from: parent.current)
+        result.footerDividerSpacing = footerDividerSpacing ?? parent.footerDividerSpacing
+        result.footerSpacing = footerSpacing ?? parent.footerSpacing
+        result.footerRowSpacing = footerRowSpacing ?? parent.footerRowSpacing
+        result.stacksFooter = stacksFooter ?? parent.stacksFooter
+        result.unfocusedRowOpacity = unfocusedRowOpacity ?? parent.unfocusedRowOpacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.RegionBand: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.opacity = opacity ?? parent.opacity
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.continuationRadius = continuationRadius ?? parent.continuationRadius
+        result.verticalInset = verticalInset ?? parent.verticalInset
+        result.planned = inheritPatch(planned, from: parent.planned)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.MonthStyle.Card: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.fill = fill ?? parent.fill
+        result.border = border ?? parent.border
+        result.borderWidth = borderWidth ?? parent.borderWidth
+        result.foreground = foreground ?? parent.foreground
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.RegionBand.Planned: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.fillOpacity = fillOpacity ?? parent.fillOpacity
+        result.hatchOpacity = hatchOpacity ?? parent.hatchOpacity
+        result.hatchSpacing = hatchSpacing ?? parent.hatchSpacing
+        result.hatchLineWidth = hatchLineWidth ?? parent.hatchLineWidth
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle.Overview: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.columns = columns ?? parent.columns
+        result.spacing = spacing ?? parent.spacing
+        result.padding = padding ?? parent.padding
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.dayHeight = dayHeight ?? parent.dayHeight
+        result.dayFontSize = dayFontSize ?? parent.dayFontSize
+        result.titleFontSize = titleFontSize ?? parent.titleFontSize
+        result.sectionSpacing = sectionSpacing ?? parent.sectionSpacing
+        result.borderWidth = borderWidth ?? parent.borderWidth
+        result.currentBorderWidth = currentBorderWidth ?? parent.currentBorderWidth
+        result.unavailableForeground = unavailableForeground ?? parent.unavailableForeground
+        result.usesSpatialMotion = usesSpatialMotion ?? parent.usesSpatialMotion
+        result.duration = duration ?? parent.duration
+        result.zoomDuration = zoomDuration ?? parent.zoomDuration
+        result.zoomBackground = zoomBackground ?? parent.zoomBackground
+        result.shakeDistance = shakeDistance ?? parent.shakeDistance
+        result.regionBand = inheritPatch(regionBand, from: parent.regionBand)
+        return result
     }
 }

@@ -42,6 +42,17 @@ public enum WhereThemeSurface: Codable, Hashable, Sendable {
     }
 }
 
+extension WhereThemeSurface: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        switch self {
+            case .reflective: .reflective
+            case let .matte(patch):
+                if case let .matte(inherited) = parent { .matte(patch.inheriting(inherited)) }
+                else { .matte(patch) }
+        }
+    }
+}
+
 public struct WhereThemeMatteSurface: Codable, Hashable, Sendable {
     public var fill: Fill?
     public var outline: Outline?
@@ -133,5 +144,44 @@ public struct WhereThemeMatteSurface: Codable, Hashable, Sendable {
             result.pressedTintOpacity = value
         }
         return result
+    }
+}
+
+extension WhereThemeMatteSurface: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        var result = self
+        result.fill = inheritPatch(fill, from: parent?.fill)
+        result.outline = inheritPatch(outline, from: parent?.outline)
+        result.shadow = inheritPatch(shadow, from: parent?.shadow)
+        result.pressedTintOpacity = pressedTintOpacity ?? parent?.pressedTintOpacity
+        return result
+    }
+}
+
+extension WhereThemeMatteSurface.Fill: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        .init(
+            base: base ?? parent?.base,
+            tintMix: tintMix ?? parent?.tintMix,
+        )
+    }
+}
+
+extension WhereThemeMatteSurface.Outline: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        .init(
+            opacity: opacity ?? parent?.opacity,
+            width: width ?? parent?.width,
+        )
+    }
+}
+
+extension WhereThemeMatteSurface.Shadow: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        .init(
+            color: color ?? parent?.color,
+            radius: radius ?? parent?.radius,
+            offsetY: offsetY ?? parent?.offsetY,
+        )
     }
 }

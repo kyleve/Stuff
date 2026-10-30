@@ -1,0 +1,5260 @@
+{
+  "appearance": {
+    "appIcon": {
+      "backgroundedCellOpacity": {
+        "constant": {
+          "_0": 0.5
+        }
+      },
+      "cellLabelSpacing": {
+        "constant": {
+          "_0": 6
+        }
+      },
+      "cellSpacing": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "columnSpacing": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "gridMax": {
+        "constant": {
+          "_0": 180
+        }
+      },
+      "gridPadding": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "gridSpacing": {
+        "constant": {
+          "_0": 20
+        }
+      },
+      "panel": {
+        "background": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "background"
+              }
+            }
+          }
+        },
+        "bottomPadding": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 28
+          }
+        },
+        "grabberOpacity": {
+          "constant": {
+            "_0": 0.5
+          }
+        },
+        "grabberSize": {
+          "constant": {
+            "_0": {
+              "height": 5,
+              "width": 40
+            }
+          }
+        },
+        "grabberTopPadding": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "horizontalPadding": {
+          "constant": {
+            "_0": 20
+          }
+        },
+        "shadowColor": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "black"
+                  }
+                },
+                "_1": 0.18
+              }
+            }
+          }
+        },
+        "shadowOffsetY": {
+          "constant": {
+            "_0": -4
+          }
+        },
+        "shadowRadius": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "textSpacing": {
+          "constant": {
+            "_0": 4
+          }
+        }
+      },
+      "previewMax": {
+        "constant": {
+          "_0": 280
+        }
+      },
+      "scrim": {
+        "constant": {
+          "_0": {
+            "opacity": {
+              "_0": {
+                "semantic": {
+                  "_0": "black"
+                }
+              },
+              "_1": 0.25
+            }
+          }
+        }
+      }
+    },
+    "calendar": {
+      "day": {
+        "badge": {
+          "iconSize": {
+            "constant": {
+              "_0": 8
+            }
+          },
+          "iconSpacing": {
+            "constant": {
+              "_0": 2
+            }
+          },
+          "offset": {
+            "constant": {
+              "_0": {
+                "height": -2,
+                "width": 3
+              }
+            }
+          },
+          "padding": {
+            "constant": {
+              "_0": 2
+            }
+          }
+        },
+        "contentSpacing": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "dotOverlap": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "dotSize": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "dotStrokeWidth": {
+          "constant": {
+            "_0": 1.5
+          }
+        },
+        "minHeight": {
+          "constant": {
+            "_0": 44
+          }
+        },
+        "numberDotSpacing": {
+          "constant": {
+            "_0": 0
+          }
+        },
+        "numberFontSize": {
+          "constant": {
+            "_0": 17
+          }
+        },
+        "numberSize": {
+          "constant": {
+            "_0": 26
+          }
+        },
+        "todayMarker": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "accent"
+              }
+            }
+          }
+        },
+        "todayNumberColor": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 1,
+                "green": 1,
+                "red": 1
+              }
+            }
+          }
+        },
+        "unresolvedMarker": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "red"
+                  }
+                },
+                "_1": 0.15
+              }
+            }
+          }
+        },
+        "unresolvedNumberColor": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "red"
+              }
+            }
+          }
+        }
+      },
+      "dotSize": {
+        "constant": {
+          "_0": 6
+        }
+      },
+      "month": {
+        "cornerRadius": {
+          "constant": {
+            "_0": 28
+          }
+        },
+        "current": {
+          "border": {
+            "constant": {
+              "_0": {
+                "opacity": {
+                  "_0": {
+                    "semantic": {
+                      "_0": "accent"
+                    }
+                  },
+                  "_1": 0.7
+                }
+              }
+            }
+          },
+          "borderWidth": {
+            "constant": {
+              "_0": 3
+            }
+          },
+          "fill": {
+            "constant": {
+              "_0": {
+                "rgba": {
+                  "alpha": 0,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          },
+          "foreground": {
+            "constant": {
+              "_0": {
+                "mix": {
+                  "_0": {
+                    "semantic": {
+                      "_0": "primary"
+                    }
+                  },
+                  "_1": {
+                    "semantic": {
+                      "_0": "accent"
+                    }
+                  },
+                  "fraction": 0.25
+                }
+              }
+            }
+          }
+        },
+        "footerDividerSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "footerRowSpacing": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "footerSpacing": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "gridSpacing": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "plain": {
+          "border": {
+            "constant": {
+              "_0": {
+                "opacity": {
+                  "_0": {
+                    "semantic": {
+                      "_0": "primary"
+                    }
+                  },
+                  "_1": 0.12
+                }
+              }
+            }
+          },
+          "borderWidth": {
+            "constant": {
+              "_0": 2
+            }
+          },
+          "fill": {
+            "constant": {
+              "_0": {
+                "rgba": {
+                  "alpha": 0,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          },
+          "foreground": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "primary"
+                }
+              }
+            }
+          }
+        },
+        "sectionSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "stacksFooter": {
+          "constant": {
+            "_0": false
+          }
+        },
+        "unfocusedRowOpacity": {
+          "constant": {
+            "_0": 0.55
+          }
+        },
+        "weekdayFontSize": {
+          "constant": {
+            "_0": 11
+          }
+        }
+      },
+      "monthSpacing": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "overview": {
+        "borderWidth": {
+          "constant": {
+            "_0": 0.5
+          }
+        },
+        "columns": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "currentBorderWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "dayFontSize": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "dayHeight": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "duration": {
+          "constant": {
+            "_0": 0.25
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "regionBand": {
+          "continuationRadius": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "cornerRadius": {
+            "constant": {
+              "_0": 3
+            }
+          },
+          "opacity": {
+            "modes": {
+              "_0": {
+                "dark": 0.55,
+                "light": 0.4
+              }
+            }
+          },
+          "planned": {
+            "fillOpacity": {
+              "modes": {
+                "_0": {
+                  "dark": 0.24,
+                  "light": 0.16
+                }
+              }
+            },
+            "hatchLineWidth": {
+              "constant": {
+                "_0": 1
+              }
+            },
+            "hatchOpacity": {
+              "modes": {
+                "_0": {
+                  "dark": 0.85,
+                  "light": 0.7
+                }
+              }
+            },
+            "hatchSpacing": {
+              "constant": {
+                "_0": 4
+              }
+            }
+          },
+          "verticalInset": {
+            "constant": {
+              "_0": 0
+            }
+          }
+        },
+        "sectionSpacing": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "shakeDistance": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "titleFontSize": {
+          "constant": {
+            "_0": 13
+          }
+        },
+        "unavailableForeground": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "secondary"
+              }
+            }
+          }
+        },
+        "usesSpatialMotion": {
+          "constant": {
+            "_0": true
+          }
+        },
+        "zoomBackground": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "background"
+              }
+            }
+          }
+        },
+        "zoomDuration": {
+          "constant": {
+            "_0": 0.4
+          }
+        }
+      },
+      "regionBand": {
+        "continuationRadius": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "opacity": {
+          "constant": {
+            "_0": 0.16
+          }
+        },
+        "planned": {
+          "fillOpacity": {
+            "constant": {
+              "_0": 0.07
+            }
+          },
+          "hatchLineWidth": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "hatchOpacity": {
+            "constant": {
+              "_0": 0.32
+            }
+          },
+          "hatchSpacing": {
+            "constant": {
+              "_0": 6
+            }
+          }
+        },
+        "verticalInset": {
+          "constant": {
+            "_0": 4
+          }
+        }
+      }
+    },
+    "card": {
+      "compact": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "contentTint": {
+          "constant": {
+            "_0": {
+              "color": {
+                "constant": {
+                  "_0": {
+                    "rgba": {
+                      "alpha": 0,
+                      "blue": 0,
+                      "green": 0,
+                      "red": 0
+                    }
+                  }
+                }
+              },
+              "fraction": 0
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 22
+          }
+        },
+        "dayUnitTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "default": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "medium": {}
+              }
+            }
+          }
+        },
+        "entryStamp": {
+          "arc": {
+            "clear": {}
+          },
+          "content": {
+            "artworkExtent": {
+              "constant": {
+                "_0": {
+                  "height": 0.28,
+                  "width": 0.42
+                }
+              }
+            },
+            "opacity": {
+              "constant": {
+                "_0": 0.85
+              }
+            },
+            "spacingFraction": {
+              "constant": {
+                "_0": 0.02
+              }
+            },
+            "symbolFont": {
+              "design": {
+                "constant": {
+                  "_0": "standard"
+                }
+              },
+              "sizeFraction": {
+                "constant": {
+                  "_0": 0.26
+                }
+              },
+              "weight": {
+                "constant": {
+                  "_0": "regular"
+                }
+              }
+            },
+            "yearFont": {
+              "design": {
+                "constant": {
+                  "_0": "serif"
+                }
+              },
+              "sizeFraction": {
+                "constant": {
+                  "_0": 0.15
+                }
+              },
+              "weight": {
+                "constant": {
+                  "_0": "bold"
+                }
+              }
+            }
+          },
+          "innerRing": {
+            "dash": {
+              "lengthFraction": {
+                "constant": {
+                  "_0": 0.05
+                }
+              },
+              "spacingFraction": {
+                "constant": {
+                  "_0": 0.035
+                }
+              }
+            },
+            "insetFraction": {
+              "constant": {
+                "_0": 0.13
+              }
+            },
+            "lineWidthFraction": {
+              "constant": {
+                "_0": 0.012
+              }
+            },
+            "opacity": {
+              "constant": {
+                "_0": 0.45
+              }
+            }
+          },
+          "outerRing": {
+            "lineWidthFraction": {
+              "constant": {
+                "_0": 0.035
+              }
+            },
+            "opacity": {
+              "constant": {
+                "_0": 0.7
+              }
+            }
+          },
+          "rotationDegrees": {
+            "constant": {
+              "_0": -8
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": 52
+            }
+          }
+        },
+        "glow": {
+          "offsetY": {
+            "constant": {
+              "_0": 0
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.55
+            }
+          },
+          "radius": {
+            "constant": {
+              "_0": 6
+            }
+          }
+        },
+        "heroNumberTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "title"
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "bold": {}
+              }
+            }
+          }
+        },
+        "lift": {
+          "offsetY": {
+            "constant": {
+              "_0": 9
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.4
+            }
+          },
+          "radius": {
+            "constant": {
+              "_0": 17
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "paper": {
+          "clear": {}
+        },
+        "progressBarHeight": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "regionNameTracking": {
+          "constant": {
+            "_0": 0
+          }
+        },
+        "regionNameTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "serif": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "semibold": {}
+              }
+            }
+          }
+        },
+        "regionShape": {
+          "value": {
+            "_0": {
+              "securityBorder": {
+                "glyphSize": {
+                  "constant": {
+                    "_0": 8
+                  }
+                },
+                "inset": {
+                  "constant": {
+                    "_0": 9
+                  }
+                },
+                "opacity": {
+                  "constant": {
+                    "_0": 0.22
+                  }
+                },
+                "spacing": {
+                  "constant": {
+                    "_0": 11
+                  }
+                }
+              },
+              "stamp": {
+                "center": {
+                  "constant": {
+                    "_0": {
+                      "x": 0.5,
+                      "y": 0.5
+                    }
+                  }
+                },
+                "extent": {
+                  "constant": {
+                    "_0": {
+                      "height": 0.78,
+                      "width": 0.78
+                    }
+                  }
+                },
+                "fillOpacity": {
+                  "constant": {
+                    "_0": 0.78
+                  }
+                },
+                "scale": {
+                  "constant": {
+                    "_0": 0.88
+                  }
+                },
+                "stroke": {
+                  "clear": {}
+                }
+              },
+              "watermark": {
+                "center": {
+                  "constant": {
+                    "_0": {
+                      "x": 0.7,
+                      "y": 0.57
+                    }
+                  }
+                },
+                "extent": {
+                  "constant": {
+                    "_0": {
+                      "height": 0.78,
+                      "width": 0.72
+                    }
+                  }
+                },
+                "fillOpacity": {
+                  "constant": {
+                    "_0": 0.13
+                  }
+                },
+                "scale": {
+                  "constant": {
+                    "_0": 0.88
+                  }
+                },
+                "stroke": {
+                  "value": {
+                    "_0": {
+                      "opacity": {
+                        "constant": {
+                          "_0": 0.28
+                        }
+                      },
+                      "width": {
+                        "constant": {
+                          "_0": 1.5
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rosette": {
+          "lineWidth": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "primaryRingSpacing": {
+            "constant": {
+              "_0": 13
+            }
+          },
+          "secondaryRingSpacing": {
+            "constant": {
+              "_0": 11
+            }
+          },
+          "wobble": {
+            "constant": {
+              "_0": 2
+            }
+          }
+        },
+        "sheen": {
+          "intensity": {
+            "constant": {
+              "_0": 0.5
+            }
+          },
+          "staticGlintIntensity": {
+            "constant": {
+              "_0": 0.5
+            }
+          },
+          "staticPose": {
+            "pitch": {
+              "constant": {
+                "_0": 0
+              }
+            },
+            "roll": {
+              "constant": {
+                "_0": 0
+              }
+            }
+          }
+        },
+        "watermarkFontSize": {
+          "constant": {
+            "_0": 96
+          }
+        },
+        "watermarkOffset": {
+          "constant": {
+            "_0": {
+              "height": 10,
+              "width": 12
+            }
+          }
+        }
+      },
+      "constellation": {
+        "coreDiameter": {
+          "constant": {
+            "_0": 2.5
+          }
+        },
+        "coreOpacity": {
+          "constant": {
+            "_0": 0.92
+          }
+        },
+        "coreWhiteMix": {
+          "constant": {
+            "_0": 0.72
+          }
+        },
+        "haloOpacity": {
+          "constant": {
+            "_0": 0.32
+          }
+        },
+        "haloRadius": {
+          "constant": {
+            "_0": 6
+          }
+        }
+      },
+      "dayCount": {
+        "animation": {
+          "constant": {
+            "_0": {
+              "easeOut": {
+                "duration": 0.3
+              }
+            }
+          }
+        },
+        "morph": {
+          "constant": {
+            "_0": {
+              "rollingDigits": {}
+            }
+          }
+        }
+      },
+      "elsewherePaper": {
+        "contentTint": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "color": {
+                  "constant": {
+                    "_0": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1,
+                        "green": 1,
+                        "red": 1
+                      }
+                    }
+                  }
+                },
+                "fraction": 0.4
+              },
+              "light": {
+                "color": {
+                  "constant": {
+                    "_0": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0,
+                        "green": 0,
+                        "red": 0
+                      }
+                    }
+                  }
+                },
+                "fraction": 0.4
+              }
+            }
+          }
+        }
+      },
+      "estimateSticker": {
+        "contentOpacity": {
+          "constant": {
+            "_0": 0.92
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "fillOpacity": {
+          "constant": {
+            "_0": 0.08
+          }
+        },
+        "horizontalPadding": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "innerDash": {
+          "constant": {
+            "_0": [
+              3,
+              2
+            ]
+          }
+        },
+        "innerInset": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "innerOutlineWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "labelTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "default": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "caption"
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "semibold": {}
+              }
+            }
+          }
+        },
+        "outlineOpacity": {
+          "constant": {
+            "_0": 0.58
+          }
+        },
+        "outlineWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "rotationDegrees": {
+          "constant": {
+            "_0": -2
+          }
+        },
+        "scale": {
+          "constant": {
+            "_0": 0.8
+          }
+        },
+        "valueTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "default": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "headline"
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "semibold": {}
+              }
+            }
+          }
+        },
+        "verticalPadding": {
+          "constant": {
+            "_0": 7
+          }
+        }
+      },
+      "estimatedProgressOpacity": {
+        "constant": {
+          "_0": 0.3
+        }
+      },
+      "glassTintOpacity": {
+        "constant": {
+          "_0": 0.18
+        }
+      },
+      "nameOpacity": {
+        "constant": {
+          "_0": 0.8
+        }
+      },
+      "regular": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "contentTint": {
+          "constant": {
+            "_0": {
+              "color": {
+                "constant": {
+                  "_0": {
+                    "rgba": {
+                      "alpha": 0,
+                      "blue": 0,
+                      "green": 0,
+                      "red": 0
+                    }
+                  }
+                }
+              },
+              "fraction": 0
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 28
+          }
+        },
+        "dayUnitTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "default": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "medium": {}
+              }
+            }
+          }
+        },
+        "entryStamp": {
+          "arc": {
+            "value": {
+              "_0": {
+                "font": {
+                  "design": {
+                    "constant": {
+                      "_0": "serif"
+                    }
+                  },
+                  "sizeFraction": {
+                    "constant": {
+                      "_0": 0.1
+                    }
+                  },
+                  "weight": {
+                    "constant": {
+                      "_0": "semibold"
+                    }
+                  }
+                },
+                "maximumSweepDegrees": {
+                  "constant": {
+                    "_0": 250
+                  }
+                },
+                "opacity": {
+                  "constant": {
+                    "_0": 0.7
+                  }
+                },
+                "radiusFraction": {
+                  "constant": {
+                    "_0": 0.37
+                  }
+                },
+                "sweepDegreesPerCharacter": {
+                  "constant": {
+                    "_0": 17
+                  }
+                }
+              }
+            }
+          },
+          "content": {
+            "artworkExtent": {
+              "constant": {
+                "_0": {
+                  "height": 0.28,
+                  "width": 0.42
+                }
+              }
+            },
+            "opacity": {
+              "constant": {
+                "_0": 0.85
+              }
+            },
+            "spacingFraction": {
+              "constant": {
+                "_0": 0.02
+              }
+            },
+            "symbolFont": {
+              "design": {
+                "constant": {
+                  "_0": "standard"
+                }
+              },
+              "sizeFraction": {
+                "constant": {
+                  "_0": 0.26
+                }
+              },
+              "weight": {
+                "constant": {
+                  "_0": "regular"
+                }
+              }
+            },
+            "yearFont": {
+              "design": {
+                "constant": {
+                  "_0": "serif"
+                }
+              },
+              "sizeFraction": {
+                "constant": {
+                  "_0": 0.15
+                }
+              },
+              "weight": {
+                "constant": {
+                  "_0": "bold"
+                }
+              }
+            }
+          },
+          "innerRing": {
+            "dash": {
+              "lengthFraction": {
+                "constant": {
+                  "_0": 0.05
+                }
+              },
+              "spacingFraction": {
+                "constant": {
+                  "_0": 0.035
+                }
+              }
+            },
+            "insetFraction": {
+              "constant": {
+                "_0": 0.13
+              }
+            },
+            "lineWidthFraction": {
+              "constant": {
+                "_0": 0.012
+              }
+            },
+            "opacity": {
+              "constant": {
+                "_0": 0.45
+              }
+            }
+          },
+          "outerRing": {
+            "lineWidthFraction": {
+              "constant": {
+                "_0": 0.035
+              }
+            },
+            "opacity": {
+              "constant": {
+                "_0": 0.7
+              }
+            }
+          },
+          "rotationDegrees": {
+            "constant": {
+              "_0": -8
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": 88
+            }
+          }
+        },
+        "glow": {
+          "offsetY": {
+            "constant": {
+              "_0": 0
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.75
+            }
+          },
+          "radius": {
+            "constant": {
+              "_0": 12
+            }
+          }
+        },
+        "heroNumberTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "fixed": {
+                  "_0": 40
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "bold": {}
+              }
+            }
+          }
+        },
+        "lift": {
+          "offsetY": {
+            "constant": {
+              "_0": 18
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.6
+            }
+          },
+          "radius": {
+            "constant": {
+              "_0": 34
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 22
+          }
+        },
+        "paper": {
+          "clear": {}
+        },
+        "progressBarHeight": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "regionNameTracking": {
+          "constant": {
+            "_0": -0.5
+          }
+        },
+        "regionNameTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "serif": {}
+              }
+            }
+          },
+          "size": {
+            "constant": {
+              "_0": {
+                "fixed": {
+                  "_0": 38
+                }
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "semibold": {}
+              }
+            }
+          }
+        },
+        "regionShape": {
+          "value": {
+            "_0": {
+              "securityBorder": {
+                "glyphSize": {
+                  "constant": {
+                    "_0": 8
+                  }
+                },
+                "inset": {
+                  "constant": {
+                    "_0": 9
+                  }
+                },
+                "opacity": {
+                  "constant": {
+                    "_0": 0.22
+                  }
+                },
+                "spacing": {
+                  "constant": {
+                    "_0": 11
+                  }
+                }
+              },
+              "stamp": {
+                "center": {
+                  "constant": {
+                    "_0": {
+                      "x": 0.5,
+                      "y": 0.5
+                    }
+                  }
+                },
+                "extent": {
+                  "constant": {
+                    "_0": {
+                      "height": 0.78,
+                      "width": 0.78
+                    }
+                  }
+                },
+                "fillOpacity": {
+                  "constant": {
+                    "_0": 0.78
+                  }
+                },
+                "scale": {
+                  "constant": {
+                    "_0": 0.88
+                  }
+                },
+                "stroke": {
+                  "clear": {}
+                }
+              },
+              "watermark": {
+                "center": {
+                  "constant": {
+                    "_0": {
+                      "x": 0.7,
+                      "y": 0.57
+                    }
+                  }
+                },
+                "extent": {
+                  "constant": {
+                    "_0": {
+                      "height": 0.78,
+                      "width": 0.72
+                    }
+                  }
+                },
+                "fillOpacity": {
+                  "constant": {
+                    "_0": 0.13
+                  }
+                },
+                "scale": {
+                  "constant": {
+                    "_0": 0.88
+                  }
+                },
+                "stroke": {
+                  "value": {
+                    "_0": {
+                      "opacity": {
+                        "constant": {
+                          "_0": 0.28
+                        }
+                      },
+                      "width": {
+                        "constant": {
+                          "_0": 1.5
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rosette": {
+          "lineWidth": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "primaryRingSpacing": {
+            "constant": {
+              "_0": 13.5
+            }
+          },
+          "secondaryRingSpacing": {
+            "constant": {
+              "_0": 9.5
+            }
+          },
+          "wobble": {
+            "constant": {
+              "_0": 2
+            }
+          }
+        },
+        "sheen": {
+          "intensity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "staticGlintIntensity": {
+            "constant": {
+              "_0": 0.25
+            }
+          },
+          "staticPose": {
+            "pitch": {
+              "constant": {
+                "_0": -1
+              }
+            },
+            "roll": {
+              "constant": {
+                "_0": 0
+              }
+            }
+          }
+        },
+        "watermarkFontSize": {
+          "constant": {
+            "_0": 150
+          }
+        },
+        "watermarkOffset": {
+          "constant": {
+            "_0": {
+              "height": 12,
+              "width": 20
+            }
+          }
+        }
+      },
+      "rosetteFill": {
+        "primary": {
+          "constant": {
+            "_0": 0.12
+          }
+        },
+        "secondary": {
+          "constant": {
+            "_0": 0.08
+          }
+        }
+      },
+      "securityPrint": {
+        "backgroundBlendMode": {
+          "modes": {
+            "_0": {
+              "dark": "luminosity",
+              "light": "normal"
+            }
+          }
+        },
+        "whiteMix": {
+          "modes": {
+            "_0": {
+              "dark": 0.65,
+              "light": 0
+            }
+          }
+        }
+      },
+      "watermarkOpacity": {
+        "constant": {
+          "_0": 0.08
+        }
+      }
+    },
+    "developerOverlay": {
+      "edgeInset": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "floatingWindow": {
+        "heightFraction": {
+          "constant": {
+            "_0": 0.62
+          }
+        },
+        "maxContentInsetFraction": {
+          "constant": {
+            "_0": 0.8
+          }
+        },
+        "maxHeight": {
+          "constant": {
+            "_0": 620
+          }
+        },
+        "maxWidth": {
+          "constant": {
+            "_0": 420
+          }
+        },
+        "minSize": {
+          "constant": {
+            "_0": {
+              "height": 320,
+              "width": 260
+            }
+          }
+        }
+      },
+      "launcher": {
+        "diameter": {
+          "constant": {
+            "_0": 52
+          }
+        },
+        "glyphRatio": {
+          "constant": {
+            "_0": 0.4
+          }
+        },
+        "shadowColor": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "black"
+                  }
+                },
+                "_1": 0.15
+              }
+            }
+          }
+        },
+        "shadowOffsetY": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "shadowRadius": {
+          "constant": {
+            "_0": 3
+          }
+        }
+      },
+      "menu": {
+        "cornerRadius": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "horizontalPadding": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "iconWidth": {
+          "constant": {
+            "_0": 24
+          }
+        },
+        "launcherSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "maxWidth": {
+          "constant": {
+            "_0": 310
+          }
+        },
+        "minRowHeight": {
+          "constant": {
+            "_0": 44
+          }
+        },
+        "motion": {
+          "animation": {
+            "constant": {
+              "_0": {
+                "spring": {
+                  "bounce": 0.2,
+                  "duration": 0.42
+                }
+              }
+            }
+          },
+          "scale": {
+            "constant": {
+              "_0": 0.86
+            }
+          },
+          "stagger": {
+            "constant": {
+              "_0": 0.04
+            }
+          },
+          "usesSpatialMotion": {
+            "constant": {
+              "_0": true
+            }
+          }
+        },
+        "rowSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "subtitleSpacing": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "verticalPadding": {
+          "constant": {
+            "_0": 10
+          }
+        }
+      },
+      "panel": {
+        "controlHorizontalPadding": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "controlVerticalPadding": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 22
+          }
+        },
+        "dragHandleMinHeight": {
+          "constant": {
+            "_0": 28
+          }
+        },
+        "dragHandleSize": {
+          "constant": {
+            "_0": {
+              "height": 5,
+              "width": 40
+            }
+          }
+        },
+        "fullScreenInset": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "resizeGripClearance": {
+          "constant": {
+            "_0": 40
+          }
+        },
+        "resizeGripSize": {
+          "constant": {
+            "_0": 44
+          }
+        },
+        "resizeIconSize": {
+          "constant": {
+            "_0": 13
+          }
+        },
+        "shadowOffsetY": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "shadowOpacity": {
+          "constant": {
+            "_0": 0.3
+          }
+        },
+        "shadowRadius": {
+          "constant": {
+            "_0": 20
+          }
+        }
+      },
+      "presentationAnimation": {
+        "constant": {
+          "_0": {
+            "snappy": {
+              "duration": 0.3,
+              "extraBounce": 0
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "loadingMinHeight": {
+        "constant": {
+          "_0": 200
+        }
+      },
+      "pdfPreviewMinHeight": {
+        "constant": {
+          "_0": 420
+        }
+      },
+      "previewCornerRadius": {
+        "constant": {
+          "_0": 22
+        }
+      }
+    },
+    "featureDiscovery": {
+      "appIcon": {
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 8
+          }
+        }
+      },
+      "backgroundPattern": {
+        "centerXRatio": {
+          "constant": {
+            "_0": 0.18
+          }
+        },
+        "centerYRatio": {
+          "constant": {
+            "_0": 0.46
+          }
+        },
+        "contourSpacing": {
+          "constant": {
+            "_0": 30
+          }
+        },
+        "horizontalScale": {
+          "constant": {
+            "_0": 1.22
+          }
+        },
+        "lineWidth": {
+          "constant": {
+            "_0": 0.9
+          }
+        },
+        "opacity": {
+          "constant": {
+            "_0": 0.12
+          }
+        },
+        "phaseStep": {
+          "constant": {
+            "_0": 0.31
+          }
+        },
+        "primaryDistortion": {
+          "constant": {
+            "_0": 13
+          }
+        },
+        "secondaryDistortion": {
+          "constant": {
+            "_0": 6
+          }
+        }
+      },
+      "estimatedTime": {
+        "calculationSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "legendDotSize": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "segmentCornerRadius": {
+          "constant": {
+            "_0": 5
+          }
+        },
+        "timelineHeight": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "timelineSpacing": {
+          "constant": {
+            "_0": 3
+          }
+        }
+      },
+      "evidenceArchive": {
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 8
+          }
+        }
+      },
+      "marketingHeader": {
+        "badgeSize": {
+          "constant": {
+            "_0": 76
+          }
+        },
+        "badgeTintOpacity": {
+          "constant": {
+            "_0": 0.14
+          }
+        },
+        "contentMaxWidth": {
+          "constant": {
+            "_0": 560
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "symbolPointSize": {
+          "constant": {
+            "_0": 34
+          }
+        },
+        "verticalPadding": {
+          "constant": {
+            "_0": 24
+          }
+        }
+      },
+      "marketingPanel": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 20
+          }
+        },
+        "maxWidth": {
+          "constant": {
+            "_0": 680
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "rowVerticalInset": {
+          "constant": {
+            "_0": 6
+          }
+        }
+      },
+      "regionStyle": {
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 6
+          }
+        }
+      },
+      "shareSheet": {
+        "sourceLayout": {
+          "constant": {
+            "_0": {
+              "stacked": {}
+            }
+          }
+        },
+        "sourcesLayout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "sourcesSpacing": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "titleAlignment": {
+          "constant": {
+            "_0": "center"
+          }
+        }
+      },
+      "siri": {
+        "accent": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.42,
+                  "green": 0.42,
+                  "red": 0.42
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.28,
+                  "green": 0.28,
+                  "red": 0.28
+                }
+              }
+            }
+          }
+        },
+        "bubble": {
+          "cornerRadius": {
+            "constant": {
+              "_0": 16
+            }
+          },
+          "horizontalPadding": {
+            "constant": {
+              "_0": 12
+            }
+          },
+          "indent": {
+            "constant": {
+              "_0": 34
+            }
+          },
+          "verticalPadding": {
+            "constant": {
+              "_0": 10
+            }
+          }
+        },
+        "card": {
+          "cornerRadius": {
+            "constant": {
+              "_0": 20
+            }
+          },
+          "maxWidth": {
+            "constant": {
+              "_0": 680
+            }
+          },
+          "padding": {
+            "constant": {
+              "_0": 16
+            }
+          },
+          "rowVerticalInset": {
+            "constant": {
+              "_0": 6
+            }
+          },
+          "spacing": {
+            "constant": {
+              "_0": 12
+            }
+          }
+        },
+        "speakerIcon": {
+          "containerSize": {
+            "constant": {
+              "_0": 28
+            }
+          },
+          "symbolPointSize": {
+            "constant": {
+              "_0": 12
+            }
+          }
+        }
+      },
+      "widgets": {
+        "device": {
+          "contentMaxWidth": {
+            "constant": {
+              "_0": 560
+            }
+          },
+          "cornerRadius": {
+            "constant": {
+              "_0": 28
+            }
+          },
+          "padding": {
+            "constant": {
+              "_0": 14
+            }
+          },
+          "regularContentWidth": {
+            "constant": {
+              "_0": 320
+            }
+          },
+          "spacing": {
+            "constant": {
+              "_0": 12
+            }
+          }
+        },
+        "frame": {
+          "cornerRadius": {
+            "constant": {
+              "_0": 18
+            }
+          },
+          "padding": {
+            "constant": {
+              "_0": 12
+            }
+          }
+        },
+        "lockWidgetHeight": {
+          "constant": {
+            "_0": 76
+          }
+        },
+        "wallpapers": {
+          "home": {
+            "bottom": {
+              "constant": {
+                "_0": {
+                  "semantic": {
+                    "_0": "cyan"
+                  }
+                }
+              }
+            },
+            "top": {
+              "constant": {
+                "_0": {
+                  "semantic": {
+                    "_0": "indigo"
+                  }
+                }
+              }
+            }
+          },
+          "lock": {
+            "bottom": {
+              "constant": {
+                "_0": {
+                  "semantic": {
+                    "_0": "blue"
+                  }
+                }
+              }
+            },
+            "top": {
+              "constant": {
+                "_0": {
+                  "semantic": {
+                    "_0": "purple"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flightReviewPoint": {
+      "detailFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "caption"
+              }
+            }
+          }
+        }
+      },
+      "mapCornerRadius": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "minimumActionHeight": {
+        "constant": {
+          "_0": 44
+        }
+      },
+      "titleFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "headline"
+              }
+            }
+          }
+        }
+      }
+    },
+    "flightStatus": {
+      "background": {
+        "constant": {
+          "_0": {
+            "semantic": {
+              "_0": "secondaryGroupedBackground"
+            }
+          }
+        }
+      },
+      "bodyFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "subheadline"
+              }
+            }
+          }
+        }
+      },
+      "cornerRadius": {
+        "constant": {
+          "_0": 14
+        }
+      },
+      "padding": {
+        "constant": {
+          "_0": 14
+        }
+      },
+      "spacing": {
+        "constant": {
+          "_0": 8
+        }
+      },
+      "titleFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "headline"
+              }
+            }
+          }
+        }
+      }
+    },
+    "launch": {
+      "captionAnimation": {
+        "value": {
+          "_0": {
+            "constant": {
+              "_0": {
+                "easeOut": {
+                  "duration": 0.3
+                }
+              }
+            }
+          }
+        }
+      },
+      "reveal": {
+        "constant": {
+          "_0": {
+            "zoom": {}
+          }
+        }
+      },
+      "revealAnimation": {
+        "constant": {
+          "_0": {
+            "easeIn": {
+              "duration": 0.16
+            }
+          }
+        }
+      }
+    },
+    "locationCardStack": {
+      "overtake": {
+        "bounce": {
+          "constant": {
+            "_0": 0.18
+          }
+        },
+        "duration": {
+          "constant": {
+            "_0": 0.72
+          }
+        },
+        "lateralArc": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "liftScale": {
+          "constant": {
+            "_0": 1.03
+          }
+        },
+        "minimumOpacity": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "rotationDegrees": {
+          "constant": {
+            "_0": 1.5
+          }
+        },
+        "settleScale": {
+          "constant": {
+            "_0": 0.975
+          }
+        },
+        "usesSpatialMotion": {
+          "constant": {
+            "_0": true
+          }
+        }
+      }
+    },
+    "locationForecast": {
+      "controls": {
+        "cornerRadius": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "font": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              }
+            }
+          }
+        },
+        "horizontalPadding": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "layoutSpacing": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "minimumHeight": {
+          "constant": {
+            "_0": 44
+          }
+        },
+        "sectionSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "strokeWidth": {
+          "constant": {
+            "_0": 1
+          }
+        }
+      },
+      "cornerRadius": {
+        "constant": {
+          "_0": 22
+        }
+      },
+      "expansionAnimation": {
+        "constant": {
+          "_0": {
+            "easeInOut": {
+              "duration": 0.2
+            }
+          }
+        }
+      },
+      "header": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "elapsedFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "footnote"
+                }
+              }
+            }
+          }
+        },
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "minimumHeight": {
+          "constant": {
+            "_0": 50
+          }
+        },
+        "textSpacing": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "titleFont": {
+          "constant": {
+            "_0": {
+              "design": "serif",
+              "size": {
+                "semantic": {
+                  "_0": "headline"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ink": {
+        "controlFillOpacity": {
+          "constant": {
+            "_0": 0.06
+          }
+        },
+        "controlStrokeOpacity": {
+          "constant": {
+            "_0": 0.24
+          }
+        },
+        "microprintOpacity": {
+          "constant": {
+            "_0": 0.18
+          }
+        },
+        "progressEstimateFillOpacity": {
+          "constant": {
+            "_0": 0.2
+          }
+        },
+        "progressHatchOpacity": {
+          "constant": {
+            "_0": 0.42
+          }
+        },
+        "progressTrackOpacity": {
+          "constant": {
+            "_0": 0.1
+          }
+        },
+        "rosettePrimaryOpacity": {
+          "constant": {
+            "_0": 0.08
+          }
+        },
+        "rosetteSecondaryOpacity": {
+          "constant": {
+            "_0": 0.045
+          }
+        },
+        "rowFillOpacity": {
+          "constant": {
+            "_0": 0.07
+          }
+        },
+        "rowOutlineOpacity": {
+          "constant": {
+            "_0": 0.24
+          }
+        },
+        "sealOpacity": {
+          "constant": {
+            "_0": 0.72
+          }
+        },
+        "surfaceOutlineOpacity": {
+          "constant": {
+            "_0": 0.22
+          }
+        },
+        "surfaceWashOpacity": {
+          "constant": {
+            "_0": 0.035
+          }
+        }
+      },
+      "padding": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "progress": {
+        "hatchLineWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "hatchSpacing": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "height": {
+          "constant": {
+            "_0": 8
+          }
+        }
+      },
+      "row": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "detailFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "footnote"
+                }
+              }
+            }
+          }
+        },
+        "estimateFont": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "headline"
+                }
+              }
+            }
+          }
+        },
+        "estimateSpacing": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "outlineWidth": {
+          "constant": {
+            "_0": 0.75
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "regionFont": {
+          "constant": {
+            "_0": {
+              "design": "serif",
+              "size": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              }
+            }
+          }
+        }
+      },
+      "rowSpacing": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "summary": {
+        "artwork": {
+          "gap": {
+            "constant": {
+              "_0": 8
+            }
+          },
+          "inset": {
+            "constant": {
+              "_0": 16
+            }
+          },
+          "leadingOpacity": {
+            "constant": {
+              "_0": 0.18
+            }
+          },
+          "silhouette": {
+            "center": {
+              "constant": {
+                "_0": {
+                  "x": 0.5,
+                  "y": 0.5
+                }
+              }
+            },
+            "extent": {
+              "constant": {
+                "_0": {
+                  "height": 0.9,
+                  "width": 0.9
+                }
+              }
+            },
+            "fillOpacity": {
+              "constant": {
+                "_0": 0.11
+              }
+            },
+            "scale": {
+              "constant": {
+                "_0": 1
+              }
+            },
+            "stroke": {
+              "value": {
+                "_0": {
+                  "opacity": {
+                    "constant": {
+                      "_0": 0.22
+                    }
+                  },
+                  "width": {
+                    "constant": {
+                      "_0": 0.7
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "widthFraction": {
+            "constant": {
+              "_0": 0.62
+            }
+          }
+        },
+        "border": {
+          "glyphSize": {
+            "constant": {
+              "_0": 7
+            }
+          },
+          "inset": {
+            "constant": {
+              "_0": 7
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.18
+            }
+          },
+          "spacing": {
+            "constant": {
+              "_0": 12
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 28
+          }
+        },
+        "glassTintOpacity": {
+          "constant": {
+            "_0": 0.06
+          }
+        },
+        "ink": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.78,
+                  "green": 0.78,
+                  "red": 0.78
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.36,
+                  "green": 0.36,
+                  "red": 0.36
+                }
+              }
+            }
+          }
+        },
+        "outlineColor": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "black"
+                  }
+                },
+                "_1": 0.14
+              }
+            }
+          }
+        },
+        "outlineWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 22
+          }
+        },
+        "paper": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.16,
+                  "green": 0.16,
+                  "red": 0.16
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.94,
+                  "green": 0.94,
+                  "red": 0.94
+                }
+              }
+            }
+          }
+        },
+        "rosette": {
+          "lineWidth": {
+            "constant": {
+              "_0": 0.5
+            }
+          },
+          "primaryRingSpacing": {
+            "constant": {
+              "_0": 12
+            }
+          },
+          "secondaryRingSpacing": {
+            "constant": {
+              "_0": 17
+            }
+          },
+          "wobble": {
+            "constant": {
+              "_0": 0.04
+            }
+          }
+        },
+        "rosetteOpacity": {
+          "constant": {
+            "_0": 0.035
+          }
+        },
+        "shadowOffsetY": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "shadowOpacity": {
+          "constant": {
+            "_0": 0.06
+          }
+        },
+        "shadowRadius": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "usesOpaquePaper": {
+          "constant": {
+            "_0": false
+          }
+        }
+      },
+      "surface": {
+        "inset": {
+          "constant": {
+            "_0": 9
+          }
+        },
+        "microprintGlyphSize": {
+          "constant": {
+            "_0": 7
+          }
+        },
+        "microprintSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "outlineWidth": {
+          "constant": {
+            "_0": 1.25
+          }
+        },
+        "primaryRingSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "rosetteLineWidth": {
+          "constant": {
+            "_0": 0.75
+          }
+        },
+        "rosetteWobble": {
+          "constant": {
+            "_0": 5
+          }
+        },
+        "secondaryRingSpacing": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "shadowColor": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "black"
+                  }
+                },
+                "_1": 0.08
+              }
+            }
+          }
+        },
+        "shadowOffsetY": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "shadowRadius": {
+          "constant": {
+            "_0": 10
+          }
+        }
+      }
+    },
+    "locationWelcome": {
+      "accessory": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "copy": {
+          "constant": {
+            "_0": {
+              "full": {}
+            }
+          }
+        },
+        "horizontalPadding": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "minimumActionHeight": {
+          "constant": {
+            "_0": 44
+          }
+        },
+        "symbolSize": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "titleFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              },
+              "weight": "semibold"
+            }
+          }
+        },
+        "verticalPadding": {
+          "constant": {
+            "_0": 8
+          }
+        }
+      },
+      "close": {
+        "glow": {
+          "offsetY": {
+            "constant": {
+              "_0": 0
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.28
+            }
+          },
+          "radius": {
+            "constant": {
+              "_0": 8
+            }
+          }
+        },
+        "lift": {
+          "offsetY": {
+            "constant": {
+              "_0": 3
+            }
+          },
+          "opacity": {
+            "constant": {
+              "_0": 0.22
+            }
+          },
+          "radius": {
+            "constant": {
+              "_0": 5
+            }
+          }
+        },
+        "offset": {
+          "constant": {
+            "_0": {
+              "height": -8,
+              "width": 8
+            }
+          }
+        },
+        "surface": {
+          "constant": {
+            "_0": {
+              "reflective": {}
+            }
+          }
+        },
+        "tintOpacity": {
+          "constant": {
+            "_0": 0.24
+          }
+        }
+      },
+      "contentSpacing": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "cornerRadius": {
+        "constant": {
+          "_0": 30
+        }
+      },
+      "glassTintOpacity": {
+        "constant": {
+          "_0": 0.2
+        }
+      },
+      "glow": {
+        "offsetY": {
+          "constant": {
+            "_0": 0
+          }
+        },
+        "opacity": {
+          "constant": {
+            "_0": 0.16
+          }
+        },
+        "radius": {
+          "constant": {
+            "_0": 22
+          }
+        }
+      },
+      "lift": {
+        "offsetY": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "opacity": {
+          "constant": {
+            "_0": 0.18
+          }
+        },
+        "radius": {
+          "constant": {
+            "_0": 12
+          }
+        }
+      },
+      "maxWidth": {
+        "constant": {
+          "_0": 390
+        }
+      },
+      "motion": {
+        "arrival": {
+          "animation": {
+            "constant": {
+              "_0": {
+                "spring": {
+                  "bounce": 0.28,
+                  "duration": 0.3
+                }
+              }
+            }
+          },
+          "rotationDegrees": {
+            "constant": {
+              "_0": -9
+            }
+          },
+          "scale": {
+            "constant": {
+              "_0": 1.28
+            }
+          },
+          "verticalOffset": {
+            "constant": {
+              "_0": -24
+            }
+          }
+        },
+        "departure": {
+          "animation": {
+            "constant": {
+              "_0": {
+                "easeOut": {
+                  "duration": 0.16
+                }
+              }
+            }
+          },
+          "rotationDegrees": {
+            "constant": {
+              "_0": 3
+            }
+          },
+          "scale": {
+            "constant": {
+              "_0": 1.045
+            }
+          },
+          "verticalOffset": {
+            "constant": {
+              "_0": -10
+            }
+          }
+        },
+        "scrimAnimation": {
+          "constant": {
+            "_0": {
+              "easeOut": {
+                "duration": 0.16
+              }
+            }
+          }
+        },
+        "usesSpatialMotion": {
+          "constant": {
+            "_0": true
+          }
+        }
+      },
+      "padding": {
+        "constant": {
+          "_0": 24
+        }
+      },
+      "paperOpacity": {
+        "constant": {
+          "_0": 0.92
+        }
+      },
+      "scrimOpacity": {
+        "constant": {
+          "_0": 0.28
+        }
+      }
+    },
+    "locationsBackground": {
+      "artwork": {
+        "center": {
+          "constant": {
+            "_0": {
+              "x": 0.5,
+              "y": 0.5
+            }
+          }
+        },
+        "extent": {
+          "constant": {
+            "_0": {
+              "height": 0.545,
+              "width": 0.545
+            }
+          }
+        },
+        "fillOpacity": {
+          "constant": {
+            "_0": 0
+          }
+        },
+        "scale": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "stroke": {
+          "value": {
+            "_0": {
+              "opacity": {
+                "constant": {
+                  "_0": 0.043
+                }
+              },
+              "width": {
+                "constant": {
+                  "_0": 1.1
+                }
+              }
+            }
+          }
+        }
+      },
+      "ink": {
+        "constant": {
+          "_0": {
+            "semantic": {
+              "_0": "primary"
+            }
+          }
+        }
+      },
+      "maximumAspectScale": {
+        "constant": {
+          "_0": 1.25
+        }
+      },
+      "preferredCellSize": {
+        "constant": {
+          "_0": 54
+        }
+      },
+      "rosette": {
+        "lineWidth": {
+          "constant": {
+            "_0": 0.5
+          }
+        },
+        "primaryRingSpacing": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "secondaryRingSpacing": {
+          "constant": {
+            "_0": 25
+          }
+        },
+        "wobble": {
+          "constant": {
+            "_0": 0.04
+          }
+        }
+      },
+      "rosetteOpacity": {
+        "constant": {
+          "_0": 0.015
+        }
+      },
+      "showsInk": {
+        "constant": {
+          "_0": true
+        }
+      }
+    },
+    "motion": {
+      "captionFade": {
+        "constant": {
+          "_0": {
+            "easeOut": {
+              "duration": 0.3
+            }
+          }
+        }
+      },
+      "reducedReveal": {
+        "constant": {
+          "_0": {
+            "easeInOut": {
+              "duration": 0.2
+            }
+          }
+        }
+      },
+      "reveal": {
+        "constant": {
+          "_0": {
+            "easeIn": {
+              "duration": 0.16
+            }
+          }
+        }
+      },
+      "staggeredReveal": {
+        "animation": {
+          "constant": {
+            "_0": {
+              "easeOut": {
+                "duration": 0.35
+              }
+            }
+          }
+        },
+        "delay": {
+          "constant": {
+            "_0": 0.08
+          }
+        },
+        "verticalOffset": {
+          "constant": {
+            "_0": 16
+          }
+        }
+      }
+    },
+    "openSourceStamp": {
+      "contentSpacing": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "detailFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "subheadline"
+              }
+            }
+          }
+        }
+      },
+      "ink": {
+        "accessoryOpacity": {
+          "constant": {
+            "_0": 0.86
+          }
+        },
+        "detailOpacity": {
+          "constant": {
+            "_0": 0.68
+          }
+        },
+        "outlineOpacity": {
+          "constant": {
+            "_0": 0.72
+          }
+        },
+        "primaryRosetteOpacity": {
+          "constant": {
+            "_0": 0.1
+          }
+        },
+        "sealOpacity": {
+          "constant": {
+            "_0": 0.9
+          }
+        },
+        "secondaryRosetteOpacity": {
+          "constant": {
+            "_0": 0.06
+          }
+        },
+        "titleOpacity": {
+          "constant": {
+            "_0": 1
+          }
+        }
+      },
+      "layout": {
+        "constant": {
+          "_0": {
+            "inline": {}
+          }
+        }
+      },
+      "outlineWidth": {
+        "constant": {
+          "_0": 1.5
+        }
+      },
+      "padding": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "rosette": {
+        "lineWidth": {
+          "constant": {
+            "_0": 0.75
+          }
+        },
+        "primaryRingSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "secondaryRingSpacing": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "wobble": {
+          "constant": {
+            "_0": 5
+          }
+        }
+      },
+      "tint": {
+        "constant": {
+          "_0": {
+            "semantic": {
+              "_0": "accent"
+            }
+          }
+        }
+      },
+      "titleFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "headline"
+              }
+            }
+          }
+        }
+      }
+    },
+    "palette": {
+      "onboarding": {
+        "backgroundBottom": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "accent"
+                  }
+                },
+                "_1": 0.12
+              }
+            }
+          }
+        },
+        "backgroundTop": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "background"
+              }
+            }
+          }
+        }
+      },
+      "primary": {
+        "backgroundBottom": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.05,
+                "green": 0.02,
+                "red": 0.02
+              }
+            }
+          }
+        },
+        "backgroundTop": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.13,
+                "green": 0.08,
+                "red": 0.07
+              }
+            }
+          }
+        }
+      },
+      "splash": {
+        "background": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "background"
+              }
+            }
+          }
+        },
+        "iconGlow": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "accent"
+              }
+            }
+          }
+        },
+        "vignetteCenter": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "secondaryBackground"
+              }
+            }
+          }
+        },
+        "vignetteEdge": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "background"
+              }
+            }
+          }
+        }
+      }
+    },
+    "passportSeal": {
+      "dashLength": {
+        "constant": {
+          "_0": 3
+        }
+      },
+      "dashSpacing": {
+        "constant": {
+          "_0": 3
+        }
+      },
+      "innerInset": {
+        "constant": {
+          "_0": 7
+        }
+      },
+      "innerLineWidth": {
+        "constant": {
+          "_0": 1
+        }
+      },
+      "outerLineWidth": {
+        "constant": {
+          "_0": 2
+        }
+      },
+      "rotationDegrees": {
+        "constant": {
+          "_0": -8
+        }
+      },
+      "size": {
+        "constant": {
+          "_0": 52
+        }
+      },
+      "symbolFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "title3"
+              }
+            }
+          }
+        }
+      }
+    },
+    "plannedStayWarningStamp": {
+      "contentSpacing": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "detailFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "subheadline"
+              }
+            }
+          }
+        }
+      },
+      "ink": {
+        "accessoryOpacity": {
+          "constant": {
+            "_0": 0.86
+          }
+        },
+        "detailOpacity": {
+          "constant": {
+            "_0": 0.68
+          }
+        },
+        "outlineOpacity": {
+          "constant": {
+            "_0": 0.72
+          }
+        },
+        "primaryRosetteOpacity": {
+          "constant": {
+            "_0": 0.1
+          }
+        },
+        "sealOpacity": {
+          "constant": {
+            "_0": 0.9
+          }
+        },
+        "secondaryRosetteOpacity": {
+          "constant": {
+            "_0": 0.06
+          }
+        },
+        "titleOpacity": {
+          "constant": {
+            "_0": 1
+          }
+        }
+      },
+      "layout": {
+        "constant": {
+          "_0": {
+            "inline": {}
+          }
+        }
+      },
+      "outlineWidth": {
+        "constant": {
+          "_0": 1.5
+        }
+      },
+      "padding": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "rosette": {
+        "lineWidth": {
+          "constant": {
+            "_0": 0.75
+          }
+        },
+        "primaryRingSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "secondaryRingSpacing": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "wobble": {
+          "constant": {
+            "_0": 5
+          }
+        }
+      },
+      "tint": {
+        "constant": {
+          "_0": {
+            "semantic": {
+              "_0": "orange"
+            }
+          }
+        }
+      },
+      "titleFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "headline"
+              }
+            }
+          }
+        }
+      }
+    },
+    "privacyPassportCard": {
+      "cornerRadius": {
+        "constant": {
+          "_0": 20
+        }
+      },
+      "detailFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "subheadline"
+              }
+            }
+          }
+        }
+      },
+      "disclosure": {
+        "contentSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "detailFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "footnote"
+                }
+              }
+            }
+          }
+        },
+        "fillOpacity": {
+          "constant": {
+            "_0": 0.08
+          }
+        },
+        "iconSize": {
+          "constant": {
+            "_0": 32
+          }
+        },
+        "layout": {
+          "constant": {
+            "_0": {
+              "inline": {}
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "rowSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "statusFillOpacity": {
+          "constant": {
+            "_0": 0.14
+          }
+        },
+        "statusFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "footnote"
+                }
+              }
+            }
+          }
+        },
+        "statusHorizontalPadding": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "statusVerticalPadding": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "strokeOpacity": {
+          "constant": {
+            "_0": 0.18
+          }
+        },
+        "strokeWidth": {
+          "constant": {
+            "_0": 0.75
+          }
+        },
+        "symbolFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              }
+            }
+          }
+        },
+        "textSpacing": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "titleFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              }
+            }
+          }
+        }
+      },
+      "headerLayout": {
+        "constant": {
+          "_0": {
+            "inline": {}
+          }
+        }
+      },
+      "headerSpacing": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "outlineOpacity": {
+        "constant": {
+          "_0": 0.32
+        }
+      },
+      "outlineWidth": {
+        "constant": {
+          "_0": 1
+        }
+      },
+      "padding": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "reflectiveSurface": {
+        "accent": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.32,
+                "green": 0.72,
+                "red": 0.88
+              }
+            }
+          }
+        },
+        "backgroundBottom": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.16,
+                "green": 0.07,
+                "red": 0.02
+              }
+            }
+          }
+        },
+        "backgroundTop": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.34,
+                "green": 0.18,
+                "red": 0.08
+              }
+            }
+          }
+        },
+        "intensity": {
+          "constant": {
+            "_0": 0.28
+          }
+        },
+        "staticGlintIntensity": {
+          "constant": {
+            "_0": 0.28
+          }
+        },
+        "staticPose": {
+          "pitch": {
+            "constant": {
+              "_0": -0.15
+            }
+          },
+          "roll": {
+            "constant": {
+              "_0": 0.3
+            }
+          }
+        }
+      },
+      "rosette": {
+        "lineWidth": {
+          "constant": {
+            "_0": 0.75
+          }
+        },
+        "primaryOpacity": {
+          "constant": {
+            "_0": 0.1
+          }
+        },
+        "primaryRingSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "secondaryOpacity": {
+          "constant": {
+            "_0": 0.06
+          }
+        },
+        "secondaryRingSpacing": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "wobble": {
+          "constant": {
+            "_0": 5
+          }
+        }
+      },
+      "sectionSpacing": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "titleFont": {
+        "constant": {
+          "_0": {
+            "size": {
+              "semantic": {
+                "_0": "headline"
+              }
+            }
+          }
+        }
+      }
+    },
+    "regionMap": {
+      "captureInset": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "capturePointDiameter": {
+        "constant": {
+          "_0": 8
+        }
+      },
+      "overview": {
+        "height": {
+          "constant": {
+            "_0": 220
+          }
+        },
+        "minimumSpanMeters": {
+          "constant": {
+            "_0": 0
+          }
+        }
+      },
+      "pointPreview": {
+        "height": {
+          "constant": {
+            "_0": 140
+          }
+        },
+        "minimumSpanMeters": {
+          "constant": {
+            "_0": 50000
+          }
+        }
+      },
+      "routeLineWidth": {
+        "constant": {
+          "_0": 2
+        }
+      },
+      "uncertaintyFillOpacity": {
+        "constant": {
+          "_0": 0.15
+        }
+      },
+      "uncertaintyStrokeOpacity": {
+        "constant": {
+          "_0": 0.6
+        }
+      },
+      "uncertaintyStrokeWidth": {
+        "constant": {
+          "_0": 1
+        }
+      }
+    },
+    "regionPicker": {
+      "colorSwatchMinWidth": {
+        "constant": {
+          "_0": 44
+        }
+      },
+      "colorSwatchSelectionRing": {
+        "constant": {
+          "_0": 3
+        }
+      },
+      "colorSwatchSize": {
+        "constant": {
+          "_0": 40
+        }
+      },
+      "glyphCornerRadius": {
+        "constant": {
+          "_0": 6
+        }
+      },
+      "glyphSelectedBackgroundOpacity": {
+        "constant": {
+          "_0": 0.2
+        }
+      },
+      "glyphSelectionStrokeWidth": {
+        "constant": {
+          "_0": 2
+        }
+      },
+      "glyphTileMinWidth": {
+        "constant": {
+          "_0": 52
+        }
+      },
+      "glyphTileSize": {
+        "constant": {
+          "_0": 48
+        }
+      },
+      "mapCenterLatitude": {
+        "constant": {
+          "_0": 39.5
+        }
+      },
+      "mapCenterLongitude": {
+        "constant": {
+          "_0": -98.35
+        }
+      },
+      "mapCornerRadius": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "mapSpanLatitude": {
+        "constant": {
+          "_0": 45
+        }
+      },
+      "mapSpanLongitude": {
+        "constant": {
+          "_0": 55
+        }
+      },
+      "selectedFillOpacity": {
+        "constant": {
+          "_0": 0.55
+        }
+      },
+      "selectedStrokeOpacity": {
+        "constant": {
+          "_0": 0.9
+        }
+      },
+      "selectedStrokeWidth": {
+        "constant": {
+          "_0": 2
+        }
+      },
+      "unselectedFillOpacity": {
+        "constant": {
+          "_0": 0.12
+        }
+      },
+      "unselectedStrokeOpacity": {
+        "constant": {
+          "_0": 0.35
+        }
+      },
+      "unselectedStrokeWidth": {
+        "constant": {
+          "_0": 1
+        }
+      }
+    },
+    "settings": {
+      "flashAnimation": {
+        "value": {
+          "_0": {
+            "constant": {
+              "_0": {
+                "easeInOut": {
+                  "duration": 0.4
+                }
+              }
+            }
+          }
+        }
+      },
+      "flashDuration": {
+        "constant": {
+          "_0": 1
+        }
+      },
+      "iconCornerRadius": {
+        "constant": {
+          "_0": 7
+        }
+      },
+      "iconForeground": {
+        "modes": {
+          "_0": {
+            "dark": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0,
+                "green": 0,
+                "red": 0
+              }
+            },
+            "light": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 1,
+                "green": 1,
+                "red": 1
+              }
+            }
+          }
+        }
+      },
+      "iconSize": {
+        "constant": {
+          "_0": 29
+        }
+      },
+      "iconSymbolSize": {
+        "constant": {
+          "_0": 15
+        }
+      }
+    },
+    "size": {
+      "launchCaptionBottomInset": {
+        "constant": {
+          "_0": 72
+        }
+      },
+      "launchIcon": {
+        "constant": {
+          "_0": 120
+        }
+      },
+      "statusIconWidth": {
+        "constant": {
+          "_0": 28
+        }
+      }
+    },
+    "spacing": {
+      "large": {
+        "constant": {
+          "_0": 12
+        }
+      },
+      "medium": {
+        "constant": {
+          "_0": 8
+        }
+      },
+      "regular": {
+        "constant": {
+          "_0": 10
+        }
+      },
+      "small": {
+        "constant": {
+          "_0": 6
+        }
+      },
+      "xLarge": {
+        "constant": {
+          "_0": 14
+        }
+      },
+      "xSmall": {
+        "constant": {
+          "_0": 4
+        }
+      },
+      "xxLarge": {
+        "constant": {
+          "_0": 16
+        }
+      },
+      "xxSmall": {
+        "constant": {
+          "_0": 2
+        }
+      },
+      "xxxLarge": {
+        "constant": {
+          "_0": 20
+        }
+      }
+    },
+    "themePicker": {
+      "layout": {
+        "constant": {
+          "_0": {
+            "inline": {}
+          }
+        }
+      },
+      "spacing": {
+        "constant": {
+          "_0": 12
+        }
+      }
+    },
+    "timeline": {
+      "flight": {
+        "iconFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "fixed": {
+                  "_0": 16
+                }
+              },
+              "weight": "semibold"
+            }
+          }
+        },
+        "labelSpacing": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "tint": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "accent"
+              }
+            }
+          }
+        },
+        "verticalPadding": {
+          "constant": {
+            "_0": 12
+          }
+        }
+      },
+      "overview": {
+        "background": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "primary"
+                  }
+                },
+                "_1": 0.035
+              }
+            }
+          }
+        },
+        "border": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "primary"
+                  }
+                },
+                "_1": 0.1
+              }
+            }
+          }
+        },
+        "borderWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 24
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 16
+          }
+        },
+        "pinsToViewport": {
+          "constant": {
+            "_0": true
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "yearFont": {
+          "constant": {
+            "_0": {
+              "design": "serif",
+              "size": {
+                "semantic": {
+                  "_0": "title2"
+                }
+              },
+              "weight": "bold"
+            }
+          }
+        }
+      },
+      "planned": {
+        "borderOpacity": {
+          "constant": {
+            "_0": 0.14
+          }
+        },
+        "fillOpacity": {
+          "constant": {
+            "_0": 0.035
+          }
+        },
+        "hatchLineWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "hatchOpacity": {
+          "constant": {
+            "_0": 0.16
+          }
+        },
+        "hatchSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "joinedBaseHeight": {
+          "constant": {
+            "_0": 32
+          }
+        },
+        "joinedCountHorizontalPadding": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "joinedCountVerticalPadding": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "joinedLabelSpacing": {
+          "constant": {
+            "_0": 5
+          }
+        },
+        "joinedVerticalPadding": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "labelOpacity": {
+          "constant": {
+            "_0": 0.7
+          }
+        },
+        "transitionHeight": {
+          "constant": {
+            "_0": 16
+          }
+        }
+      },
+      "rail": {
+        "lineWidth": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "nodeEmojiFont": {
+          "constant": {
+            "_0": {
+              "size": {
+                "fixed": {
+                  "_0": 20
+                }
+              }
+            }
+          }
+        },
+        "nodeFillOpacity": {
+          "constant": {
+            "_0": 0.18
+          }
+        },
+        "nodeSize": {
+          "constant": {
+            "_0": 42
+          }
+        },
+        "nodeStrokeWidth": {
+          "constant": {
+            "_0": 2
+          }
+        },
+        "toCardSpacing": {
+          "constant": {
+            "_0": 10
+          }
+        }
+      },
+      "ribbon": {
+        "border": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "primary"
+                  }
+                },
+                "_1": 0.12
+              }
+            }
+          }
+        },
+        "borderWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "height": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "monthLabelSpacing": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "regionLabelSpacing": {
+          "constant": {
+            "_0": 4
+          }
+        },
+        "regionSpacing": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "separatesRegions": {
+          "constant": {
+            "_0": false
+          }
+        },
+        "track": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "primary"
+                  }
+                },
+                "_1": 0.07
+              }
+            }
+          }
+        }
+      },
+      "row": {
+        "baseHeight": {
+          "constant": {
+            "_0": 64
+          }
+        },
+        "borderOpacity": {
+          "constant": {
+            "_0": 0.24
+          }
+        },
+        "borderWidth": {
+          "constant": {
+            "_0": 1
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "countFillOpacity": {
+          "constant": {
+            "_0": 0.16
+          }
+        },
+        "countHorizontalPadding": {
+          "constant": {
+            "_0": 10
+          }
+        },
+        "countVerticalPadding": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "fillOpacity": {
+          "constant": {
+            "_0": 0.09
+          }
+        },
+        "gap": {
+          "constant": {
+            "_0": 8
+          }
+        },
+        "horizontalPadding": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "labelSpacing": {
+          "constant": {
+            "_0": 3
+          }
+        },
+        "singleDay": {
+          "baseHeight": {
+            "constant": {
+              "_0": 0
+            }
+          },
+          "verticalPadding": {
+            "constant": {
+              "_0": 8
+            }
+          }
+        },
+        "spacing": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "stacksDayCount": {
+          "constant": {
+            "_0": false
+          }
+        },
+        "verticalPadding": {
+          "constant": {
+            "_0": 12
+          }
+        },
+        "yearScaleHeight": {
+          "constant": {
+            "_0": 320
+          }
+        }
+      }
+    },
+    "typography": {
+      "onboardingIcon": {
+        "constant": {
+          "_0": {
+            "size": {
+              "fixed": {
+                "_0": 72
+              }
+            }
+          }
+        }
+      },
+      "widgetHeroRegion": {
+        "constant": {
+          "_0": {
+            "design": "serif",
+            "size": {
+              "semantic": {
+                "_0": "headline"
+              }
+            },
+            "weight": "semibold"
+          }
+        }
+      },
+      "widgetTotalNumber": {
+        "constant": {
+          "_0": {
+            "design": "rounded",
+            "size": {
+              "semantic": {
+                "_0": "body"
+              }
+            },
+            "weight": "bold"
+          }
+        }
+      }
+    },
+    "yearModePicker": {
+      "layout": {
+        "constant": {
+          "_0": {
+            "inline": {}
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "calendarMonth": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "compactCard": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "microprint",
+        "watermark",
+        "stamp"
+      ],
+      "surface": {
+        "value": {
+          "_0": "compactCard"
+        }
+      }
+    },
+    "elsewhere": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "regionPattern"
+      ],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "elsewhereCard": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "microprint",
+        "watermark",
+        "stamp"
+      ],
+      "surface": {
+        "value": {
+          "_0": "elsewhereCard"
+        }
+      }
+    },
+    "forecastPanel": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "microprint",
+        "stamp"
+      ],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "locations": {
+      "artwork": [],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "regionPattern"
+      ],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "privacy": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "stamp"
+      ],
+      "surface": {
+        "value": {
+          "_0": "privacy"
+        }
+      }
+    },
+    "regularCard": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "microprint",
+        "watermark",
+        "stamp"
+      ],
+      "surface": {
+        "value": {
+          "_0": "regularCard"
+        }
+      }
+    },
+    "section": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "settings": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "sheet": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "summary": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "microprint",
+        "watermark",
+        "stamp"
+      ],
+      "surface": {
+        "value": {
+          "_0": "summary"
+        }
+      }
+    },
+    "timelineEntry": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "welcome": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "rosette",
+        "stamp",
+        "watermark",
+        "microprint"
+      ],
+      "surface": {
+        "value": {
+          "_0": "welcome"
+        }
+      }
+    },
+    "year": {
+      "artwork": [],
+      "background": {
+        "clear": {}
+      },
+      "body": {
+        "clear": {}
+      },
+      "foreground": {
+        "clear": {}
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    }
+  },
+  "id": "standard",
+  "schemaVersion": 2,
+  "values": {
+    "colors": [
+      {
+        "id": "elsewhereCard.fill",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.1411764705882353,
+                  "green": 0.1411764705882353,
+                  "red": 0.1411764705882353
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 1,
+                  "green": 1,
+                  "red": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "elsewhereCard.shadow",
+        "value": {
+          "constant": {
+            "_0": {
+              "opacity": {
+                "_0": {
+                  "semantic": {
+                    "_0": "black"
+                  }
+                },
+                "_1": 0.08
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "page",
+        "value": {
+          "constant": {
+            "_0": {
+              "semantic": {
+                "_0": "background"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "fonts": [],
+    "surfaces": [
+      {
+        "id": "regularCard",
+        "value": {
+          "constant": {
+            "_0": {
+              "reflective": {}
+            }
+          }
+        }
+      },
+      {
+        "id": "compactCard",
+        "value": {
+          "constant": {
+            "_0": {
+              "reflective": {}
+            }
+          }
+        }
+      },
+      {
+        "id": "elsewhereCard",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "elsewhereCard.fill",
+                  "outline": {
+                    "opacity": 0.45,
+                    "width": 1
+                  },
+                  "pressedTintOpacity": 0.08,
+                  "shadow": {
+                    "color": "elsewhereCard.shadow",
+                    "offsetY": 3,
+                    "radius": 6
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "welcome",
+        "value": {
+          "constant": {
+            "_0": {
+              "reflective": {}
+            }
+          }
+        }
+      },
+      {
+        "id": "privacy",
+        "value": {
+          "constant": {
+            "_0": {
+              "reflective": {}
+            }
+          }
+        }
+      },
+      {
+        "id": "summary",
+        "value": {
+          "constant": {
+            "_0": {
+              "reflective": {}
+            }
+          }
+        }
+      }
+    ]
+  }
+}

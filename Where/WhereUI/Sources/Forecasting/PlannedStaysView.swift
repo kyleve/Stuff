@@ -25,62 +25,65 @@ struct PlannedStaysView: View {
 
         NavigationStack {
             List {
-                if let error = model.report.forecasts.loadFailure {
-                    Section {
-                        Label(
-                            error.localizedDescription,
-                            systemSymbol: .exclamationmarkTriangleFill,
-                        )
-                        .foregroundStyle(.red)
-                        Button(String(localized: .commonRetry)) {
-                            Task { await model.report.forecasts.refresh() }
+                Group {
+                    if let error = model.report.forecasts.loadFailure {
+                        Section {
+                            Label(
+                                error.localizedDescription,
+                                systemSymbol: .exclamationmarkTriangleFill,
+                            )
+                            .foregroundStyle(.red)
+                            Button(String(localized: .commonRetry)) {
+                                Task { await model.report.forecasts.refresh() }
+                            }
                         }
                     }
-                }
 
-                Section {
-                    if !model.report.forecasts.hasLoaded,
-                       model.report.forecasts.loadFailure == nil
-                    {
-                        ProgressView()
-                    } else if model.report.forecasts.hasLoaded, model.upcoming.isEmpty {
-                        Text(String(localized: .plannedStaysEmpty))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(model.upcoming) { stay in
-                            stayRow(stay)
-                        }
-                    }
-                    Button(
-                        String(localized: .plannedStaysAdd),
-                        systemSymbol: .plus,
-                        action: model.add,
-                    )
-                } header: {
-                    Text(String(localized: .plannedStaysUpcoming))
-                } footer: {
-                    Text(String(localized: .plannedStaysFooter))
-                }
-
-                if model.report.forecasts.hasLoaded {
-                    gapSection
-                }
-
-                if !model.past.isEmpty {
                     Section {
-                        DisclosureGroup(
-                            String(localized: .plannedStaysPast),
-                            isExpanded: $model.showsPast,
-                        ) {
-                            ForEach(model.past) { stay in
+                        if !model.report.forecasts.hasLoaded,
+                           model.report.forecasts.loadFailure == nil
+                        {
+                            ProgressView()
+                        } else if model.report.forecasts.hasLoaded, model.upcoming.isEmpty {
+                            Text(String(localized: .plannedStaysEmpty))
+                                .foregroundStyle(.whereSecondary)
+                        } else {
+                            ForEach(model.upcoming) { stay in
                                 stayRow(stay)
                             }
                         }
+                        Button(
+                            String(localized: .plannedStaysAdd),
+                            systemSymbol: .plus,
+                            action: model.add,
+                        )
+                    } header: {
+                        Text(String(localized: .plannedStaysUpcoming))
                     } footer: {
-                        Text(String(localized: .plannedStaysPastFooter))
+                        Text(String(localized: .plannedStaysFooter))
                     }
-                }
+
+                    if model.report.forecasts.hasLoaded {
+                        gapSection
+                    }
+
+                    if !model.past.isEmpty {
+                        Section {
+                            DisclosureGroup(
+                                String(localized: .plannedStaysPast),
+                                isExpanded: $model.showsPast,
+                            ) {
+                                ForEach(model.past) { stay in
+                                    stayRow(stay)
+                                }
+                            }
+                        } footer: {
+                            Text(String(localized: .plannedStaysPastFooter))
+                        }
+                    }
+                }.whereThemeListRow()
             }
+            .whereThemeScreen(.sheet)
             .navigationTitle(String(localized: .plannedStaysTitle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -89,6 +92,7 @@ struct PlannedStaysView: View {
                 }
             }
         }
+        .whereThemeActivity(model.editor == nil)
         .sheet(item: $model.editor) { editor in
             PlannedStayEditor(model: editor)
         }

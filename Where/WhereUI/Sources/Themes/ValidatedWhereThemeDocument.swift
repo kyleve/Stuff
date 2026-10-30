@@ -6,62 +6,54 @@ import ViewDocumentCore
 /// Immutable content accepted at the rendering boundary. Invalid input never enters the cache.
 public struct ValidatedWhereThemeDocument: Hashable, Sendable {
     public let document: WhereThemeDocument
-    let layers: [WhereThemeDocument.Slot: [ValidatedViewDocument]]
+
+    public let resolved: ResolvedWhereTheme
+    let artwork: [WhereThemeComponents.Role: [ValidatedViewDocument]]
 
     @MainActor
     public init(document: WhereThemeDocument, resources: ViewDocumentResources) throws {
-        guard document.schemaVersion == 1 else { throw WhereThemeValidationError(
-            path: "schemaVersion",
-            reason: "Unsupported theme schema version",
-        ) }
-        guard !document.id.rawValue.isEmpty,
-              document.id.rawValue.utf8.count <= 128
-        else { throw WhereThemeValidationError(
-            path: "id",
-            reason: "Invalid theme identity",
-        ) }
-        guard try JSONEncoder().encode(document).count <= ViewDocumentLimits.standard.bytes
-        else { throw WhereThemeValidationError(
-            path: "$",
-            reason: "Theme exceeds byte limit",
-        ) }
-        // Validate every mode branch, not just the mode active at import time.
-        for mode: BMode in [.light, .dark] {
-            var traits = BTraits.system
-            traits.mode = mode
-            var sheet = BContext(
-                traits: traits,
-                themes: WhereThemes.current(theme: document.fallback.theme),
-            ).stylesheet(WhereStylesheet.self, fallback: .default)
-            try document.appearance.apply(
-                to: &sheet,
-                traits: traits,
-                appearance: BViewDocumentStylesheet(traits: traits).appearance,
-                path: "appearance",
-            )
-        }
-        var validated: [WhereThemeDocument.Slot: [ValidatedViewDocument]] = [:]
+        let bundled = try WhereBundledThemes.documents.get().filter { $0.id != document.id }
+        let catalog = try WhereThemeCatalog(documents: bundled + [document])
+        try self.init(
+            document: document,
+            resolved: catalog.resolve(document.id),
+            resources: resources,
+        )
+    }
+
+    @MainActor
+    init(
+        document: WhereThemeDocument,
+        resolved: ResolvedWhereTheme,
+        resources: ViewDocumentResources,
+    ) throws {
         var budget = ThemeLayerBudget()
-        for slot in WhereThemeDocument.Slot.allCases {
-            let documents = document.layers[slot]
-            guard documents.count <= 8 else { throw WhereThemeValidationError(
-                path: "layers.\(slot.rawValue)",
-                reason: "Too many layers",
-            ) }
-            guard Set(documents.map(\.root.id)).count == documents.count
-            else { throw WhereThemeValidationError(
-                path: "layers.\(slot.rawValue)",
-                reason: "Duplicate layer identity",
-            ) }
-            validated[slot] = try documents.map { try ValidatedViewDocument(
-                document: $0,
-                resources: resources,
-                limits: .standard,
-            ) }
-        }
-        for documents in validated.values {
-            for document in documents {
-                budget.include(document.document.root)
+        var artwork: [WhereThemeComponents.Role: [ValidatedViewDocument]] = [:]
+        for role in WhereThemeComponents.Role.allCases {
+            let entries = resolved.components[role]?.artwork ?? []
+            // Two version 1 slots can normalize into one component; retain their bounded capacity.
+            guard entries.count <= 16, Set(entries.map(\.id)).count == entries.count else {
+                throw WhereThemeValidationError(
+                    path: "components.\(role).artwork",
+                    reason: "Duplicate artwork identity or too many layers",
+                )
+            }
+            artwork[role] = try entries.map { entry in
+                try entry.placement.validate()
+                for mode: BMode in [.light, .dark] {
+                    try WhereThemeValidation.validate(
+                        entry.opacity.resolve(mode: mode),
+                        range: 0 ... 1,
+                        path: "artwork.opacity",
+                    )
+                }
+                let layer = try ValidatedViewDocument(
+                    document: entry.document,
+                    resources: resources,
+                    limits: .standard,
+                )
+                budget.include(entry.document.root)
+                return layer
             }
         }
         guard budget.nodes <= ViewDocumentLimits.standard.nodes,
@@ -73,8 +65,9 @@ public struct ValidatedWhereThemeDocument: Hashable, Sendable {
                 reason: "Combined theme layers exceed the rendering budget",
             )
         }
-        self.document = document
-        layers = validated
+        self.document = try document.converted()
+        self.resolved = resolved
+        self.artwork = artwork
     }
 
     @MainActor

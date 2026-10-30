@@ -26,7 +26,7 @@ struct ValidatedWhereThemeDocumentTests {
             document: document,
             resources: .init(images: [asset], symbols: []),
         )
-        #expect(accepted.layers[.regularCardBackground]?.first?.resources.images == [asset])
+        #expect(accepted.artwork[.regularCard]?.first?.resources.images == [asset])
     }
 
     @Test func modifierBudgetIsSharedAcrossSlots() throws {
@@ -135,7 +135,7 @@ struct ValidatedWhereThemeDocumentTests {
 
     @Test func rejectsVersionAndPayloadBeforeRendering() throws {
         var document = themeDocument(appearance: .init(), fallback: .standard)
-        document.schemaVersion = 2
+        document.schemaVersion = 99
         #expect(throws: WhereThemeValidationError.self) {
             try ValidatedWhereThemeDocument(
                 document: document,

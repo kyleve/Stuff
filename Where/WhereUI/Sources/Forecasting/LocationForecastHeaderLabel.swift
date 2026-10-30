@@ -6,6 +6,8 @@ struct LocationForecastHeaderLabel: View {
     let elapsedDays: Int?
     let isExpanded: Bool
     let showsDisclosure: Bool
+    var role: WhereThemeComponents.Role = .summary
+    @Environment(\.whereComponentStylesheet) private var components
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -16,35 +18,42 @@ struct LocationForecastHeaderLabel: View {
         if header.layout == .stacked {
             VStack(alignment: .leading, spacing: header.contentSpacing) {
                 HStack {
-                    PassportSeal(
-                        systemSymbol: .chartLineUptrendXyaxis,
-                        tint: Color.primary.opacity(style.ink.sealOpacity),
-                    )
+                    emblem
                     Spacer(minLength: 0)
                     if showsDisclosure {
                         Image(systemSymbol: .chevronRight)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.whereSecondary)
                             .accessibilityHidden(true)
                     }
                 }
-                LocationForecastHeaderText(elapsedDays: elapsedDays)
+                LocationForecastHeaderText(elapsedDays: elapsedDays, role: role)
             }
         } else {
             HStack(spacing: header.contentSpacing) {
-                PassportSeal(
-                    systemSymbol: .chartLineUptrendXyaxis,
-                    tint: Color.primary.opacity(style.ink.sealOpacity),
-                )
-                LocationForecastHeaderText(elapsedDays: elapsedDays)
+                emblem
+                LocationForecastHeaderText(elapsedDays: elapsedDays, role: role)
                 Spacer(minLength: 0)
                 if showsDisclosure {
                     Image(systemSymbol: .chevronRight)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                         .accessibilityHidden(true)
                 }
             }
+        }
+    }
+
+    @ViewBuilder private var emblem: some View {
+        if components[role].nativeArtwork.contains(.stamp) {
+            PassportSeal(
+                systemSymbol: .chartLineUptrendXyaxis,
+                tint: Color.primary.opacity(stylesheet.locationForecast.ink.sealOpacity),
+            )
+        } else {
+            Image(systemSymbol: .chartLineUptrendXyaxis)
+                .font(components[role].heading)
+                .accessibilityHidden(true)
         }
     }
 }

@@ -4,34 +4,36 @@ import ViewDocumentCore
 import ViewDocumentUI
 
 public struct WhereThemeAppearance: Codable, Hashable, Sendable {
-    public var spacing: WhereThemeAppearance.Spacing?
-    public var size: WhereThemeAppearance.Size?
-    public var card: WhereThemeAppearance.CardStyles?
-    public var locationsBackground: WhereThemeAppearance.LocationsBackgroundStyle?
-    public var locationCardStack: WhereThemeAppearance.LocationCardStackStyle?
-    public var locationWelcome: WhereThemeAppearance.LocationWelcomeStyle?
-    public var flightStatus: WhereThemeAppearance.FlightStatusStyle?
-    public var flightReviewPoint: WhereThemeAppearance.FlightReviewPointStyle?
-    public var calendar: WhereThemeAppearance.CalendarStyle?
-    public var appIcon: WhereThemeAppearance.AppIconStyle?
-    public var timeline: WhereThemeAppearance.TimelineStyle?
-    public var regionMap: WhereThemeAppearance.RegionMapStyle?
-    public var regionPicker: WhereThemeAppearance.RegionPickerStyle?
-    public var evidence: WhereThemeAppearance.EvidenceStyle?
-    public var locationForecast: WhereThemeAppearance.LocationForecastStyle?
-    public var palette: WhereThemeAppearance.Palette?
-    public var motion: WhereThemeAppearance.Motion?
-    public var launch: WhereThemeAppearance.LaunchStyle?
-    public var typography: WhereThemeAppearance.Typography?
-    public var themePicker: WhereThemeAppearance.ThemePickerStyle?
-    public var yearModePicker: WhereThemeAppearance.YearModePickerStyle?
-    public var settings: WhereThemeAppearance.SettingsStyle?
-    public var featureDiscovery: WhereThemeAppearance.FeatureDiscoveryStyle?
-    public var passportSeal: WhereThemeAppearance.PassportSealStyle?
-    public var privacyPassportCard: WhereThemeAppearance.PrivacyPassportCardStyle?
-    public var openSourceStamp: WhereThemeAppearance.StampBannerStyle?
-    public var plannedStayWarningStamp: WhereThemeAppearance.StampBannerStyle?
-    public var developerOverlay: WhereThemeAppearance.DeveloperOverlayStyle?
+    @CopyOnWrite public var spacing: WhereThemeAppearance.Spacing? = nil
+    @CopyOnWrite public var size: WhereThemeAppearance.Size? = nil
+    @CopyOnWrite public var card: WhereThemeAppearance.CardStyles? = nil
+    @CopyOnWrite public var locationsBackground: WhereThemeAppearance
+        .LocationsBackgroundStyle? = nil
+    @CopyOnWrite public var locationCardStack: WhereThemeAppearance.LocationCardStackStyle? = nil
+    @CopyOnWrite public var locationWelcome: WhereThemeAppearance.LocationWelcomeStyle? = nil
+    @CopyOnWrite public var flightStatus: WhereThemeAppearance.FlightStatusStyle? = nil
+    @CopyOnWrite public var flightReviewPoint: WhereThemeAppearance.FlightReviewPointStyle? = nil
+    @CopyOnWrite public var calendar: WhereThemeAppearance.CalendarStyle? = nil
+    @CopyOnWrite public var appIcon: WhereThemeAppearance.AppIconStyle? = nil
+    @CopyOnWrite public var timeline: WhereThemeAppearance.TimelineStyle? = nil
+    @CopyOnWrite public var regionMap: WhereThemeAppearance.RegionMapStyle? = nil
+    @CopyOnWrite public var regionPicker: WhereThemeAppearance.RegionPickerStyle? = nil
+    @CopyOnWrite public var evidence: WhereThemeAppearance.EvidenceStyle? = nil
+    @CopyOnWrite public var locationForecast: WhereThemeAppearance.LocationForecastStyle? = nil
+    @CopyOnWrite public var palette: WhereThemeAppearance.Palette? = nil
+    @CopyOnWrite public var motion: WhereThemeAppearance.Motion? = nil
+    @CopyOnWrite public var launch: WhereThemeAppearance.LaunchStyle? = nil
+    @CopyOnWrite public var typography: WhereThemeAppearance.Typography? = nil
+    @CopyOnWrite public var themePicker: WhereThemeAppearance.ThemePickerStyle? = nil
+    @CopyOnWrite public var yearModePicker: WhereThemeAppearance.YearModePickerStyle? = nil
+    @CopyOnWrite public var settings: WhereThemeAppearance.SettingsStyle? = nil
+    @CopyOnWrite public var featureDiscovery: WhereThemeAppearance.FeatureDiscoveryStyle? = nil
+    @CopyOnWrite public var passportSeal: WhereThemeAppearance.PassportSealStyle? = nil
+    @CopyOnWrite public var privacyPassportCard: WhereThemeAppearance
+        .PrivacyPassportCardStyle? = nil
+    @CopyOnWrite public var openSourceStamp: WhereThemeAppearance.StampBannerStyle? = nil
+    @CopyOnWrite public var plannedStayWarningStamp: WhereThemeAppearance.StampBannerStyle? = nil
+    @CopyOnWrite public var developerOverlay: WhereThemeAppearance.DeveloperOverlayStyle? = nil
 
     public init() {}
 
@@ -209,5 +211,50 @@ public struct WhereThemeAppearance: Codable, Hashable, Sendable {
             appearance: appearance,
             path: path + ".developerOverlay",
         )
+    }
+}
+
+extension WhereThemeAppearance: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.spacing = inheritPatch(spacing, from: parent.spacing)
+        result.size = inheritPatch(size, from: parent.size)
+        result.card = inheritPatch(card, from: parent.card)
+        result.locationsBackground = inheritPatch(
+            locationsBackground,
+            from: parent.locationsBackground,
+        )
+        result.locationCardStack = inheritPatch(locationCardStack, from: parent.locationCardStack)
+        result.locationWelcome = inheritPatch(locationWelcome, from: parent.locationWelcome)
+        result.flightStatus = inheritPatch(flightStatus, from: parent.flightStatus)
+        result.flightReviewPoint = inheritPatch(flightReviewPoint, from: parent.flightReviewPoint)
+        result.calendar = inheritPatch(calendar, from: parent.calendar)
+        result.appIcon = inheritPatch(appIcon, from: parent.appIcon)
+        result.timeline = inheritPatch(timeline, from: parent.timeline)
+        result.regionMap = inheritPatch(regionMap, from: parent.regionMap)
+        result.regionPicker = inheritPatch(regionPicker, from: parent.regionPicker)
+        result.evidence = inheritPatch(evidence, from: parent.evidence)
+        result.locationForecast = inheritPatch(locationForecast, from: parent.locationForecast)
+        result.palette = inheritPatch(palette, from: parent.palette)
+        result.motion = inheritPatch(motion, from: parent.motion)
+        result.launch = inheritPatch(launch, from: parent.launch)
+        result.typography = inheritPatch(typography, from: parent.typography)
+        result.themePicker = inheritPatch(themePicker, from: parent.themePicker)
+        result.yearModePicker = inheritPatch(yearModePicker, from: parent.yearModePicker)
+        result.settings = inheritPatch(settings, from: parent.settings)
+        result.featureDiscovery = inheritPatch(featureDiscovery, from: parent.featureDiscovery)
+        result.passportSeal = inheritPatch(passportSeal, from: parent.passportSeal)
+        result.privacyPassportCard = inheritPatch(
+            privacyPassportCard,
+            from: parent.privacyPassportCard,
+        )
+        result.openSourceStamp = inheritPatch(openSourceStamp, from: parent.openSourceStamp)
+        result.plannedStayWarningStamp = inheritPatch(
+            plannedStayWarningStamp,
+            from: parent.plannedStayWarningStamp,
+        )
+        result.developerOverlay = inheritPatch(developerOverlay, from: parent.developerOverlay)
+        return result
     }
 }

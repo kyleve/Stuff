@@ -30,75 +30,81 @@ struct PlannedStayEditor: View {
 
         NavigationStack {
             Form {
-                if let error = model.report.forecasts.loadFailure {
-                    Section {
-                        Label(
-                            error.localizedDescription,
-                            systemSymbol: .exclamationmarkTriangleFill,
-                        )
-                        .foregroundStyle(.red)
-                        Button(String(localized: .commonRetry)) {
-                            Task { await model.report.forecasts.refresh() }
-                        }
-                    }
-                }
-                destinationSection
-                PlannedStayBoundarySection(
-                    title: String(localized: .plannedStayEditorArrival),
-                    boundary: $model.arrival,
-                )
-                PlannedStayBoundarySection(
-                    title: String(localized: .plannedStayEditorLastDay),
-                    boundary: $model.departure,
-                )
-                Section {
-                    if let message = model.validationMessage {
-                        Label(message, systemSymbol: .exclamationmarkCircle)
-                            .foregroundStyle(.secondary)
-                    }
-                } footer: {
-                    Text(String(localized: .plannedStayEditorDatesFooter))
-                }
-                if model.hasDefiniteOverlap || model.hasPossibleOverlap {
-                    Section {
-                        if model.hasDefiniteOverlap {
+                Group {
+                    if let error = model.report.forecasts.loadFailure {
+                        Section {
                             Label(
-                                String(localized: .plannedStaysDefiniteOverlap),
-                                systemSymbol: .rectangleOnRectangle,
+                                error.localizedDescription,
+                                systemSymbol: .exclamationmarkTriangleFill,
                             )
-                        }
-                        if model.hasPossibleOverlap {
-                            Label(
-                                String(localized: .plannedStaysPossibleOverlap),
-                                systemSymbol: .rectangleDashed,
-                            )
-                        }
-                    } footer: {
-                        Text(String(localized: .plannedStaysOverlapFooter))
-                    }
-                }
-                if case let .failed(error) = model.saveState {
-                    Section {
-                        Label(
-                            error.localizedDescription,
-                            systemSymbol: .exclamationmarkTriangleFill,
-                        )
-                        .foregroundStyle(.red)
-                    }
-                }
-                if model.isEditing {
-                    Section {
-                        Button(String(localized: .plannedStayEditorDelete), role: .destructive) {
-                            Task {
-                                if await model.delete() { dismiss() }
+                            .foregroundStyle(.red)
+                            Button(String(localized: .commonRetry)) {
+                                Task { await model.report.forecasts.refresh() }
                             }
                         }
                     }
-                }
+                    destinationSection
+                    PlannedStayBoundarySection(
+                        title: String(localized: .plannedStayEditorArrival),
+                        boundary: $model.arrival,
+                    )
+                    PlannedStayBoundarySection(
+                        title: String(localized: .plannedStayEditorLastDay),
+                        boundary: $model.departure,
+                    )
+                    Section {
+                        if let message = model.validationMessage {
+                            Label(message, systemSymbol: .exclamationmarkCircle)
+                                .foregroundStyle(.whereSecondary)
+                        }
+                    } footer: {
+                        Text(String(localized: .plannedStayEditorDatesFooter))
+                    }
+                    if model.hasDefiniteOverlap || model.hasPossibleOverlap {
+                        Section {
+                            if model.hasDefiniteOverlap {
+                                Label(
+                                    String(localized: .plannedStaysDefiniteOverlap),
+                                    systemSymbol: .rectangleOnRectangle,
+                                )
+                            }
+                            if model.hasPossibleOverlap {
+                                Label(
+                                    String(localized: .plannedStaysPossibleOverlap),
+                                    systemSymbol: .rectangleDashed,
+                                )
+                            }
+                        } footer: {
+                            Text(String(localized: .plannedStaysOverlapFooter))
+                        }
+                    }
+                    if case let .failed(error) = model.saveState {
+                        Section {
+                            Label(
+                                error.localizedDescription,
+                                systemSymbol: .exclamationmarkTriangleFill,
+                            )
+                            .foregroundStyle(.red)
+                        }
+                    }
+                    if model.isEditing {
+                        Section {
+                            Button(
+                                String(localized: .plannedStayEditorDelete),
+                                role: .destructive,
+                            ) {
+                                Task {
+                                    if await model.delete() { dismiss() }
+                                }
+                            }
+                        }
+                    }
+                }.whereThemeListRow()
             }
             .environment(\.calendar, model.report.calendar)
             .environment(\.timeZone, model.report.calendar.timeZone)
             .disabled(model.isSaving)
+            .whereThemeScreen(.sheet)
             .navigationTitle(String(localized: model.isEditing
                     ? .plannedStayEditorEditTitle
                     : .plannedStayEditorNewTitle))
@@ -124,6 +130,7 @@ struct PlannedStayEditor: View {
                 }
             }
         }
+        .whereThemeActivity(!showsManageRegions)
         .sheet(isPresented: $showsManageRegions, onDismiss: {
             Task { await model.regionSelection.load() }
         }) {
@@ -155,14 +162,14 @@ struct PlannedStayEditor: View {
                !tracked.contains(region)
             {
                 Text(String(localized: .plannedStayEditorUntracked))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
                 Button(String(localized: .settingsRegionsManage), systemSymbol: .map) {
                     showsManageRegions = true
                 }
             }
             if case let .failed(error) = model.regionSelection.loadState {
                 Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
                 Button(String(localized: .commonRetry)) {
                     Task { await model.regionSelection.load() }
                 }

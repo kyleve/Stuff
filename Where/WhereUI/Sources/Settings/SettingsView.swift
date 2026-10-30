@@ -78,6 +78,7 @@ struct SettingsView: View {
                 if isSearching {
                     ForEach(searchResults) { result in
                         searchNavigationRow(result)
+                            .whereThemeListRow()
                     }
                 } else {
                     if recordingWarning.isPresented {
@@ -92,6 +93,7 @@ struct SettingsView: View {
                             Section {
                                 ForEach(destinations, id: \.self) { destination in
                                     groupNavigationRow(destination)
+                                        .whereThemeListRow()
                                 }
                             } header: {
                                 if let headerTitle = section.headerTitle {
@@ -102,6 +104,8 @@ struct SettingsView: View {
                     }
                 }
             }
+            .whereThemeScreen(.settings)
+            .whereThemeActivity(!showRegions)
             .navigationTitle(String(localized: .settingsTitle))
             .searchable(text: $searchText, prompt: String(localized: .settingsSearchPrompt))
             .overlay {
@@ -114,6 +118,7 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showRegions) {
                 RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                    .whereThemeScreen(.sheet)
             }
         }
     }
@@ -127,7 +132,7 @@ struct SettingsView: View {
                             .font(.headline)
                         Text(.settingsRecordingWarningMessage)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.whereSecondary)
                     }
                 } icon: {
                     Image(systemSymbol: .exclamationmarkTriangleFill)
@@ -215,7 +220,7 @@ struct SettingsView: View {
         LabeledContent {
             if let subtitle = subtitle(for: destination) {
                 Text(subtitle)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
             }
         } label: {
             Label {
@@ -255,7 +260,7 @@ struct SettingsView: View {
                 Text(result.title)
                 Text(result.destination.rowTitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
             }
         } icon: {
             SettingsIcon(

@@ -5,18 +5,19 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct CardStyles: Codable, Hashable, Sendable {
-        public var regular: WhereThemeAppearance.CardStyle?
-        public var compact: WhereThemeAppearance.CardStyle?
-        public var elsewherePaper: WhereThemeAppearance.CardStyle.Paper?
+        @CopyOnWrite public var regular: WhereThemeAppearance.CardStyle? = nil
+        @CopyOnWrite public var compact: WhereThemeAppearance.CardStyle? = nil
+        @CopyOnWrite public var elsewherePaper: WhereThemeAppearance.CardStyle.Paper? = nil
         public var watermarkOpacity: BThemeValue<Double>?
         public var glassTintOpacity: BThemeValue<Double>?
         public var nameOpacity: BThemeValue<Double>?
         public var estimatedProgressOpacity: BThemeValue<Double>?
-        public var estimateSticker: WhereThemeAppearance.CardStyles.EstimateSticker?
-        public var rosetteFill: WhereThemeAppearance.CardStyles.RosetteFill?
-        public var securityPrint: WhereThemeAppearance.CardStyles.SecurityPrint?
-        public var dayCount: WhereThemeAppearance.CardStyles.DayCountStyle?
-        public var constellation: WhereThemeAppearance.CardStyles.Constellation?
+        @CopyOnWrite public var estimateSticker: WhereThemeAppearance.CardStyles
+            .EstimateSticker? = nil
+        @CopyOnWrite public var rosetteFill: WhereThemeAppearance.CardStyles.RosetteFill? = nil
+        @CopyOnWrite public var securityPrint: WhereThemeAppearance.CardStyles.SecurityPrint? = nil
+        @CopyOnWrite public var dayCount: WhereThemeAppearance.CardStyles.DayCountStyle? = nil
+        @CopyOnWrite public var constellation: WhereThemeAppearance.CardStyles.Constellation? = nil
 
         public init() {}
 
@@ -178,8 +179,8 @@ extension WhereThemeAppearance.CardStyles {
 
 extension WhereThemeAppearance.CardStyles {
     public struct EstimateSticker: Codable, Hashable, Sendable {
-        public var labelTypography: WhereThemeAppearance.CardStyle.Typography?
-        public var valueTypography: WhereThemeAppearance.CardStyle.Typography?
+        @CopyOnWrite public var labelTypography: WhereThemeAppearance.CardStyle.Typography? = nil
+        @CopyOnWrite public var valueTypography: WhereThemeAppearance.CardStyle.Typography? = nil
         public var contentOpacity: BThemeValue<Double>?
         public var scale: BThemeValue<Double>?
         public var cornerRadius: BThemeValue<Double>?
@@ -349,5 +350,91 @@ extension WhereThemeAppearance.CardStyles.DayCountStyle {
                 case .crossFade: .crossFade
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.CardStyles: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.regular = inheritPatch(regular, from: parent.regular)
+        result.compact = inheritPatch(compact, from: parent.compact)
+        result.elsewherePaper = inheritPatch(elsewherePaper, from: parent.elsewherePaper)
+        result.watermarkOpacity = watermarkOpacity ?? parent.watermarkOpacity
+        result.glassTintOpacity = glassTintOpacity ?? parent.glassTintOpacity
+        result.nameOpacity = nameOpacity ?? parent.nameOpacity
+        result.estimatedProgressOpacity = estimatedProgressOpacity ?? parent
+            .estimatedProgressOpacity
+        result.estimateSticker = inheritPatch(estimateSticker, from: parent.estimateSticker)
+        result.rosetteFill = inheritPatch(rosetteFill, from: parent.rosetteFill)
+        result.securityPrint = inheritPatch(securityPrint, from: parent.securityPrint)
+        result.dayCount = inheritPatch(dayCount, from: parent.dayCount)
+        result.constellation = inheritPatch(constellation, from: parent.constellation)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyles.Constellation: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.coreDiameter = coreDiameter ?? parent.coreDiameter
+        result.coreOpacity = coreOpacity ?? parent.coreOpacity
+        result.coreWhiteMix = coreWhiteMix ?? parent.coreWhiteMix
+        result.haloRadius = haloRadius ?? parent.haloRadius
+        result.haloOpacity = haloOpacity ?? parent.haloOpacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyles.DayCountStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.morph = morph ?? parent.morph
+        result.animation = animation ?? parent.animation
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyles.EstimateSticker: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.labelTypography = inheritPatch(labelTypography, from: parent.labelTypography)
+        result.valueTypography = inheritPatch(valueTypography, from: parent.valueTypography)
+        result.contentOpacity = contentOpacity ?? parent.contentOpacity
+        result.scale = scale ?? parent.scale
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        result.rotationDegrees = rotationDegrees ?? parent.rotationDegrees
+        result.fillOpacity = fillOpacity ?? parent.fillOpacity
+        result.outlineOpacity = outlineOpacity ?? parent.outlineOpacity
+        result.outlineWidth = outlineWidth ?? parent.outlineWidth
+        result.innerInset = innerInset ?? parent.innerInset
+        result.innerOutlineWidth = innerOutlineWidth ?? parent.innerOutlineWidth
+        result.innerDash = innerDash ?? parent.innerDash
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyles.RosetteFill: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.primary = primary ?? parent.primary
+        result.secondary = secondary ?? parent.secondary
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyles.SecurityPrint: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.whiteMix = whiteMix ?? parent.whiteMix
+        result.backgroundBlendMode = backgroundBlendMode ?? parent.backgroundBlendMode
+        return result
     }
 }

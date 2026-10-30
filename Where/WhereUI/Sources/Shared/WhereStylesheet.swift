@@ -46,69 +46,72 @@ struct WhereStylesheet: BStylesheet {
     init() {}
 
     init(context: SlicingContext) throws {
-        // Start from the fixed scale (property defaults), then adjust the slice
-        // of tokens that should react to the current traits. Everything else
-        // stays constant, so a default/system context reproduces `default`.
-        let traits = context.traits
-        let document = context.themes[WhereDocumentTheme.self].document?.document
-        theme = document?.fallback.theme ?? context.themes[WhereTheme.self]
+        let resolved = try context.themes[WhereDocumentTheme.self].document?.resolved
+            ?? WhereBundledThemeDefinitions.resolved(context.themes[WhereTheme.self])
+        try self.init(resolved: resolved, traits: context.traits)
+    }
 
+    init(resolved: ResolvedWhereTheme, traits: BTraits) throws {
+        theme = resolved.fallback.theme
+        try resolved.appearance.apply(
+            to: &self,
+            traits: traits,
+            appearance: BViewDocumentStylesheet(traits: traits).appearance,
+            path: "appearance",
+        )
         developerOverlay.launcher.diameter = BScaledDimension.value(
             developerOverlay.launcher.diameter,
             relativeTo: .title2,
             category: traits.contentSizeCategory,
         )
-
         enforceThemeAccessibility(traits: traits, baseline: nil)
-
-        // Pale, luminosity-only ink lifts the background security print off
-        // dark glass without changing its hue or saturation on touch.
-        if traits.mode == .dark {
-            calendar.overview.regionBand.opacity = 0.55
-            calendar.overview.regionBand.planned.fillOpacity = 0.24
-            calendar.overview.regionBand.planned.hatchOpacity = 0.85
-            locationForecast.summary.ink = Color(white: 0.78)
-            locationForecast.summary.paper = Color(white: 0.16)
-            settings.iconForeground = .black
-            card.securityPrint = .dark
-            card.elsewherePaper = .dark
-            featureDiscovery.siri.accent = Color(white: 0.42)
+        if traits.accessibility.isDarkerSystemColorsEnabled {
+            // Native accessibility floors apply to every authored paper surface.
+            var minimum = self
+            minimum.card.regular.surface = .reflective
+            minimum.card.compact.surface = .reflective
+            minimum.locationWelcome.surface = .reflective
+            minimum.locationWelcome.close.surface = .reflective
+            minimum.privacyPassportCard.surface = .reflective
+            minimum.locationForecast.summary.treatment = .reflective
+            minimum.card.elsewherePaper.surface.outline = .init(opacity: 0.65, width: 1.5)
+            preserveSurfaceContrast(from: minimum)
+            if case .matte = card.regular.surface { card.regular.contentTint.fraction = max(
+                0.75,
+                card.regular.contentTint.fraction,
+            ) }
+            if case .matte = card.compact.surface { card.compact.contentTint.fraction = max(
+                0.75,
+                card.compact.contentTint.fraction,
+            ) }
         }
-
-        // Resolve theme finishes after shared traits so they retain their depth cues.
-        let overrides = WhereThemeOverrides.resolve(theme: theme, traits: traits, base: self)
-        overrides.apply(to: &self)
-        if let document {
-            let accessibleBase = self
-            try document.appearance.apply(
-                to: &self,
-                traits: traits,
-                appearance: BViewDocumentStylesheet(traits: traits).appearance,
-                path: "appearance",
-            )
-            if document.appearance.developerOverlay?.launcher?.diameter != nil {
-                developerOverlay.launcher.diameter = BScaledDimension.value(
-                    developerOverlay.launcher.diameter,
-                    relativeTo: .title2,
-                    category: traits.contentSizeCategory,
-                )
-            }
-            enforceThemeAccessibility(traits: traits, baseline: accessibleBase)
-            if traits.accessibility.isReduceTransparencyEnabled {
-                // Keep opaque authored colors, but never use alpha as the required solid backdrop.
-                if let paper = document.appearance.locationForecast?.summary?.paper,
-                   !WhereThemeValidation.isOpaque(paper.resolve(mode: traits.mode))
+        if traits.accessibility.isReduceTransparencyEnabled {
+            let appearance = BViewDocumentStylesheet(traits: traits).appearance
+            let canonical = try WhereBundledThemeDefinitions.resolved(theme).appearance
+            if let color = resolved.appearance.locationsBackground?.paper,
+               !WhereThemeValidation
+               .isOpaque(color.resolve(mode: traits.mode))
+            {
+                if let paper = canonical.locationsBackground?.paper?.resolve(mode: traits.mode),
+                   WhereThemeValidation.isOpaque(paper)
                 {
-                    locationForecast.summary.paper = accessibleBase.locationForecast.summary.paper
-                }
-                if let paper = document.appearance.locationsBackground?.paper,
-                   !WhereThemeValidation.isOpaque(paper.resolve(mode: traits.mode))
-                {
-                    locationsBackground.paper = accessibleBase.locationsBackground.paper
+                    locationsBackground.paper = appearance.color(paper)
+                } else {
+                    locationsBackground.paper = appearance.background
                 }
             }
-            if traits.accessibility.isDarkerSystemColorsEnabled {
-                preserveSurfaceContrast(from: accessibleBase)
+            if let color = resolved.appearance.locationForecast?.summary?.paper,
+               !WhereThemeValidation
+               .isOpaque(color.resolve(mode: traits.mode))
+            {
+                if let paper = canonical.locationForecast?.summary?.paper?
+                    .resolve(mode: traits.mode),
+                    WhereThemeValidation.isOpaque(paper)
+                {
+                    locationForecast.summary.paper = appearance.color(paper)
+                } else {
+                    locationForecast.summary.paper = appearance.background
+                }
             }
         }
     }
@@ -216,7 +219,10 @@ struct WhereStylesheet: BStylesheet {
         }
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
+            let showsSurfaceWash = locationForecast.ink.surfaceWashOpacity > 0
             locationForecast.ink = baseline?.locationForecast.ink ?? .increasedContrast
+            // Contrast strengthens informational ink, but cannot restore removed ornament.
+            if !showsSurfaceWash { locationForecast.ink.surfaceWashOpacity = 0 }
             openSourceStamp.ink = baseline?.openSourceStamp.ink ?? .increasedContrast
             plannedStayWarningStamp.ink = baseline?.plannedStayWarningStamp
                 .ink ?? .increasedContrast
@@ -240,7 +246,15 @@ struct WhereStylesheet: BStylesheet {
 
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
-    static let `default` = WhereStylesheet()
+    static let `default`: WhereStylesheet = {
+        do { return try WhereStylesheet(
+            resolved: WhereBundledThemeDefinitions.resolved(.standard),
+            traits: BTraits(),
+        ) } catch {
+            WhereBundledThemeDefinitions.reportPackagingFailure(error)
+            return WhereStylesheet()
+        }
+    }()
 }
 
 // MARK: - Flight status
@@ -2852,7 +2866,7 @@ extension View {
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
         modifier(WhereBroadwayRootModifier(
-            theme: themeDocument.validated.document.fallback.theme,
+            theme: themeDocument.resolved.fallback.theme,
             regionStyles: regionStyles,
             document: themeDocument,
         ))
@@ -2862,7 +2876,11 @@ extension View {
         theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles, document: nil))
+        modifier(WhereBroadwayRootModifier(
+            theme: theme,
+            regionStyles: regionStyles,
+            document: WhereBundledThemes.preparedOrFallback(theme),
+        ))
     }
 }
 

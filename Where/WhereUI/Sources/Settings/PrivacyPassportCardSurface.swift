@@ -5,8 +5,36 @@ import SwiftUI
 struct PrivacyPassportCardSurface<Content: View>: View {
     let tilt: TiltProvider
     @ViewBuilder let content: Content
+    var ambientShadowOverride: WhereStylesheet.MatteSurface.Shadow?
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        // Elevation responds to the surrounding page; the passport's paper, ink, and
+        // artwork share one dark appearance inside this boundary.
+        PrivacyPassportDarkSurface(
+            tilt: tilt,
+            ambientShadow: ambientShadowOverride ?? ambientShadow,
+            content: content,
+        )
+        .foregroundStyle(Color(uiColor: .label))
+        .environment(\.whereThemeSecondaryInk, nil)
+        .environment(\.colorScheme, .dark)
+        .bMode(.dark)
+    }
+
+    private var ambientShadow: WhereStylesheet.MatteSurface.Shadow? {
+        if case let .matte(paper) = stylesheet.privacyPassportCard.surface { paper.shadow }
+        else { nil }
+    }
+}
+
+private struct PrivacyPassportDarkSurface<Content: View>: View {
+    let tilt: TiltProvider
+    let ambientShadow: WhereStylesheet.MatteSurface.Shadow?
+    let content: Content
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
 
     var body: some View {
         let style = stylesheet.privacyPassportCard
@@ -33,19 +61,28 @@ struct PrivacyPassportCardSurface<Content: View>: View {
                             )
                         }
                 case .matte:
-                    printedContent.matteSurface(style.surface, tint: reflection.accent, in: shape)
+                    printedContent.matteSurface(surface, tint: reflection.accent, in: shape)
             }
         }
+        .overlay { WhereComponentArtwork(role: .privacy, plane: .exterior, shape: shape) }
         .tint(reflection.accent)
-        .environment(\.colorScheme, .dark)
-        .bMode(.dark)
         .contentShape(shape)
+    }
+
+    private var surface: WhereStylesheet.SurfaceTreatment {
+        var surface = stylesheet.privacyPassportCard.surface
+        if case var .matte(paper) = surface, let ambientShadow {
+            paper.shadow = ambientShadow
+            surface = .matte(paper)
+        }
+        return surface
     }
 
     private var printedContent: some View {
         let style = stylesheet.privacyPassportCard
         let reflection = style.reflectiveSurface
         return content
+            .modifier(WhereComponentTextStyle(role: .privacy))
             .background {
                 ZStack {
                     if style.surface.usesReflection {
@@ -55,14 +92,22 @@ struct PrivacyPassportCardSurface<Content: View>: View {
                             endPoint: .bottomTrailing,
                         )
                     }
-                    SecurityPrintRosette(
-                        tint: reflection.accent,
-                        wobble: style.rosette.wobble,
-                        lineWidth: style.rosette.lineWidth,
-                        primaryRingSpacing: style.rosette.primaryRingSpacing,
-                        secondaryRingSpacing: style.rosette.secondaryRingSpacing,
-                        primaryOpacity: style.rosette.primaryOpacity,
-                        secondaryOpacity: style.rosette.secondaryOpacity,
+                    if let background = components[.privacy].background { background }
+                    if components[.privacy].nativeArtwork.contains(.rosette) {
+                        SecurityPrintRosette(
+                            tint: reflection.accent,
+                            wobble: style.rosette.wobble,
+                            lineWidth: style.rosette.lineWidth,
+                            primaryRingSpacing: style.rosette.primaryRingSpacing,
+                            secondaryRingSpacing: style.rosette.secondaryRingSpacing,
+                            primaryOpacity: style.rosette.primaryOpacity,
+                            secondaryOpacity: style.rosette.secondaryOpacity,
+                        )
+                    }
+                    WhereComponentArtwork(
+                        role: .privacy,
+                        plane: .interior,
+                        shape: RoundedRectangle(cornerRadius: style.cornerRadius),
                     )
                 }
             }

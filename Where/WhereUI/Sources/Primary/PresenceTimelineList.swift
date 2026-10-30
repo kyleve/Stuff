@@ -97,6 +97,7 @@ struct PresenceTimelineList: View {
                                 homeRegion: report.forecasts.planning.homeRegion,
                                 planningAction: { planningDestination = .list },
                             )
+                            .whereThemeArtworkSpace(.forecastPanel)
                         }
                     }
                     .padding(.horizontal, stylesheet.spacing.xxLarge)
@@ -122,6 +123,8 @@ struct PresenceTimelineList: View {
                 .id(report.selectedYear)
             }
         }
+        .whereThemeScreen(.year)
+        .whereThemeActivity(planningDestination == nil)
         .sheet(item: $planningDestination) { destination in
             PlannedStaysDestinationView(destination: destination, report: report)
         }

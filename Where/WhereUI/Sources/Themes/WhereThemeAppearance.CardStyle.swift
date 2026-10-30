@@ -11,19 +11,23 @@ extension WhereThemeAppearance {
         public var padding: BThemeValue<Double>?
         public var contentSpacing: BThemeValue<Double>?
         public var progressBarHeight: BThemeValue<Double>?
-        public var entryStamp: WhereThemeAppearance.CardStyle.EntryStamp?
-        public var regionNameTypography: WhereThemeAppearance.CardStyle.Typography?
+        @CopyOnWrite public var entryStamp: WhereThemeAppearance.CardStyle.EntryStamp? = nil
+        @CopyOnWrite public var regionNameTypography: WhereThemeAppearance.CardStyle
+            .Typography? = nil
         public var regionNameTracking: BThemeValue<Double>?
-        public var heroNumberTypography: WhereThemeAppearance.CardStyle.Typography?
-        public var dayUnitTypography: WhereThemeAppearance.CardStyle.Typography?
+        @CopyOnWrite public var heroNumberTypography: WhereThemeAppearance.CardStyle
+            .Typography? = nil
+        @CopyOnWrite public var dayUnitTypography: WhereThemeAppearance.CardStyle.Typography? = nil
         public var watermarkFontSize: BThemeValue<Double>?
         public var watermarkOffset: BThemeValue<WhereThemeSize>?
-        public var regionShape: WhereThemeOptional<WhereThemeAppearance.CardStyle.RegionShape>?
-        public var sheen: WhereThemeAppearance.CardStyle.Sheen?
-        public var rosette: WhereThemeAppearance.CardStyle.Rosette?
-        public var glow: WhereThemeAppearance.CardStyle.Shadow?
-        public var lift: WhereThemeAppearance.CardStyle.Shadow?
-        public var paper: WhereThemeOptional<WhereThemeAppearance.CardStyle.Paper>?
+        @CopyOnWrite public var regionShape: WhereThemeOptional<WhereThemeAppearance.CardStyle
+            .RegionShape>? = nil
+        @CopyOnWrite public var sheen: WhereThemeAppearance.CardStyle.Sheen? = nil
+        @CopyOnWrite public var rosette: WhereThemeAppearance.CardStyle.Rosette? = nil
+        @CopyOnWrite public var glow: WhereThemeAppearance.CardStyle.Shadow? = nil
+        @CopyOnWrite public var lift: WhereThemeAppearance.CardStyle.Shadow? = nil
+        @CopyOnWrite public var paper: WhereThemeOptional<WhereThemeAppearance.CardStyle.Paper>? =
+            nil
 
         public init() {}
 
@@ -169,10 +173,12 @@ extension WhereThemeAppearance {
 extension WhereThemeAppearance.CardStyle {
     public struct EntryStamp: Codable, Hashable, Sendable {
         public var size: BThemeValue<Double>?
-        public var outerRing: WhereThemeAppearance.CardStyle.EntryStamp.Ring?
-        public var innerRing: WhereThemeAppearance.CardStyle.EntryStamp.DashedRing?
-        public var content: WhereThemeAppearance.CardStyle.EntryStamp.Content?
-        public var arc: WhereThemeOptional<WhereThemeAppearance.CardStyle.EntryStamp.Arc>?
+        @CopyOnWrite public var outerRing: WhereThemeAppearance.CardStyle.EntryStamp.Ring? = nil
+        @CopyOnWrite public var innerRing: WhereThemeAppearance.CardStyle.EntryStamp
+            .DashedRing? = nil
+        @CopyOnWrite public var content: WhereThemeAppearance.CardStyle.EntryStamp.Content? = nil
+        @CopyOnWrite public var arc: WhereThemeOptional<WhereThemeAppearance.CardStyle.EntryStamp
+            .Arc>? = nil
         public var rotationDegrees: BThemeValue<Double>?
 
         public init() {}
@@ -272,9 +278,10 @@ extension WhereThemeAppearance.CardStyle {
 
 extension WhereThemeAppearance.CardStyle {
     public struct RegionShape: Codable, Hashable, Sendable {
-        public var watermark: WhereThemeAppearance.CardStyle.RegionShape.Artwork?
-        public var stamp: WhereThemeAppearance.CardStyle.RegionShape.Artwork?
-        public var securityBorder: WhereThemeAppearance.CardStyle.RegionShape.SecurityBorder?
+        @CopyOnWrite public var watermark: WhereThemeAppearance.CardStyle.RegionShape.Artwork? = nil
+        @CopyOnWrite public var stamp: WhereThemeAppearance.CardStyle.RegionShape.Artwork? = nil
+        @CopyOnWrite public var securityBorder: WhereThemeAppearance.CardStyle.RegionShape
+            .SecurityBorder? = nil
 
         public init() {}
 
@@ -382,7 +389,7 @@ extension WhereThemeAppearance.CardStyle {
     public struct Sheen: Codable, Hashable, Sendable {
         public var intensity: BThemeValue<Double>?
         public var staticGlintIntensity: BThemeValue<Double>?
-        public var staticPose: WhereThemeAppearance.CardStyle.Sheen.Pose?
+        @CopyOnWrite public var staticPose: WhereThemeAppearance.CardStyle.Sheen.Pose? = nil
 
         public init() {}
 
@@ -454,7 +461,7 @@ extension WhereThemeAppearance.CardStyle {
 extension WhereThemeAppearance.CardStyle.EntryStamp {
     public struct Arc: Codable, Hashable, Sendable {
         public var radiusFraction: BThemeValue<Double>?
-        public var font: WhereThemeAppearance.CardStyle.EntryStamp.Typography?
+        @CopyOnWrite public var font: WhereThemeAppearance.CardStyle.EntryStamp.Typography? = nil
         public var opacity: BThemeValue<Double>?
         public var maximumSweepDegrees: BThemeValue<Double>?
         public var sweepDegreesPerCharacter: BThemeValue<Double>?
@@ -504,8 +511,10 @@ extension WhereThemeAppearance.CardStyle.EntryStamp {
     public struct Content: Codable, Hashable, Sendable {
         public var spacingFraction: BThemeValue<Double>?
         public var artworkExtent: BThemeValue<WhereThemeSize>?
-        public var symbolFont: WhereThemeAppearance.CardStyle.EntryStamp.Typography?
-        public var yearFont: WhereThemeAppearance.CardStyle.EntryStamp.Typography?
+        @CopyOnWrite public var symbolFont: WhereThemeAppearance.CardStyle.EntryStamp
+            .Typography? = nil
+        @CopyOnWrite public var yearFont: WhereThemeAppearance.CardStyle.EntryStamp
+            .Typography? = nil
         public var opacity: BThemeValue<Double>?
 
         public init() {}
@@ -551,7 +560,8 @@ extension WhereThemeAppearance.CardStyle.EntryStamp {
     public struct DashedRing: Codable, Hashable, Sendable {
         public var opacity: BThemeValue<Double>?
         public var lineWidthFraction: BThemeValue<Double>?
-        public var dash: WhereThemeAppearance.CardStyle.EntryStamp.DashedRing.Dash?
+        @CopyOnWrite public var dash: WhereThemeAppearance.CardStyle.EntryStamp.DashedRing
+            .Dash? = nil
         public var insetFraction: BThemeValue<Double>?
 
         public init() {}
@@ -653,8 +663,9 @@ extension WhereThemeAppearance.CardStyle.RegionShape {
         public var extent: BThemeValue<WhereThemeSize>?
         public var scale: BThemeValue<Double>?
         public var fillOpacity: BThemeValue<Double>?
-        public var stroke: WhereThemeOptional<WhereThemeAppearance.CardStyle.RegionShape.Artwork
-            .Stroke>?
+        @CopyOnWrite public var stroke: WhereThemeOptional<WhereThemeAppearance.CardStyle
+            .RegionShape.Artwork
+            .Stroke>? = nil
 
         public init() {}
 
@@ -889,5 +900,233 @@ extension WhereThemeAppearance.CardStyle.RegionShape.Artwork {
                 value.width = CGFloat(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.CardStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.surface = inheritModePatch(surface, from: parent.surface)
+        result.contentTint = inheritModePatch(contentTint, from: parent.contentTint)
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.progressBarHeight = progressBarHeight ?? parent.progressBarHeight
+        result.entryStamp = inheritPatch(entryStamp, from: parent.entryStamp)
+        result.regionNameTypography = inheritPatch(
+            regionNameTypography,
+            from: parent.regionNameTypography,
+        )
+        result.regionNameTracking = regionNameTracking ?? parent.regionNameTracking
+        result.heroNumberTypography = inheritPatch(
+            heroNumberTypography,
+            from: parent.heroNumberTypography,
+        )
+        result.dayUnitTypography = inheritPatch(dayUnitTypography, from: parent.dayUnitTypography)
+        result.watermarkFontSize = watermarkFontSize ?? parent.watermarkFontSize
+        result.watermarkOffset = watermarkOffset ?? parent.watermarkOffset
+        result.regionShape = inheritOptionalPatch(regionShape, from: parent.regionShape)
+        result.sheen = inheritPatch(sheen, from: parent.sheen)
+        result.rosette = inheritPatch(rosette, from: parent.rosette)
+        result.glow = inheritPatch(glow, from: parent.glow)
+        result.lift = inheritPatch(lift, from: parent.lift)
+        result.paper = inheritOptionalPatch(paper, from: parent.paper)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.size = size ?? parent.size
+        result.outerRing = inheritPatch(outerRing, from: parent.outerRing)
+        result.innerRing = inheritPatch(innerRing, from: parent.innerRing)
+        result.content = inheritPatch(content, from: parent.content)
+        result.arc = inheritOptionalPatch(arc, from: parent.arc)
+        result.rotationDegrees = rotationDegrees ?? parent.rotationDegrees
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.Paper: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.surface = inheritModePatch(surface, from: parent.surface)
+        result.contentTint = inheritModePatch(contentTint, from: parent.contentTint)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.RegionShape: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.watermark = inheritPatch(watermark, from: parent.watermark)
+        result.stamp = inheritPatch(stamp, from: parent.stamp)
+        result.securityBorder = inheritPatch(securityBorder, from: parent.securityBorder)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.Rosette: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.wobble = wobble ?? parent.wobble
+        result.lineWidth = lineWidth ?? parent.lineWidth
+        result.primaryRingSpacing = primaryRingSpacing ?? parent.primaryRingSpacing
+        result.secondaryRingSpacing = secondaryRingSpacing ?? parent.secondaryRingSpacing
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.Shadow: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.opacity = opacity ?? parent.opacity
+        result.radius = radius ?? parent.radius
+        result.offsetY = offsetY ?? parent.offsetY
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.Sheen: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.intensity = intensity ?? parent.intensity
+        result.staticGlintIntensity = staticGlintIntensity ?? parent.staticGlintIntensity
+        result.staticPose = inheritPatch(staticPose, from: parent.staticPose)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.Typography: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.size = size ?? parent.size
+        result.weight = weight ?? parent.weight
+        result.design = design ?? parent.design
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp.Arc: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.radiusFraction = radiusFraction ?? parent.radiusFraction
+        result.font = inheritPatch(font, from: parent.font)
+        result.opacity = opacity ?? parent.opacity
+        result.maximumSweepDegrees = maximumSweepDegrees ?? parent.maximumSweepDegrees
+        result.sweepDegreesPerCharacter = sweepDegreesPerCharacter ?? parent
+            .sweepDegreesPerCharacter
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp.Content: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.spacingFraction = spacingFraction ?? parent.spacingFraction
+        result.artworkExtent = artworkExtent ?? parent.artworkExtent
+        result.symbolFont = inheritPatch(symbolFont, from: parent.symbolFont)
+        result.yearFont = inheritPatch(yearFont, from: parent.yearFont)
+        result.opacity = opacity ?? parent.opacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp.DashedRing: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.opacity = opacity ?? parent.opacity
+        result.lineWidthFraction = lineWidthFraction ?? parent.lineWidthFraction
+        result.dash = inheritPatch(dash, from: parent.dash)
+        result.insetFraction = insetFraction ?? parent.insetFraction
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp.Ring: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.opacity = opacity ?? parent.opacity
+        result.lineWidthFraction = lineWidthFraction ?? parent.lineWidthFraction
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp.Typography: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.sizeFraction = sizeFraction ?? parent.sizeFraction
+        result.weight = weight ?? parent.weight
+        result.design = design ?? parent.design
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.RegionShape.Artwork: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.center = center ?? parent.center
+        result.extent = extent ?? parent.extent
+        result.scale = scale ?? parent.scale
+        result.fillOpacity = fillOpacity ?? parent.fillOpacity
+        result.stroke = inheritOptionalPatch(stroke, from: parent.stroke)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.RegionShape.SecurityBorder: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.inset = inset ?? parent.inset
+        result.glyphSize = glyphSize ?? parent.glyphSize
+        result.spacing = spacing ?? parent.spacing
+        result.opacity = opacity ?? parent.opacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.Sheen.Pose: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.roll = roll ?? parent.roll
+        result.pitch = pitch ?? parent.pitch
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.EntryStamp.DashedRing.Dash: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.lengthFraction = lengthFraction ?? parent.lengthFraction
+        result.spacingFraction = spacingFraction ?? parent.spacingFraction
+        return result
+    }
+}
+
+extension WhereThemeAppearance.CardStyle.RegionShape.Artwork.Stroke: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.opacity = opacity ?? parent.opacity
+        result.width = width ?? parent.width
+        return result
     }
 }

@@ -14,7 +14,7 @@ extension WhereThemeAppearance {
         public var cellLabelSpacing: BThemeValue<Double>?
         public var backgroundedCellOpacity: BThemeValue<Double>?
         public var scrim: BThemeValue<ViewColorDescriptor>?
-        public var panel: WhereThemeAppearance.AppIconStyle.PanelStyle?
+        @CopyOnWrite public var panel: WhereThemeAppearance.AppIconStyle.PanelStyle? = nil
 
         public init() {}
 
@@ -168,5 +168,43 @@ extension WhereThemeAppearance.AppIconStyle {
                 value.grabberTopPadding = CGFloat(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.AppIconStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.gridMax = gridMax ?? parent.gridMax
+        result.previewMax = previewMax ?? parent.previewMax
+        result.gridSpacing = gridSpacing ?? parent.gridSpacing
+        result.columnSpacing = columnSpacing ?? parent.columnSpacing
+        result.gridPadding = gridPadding ?? parent.gridPadding
+        result.cellSpacing = cellSpacing ?? parent.cellSpacing
+        result.cellLabelSpacing = cellLabelSpacing ?? parent.cellLabelSpacing
+        result.backgroundedCellOpacity = backgroundedCellOpacity ?? parent.backgroundedCellOpacity
+        result.scrim = scrim ?? parent.scrim
+        result.panel = inheritPatch(panel, from: parent.panel)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.AppIconStyle.PanelStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.spacing = spacing ?? parent.spacing
+        result.textSpacing = textSpacing ?? parent.textSpacing
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.bottomPadding = bottomPadding ?? parent.bottomPadding
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.background = background ?? parent.background
+        result.shadowColor = shadowColor ?? parent.shadowColor
+        result.shadowRadius = shadowRadius ?? parent.shadowRadius
+        result.shadowOffsetY = shadowOffsetY ?? parent.shadowOffsetY
+        result.grabberSize = grabberSize ?? parent.grabberSize
+        result.grabberOpacity = grabberOpacity ?? parent.grabberOpacity
+        result.grabberTopPadding = grabberTopPadding ?? parent.grabberTopPadding
+        return result
     }
 }

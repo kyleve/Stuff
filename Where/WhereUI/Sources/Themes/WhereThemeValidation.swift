@@ -7,8 +7,16 @@ enum WhereThemeValidation {
     static func isOpaque(_ value: ViewColorDescriptor) -> Bool {
         switch value {
             case let .rgba(_, _, _, alpha): alpha == 1
-            case .semantic(.primary), .semantic(.background): true
-            case .semantic(.secondary), .semantic(.accent): false
+            case let .opacity(value, alpha): alpha == 1 && isOpaque(value)
+            case let .mix(first, second, _): isOpaque(first) && isOpaque(second)
+            case .semantic(.primary), .semantic(.background), .semantic(.secondaryBackground),
+                 .semantic(.groupedBackground), .semantic(.secondaryGroupedBackground),
+                 .semantic(.red), .semantic(.orange),
+                 .semantic(.yellow), .semantic(.green), .semantic(.mint), .semantic(.teal),
+                 .semantic(.cyan), .semantic(.blue), .semantic(.indigo), .semantic(.purple),
+                 .semantic(.pink), .semantic(.brown), .semantic(.gray), .semantic(.black),
+                 .semantic(.white): true
+            case .semantic(.secondary), .semantic(.accent), .semantic(.clear): false
         }
     }
 
@@ -157,7 +165,7 @@ enum WhereThemeValidation {
             case let .linear(seconds), let .easeIn(seconds), let .easeOut(seconds),
                  let .easeInOut(seconds): duration =
             seconds
-            case let .spring(seconds, bounce):
+            case let .spring(seconds, bounce), let .snappy(seconds, bounce):
                 duration = seconds
                 guard bounce.isFinite,
                       (-1 ... 1).contains(bounce)

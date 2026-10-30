@@ -13,10 +13,12 @@ extension WhereThemeAppearance {
         public var headerSpacing: BThemeValue<Double>?
         public var titleFont: BThemeValue<ViewFontDescriptor>?
         public var detailFont: BThemeValue<ViewFontDescriptor>?
-        public var rosette: WhereThemeAppearance.PrivacyPassportCardStyle.Rosette?
-        public var reflectiveSurface: WhereThemeAppearance.PrivacyPassportCardStyle
-            .ReflectiveSurface?
-        public var disclosure: WhereThemeAppearance.PrivacyPassportCardStyle.Disclosure?
+        @CopyOnWrite public var rosette: WhereThemeAppearance.PrivacyPassportCardStyle
+            .Rosette? = nil
+        @CopyOnWrite public var reflectiveSurface: WhereThemeAppearance.PrivacyPassportCardStyle
+            .ReflectiveSurface? = nil
+        @CopyOnWrite public var disclosure: WhereThemeAppearance.PrivacyPassportCardStyle
+            .Disclosure? = nil
         public var outlineOpacity: BThemeValue<Double>?
         public var outlineWidth: BThemeValue<Double>?
 
@@ -226,7 +228,8 @@ extension WhereThemeAppearance.PrivacyPassportCardStyle {
         public var accent: BThemeValue<ViewColorDescriptor>?
         public var intensity: BThemeValue<Double>?
         public var staticGlintIntensity: BThemeValue<Double>?
-        public var staticPose: WhereThemeAppearance.PrivacyPassportCardStyle.ReflectiveSurface.Pose?
+        @CopyOnWrite public var staticPose: WhereThemeAppearance.PrivacyPassportCardStyle
+            .ReflectiveSurface.Pose? = nil
 
         public init() {}
 
@@ -354,5 +357,89 @@ extension WhereThemeAppearance.PrivacyPassportCardStyle.ReflectiveSurface {
                 value.pitch = resolved
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.PrivacyPassportCardStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.surface = inheritModePatch(surface, from: parent.surface)
+        result.headerLayout = headerLayout ?? parent.headerLayout
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.sectionSpacing = sectionSpacing ?? parent.sectionSpacing
+        result.headerSpacing = headerSpacing ?? parent.headerSpacing
+        result.titleFont = titleFont ?? parent.titleFont
+        result.detailFont = detailFont ?? parent.detailFont
+        result.rosette = inheritPatch(rosette, from: parent.rosette)
+        result.reflectiveSurface = inheritPatch(reflectiveSurface, from: parent.reflectiveSurface)
+        result.disclosure = inheritPatch(disclosure, from: parent.disclosure)
+        result.outlineOpacity = outlineOpacity ?? parent.outlineOpacity
+        result.outlineWidth = outlineWidth ?? parent.outlineWidth
+        return result
+    }
+}
+
+extension WhereThemeAppearance.PrivacyPassportCardStyle.Disclosure: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.rowSpacing = rowSpacing ?? parent.rowSpacing
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.textSpacing = textSpacing ?? parent.textSpacing
+        result.iconSize = iconSize ?? parent.iconSize
+        result.symbolFont = symbolFont ?? parent.symbolFont
+        result.titleFont = titleFont ?? parent.titleFont
+        result.detailFont = detailFont ?? parent.detailFont
+        result.statusFont = statusFont ?? parent.statusFont
+        result.statusHorizontalPadding = statusHorizontalPadding ?? parent.statusHorizontalPadding
+        result.statusVerticalPadding = statusVerticalPadding ?? parent.statusVerticalPadding
+        result.fillOpacity = fillOpacity ?? parent.fillOpacity
+        result.strokeOpacity = strokeOpacity ?? parent.strokeOpacity
+        result.strokeWidth = strokeWidth ?? parent.strokeWidth
+        result.statusFillOpacity = statusFillOpacity ?? parent.statusFillOpacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.PrivacyPassportCardStyle.ReflectiveSurface: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.backgroundTop = backgroundTop ?? parent.backgroundTop
+        result.backgroundBottom = backgroundBottom ?? parent.backgroundBottom
+        result.accent = accent ?? parent.accent
+        result.intensity = intensity ?? parent.intensity
+        result.staticGlintIntensity = staticGlintIntensity ?? parent.staticGlintIntensity
+        result.staticPose = inheritPatch(staticPose, from: parent.staticPose)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.PrivacyPassportCardStyle.Rosette: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.wobble = wobble ?? parent.wobble
+        result.lineWidth = lineWidth ?? parent.lineWidth
+        result.primaryRingSpacing = primaryRingSpacing ?? parent.primaryRingSpacing
+        result.secondaryRingSpacing = secondaryRingSpacing ?? parent.secondaryRingSpacing
+        result.primaryOpacity = primaryOpacity ?? parent.primaryOpacity
+        result.secondaryOpacity = secondaryOpacity ?? parent.secondaryOpacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.PrivacyPassportCardStyle.ReflectiveSurface.Pose: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.roll = roll ?? parent.roll
+        result.pitch = pitch ?? parent.pitch
+        return result
     }
 }

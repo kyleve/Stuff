@@ -12,7 +12,7 @@ struct WhereThemeExamplesTests {
                 WhereThemeDocument.self,
                 from: JSONEncoder().encode(document),
             ) == document)
-            #expect(!prepared.layers.isEmpty)
+            #expect(prepared.componentArtwork.values.contains { !$0.isEmpty })
         }
     }
 }

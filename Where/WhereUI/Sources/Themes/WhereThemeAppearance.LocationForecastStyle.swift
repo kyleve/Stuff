@@ -9,13 +9,13 @@ extension WhereThemeAppearance {
         public var padding: BThemeValue<Double>?
         public var rowSpacing: BThemeValue<Double>?
         public var expansionAnimation: BThemeValue<WhereThemeAnimation>?
-        public var surface: WhereThemeAppearance.LocationForecastStyle.Surface?
-        public var header: WhereThemeAppearance.LocationForecastStyle.Header?
-        public var row: WhereThemeAppearance.LocationForecastStyle.Row?
-        public var progress: WhereThemeAppearance.LocationForecastStyle.Progress?
-        public var controls: WhereThemeAppearance.LocationForecastStyle.Controls?
-        public var ink: WhereThemeAppearance.LocationForecastStyle.Ink?
-        public var summary: WhereThemeAppearance.LocationForecastStyle.Summary?
+        @CopyOnWrite public var surface: WhereThemeAppearance.LocationForecastStyle.Surface? = nil
+        @CopyOnWrite public var header: WhereThemeAppearance.LocationForecastStyle.Header? = nil
+        @CopyOnWrite public var row: WhereThemeAppearance.LocationForecastStyle.Row? = nil
+        @CopyOnWrite public var progress: WhereThemeAppearance.LocationForecastStyle.Progress? = nil
+        @CopyOnWrite public var controls: WhereThemeAppearance.LocationForecastStyle.Controls? = nil
+        @CopyOnWrite public var ink: WhereThemeAppearance.LocationForecastStyle.Ink? = nil
+        @CopyOnWrite public var summary: WhereThemeAppearance.LocationForecastStyle.Summary? = nil
 
         public init() {}
 
@@ -402,7 +402,8 @@ extension WhereThemeAppearance.LocationForecastStyle {
 
 extension WhereThemeAppearance.LocationForecastStyle {
     public struct Summary: Codable, Hashable, Sendable {
-        public var artwork: WhereThemeAppearance.LocationForecastStyle.Summary.Artwork?
+        @CopyOnWrite public var artwork: WhereThemeAppearance.LocationForecastStyle.Summary
+            .Artwork? = nil
         public var cornerRadius: BThemeValue<Double>?
         public var padding: BThemeValue<Double>?
         public var ink: BThemeValue<ViewColorDescriptor>?
@@ -416,8 +417,9 @@ extension WhereThemeAppearance.LocationForecastStyle {
         public var shadowRadius: BThemeValue<Double>?
         public var shadowOffsetY: BThemeValue<Double>?
         public var rosetteOpacity: BThemeValue<Double>?
-        public var rosette: WhereThemeAppearance.CardStyle.Rosette?
-        public var border: WhereThemeAppearance.CardStyle.RegionShape.SecurityBorder?
+        @CopyOnWrite public var rosette: WhereThemeAppearance.CardStyle.Rosette? = nil
+        @CopyOnWrite public var border: WhereThemeAppearance.CardStyle.RegionShape
+            .SecurityBorder? = nil
 
         public init() {}
 
@@ -605,7 +607,8 @@ extension WhereThemeAppearance.LocationForecastStyle.Summary {
         public var inset: BThemeValue<Double>?
         public var gap: BThemeValue<Double>?
         public var leadingOpacity: BThemeValue<Double>?
-        public var silhouette: WhereThemeAppearance.CardStyle.RegionShape.Artwork?
+        @CopyOnWrite public var silhouette: WhereThemeAppearance.CardStyle.RegionShape
+            .Artwork? = nil
 
         public init() {}
 
@@ -642,5 +645,160 @@ extension WhereThemeAppearance.LocationForecastStyle.Summary {
                 path: path + ".silhouette",
             )
         }
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.rowSpacing = rowSpacing ?? parent.rowSpacing
+        result.expansionAnimation = expansionAnimation ?? parent.expansionAnimation
+        result.surface = inheritPatch(surface, from: parent.surface)
+        result.header = inheritPatch(header, from: parent.header)
+        result.row = inheritPatch(row, from: parent.row)
+        result.progress = inheritPatch(progress, from: parent.progress)
+        result.controls = inheritPatch(controls, from: parent.controls)
+        result.ink = inheritPatch(ink, from: parent.ink)
+        result.summary = inheritPatch(summary, from: parent.summary)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Controls: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.sectionSpacing = sectionSpacing ?? parent.sectionSpacing
+        result.layoutSpacing = layoutSpacing ?? parent.layoutSpacing
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.minimumHeight = minimumHeight ?? parent.minimumHeight
+        result.strokeWidth = strokeWidth ?? parent.strokeWidth
+        result.font = font ?? parent.font
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Header: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.textSpacing = textSpacing ?? parent.textSpacing
+        result.titleFont = titleFont ?? parent.titleFont
+        result.elapsedFont = elapsedFont ?? parent.elapsedFont
+        result.minimumHeight = minimumHeight ?? parent.minimumHeight
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Ink: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.surfaceWashOpacity = surfaceWashOpacity ?? parent.surfaceWashOpacity
+        result.surfaceOutlineOpacity = surfaceOutlineOpacity ?? parent.surfaceOutlineOpacity
+        result.microprintOpacity = microprintOpacity ?? parent.microprintOpacity
+        result.rosettePrimaryOpacity = rosettePrimaryOpacity ?? parent.rosettePrimaryOpacity
+        result.rosetteSecondaryOpacity = rosetteSecondaryOpacity ?? parent.rosetteSecondaryOpacity
+        result.sealOpacity = sealOpacity ?? parent.sealOpacity
+        result.rowFillOpacity = rowFillOpacity ?? parent.rowFillOpacity
+        result.rowOutlineOpacity = rowOutlineOpacity ?? parent.rowOutlineOpacity
+        result.progressTrackOpacity = progressTrackOpacity ?? parent.progressTrackOpacity
+        result.progressEstimateFillOpacity = progressEstimateFillOpacity ?? parent
+            .progressEstimateFillOpacity
+        result.progressHatchOpacity = progressHatchOpacity ?? parent.progressHatchOpacity
+        result.controlFillOpacity = controlFillOpacity ?? parent.controlFillOpacity
+        result.controlStrokeOpacity = controlStrokeOpacity ?? parent.controlStrokeOpacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Progress: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.height = height ?? parent.height
+        result.hatchSpacing = hatchSpacing ?? parent.hatchSpacing
+        result.hatchLineWidth = hatchLineWidth ?? parent.hatchLineWidth
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Row: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.estimateSpacing = estimateSpacing ?? parent.estimateSpacing
+        result.regionFont = regionFont ?? parent.regionFont
+        result.estimateFont = estimateFont ?? parent.estimateFont
+        result.detailFont = detailFont ?? parent.detailFont
+        result.outlineWidth = outlineWidth ?? parent.outlineWidth
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Summary: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.artwork = inheritPatch(artwork, from: parent.artwork)
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.ink = ink ?? parent.ink
+        result.treatment = inheritModePatch(treatment, from: parent.treatment)
+        result.paper = paper ?? parent.paper
+        result.usesOpaquePaper = usesOpaquePaper ?? parent.usesOpaquePaper
+        result.glassTintOpacity = glassTintOpacity ?? parent.glassTintOpacity
+        result.outlineColor = outlineColor ?? parent.outlineColor
+        result.outlineWidth = outlineWidth ?? parent.outlineWidth
+        result.shadowOpacity = shadowOpacity ?? parent.shadowOpacity
+        result.shadowRadius = shadowRadius ?? parent.shadowRadius
+        result.shadowOffsetY = shadowOffsetY ?? parent.shadowOffsetY
+        result.rosetteOpacity = rosetteOpacity ?? parent.rosetteOpacity
+        result.rosette = inheritPatch(rosette, from: parent.rosette)
+        result.border = inheritPatch(border, from: parent.border)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Surface: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.outlineWidth = outlineWidth ?? parent.outlineWidth
+        result.inset = inset ?? parent.inset
+        result.microprintGlyphSize = microprintGlyphSize ?? parent.microprintGlyphSize
+        result.microprintSpacing = microprintSpacing ?? parent.microprintSpacing
+        result.rosetteWobble = rosetteWobble ?? parent.rosetteWobble
+        result.rosetteLineWidth = rosetteLineWidth ?? parent.rosetteLineWidth
+        result.primaryRingSpacing = primaryRingSpacing ?? parent.primaryRingSpacing
+        result.secondaryRingSpacing = secondaryRingSpacing ?? parent.secondaryRingSpacing
+        result.shadowColor = shadowColor ?? parent.shadowColor
+        result.shadowRadius = shadowRadius ?? parent.shadowRadius
+        result.shadowOffsetY = shadowOffsetY ?? parent.shadowOffsetY
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationForecastStyle.Summary.Artwork: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.widthFraction = widthFraction ?? parent.widthFraction
+        result.inset = inset ?? parent.inset
+        result.gap = gap ?? parent.gap
+        result.leadingOpacity = leadingOpacity ?? parent.leadingOpacity
+        result.silhouette = inheritPatch(silhouette, from: parent.silhouette)
+        return result
     }
 }

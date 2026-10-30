@@ -41,3 +41,15 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.FlightReviewPointStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.titleFont = titleFont ?? parent.titleFont
+        result.detailFont = detailFont ?? parent.detailFont
+        result.minimumActionHeight = minimumActionHeight ?? parent.minimumActionHeight
+        result.mapCornerRadius = mapCornerRadius ?? parent.mapCornerRadius
+        return result
+    }
+}

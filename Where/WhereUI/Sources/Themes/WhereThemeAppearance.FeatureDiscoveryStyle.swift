@@ -5,17 +5,24 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct FeatureDiscoveryStyle: Codable, Hashable, Sendable {
-        public var appIcon: WhereThemeAppearance.FeatureDiscoveryStyle.AppIconPreview?
-        public var regionStyle: WhereThemeAppearance.FeatureDiscoveryStyle.RegionStylePreview?
-        public var shareSheet: WhereThemeAppearance.FeatureDiscoveryStyle.ShareSheetPreview?
-        public var evidenceArchive: WhereThemeAppearance.FeatureDiscoveryStyle
-            .EvidenceArchivePreview?
-        public var marketingHeader: WhereThemeAppearance.FeatureDiscoveryStyle.MarketingHeader?
-        public var marketingPanel: WhereThemeAppearance.FeatureDiscoveryStyle.MarketingPanel?
-        public var backgroundPattern: WhereThemeAppearance.FeatureDiscoveryStyle.BackgroundPattern?
-        public var estimatedTime: WhereThemeAppearance.FeatureDiscoveryStyle.EstimatedTime?
-        public var siri: WhereThemeAppearance.FeatureDiscoveryStyle.Siri?
-        public var widgets: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets?
+        @CopyOnWrite public var appIcon: WhereThemeAppearance.FeatureDiscoveryStyle
+            .AppIconPreview? = nil
+        @CopyOnWrite public var regionStyle: WhereThemeAppearance.FeatureDiscoveryStyle
+            .RegionStylePreview? = nil
+        @CopyOnWrite public var shareSheet: WhereThemeAppearance.FeatureDiscoveryStyle
+            .ShareSheetPreview? = nil
+        @CopyOnWrite public var evidenceArchive: WhereThemeAppearance.FeatureDiscoveryStyle
+            .EvidenceArchivePreview? = nil
+        @CopyOnWrite public var marketingHeader: WhereThemeAppearance.FeatureDiscoveryStyle
+            .MarketingHeader? = nil
+        @CopyOnWrite public var marketingPanel: WhereThemeAppearance.FeatureDiscoveryStyle
+            .MarketingPanel? = nil
+        @CopyOnWrite public var backgroundPattern: WhereThemeAppearance.FeatureDiscoveryStyle
+            .BackgroundPattern? = nil
+        @CopyOnWrite public var estimatedTime: WhereThemeAppearance.FeatureDiscoveryStyle
+            .EstimatedTime? = nil
+        @CopyOnWrite public var siri: WhereThemeAppearance.FeatureDiscoveryStyle.Siri? = nil
+        @CopyOnWrite public var widgets: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets? = nil
 
         public init() {}
 
@@ -416,9 +423,11 @@ extension WhereThemeAppearance.FeatureDiscoveryStyle {
 
 extension WhereThemeAppearance.FeatureDiscoveryStyle {
     public struct Siri: Codable, Hashable, Sendable {
-        public var card: WhereThemeAppearance.FeatureDiscoveryStyle.Siri.Card?
-        public var bubble: WhereThemeAppearance.FeatureDiscoveryStyle.Siri.Bubble?
-        public var speakerIcon: WhereThemeAppearance.FeatureDiscoveryStyle.Siri.SpeakerIcon?
+        @CopyOnWrite public var card: WhereThemeAppearance.FeatureDiscoveryStyle.Siri.Card? = nil
+        @CopyOnWrite public var bubble: WhereThemeAppearance.FeatureDiscoveryStyle.Siri
+            .Bubble? = nil
+        @CopyOnWrite public var speakerIcon: WhereThemeAppearance.FeatureDiscoveryStyle.Siri
+            .SpeakerIcon? = nil
         public var accent: BThemeValue<ViewColorDescriptor>?
 
         public init() {}
@@ -458,9 +467,12 @@ extension WhereThemeAppearance.FeatureDiscoveryStyle {
 
 extension WhereThemeAppearance.FeatureDiscoveryStyle {
     public struct Widgets: Codable, Hashable, Sendable {
-        public var device: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Device?
-        public var frame: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Frame?
-        public var wallpapers: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers?
+        @CopyOnWrite public var device: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets
+            .Device? = nil
+        @CopyOnWrite public var frame: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets
+            .Frame? = nil
+        @CopyOnWrite public var wallpapers: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets
+            .Wallpapers? = nil
         public var lockWidgetHeight: BThemeValue<Double>?
 
         public init() {}
@@ -683,8 +695,10 @@ extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets {
 
 extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets {
     public struct Wallpapers: Codable, Hashable, Sendable {
-        public var home: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers.Gradient?
-        public var lock: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers.Gradient?
+        @CopyOnWrite public var home: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers
+            .Gradient? = nil
+        @CopyOnWrite public var lock: WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers
+            .Gradient? = nil
 
         public init() {}
 
@@ -734,5 +748,224 @@ extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers {
                 value.bottom = appearance.color(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.appIcon = inheritPatch(appIcon, from: parent.appIcon)
+        result.regionStyle = inheritPatch(regionStyle, from: parent.regionStyle)
+        result.shareSheet = inheritPatch(shareSheet, from: parent.shareSheet)
+        result.evidenceArchive = inheritPatch(evidenceArchive, from: parent.evidenceArchive)
+        result.marketingHeader = inheritPatch(marketingHeader, from: parent.marketingHeader)
+        result.marketingPanel = inheritPatch(marketingPanel, from: parent.marketingPanel)
+        result.backgroundPattern = inheritPatch(backgroundPattern, from: parent.backgroundPattern)
+        result.estimatedTime = inheritPatch(estimatedTime, from: parent.estimatedTime)
+        result.siri = inheritPatch(siri, from: parent.siri)
+        result.widgets = inheritPatch(widgets, from: parent.widgets)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.AppIconPreview: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.spacing = spacing ?? parent.spacing
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.BackgroundPattern: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.contourSpacing = contourSpacing ?? parent.contourSpacing
+        result.primaryDistortion = primaryDistortion ?? parent.primaryDistortion
+        result.secondaryDistortion = secondaryDistortion ?? parent.secondaryDistortion
+        result.horizontalScale = horizontalScale ?? parent.horizontalScale
+        result.centerXRatio = centerXRatio ?? parent.centerXRatio
+        result.centerYRatio = centerYRatio ?? parent.centerYRatio
+        result.phaseStep = phaseStep ?? parent.phaseStep
+        result.lineWidth = lineWidth ?? parent.lineWidth
+        result.opacity = opacity ?? parent.opacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.EstimatedTime: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.timelineHeight = timelineHeight ?? parent.timelineHeight
+        result.timelineSpacing = timelineSpacing ?? parent.timelineSpacing
+        result.calculationSpacing = calculationSpacing ?? parent.calculationSpacing
+        result.segmentCornerRadius = segmentCornerRadius ?? parent.segmentCornerRadius
+        result.legendDotSize = legendDotSize ?? parent.legendDotSize
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.EvidenceArchivePreview: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.spacing = spacing ?? parent.spacing
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.MarketingHeader: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.badgeSize = badgeSize ?? parent.badgeSize
+        result.symbolPointSize = symbolPointSize ?? parent.symbolPointSize
+        result.badgeTintOpacity = badgeTintOpacity ?? parent.badgeTintOpacity
+        result.contentMaxWidth = contentMaxWidth ?? parent.contentMaxWidth
+        result.spacing = spacing ?? parent.spacing
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.MarketingPanel: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.maxWidth = maxWidth ?? parent.maxWidth
+        result.padding = padding ?? parent.padding
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.rowVerticalInset = rowVerticalInset ?? parent.rowVerticalInset
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.RegionStylePreview: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.spacing = spacing ?? parent.spacing
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.ShareSheetPreview: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.sourcesLayout = sourcesLayout ?? parent.sourcesLayout
+        result.sourceLayout = sourceLayout ?? parent.sourceLayout
+        result.sourcesSpacing = sourcesSpacing ?? parent.sourcesSpacing
+        result.titleAlignment = titleAlignment ?? parent.titleAlignment
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Siri: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.card = inheritPatch(card, from: parent.card)
+        result.bubble = inheritPatch(bubble, from: parent.bubble)
+        result.speakerIcon = inheritPatch(speakerIcon, from: parent.speakerIcon)
+        result.accent = accent ?? parent.accent
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.device = inheritPatch(device, from: parent.device)
+        result.frame = inheritPatch(frame, from: parent.frame)
+        result.wallpapers = inheritPatch(wallpapers, from: parent.wallpapers)
+        result.lockWidgetHeight = lockWidgetHeight ?? parent.lockWidgetHeight
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Siri.Bubble: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        result.indent = indent ?? parent.indent
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Siri.Card: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.maxWidth = maxWidth ?? parent.maxWidth
+        result.padding = padding ?? parent.padding
+        result.spacing = spacing ?? parent.spacing
+        result.rowVerticalInset = rowVerticalInset ?? parent.rowVerticalInset
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Siri.SpeakerIcon: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.containerSize = containerSize ?? parent.containerSize
+        result.symbolPointSize = symbolPointSize ?? parent.symbolPointSize
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Device: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.contentMaxWidth = contentMaxWidth ?? parent.contentMaxWidth
+        result.regularContentWidth = regularContentWidth ?? parent.regularContentWidth
+        result.padding = padding ?? parent.padding
+        result.spacing = spacing ?? parent.spacing
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Frame: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.home = inheritPatch(home, from: parent.home)
+        result.lock = inheritPatch(lock, from: parent.lock)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.FeatureDiscoveryStyle.Widgets.Wallpapers.Gradient: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.top = top ?? parent.top
+        result.bottom = bottom ?? parent.bottom
+        return result
     }
 }

@@ -5,7 +5,8 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct LocationCardStackStyle: Codable, Hashable, Sendable {
-        public var overtake: WhereThemeAppearance.LocationCardStackStyle.OvertakeMotion?
+        @CopyOnWrite public var overtake: WhereThemeAppearance.LocationCardStackStyle
+            .OvertakeMotion? = nil
 
         public init() {}
 
@@ -85,5 +86,30 @@ extension WhereThemeAppearance.LocationCardStackStyle {
                 value.usesSpatialMotion = resolved
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.LocationCardStackStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.overtake = inheritPatch(overtake, from: parent.overtake)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationCardStackStyle.OvertakeMotion: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.duration = duration ?? parent.duration
+        result.bounce = bounce ?? parent.bounce
+        result.lateralArc = lateralArc ?? parent.lateralArc
+        result.liftScale = liftScale ?? parent.liftScale
+        result.rotationDegrees = rotationDegrees ?? parent.rotationDegrees
+        result.settleScale = settleScale ?? parent.settleScale
+        result.minimumOpacity = minimumOpacity ?? parent.minimumOpacity
+        result.usesSpatialMotion = usesSpatialMotion ?? parent.usesSpatialMotion
+        return result
     }
 }

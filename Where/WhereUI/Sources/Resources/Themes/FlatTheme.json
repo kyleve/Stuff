@@ -1,0 +1,760 @@
+{
+  "appearance": {
+    "card": {
+      "compact": {
+        "contentTint": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "color": {
+                  "constant": {
+                    "_0": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1,
+                        "green": 1,
+                        "red": 1
+                      }
+                    }
+                  }
+                },
+                "fraction": 0.6
+              },
+              "light": {
+                "color": {
+                  "constant": {
+                    "_0": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0,
+                        "green": 0,
+                        "red": 0
+                      }
+                    }
+                  }
+                },
+                "fraction": 0.6
+              }
+            }
+          }
+        }
+      },
+      "constellation": {
+        "haloOpacity": {
+          "constant": {
+            "_0": 0
+          }
+        }
+      },
+      "regular": {
+        "contentTint": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "color": {
+                  "constant": {
+                    "_0": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1,
+                        "green": 1,
+                        "red": 1
+                      }
+                    }
+                  }
+                },
+                "fraction": 0.6
+              },
+              "light": {
+                "color": {
+                  "constant": {
+                    "_0": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0,
+                        "green": 0,
+                        "red": 0
+                      }
+                    }
+                  }
+                },
+                "fraction": 0.6
+              }
+            }
+          }
+        }
+      },
+      "securityPrint": {
+        "backgroundBlendMode": {
+          "constant": {
+            "_0": "normal"
+          }
+        }
+      }
+    },
+    "locationForecast": {
+      "ink": {
+        "surfaceWashOpacity": {
+          "constant": {
+            "_0": 0
+          }
+        }
+      },
+      "summary": {
+        "shadowOpacity": {
+          "constant": {
+            "_0": 0
+          }
+        }
+      }
+    },
+    "locationWelcome": {
+      "close": {
+        "glow": {
+          "opacity": {
+            "constant": {
+              "_0": 0
+            }
+          }
+        },
+        "lift": {
+          "opacity": {
+            "constant": {
+              "_0": 0
+            }
+          }
+        },
+        "surface": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "matte": {
+                  "_0": {
+                    "fill": {
+                      "base": {
+                        "constant": {
+                          "_0": {
+                            "rgba": {
+                              "alpha": 1,
+                              "blue": 0.11999999731779099,
+                              "green": 0.11999999731779099,
+                              "red": 0.11999999731779099
+                            }
+                          }
+                        }
+                      },
+                      "tintMix": 0
+                    },
+                    "outline": {
+                      "opacity": 0.4,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.1,
+                    "shadow": {
+                      "color": {
+                        "constant": {
+                          "_0": {
+                            "rgba": {
+                              "alpha": 0.3,
+                              "blue": 0,
+                              "green": 0,
+                              "red": 0
+                            }
+                          }
+                        }
+                      },
+                      "offsetY": 3,
+                      "radius": 5
+                    }
+                  }
+                }
+              },
+              "light": {
+                "matte": {
+                  "_0": {
+                    "fill": {
+                      "base": {
+                        "constant": {
+                          "_0": {
+                            "rgba": {
+                              "alpha": 1,
+                              "blue": 1,
+                              "green": 1,
+                              "red": 1
+                            }
+                          }
+                        }
+                      },
+                      "tintMix": 0
+                    },
+                    "outline": {
+                      "opacity": 0.32,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.1,
+                    "shadow": {
+                      "color": {
+                        "constant": {
+                          "_0": {
+                            "rgba": {
+                              "alpha": 0.14,
+                              "blue": 0,
+                              "green": 0,
+                              "red": 0
+                            }
+                          }
+                        }
+                      },
+                      "offsetY": 3,
+                      "radius": 5
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "glow": {
+        "opacity": {
+          "constant": {
+            "_0": 0
+          }
+        }
+      },
+      "lift": {
+        "opacity": {
+          "constant": {
+            "_0": 0
+          }
+        }
+      }
+    }
+  },
+  "components": {},
+  "id": "flat",
+  "parent": "standard",
+  "schemaVersion": 2,
+  "values": {
+    "colors": [
+      {
+        "id": "regularCard.fill",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 1,
+                  "green": 1,
+                  "red": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "regularCard.shadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.3,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.14,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "compactCard.fill",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 1,
+                  "green": 1,
+                  "red": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "compactCard.shadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.3,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.14,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "elsewhereCard.shadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.3,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.14,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "welcome.fill",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.11999999731779099,
+                  "green": 0.11999999731779099,
+                  "red": 0.11999999731779099
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 1,
+                  "green": 1,
+                  "red": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "welcome.shadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.3,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.14,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "privacy.fill",
+        "value": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.25,
+                "green": 0.1249999925494194,
+                "red": 0.04999999701976776
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "privacy.shadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.3,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.14,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "summary.fill",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.1599999964237213,
+                  "green": 0.1599999964237213,
+                  "red": 0.1599999964237213
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9399999976158142,
+                  "green": 0.9399999976158142,
+                  "red": 0.9399999976158142
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "summary.shadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.3,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.14,
+                  "blue": 0,
+                  "green": 0,
+                  "red": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "fonts": [],
+    "surfaces": [
+      {
+        "id": "regularCard",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "paper": {
+                  "_0": {
+                    "fill": "regularCard.fill",
+                    "outline": {
+                      "opacity": 0.4,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.1,
+                    "shadow": {
+                      "color": "regularCard.shadow",
+                      "offsetY": 4,
+                      "radius": 10
+                    },
+                    "tintMix": 0.58
+                  }
+                }
+              },
+              "light": {
+                "paper": {
+                  "_0": {
+                    "fill": "regularCard.fill",
+                    "outline": {
+                      "opacity": 0.32,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.1,
+                    "shadow": {
+                      "color": "regularCard.shadow",
+                      "offsetY": 4,
+                      "radius": 10
+                    },
+                    "tintMix": 0.52
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "compactCard",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "paper": {
+                  "_0": {
+                    "fill": "compactCard.fill",
+                    "outline": {
+                      "opacity": 0.4,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.1,
+                    "shadow": {
+                      "color": "compactCard.shadow",
+                      "offsetY": 3,
+                      "radius": 6
+                    },
+                    "tintMix": 0.58
+                  }
+                }
+              },
+              "light": {
+                "paper": {
+                  "_0": {
+                    "fill": "compactCard.fill",
+                    "outline": {
+                      "opacity": 0.32,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.1,
+                    "shadow": {
+                      "color": "compactCard.shadow",
+                      "offsetY": 3,
+                      "radius": 6
+                    },
+                    "tintMix": 0.52
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "elsewhereCard",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "paper": {
+                  "_0": {
+                    "fill": "elsewhereCard.fill",
+                    "outline": {
+                      "opacity": 0.4,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.08,
+                    "shadow": {
+                      "color": "elsewhereCard.shadow",
+                      "offsetY": 3,
+                      "radius": 8
+                    },
+                    "tintMix": 0
+                  }
+                }
+              },
+              "light": {
+                "paper": {
+                  "_0": {
+                    "fill": "elsewhereCard.fill",
+                    "outline": {
+                      "opacity": 0.32,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0.08,
+                    "shadow": {
+                      "color": "elsewhereCard.shadow",
+                      "offsetY": 3,
+                      "radius": 8
+                    },
+                    "tintMix": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "welcome",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "paper": {
+                  "_0": {
+                    "fill": "welcome.fill",
+                    "outline": {
+                      "opacity": 0.4,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0,
+                    "shadow": {
+                      "color": "welcome.shadow",
+                      "offsetY": 4,
+                      "radius": 10
+                    },
+                    "tintMix": 0
+                  }
+                }
+              },
+              "light": {
+                "paper": {
+                  "_0": {
+                    "fill": "welcome.fill",
+                    "outline": {
+                      "opacity": 0.32,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0,
+                    "shadow": {
+                      "color": "welcome.shadow",
+                      "offsetY": 4,
+                      "radius": 10
+                    },
+                    "tintMix": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "privacy",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "privacy.fill",
+                  "outline": {
+                    "opacity": 0.32,
+                    "width": 1
+                  },
+                  "pressedTintOpacity": 0,
+                  "shadow": {
+                    "color": "privacy.shadow",
+                    "offsetY": 3,
+                    "radius": 6
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "summary",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "paper": {
+                  "_0": {
+                    "fill": "summary.fill",
+                    "outline": {
+                      "opacity": 0.4,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0,
+                    "shadow": {
+                      "color": "summary.shadow",
+                      "offsetY": 3,
+                      "radius": 8
+                    },
+                    "tintMix": 0
+                  }
+                }
+              },
+              "light": {
+                "paper": {
+                  "_0": {
+                    "fill": "summary.fill",
+                    "outline": {
+                      "opacity": 0.32,
+                      "width": 1
+                    },
+                    "pressedTintOpacity": 0,
+                    "shadow": {
+                      "color": "summary.shadow",
+                      "offsetY": 3,
+                      "radius": 8
+                    },
+                    "tintMix": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

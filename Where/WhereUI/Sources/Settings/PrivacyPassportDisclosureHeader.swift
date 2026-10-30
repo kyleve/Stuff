@@ -29,7 +29,7 @@ struct PrivacyPassportDisclosureHeader: View {
                 if showsSettingsIndicator {
                     Image(systemSymbol: .chevronRight)
                         .font(style.statusFont)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                         .accessibilityHidden(true)
                 }
             }
@@ -53,7 +53,7 @@ struct PrivacyPassportDisclosureHeader: View {
                         Spacer(minLength: 0)
                         Image(systemSymbol: .chevronRight)
                             .font(style.statusFont)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.whereSecondary)
                             .accessibilityHidden(true)
                     }
                 }

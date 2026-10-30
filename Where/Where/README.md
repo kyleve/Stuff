@@ -119,3 +119,5 @@ Before shipping a schema change:
 On a fresh install, onboarding recommends automatic recording On for an iPhone only when no other device recently reported recording, and Off for an iPad/other device or explicit rejoin, then requires the user to confirm.
 Existing installations created before that choice was introduced revisit only the final recording page once.
 Enabling is the only path that asks for location access.
+
+Development builds also own one session-only `WhereThemePreviewModel`. Appearance Settings can preview Halloween across ready app content. Standard or Flat selection clears the preview. Launch and onboarding keep the saved theme. Beta, App Store, widgets, and App Intents receive no preview model.

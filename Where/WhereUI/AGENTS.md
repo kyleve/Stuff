@@ -245,15 +245,14 @@ worked examples.
   Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Flat use the stable `standard` and `alternate` identities.
-- Keep Standard as the base stylesheet. Resolve shared traits before applying `WhereThemeOverrides`.
-  Put theme values and theme-specific trait decisions in their definition, such as `WhereFlatTheme`.
-  Keep override application independent of theme selection and trait resolution.
-  Omitted overrides inherit the adjusted base. Explicit zero values disable effects.
-  Use `BModeVarying` for paired light/dark values. Keep runtime region colors outside theme definitions.
-  Guards: `WhereThemeOverridesTests`, `WhereFlatThemeTests`.
-- Keep portable appearance in `Sources/Themes/WhereThemeAppearance*`. Add each new authored stylesheet field to its typed patch and mapping tests. Validate exceptional units, divisors, and fractions explicitly at their mapping sites. Keep lifecycle scheduling, data reduction, and runtime region identity outside the wire schema.
-- Validate theme documents and prepare resources before root injection. Cache identity includes complete document content, not only its ID. Fallbacks name built-ins only.
-- Apply custom appearance over the native fallback and preserve that fallback's accessibility constraints. Keep decorative layers bounded, noninteractive, and hidden from accessibility. Inject `MotionIsStatic` and actual host activity into Broadway's renderer.
+- Bundled JSON is authoritative. Standard is a complete root; Flat inherits Standard; Halloween inherits Flat. Resolve documents through `WhereThemeCatalog` before rendering. Do not add a native theme override path.
+- Keep portable appearance in `Sources/Themes/WhereThemeAppearance*`. Add each authored stylesheet field to its typed patch, inheritance, canonical Standard document, and mapping tests. Keep runtime geometry, region identity, data reduction, and lifecycle scheduling native.
+- Omitted fields inherit. Explicit values replace. Artwork arrays replace as a unit, including empty arrays. Optional visuals use `WhereThemeOptional.clear`. A literal value replaces an inherited named reference; do not supply both in one document.
+- Validate complete roots, parents, named references, complexity, and placement before root injection. Prepare assets once. Cache identity includes complete resolved content, not only its ID. Failed imports retain the last accepted theme.
+- Apply native accessibility constraints after document resolution. Keep ornament separate from essential surfaces. Inject static-motion policy and actual host activity into Broadway's renderer.
+- Use component surfaces for interior and exterior artwork. Keep paint bounds finite, reserve gaps and gutters in parent layouts, and preserve viewport clipping. Exterior artwork must not expand interaction or accessibility bounds. Keep the inner card as the zoom source.
+- Validate host capabilities before injection. Keep List rows and joined timeline segments interior-only. Apply artwork spacing outside buttons and accessibility groups in other hosts. Guard: `WhereThemeComponentsCapabilitiesTests`.
+- Inject `WhereThemePreviewModel` only from the Development app composition root. Scope its selected document to the ready app. Never persist preview selection or publish it to widgets or App Intents.
 - **Design new and changed custom components for every supported theme.**
   Resolve theme and accessibility choices in the owning `WhereStylesheet`
   component style. Views consume that style without checking the selected theme.
@@ -337,3 +336,5 @@ lightweight widget/snippet surfaces do not need duplicate theme cases.
 Other themes use stable consumer-owned groups (`flat/` for `.alternate`). Mixed-theme
 sheets use `themes/`. Special trait images use `other/` inside the selected group.
 Never derive the folder from a localized label or rename a persisted theme identity.
+
+- Keep composite theme appearance groups boxed with `CopyOnWrite`. Background JSON decoding must fit a worker thread stack; preserve the unboxed JSON shape. Guard: `WhereThemeAppearanceTests`.

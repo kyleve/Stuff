@@ -7,6 +7,7 @@ public enum WhereThemeAnimation: Codable, Hashable, Sendable {
     case easeOut(duration: Double)
     case easeInOut(duration: Double)
     case spring(duration: Double, bounce: Double)
+    case snappy(duration: Double, extraBounce: Double)
 
     var animation: Animation {
         switch self {
@@ -15,6 +16,10 @@ public enum WhereThemeAnimation: Codable, Hashable, Sendable {
             case let .easeOut(duration): .easeOut(duration: duration)
             case let .easeInOut(duration): .easeInOut(duration: duration)
             case let .spring(duration, bounce): .spring(duration: duration, bounce: bounce)
+            case let .snappy(duration, extraBounce): .snappy(
+                    duration: duration,
+                    extraBounce: extraBounce,
+                )
         }
     }
 }

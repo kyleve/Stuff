@@ -13,11 +13,12 @@ extension WhereThemeAppearance {
         public var paperOpacity: BThemeValue<Double>?
         public var scrimOpacity: BThemeValue<Double>?
         public var glassTintOpacity: BThemeValue<Double>?
-        public var glow: WhereThemeAppearance.LocationWelcomeStyle.Shadow?
-        public var lift: WhereThemeAppearance.LocationWelcomeStyle.Shadow?
-        public var close: WhereThemeAppearance.LocationWelcomeStyle.Close?
-        public var accessory: WhereThemeAppearance.LocationWelcomeStyle.Accessory?
-        public var motion: WhereThemeAppearance.LocationWelcomeStyle.Motion?
+        @CopyOnWrite public var glow: WhereThemeAppearance.LocationWelcomeStyle.Shadow? = nil
+        @CopyOnWrite public var lift: WhereThemeAppearance.LocationWelcomeStyle.Shadow? = nil
+        @CopyOnWrite public var close: WhereThemeAppearance.LocationWelcomeStyle.Close? = nil
+        @CopyOnWrite public var accessory: WhereThemeAppearance.LocationWelcomeStyle
+            .Accessory? = nil
+        @CopyOnWrite public var motion: WhereThemeAppearance.LocationWelcomeStyle.Motion? = nil
 
         public init() {}
 
@@ -166,8 +167,8 @@ extension WhereThemeAppearance.LocationWelcomeStyle {
         public var surface: BThemeValue<WhereThemeSurface>?
         public var offset: BThemeValue<WhereThemeSize>?
         public var tintOpacity: BThemeValue<Double>?
-        public var glow: WhereThemeAppearance.LocationWelcomeStyle.Shadow?
-        public var lift: WhereThemeAppearance.LocationWelcomeStyle.Shadow?
+        @CopyOnWrite public var glow: WhereThemeAppearance.LocationWelcomeStyle.Shadow? = nil
+        @CopyOnWrite public var lift: WhereThemeAppearance.LocationWelcomeStyle.Shadow? = nil
 
         public init() {}
 
@@ -214,8 +215,10 @@ extension WhereThemeAppearance.LocationWelcomeStyle {
 
 extension WhereThemeAppearance.LocationWelcomeStyle {
     public struct Motion: Codable, Hashable, Sendable {
-        public var arrival: WhereThemeAppearance.LocationWelcomeStyle.Motion.Movement?
-        public var departure: WhereThemeAppearance.LocationWelcomeStyle.Motion.Movement?
+        @CopyOnWrite public var arrival: WhereThemeAppearance.LocationWelcomeStyle.Motion
+            .Movement? = nil
+        @CopyOnWrite public var departure: WhereThemeAppearance.LocationWelcomeStyle.Motion
+            .Movement? = nil
         public var scrimAnimation: BThemeValue<WhereThemeAnimation>?
         public var usesSpatialMotion: BThemeValue<Bool>?
 
@@ -335,5 +338,89 @@ extension WhereThemeAppearance.LocationWelcomeStyle.Motion {
                 value.verticalOffset = CGFloat(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.LocationWelcomeStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.surface = inheritModePatch(surface, from: parent.surface)
+        result.maxWidth = maxWidth ?? parent.maxWidth
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.padding = padding ?? parent.padding
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.paperOpacity = paperOpacity ?? parent.paperOpacity
+        result.scrimOpacity = scrimOpacity ?? parent.scrimOpacity
+        result.glassTintOpacity = glassTintOpacity ?? parent.glassTintOpacity
+        result.glow = inheritPatch(glow, from: parent.glow)
+        result.lift = inheritPatch(lift, from: parent.lift)
+        result.close = inheritPatch(close, from: parent.close)
+        result.accessory = inheritPatch(accessory, from: parent.accessory)
+        result.motion = inheritPatch(motion, from: parent.motion)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationWelcomeStyle.Accessory: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.copy = copy ?? parent.copy
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        result.minimumActionHeight = minimumActionHeight ?? parent.minimumActionHeight
+        result.symbolSize = symbolSize ?? parent.symbolSize
+        result.titleFont = titleFont ?? parent.titleFont
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationWelcomeStyle.Close: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.surface = inheritModePatch(surface, from: parent.surface)
+        result.offset = offset ?? parent.offset
+        result.tintOpacity = tintOpacity ?? parent.tintOpacity
+        result.glow = inheritPatch(glow, from: parent.glow)
+        result.lift = inheritPatch(lift, from: parent.lift)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationWelcomeStyle.Motion: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.arrival = inheritPatch(arrival, from: parent.arrival)
+        result.departure = inheritPatch(departure, from: parent.departure)
+        result.scrimAnimation = scrimAnimation ?? parent.scrimAnimation
+        result.usesSpatialMotion = usesSpatialMotion ?? parent.usesSpatialMotion
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationWelcomeStyle.Shadow: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.opacity = opacity ?? parent.opacity
+        result.radius = radius ?? parent.radius
+        result.offsetY = offsetY ?? parent.offsetY
+        return result
+    }
+}
+
+extension WhereThemeAppearance.LocationWelcomeStyle.Motion.Movement: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.animation = animation ?? parent.animation
+        result.scale = scale ?? parent.scale
+        result.rotationDegrees = rotationDegrees ?? parent.rotationDegrees
+        result.verticalOffset = verticalOffset ?? parent.verticalOffset
+        return result
     }
 }

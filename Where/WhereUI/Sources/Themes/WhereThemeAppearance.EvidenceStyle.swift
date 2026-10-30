@@ -35,3 +35,14 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.EvidenceStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.previewCornerRadius = previewCornerRadius ?? parent.previewCornerRadius
+        result.pdfPreviewMinHeight = pdfPreviewMinHeight ?? parent.pdfPreviewMinHeight
+        result.loadingMinHeight = loadingMinHeight ?? parent.loadingMinHeight
+        return result
+    }
+}

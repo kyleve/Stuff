@@ -156,3 +156,33 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.RegionPickerStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.mapCornerRadius = mapCornerRadius ?? parent.mapCornerRadius
+        result.selectedFillOpacity = selectedFillOpacity ?? parent.selectedFillOpacity
+        result.unselectedFillOpacity = unselectedFillOpacity ?? parent.unselectedFillOpacity
+        result.selectedStrokeOpacity = selectedStrokeOpacity ?? parent.selectedStrokeOpacity
+        result.unselectedStrokeOpacity = unselectedStrokeOpacity ?? parent.unselectedStrokeOpacity
+        result.selectedStrokeWidth = selectedStrokeWidth ?? parent.selectedStrokeWidth
+        result.unselectedStrokeWidth = unselectedStrokeWidth ?? parent.unselectedStrokeWidth
+        result.colorSwatchSize = colorSwatchSize ?? parent.colorSwatchSize
+        result.colorSwatchSelectionRing = colorSwatchSelectionRing ?? parent
+            .colorSwatchSelectionRing
+        result.colorSwatchMinWidth = colorSwatchMinWidth ?? parent.colorSwatchMinWidth
+        result.glyphTileSize = glyphTileSize ?? parent.glyphTileSize
+        result.glyphTileMinWidth = glyphTileMinWidth ?? parent.glyphTileMinWidth
+        result.glyphCornerRadius = glyphCornerRadius ?? parent.glyphCornerRadius
+        result.glyphSelectionStrokeWidth = glyphSelectionStrokeWidth ?? parent
+            .glyphSelectionStrokeWidth
+        result.glyphSelectedBackgroundOpacity = glyphSelectedBackgroundOpacity ?? parent
+            .glyphSelectedBackgroundOpacity
+        result.mapCenterLatitude = mapCenterLatitude ?? parent.mapCenterLatitude
+        result.mapCenterLongitude = mapCenterLongitude ?? parent.mapCenterLongitude
+        result.mapSpanLatitude = mapSpanLatitude ?? parent.mapSpanLatitude
+        result.mapSpanLongitude = mapSpanLongitude ?? parent.mapSpanLongitude
+        return result
+    }
+}

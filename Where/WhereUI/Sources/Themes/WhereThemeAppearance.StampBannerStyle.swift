@@ -12,8 +12,8 @@ extension WhereThemeAppearance {
         public var titleFont: BThemeValue<ViewFontDescriptor>?
         public var detailFont: BThemeValue<ViewFontDescriptor>?
         public var outlineWidth: BThemeValue<Double>?
-        public var rosette: WhereThemeAppearance.StampBannerStyle.Rosette?
-        public var ink: WhereThemeAppearance.StampBannerStyle.Ink?
+        @CopyOnWrite public var rosette: WhereThemeAppearance.StampBannerStyle.Rosette? = nil
+        @CopyOnWrite public var ink: WhereThemeAppearance.StampBannerStyle.Ink? = nil
 
         public init() {}
 
@@ -166,5 +166,49 @@ extension WhereThemeAppearance.StampBannerStyle {
                 value.secondaryRingSpacing = CGFloat(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.StampBannerStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.tint = tint ?? parent.tint
+        result.padding = padding ?? parent.padding
+        result.contentSpacing = contentSpacing ?? parent.contentSpacing
+        result.titleFont = titleFont ?? parent.titleFont
+        result.detailFont = detailFont ?? parent.detailFont
+        result.outlineWidth = outlineWidth ?? parent.outlineWidth
+        result.rosette = inheritPatch(rosette, from: parent.rosette)
+        result.ink = inheritPatch(ink, from: parent.ink)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.StampBannerStyle.Ink: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.outlineOpacity = outlineOpacity ?? parent.outlineOpacity
+        result.primaryRosetteOpacity = primaryRosetteOpacity ?? parent.primaryRosetteOpacity
+        result.secondaryRosetteOpacity = secondaryRosetteOpacity ?? parent.secondaryRosetteOpacity
+        result.sealOpacity = sealOpacity ?? parent.sealOpacity
+        result.titleOpacity = titleOpacity ?? parent.titleOpacity
+        result.detailOpacity = detailOpacity ?? parent.detailOpacity
+        result.accessoryOpacity = accessoryOpacity ?? parent.accessoryOpacity
+        return result
+    }
+}
+
+extension WhereThemeAppearance.StampBannerStyle.Rosette: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.wobble = wobble ?? parent.wobble
+        result.lineWidth = lineWidth ?? parent.lineWidth
+        result.primaryRingSpacing = primaryRingSpacing ?? parent.primaryRingSpacing
+        result.secondaryRingSpacing = secondaryRingSpacing ?? parent.secondaryRingSpacing
+        return result
     }
 }

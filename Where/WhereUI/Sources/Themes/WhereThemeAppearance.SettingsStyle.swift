@@ -57,3 +57,17 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.SettingsStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.iconForeground = iconForeground ?? parent.iconForeground
+        result.iconSize = iconSize ?? parent.iconSize
+        result.iconCornerRadius = iconCornerRadius ?? parent.iconCornerRadius
+        result.iconSymbolSize = iconSymbolSize ?? parent.iconSymbolSize
+        result.flashAnimation = flashAnimation ?? parent.flashAnimation
+        result.flashDuration = flashDuration ?? parent.flashDuration
+        return result
+    }
+}

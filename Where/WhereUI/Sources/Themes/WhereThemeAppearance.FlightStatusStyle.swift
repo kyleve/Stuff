@@ -53,3 +53,17 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.FlightStatusStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.padding = padding ?? parent.padding
+        result.spacing = spacing ?? parent.spacing
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.titleFont = titleFont ?? parent.titleFont
+        result.bodyFont = bodyFont ?? parent.bodyFont
+        result.background = background ?? parent.background
+        return result
+    }
+}

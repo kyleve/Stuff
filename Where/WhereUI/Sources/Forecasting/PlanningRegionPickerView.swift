@@ -19,7 +19,7 @@ struct PlanningRegionPickerView: View {
             if case let .failed(error) = model.loadState {
                 Section {
                     Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                     Button(String(localized: .commonRetry)) {
                         Task { await model.load() }
                     }

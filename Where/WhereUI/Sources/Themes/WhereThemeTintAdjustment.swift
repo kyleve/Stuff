@@ -28,3 +28,9 @@ public struct WhereThemeTintAdjustment: Codable, Hashable, Sendable {
         return result
     }
 }
+
+extension WhereThemeTintAdjustment: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        .init(color: color ?? parent?.color, fraction: fraction ?? parent?.fraction)
+    }
+}

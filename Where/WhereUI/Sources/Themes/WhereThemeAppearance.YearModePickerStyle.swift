@@ -22,3 +22,12 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.YearModePickerStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        return result
+    }
+}

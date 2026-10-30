@@ -46,10 +46,10 @@ struct LocationsView: View {
     var body: some View {
         NavigationStack {
             screen
+                .modifier(WhereComponentTextStyle(role: .locations))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background {
                     LocationsBackground(regions: backgroundRegions)
-                        .whereThemeOverlay(.locationsBackground)
                         .ignoresSafeArea()
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -79,7 +79,7 @@ struct LocationsView: View {
                 }
         }
         // Each layer tracks its own visibility, including backgrounds in empty/loading states.
-        .environment(\.whereThemeLayersAreActive, !showingResolution && planningDestination == nil)
+        .whereThemeActivity(!showingResolution && planningDestination == nil)
         .observesTilt(
             tilt,
             enabled: isCardSurfaceUncovered && cardSurface.usesReflection,

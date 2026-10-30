@@ -124,6 +124,7 @@ private struct EstimatedTimeFeaturesContent: View {
         }
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
+        .whereThemeActivity(!showingPlanner)
         .sheet(isPresented: $showingPlanner) { PlannedStaysView(report: report) }
     }
 
@@ -138,6 +139,7 @@ private struct EstimatedTimeFeaturesContent: View {
                 homeRegion: report.forecasts.planning.homeRegion,
             )
             .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
+            .whereThemeArtworkSpace(.forecastPanel)
         }
     }
 

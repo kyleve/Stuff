@@ -8,7 +8,7 @@ extension WhereThemeAppearance {
         public var reveal: BThemeValue<WhereThemeAnimation>?
         public var reducedReveal: BThemeValue<WhereThemeAnimation>?
         public var captionFade: BThemeValue<WhereThemeAnimation>?
-        public var staggeredReveal: WhereThemeAppearance.Motion.StaggeredReveal?
+        @CopyOnWrite public var staggeredReveal: WhereThemeAppearance.Motion.StaggeredReveal? = nil
 
         public init() {}
 
@@ -73,5 +73,28 @@ extension WhereThemeAppearance.Motion {
                 value.delay = resolved
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.Motion: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.reveal = reveal ?? parent.reveal
+        result.reducedReveal = reducedReveal ?? parent.reducedReveal
+        result.captionFade = captionFade ?? parent.captionFade
+        result.staggeredReveal = inheritPatch(staggeredReveal, from: parent.staggeredReveal)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.Motion.StaggeredReveal: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.animation = animation ?? parent.animation
+        result.verticalOffset = verticalOffset ?? parent.verticalOffset
+        result.delay = delay ?? parent.delay
+        return result
     }
 }

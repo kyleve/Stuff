@@ -13,8 +13,8 @@ import WhereCore
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
     @MainActor
-    @Test(arguments: [0.0, 1.0])
-    func reduceTransparencyKeepsPaperOpaque(alpha: Double) throws {
+    @Test(arguments: [0.0, 1.0], [BMode.light, .dark])
+    func reduceTransparencyKeepsPaperOpaque(alpha: Double, mode: BMode) throws {
         var appearance = WhereThemeAppearance()
         appearance.locationForecast = .init()
         appearance.locationForecast?.summary = .init()
@@ -33,6 +33,7 @@ struct WhereStylesheetTests {
         ))
         var traits = BTraits.system
         traits.accessibility = .init(isReduceTransparencyEnabled: true)
+        traits.mode = mode
         let baseline = try resolveTheme(
             themeDocument(appearance: .init(), fallback: .standard),
             traits: traits,
@@ -67,6 +68,24 @@ struct WhereStylesheetTests {
     }
 
     private let style = WhereStylesheet.default
+
+    private func expectStandardBackground(
+        _ actual: Color,
+        matches expected: UIColor,
+        sourceLocation: SourceLocation = #_sourceLocation,
+    ) {
+        for level in [UIUserInterfaceLevel.base, .elevated] {
+            let traits = UITraitCollection(traitsFrom: [
+                .init(userInterfaceStyle: .light),
+                .init(accessibilityContrast: .normal),
+                .init(userInterfaceLevel: level),
+            ])
+            #expect(
+                UIColor(actual).resolvedColor(with: traits) == expected.resolvedColor(with: traits),
+                sourceLocation: sourceLocation,
+            )
+        }
+    }
 
     @Test func yearModePickerDefaultsToInline() {
         #expect(style.yearModePicker.layout == .inline)
@@ -193,7 +212,10 @@ struct WhereStylesheetTests {
         #expect(style.flightStatus.cornerRadius == 14)
         #expect(style.flightStatus.titleFont == .headline)
         #expect(style.flightStatus.bodyFont == .subheadline)
-        #expect(style.flightStatus.background == Color(uiColor: .secondarySystemGroupedBackground))
+        expectStandardBackground(
+            style.flightStatus.background,
+            matches: .secondarySystemGroupedBackground,
+        )
     }
 
     @Test func flightReviewPointStyle() {
@@ -536,7 +558,7 @@ struct WhereStylesheetTests {
         ))
 
         let day = calendar.day
-        #expect(style.timeline.flight.iconFont == .system(size: 16, weight: .semibold))
+        #expect(style.timeline.flight.iconFont == .system(size: 16).weight(.semibold))
         #expect(style.timeline.flight.verticalPadding == 12)
         #expect(style.timeline.flight.labelSpacing == 2)
         #expect(style.timeline.flight.tint == .accentColor)
@@ -692,7 +714,7 @@ struct WhereStylesheetTests {
         #expect(panel.horizontalPadding == 20)
         #expect(panel.bottomPadding == 16)
         #expect(panel.cornerRadius == 28)
-        #expect(panel.background == Color(.systemBackground))
+        expectStandardBackground(panel.background, matches: .systemBackground)
         #expect(panel.shadowColor == Color.black.opacity(0.18))
         #expect(panel.shadowRadius == 18)
         #expect(panel.shadowOffsetY == -4)
@@ -710,7 +732,7 @@ struct WhereStylesheetTests {
         #expect(overview.background == Color.primary.opacity(0.035))
         #expect(overview.border == Color.primary.opacity(0.1))
         #expect(overview.borderWidth == 1)
-        #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+        #expect(overview.yearFont == .system(.title2, design: .serif).weight(.bold))
         #expect(overview.pinsToViewport)
 
         let ribbon = timeline.ribbon
@@ -814,7 +836,7 @@ struct WhereStylesheetTests {
 
     @Test func locationsBackgroundStyle() {
         let background = style.locationsBackground
-        #expect(background.paper == Color(uiColor: .systemBackground))
+        expectStandardBackground(background.paper, matches: .systemBackground)
         #expect(background.ink == Color.primary)
         #expect(background.showsInk)
         #expect(background.preferredCellSize == 54)
@@ -839,7 +861,7 @@ struct WhereStylesheetTests {
         let typography = style.typography
         #expect(typography.onboardingIcon == .system(size: 72))
         #expect(typography.widgetHeroRegion == .system(.headline, design: .serif).weight(.semibold))
-        #expect(typography.widgetTotalNumber == .system(.body, design: .rounded, weight: .bold))
+        #expect(typography.widgetTotalNumber == .system(.body, design: .rounded).weight(.bold))
     }
 
     @Test func motionAnimations() {
@@ -1084,11 +1106,11 @@ struct WhereStylesheetTests {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
         #expect(palette.primary.backgroundBottom == Color(red: 0.02, green: 0.02, blue: 0.05))
-        #expect(palette.splash.background == Color(.systemBackground))
-        #expect(palette.splash.vignetteCenter == Color(.secondarySystemBackground))
-        #expect(palette.splash.vignetteEdge == Color(.systemBackground))
+        expectStandardBackground(palette.splash.background, matches: .systemBackground)
+        expectStandardBackground(palette.splash.vignetteCenter, matches: .secondarySystemBackground)
+        expectStandardBackground(palette.splash.vignetteEdge, matches: .systemBackground)
         #expect(palette.splash.iconGlow == .accentColor)
-        #expect(palette.onboarding.backgroundTop == Color(.systemBackground))
+        expectStandardBackground(palette.onboarding.backgroundTop, matches: .systemBackground)
         #expect(palette.onboarding.backgroundBottom == Color.accentColor.opacity(0.12))
     }
 
