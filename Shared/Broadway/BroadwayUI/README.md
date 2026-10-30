@@ -7,6 +7,7 @@ UIKit + SwiftUI components that carry a `BContext` (from BroadwayCore) through t
 - **`BRootViewController`** — a container view controller that owns the root `BContext`, observes system trait changes via `BTraitsObserver`, and republishes the context to descendants through `traitOverrides`. The designated initializer wraps any `UIViewController`. A convenience initializer hosts SwiftUI content directly.
 - **`BRootView` / `.broadwayRoot(themes:)`** — the SwiftUI-native root. Seeds a root `BContext` from the live system traits (`@Environment(\.colorScheme)`, `\.dynamicTypeSize`, and `BAccessibility.changes()`) plus the given `themes`, and injects it so descendants read `@Environment(\.bContext)`. Unlike the UIKit root it takes `themes`, letting an app seed palette/typography at the root.
 - **`BTraitOverridesViewController`** — scopes trait overrides to a subtree while preserving inherited base traits and themes.
+- **`.bColorScheme(_:)` and `.bDynamicTypeSize(_:)`** — apply one scoped appearance value to both SwiftUI and Broadway. `.bDynamicTypeSize(upTo:)` caps the native size and mirrors its effective value, including inherited limits. The low-level `.bMode(_:)` and `.bContentSizeCategory(_:)` modifiers change only Broadway traits.
 - **SwiftUI bridges** — `BContext+SwiftUI` resolves `@Environment(\.bContext)`, preferring a synchronous pure-SwiftUI value (set by `BRootView` / `broadwayRoot` / `bTraitOverrides`, and mirrored into UIKit traits so it also reaches nested UIKit) and falling back to the UIKit trait-bridged value when none is set. Plus `BTraitOverrides+SwiftUI` and the `BMode` / `BContentSizeCategory` initializers from `ColorScheme` / `DynamicTypeSize` (`BTraitValues+SwiftUI`).
 
 ## Usage
@@ -29,6 +30,16 @@ WindowGroup {
         .broadwayRoot(themes: appThemes)
 }
 ```
+
+Use the paired modifiers below an existing root when native controls and Broadway styles need the same appearance:
+
+```swift
+CardView()
+    .bColorScheme(.dark)
+    .bDynamicTypeSize(upTo: .xxxLarge)
+```
+
+These modifiers preserve the inherited themes. The Dynamic Type bridge reads the effective native size after SwiftUI applies scoped values and ranges.
 
 ## Install
 

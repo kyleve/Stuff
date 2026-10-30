@@ -23,8 +23,7 @@ public struct SpanTreeView: View {
         content
             .navigationTitle("Span Tree")
             .navigationBarTitleDisplayMode(.inline)
-            .environment(\.logRowDensity, .load(from: .standard))
-            .periscopeBroadwayRoot()
+            .periscopeBroadwayRoot(.inheritedOrSaved(.standard))
             .task(id: ObjectIdentifier(store)) {
                 if model.store !== store {
                     model = SpanTreeModel(store: store)

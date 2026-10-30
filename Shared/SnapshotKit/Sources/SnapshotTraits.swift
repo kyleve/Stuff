@@ -11,15 +11,21 @@ extension View {
     /// back into the SwiftUI content.
     @ViewBuilder
     public func snapshotTraits(_ configuration: SnapshotConfiguration) -> some View {
-        let base = environment(\.colorScheme, configuration.colorScheme)
-            .dynamicTypeSize(configuration.dynamicType)
-            .environment(\.layoutDirection, configuration.layoutDirection)
-            .environment(\.legibilityWeight, configuration.legibilityWeight)
+        let base = snapshotSwiftUITraits(configuration)
         if configuration.contrast == .increased || configuration.layoutTraits != nil {
             SnapshotTraitOverrideHost(configuration: configuration) { base }
         } else {
             base
         }
+    }
+
+    /// Shares native environment mapping with the capture host without adding a UIKit wrapper.
+    @_spi(Capture)
+    public func snapshotSwiftUITraits(_ configuration: SnapshotConfiguration) -> some View {
+        environment(\.colorScheme, configuration.colorScheme)
+            .dynamicTypeSize(configuration.dynamicType)
+            .environment(\.layoutDirection, configuration.layoutDirection)
+            .environment(\.legibilityWeight, configuration.legibilityWeight)
     }
 }
 

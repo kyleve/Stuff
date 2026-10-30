@@ -7,6 +7,12 @@ import WhereCore
 /// reports and published widget snapshot — no aggregation of its own — so it
 /// stays a thin, testable value the intents delegate to.
 struct WhereIntentReader {
+    /// Today's answer and the appearances from the same cache or store read path.
+    struct TodayRegions {
+        let regions: Set<Region>
+        let appearances: [Region: RegionAppearance]
+    }
+
     let services: WhereServices
     var calendar = Calendar.whereIntents
     var now: @Sendable () -> Date = { Date() }
@@ -34,11 +40,16 @@ struct WhereIntentReader {
     /// Today's regions, preferring the app-published widget snapshot (no store
     /// read) when it still describes today, and falling back to the year
     /// report's today row otherwise.
-    func todayRegions() async throws -> Set<Region> {
+    func todayRegions() async throws -> TodayRegions {
         let today = calendar.startOfDay(for: now())
         if let snapshot = todaySnapshot(), calendar.startOfDay(for: snapshot.day) == today {
-            return snapshot.dayRegions
+            return TodayRegions(regions: snapshot.dayRegions, appearances: snapshot.appearances)
         }
-        return try await regions(on: today)
+        let regions = try await regions(on: today)
+        var appearances: [Region: RegionAppearance] = [:]
+        for primary in try await services.primaryRegions() {
+            appearances[primary.region] = primary.appearance
+        }
+        return TodayRegions(regions: regions, appearances: appearances)
     }
 }

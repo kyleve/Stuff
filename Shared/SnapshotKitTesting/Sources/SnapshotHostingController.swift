@@ -1,4 +1,4 @@
-import SnapshotKit
+@_spi(Capture) import SnapshotKit
 import SwiftUI
 import UIKit
 
@@ -9,10 +9,7 @@ func makeHostingController(
     configuration: SnapshotConfiguration,
 ) -> UIViewController {
     let styled = view
-        .environment(\.colorScheme, configuration.colorScheme)
-        .dynamicTypeSize(configuration.dynamicType)
-        .environment(\.layoutDirection, configuration.layoutDirection)
-        .environment(\.legibilityWeight, configuration.legibilityWeight)
+        .snapshotSwiftUITraits(configuration)
         .transaction {
             $0.disablesAnimations = true
             $0.animation = nil

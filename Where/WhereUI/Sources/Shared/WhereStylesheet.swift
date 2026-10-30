@@ -2771,7 +2771,15 @@ extension View {
         theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles))
+        whereBroadwayRoot(WherePresentationContext(theme: theme, regionStyles: regionStyles))
+    }
+
+    /// Seeds a production root with its complete, explicitly supplied presentation.
+    public func whereBroadwayRoot(_ presentation: WherePresentationContext) -> some View {
+        modifier(WhereBroadwayRootModifier(
+            theme: presentation.theme,
+            regionStyles: presentation.regionStyles,
+        ))
     }
 }
 

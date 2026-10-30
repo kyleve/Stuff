@@ -376,29 +376,33 @@ struct SettingsView: View {
                 ],
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
+                SettingsView(report: world.report, recordingWarning: world.recordingWarning)
+                    .whereEnvironment(world.environment(updates: nil, developer: nil))
             }
             whereSnapshot(
                 name: "UpdateAvailable",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
-                    .environment(InstallerPreview.model(.available))
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
+                SettingsView(report: world.report, recordingWarning: world.recordingWarning)
+                    .whereEnvironment(world.environment(
+                        updates: InstallerPreview.model(.available),
+                        developer: nil,
+                    ))
             }
             whereSnapshot(
                 name: "LocalBuild",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
-                    .environment(InstallerPreview.model(.local))
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
+                SettingsView(report: world.report, recordingWarning: world.recordingWarning)
+                    .whereEnvironment(world.environment(
+                        updates: InstallerPreview.model(.local),
+                        developer: nil,
+                    ))
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
@@ -407,22 +411,19 @@ struct SettingsView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
+                SettingsView(report: world.report, recordingWarning: world.recordingWarning)
                     .environment(\.isInDemoMode, true)
+                    .whereEnvironment(world.environment(updates: nil, developer: nil))
             }
             whereSnapshot(
                 name: "RecordingConfigurationWarning",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(
-                    report: PreviewSupport.loadedYearReportModel(),
-                    recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
-                )
-                .environment(PreviewSupport.loadedModel())
-                .environment(PreviewSupport.loadedSession())
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .presented)
+                SettingsView(report: world.report, recordingWarning: world.recordingWarning)
+                    .whereEnvironment(world.environment(updates: nil, developer: nil))
             }
         }
     }

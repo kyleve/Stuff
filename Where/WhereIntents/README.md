@@ -48,6 +48,14 @@ It hosts a `Button(intent:)` that runs `LogDayIntent` and reloads the card with 
 The presentational card bodies live in `WhereUI` (`Sources/Intents/`, Broadway-styled, with `#Preview`s).
 The interactive wrapper that wires the button to an intent lives here, since `WhereUI` cannot depend on `WhereIntents`.
 
+Every snippet supplies a required `WherePresentationContext` to its WhereUI
+root. The resolved `IntentServices.Context` derives the theme and saved region
+appearances from the same handed-off world. Today and date-query chips show
+the user's custom colors and emoji. The day-count snippet uses the same path.
+Today's valid widget-snapshot fast path carries both regions and appearances.
+Its snippet conversion stays synchronous and performs no additional store read.
+The report fallback loads current appearances from its services.
+
 ## Spotlight
 
 `RegionEntity` conforms to `IndexedEntity`.

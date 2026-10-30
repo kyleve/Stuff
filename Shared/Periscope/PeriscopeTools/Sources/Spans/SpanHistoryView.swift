@@ -30,8 +30,7 @@ public struct SpanHistoryView: View {
                     }
                 }
             }
-            .environment(\.logRowDensity, .load(from: .standard))
-            .periscopeBroadwayRoot()
+            .periscopeBroadwayRoot(.inheritedOrSaved(.standard))
             .task(id: ObjectIdentifier(store)) {
                 if model.store !== store {
                     model = SpanHistoryModel(store: store)

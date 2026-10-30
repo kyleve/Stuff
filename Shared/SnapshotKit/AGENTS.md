@@ -42,6 +42,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **It is a hybrid accessor:** pure-SwiftUI `EnvironmentKey` first, `UITraitBridgedEnvironmentKey` fallback. The setter mirrors into both.
 - **See mechanics and rationale on `SnapshotCaptureFlag.swift`.** Do not simplify it to a plain `@Entry`.
 - **Keep SnapshotKit design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI.
+- **Keep native environment mapping in `snapshotSwiftUITraits(_:)` behind the `Capture` SPI.** Preview and capture hosts share it. Keep UIKit hosting and capture transaction policy in their existing owners. Guard: `SnapshotHostingControllerTests` in SnapshotKitTesting.
 - **The Broadway root wrap is a consumer concern** (`WhereUI`'s `whereSnapshot(...)`).
 - **Use full-content frames for scrollable subjects.**
 - **If a snapshot contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller, use a full-content frame preset.**
