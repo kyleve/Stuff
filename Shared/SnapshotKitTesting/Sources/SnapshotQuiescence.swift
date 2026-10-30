@@ -7,7 +7,8 @@ import UIKit
 /// cheap alternative, and `both` runs them together to find out where they
 /// disagree before either becomes the default.
 @_spi(Testing) public enum SnapshotSettleMechanism: String, Sendable, CaseIterable {
-    /// Re-render the view at quarter resolution each pass and compare bytes.
+    /// Re-render at 0.25 pixels per point and compare normalized channels with
+    /// the one-unit allowance in `SnapshotPixelStability`.
     /// Authoritative — it observes the thing the capture will record — and the
     /// expensive option, because `afterScreenUpdates: true` round-trips to the
     /// render server.

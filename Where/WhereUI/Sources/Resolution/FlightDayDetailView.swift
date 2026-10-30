@@ -209,7 +209,7 @@ struct FlightDayDetailView: View {
             for state in FlightReviewPreviewState.allCases {
                 whereSnapshot(
                     name: state == .ready ? "Default" : state.rawValue,
-                    configurations: .fullContentScreenDefaults,
+                    configurations: configurations(for: state),
                 ) {
                     NavigationStack {
                         FlightDayDetailView(
@@ -223,7 +223,10 @@ struct FlightDayDetailView: View {
             for review in [mixed, mixed.dismissingProposal()].compactMap(\.self) {
                 whereSnapshot(
                     name: review.proposal == nil ? "MixedFlightsDismissed" : "MixedFlights",
-                    configurations: .fullContentScreenDefaults,
+                    // The multi-flight evidence/actions layout is a second representative.
+                    configurations: review
+                        .proposal == nil ? .fullContentPhoneLightDark :
+                        .fullContentScreenRepresentative,
                 ) {
                     NavigationStack {
                         FlightDayDetailView(
@@ -232,6 +235,18 @@ struct FlightDayDetailView: View {
                         )
                     }
                 }
+            }
+        }
+
+        private static func configurations(for state: FlightReviewPreviewState)
+            -> [SnapshotConfiguration]
+        {
+            switch state {
+                case .ready: .fullContentScreenRepresentative
+                case .uncertainArrival:
+                    .fullContentPhoneLightDarkWithAX5AndAnnotations
+                case .flightLikely, .waiting, .stale, .noPresence,
+                     .completed: .fullContentPhoneLightDark
             }
         }
     }

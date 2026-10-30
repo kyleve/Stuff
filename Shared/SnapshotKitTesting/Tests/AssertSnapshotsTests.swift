@@ -1,11 +1,70 @@
 import SnapshotKit
-import SnapshotKitTesting
+@_spi(Testing) import SnapshotKitTesting
 import SwiftUI
+import Synchronization
 import TestHostSupport
 import Testing
 
 @MainActor
 struct AssertSnapshotsTests {
+    @Test func exhaustedConfigurationRecordsOnceAndContinuesToTheNext() async {
+        var attempts = 0
+        let failures = Mutex(0)
+        await withKnownIssue("Two configurations exhaust their retries", isIntermittent: false) {
+            await assertSnapshots(
+                of: Color.green.frame(width: 40, height: 40),
+                named: "exhausted",
+                configurations: [.init(), .init(colorScheme: .dark)],
+                measurementReadiness: .immediate,
+                onReadyToMeasure: {
+                    attempts += 1
+                    throw snapshotRetryTimeout(attempt: attempts)
+                },
+                settle: .immediate,
+                record: .never,
+            )
+        } matching: { issue in
+            guard let error = issue.error as? SnapshotRenderingError,
+                  error == snapshotRetryTimeout(attempt: 3)
+                  || error == snapshotRetryTimeout(attempt: 6)
+            else { return false }
+            failures.withLock { $0 += 1 }
+            return true
+        }
+        #expect(attempts == 6)
+        #expect(failures.withLock { $0 } == 2)
+    }
+
+    @Test(arguments: [1, 3])
+    func recoveredCaptureReachesComparisonOnlyOnce(successfulAttempt: Int) async {
+        var attempts = 0
+        let comparisons = Mutex(0)
+        await withKnownIssue("The probe deliberately has no reference", isIntermittent: false) {
+            await assertSnapshots(
+                of: Color.green.frame(width: 40, height: 40),
+                named: "recovered-without-reference",
+                configurations: [.init()],
+                measurementReadiness: .immediate,
+                onReadyToMeasure: {
+                    attempts += 1
+                    if attempts < successfulAttempt {
+                        throw snapshotRetryTimeout(attempt: attempts)
+                    }
+                },
+                settle: .immediate,
+                record: .never,
+            )
+        } matching: { issue in
+            guard issue.error == nil,
+                  issue.comments.contains(where: { $0.rawValue.contains("No reference was found") })
+            else { return false }
+            comparisons.withLock { $0 += 1 }
+            return true
+        }
+        #expect(attempts == successfulAttempt)
+        #expect(comparisons.withLock { $0 } == 1)
+    }
+
     @Test func cancellationDuringMeasurementReadinessEndsQuietly() async throws {
         try waitFor { hostKeyWindow() != nil }
         let probe = MeasurementHookCancellationProbe()

@@ -28,6 +28,9 @@ mise trust
 echo "==> mise install"
 mise install
 
+echo "==> install site dependencies"
+mise exec -- npm ci
+
 # .githooks carries the Git LFS hooks beside the pre-commit formatter, and they
 # exit non-zero when git-lfs is missing — so it has to be here before Git is
 # pointed at them, or checkout/merge/commit break on this VM. It isn't in the

@@ -4,6 +4,156 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SampleCorrectionCoordinatorTests {
+    @Test(arguments: [30.0, 1440.0])
+    func uncertainArrivalRetainsRestorationInUnsupportedGaps(excludedMinute: Double) async throws {
+        typealias F = FlightTrajectoryFixtures
+        let h = try SampleCorrectionTestSupport.makeHarness(now: F.date(minutes: 4330))
+        let excluded = F.sample(4, minutes: excludedMinute, east: 150)
+        let peer = F.sample(8, minutes: excludedMinute + 0.1, east: 150)
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            excluded,
+            peer,
+            F.sample(5, minutes: 4320, east: 4000),
+            F.sample(6, minutes: 4325, east: 4000),
+            F.sample(7, minutes: 4330, east: 4000),
+        ]
+        let originalRevision = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: excluded.id,
+            updatedAt: F.date(minutes: 4330),
+            replacementRegions: [],
+        )
+        try await h.store.perform {
+            for sample in samples {
+                try await h.store.add(sample: sample)
+            }
+            try await h.store.addSampleAttributionRevision(originalRevision)
+        }
+        let day = CalendarDay(from: excluded.timestamp, in: SampleCorrectionTestSupport.calendar)
+        let reviewID = DataIssueID.flightDay(day: day)
+        let review = try #require(await h.coordinator.review(
+            id: reviewID,
+            year: day.year,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+        ))
+        let flight = try #require(review.flights.first)
+        #expect(flight.progress.arrival?.isTimingUncertain == true)
+        let restore = try #require(review.pointCorrections.first { $0.sampleID == excluded.id })
+        #expect(restore.action == .restoreGPS)
+        #expect(!review.pointCorrections.contains { $0.sampleID == peer.id })
+        #expect(review.proposal?.edits
+            .contains { $0.sampleID == excluded.id || $0.sampleID == peer.id } != true)
+        if excludedMinute >= 1440 {
+            #expect(!flight.completedDays(in: SampleCorrectionTestSupport.calendar).contains(day))
+        }
+        guard case .applied = try await h.coordinator.apply(restore) else {
+            Issue
+                .record(
+                    "The reviewed exclusion must remain reversible inside an uncertain arrival gap",
+                )
+            return
+        }
+        let revisions = try await h.store.allSampleAttributionRevisions()
+        #expect(revisions.contains(originalRevision))
+        let reset = try #require(revisions.max { $0.updatedAt < $1.updatedAt })
+        #expect(reset.replacementRegions == nil)
+        #expect(reset.updatedAt > originalRevision.updatedAt)
+        let refreshed = try await h.coordinator.review(
+            id: reviewID,
+            year: day.year,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+        )
+        #expect(refreshed?.pointCorrections.contains { $0.sampleID == excluded.id } != true)
+        if excludedMinute >= 1440 { #expect(refreshed == nil) }
+        #expect(try await Set(h.store.allSamples()) == Set(samples))
+        guard case .stale = try await h.coordinator.apply(restore) else {
+            Issue.record("An already applied restoration must be stale")
+            return
+        }
+        #expect(try await h.store.allSampleAttributionRevisions().count == 2)
+    }
+
+    @Test func uncertainArrivalStillAllowsRestoringAnExcludedEndpoint() async throws {
+        typealias F = FlightTrajectoryFixtures
+        let h = try SampleCorrectionTestSupport.makeHarness(now: F.date(minutes: 4330))
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            F.sample(4, minutes: 4320, east: 4000),
+            F.sample(5, minutes: 4325, east: 4000),
+            F.sample(
+                6,
+                minutes: 4330,
+                east: 4000,
+            ),
+        ]
+        try await h.store.perform {
+            for sample in samples {
+                try await h.store.add(sample: sample)
+            }
+            try await h.store.addSampleAttributionRevision(.init(
+                id: .init(rawValue: UUID()),
+                sampleID: samples[0].id,
+                updatedAt: F.date(minutes: 30),
+                replacementRegions: [],
+            ))
+        }
+        let review = try await h.review()
+        let restore = try #require(review.pointCorrections.first { $0.sampleID == samples[0].id })
+        #expect(restore.action == .restoreGPS)
+        guard case .applied = try await h.coordinator.apply(restore) else {
+            Issue
+                .record(
+                    "Uncertain timing must not prevent withdrawing an existing endpoint exclusion",
+                )
+            return
+        }
+        let refreshed = try await h.review()
+        #expect(refreshed.pointCorrections.contains { $0.sampleID == samples[0].id } == false)
+        #expect(try await h.store.allSamples().count == samples.count)
+    }
+
+    @Test func improvedArrivalEvidenceInvalidatesAnUncertainFlightProposal() async throws {
+        typealias F = FlightTrajectoryFixtures
+        let h = try SampleCorrectionTestSupport.makeHarness(now: F.date(minutes: 4330))
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            F.sample(4, minutes: 4320, east: 4000),
+            F.sample(5, minutes: 4325, east: 4000),
+            F.sample(
+                6,
+                minutes: 4330,
+                east: 4000,
+            ),
+        ]
+        try await h.store.perform {
+            for sample in samples {
+                try await h.store.add(sample: sample)
+            }
+        }
+        let review = try await h.review()
+        #expect(review.flight?.progress.arrival?.isTimingUncertain == true)
+        let proposal = try #require(review.proposal)
+        try await h.store.perform {
+            try await h.store.add(sample: F.sample(7, minutes: 15, east: 150))
+            try await h.store.add(sample: F.sample(8, minutes: 20, east: 150))
+        }
+        guard case let .stale(fresh) = try await h.coordinator.apply(proposal) else {
+            Issue.record("Changed arrival evidence must require a fresh review")
+            return
+        }
+        #expect(fresh?.flight?.progress.arrival?.isTimingUncertain == false)
+        #expect(try await h.store.allSampleAttributionRevisions().isEmpty)
+    }
+
     @Test func pointInclusionAndRestorePreserveRawHistoryAndOtherCorrections() async throws {
         let h = try await SampleCorrectionTestSupport.completedFlight()
         let existing = SampleAttributionRevision(
@@ -182,52 +332,91 @@ struct SampleCorrectionCoordinatorTests {
         #expect(try await store.allSamples() == trace.samples)
     }
 
-    @Test(.disabled(
-        if: ProcessInfo.processInfo.environment["WHERE_FLIGHT_VERIFICATION_CONFIG"] == nil,
-        "Supply a local flight-verification configuration to replay an external backup.",
-    ))
-    func productionArchiveCorrectionOnRequest() async throws {
-        let path = try #require(ProcessInfo.processInfo
-            .environment["WHERE_FLIGHT_VERIFICATION_CONFIG"])
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .secondsSince1970
-        let configuration = try decoder.decode(
-            FlightArchiveVerificationConfiguration.self,
-            from: Data(contentsOf: URL(fileURLWithPath: path)),
-        )
-        let backupURL = URL(fileURLWithPath: configuration.backupPath)
-        let archive = try BackupService().readArchive(at: backupURL).archive
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try #require(TimeZone(identifier: configuration.calendarTimeZoneID))
+    @Test func recordedFlightBackupAppliesCorrectionsWithoutChangingGroundOrRawSamples(
+    ) async throws {
+        typealias F = RecordedFlightArchiveFixture
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let archiveURL = try F.makeArchiveFile(fixture: fixture)
+        defer {
+            do {
+                try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
+            } catch {
+                Issue.record(error, "Could not remove the recorded flight test archive")
+            }
+        }
         let store = try SwiftDataStore.inMemory()
+        let regions = F.Regions()
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            attributor: RegionAttributor(for: archive.trackedRegions),
-            aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
-            now: { configuration.now },
+            attributor: regions,
+            aggregator: DayAggregator(calendar: F.calendar, timeZone: F.calendar.timeZone),
+            now: { fixture.now },
         )
-        _ = try await services.backup.importAndAcknowledgeBackup(
-            from: backupURL,
+        let imported = try await services.backup.importAndAcknowledgeBackup(
+            from: archiveURL,
             strategy: .replace,
         )
-        let day = CalendarDay(from: configuration.from, in: calendar)
+        #expect(imported.sampleCount == 52)
+        #expect(imported.recordingDeviceCount == 1)
+        #expect(try await Set(store.allSamples()) == Set(fixture.samples))
+        #expect(try await Set(store.trackedRegions()) == Set(regions.loadedRegions))
+        let before = try await services.reports.dataIssueReads(for: F.day.year)
+        #expect(before.history.samples.count == fixture.samples.count)
+        #expect(before.report.days.first { $0.day == F.day }?.regions
+            == [.california, .newYork, .canada])
+
         let review = try await services.corrections.review(
-            id: .flightDay(day: day),
-            year: day.year,
-            primaryRegions: archive.trackedRegions,
+            id: .flightDay(day: F.day),
+            year: F.day.year,
+            primaryRegions: regions.loadedRegions,
             driftThresholdMeters: 1000,
         )
         let proposal = try #require(review?.proposal)
-        #expect(proposal.resultingRegions == configuration.expectedResultingRegions)
+        let editedIDs = Set(proposal.edits.map(\.sampleID))
+        // These five recorded fixes cross the invented middle region with
+        // independent cruise observations on both sides of every point.
+        let overflightIDs = Set([17, 3, 26, 6, 39].map(FlightTrajectoryFixtures.sampleID))
+        #expect(overflightIDs.isSubset(of: editedIDs))
+        let departure = try #require(fixture.samples.first {
+            $0.id == FlightTrajectoryFixtures.sampleID(33)
+        })
+        let arrival = try #require(fixture.samples.first {
+            $0.id == FlightTrajectoryFixtures.sampleID(30)
+        })
+        let groundIDs = Set(fixture.samples.filter {
+            $0.timestamp <= departure.timestamp || $0.timestamp >= arrival.timestamp
+        }.map(\.id))
+        #expect(editedIDs.isDisjoint(with: groundIDs))
+        #expect(proposal.resultingRegions == [.california, .newYork])
         guard case .applied = try await services.corrections.apply(proposal) else {
-            Issue.record("The archive's unchanged reviewed correction must apply")
+            Issue.record("The imported recording's unchanged reviewed correction must apply")
             return
         }
-        let result = try await services.reports.yearReport(for: day.year)
-        #expect(result.days.first { $0.day == day }?.regions == configuration
-            .expectedResultingRegions)
-        #expect(try await Set(store.allSamples()) == Set(archive.samples))
+
+        let after = try await services.reports.dataIssueReads(for: F.day.year)
+        #expect(after.report.days.first { $0.day == F.day }?.regions == [.california, .newYork])
+        let overflight = after.history.samples.filter { overflightIDs.contains($0.sample.id) }
+        #expect(Set(overflight.map(\.sample.id)) == overflightIDs)
+        for point in overflight {
+            #expect(point.regions.isEmpty)
+        }
+        #expect(after.history.samples.filter { groundIDs.contains($0.sample.id) }
+            == before.history.samples.filter { groundIDs.contains($0.sample.id) })
+        #expect(try await Set(store.allSamples()) == Set(fixture.samples))
+        let revisions = try await store.allSampleAttributionRevisions()
+        #expect(Set(revisions.map(\.sampleID)) == editedIDs)
+        #expect(revisions.count == editedIDs.count)
+        #expect(revisions.allSatisfy { $0.replacementRegions == [] })
+        #expect(try await services.reports.manualDays(inYear: F.day.year).isEmpty)
+        let fresh = try await services.corrections.review(
+            id: .flightDay(day: F.day),
+            year: F.day.year,
+            primaryRegions: regions.loadedRegions,
+            driftThresholdMeters: 1000,
+        )
+        #expect(fresh?.proposal == nil)
+        #expect(fresh?.flight?.isPending == false)
     }
 
     @Test func changedTrackedRegionsRejectApplyBeforeLiveObserverReconciles() async throws {

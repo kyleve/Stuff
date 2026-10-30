@@ -50,7 +50,9 @@ struct FlightStatusBanner: View {
             switch flight.progress {
                 case .flightLikely: return String(localized: .flightStatusLikelyTitle)
                 case .awaitingArrival: return String(localized: .flightStatusWaitingTitle)
-                case .completed: break
+                case let .completed(arrival):
+                    if arrival
+                        .isTimingUncertain { return String(localized: .flightStatusUncertainTitle) }
             }
         }
         return switch review.state {
@@ -65,7 +67,12 @@ struct FlightStatusBanner: View {
             switch flight.progress {
                 case .flightLikely: return String(localized: .flightStatusLikelyDescription)
                 case .awaitingArrival: return String(localized: .flightStatusWaitingDescription)
-                case .completed: break
+                case let .completed(arrival):
+                    if arrival
+                        .isTimingUncertain
+                    {
+                        return String(localized: .flightStatusUncertainDescription)
+                    }
             }
         }
         return switch review.state {
@@ -79,44 +86,41 @@ struct FlightStatusBanner: View {
 #if DEBUG
     extension FlightStatusBanner: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            for state in FlightReviewPreviewState.allCases {
+            // NoPresence has identical banner content to Ready; the detail screen owns its
+            // differences.
+            for state in FlightReviewPreviewState.allCases where state != .noPresence {
                 whereSnapshot(
                     name: state.rawValue,
-                    configurations: .fullContentScreenDefaults,
+                    configurations: state == .uncertainArrival ? .componentRepresentative :
+                        .componentLightDark,
                 ) {
-                    NavigationStack {
-                        ScrollView {
-                            FlightStatusBanner(
-                                review: PreviewSupport.flightReview(state: state),
-                                deviceLabel: String(localized: .flightStatusDeviceCurrent),
-                            )
-                            .padding()
-                        }
-                        .navigationTitle(String(localized: .tabLocations))
-                    }
+                    FlightStatusBanner(
+                        review: PreviewSupport.flightReview(state: state),
+                        deviceLabel: String(localized: .flightStatusDeviceCurrent),
+                    )
+                    .padding()
+                    .background(.background)
                 }
             }
             let mixed = PreviewSupport.mixedFlightReview()
             for review in [mixed, mixed.dismissingProposal()].compactMap(\.self) {
                 whereSnapshot(
                     name: review.proposal == nil ? "MixedFlightsDismissed" : "MixedFlights",
-                    configurations: .fullContentScreenDefaults,
+                    // Multiple banners have a distinct wrapping and accessibility layout.
+                    configurations: review
+                        .proposal == nil ? .componentLightDark : .componentRepresentative,
                 ) {
-                    NavigationStack {
-                        ScrollView {
-                            VStack {
-                                ForEach(review.flights) { flight in
-                                    FlightStatusBanner(
-                                        review: review,
-                                        deviceLabel: String(localized: .flightStatusDeviceCurrent),
-                                        flight: flight,
-                                    )
-                                }
-                            }
-                            .padding()
+                    VStack {
+                        ForEach(review.flights) { flight in
+                            FlightStatusBanner(
+                                review: review,
+                                deviceLabel: String(localized: .flightStatusDeviceCurrent),
+                                flight: flight,
+                            )
                         }
-                        .navigationTitle(String(localized: .tabLocations))
                     }
+                    .padding()
+                    .background(.background)
                 }
             }
         }

@@ -63,7 +63,8 @@ require "json"
 require "fileutils"
 require "open3"
 
-ROOT = File.expand_path("../../..", __dir__)
+require_relative '../../../Tools/repository'
+ROOT = Repository.root(__FILE__)
 
 def fail_with(message)
   abort "generate-attribution: #{message}"

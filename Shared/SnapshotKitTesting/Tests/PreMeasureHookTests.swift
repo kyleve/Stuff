@@ -33,6 +33,59 @@ struct PreMeasureHookTests {
         #expect(image.size.height == 180)
     }
 
+    @Test func failedHookTearsDownTheHostAndPreservesTheOriginalError() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let root = try #require(hostKeyWindow()?.rootViewController)
+        let initialChildren = root.children
+        let host = UIHostingController(rootView: Color.green.frame(width: 100, height: 100))
+        await #expect(throws: URLError(.fileDoesNotExist)) {
+            try await renderSnapshotImage(
+                of: host,
+                named: "failed-readiness",
+                sizing: .intrinsic(width: 100, minimumHeight: 0),
+                onReadyToMeasure: { throw URLError(.fileDoesNotExist) },
+            )
+        }
+        #expect(host.parent == nil)
+        #expect(root.children == initialChildren)
+        let recovered = try await renderSnapshotImage(
+            of: host,
+            named: "after-failed-readiness",
+            sizing: .intrinsic(width: 100, minimumHeight: 0),
+            settle: .immediate,
+        )
+        #expect(recovered.size.height == 100)
+    }
+
+    @Test func explicitHookTimeoutCancelsWorkAndTearsDownTheHost() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let root = try #require(hostKeyWindow()?.rootViewController)
+        let initialChildren = root.children
+        let host = UIHostingController(rootView: Color.green.frame(width: 100, height: 100))
+        let multiplier = try SnapshotSettleTimeoutPolicy.fromEnvironment().multiplier
+        var didStart = false
+        var didFinish = false
+        await #expect(throws: SnapshotRenderingError.measurementReadinessTimedOut(
+            name: "hook-timeout",
+            budget: 0.02 * multiplier,
+        )) {
+            try await renderSnapshotImage(
+                of: host,
+                named: "hook-timeout",
+                sizing: .intrinsic(width: 100, minimumHeight: 0),
+                onReadyToMeasure: {
+                    didStart = true
+                    defer { didFinish = true }
+                    try await Task.sleep(for: .seconds(60))
+                },
+                measurementHookTimeout: 0.02,
+            )
+        }
+        #expect(didStart && didFinish)
+        #expect(host.parent == nil)
+        #expect(root.children == initialChildren)
+    }
+
     @Test func fixedCaptureRejectsAMeasurementHook() async throws {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: Color.green)

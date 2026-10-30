@@ -20,6 +20,15 @@ reverse of `BContentSizeCategory.from(_:)` for UIKit consumers.
 `BHorizontalSizeClass` and `BVerticalSizeClass` preserve compact, regular, and unspecified values.
 `BTraits.system` registers both for live UIKit observation. Scoped overrides use the matching properties on `BTraits.Overrides`.
 
+`BModeVarying<Value>` stores light and dark values without reading ambient traits.
+Its read-only subscript selects a value from an explicit `BMode` during slicing.
+It conditionally conforms to `Equatable`, `Hashable`, and `Sendable` when its value does.
+
+```swift
+let opacity = BModeVarying(light: 0.14, dark: 0.3)
+let resolvedOpacity = opacity[context.traits.mode]
+```
+
 ## How it works
 
 `BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).

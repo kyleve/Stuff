@@ -1,5 +1,6 @@
 @_spi(Testing) import SnapshotKitTesting
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
 
@@ -224,6 +225,10 @@ struct SnapshotPNGTests {
     }
 
     @Test func propagatesSettleFailures() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let root = try #require(hostKeyWindow()?.rootViewController)
+        let initialChildren = root.children
+        let animationsWereEnabled = UIView.areAnimationsEnabled
         let configuration = SnapshotConfiguration(
             device: SnapshotConfiguration.Frame(
                 name: "moving-probe",
@@ -250,6 +255,8 @@ struct SnapshotPNGTests {
         }
         #expect(name == "png-api-moving-probe")
         #expect(phase == "content")
+        #expect(root.children == initialChildren)
+        #expect(UIView.areAnimationsEnabled == animationsWereEnabled)
     }
 }
 

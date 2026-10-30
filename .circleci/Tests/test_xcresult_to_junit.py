@@ -32,7 +32,9 @@ class JUnitTests(unittest.TestCase):
             )
 
             test_case = ET.parse(output).find("./testsuite/testcase")
-            self.assertEqual(test_case.get("file"), "WhereUISnapshotTests/CalendarTests")
+            self.assertEqual(
+                test_case.get("file"), "WhereUISnapshotTests/CalendarTests"
+            )
             self.assertEqual(test_case.get("time"), "1.250")
 
 

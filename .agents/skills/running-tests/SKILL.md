@@ -75,6 +75,21 @@ Snapshot runs require the exact Xcode build in
 different selected build before project generation or simulator boot. Install
 the pinned build. Then select it before you review or record references.
 
+For component comparison sheets, run the component suites plus selected screen
+integration suites. Inspect every theme panel at light/dark and relevant accessibility
+sizes. Review the sheet PNG before recording. Its embedded panel map is part of the
+reference; preserve PNG metadata. Missing, invalid, or changed panel maps fail.
+A panel regression must fail at its own pixel-area budget even when the complete sheet would pass. Use `--timings`
+to compare actual panel capture counts and runtime; composing panels does not avoid
+rendering them. Preserve ungrouped reference paths and nest special traits inside
+explicit theme groups. Follow the framework and consumer module `AGENTS.md` for
+which cases belong in comparison sheets versus full screens.
+
+For matrix reductions, compare retained case/configuration identities with the
+remaining references. Use `--record never` for unchanged captures so a reduction
+cannot bless an unrelated visual change. Record new or intentionally reframed
+subjects in a separate focused run and inspect them before the final assertion run.
+
 Do not parallelize the image suite. Simulators on one Mac share one render
 server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
@@ -151,9 +166,6 @@ mise install
 ./ide --no-open
 ./swiftformat --lint
 ./test --everything
-# The native-macOS Ledger scheme has no simulator and runs in its own CI job:
-mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
-  -destination 'platform=macOS'
 ```
 
 This recipe is not the complete CI gate. Read

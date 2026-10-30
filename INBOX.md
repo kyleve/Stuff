@@ -26,10 +26,6 @@ always find your own. An entry the pipeline declines moves to
 
 # Open
 
-- Add a way to track residency requirements for regions.
-- For regions with residency requirements, show how many days you have left in
-  the state. This could build on the currently open PRs to improve estimates.
-
 # Triaged
 
 Entries resolved without filing a backlog item, kept so a note you wrote never

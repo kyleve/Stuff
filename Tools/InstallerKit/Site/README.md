@@ -1,0 +1,101 @@
+# Installer website
+
+Astro renders the shared app library, app pages, and build details.
+Python prepares validated data, trusted artwork, install manifests, and the update catalog.
+`src/site-data.ts` validates the private presentation data before Astro renders it. Invalid fields stop the build with a field path.
+Python remains responsible for catalog identities, installation URLs, and publication policy.
+The Pages workflow deploys all files together. GitHub Releases stores the signed IPAs.
+
+## Local development
+
+Run `mise exec -- npm run test:unit --workspace stuff-installer-site` for the presentation-data contract tests.
+These tests consume Python's retained preview scenarios and reject malformed nested values.
+
+From the repository root, install the pinned tools and site dependencies:
+
+```bash
+mise install
+mise exec -- npm ci
+```
+
+Start the development server:
+
+```bash
+mise exec -- npm run dev --prefix Tools/InstallerKit/Site
+```
+
+Open `http://localhost:4321/Stuff/`. Astro refreshes the page after a template or stylesheet change.
+The default catalog contains two apps, main builds, and PR builds.
+Install links refer to synthetic fixture releases.
+
+Select another fixture or port:
+
+```bash
+mise exec -- npm run dev --prefix Tools/InstallerKit/Site -- --fixture retired --port 4322
+```
+
+Available fixtures are `full`, `retired`, `empty`, `unavailable-history`, `missing-details`, `preparing`, `failed`, `rebuilding`, and `unpublished`.
+These catalogs also supply the WebKit snapshots.
+
+Build and serve the production output locally:
+
+```bash
+mise exec -- npm run preview --prefix Tools/InstallerKit/Site -- --fixture full
+```
+
+The preview command builds into a temporary directory and removes it after the server stops.
+Each invocation has separate generated files, including Astro and Vite caches. A preview can run alongside tests.
+Dependency installation needs network access. Rendering and fixture previews work offline.
+
+## Production build
+
+The existing Python command remains the publication entry point:
+
+```bash
+python3 -m Tools.InstallerKit.installer_update_site \
+  --catalog /path/to/updates.json \
+  --repository kyleve/Stuff \
+  --feed-url https://kyleve.github.io/Stuff/updates.json \
+  --output /path/to/new-site
+```
+
+The output directory must not exist. Its parent directory must exist.
+Input validation and the Astro build complete before the command exposes the output directory.
+The build includes `updates.json`, exact-build manifests, artwork, CSS, and HTML.
+The feed URL supplies the deployment base path. Custom domains can use `/`.
+
+## Structure and contracts
+
+`src/pages/` owns routes. `src/components/` owns reusable presentation.
+`src/layouts/SiteLayout.astro` supplies the shared document and stylesheet.
+`src/data.ts` describes the private presentation input from Python.
+The public update schema remains in the Python publication tools and InstallerKit.
+PR build information includes an explicit **Pull request** link to GitHub, including for older releases without title metadata.
+
+PR pages and the app's PR list show preparing or failed builds with a link to their workflow attempt.
+A preparing first build has no install action. During a rebuild, the previous successful release remains installable.
+Inactive channels with no published history or progress show **No build yet**. Previously published retired channels keep their retirement page.
+Pages are static: refresh after deployment to see changed status or a newly published build.
+
+`../installer_site_data.py` validates identities and releases, then prepares assets and manifests.
+`../installer_update_site.py` runs Astro with that input and stages the complete deployment.
+`../installer_site_preview.py` supplies fixture data to the same templates.
+The build uses the Node version in the root `.mise.toml` and dependencies in the root `package-lock.json`.
+Flyover shares this toolchain through `Tools/astro_site.py`. The sites retain separate configurations, data, and outputs.
+The launcher first finds mise through `PATH`, then checks its data directory, the standalone installer location, and Homebrew locations.
+Data directory discovery honors `MISE_DATA_DIR`, then `XDG_DATA_HOME`, with `~/.local/share/mise` as the default.
+This also supports Xcode and snapshot commands with a minimal `PATH`.
+
+## Validation
+
+From the repository root:
+
+```bash
+mise exec -- npm run check --workspaces --if-present
+python3 -m unittest discover -s Tools/Tests -p 'test_installer*.py'
+./test ToolsSnapshotTests --review
+```
+
+The retained tests exercise validation, escaped text, routes, manifests, build failures, and concurrent builds.
+The WebKit tests compare production output on iPhone and iPad in light and dark appearances.
+Their adapter inlines the emitted CSS and images for offline capture.

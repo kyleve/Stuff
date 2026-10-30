@@ -2,24 +2,6 @@ import Foundation
 import RegionKit
 import WhereCore
 
-/// Optional local verification inputs. Private archives and expected identities
-/// are supplied outside the checkout and never become repository fixtures.
-struct FlightArchiveVerificationConfiguration: Decodable {
-    let backupPath: String
-    let from: Date
-    let until: Date
-    let now: Date
-    let cruiseCheckAt: Date
-    let awaitingArrivalCheckAt: Date
-    let expectedArrivalAt: Date
-    let expectedArrivalConfirmedAt: Date
-    let expectedInputSampleCount: Int
-    let expectedAirborneSampleIDs: Set<UUID>
-    let expectedPreservedSampleIDs: Set<UUID>
-    let calendarTimeZoneID: String
-    let expectedResultingRegions: Set<Region>
-}
-
 /// An invented equatorial route, not exported personal location history. Its
 /// structure exercises short callbacks, a recording gap, a turning approach,
 /// and delayed arrival confirmation without retaining a real itinerary.
@@ -116,6 +98,29 @@ enum FlightTrajectoryFixtures {
             sample(7, minutes: 285, east: 3380),
             sample(8, minutes: 290, east: 3380),
             sample(9, minutes: 295, east: 3380),
+        ]
+    }
+
+    /// Two corroborated locations separated by a flight-speed recording gap.
+    /// No motion sensor values or invented intermediate fixes establish this trip.
+    static func sparseFlight() -> [LocationSample] {
+        [
+            sample(1, minutes: 0, east: 0),
+            sample(2, minutes: 5, east: 0),
+            sample(3, minutes: 275, east: 4000),
+            sample(4, minutes: 280, east: 4000),
+            sample(5, minutes: 285, east: 4000),
+        ]
+    }
+
+    /// A 200 km flight whose only observations are stationary at either end.
+    static func shortSparseFlight() -> [LocationSample] {
+        [
+            sample(1, minutes: 0, east: 0),
+            sample(2, minutes: 5, east: 0),
+            sample(3, minutes: 25, east: 200),
+            sample(4, minutes: 30, east: 200),
+            sample(5, minutes: 35, east: 200),
         ]
     }
 

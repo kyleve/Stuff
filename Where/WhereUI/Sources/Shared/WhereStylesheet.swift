@@ -28,7 +28,6 @@ struct WhereStylesheet: BStylesheet {
     var regionMap = RegionMapStyle.standard
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
-    var elsewhereCard = ElsewhereCardStyle.standard
     var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
@@ -75,6 +74,10 @@ struct WhereStylesheet: BStylesheet {
             featureDiscovery.regionStyle.layout = .stacked
             featureDiscovery.shareSheet = .accessible
             featureDiscovery.evidenceArchive = .accessible
+            calendar.overview.columns = 1
+            calendar.overview.dayHeight = 28
+            calendar.overview.dayFontSize = 16
+            calendar.overview.titleFontSize = 22
             calendar.day.minHeight = 56
             calendar.day.numberFontSize = 24
             calendar.day.numberSize = 36
@@ -83,7 +86,6 @@ struct WhereStylesheet: BStylesheet {
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
-            elsewhereCard.stacksContent = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -96,13 +98,13 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
         // layer (the translucent halo) on both card variants.
         if traits.accessibility.isReduceTransparencyEnabled {
+            locationForecast.summary.usesOpaquePaper = true
+            locationForecast.summary.shadowOpacity = 0
             locationsBackground.showsInk = false
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
             privacyPassportCard.disclosure.fillOpacity = 0.16
-            elsewhereCard.surface.usesOpaquePaper = true
-            elsewhereCard.surface.shadowOpacity = 0
         }
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
@@ -114,6 +116,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
             launch.captionAnimation = nil
@@ -127,12 +130,20 @@ struct WhereStylesheet: BStylesheet {
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
+            calendar.overview.regionBand.opacity = 0.55
+            calendar.overview.regionBand.planned.fillOpacity = 0.24
+            calendar.overview.regionBand.planned.hatchOpacity = 0.85
+            locationForecast.summary.ink = Color(white: 0.78)
+            locationForecast.summary.paper = Color(white: 0.16)
             settings.iconForeground = .black
             card.securityPrint = .dark
-            elsewhereCard.surface.ink = Color(white: 0.78)
-            elsewhereCard.surface.paper = Color(white: 0.16)
+            card.elsewherePaper = .dark
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
+
+        // Resolve theme finishes after shared traits so they retain their depth cues.
+        let overrides = WhereThemeOverrides.resolve(theme: theme, traits: traits, base: self)
+        overrides.apply(to: &self)
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -165,6 +176,7 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// Appearance and motion for the live-region welcome over Locations.
     struct LocationWelcomeStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
         var maxWidth: CGFloat
         var cornerRadius: CGFloat
         var padding: CGFloat
@@ -185,6 +197,7 @@ extension WhereStylesheet {
         }
 
         struct Close: Equatable {
+            var surface = SurfaceTreatment.reflective
             var offset: CGSize
             var tintOpacity: Double
             var glow: Shadow
@@ -377,6 +390,51 @@ extension WhereStylesheet {
         var progress: Progress
         var controls: Controls
         var ink: Ink
+        var summary = Summary()
+
+        /// The quiet glass finish used by the collapsible Locations summary.
+        struct Summary: Equatable {
+            var artwork = Artwork()
+            var cornerRadius: CGFloat = 28
+            var padding: CGFloat = 22
+            var ink = Color(white: 0.36)
+            var treatment = SurfaceTreatment.reflective
+            var paper = Color(white: 0.94)
+            var usesOpaquePaper = false
+            var glassTintOpacity: Double = 0.06
+            var outlineColor = Color.black.opacity(0.14)
+            var outlineWidth: CGFloat = 1
+            var shadowOpacity: Double = 0.06
+            var shadowRadius: CGFloat = 8
+            var shadowOffsetY: CGFloat = 3
+            var rosetteOpacity: Double = 0.035
+            var rosette = CardStyle.Rosette(
+                wobble: 0.04,
+                lineWidth: 0.5,
+                primaryRingSpacing: 12,
+                secondaryRingSpacing: 17,
+            )
+            var border = CardStyle.RegionShape.SecurityBorder(
+                inset: 7,
+                glyphSize: 7,
+                spacing: 12,
+                opacity: 0.18,
+            )
+
+            struct Artwork: Equatable {
+                var widthFraction: CGFloat = 0.62
+                var inset: CGFloat = 16
+                var gap: CGFloat = 8
+                var leadingOpacity: Double = 0.18
+                var silhouette = CardStyle.RegionShape.Artwork(
+                    center: CGPoint(x: 0.5, y: 0.5),
+                    extent: CGSize(width: 0.9, height: 0.9),
+                    scale: 1,
+                    fillOpacity: 0.11,
+                    stroke: .init(opacity: 0.22, width: 0.7),
+                )
+            }
+        }
 
         struct Surface: Equatable {
             var outlineWidth: CGFloat
@@ -709,17 +767,20 @@ extension WhereStylesheet {
 
 extension WhereStylesheet {
     /// The complete visual spec for a `RegionSummaryCard`. Bundling every value
-    /// the card's appearance depends on into one type — with a `.regular` variant
-    /// (the big Locations cards) and a `.compact` variant (the Elsewhere list) —
+    /// the card's appearance depends on into one type — regular Locations cards,
+    /// compact primary specimens, and Elsewhere paper cards —
     /// lets the view read a single resolved `CardStyle` instead of branching on a
     /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
     /// header/number stacks) still comes from ``Spacing``.
     struct CardStyle: Equatable {
-        /// Which card the stylesheet vends: the Locations cards use `.regular`,
-        /// the Elsewhere list `.compact`.
+        var surface = SurfaceTreatment.reflective
+        var contentTint = TintAdjustment.unchanged
+        /// Locations uses `.regular`; inline primary specimens use `.compact`.
+        /// Elsewhere uses compact geometry with a separate paper treatment.
         enum Variant {
             case regular
             case compact
+            case elsewhere
         }
 
         var cornerRadius: CGFloat
@@ -736,8 +797,8 @@ extension WhereStylesheet {
         var watermarkFontSize: CGFloat
         /// Offset of that watermark toward the bottom-trailing corner.
         var watermarkOffset: CGSize
-        /// RegionKit silhouette artwork for the regular card. `nil` keeps the
-        /// compact card on its simpler SF Symbol watermark and stamp glyph.
+        /// RegionKit silhouette artwork shared by both card sizes. `nil` selects
+        /// the SF Symbol watermark and stamp glyph in the card designer.
         var regionShape: RegionShape?
         /// Light-sheen strength plus the deterministic pose used until a
         /// live motion sample arrives (and whenever motion must stay static).
@@ -747,6 +808,38 @@ extension WhereStylesheet {
         var glow: Shadow
         /// The broad lift shadow beneath the card.
         var lift: Shadow
+        /// Opaque, neutral paper for Elsewhere. Primary cards leave this nil.
+        var paper: Paper?
+
+        var showsProgress: Bool {
+            paper == nil
+        }
+
+        /// Keeps low-count visits distinct from the primary cards.
+        /// Only text receives a contrast adjustment; artwork keeps the region color.
+        struct Paper: Equatable {
+            var surface: MatteSurface
+            var contentTint: TintAdjustment
+
+            static let light = Paper(
+                surface: .init(
+                    fill: .init(base: .white, tintMix: 0),
+                    outline: .init(opacity: 0.45, width: 1),
+                    shadow: .init(color: .black.opacity(0.08), radius: 6, offsetY: 3),
+                    pressedTintOpacity: 0.08,
+                ),
+                contentTint: .init(color: .black, fraction: 0.4),
+            )
+            static let dark = Paper(
+                surface: .init(
+                    fill: .init(base: Color(white: 36.0 / 255), tintMix: 0),
+                    outline: .init(opacity: 0.45, width: 1),
+                    shadow: .init(color: .black.opacity(0.08), radius: 6, offsetY: 3),
+                    pressedTintOpacity: 0.08,
+                ),
+                contentTint: .init(color: .white, fraction: 0.4),
+            )
+        }
 
         /// The concentric "security print" rings printed behind the stamp.
         struct Rosette: Equatable {
@@ -941,6 +1034,29 @@ extension WhereStylesheet {
             var stamp: Artwork
             var securityBorder: SecurityBorder
 
+            static let standard = RegionShape(
+                watermark: .init(
+                    center: CGPoint(x: 0.7, y: 0.57),
+                    extent: CGSize(width: 0.72, height: 0.78),
+                    scale: 0.88,
+                    fillOpacity: 0.13,
+                    stroke: .init(opacity: 0.28, width: 1.5),
+                ),
+                stamp: .init(
+                    center: CGPoint(x: 0.5, y: 0.5),
+                    extent: CGSize(width: 0.78, height: 0.78),
+                    scale: 0.88,
+                    fillOpacity: 0.78,
+                    stroke: nil,
+                ),
+                securityBorder: .init(
+                    inset: 9,
+                    glyphSize: 8,
+                    spacing: 11,
+                    opacity: 0.22,
+                ),
+            )
+
             /// Projection geometry and ink treatment for one silhouette.
             struct Artwork: Equatable {
                 var center: CGPoint
@@ -987,11 +1103,12 @@ extension WhereStylesheet {
         }
     }
 
-    /// The `.regular` / `.compact` card specs the stylesheet vends; a view picks
+    /// The card specs the stylesheet vends; a view picks
     /// one with `stylesheet.card[variant]`.
     struct CardStyles: Equatable {
         var regular: CardStyle
         var compact: CardStyle
+        var elsewherePaper = CardStyle.Paper.light
         /// Opacity of the region tint applied to the watermark glyph.
         var watermarkOpacity: Double
         /// Opacity of the region tint mixed into the Liquid Glass surface.
@@ -1165,8 +1282,16 @@ extension WhereStylesheet {
 
         subscript(_ variant: CardStyle.Variant) -> CardStyle {
             switch variant {
-                case .regular: regular
-                case .compact: compact
+                case .regular: return regular
+                case .compact: return compact
+                case .elsewhere:
+                    var card = compact
+                    card.paper = elsewherePaper
+                    card.glow = .init(opacity: 0, radius: 0)
+                    card.lift = .init(opacity: 0, radius: 0)
+                    card.surface = .matte(elsewherePaper.surface)
+                    card.contentTint = elsewherePaper.contentTint
+                    return card
             }
         }
 
@@ -1201,28 +1326,7 @@ extension WhereStylesheet {
                 ),
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
-                regionShape: CardStyle.RegionShape(
-                    watermark: .init(
-                        center: CGPoint(x: 0.7, y: 0.57),
-                        extent: CGSize(width: 0.72, height: 0.78),
-                        scale: 0.88,
-                        fillOpacity: 0.13,
-                        stroke: .init(opacity: 0.28, width: 1.5),
-                    ),
-                    stamp: .init(
-                        center: CGPoint(x: 0.5, y: 0.5),
-                        extent: CGSize(width: 0.78, height: 0.78),
-                        scale: 0.88,
-                        fillOpacity: 0.78,
-                        stroke: nil,
-                    ),
-                    securityBorder: .init(
-                        inset: 9,
-                        glyphSize: 8,
-                        spacing: 11,
-                        opacity: 0.22,
-                    ),
-                ),
+                regionShape: .standard,
                 sheen: CardStyle.Sheen(
                     intensity: 1,
                     staticGlintIntensity: 0.25,
@@ -1263,7 +1367,7 @@ extension WhereStylesheet {
                 ),
                 watermarkFontSize: 96,
                 watermarkOffset: CGSize(width: 12, height: 10),
-                regionShape: nil,
+                regionShape: .standard,
                 sheen: CardStyle.Sheen(
                     intensity: 0.5,
                     staticGlintIntensity: 0.5,
@@ -1299,6 +1403,71 @@ extension WhereStylesheet {
     /// scattered generic tokens) keeps its full spec in one place and gives a
     /// future theme a single surface to reskin.
     struct CalendarStyle: Equatable {
+        var overview = Overview()
+
+        struct Overview: Equatable {
+            var columns = 3
+            var spacing: CGFloat = 8
+            var padding: CGFloat = 6
+            var cornerRadius: CGFloat = 12
+            var dayHeight: CGFloat = 12
+            var dayFontSize: CGFloat = 8
+            var titleFontSize: CGFloat = 13
+            var sectionSpacing: CGFloat = 4
+            var borderWidth: CGFloat = 0.5
+            var currentBorderWidth: CGFloat = 1
+            var unavailableForeground: Color = .secondary
+            /// Compact bands need stronger ink and distinct stripe gaps to
+            /// remain legible at a fraction of the detailed calendar's size.
+            var regionBand = RegionBand(
+                opacity: 0.4,
+                cornerRadius: 3,
+                continuationRadius: 1,
+                verticalInset: 0,
+                planned: .init(
+                    fillOpacity: 0.16,
+                    hatchOpacity: 0.7,
+                    hatchSpacing: 4,
+                    hatchLineWidth: 1,
+                ),
+            )
+            var usesSpatialMotion = true
+            var duration: Double = 0.25
+            var zoomDuration: Double = 0.4
+            var zoomBackground = Color(.systemBackground)
+            var shakeDistance: CGFloat = 4
+
+            var animation: Animation {
+                usesSpatialMotion ? .smooth(duration: zoomDuration) : .easeInOut(duration: duration)
+            }
+
+            var transition: AnyTransition {
+                usesSpatialMotion ? .identity : .opacity
+            }
+        }
+
+        /// Compact geometry uses the same day and stay-band renderer as month detail.
+        var compact: Self {
+            var result = self
+            result.month.sectionSpacing = overview.sectionSpacing
+            result.month.gridSpacing = 1
+            result.month.weekdayFontSize = overview.dayFontSize
+            result.month.padding = overview.padding
+            result.month.cornerRadius = overview.cornerRadius
+            result.month.plain.borderWidth = overview.borderWidth
+            result.month.current.borderWidth = overview.currentBorderWidth
+            result.day.minHeight = overview.dayHeight
+            result.day.numberSize = overview.dayHeight - 2
+            result.day.numberFontSize = overview.dayFontSize
+            result.day.numberDotSpacing = 0
+            result.day.dotSize = 2
+            result.day.dotOverlap = 1
+            result.day.dotStrokeWidth = 0.75
+            result.day.contentSpacing = 0
+            result.regionBand = overview.regionBand
+            return result
+        }
+
         /// Vertical spacing between month sections in the scroll.
         var monthSpacing: CGFloat
         var month: MonthStyle
@@ -1321,9 +1490,9 @@ extension WhereStylesheet {
             var weekdayFontSize: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Card treatment for a past month — the plain wash + rim.
+            /// Card treatment for a past month — a quiet outline.
             var plain: Card
-            /// Card treatment for the current month — a bluer accent wash and a
+            /// Card treatment for the current month — accent text and a
             /// heavier accent border so it stands out from the plain months.
             var current: Card
             /// Extra space below the footer's divider, so the tally rows don't
@@ -1343,9 +1512,9 @@ extension WhereStylesheet {
             /// the current one. The grid picks a `Card` and reads both from it,
             /// rather than ternary-ing each property against `isCurrentMonth`.
             struct Card: Equatable {
-                /// Wash behind the month, so each reads as its own card.
+                /// Clear by default so the enclosing screen shows through.
                 var fill: Color
-                /// Border around the card (a touch darker than `fill`).
+                /// Border around the month card.
                 var border: Color
                 var borderWidth: CGFloat
                 /// Base foreground inherited by the month's neutral primary and
@@ -1444,13 +1613,13 @@ extension WhereStylesheet {
                 padding: 16,
                 cornerRadius: 28,
                 plain: MonthStyle.Card(
-                    fill: Color.primary.opacity(0.03),
+                    fill: .clear,
                     border: Color.primary.opacity(0.12),
                     borderWidth: 2,
                     foreground: .primary,
                 ),
                 current: MonthStyle.Card(
-                    fill: Color.accentColor.opacity(0.08),
+                    fill: .clear,
                     border: Color.accentColor.opacity(0.7),
                     borderWidth: 3,
                     foreground: Color.primary.mix(
@@ -1760,6 +1929,13 @@ extension WhereStylesheet {
 
         /// Spacing and surface treatment within each journey row.
         struct Row: Equatable {
+            struct Sizing: Equatable {
+                var baseHeight: CGFloat
+                var verticalPadding: CGFloat
+            }
+
+            /// Single-day stops use their content height and less vertical padding.
+            var singleDay = Sizing(baseHeight: 0, verticalPadding: 8)
             var spacing: CGFloat
             var labelSpacing: CGFloat
             var gap: CGFloat
@@ -1778,6 +1954,13 @@ extension WhereStylesheet {
             var countFillOpacity: Double
             /// Accessibility Dynamic Type stacks the count beneath the labels.
             var stacksDayCount: Bool
+
+            func sizing(for dayCount: Int) -> Sizing {
+                dayCount == 1 ? singleDay : Sizing(
+                    baseHeight: baseHeight,
+                    verticalPadding: verticalPadding,
+                )
+            }
         }
 
         /// The future planned-stay treatment appended after recorded journey
@@ -1883,60 +2066,6 @@ extension WhereStylesheet {
             widgetHeroRegion: .system(.headline, design: .serif).weight(.semibold),
             widgetTotalNumber: .system(.body, design: .rounded, weight: .bold),
         )
-    }
-}
-
-// MARK: - Elsewhere entry card
-
-extension WhereStylesheet {
-    /// The quieter passport surface that summarizes secondary regions.
-    struct ElsewhereCardStyle: Equatable {
-        var cornerRadius: CGFloat = 28
-        var padding: CGFloat = 22
-        var minimumHeight: CGFloat = 104
-        var stacksContent = false
-        var titleFont: Font = .system(.title2, design: .serif, weight: .semibold)
-        var surface = Surface()
-        var artwork = Artwork()
-        var border = CardStyle.RegionShape.SecurityBorder(
-            inset: 7,
-            glyphSize: 7,
-            spacing: 12,
-            opacity: 0.18,
-        )
-
-        struct Surface: Equatable {
-            var ink = Color(white: 0.36)
-            var paper = Color(white: 0.94)
-            var usesOpaquePaper = false
-            var glassTintOpacity: Double = 0.06
-            var shadowOpacity: Double = 0.06
-            var shadowRadius: CGFloat = 8
-            var shadowOffsetY: CGFloat = 3
-            var rosetteOpacity: Double = 0.035
-            var rosette = CardStyle.Rosette(
-                wobble: 0.04,
-                lineWidth: 0.5,
-                primaryRingSpacing: 12,
-                secondaryRingSpacing: 17,
-            )
-        }
-
-        struct Artwork: Equatable {
-            var widthFraction: CGFloat = 0.62
-            var inset: CGFloat = 16
-            var gap: CGFloat = 8
-            var leadingOpacity: Double = 0.18
-            var silhouette = CardStyle.RegionShape.Artwork(
-                center: CGPoint(x: 0.5, y: 0.5),
-                extent: CGSize(width: 0.9, height: 0.9),
-                scale: 1,
-                fillOpacity: 0.11,
-                stroke: .init(opacity: 0.22, width: 0.7),
-            )
-        }
-
-        static let standard = ElsewhereCardStyle()
     }
 }
 
@@ -2337,8 +2466,9 @@ extension WhereStylesheet {
         )
     }
 
-    /// Appearance for the reflective privacy statement in Settings.
+    /// Appearance for the passport-style privacy statement in Settings.
     struct PrivacyPassportCardStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
         var headerLayout = ContentLayout.inline
         var cornerRadius: CGFloat
         var padding: CGFloat
@@ -2587,7 +2717,7 @@ extension WhereStylesheet {
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
 /// Carries the selected presentation identity independently from system traits.
-/// Both identities currently resolve through the same tokens.
+/// Standard uses reflective surfaces; the stable Alternate identity renders Flat.
 enum WhereThemes {
     static func current(theme: WhereTheme) -> BThemes {
         var themes = BThemes()

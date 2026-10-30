@@ -186,10 +186,11 @@ a screen felt slow.
 
 ## Navigation
 
-The logged-in shell is `MainTabs`. It has **three fixed tabs**: Locations, Your
-Year, Settings. Everything else hangs off one of them. A new screen is a
-pushed destination, a sheet, or a Settings row inside that shape. A fourth
-tab is a product decision to raise before building. `MainTabs` passes the
+The logged-in shell is `MainTabs`. Its tabs are Locations, optional Elsewhere,
+Your Year, and Settings, in that order. Show Elsewhere only when the selected
+year has visits outside the configured primary set. Keep it available during
+same-year refreshes; return to Locations if its last visit disappears. New
+screens use a pushed destination, a sheet, or a Settings row inside this shape. `MainTabs` passes the
 scene-scoped `YearReportModel` by explicit init injection. The always-on
 `WhereSession` coordinator travels in the environment. Settings is a
 typed-route list (`SettingsSearch.swift`. Every switch is exhaustive). A
@@ -277,6 +278,15 @@ DEBUG-only developer surfaces survive at near-Release speed. Pass
 `--configuration Beta` for the TestFlight-style production identity or
 `--configuration Release` for the App Store audience. Options:
 `./Where/install --help`.
+
+`./Where/archive` exports the same optimized Development audience for ad hoc
+distribution. [DISTRIBUTION.md](DISTRIBUTION.md) owns account setup and operation.
+Keep CI profile overrides scoped to the Development device configuration in
+`Project.swift`; validate all three profiles against generated target settings
+before archiving. Sign the app and extensions during archive, not only export.
+Shared publication rules live in [Tools/InstallerKit/AGENTS.md](../Tools/InstallerKit/AGENTS.md#publication).
+Where's archive and signing guards are `Tools/Tests/test_signing_profiles.py`,
+`test_where_archive.py`, and `test_where_signing_command.py`.
 
 ## Testing
 

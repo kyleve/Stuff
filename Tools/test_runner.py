@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -64,7 +63,9 @@ def affected_bundles(
     bundles = _bundles(declarations)
     problems = _parse_problems(bundles)
     if problems:
-        raise ValueError("could not read Project.swift reliably: " + "; ".join(problems))
+        raise ValueError(
+            "could not read Project.swift reliably: " + "; ".join(problems)
+        )
 
     selected: set[str] = set()
     changed_targets: set[str] = set()
@@ -77,8 +78,7 @@ def affected_bundles(
             (
                 name
                 for name, bundle in bundles.items()
-                if bundle["sources"]
-                and path.startswith(str(bundle["sources"]) + "/")
+                if bundle["sources"] and path.startswith(str(bundle["sources"]) + "/")
             ),
             None,
         )
@@ -137,7 +137,7 @@ class ProgressReporter:
     TEST_STARTED = re.compile(r"^◇\s+Test (?!run\b)(\S+?) started")
     TEST_DONE = re.compile(r"^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after")
     INTERESTING = re.compile(
-        r"does not match reference|^error:|Failure collecting|"
+        r"does not match reference|^error:|Failure collecting|^SNAPSHOT_RETRY |"
         r"\*\* TEST (SUCCEEDED|FAILED) \*\*"
     )
 
@@ -168,7 +168,11 @@ class ProgressReporter:
                 if isinstance(cached, dict):
                     for key in self.expected:
                         value = cached.get(key)
-                        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                        if (
+                            isinstance(value, int)
+                            and not isinstance(value, bool)
+                            and value >= 0
+                        ):
                             self.expected[key] = value
             except (OSError, ValueError):
                 pass
@@ -194,6 +198,11 @@ class ProgressReporter:
         if self.count_images and line.startswith("SNAPSHOT_TIMING "):
             self.images += 1
             self.emit()
+            return
+        if line.startswith("FLYOVER_EXPORT "):
+            self._clear_terminal()
+            print(f"    {line}", file=self.output, flush=True)
+            self.last_emit = 0.0
             return
         match = self.SUITE.match(line)
         if match:
@@ -320,7 +329,7 @@ def _products_in(window: str) -> set[str]:
     dependency = re.search(r'productDependency:\s*"(\w+)"', window)
     if dependency:
         found.add(dependency.group(1))
-    extra = re.search(r'extraPackageProducts:\s*\[([^\]]*)\]', window)
+    extra = re.search(r"extraPackageProducts:\s*\[([^\]]*)\]", window)
     if extra:
         found.update(re.findall(r'"(\w+)"', extra.group(1)))
     return found

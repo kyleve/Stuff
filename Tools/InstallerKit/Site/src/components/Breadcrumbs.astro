@@ -1,0 +1,10 @@
+---
+import { site, appURL, type App } from '../data';
+interface Props { app: App }
+const { app } = Astro.props;
+---
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a href={site.basePath}>All apps</a>
+  <span aria-hidden="true">/</span>
+  <a href={appURL(app)}>{app.name}</a>
+</nav>

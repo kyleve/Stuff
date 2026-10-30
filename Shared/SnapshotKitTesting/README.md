@@ -23,14 +23,18 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   nothing — when the live simulator doesn't match the scheme's
   `SNAPSHOT_EXPECTED_*` pins or when two variants would collide on one
   reference name.
-- **The rendering pipeline** — an async `renderSnapshotImage(...)` that renders
-  any view at any size on a single fixed simulator: safe-area-inset overriding
+- **The rendering pipeline** — async `renderSnapshotCapture(...)` returns the
+  normalized image and PNG bytes. `renderSnapshotImage(...)` wraps it for callers
+  needing only the image. Native assertions, hosted PNG export, and HTML snapshots
+  share this pipeline on a single fixed simulator: safe-area-inset overriding
   (zero by default. a frame's `safeAreaInsets`, e.g. `.iPhoneNotched`,
   simulates device chrome), animation quiescing, text-cursor hiding, and a
   size-stabilization pass for SwiftUI hosting controllers. Full-content captures
   use a full-width scroll descendant's content size plus surrounding chrome when
-  UIKit-backed SwiftUI containers such as `Form` report only their viewport
-  through `sizeThatFits`. device presets retain their normal viewport height as
+  UIKit-backed SwiftUI containers such as `Form` do not report their complete height
+  through `sizeThatFits`. This fallback applies only when scroll content exceeds
+  the reported intrinsic height. A fully visible short document keeps its intrinsic height.
+  Device presets retain their normal viewport height as
   the minimum. Height measurement iterates to a stable fixed point for lazy
   content. if it cannot converge within the bounded pass budget, capture throws,
   the assertion records a test issue, and no arbitrary image is compared or
@@ -56,8 +60,8 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   async load can change ideal height. Such a case may instead provide
   `onReadyToMeasure`, which runs while the intrinsic probe is hosted and laid
   out, before its settle and size resolution. The hook must cooperate with
-  cancellation, is bounded by the effective settle ceiling, and is rejected
-  for fixed sizing. A case's
+  cancellation and is rejected for fixed sizing. The settle ceiling bounds it
+  unless the capture API supplies an explicit `measurementHookTimeout`. A case's
   optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or
   trigger a presented state — and its effects are settled again before the
@@ -87,6 +91,22 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   (`repeatForever`, `TimelineView(.animation)`) at a deterministic phase. See
   the contract on the property in `SnapshotKit`.
 
+## Pixel settling
+
+The settle loop renders samples at 0.25 pixels per point and normalizes them to 8-bit, premultiplied sRGB RGBA.
+Every channel can differ from the fixed anchor by at most one unit (1/255).
+This allowance covers measured render noise without using the final comparison's broader perceptual and area tolerances.
+
+The anchor stays fixed throughout each quiet window.
+A larger channel difference, changed image dimensions, or missing sample resets that window.
+Two matching passes must span at least 120 ms, and the case's minimum duration still applies.
+The loop retains its 16 ms suspension between passes and its existing timeout, starvation, and cancellation behavior.
+
+The fixed anchor detects cumulative motion that exceeds one unit within the quiet window.
+It cannot distinguish slower motion inside that allowance from noise, or detect detail lost at the sample resolution.
+Readiness hooks and measured minimum durations remain necessary for asynchronous content and native glass adaptation.
+Final reference comparisons keep their existing tolerances and use the full capture after PNG encoding and decoding.
+
 ## Quick start
 
 ```swift
@@ -95,16 +115,28 @@ import Testing
 
 @MainActor
 struct MyBadgeSnapshotTests {
-    @Test func variants() { assertSnapshots(of: MyBadge.self) }
+    @Test func variants() async { await assertSnapshots(of: MyBadge.self) }
 }
 ```
 
 No `@Suite(.snapshots(...))` trait is needed: `assertSnapshots` resolves the
 record mode itself (see [Recording](#recording)), so a plain suite is enough — 
 though a trait still takes effect if you add one.
-Reference images are written next to the test file under `__Snapshots__/` and
-are stored in Git LFS (see the root `.gitattributes`). Recording a new image is
-a failure by design, so a run that records can't be mistaken for a pass.
+Reference images live beside the test file under `__Snapshots__/<test-file-name>/`.
+Git LFS stores these images (see the root `.gitattributes`). The runner selects
+the directory from each `SnapshotConfiguration`:
+
+| Capture | Directory within the suite |
+|---------|----------------------------|
+| Ordinary light or dark image | The suite directory |
+| Accessibility annotations, including combinations with other traits | The suite directory |
+| Standard image with non-default Dynamic Type, increased contrast, RTL layout, or bold text | `other/` |
+
+Device size, frame, and custom names do not change the directory.
+Filenames retain the test function and configuration identifier.
+[`snapshotReferenceURL`](Sources/SnapshotReferenceURL.swift) supplies the same
+location to recording, comparison, and review reports.
+Recording a new image fails the test, so a recording run cannot count as a pass.
 
 ## Hosted PNG capture
 
@@ -119,6 +151,51 @@ measurement, accessibility annotation, settling, and PNG round-tripping. Call
 it only from a test bundle hosted by `StuffTestHost`. It needs the host app's
 key window. A rendering or encoding error throws. The caller must not publish
 a partial artifact.
+
+## HTML snapshots
+
+`assertHTMLSnapshots(of:named:configurations:)` renders static, self-contained HTML in
+a hosted `WKWebView`. Each configuration uses a fresh, ephemeral web view.
+Page JavaScript and HTTP(S) resource loads are disabled. Navigation, fonts,
+and painting must finish before full-content height measurement.
+
+The WebKit wrapper passes through `assertSnapshots` like a native view.
+The shared pipeline owns hosting, traits, the capture lock, tiled rendering,
+PNG normalization, comparison, recording, timing, and diffs.
+
+The throwing `onReadyToMeasure` hook waits for document readiness while hosted.
+WebKit must paint after each viewport resize before its height can be measured again.
+Read document height in the same JavaScript callback. UIKit scroll-size updates can arrive after that callback.
+The HTML adapter supplies the complete size. Generic scroll measurement does not inspect its internal scroll views.
+This browser-specific loop finishes before the shared intrinsic measurement starts.
+The hook has a 10-second timeout, scaled by the existing CI timeout multiplier.
+Failures and cancellation tear down the host without comparing or recording an image.
+
+Native callers can also throw from `onReadyToMeasure` and set
+`measurementHookTimeout` on `assertSnapshots`, `captureSnapshotPNG`, or
+`renderSnapshotImage`. With no override, the existing settle ceiling applies.
+Hooks must cooperate with cancellation. An override changes only the hook ceiling;
+it does not raise the settle floor or change image tolerances.
+Only standard, one-axis full-content configurations are supported.
+These images capture the document without Safari chrome or accessibility annotations.
+The capture host hides native scroll-edge effects so they cannot blur document content.
+Set `layoutTraits: .tabletPortrait` for tablet cases; these request desktop page mode.
+
+```swift
+try await assertHTMLSnapshots(
+    of: html,
+    named: "Downloads",
+    configurations: [
+        .init(device: .iPhoneFullContent),
+        .init(colorScheme: .dark, device: .iPhoneFullContent),
+    ],
+)
+```
+
+Keep fixture generation with the page owner. The
+[install-site suite](../../Tools/SnapshotTests/InstallerSiteSnapshotTests.swift)
+uses HTML generated by the production Astro renderer during each build.
+Its fixture generator embeds the emitted CSS and artwork for offline capture.
 
 ## Recording
 
@@ -169,6 +246,9 @@ anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.
 
+Synchronous autorelease pools bound settle samples, tile rendering, capture normalization, and reference comparison.
+The capture pool returns only the normalized image and PNG bytes. Pools never span an `await`.
+
 `SNAPSHOT_SETTLE` selects the stability mechanism (`pixel`, `quiescence`,
 `both`). see [`AGENTS.md`](AGENTS.md) for why `pixel` is the only safe default.
 
@@ -177,6 +257,23 @@ readiness-hook ceilings from 1× through 4×. It does not change minimum floors,
 the quiet-window proof, render cadence, or image tolerances, so stable captures
 finish at the same point. Local runs leave it unset (1×). snapshot CI explicitly
 uses 2×. `./test` forwards it into the hosted test process.
+
+## Retries after settling failures
+
+`assertSnapshots` allows three attempts per independent capture when settling
+times out or cannot prove stability on a slow runner. Each cutsheet panel has its
+own attempt budget. Each retry starts after capture
+cleanup, with a fresh host controller and the same timeout budget. Measurement,
+readiness hooks, and final capture run again. Supplied views and external model
+objects remain shared. Readiness hooks must tolerate repeated execution.
+
+After three settling failures, the runner records the final error. Cancellation
+stops immediately. Other rendering errors and reference mismatches fail without
+retries. Direct image and PNG capture APIs remain single-attempt operations.
+
+`SNAPSHOT_RETRY` lines identify failed attempts and successful recovery. `./test`
+shows these lines without adding to test or image counts. A successful capture
+emits one timing line that includes time spent on failed attempts.
 
 ## Requirements
 
@@ -187,3 +284,39 @@ uses 2×. `./test` forwards it into the hosted test process.
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
+
+## Component comparison sheets
+
+Use `SnapshotCase.cutsheet(name:configurations:panels:)` to capture the same
+component state across consumer-defined appearances. Each `SnapshotPanel` has a
+stable typed identity, a display label, and a lazy content builder. Build fresh
+fixture state inside that builder. Each configuration produces one two-column
+sheet with unscaled, independently hosted panels. Additional panels wrap to new rows.
+
+The consumer chooses the reference group; Where's theme helper selects `themes`.
+The runner stores one PNG with a versioned panel map in its Description metadata.
+Each panel uses the ordinary image comparator and its own pixel budget. The complete
+sheet also guards headings and spacing. Membership, labels, dimensions, and missing
+or malformed metadata fail explicitly. Review the PNG before recording. Preserve
+its metadata when copying references; image optimizers that strip metadata invalidate
+cutsheet references.
+
+Single views and cutsheets share configured capture and reference recording helpers.
+Each panel's hosting view uses the sheet's fixed white background, including in dark mode.
+This fills transparent margins without changing component layout. A component's own background remains visible above it.
+Panels retain independent settling and fresh fixtures. The runner compares panels
+before assembling their captured images in a SwiftUI `Grid`. SwiftUI lays out labels
+and images; geometry observations supply the embedded panel map. The shared hosted
+renderer captures the grid. The original component views run only for their independent
+captures. All failing panels appear in the verdict, subject to the existing recording policy.
+
+Ordinary cases accept an optional `SnapshotReferenceGroup`. The default keeps
+existing paths. Groups are stable lowercase slugs owned by the consumer; they do
+not change configuration identifiers. Special traits use `other/` inside the group.
+Use component sheets for appearance coverage and keep screen variants for critical
+integration or materially different composition. Preview sheets approximate layout;
+the hosted test capture remains authoritative.
+
+The runner reads SnapshotKit's `Capture` SPI and switches exhaustively between
+single-view and cutsheet captures. Panel collections are validated before capture.
+No empty-array fallback selects the single-view path.

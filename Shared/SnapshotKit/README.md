@@ -40,9 +40,13 @@ capture + comparison pipeline lives in the sibling
   portrait, phone landscape, and tablet portrait. Each set adds a stable
   identifier token. If this value is `nil`, the capture inherits the host
   simulator traits.
-- **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
-  `.fullContentScreenDefaults`) — expand a terse declaration into the full
-  matrix.
+- **`combinations(...)` + presets** — use `.componentRepresentative`,
+  `.screenRepresentative`, or `.fullContentScreenRepresentative` for a representative
+  layout. Use `.componentLightDark`, `.phoneLightDark`, or
+  `.fullContentPhoneLightDark` for additional states of that layout.
+  Focused `WithAX5`, `WithAnnotations`, and `WithAX5AndAnnotations` variants
+  add separate light-mode captures for text wrapping and accessibility annotations;
+  see the [preset declarations](Sources/SnapshotConfiguration+Combinations.swift).
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
@@ -59,9 +63,11 @@ capture + comparison pipeline lives in the sibling
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content
   builder. Declaring a matrix does not instantiate its views or models. The
-  current test runner evaluates the builder once per case and re-hosts that
-  value across configurations, so captured reference models are shared (see
-  [`TODOs.md`](TODOs.md)). It is
+  current test runner evaluates an ordinary single-view builder once per case
+  and re-hosts that value across configurations, sharing captured reference models
+  (see [`TODOs.md`](TODOs.md)). Cutsheet panel builders run per configuration
+  and must construct fresh fixtures. Settling retries reuse the supplied view and
+  captured models in either path. `SnapshotCase` is
   also a `View`, so `snapshotPreviews` can render the whole matrix as a
   scrollable cutsheet inside a `#Preview`. Its `settle` axis
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's
@@ -116,7 +122,7 @@ Conform a component and preview its matrix:
 ```swift
 extension MyBadge: SnapshotProviding {
     static var snapshots: [SnapshotCase] {
-        SnapshotCase(name: "States", configurations: .componentDefaults) {
+        SnapshotCase(name: "States", configurations: .componentRepresentative) {
             VStack {
                 MyBadge(count: 1)
                 MyBadge(count: 99)
@@ -139,6 +145,16 @@ assertSnapshots(of: MyBadge.self)
 
 ## Notes
 
+- Representative component matrices contain five captures; representative screen
+  matrices contain ten across phone and tablet. Light/dark presets contain two;
+  focused presets add one AX5 capture, one standard-text annotation capture, or
+  both (three or four total), without multiplying those axes.
+  Keep each distinct state, but repeat the larger matrix only when its layout or
+  accessibility structure warrants it. Add specific configurations for exceptional
+  wrapping, contrast, or tablet behavior. Comparison sheets still render every panel.
+- The former `*Defaults` presets are named `*Representative` to make that choice
+  explicit. Their configurations, ordering, and reference identifiers are unchanged.
+  The compact presets now belong to SnapshotKit and are available to every consumer.
 - Accessibility (`.accessibility`) configurations are **filtered out of the
   preview cutsheet** — Stuff keeps AccessibilitySnapshot's SwiftUI annotation
   renderer in the test-only `SnapshotKitTesting` product instead of linking it
@@ -149,3 +165,45 @@ assertSnapshots(of: MyBadge.self)
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`. SnapshotKit itself stays
   design-system-agnostic.
+
+## Component comparison sheets
+
+Use `SnapshotCase.cutsheet` for one component state across consumer-defined
+appearances. Each configuration produces a separate sheet. Panels retain normal
+component width and wrap into two-column rows. The consumer supplies stable typed
+identities, labels, ordering, and themed content:
+
+```swift
+SnapshotCase.cutsheet(
+    name: "Badge",
+    configurations: .componentRepresentative,
+    referenceGroup: .themes,
+) {
+    for appearance in appearances {
+        SnapshotPanel(id: appearance.snapshotID, label: appearance.title) {
+            Badge(model: makeFreshFixture(), appearance: appearance)
+        }
+    }
+}
+```
+
+Here, `Badge`, `appearances`, `snapshotID`, and the fixture factory are consumer-owned examples.
+Build fresh fixture state inside each lazy panel builder. Preview sheets support
+horizontal scrolling and omit test-only accessibility annotations.
+
+Both case constructors accept an optional `SnapshotReferenceGroup`. Omission keeps
+references ungrouped. The example explicitly selects `themes` for its theme panels. A group is a
+stable lowercase slug, independent of localized labels and configuration identifiers.
+Special traits use `other/` inside the group. See
+[SnapshotKitTesting](../SnapshotKitTesting/README.md#component-comparison-sheets)
+for capture, comparison, metadata, and recording behavior.
+
+A case contains either one lazy view or a validated cutsheet. The ordinary initializer
+cannot also accept panels, and the cutsheet factory cannot accept a second view tree.
+Empty cutsheets and duplicate panel identities fail at declaration. Labels can repeat
+when their identities differ. Raw capture content is available only through the
+`Capture` SPI used by SnapshotKitTesting and Flyover. Previews use the same stored subject.
+
+`SnapshotCase.ID` stores the reference group and case name separately. A slash in
+an ungrouped case name cannot impersonate a grouped case in previews. Reference
+filenames and configuration identifiers remain unchanged.

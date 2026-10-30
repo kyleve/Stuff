@@ -1,9 +1,28 @@
 import Foundation
+import InstallerKit
 import RegionKit
 import Testing
 @testable import WhereCore
 
 struct WherePreferencesTests {
+    @Test func persistsAndResetsInstallerCache() throws {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+        let catalog = try JSONDecoder().decode(
+            UpdateCatalog.self,
+            from: Data(#"{"schemaVersion":3,"apps":[]}"#.utf8),
+        )
+        let value = try UpdatePreferences(cached: .init(
+            feedURL: #require(URL(string: "https://example.org/updates.json")),
+            checkedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            catalog: catalog,
+        ))
+        preferences.installerUpdates = value
+        #expect(WherePreferences(store: store).installerUpdates == value)
+        preferences.reset()
+        #expect(preferences.installerUpdates == UpdatePreferences(cached: nil))
+    }
+
     private func preferences() -> WherePreferences {
         WherePreferences(store: InMemoryKeyValueStore())
     }
@@ -27,7 +46,7 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
-        #expect(preferences.lastWelcomedRegion == nil)
+        #expect(preferences.locationWelcomeHistory == nil)
     }
 
     @Test(arguments: [
@@ -132,14 +151,76 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
-    @Test func lastWelcomedRegionRoundTripsAndClears() {
-        let preferences = preferences()
+    @Test func calendarZoomChoicesRoundTripIndependentlyAndReset() {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+        let custom = CalendarZoomKey(rawValue: "travel-planner")
+        #expect(preferences.calendarOverview(forKey: .year) == nil)
 
-        preferences.lastWelcomedRegion = .newYork
-        #expect(preferences.lastWelcomedRegion == .newYork)
+        preferences.setCalendarOverview(true, forKey: .year)
+        preferences.setCalendarOverview(false, forKey: .region(.california))
+        preferences.setCalendarOverview(true, forKey: .region(.newYork))
+        preferences.setCalendarOverview(false, forKey: custom)
 
-        preferences.lastWelcomedRegion = nil
-        #expect(preferences.lastWelcomedRegion == nil)
+        let restored = WherePreferences(store: store)
+        #expect(restored.calendarOverview(forKey: .year) == true)
+        #expect(restored.calendarOverview(forKey: .region(.california)) == false)
+        #expect(restored.calendarOverview(forKey: .region(.newYork)) == true)
+        #expect(restored.calendarOverview(forKey: custom) == false)
+        #expect(restored.calendarOverview(forKey: .region(.europeanUnion)) == nil)
+
+        restored.reset()
+        #expect(preferences.calendarOverview(forKey: .year) == nil)
+        #expect(preferences.calendarOverview(forKey: .region(.california)) == nil)
+        #expect(preferences.calendarOverview(forKey: .region(.newYork)) == nil)
+        #expect(preferences.calendarOverview(forKey: custom) == nil)
+    }
+
+    @Test func invalidCalendarZoomEntryDoesNotHideOtherCalendars() {
+        let store = InMemoryKeyValueStore()
+        store.set(["year": "invalid", "region.us-CA": true], forKey: "where.calendarOverview")
+        let preferences = WherePreferences(store: store)
+        #expect(preferences.calendarOverview(forKey: .year) == nil)
+        #expect(preferences.calendarOverview(forKey: .region(.california)) == true)
+
+        preferences.setCalendarOverview(false, forKey: .year)
+        #expect(preferences.calendarOverview(forKey: .year) == false)
+        #expect(preferences.calendarOverview(forKey: .region(.california)) == true)
+    }
+
+    @Test(arguments: [Region.newYork, nil])
+    func locationWelcomeHistoryRoundTripsAndClears(region: Region?) {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+
+        preferences.locationWelcomeHistory = .init(lastRegion: region)
+        #expect(
+            WherePreferences(store: store).locationWelcomeHistory == .init(lastRegion: region),
+        )
+
+        preferences.locationWelcomeHistory = nil
+        #expect(WherePreferences(store: store).locationWelcomeHistory == nil)
+    }
+
+    @Test func formerWelcomeAcknowledgementDoesNotReplaceTheInitialLiveBaseline() {
+        let store = InMemoryKeyValueStore()
+        store.set(Region.california.rawValue, forKey: "where.lastWelcomedRegion")
+        let preferences = WherePreferences(store: store)
+
+        #expect(preferences.locationWelcomeHistory == nil)
+
+        preferences.reset()
+        #expect(store.object(forKey: "where.lastWelcomedRegion") == nil)
+    }
+
+    @Test func invalidWelcomeHistoryRequiresAQuietBaseline() {
+        let store = InMemoryKeyValueStore()
+        store.set(Data("not JSON".utf8), forKey: "where.locationWelcomeHistory")
+        var messages: [String] = []
+        let preferences = WherePreferences(store: store, invalidValue: { messages.append($0) })
+
+        #expect(preferences.locationWelcomeHistory == nil)
+        #expect(messages.count == 1)
     }
 
     @Test func locationWelcomeVisibilityRoundTrips() {
@@ -217,7 +298,7 @@ struct WherePreferencesTests {
         preferences.recordingConfigurationWarningRegistration = recordingWarning
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
-        preferences.lastWelcomedRegion = .california
+        preferences.locationWelcomeHistory = .init(lastRegion: .california)
         preferences.diagnosticReportingConfiguration = DiagnosticReportingConfiguration(
             sharesCrashReports: false,
             sharesSessionReplays: true,
@@ -248,7 +329,7 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
-        #expect(preferences.lastWelcomedRegion == nil)
+        #expect(preferences.locationWelcomeHistory == nil)
         #expect(
             preferences.diagnosticReportingConfiguration
                 == DiagnosticReportingConfiguration.currentBuildDefaults,

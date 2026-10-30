@@ -98,7 +98,7 @@ func settleForCapture(
 }
 
 /// Suspends between render passes until the view's rendered content is stable —
-/// two consecutive low-resolution renders are pixel-identical — giving SwiftUI
+/// low-resolution renders stay within one channel unit of a fixed anchor — giving SwiftUI
 /// `.task`/async loads time to resolve, and finite animations (typewriter
 /// reveals, `.transition` crossfades, launch transitions) time to run to
 /// completion, before the capture. So content-loading screens snapshot their
@@ -127,9 +127,10 @@ func settleForCapture(
 ///
 /// Stability compares each pass against the **anchor** (first sample of the
 /// current quiet window), not just the previous pass, and requires the window to
-/// span `stableQuietDuration`: at a 16ms cadence a slow transition (a glass
+/// span 120 ms: at a 16ms cadence a slow transition (a glass
 /// material crossfade) can quantize to zero between *adjacent* frames while
-/// still drifting across the window — the anchor comparison catches the drift.
+/// still drifting across the window. The anchor catches drift beyond one unit,
+/// but cannot distinguish slower changes within that allowance from noise.
 ///
 /// `maxDuration` budgets **observed motion**, not proof-of-stability. On a
 /// starved machine a single pass (sleep + layout + render) can cost over a
@@ -142,8 +143,8 @@ func settleForCapture(
 /// was *observed* past anchor establishment; a change-free loop keeps running
 /// until it can prove stability, giving up as
 /// ``SettleOutcome/starved(passes:cap:)`` only at a hard cap several multiples
-/// of the budget. Moving content can't slip through: any observed change past
-/// the budget still fails, exactly as before.
+/// of the budget. A change beyond the noise allowance past the budget still
+/// fails unless the loop has completed its stability proof.
 @MainActor
 @_spi(Testing) public func settleContent(
     _ view: UIView,
@@ -153,10 +154,8 @@ func settleForCapture(
     timing: SnapshotCaptureTiming? = nil,
     mechanism: SnapshotSettleMechanism = .fromEnvironment,
 ) async -> SettleOutcome {
-    // How long the rendered pixels must stay byte-identical to the quiet
-    // window's anchor sample before the content counts as settled — matches the
-    // old 2-passes-at-60ms quiet window, now sampled densely.
-    let stableQuietDuration: Duration = .milliseconds(120)
+    // The quiescence experiment uses the same quiet window as the pixel proof.
+    let stableQuietDuration = SnapshotPixelStability.quietDuration
     // How many multiples of the budget a change-free loop may spend proving
     // stability before giving up as starved. Generous on purpose: the cap only
     // gates runs that would otherwise fail falsely, and a genuinely moving view
@@ -168,16 +167,13 @@ func settleForCapture(
     let minDeadline = start.advanced(by: .seconds(minDuration))
     let maxDeadline = start.advanced(by: .seconds(maxDuration))
     let starvationDeadline = start.advanced(by: .seconds(maxDuration * starvationHeadroom))
-    var anchorSample: Data?
-    var anchorTime = start
-    var stablePasses = 0
+    var pixelStability = SnapshotPixelStability()
     var passCount = 0
     // One per mechanism, deliberately not shared. Both feed the `.timedOut` vs
     // `.starved` decision, and only the mechanism holding the verdict may
     // influence it — otherwise `both` mode could fail a capture that `pixel`
     // alone would have kept retrying, which would make the experiment change the
     // thing it exists to measure.
-    var pixelObservedChange = false
     var quiescenceObservedChange = false
     // Reported on every exit path — including `.cancelled`, whose pass count is
     // exactly what distinguishes "gave up immediately" from "ground for 10s".
@@ -237,33 +233,17 @@ func settleForCapture(
 
         // Skipped entirely in `.quiescence` mode — not rendering it is the whole
         // point — so the expensive path only runs where its answer is used.
-        let sample = mechanism == .quiescence ? nil : view.renderedContentSample()
-        let now = clock.now
-
-        var pixelSaysStable = false
-        if mechanism != .quiescence {
-            // Byte-exact on purpose — not the tolerance the final image compare
-            // uses. The final compare answers "does this match the reference?",
-            // where sub-pixel/gamut noise warrants a perceptual threshold. This
-            // loop answers a different question — "has rendering *stopped
-            // changing*?" — and the quarter-resolution sample already absorbs
-            // sub-pixel jitter, so exact equality is the right settled signal. A
-            // tolerance here would let a slow, still-drifting animation read as
-            // settled between adjacent samples.
-            if sample != nil, sample == anchorSample {
-                stablePasses += 1
-            } else {
-                // The first non-nil sample merely establishes the anchor; only a
-                // departure from an established anchor is the content changing.
-                if anchorSample != nil {
-                    pixelObservedChange = true
-                }
-                anchorSample = sample
-                anchorTime = clock.now
-                stablePasses = 0
-            }
-            pixelSaysStable = stablePasses >= 2
-                && now >= anchorTime.advanced(by: stableQuietDuration)
+        var now = clock.now
+        // The normalized anchor survives in pixelStability; the UIKit sample
+        // and drawing intermediates must drain before the next suspension.
+        let pixelSaysStable = autoreleasepool {
+            let sampledImage = mechanism == .quiescence ? nil : view.renderedContentSample()
+            now = clock.now
+            guard mechanism != .quiescence else { return false }
+            return pixelStability.observe(
+                sampledImage?.cgImage,
+                at: start.duration(to: now),
+            )
         }
 
         var quiescenceSaysStable = false
@@ -296,7 +276,7 @@ func settleForCapture(
         let saysStable = isQuiescenceDeciding ? quiescenceSaysStable : pixelSaysStable
         let observedContentChange = isQuiescenceDeciding
             ? quiescenceObservedChange
-            : pixelObservedChange
+            : pixelStability.observedChange
         if saysStable, now >= minDeadline {
             return .settled
         }
@@ -315,23 +295,21 @@ func settleForCapture(
 }
 
 extension UIView {
-    /// A cheap content fingerprint: the view's pixels rendered at quarter
-    /// resolution. Two byte-identical samples across passes mean the visible
-    /// content stopped changing. Compared as full buffers, **never** by
+    /// A cheap content sample, rendered at 0.25 pixels per point. The stability
+    /// proof normalizes and compares every channel, **never** using
     /// `hashValue` — a bridged `NSData` hash considers only a prefix of the
     /// bytes, so a text reveal below static top chrome would read "stable"
     /// mid-animation. `afterScreenUpdates: true` so each pass renders the
     /// current model state, not the last committed frame.
     @MainActor
-    fileprivate func renderedContentSample() -> Data? {
+    fileprivate func renderedContentSample() -> UIImage? {
         guard bounds.width >= 1, bounds.height >= 1 else { return nil }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 0.25
         format.preferredRange = .standard
-        let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
+        return UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
             drawHierarchy(in: bounds, afterScreenUpdates: true)
         }
-        return image.cgImage?.dataProvider?.data as Data?
     }
 }
 

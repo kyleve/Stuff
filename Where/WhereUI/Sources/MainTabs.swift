@@ -1,8 +1,12 @@
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
+import InstallerKit
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
 
 /// The logged-in tab bar — the launch *destination* once the runner reaches
 /// `.ready`, not a launch step. Owns the scene-scoped ``YearReportModel`` as
@@ -10,19 +14,15 @@ import WhereCore
 /// subscribe + pull, background → cancel — closing the headless-relaunch rescan
 /// leak).
 ///
-/// Three fixed tabs — Locations, Your Year, Settings. Elsewhere is folded into
-/// Locations (an entry card) and Resolve into a Locations toolbar button; the
+/// Locations, optional Elsewhere, Your Year, and Settings. Resolve stays in
+/// the Locations toolbar; the
 /// data screens (attachments, logged days, regions) live in the Settings "Data"
 /// group. The tabs receive the report by explicit init injection (compile-
 /// checked wiring); the always-on `WhereSession` coordinator stays in the
 /// environment.
 struct MainTabs: View {
     /// Identity for the tab-bar selection.
-    private enum TabID: Hashable {
-        case locations
-        case year
-        case settings
-    }
+    private typealias TabID = MainTabSelection.TabID
 
     private struct WelcomeTaskID: Hashable {
         let isActive: Bool
@@ -33,7 +33,9 @@ struct MainTabs: View {
     @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var welcome: LocationWelcomeModel
     @State private var planningDestination: PlannedStaysDestination?
-    @State private var selection: TabID = .locations
+    @State private var selection = MainTabSelection()
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.stylesheet) private var stylesheet
     private let recordingWarningSource: RecordingConfigurationWarningModel.Source
@@ -64,14 +66,25 @@ struct MainTabs: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
+        TabView(selection: $selection.selected) {
             Tab(
                 String(localized: .tabLocations),
                 systemSymbol: .locationFill,
                 value: TabID.locations,
             ) {
-                LocationsView(report: report)
+                LocationsView(report: report, openElsewhere: { selection.selected = .elsewhere })
                     .reportingDeveloperTabBarInset()
+            }
+
+            if report.hasElsewhere {
+                Tab(
+                    String(localized: .tabElsewhere),
+                    systemSymbol: .globeAmericas,
+                    value: TabID.elsewhere,
+                ) {
+                    ElsewhereView(report: report, isSelected: selection.selected == .elsewhere)
+                        .reportingDeveloperTabBarInset()
+                }
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
@@ -86,11 +99,16 @@ struct MainTabs: View {
                 RecordingConfigurationWarningTabLabel(
                     model: recordingWarning,
                     source: recordingWarningSource,
+                    updateTitle: isInDemoMode ? nil : updates?.attentionTitle,
                 )
             }
-            .badge(recordingWarning.isPresented ? 1 : 0)
+            .badge((recordingWarning.isPresented ? 1 : 0) +
+                ((!isInDemoMode && updates?.needsAttention == true) ? 1 : 0))
         }
         .accessibilityHidden(welcomePresentation != nil)
+        .onChange(of: report.hasElsewhere, initial: true) { _, hasElsewhere in
+            selection.reconcile(hasElsewhere: hasElsewhere)
+        }
         .tabViewBottomAccessory(isEnabled: welcomeAccessory != nil) {
             if let welcomeAccessory {
                 LocationWelcomeStatusAccessory(accessory: welcomeAccessory)
@@ -109,6 +127,10 @@ struct MainTabs: View {
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
         .task { await report.activate() }
+        .task(id: isUpdateCheckActive) {
+            guard isUpdateCheckActive else { return }
+            await updates?.refresh(force: false)
+        }
         .task(id: welcomeTaskID) {
             guard allowsWelcomeLookup else { return }
             guard welcomeTaskID.isEnabled else {
@@ -133,6 +155,10 @@ struct MainTabs: View {
         .sheet(item: $planningDestination) { destination in
             PlannedStaysDestinationView(destination: destination, report: report)
         }
+    }
+
+    private var isUpdateCheckActive: Bool {
+        scenePhase == .active && !isInDemoMode
     }
 
     private var welcomeTaskID: WelcomeTaskID {
@@ -180,7 +206,7 @@ struct MainTabs: View {
                 preferences: recordingWarningSource.preferences,
             ))
             _welcome = State(initialValue: welcome)
-            _selection = State(initialValue: selection)
+            _selection = State(initialValue: MainTabSelection(selected: selection))
         }
     #endif
 }
@@ -201,6 +227,87 @@ struct MainTabs: View {
                     configurations: [configuration],
                     settle: .settledAtLeast(minDuration: 1.0),
                 )
+            } + [elsewhereSnapshot(), elsewhereSnapshot(theme: .alternate)]
+        }
+
+        private static func elsewhereSnapshot(theme: WhereTheme = .standard) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let session = PreviewSupport.loadedSession()
+            session.preferences.showsLocationWelcome = false
+            let report = YearReportModel(
+                services: session.services,
+                selectedYear: PreviewSupport.year,
+                preferences: session.preferences,
+                now: session.now,
+            )
+            let welcome = LocationWelcomeModel(
+                services: session.services,
+                preferences: session.preferences,
+                now: session.now,
+            )
+            return whereSnapshot(
+                name: theme == .standard ? "Elsewhere" : "FlatElsewhere",
+                configurations: theme == .standard ? .fullContentScreenRepresentative :
+                    .fullContentPhoneLightDark,
+                theme: theme,
+                onReadyToMeasure: {
+                    try! await session.services.setPrimaryRegions([
+                        PrimaryRegion(region: .california, appearance: nil, order: 0),
+                        PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+                    ])
+                    let nevada = Region(rawValue: "us-NV")!
+                    let oregon = Region(rawValue: "us-OR")!
+                    for day in [
+                        DayPresence(
+                            day: CalendarDay(year: PreviewSupport.year, month: 6, day: 1),
+                            regions: [nevada],
+                        ),
+                        DayPresence(
+                            day: CalendarDay(year: PreviewSupport.year, month: 6, day: 2),
+                            regions: [nevada, oregon],
+                        ),
+                    ] {
+                        try! await session.services.journal.addManualDay(
+                            date: day.day.startOfDay(in: report.calendar),
+                            regions: day.regions,
+                            audit: nil,
+                        )
+                    }
+                    await report.refresh()
+                    if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
+                },
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(
+                        for: report.elsewhere.content(for: report.selectedYear)?.regions
+                            .map(\.region) ?? [],
+                        cache: cache,
+                    )
+                },
+            ) {
+                PreparedElsewhereSnapshot(session: session, report: report, welcome: welcome)
+                    .environment(\.regionOutlinePathCache, cache)
+            }
+        }
+
+        /// Observe readiness in a View body, not in the one-time SnapshotCase factory.
+        private struct PreparedElsewhereSnapshot: View {
+            let session: WhereSession
+            let report: YearReportModel
+            let welcome: LocationWelcomeModel
+
+            var body: some View {
+                if report.loadState == .loaded {
+                    MainTabs(
+                        session: session,
+                        report: report,
+                        welcome: welcome,
+                        selection: .elsewhere,
+                    )
+                    .environment(session)
+                    .environment(\.scenePhase, .inactive)
+                } else {
+                    ProgressView()
+                }
             }
         }
 
@@ -209,6 +316,14 @@ struct MainTabs: View {
             settle: SnapshotSettle,
         ) -> [SnapshotCase] {
             [
+                snapshot(
+                    name: "UpdateAvailable",
+                    configurations: configurations,
+                    settle: settle,
+                    selection: .year,
+                    updates: InstallerPreview.model(.available),
+                    configure: { _ in },
+                ),
                 snapshot(
                     name: "WelcomeLocations",
                     configurations: configurations,
@@ -249,6 +364,8 @@ struct MainTabs: View {
             configurations: [SnapshotConfiguration],
             settle: SnapshotSettle,
             selection: TabID,
+            theme: WhereTheme = .standard,
+            updates: UpdateModel? = nil,
             configure: (LocationWelcomeModel) -> Void,
         ) -> SnapshotCase {
             // Shell snapshots use January to avoid unrelated long-calendar scrolling.
@@ -266,6 +383,7 @@ struct MainTabs: View {
             let report = YearReportModel(
                 services: session.services,
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(year: PreviewSupport.year, days: [], totals: [:]),
                     primaryRegionLocations: [:],
                 ),
@@ -282,6 +400,7 @@ struct MainTabs: View {
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
                 onReadyToSnapshot: { await report.activate() },
@@ -293,6 +412,8 @@ struct MainTabs: View {
                     selection: selection,
                 )
                 .environment(session)
+                .environment(updates)
+                .environment(\.scenePhase, updates == nil ? .inactive : .active)
             }
         }
     }

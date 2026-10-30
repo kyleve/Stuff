@@ -1,4 +1,5 @@
 import Foundation
+import InstallerKit
 import RegionKit
 
 /// The app's persisted user intent — onboarding completion, presentation
@@ -17,7 +18,17 @@ import RegionKit
 /// state, so that teardown lives in Core rather than the UI layer. Values are
 /// read/written eagerly; callers that need observation (SwiftUI) mirror them in
 /// their own observable state.
-public final class WherePreferences {
+public final class WherePreferences: UpdatePreferencesStoring {
+    /// A saved welcome baseline. A nil region requests a greeting after an
+    /// explicit developer reset; an absent history requires a quiet first fix.
+    public struct LocationWelcomeHistory: Codable, Equatable {
+        public let lastRegion: Region?
+
+        public init(lastRegion: Region?) {
+            self.lastRegion = lastRegion
+        }
+    }
+
     private let store: any KeyValueStore
     private let invalidValue: (String) -> Void
 
@@ -69,6 +80,19 @@ public final class WherePreferences {
             return theme
         }
         set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
+    }
+
+    /// The saved zoom choice for one calendar. Missing or invalid entries are
+    /// absent so the caller can use its initial mode. Other calendars stay independent.
+    public func calendarOverview(forKey key: CalendarZoomKey) -> Bool? {
+        let values = store.object(forKey: Keys.calendarOverview.rawValue) as? [String: Any]
+        return values?[key.rawValue] as? Bool
+    }
+
+    public func setCalendarOverview(_ overview: Bool, forKey key: CalendarZoomKey) {
+        var values = store.object(forKey: Keys.calendarOverview.rawValue) as? [String: Any] ?? [:]
+        values[key.rawValue] = overview
+        store.set(values, forKey: Keys.calendarOverview.rawValue)
     }
 
     /// Whether annual estimates, stay planning, and their projections appear.
@@ -191,6 +215,21 @@ public final class WherePreferences {
         set { setEncodedPreference(newValue, forKey: .recordingConfigurationWarningRegistration) }
     }
 
+    /// Cached update metadata for this installation.
+    public var installerUpdates: UpdatePreferences {
+        get {
+            switch decodedPreference(
+                UpdatePreferences.self,
+                forKey: .installerUpdates,
+            ) {
+                case .missing, .invalid:
+                    UpdatePreferences(cached: nil)
+                case let .value(value): value
+            }
+        }
+        set { setEncodedPreference(newValue, forKey: .installerUpdates) }
+    }
+
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -229,18 +268,22 @@ public final class WherePreferences {
         store.set(snapshots, forKey: Keys.lastSeenLocationDayCounts.rawValue)
     }
 
-    /// The last live region whose Locations welcome the user dismissed.
-    public var lastWelcomedRegion: Region? {
+    /// The initial live region or the last dismissed welcome. Missing history
+    /// establishes a baseline without presenting a card, including after restore.
+    public var locationWelcomeHistory: LocationWelcomeHistory? {
         get {
-            guard let rawValue = store.object(forKey: Keys.lastWelcomedRegion.rawValue) as? String
-            else { return nil }
-            return Region(rawValue: rawValue)
+            switch decodedPreference(LocationWelcomeHistory.self, forKey: .locationWelcomeHistory) {
+                case .missing, .invalid:
+                    nil
+                case let .value(history):
+                    history
+            }
         }
         set {
             if let newValue {
-                store.set(newValue.rawValue, forKey: Keys.lastWelcomedRegion.rawValue)
+                setEncodedPreference(newValue, forKey: .locationWelcomeHistory)
             } else {
-                store.removeObject(forKey: Keys.lastWelcomedRegion.rawValue)
+                store.removeObject(forKey: Keys.locationWelcomeHistory.rawValue)
             }
         }
     }
@@ -264,6 +307,7 @@ public final class WherePreferences {
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case showsLocationWelcome = "where.showsLocationWelcome"
         case theme = "where.theme"
+        case calendarOverview = "where.calendarOverview"
         case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
@@ -276,7 +320,10 @@ public final class WherePreferences {
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
+        case installerUpdates = "where.installerUpdates"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+        case locationWelcomeHistory = "where.locationWelcomeHistory"
+        /// Retained only so a full reset also removes the former acknowledgement.
         case lastWelcomedRegion = "where.lastWelcomedRegion"
     }
 

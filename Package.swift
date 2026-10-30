@@ -10,8 +10,9 @@ let package = Package(
         .macOS(.v26),
     ],
     products: [
+        .library(name: "InstallerKit", targets: ["InstallerKit"]),
+        .library(name: "InstallerKitUI", targets: ["InstallerKitUI"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
-        .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -38,9 +39,8 @@ let package = Package(
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
         .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
-        // Snapshot-testing engine + accessibility parser. Consumed only by the
-        // test-only `SnapshotKitTesting` target (never a shipping app). See
-        // Shared/SnapshotKitTesting.
+        // Snapshot-testing engine + accessibility parser. Consumed only by
+        // SnapshotKitTesting and test bundles, never a shipping app.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
@@ -60,15 +60,25 @@ let package = Package(
             path: "Shared/Periscope/PeriscopeMacros/Sources",
         ),
         .target(
-            name: "CreditKit",
-            path: "Shared/CreditKit/Sources",
+            name: "InstallerKit",
+            dependencies: [.target(name: "PeriscopeCore")],
+            path: "Shared/InstallerKit/Sources",
         ),
         .target(
-            name: "LedgerCore",
+            name: "InstallerKitUI",
             dependencies: [
-                .target(name: "PeriscopeCore"),
+                .target(name: "InstallerKit"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
-            path: "Ledger/LedgerCore/Sources",
+            path: "Shared/InstallerKitUI/Sources",
+            resources: [.process("Resources")],
+        ),
+        .target(
+            name: "CreditKit",
+            path: "Shared/CreditKit/Sources",
         ),
         .target(
             name: "LifecycleKit",
@@ -175,6 +185,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "InstallerKit"),
                 .target(name: "CreditKit"),
                 .target(name: "JournalKit"),
                 .target(name: "PeriscopeCore"),
@@ -195,6 +206,8 @@ let package = Package(
         .target(
             name: "WhereUI",
             dependencies: [
+                .target(name: "InstallerKitUI"),
+                .target(name: "InstallerKit"),
                 .target(name: "WhereCore"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),

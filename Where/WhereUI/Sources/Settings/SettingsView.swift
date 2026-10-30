@@ -1,3 +1,7 @@
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
+import InstallerKit
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -5,7 +9,7 @@ import SwiftUI
 import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
-/// into grouped sub-screens — a Data group at the top (attachments, logged days,
+/// into grouped sub-screens — App Updates for eligible builds, then Data (attachments, logged days,
 /// regions), then devices, alerts, appearance, report year, data management,
 /// feature discovery, and About — plus a search field that filters individual settings and
 /// deep-links to the screen — and the row — containing each.
@@ -24,6 +28,7 @@ struct SettingsView: View {
     @State private var showRegions = false
 
     @Environment(WhereSession.self) private var session
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(WhereModel.self) private var model
     @Environment(\.lifecycle) private var lifecycle
     @Environment(\.isInDemoMode) private var isInDemoMode
@@ -64,7 +69,7 @@ struct SettingsView: View {
     /// per-row so the list and the search index can't disagree about what
     /// exists.
     private func isAvailable(_ destination: SettingsDestination) -> Bool {
-        !isInDemoMode || destination.isAvailableInDemoMode
+        destination.isAvailable(isInDemoMode: isInDemoMode, updatesEnabled: updates != nil)
     }
 
     var body: some View {
@@ -199,7 +204,7 @@ struct SettingsView: View {
             case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
                  .alerts, .appearance, .year, .siri,
                  .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
-                 .data, .privacyDiagnostics, .about:
+                 .data, .privacyDiagnostics, .updates, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -230,6 +235,8 @@ struct SettingsView: View {
                     status: session.authorizationStatus,
                     isTracking: session.isTracking,
                 )
+            case .updates:
+                updates?.attentionTitle
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .regions,
@@ -323,6 +330,10 @@ struct SettingsView: View {
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
             case .privacyDiagnostics:
                 PrivacyDiagnosticsSettingsView(focus: route.focus)
+            case .updates:
+                if let updates, !isInDemoMode {
+                    DevelopmentUpdatesView(model: updates, focus: route.focus)
+                }
             case .about:
                 AboutSettingsView(
                     focus: route.focus,
@@ -357,7 +368,7 @@ struct SettingsView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults + [
+                configurations: .fullContentScreenRepresentative + [
                     SnapshotConfiguration(
                         layoutDirection: .rightToLeft,
                         device: .iPhoneFullContent,
@@ -368,6 +379,26 @@ struct SettingsView: View {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
+            }
+            whereSnapshot(
+                name: "UpdateAvailable",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                    .environment(InstallerPreview.model(.available))
+            }
+            whereSnapshot(
+                name: "LocalBuild",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                    .environment(InstallerPreview.model(.local))
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
@@ -426,6 +457,7 @@ struct SettingsView: View {
                 .push(to: PersonalizationFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),
                 .push(to: PrivacyDiagnosticsSettingsView.flyoverID),
+                .push(to: DevelopmentUpdatesView.flyoverID),
                 .push(to: AboutSettingsView.flyoverID),
             ],
         ) { world in

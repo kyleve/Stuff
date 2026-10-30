@@ -82,16 +82,32 @@ struct OnboardingThemeSelectionView: View {
 
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let configurations = [SnapshotConfiguration].screenDefaults + [
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhone),
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPad),
+            let cache = RegionOutlinePathCache()
+            let configurations = [SnapshotConfiguration].fullContentScreenRepresentative + [
+                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhoneFullContent),
+                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
             ]
             return [
-                whereSnapshot(name: "Standard", configurations: configurations) {
+                whereSnapshot(
+                    name: "Standard",
+                    configurations: configurations,
+                    onReadyToSnapshot: {
+                        await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
+                    },
+                ) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .standard)
+                        .environment(\.regionOutlinePathCache, cache)
                 },
-                whereSnapshot(name: "Alternate", configurations: configurations) {
+                whereSnapshot(
+                    name: "Alternate",
+                    configurations: .fullContentPhoneLightDark,
+                    theme: .alternate,
+                    onReadyToSnapshot: {
+                        await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
+                    },
+                ) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .alternate)
+                        .environment(\.regionOutlinePathCache, cache)
                 },
             ]
         }

@@ -38,7 +38,10 @@ class TestRunnerTests(unittest.TestCase):
             ]
         }
         project = self.project_with_bundles(
-            [("CoreTests", "Shared/Core/Tests", "Core"), ("UITests", "Shared/UI/Tests", "UI")]
+            [
+                ("CoreTests", "Shared/Core/Tests", "Core"),
+                ("UITests", "Shared/UI/Tests", "UI"),
+            ]
         )
 
         self.assertEqual(
@@ -55,18 +58,17 @@ class TestRunnerTests(unittest.TestCase):
         selected = affected_bundles(["Project.swift"], {"targets": []}, project)
         self.assertEqual(len(selected), 15)
 
-        selected = affected_bundles(
-            [".xcode-build-version"], {"targets": []}, project
-        )
+        selected = affected_bundles([".xcode-build-version"], {"targets": []}, project)
         self.assertEqual(len(selected), 15)
 
         with self.assertRaisesRegex(ValueError, "only found 0 test bundles"):
             affected_bundles(["Project.swift"], {"targets": []}, "")
 
     def test_empty_affected_input_does_not_invoke_swift_package_manager(self):
-        with patch("sys.stdin", io.StringIO("")), patch(
-            "test_runner.subprocess.run"
-        ) as run:
+        with (
+            patch("sys.stdin", io.StringIO("")),
+            patch("test_runner.subprocess.run") as run,
+        ):
             self.assertEqual(main(["affected-bundles"]), 0)
         run.assert_not_called()
 
@@ -88,6 +90,56 @@ class TestRunnerTests(unittest.TestCase):
             reporter.consume('SNAPSHOT_TIMING {"id":"one"}')
 
             self.assertIn("1 images", output.getvalue())
+
+    def test_retry_diagnostics_are_visible_without_counting_as_tests_or_images(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=0,
+                status_path=None,
+                counts_path=Path(directory) / "counts.json",
+                scheme="Snapshots",
+                is_terminal=False,
+                count_images=True,
+                output=output,
+                clock=Clock(),
+            )
+            lines = [
+                "SNAPSHOT_RETRY example: attempt 1/3 failed: settle timeout; retrying attempt 2/3",
+                "SNAPSHOT_RETRY example: recovered on attempt 2/3",
+            ]
+            for line in lines:
+                reporter.consume(line)
+                self.assertIn(line, output.getvalue())
+            self.assertEqual(reporter.tests, 0)
+            self.assertEqual(reporter.images, 0)
+            self.assertEqual(reporter.failures, 0)
+            reporter.consume('SNAPSHOT_TIMING {"id":"example"}')
+            reporter.consume("✔ Test example() passed after 1.0 seconds")
+            self.assertEqual(reporter.images, 1)
+            self.assertEqual(reporter.tests, 1)
+            self.assertEqual(reporter.failures, 0)
+
+    def test_progress_passes_through_flyover_export_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=15,
+                status_path=None,
+                counts_path=Path(directory) / "counts.json",
+                scheme="Snapshots",
+                is_terminal=False,
+                count_images=False,
+                output=output,
+                clock=Clock(),
+            )
+
+            reporter.consume("FLYOVER_EXPORT 37/110 Locations / Empty / phone-light")
+
+            self.assertIn(
+                "FLYOVER_EXPORT 37/110 Locations / Empty / phone-light",
+                output.getvalue(),
+            )
 
     def test_progress_keeps_cached_test_count_labeled_as_tests(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -248,7 +300,9 @@ class TestRunnerTests(unittest.TestCase):
         bundles = list(leading)
         while len(bundles) < 15:
             index = len(bundles)
-            bundles.append((f"Dummy{index}Tests", f"Dummy/{index}/Tests", f"Dummy{index}"))
+            bundles.append(
+                (f"Dummy{index}Tests", f"Dummy/{index}/Tests", f"Dummy{index}")
+            )
         windows = []
         for name, sources, product in bundles:
             windows.append(

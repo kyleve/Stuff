@@ -13,6 +13,18 @@ Layering, localization, preview, and testing conventions live in the feature
 
 ## Scope & dependencies
 
+- Keep InstallerKit’s `UpdateModel` process-owned and inject it at `RootView`.
+  Poll only from a foreground, non-demo app surface. Keep the last successful
+  result visible on failure. Keep App Updates first in Settings for eligible builds,
+  including local and current builds. Show the update badge only when an update needs attention.
+  Guard: `SettingsSearchTests.updatesRequireAnEligibleBuildAndStayOutOfDemo`.
+  Install actions use InstallerKit's validated
+  system-installer URL for the displayed build.
+  Render the detail with InstallerKitUI's shared `AppUpdatesView`. Supply Where branding
+  and Settings search modifiers through its section-decoration seam.
+  Keep refresh and supersession policy in InstallerKit.
+  Guard: `InstallerKitTests/UpdateModelTests`.
+
 - Presentation layer only. No domain rules, persistence, or store I/O here
   ([Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
@@ -42,6 +54,7 @@ Layering, localization, preview, and testing conventions live in the feature
   through any failure (`WhereLaunchTests`).
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
+  Attach export sheets and error alerts to `DataSettingsView` outside its `Form` sections.
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
@@ -69,6 +82,10 @@ Layering, localization, preview, and testing conventions live in the feature
   factory methods.
 - Construct and retain the Where Flyover catalog once after its world loads.
   Never rebuild fixture state from a SwiftUI `body`.
+- Build one `WhereFlyoverWorld` for each hosted web export. Reuse it for every
+  capture. Never activate its scope or read user data.
+- Export stable screen IDs from reflected screen and context type names. Use
+  snapshot case names for snapshot-backed variant IDs.
 - Present Where Flyover from the developer accordion with `fullScreenCover`.
   Place it outside the selected-tool `NavigationStack`.
 - Register leaf screens against Flyover's default navigation container. Use
@@ -83,6 +100,13 @@ Layering, localization, preview, and testing conventions live in the feature
   stateless simplifier. WhereUI chooses full/medium/small/micro tolerances and
   caches the resulting SwiftUI `Path`s. Use the small path for the stamp. Use
   the micro path for repeated borders on location cards and estimate panels.
+  Share the region artwork treatment across regular and compact cards. Keep
+  compact dimensions in the compact style. Resolve Elsewhere's paper surface
+  from that geometry, without a progress bar, using the shared matte renderer.
+  Keep primary specimens on the selected theme's surface. Preserve Elsewhere's
+  white/neutral-dark fill when Flat overrides its outline and shadow.
+  Use the original region color for Elsewhere artwork and borders. Apply its
+  contrast adjustment only to text.
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
@@ -90,8 +114,14 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
+- Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
+- Inject the calendar zoom key at each entry point. Persist mode changes through `WherePreferences`; a nil key must not read or write preferences. Guard: `CalendarPresentationModelTests`.
+- Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
+  Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
+  Keep a stay intact when departure falls on its final day. Guard: `PresenceJourneyItemTests`.
+  Split longer displayed stays at another visit's interior start day. Keep shared days in each region exactly once.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
@@ -108,13 +138,23 @@ Layering, localization, preview, and testing conventions live in the feature
 - Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.
   Keep request identity complete; use a broader display key only when retaining
   compatible artwork during refresh is intentional.
+- Keep Locations state payloads, flight notices, estimates, and ranked cards behind
+  named view boundaries. Preserve presentation state and the calendar namespace
+  at the screen root. Guard their body sizes with the colocated view tests.
 - Keep the Locations background on the selected year’s complete visited-region set,
-  in catalog order independent of card rank. Omit the catch-all Other entry from
-  the print. Use the injected outline cache.
-- Keep the Elsewhere summary count and artwork on the same secondary-region input.
-  Use its own stylesheet tokens and the shared outline renderers.
+  and reuse that renderer in Elsewhere with its resolved visited-region set.
+  Keep both in catalog order independent of card rank. Omit the catch-all Other
+  entry from the print. Use the injected outline cache.
+- Split Locations and Elsewhere by the configured primary set, not `RegionRanking`'s
+  top two. Exclude zero-day cards and sort ties in catalog order.
+- Keep Elsewhere cards, day lists, and map pins on the same resolved snapshot.
+  Refresh from complete evidence identity. Reject cancelled or superseded results,
+  retain successful same-year content on failure, and provide retry. Day actions
+  pass the original calendar day into the existing correction flow.
 - Keep Locations-card points on `YearReportModel`'s loaded
-  `YearReportDetails`.
+  `YearReportDetails`. Elsewhere cards use their resolved report's locations through
+  the shared `RegionCardLocations` identity and constellation renderer. Both tabs
+  honor the recorded-location-dot preference.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
@@ -157,7 +197,11 @@ Layering, localization, preview, and testing conventions live in the feature
   and membership changes quietly.
 - Keep settled Location cards in displayed rank source order. Use each card's
   `Region` for the `ForEach` and ranking-layout identity.
-- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint,
+- Keep the collapsible Locations estimate on its summary surface in both expansion states.
+  `LocationForecastSummary` owns expansion; share its expanded rows and planning controls through
+  `LocationForecastContent`. `LocationForecastPanel` always shows that content without collapse state.
+  Calendar, Timeline, and discovery panels retain the detailed passport surface.
+- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint and summary watermarks,
   even when the panel shows a third forecast or a focused secondary region.
 - Give each ranked card an independent `GlassEffectContainer`. Apply ranking
   and overtake motion outside the complete link and card surface.
@@ -195,8 +239,28 @@ worked examples.
   `@Environment(\.regionStyles)` and seed by
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
   per-region look in a view.
+  Derive automatic colors from the permanent region ID with a fixed hash.
+  Never use localized names, card order, or Swift's randomized `Hasher`.
+  Keep the catalog's palette order and hash stable across launches.
+  Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
-  and Alternate remain distinct persisted identities even while their tokens match.
+  and Flat use the stable `standard` and `alternate` identities.
+- Keep Standard as the base stylesheet. Resolve shared traits before applying `WhereThemeOverrides`.
+  Put theme values and theme-specific trait decisions in their definition, such as `WhereFlatTheme`.
+  Keep override application independent of theme selection and trait resolution.
+  Omitted overrides inherit the adjusted base. Explicit zero values disable effects.
+  Use `BModeVarying` for paired light/dark values. Keep runtime region colors outside theme definitions.
+  Guards: `WhereThemeOverridesTests`, `WhereFlatThemeTests`.
+- **Design new and changed custom components for every supported theme.**
+  Resolve theme and accessibility choices in the owning `WhereStylesheet`
+  component style. Views consume that style without checking the selected theme.
+  Reuse `matteSurface` for Flat's opaque fills, visible strokes, and restrained
+  shadows. Keep the matte outline fully outside the clipped surface without changing
+  layout or hit bounds. Use a subtle tint for pressed feedback. Exclude glass,
+  reflections and luminous glows from Flat's view hierarchy. Observe tilt only while a
+  visible surface needs sheen. Preserve artwork and informational gradients.
+  Keep system chrome native and widget/snippet surfaces lightweight.
+  Guard: `WhereStylesheetSurfaceTreatmentTests`.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`. It must not add a second production styling system or alter
   count animation and outline-cache behavior.
@@ -208,6 +272,8 @@ worked examples.
   `MainTabs`. Resolve once per active-scene entry regardless of tab. Only denied
   or restricted access and disabled Precise Location stay visible as recovery
   actions; transient and confidence failures return to idle.
+- Establish the first successful live-region baseline without a welcome, including after backup import.
+  Preserve explicit DEBUG reset requests and commit no history from cancelled or superseded lookups. Guard: `LocationWelcomeModelTests`.
 
 ## Feature discovery
 
@@ -218,6 +284,10 @@ Use process-effective diagnostics for privacy claims. Hide gallery links whose d
 Use the [`update-explore-features`](../../.agents/skills/update-explore-features/SKILL.md) skill for periodic coverage updates.
 
 ## Testing
+
+Hosted tests that traverse SwiftUI accessibility must link and import
+`AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
+runtime. Guard: `CalendarContentViewTests`.
 
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`
@@ -230,6 +300,10 @@ assembled by `WhereFlyoverCatalog`. Add a registration beside every new
 top-level screen. List its type in the appropriate catalog group. Flyover
 frames share one `WhereFlyoverWorld`. Synthetic preview models are reserved for
 states the seeded demo cannot express.
+When registrations, routes, or default variants change, run
+`WhereFlyoverCatalogTests` alongside the affected screen suites.
+Keep the full Where Flyover overview out of image snapshots. Use individual screen
+suites for content and the shared Flyover suite for the browser.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests). Those build as this module's
@@ -238,4 +312,25 @@ job, deliberately outside `Stuff-iOS-Tests` (root
 [`AGENTS.md`](../../AGENTS.md#targets)). Declarations use the helpers in
 [`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift).
 Follow `building-ui` for authoring and the repo `running-tests` skill for
-recording/reviewing references.
+recording/reviewing references. Apply [SnapshotKit's coverage policy](../../Shared/SnapshotKit/AGENTS.md):
+Explore Features galleries share layout coverage; retain focused large-type checks
+for dense content. Shared InstallerKitUI owns updater scenario coverage; Where's
+wrapper owns branding and integration. Preserve all updater preview/Flyover states
+through the shared fixture builder when narrowing its recorded cases.
+
+For new or changed themed components, use `whereThemeSnapshot` for one comparison
+sheet containing every supported theme. Use representative states across light/dark
+and relevant accessibility configurations; keep each configuration in a separate
+sheet. Use narrower matrices for additional states. Keep production component
+width and behavior, including artwork readiness and informational gradients.
+
+Keep per-theme full-screen coverage for critical integration screens such as
+Locations, or screens whose composition changes materially with the theme.
+Do not duplicate entire screen matrices to exercise a child component's surface.
+Keep appearance-picker selection-state coverage. Native chrome and unchanged
+lightweight widget/snippet surfaces do not need duplicate theme cases.
+
+`whereSnapshot` defaults to Standard and preserves its existing reference paths.
+Other themes use stable consumer-owned groups (`flat/` for `.alternate`). Mixed-theme
+sheets use `themes/`. Special trait images use `other/` inside the selected group.
+Never derive the folder from a localized label or rename a persisted theme identity.

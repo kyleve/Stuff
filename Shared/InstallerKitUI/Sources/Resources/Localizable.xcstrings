@@ -1,0 +1,941 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "installer.attempt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attempt"
+          }
+        }
+      }
+    },
+    "installer.available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update available"
+          }
+        }
+      }
+    },
+    "installer.browseMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Main or an active pull request. After installation, update checks follow that channel."
+          }
+        }
+      }
+    },
+    "installer.buildChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes in This Build"
+          }
+        }
+      }
+    },
+    "installer.buildChangesSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These notes compare this build with its branch’s previous published build, not with your installed build."
+          }
+        }
+      }
+    },
+    "installer.buildDetails" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build Details"
+          }
+        }
+      }
+    },
+    "installer.buildHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build History"
+          }
+        }
+      }
+    },
+    "installer.buildHistoryRewritten" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This branch’s history changed before this build. A complete list of changes is unavailable."
+          }
+        }
+      }
+    },
+    "installer.buildHistoryUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build has no recorded predecessor. A complete list of changes is unavailable."
+          }
+        }
+      }
+    },
+    "installer.buildInformation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build Information"
+          }
+        }
+      }
+    },
+    "installer.buildNumber" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build %@"
+          }
+        }
+      }
+    },
+    "installer.buildUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build unavailable"
+          }
+        }
+      }
+    },
+    "installer.buildUnavailableMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build is no longer available in the catalog. Return to Other Builds to choose an active channel."
+          }
+        }
+      }
+    },
+    "installer.changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What’s New"
+          }
+        }
+      }
+    },
+    "installer.changesSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All commits since your installed build."
+          }
+        }
+      }
+    },
+    "installer.channel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Channel"
+          }
+        }
+      }
+    },
+    "installer.channelUnavailableMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This channel no longer has installable builds. Return to Other Builds to choose an active channel."
+          }
+        }
+      }
+    },
+    "installer.check" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates"
+          }
+        }
+      }
+    },
+    "installer.checkFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t check for updates"
+          }
+        }
+      }
+    },
+    "installer.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking for Updates…"
+          }
+        }
+      }
+    },
+    "installer.commit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commit"
+          }
+        }
+      }
+    },
+    "installer.current" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have the latest build"
+          }
+        }
+      }
+    },
+    "installer.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "installer.download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        }
+      }
+    },
+    "installer.failure.accessDenied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server denied access to the feed."
+          }
+        }
+      }
+    },
+    "installer.failure.authentication" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server requires authentication. This app can only read public update feeds."
+          }
+        }
+      }
+    },
+    "installer.failure.cachedBuilds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build information shown is from the last successful check."
+          }
+        }
+      }
+    },
+    "installer.failure.cannotConnect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app could not connect to the update server."
+          }
+        }
+      }
+    },
+    "installer.failure.certificate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server’s security certificate could not be verified."
+          }
+        }
+      }
+    },
+    "installer.failure.clientCertificate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server requires a valid client certificate."
+          }
+        }
+      }
+    },
+    "installer.failure.connectionLost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the update server was interrupted. Try again."
+          }
+        }
+      }
+    },
+    "installer.failure.dataNotAllowed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device does not allow network data for this request. Check the app’s network settings."
+          }
+        }
+      }
+    },
+    "installer.failure.feedGone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed is no longer available at this address."
+          }
+        }
+      }
+    },
+    "installer.failure.feedNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed was not found on the server. It may not have been published yet, or its address may have changed."
+          }
+        }
+      }
+    },
+    "installer.failure.hostNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server’s address could not be found."
+          }
+        }
+      }
+    },
+    "installer.failure.httpStatus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server returned an unexpected HTTP status."
+          }
+        }
+      }
+    },
+    "installer.failure.invalidCatalog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed uses an unsupported format or contains invalid build information."
+          }
+        }
+      }
+    },
+    "installer.failure.invalidData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed could not be read because its data is invalid."
+          }
+        }
+      }
+    },
+    "installer.failure.invalidResponse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server returned an unexpected response."
+          }
+        }
+      }
+    },
+    "installer.failure.offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device is offline. Connect to the internet, then try again."
+          }
+        }
+      }
+    },
+    "installer.failure.rateLimited" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests reached the update server. Try again later."
+          }
+        }
+      }
+    },
+    "installer.failure.responseTooLarge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed exceeds the size limit this app supports."
+          }
+        }
+      }
+    },
+    "installer.failure.secureConnection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A secure connection to the update server could not be established."
+          }
+        }
+      }
+    },
+    "installer.failure.server" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server could not complete the request. Try again later."
+          }
+        }
+      }
+    },
+    "installer.failure.timeout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server did not respond in time. Try again."
+          }
+        }
+      }
+    },
+    "installer.failure.unexpectedLocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update request reached an unexpected or insecure server address."
+          }
+        }
+      }
+    },
+    "installer.historyMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a retained build to view its details or install it, including an earlier version."
+          }
+        }
+      }
+    },
+    "installer.historyUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your installed build is outside the retained history. A complete list of changes is unavailable."
+          }
+        }
+      }
+    },
+    "installer.install" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update"
+          }
+        }
+      }
+    },
+    "installer.installBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install This Build"
+          }
+        }
+      }
+    },
+    "installer.installFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS asks you to confirm installation. The update replaces this app and keeps its data."
+          }
+        }
+      }
+    },
+    "installer.installHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the iOS installation prompt for this build."
+          }
+        }
+      }
+    },
+    "installer.installed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installed"
+          }
+        }
+      }
+    },
+    "installer.installedBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installed on This Device"
+          }
+        }
+      }
+    },
+    "installer.installedChannel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installed channel"
+          }
+        }
+      }
+    },
+    "installer.lastChecked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last checked"
+          }
+        }
+      }
+    },
+    "installer.localBuildMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install from Xcode or your Mac’s local installer to use Local. Local builds do not receive automatic update alerts."
+          }
+        }
+      }
+    },
+    "installer.localChannel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local"
+          }
+        }
+      }
+    },
+    "installer.mainBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Main Build"
+          }
+        }
+      }
+    },
+    "installer.noActiveBuilds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No active channels have published builds yet. Try again later."
+          }
+        }
+      }
+    },
+    "installer.noCommits" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build has no new commits."
+          }
+        }
+      }
+    },
+    "installer.noPublishedBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Published Build"
+          }
+        }
+      }
+    },
+    "installer.notRecorded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not recorded"
+          }
+        }
+      }
+    },
+    "installer.openBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View this build on GitHub."
+          }
+        }
+      }
+    },
+    "installer.openCommit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View this commit on GitHub."
+          }
+        }
+      }
+    },
+    "installer.openPullRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View this pull request on GitHub."
+          }
+        }
+      }
+    },
+    "installer.otherBuilds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other Builds"
+          }
+        }
+      }
+    },
+    "installer.published" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Published"
+          }
+        }
+      }
+    },
+    "installer.pullRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull request"
+          }
+        }
+      }
+    },
+    "installer.requiresOS" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires iOS"
+          }
+        }
+      }
+    },
+    "installer.retiredMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This pull request no longer receives builds. You can switch to the latest main build."
+          }
+        }
+      }
+    },
+    "installer.retiredTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build channel has closed"
+          }
+        }
+      }
+    },
+    "installer.retiredUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This pull request no longer receives builds. A main build is not available yet."
+          }
+        }
+      }
+    },
+    "installer.rewrittenHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This branch’s history changed. A complete list of changes from your installed build is unavailable."
+          }
+        }
+      }
+    },
+    "installer.switchMain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to Main"
+          }
+        }
+      }
+    },
+    "installer.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Updates"
+          }
+        }
+      }
+    },
+    "installer.uncommittedChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uncommitted changes"
+          }
+        }
+      }
+    },
+    "installer.unpublished" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This channel has no published update information yet. Try again later."
+          }
+        }
+      }
+    },
+    "installer.version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "installer.versionNotRecorded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version not recorded"
+          }
+        }
+      }
+    },
+    "installer.versionNumber" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        }
+      }
+    },
+    "installer.viewBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View details and installation options for this build."
+          }
+        }
+      }
+    },
+    "installer.workflowRun" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workflow run"
+          }
+        }
+      }
+    },
+    "installer.workingTree" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working tree"
+          }
+        }
+      }
+    },
+    "installer.workingTreeClean" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clean"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

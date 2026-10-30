@@ -18,6 +18,7 @@ import SFSafeSymbols
         @State private var tilt = TiltProvider()
         /// The user can override the preview mode; this seeds that runtime selection.
         @Environment(\.colorScheme) private var systemColorScheme
+        @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
             @Bindable var model = model
@@ -164,9 +165,8 @@ import SFSafeSymbols
             .preferredColorScheme(previewColorScheme)
             .onAppear {
                 previewColorScheme = previewColorScheme ?? systemColorScheme
-                tilt.start()
             }
-            .onDisappear { tilt.stop() }
+            .observesTilt(tilt, enabled: stylesheet.card[variant.style].surface.usesReflection)
         }
     }
 

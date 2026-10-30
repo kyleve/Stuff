@@ -2,17 +2,13 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Annual location estimates presented as one passport-style visa endorsement.
-/// Locations collapses the endorsement; calendars and feature discovery show
-/// its complete region rows and optional stay-planning controls.
+/// Always-expanded passport panel for calendars, timelines, and feature discovery.
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
     let microprintRegions: [Region]
     var homeRegion: Region?
     var planningAction: (() -> Void)?
-    var isCollapsible = false
 
-    @State private var isExpanded = false
     @State private var artworkModel = RegionArtworkModel<[Region], [Path]>()
 
     private var regionBorderPaths: [Path] {
@@ -27,57 +23,31 @@ struct LocationForecastPanel: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
-        let showsContent = !isCollapsible || isExpanded
 
         VStack(alignment: .leading, spacing: style.rowSpacing) {
-            if isCollapsible {
-                LocationForecastHeader(
-                    elapsedDays: forecasts.first?.elapsedDays,
-                    isExpanded: showsContent,
-                    expansionAction: toggleExpansion,
-                )
-            } else {
-                LocationForecastHeader(
-                    elapsedDays: forecasts.first?.elapsedDays,
-                    isExpanded: true,
-                )
-            }
-
-            if showsContent {
-                VStack(alignment: .leading, spacing: style.rowSpacing) {
-                    ForEach(forecasts, id: \.region) { forecast in
-                        LocationForecastRow(
-                            forecast: forecast,
-                            homeRegion: homeRegion,
-                        )
-                    }
-
-                    if forecasts.contains(where: { !$0.estimatedTotalDays.isExact }) {
-                        Text(String(localized: .forecastDateRangeExplanation))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let planningAction {
-                        LocationForecastControls(planningAction: planningAction)
-                    }
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
+            LocationForecastHeader(elapsedDays: forecasts.first?.elapsedDays, isExpanded: true)
+            LocationForecastContent(
+                forecasts: forecasts,
+                homeRegion: homeRegion,
+                planningAction: planningAction,
+            )
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {
                 shape.fill(.background)
-                LinearGradient(
-                    colors: [
-                        Color.primary.opacity(style.ink.surfaceWashOpacity),
-                        .clear,
-                        Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing,
-                )
+                if style.ink.surfaceWashOpacity > 0 {
+                    LinearGradient(
+                        colors: [
+                            Color.primary.opacity(style.ink.surfaceWashOpacity),
+                            .clear,
+                            Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing,
+                    )
+                }
                 SecurityPrintRosette(
                     tint: .primary,
                     wobble: style.surface.rosetteWobble,
@@ -114,27 +84,8 @@ struct LocationForecastPanel: View {
             radius: style.surface.shadowRadius,
             y: style.surface.shadowOffsetY,
         )
-        .regionArtworkTask(id: microprintRegions, model: artworkModel, load: loadRegionBorderPaths)
-    }
-
-    /// Loads the complete ordered pattern before publishing it so a changing
-    /// forecast never shows a partial or stale sequence around the panel.
-    private func loadRegionBorderPaths(_ regionOutlinePathCache: RegionOutlinePathCache) async
-        -> [Path]?
-    {
-        var loadedPaths: [Path] = []
-        loadedPaths.reserveCapacity(microprintRegions.count)
-        for region in microprintRegions {
-            let path = await regionOutlinePathCache.path(for: region, resolution: .micro)
-            guard !Task.isCancelled else { return nil }
-            loadedPaths.append(path)
-        }
-        return loadedPaths
-    }
-
-    private func toggleExpansion() {
-        withAnimation(style.expansionAnimation) {
-            isExpanded.toggle()
+        .regionArtworkTask(id: microprintRegions, model: artworkModel) { cache in
+            await LocationForecastArtworkLoader.load(regions: microprintRegions, cache: cache)
         }
     }
 }
@@ -150,5 +101,49 @@ struct LocationForecastPanel: View {
         )
         .padding()
         .whereBroadwayRoot()
+    }
+#endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension LocationForecastPanel: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            snapshot()
+        }
+
+        private static func snapshot() -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let artwork = RegionArtworkModel<[Region], [Path]>()
+            let report = PreviewSupport.plannedStayYearReportModel()
+            let regions = report.ranking.primary.map(\.region)
+            return whereThemeSnapshot(
+                name: "Expanded",
+                configurations: .componentRepresentative,
+                measurementReadiness: .immediate,
+                onReadyToSnapshot: {
+                    await artwork.load(for: regions) {
+                        await LocationForecastArtworkLoader.load(regions: regions, cache: cache)
+                    }
+                },
+            ) {
+                let report = PreviewSupport.plannedStayYearReportModel()
+                var panel = LocationForecastPanel(
+                    forecasts: report.forecasts.leadingForecasts(report: report.report),
+                    microprintRegions: regions,
+                    homeRegion: report.forecasts.planning.homeRegion,
+                    planningAction: {},
+                )
+                panel._artworkModel = State(initialValue: artwork)
+                return panel
+                    .environment(\.regionOutlinePathCache, cache)
+                    .padding(24)
+                    .background(.background)
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        LocationForecastPanel.snapshotPreviews
     }
 #endif

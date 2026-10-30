@@ -1,3 +1,5 @@
+<!-- Follow .agents/skills/github-workflow/SKILL.md#pick-a-tier. Keep only relevant sections and explanations. -->
+
 ## Summary
 
 -

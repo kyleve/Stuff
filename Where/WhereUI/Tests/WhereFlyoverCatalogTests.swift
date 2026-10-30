@@ -14,6 +14,8 @@
             #expect(Set(registered) == Set(declared))
             #expect(registered.count == declared.count)
             #expect(declared.count == Set(declared).count)
+            let exportIdentifiers = catalog.screens.map(\.id.exportIdentifier)
+            #expect(exportIdentifiers.count == Set(exportIdentifiers).count)
         }
 
         @Test func recordsOnlyForwardPushAndModalRoutes() async throws {

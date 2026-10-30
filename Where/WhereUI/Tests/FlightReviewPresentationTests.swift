@@ -5,6 +5,15 @@ import Testing
 @testable import WhereUI
 
 struct FlightReviewPresentationTests {
+    @Test func uncertainArrivalPreviewOffersOnlySupportedPoints() throws {
+        let review = PreviewSupport.flightReview(state: .uncertainArrival)
+        let flight = try #require(review.flight)
+        #expect(flight.progress.arrival?.isTimingUncertain == true)
+        let proposal = try #require(review.proposal)
+        #expect(Set(proposal.edits.map(\.sampleID)) == flight.airborneSampleIDs)
+        #expect(Set(review.pointCorrections.map(\.sampleID)) == flight.airborneSampleIDs)
+    }
+
     @Test func pointRowsRetainInferenceAndRestoreActionsWithoutDuplicateIdentities() throws {
         let review = PreviewSupport.flightReview(state: .completed)
         let flight = try #require(review.flight)
@@ -21,6 +30,11 @@ struct FlightReviewPresentationTests {
             inferredEndpoints: [.init(
                 sampleID: sampleID,
                 reason: .recordingGap(duration: 14400, averageSpeedKMH: 740),
+            )],
+            supportedIntervals: [.init(
+                start: flight.startedAt,
+                end: flight.lastFlightAt,
+                kind: .observedMotion,
             )],
         )
         let duplicated = GPSCorrectionReview(

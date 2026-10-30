@@ -30,7 +30,9 @@ def build_report(log: str, typecheck_threshold: int) -> str:
             share = 100 * seconds / total if total else 0
             lines.append(f"  {seconds:8.2f}s  {share:4.0f}%  {name} ({count})")
     else:
-        lines.append("  (no build-timing summary found — was this a no-op incremental build?)")
+        lines.append(
+            "  (no build-timing summary found — was this a no-op incremental build?)"
+        )
 
     typechecks = re.findall(
         r"(/[^:\n]+:\d+:\d+): warning: (.*?took (\d+)ms to type-check.*)$",
@@ -138,7 +140,9 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
                 str(path) for path in options.tests_json
             )
             kind = "test results"
-        print(f"warning: couldn't parse {kind} from {source} ({error})", file=sys.stderr)
+        print(
+            f"warning: couldn't parse {kind} from {source} ({error})", file=sys.stderr
+        )
         return 1
     return 0
 

@@ -27,6 +27,9 @@ Roughly, this file covers:
 | SwiftFormat | `.mise.toml` |
 | ShellCheck  | `.mise.toml` |
 | Ruby        | `.mise.toml` |
+| Fastlane and Ruby dependencies | `Gemfile.lock` |
+| Node.js     | `.mise.toml` |
+| Astro and TypeScript | `package-lock.json` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
 | Xcode snapshot renderer | `.xcode-build-version` |
@@ -44,12 +47,14 @@ two manifests are the authoritative target catalog. This file does not duplicate
 Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
 --bootstrap` first. That command installs `mise` and the pinned tools before
 generating. Plain `./ide` fails fast and points at bootstrap.
+`./ide --bootstrap` and `./ide --install` also install the locked site and Fastlane dependencies.
+After a site lockfile change, run `mise exec -- npm ci`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
-`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`worktree`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
+`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `flyover`, `icons`, `flaky`, `simulator`,
+`worktree`, `signing`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
 `circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
-hand-rolling its job. `./test` owns iOS tests; the native-macOS Ledger scheme is the exception
+hand-rolling its job. `./test` owns iOS and host-side tests
 (see [Running tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state that is
 easy to corrupt by hand. `./simulator` owns a per-checkout device (see the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
@@ -97,6 +102,9 @@ The script writes the commit into `WhereGitSHA` / `WhereGitStatus`. It writes ho
 was invoked into `WhereConfiguration` / `WhereSwiftOptimizationLevel` /
 `WhereSwiftCompilationMode`. All of it is read back by `WhereCore.BuildInfo`.
 Settings > About uses it. Every Periscope logging session uses it for attributes.
+Where builds call [`Tools/InstallerKit/stamp-installer-info.sh`](Tools/InstallerKit/stamp-installer-info.sh) before signing for shared InstallerKit identity.
+The Development audience descriptor provides app, repository, feed URL, and the local channel.
+CI archives override the channel, run, and attempt. Local builds keep honest Git status and no publication identity.
 The optimization level tells you if a recorded span duration means
 anything. Only the app is stamped. Tripwires: it must stay a **post** script
 (before signing seals the bundle). Keep `basedOnDependencyAnalysis: false`. If you do not, an unchanged tree ships the previous commit's SHA. Set
@@ -106,6 +114,8 @@ over a build setting Xcode didn't export.
 
 ## Formatting
 
+- **Python and web correctness:** `mise exec -- npm run lint` runs pinned Ruff, type-aware ESLint, Astro rules, and Stylelint. `npm run test:lint` proves that representative errors fail. Ruff targets Python 3.9. Keep formatting-only changes separate from behavior changes.
+- **Python formatting:** `mise exec -- npm run format:python` applies Ruff formatting. The shared lint command checks formatting without changing files. CSS uses the pinned standard Stylelint preset; preserve the three documented Safari property exceptions in `stylelint.config.mjs`.
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
   format the tree. Run `./swiftformat --lint` to make sure that formatting is correct (as in CI).
 - **ShellCheck** is pinned in [`.mise.toml`](.mise.toml). `./shellcheck` discovers
@@ -140,8 +150,8 @@ own tests can't do this job. A test bundle can't read `Package.swift`.
 
 ## Architecture lint
 
-Bumper Bowling enforces the production Where module graph, LedgerCore's
-Periscope dependency, and selected source-level invariants. Classified logging
+Bumper Bowling enforces the production Where module graph, the shared
+InstallerKit/InstallerKitUI boundaries and selected source-level invariants. Classified logging
 authoring rules also cover the Periscope and consumer source/test paths. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
@@ -153,6 +163,8 @@ the configuration, tests the rules, and runs the lint. Keep the relevant
 the same change.
 Use the failing production syntax in the mutation fixture, including implicit
 members where applicable. State known enforcement gaps in the rule catalog.
+For graph assertions, mutate the project configuration while retaining its rule settings.
+Assert the expected diagnostic and severity, plus a valid neighboring configuration.
 
 ## Agent instructions sync
 
@@ -201,11 +213,13 @@ Keep the review history in the PR and link the rule to its guard or source.
   bundles, read [`Package.swift`](Package.swift) and
   [`Project.swift`](Project.swift). Each module's own `README.md` /
   `AGENTS.md` says what it is and how it can be used.
-- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper. Native-macOS test bundles are declared directly, like `LedgerCoreTests`, since that helper hosts iOS bundles in StuffTestHost). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
-- **CI schemes**: CI runs explicit shared schemes rather than the autogenerated `Stuff-Workspace` scheme. **Stuff-iOS-Tests** covers the iOS bundles. **Ledger-macOS-Tests** (the Ledger app + `LedgerCoreTests`) runs in its own `test-macos` job. The workspace mixes iOS targets with the native-macOS **Ledger** ones. No single xcodebuild destination can build both. Add a new test bundle to the matching scheme in `Project.swift`. If you do not, CI will not run it.
-- **CircleCI build handoff**: CircleCI builds both iOS test schemes sequentially on one `m4pro.large` builder. The unit worker and parallel snapshot workers attach its products and run without compilation. Each worker validates the build manifest before it starts a simulator. Two `m4pro.medium` build-only shards compile **Where Beta** and **Where App Store** after the shared builder completes. `./snapshot-shards` owns three planned suite assignments and one intake shard. A new suite runs on the intake shard until rebalancing adds it to the plan. Each active snapshot worker must execute exactly its assigned suites. The default-off `manual_full_gate` pipeline parameter runs this same clean-VM gate on an explicitly selected stacked branch tip; ordinary pushes and pull requests do not set it.
+- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see the existing `unitTests` helper, which hosts iOS bundles in StuffTestHost). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
+- **CI schemes**: CI runs explicit shared schemes rather than the autogenerated `Stuff-Workspace` scheme. **Stuff-iOS-Tests** covers the iOS bundles. Host-side tests run in the required GitHub `test-macos` job through `./test --skip-architecture PeriscopeMacrosTests`. Add a new test bundle to the matching scheme in `Project.swift`. If you do not, CI will not run it.
+- Bundle runtime test fixtures through `unitTests(resources:)` in `Project.swift`. Resolve them from the test bundle so CI workers need no source checkout.
+- **CircleCI build handoff**: CircleCI builds both iOS test schemes sequentially on one `m4pro.large` builder. The unit worker and parallel snapshot workers attach its products and run without compilation. Each worker validates the build manifest before it starts a simulator. Two `m4pro.medium` build-only shards compile **Where Beta** and **Where App Store** after the shared builder completes. `./snapshot-shards` owns four planned suite assignments and one intake shard. A new suite runs on the intake shard until rebalancing adds it to the plan. Each active snapshot worker must execute exactly its assigned suites. The default-off `manual_full_gate` pipeline parameter runs the CircleCI gate on an explicitly selected stacked branch tip. Pair it with a manual GitHub `CI` run on the same tip for helper, host, and architecture checks. Ordinary pushes and pull requests do not set `manual_full_gate`.
 - **Image snapshots are the exception: one bundle per module, one shared scheme.** Each module owning image references has its own `*SnapshotTests` target over its `SnapshotTests/` folder. All are listed in the single shared **StuffSnapshotTests** scheme and its dedicated CI `snapshot` job. Snapshots are slow and LFS-backed. They are **out of** `Stuff-iOS-Tests`. References under any `__Snapshots__/` directory are Git LFS (`.gitattributes`. The CI job hydrates them explicitly). Framework halves: `Shared/SnapshotKit` (shippable matrix + previews) and `Shared/SnapshotKitTesting` (test-only pipeline, whose own regression bundle **SnapshotKitTestingTests** pixel-probes without LFS and runs in `Stuff-iOS-Tests`).
 - **A new image suite gets a target, not a scheme.** Add the `*SnapshotTests` target. List only `SnapshotKitTesting` in `extraPackageProducts`. Add it to the `StuffSnapshotTests` scheme's build and test lists. Never add a scheme or CI job of its own. An image bundle links only what its module needs (the Periscope and Inspector suites don't build against WhereUI at all). References follow the sources automatically via `#filePath`.
+- **Generated websites use the same snapshot scheme.** `ToolsSnapshotTests` renders the install site's production Astro HTML in hosted WebKit through `SnapshotKitTesting`. Its fixture generator runs during each bundle build and needs the installed site dependencies; see [`Tools/AGENTS.md`](Tools/AGENTS.md#install-site-snapshots).
 - **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes. Details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state. Two copies in one process corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
 - **Snapshots containing scrolling content use full-content sizing.** Use SnapshotKit's full-content device presets for ordinary `ScrollView`, `List`, `Form`, or equivalent UIKit-backed content. Those presets keep the normal device width and minimum viewport height while growing vertically. Use an explicit two-axis preset for a spatial canvas that intentionally scrolls in both dimensions. Its bounded capture grows from the normal viewport along both axes. Fixed device frames are for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when measurement converges. Snapshot an intentionally bounded or greedy container's shared scrolling child directly. Never add snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent` and `.fullContent2D`).
 
@@ -237,23 +251,35 @@ Measured symbol-coalescing detail and the correction history: PR #145.
 
 ## Deployment
 
-Platforms and minimum OS live in [`Project.swift`](Project.swift). The iOS
-targets and the native-macOS **Ledger** app are there. That is why the package declares
-both platforms. To get the app onto a connected iPhone without the Xcode UI, use
+App platforms and minimum OS live in [`Project.swift`](Project.swift).
+The package also supports macOS for host-side tools and tests. To get the app onto a connected iPhone without the Xcode UI, use
 [`./Where/install`](Where/install). That command is macOS-only. It needs a signing team
 configured once via `./ide --team-id` (see
 [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)). Its `--dry-run`
 resolves the exact physical device without generating, building, installing,
 or launching.
-[`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
-Release and transactionally installs it to `/Applications` (ad-hoc signed, no
-team needed). Its `--dry-run` validates and reports the replacement without
-building, stopping, replacing, or launching anything.
+For remote installs, [`./Where/archive`](Where/archive) exports a signed Where
+Development IPA. The opt-in [GitHub distribution workflow](.github/workflows/installer-distribution.yml)
+publishes enabled registered apps on `main` and PRs labeled `installable` through a controller from `main`.
+The app registry selects identities; the signing registry selects schemes, products, and targets.
+[`InstallerKit`](Shared/InstallerKit/README.md) owns the reusable update engine.
+[`InstallerKitUI`](Shared/InstallerKitUI/README.md) owns its native update page.
+Apps inject their model, branding, and optional section modifiers for host search.
+Configured local Development builds can browse remote builds. Reinstall through Xcode or the app's local installer to return to Local.
+All registered iOS apps share one catalog and install site. Main builds appear on
+the homepage, and each app has its own PR pages. The site deploys from `main` independently of signed builds.
+Read [the installer guide](Tools/InstallerKit/README.md)
+when adding an app. `./signing setup --app <id>` prepares signing and enables a registered app after its configuration merges.
+Add `--pr <number>` to prepare its PR source and request publication. Use `--dry-run` to preview setup.
+`InstallerKitTests` and `InstallerKitUITests` run in `Stuff-iOS-Tests`.
+`InstallerKitUISnapshotTests` runs in `StuffSnapshotTests`. Read
+[`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing and account setup;
+[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device) owns its invariants.
 
 ## Per-module docs
 
 Shared modules live under `Shared/`. Feature modules live under a top-level folder
-per feature (`Where/`, `Ledger/`). **Every module is a folder containing `Sources/`,
+per feature (such as `Where/`). **Every module is a folder containing `Sources/`,
 `Tests/`, `README.md`, and `AGENTS.md`** (apps additionally carry `Resources/`).
 A new module must add both docs:
 
@@ -359,6 +385,10 @@ scope and invariants on top rather than restating these.
 
 ### Types, state, and API design
 
+- **Preserve the nested type name in shorthand aliases.** When shortening a
+  qualified type, use its final component: `typealias Episode = FlightGroundInference.Episode`.
+  Use `Trajectory` for `GPSCorrectionPolicy.Trajectory`.
+  If that name conflicts in the current scope, keep the qualified type name.
 - Prefer small named structs over tuples for any value with more than
   one field or that escapes a single function. Tuples are fine as
   ad-hoc inline returns. They must not appear in property types,
@@ -570,10 +600,7 @@ flag is needed there.
 ## Running tests
 
 **Use [`./test`](test)** — the only way to run the iOS bundles. Never hand-roll
-`tuist test` or `xcodebuild` for them. The one exception is the native-macOS
-**Ledger-macOS-Tests** scheme, which `./test` does not know how to run at all.
-The [`running-tests`](.agents/skills/running-tests/SKILL.md) skill carries its
-invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). The command
+`tuist test` or `xcodebuild` for them. The command
 runs the host-side backup-upgrader regression for affected or unit-capable iOS
 scopes. Snapshot-only runs skip this regression. Every normal invocation runs
 the Bumper Bowling checks first. **Run checks in proportion to risk.** Run
@@ -585,6 +612,10 @@ Semantic changes to configuration, scripts, generator inputs, executable
 examples, or app-rendered copy are not documentation-only.
 
 `./test PeriscopeMacrosTests` runs the host-side macro suite without selecting a simulator. `./test --all` and `./test --everything` include it. `./test --snapshots` alone does not.
+
+When another invocation owns the attribution, backup-upgrader, and macro tests, you can use `--skip-host-tests`.
+CircleCI delegates these checks to the required GitHub macOS job.
+Artifact consumers also skip host checks. Normal local runs retain their default checks.
 
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
@@ -607,10 +638,11 @@ generates the project or starts a simulator.
   the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit completed work eagerly.** Once a coherent change is verified, commit
-  it without waiting for a separate request. Never hand back a finished task
-  with task-related changes left local, unpushed, or uncommitted. Honor an
-  explicit request to keep work uncommitted.
+- **Commit and push completed work eagerly.** Once a coherent change is
+  verified, commit it and push the current feature branch. Do not wait for a
+  separate request. Never hand back a finished task with task-related changes
+  left local, unpushed, or uncommitted. Honor an explicit request to keep work
+  local or uncommitted.
 
 ### GitHub
 
@@ -622,6 +654,9 @@ includes GitHub replies** on the threads you touch — not code-only fixes.
 
 Use [`review-lessons`](.agents/skills/review-lessons/SKILL.md) for the monthly
 PR-history audit or an explicit review of recurring failures.
+Use [`code-review`](.agents/skills/code-review/SKILL.md) for PR or branch reviews
+and the completed-diff review before publication. It owns review procedure and evidence.
+`github-workflow` owns publication and replies.
 
 ## Codex worktree specific instructions
 
@@ -679,7 +714,8 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 
 | Check | Command |
 |-------|---------|
-| Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
+| Install the pinned tools | `mise install` (skips Tuist) |
+| Website type checks | `mise exec -- npm run check --workspaces --if-present` (install dependencies first) |
 | SwiftFormat lint | `./swiftformat --lint` |
 | Shell lint | `./shellcheck` |
 | Attribution drift | `./attribution --check` |
@@ -688,9 +724,7 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 | Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 
-Four of those rows — SwiftFormat, ShellCheck, attribution, and the Python tool
-tests — are four of the six checking steps in CI's `format` job, so a Linux agent
-can pre-flight most of it. Three portability carve-outs remain filed together in
+These commands cover much of CI's `format` job. Three portability carve-outs remain filed together in
 [`TODOs.md`](TODOs.md). They have distinct causes. One Python
 contract test pins macOS bash's `126` exit status for an unlaunchable command
 and reports `127` here. The Ruby retained-tool tests run each command under a
@@ -719,17 +753,33 @@ being written off as untestable from a cloud agent.
 ### Full build & test (macOS only)
 
 **CI runs on two systems.** GitHub Actions
-([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `format`,
-`architecture`, and `test-macos`. The `format` job is six checking steps, not
-one: ShellCheck, the retained Python and Ruby tool suites, SwiftFormat, the SF
-Symbol lint, the String Catalog lint, and the attribution check. CircleCI
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) separates lint, tool tests, and web tests:
+
+- `format` (**Lint & Formatting**) runs language linters, formatting checks, lint-rule tests, symbol and catalog checks, and attribution validation.
+- `test-tools` (**Tool Tests**) runs the Python and Ruby tool suites, CircleCI helper tests, and snapshot-plan validation.
+- `test-web` (**Web Checks & Tests**) runs Astro/TypeScript checks, web unit tests, and Flyover browser regressions.
+- `architecture` (**Bumper Bowling**) and `test-macos` (**Build & Test (macOS)**) retain their separate checks.
+
+Require the three split job statuses directly in main’s branch protection.
+The `test-macos` job installs the shared web dependencies before the host tests.
+It runs the Flyover, attribution, backup-upgrader, and macro tests.
+These required GitHub jobs run alongside the CircleCI builder. CircleCI
 ([`.circleci/config.yml`](.circleci/config.yml)) builds `build-ios-tests` once
-and attaches its products to `test-ios` and a four-way-sharded `snapshot` job,
+and attaches its products to `test-ios` and a five-way-sharded `snapshot` job,
 plus two build-only shards for **Where Beta** and **Where App Store**. The iOS
 tests moved there in PR #237 and gained the build handoff in PR #276. CircleCI
-passes `--skip-architecture` so Bumper does not run twice. Do not read either
-file as the whole of CI. PRs with `NO-CI` in their title skip both CI systems.
+passes `--skip-architecture` and `--skip-host-tests` because GitHub owns those checks.
+Do not read either file as the whole of CI. PRs with `NO-CI` in their title skip both CI systems.
 Use this marker only for prototypes and exploratory work. The marker does not
 skip pushes to `main` or manual CircleCI full-gate runs. See the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.
+
+The separate [app distribution workflow](.github/workflows/installer-distribution.yml)
+requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
+Its `installable` label is independent of the test workflows' `NO-CI` title marker.
+
+The [daily Flyover workflow](.github/workflows/flyover-daily.yml) requests unsigned
+simulator captures on CircleCI. `.github/flyover-apps.json` registers each app's
+hosted test. The existing Pages publisher includes the latest validated bundle
+under `/flyover/`, alongside the install site.

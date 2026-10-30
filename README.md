@@ -59,6 +59,13 @@ It streams progress while tests run:
 
 See `./test --help` for the rest, including `--timings` and `--review` for reading a snapshot run.
 
+GitHub Actions runs helper checks and host regression tests alongside the CircleCI iOS build.
+The CircleCI builder uses `--skip-host-tests` because the required macOS job runs the attribution, backup-upgrader, and macro tests.
+Normal local runs keep their default host checks.
+
+For a stacked branch, run the GitHub `CI` workflow manually.
+Run CircleCI with `manual_full_gate` on the same tip.
+
 CircleCI also compiles the `Where Beta` and `Where App Store` schemes on two
 build-only shards. These shards do not run tests or start a simulator.
 
@@ -165,6 +172,13 @@ You can also edit `.mise.local.toml` by hand:
 TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 ```
 
+## Remote installs through GitHub
+
+The [Where Dev distribution workflow](Where/DISTRIBUTION.md) maintains hosted install pages for `main` and PRs labeled `installable`.
+It archives optimized Where Development with ad hoc signing. GitHub Releases hosts the IPAs; Pages hosts installation and update metadata.
+Register the phones, configure signing secrets and GitHub Pages, then enable the workflow as described in the guide.
+For a local archive, use `./Where/archive --help`.
+
 ## Project structure
 
 ```
@@ -184,6 +198,7 @@ sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
 simulator           Resolve/create this checkout's simulator, boot it, print its UDID
 worktree            Check or safely fast-forward a checkout against origin/main
 profile             Report build/test hot spots (see `./profile --help`)
+flyover             Export, preview, and develop Where's native Flyover QA atlas with Astro
 flaky               Detect flaky tests, update FLAKY_TESTS.md (see `./flaky --help`)
 circleci-artifacts   Download every artifact for a CircleCI job
 snapshot-shards      Validate and rebalance snapshot suite assignments

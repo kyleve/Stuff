@@ -3,10 +3,6 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("27.0")
 
-/// The Ledger menu bar app is the only native-macOS target; everything else
-/// stays on the shared iOS destinations above.
-let macDeployment: DeploymentTargets = .macOS("26.0")
-
 /// Local Swift package (see root `Package.swift`) for the library products
 /// (WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
@@ -24,6 +20,12 @@ private let sfSafeSymbolsPackage = Package.remote(
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
 private struct WhereAudience {
+    struct Installer {
+        let appID: String
+        let repositoryURL: String
+        let feedURL: String
+    }
+
     enum Variant {
         case debug
         case release
@@ -40,6 +42,7 @@ private struct WhereAudience {
     let shareBundleID: String
     let appGroupIdentifier: String
     let primaryAppIconName: String
+    let installer: Installer?
 
     func configuration(settings: SettingsDictionary = [:]) -> Configuration {
         switch variant {
@@ -62,6 +65,11 @@ private let whereAudiences: [WhereAudience] = [
         shareBundleID: "com.stuff.where.development.share",
         appGroupIdentifier: "group.com.stuff.where.development",
         primaryAppIconName: "AppIcon",
+        installer: .init(
+            appID: "where",
+            repositoryURL: "https://github.com/kyleve/Stuff",
+            feedURL: "https://kyleve.github.io/Stuff/updates.json",
+        ),
     ),
     WhereAudience(
         schemeName: "Where Beta",
@@ -75,6 +83,7 @@ private let whereAudiences: [WhereAudience] = [
         shareBundleID: "com.stuff.where.share",
         appGroupIdentifier: "group.com.stuff.where",
         primaryAppIconName: "AppIcon",
+        installer: nil,
     ),
     WhereAudience(
         schemeName: "Where App Store",
@@ -88,6 +97,7 @@ private let whereAudiences: [WhereAudience] = [
         shareBundleID: "com.stuff.where.share",
         appGroupIdentifier: "group.com.stuff.where",
         primaryAppIconName: "AppIcon",
+        installer: nil,
     ),
 ]
 
@@ -95,6 +105,16 @@ private enum WhereHostTarget {
     case app
     case widget
     case share
+
+    /// CI supplies the UUID of each installed ad hoc profile. Empty values
+    /// retain Xcode's normal signing behavior for local development.
+    var adhocProfile: String {
+        switch self {
+            case .app: Environment.whereAdhocAppProfile.getString(default: "")
+            case .widget: Environment.whereAdhocWidgetProfile.getString(default: "")
+            case .share: Environment.whereAdhocShareProfile.getString(default: "")
+        }
+    }
 
     func bundleID(for audience: WhereAudience) -> String {
         switch self {
@@ -125,6 +145,19 @@ private func whereHostSettings(
             if case .app = target {
                 settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = .string(audience
                     .primaryAppIconName)
+                if let installer = audience.installer {
+                    settings["INSTALLER_APP_ID"] = .string(installer.appID)
+                    settings["INSTALLER_REPOSITORY_URL"] = .string(installer.repositoryURL)
+                    settings["INSTALLER_FEED_URL"] = .string(installer.feedURL)
+                    // CI's archive command overrides this with its published channel and run.
+                    settings["INSTALLER_CHANNEL"] = "local"
+                }
+            }
+            if case .debug = audience.variant, !target.adhocProfile.isEmpty {
+                settings["CODE_SIGN_STYLE[sdk=iphoneos*]"] = "Manual"
+                settings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+                settings["PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"] = .string(target
+                    .adhocProfile)
             }
             return audience.configuration(settings: settings)
         },
@@ -244,8 +277,10 @@ func unitTests(
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
+    resources: ResourceFileElements = [],
     extraPackageProducts: [String] = [],
     environmentVariables: [String: EnvironmentVariable] = [:],
+    scripts: [TargetScript] = [],
 ) -> Target {
     var dependencies: [TargetDependency] = [
         .package(product: productDependency),
@@ -262,6 +297,8 @@ func unitTests(
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
+        resources: resources,
+        scripts: scripts,
         dependencies: dependencies,
         environmentVariables: packageResourceEnvironment
             .merging(environmentVariables) { _, new in new },
@@ -489,57 +526,6 @@ let project = Project(
             ]),
         ),
         .target(
-            name: "Ledger",
-            destinations: [.mac],
-            product: .app,
-            bundleId: "com.stuff.ledger",
-            deploymentTargets: macDeployment,
-            // Full custom plist (not `.extendingDefault`) so the macOS defaults
-            // can't sneak in a `NSMainStoryboardFile` — Ledger is a pure
-            // SwiftUI/AppKit menu-bar app. `LSUIElement` keeps it out of the
-            // Dock and app switcher; it lives in the menu bar only.
-            infoPlist: .dictionary([
-                "CFBundleDevelopmentRegion": .string("en"),
-                "CFBundleExecutable": .string("$(EXECUTABLE_NAME)"),
-                "CFBundleIdentifier": .string("$(PRODUCT_BUNDLE_IDENTIFIER)"),
-                "CFBundleInfoDictionaryVersion": .string("6.0"),
-                "CFBundleName": .string("$(PRODUCT_NAME)"),
-                "CFBundlePackageType": .string("APPL"),
-                "CFBundleShortVersionString": .string("1.0"),
-                "CFBundleVersion": .string("1"),
-                "LSApplicationCategoryType": .string("public.app-category.developer-tools"),
-                "LSMinimumSystemVersion": .string("$(MACOSX_DEPLOYMENT_TARGET)"),
-                "LSUIElement": .boolean(true),
-                "NSPrincipalClass": .string("NSApplication"),
-            ]),
-            sources: ["Ledger/Ledger/Sources/**"],
-            dependencies: [
-                .package(product: "LedgerCore"),
-                .package(product: "SFSafeSymbols"),
-            ],
-            // Ledger ships no asset catalog (menu-bar icon is an SF Symbol), so
-            // clear the asset-catalog name settings the compiler otherwise
-            // looks for.
-            settings: .settings(base: [
-                "ASSETCATALOG_COMPILER_APPICON_NAME": "",
-                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
-            ]),
-        ),
-        .target(
-            name: "LedgerCoreTests",
-            // Hostless macOS unit tests — the `unitTests` helper above is
-            // iOS-only (it hosts bundles in StuffTestHost), so this target is
-            // declared directly.
-            destinations: [.mac],
-            product: .unitTests,
-            bundleId: "com.stuff.ledgercore.tests",
-            deploymentTargets: macDeployment,
-            sources: ["Ledger/LedgerCore/Tests/**"],
-            dependencies: [
-                .package(product: "LedgerCore"),
-            ],
-        ),
-        .target(
             name: "WhereTests",
             destinations: destinations,
             product: .unitTests,
@@ -663,6 +649,7 @@ let project = Project(
             bundleIdSuffix: "flyover",
             productDependency: "Flyover",
             sources: ["Shared/Flyover/Tests/**"],
+            resources: ["Shared/Flyover/Tests/Fixtures/*.json"],
         ),
         unitTests(
             name: "SnapshotKitTests",
@@ -695,10 +682,23 @@ let project = Project(
             sources: ["Where/RegionKit/Tests/**"],
         ),
         unitTests(
+            name: "InstallerKitUITests",
+            bundleIdSuffix: "installerkitui",
+            productDependency: "InstallerKitUI",
+            sources: ["Shared/InstallerKitUI/Tests/**"],
+        ),
+        unitTests(
+            name: "InstallerKitTests",
+            bundleIdSuffix: "installerkit",
+            productDependency: "InstallerKit",
+            sources: ["Shared/InstallerKit/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
-            sources: ["Where/WhereCore/Tests/**"],
+            sources: ["Where/WhereCore/Tests/**/*.swift"],
+            resources: [.folderReference(path: "Where/WhereCore/Tests/Fixtures/Flights")],
             extraPackageProducts: ["RegionKit"],
         ),
         // WhereUITests names LifecycleKit and SFSafeSymbols because its test sources
@@ -715,7 +715,9 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit", "SFSafeSymbols"],
+            // The parser initializes SwiftUI accessibility for hosted interaction tests,
+            // including on fresh CI simulators with no accessibility tooling attached.
+            extraPackageProducts: ["AccessibilitySnapshotParser", "LifecycleKit", "SFSafeSymbols"],
         ),
         // WhereIntents depends on WhereUI for its snippet cards, so — exactly like
         // WhereUITests above — this bundle lists no `extraPackageProducts`:
@@ -738,8 +740,8 @@ let project = Project(
         // module's image suite should link only what that module needs: the
         // Periscope and Inspector suites don't build against WhereUI
         // at all. Each records its references beside its own sources —
-        // swift-snapshot-testing derives the `__Snapshots__` directory from the
-        // calling file's `#filePath`, which `assertSnapshots` threads through.
+        // SnapshotKitTesting derives the suite directory from the calling
+        // file's `#filePath` and nests special trait references under `other/`.
         //
         // Separate bundles are safe here because each `.xctest` gets its own
         // `StuffTestHost` process: measured on Xcode 27 by probing
@@ -771,6 +773,30 @@ let project = Project(
             sources: ["Where/WhereUI/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
             environmentVariables: snapshotEnvironment,
+        ),
+        unitTests(
+            name: "InstallerKitUISnapshotTests",
+            bundleIdSuffix: "installerkitui.snapshot",
+            productDependency: "InstallerKitUI",
+            sources: ["Shared/InstallerKitUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
+        ),
+        unitTests(
+            name: "ToolsSnapshotTests",
+            bundleIdSuffix: "tools.snapshot",
+            productDependency: "SnapshotKitTesting",
+            sources: ["Tools/SnapshotTests/**"],
+            environmentVariables: snapshotEnvironment,
+            scripts: [.post(
+                script: """
+                cd "$SRCROOT"
+                PYTHONDONTWRITEBYTECODE=1 python3 -m Tools.Tests.Fixtures.installer_update_site_snapshots \\
+                    --output "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InstallerSiteSnapshots.json"
+                """,
+                name: "Generate install-site snapshot fixtures",
+                basedOnDependencyAnalysis: false,
+            )],
         ),
         unitTests(
             name: "FlyoverSnapshotTests",
@@ -856,22 +882,6 @@ let project = Project(
             buildAction: .buildAction(targets: ["RegionViewer"]),
             runAction: .runAction(executable: "RegionViewer"),
         ),
-        .scheme(
-            name: "Ledger",
-            shared: true,
-            buildAction: .buildAction(targets: ["Ledger"]),
-            runAction: .runAction(executable: "Ledger"),
-        ),
-        // The workspace mixes iOS targets and the macOS-only Ledger targets, so
-        // CI drives two platform-scoped schemes — no single xcodebuild
-        // destination can build both. The macOS-only Ledger scheme runs in its
-        // own `test-macos` CI job (see .github/workflows/ci.yml).
-        .scheme(
-            name: "Ledger-macOS-Tests",
-            shared: true,
-            buildAction: .buildAction(targets: ["Ledger", "LedgerCoreTests"]),
-            testAction: .targets(["LedgerCoreTests"]),
-        ),
         // CI scheme. Rather than the autogenerated `Stuff-Workspace` scheme,
         // CI drives this explicit aggregate of every buildable/testable target
         // (see .github/workflows/ci.yml).
@@ -895,6 +905,8 @@ let project = Project(
                 "SnapshotKitTests",
                 "SnapshotKitTestingTests",
                 "RegionKitTests",
+                "InstallerKitTests",
+                "InstallerKitUITests",
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
@@ -919,6 +931,8 @@ let project = Project(
                     "SnapshotKitTests",
                     "SnapshotKitTestingTests",
                     "RegionKitTests",
+                    "InstallerKitTests",
+                    "InstallerKitUITests",
                     "WhereCoreTests",
                     "WhereTests",
                     "WhereUITests",
@@ -930,7 +944,6 @@ let project = Project(
                 arguments: .arguments(environmentVariables: packageResourceEnvironment),
             ),
         ),
-        testScheme(name: "LedgerCoreTests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),
@@ -944,6 +957,8 @@ let project = Project(
         testScheme(name: "SnapshotKitTests"),
         testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
+        testScheme(name: "InstallerKitTests"),
+        testScheme(name: "InstallerKitUITests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
@@ -961,6 +976,8 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "WhereUISnapshotTests",
+                "ToolsSnapshotTests",
+                "InstallerKitUISnapshotTests",
                 "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
                 "InspectorSnapshotTests",
@@ -968,6 +985,8 @@ let project = Project(
             testAction: .targets(
                 [
                     "WhereUISnapshotTests",
+                    "ToolsSnapshotTests",
+                    "InstallerKitUISnapshotTests",
                     "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
                     "InspectorSnapshotTests",

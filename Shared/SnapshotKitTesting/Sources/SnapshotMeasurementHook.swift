@@ -13,12 +13,18 @@ private enum SnapshotMeasurementHookResult {
 @_spi(Testing) public func runSnapshotMeasurementHook(
     named name: String,
     maximumDuration: TimeInterval,
-    hook: @MainActor @escaping () async -> Void,
+    hook: @MainActor @escaping () async throws -> Void,
 ) async throws {
     try Task.checkCancellation()
-    let result = await withTaskGroup(of: SnapshotMeasurementHookResult.self) { group in
+    guard maximumDuration.isFinite, maximumDuration > 0 else {
+        throw SnapshotRenderingError.invalidMeasurementHookTimeout(
+            name: name,
+            budget: maximumDuration,
+        )
+    }
+    let result = try await withThrowingTaskGroup(of: SnapshotMeasurementHookResult.self) { group in
         group.addTask {
-            await hook()
+            try await hook()
             return .completed
         }
         group.addTask {
@@ -30,9 +36,8 @@ private enum SnapshotMeasurementHookResult {
             }
         }
 
-        let first = await group.next() ?? .cancelled
-        group.cancelAll()
-        return first
+        defer { group.cancelAll() }
+        return try await group.next() ?? .cancelled
     }
 
     try Task.checkCancellation()

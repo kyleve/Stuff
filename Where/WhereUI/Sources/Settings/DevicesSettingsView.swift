@@ -151,7 +151,7 @@ extension DevicesSettingsView: SettingsSection {
             let permissionRequiredSession = PreviewSupport.whenInUseSession()
             whereSnapshot(
                 name: "Default",
-                configurations: .screenDefaults,
+                configurations: .screenRepresentative,
                 onReadyToSnapshot: { await session.start() },
             ) {
                 NavigationStack {

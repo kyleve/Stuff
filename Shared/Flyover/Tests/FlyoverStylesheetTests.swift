@@ -29,7 +29,7 @@ struct FlyoverStylesheetTests {
         #expect(style.depthBand.ruleWidth == 1)
     }
 
-    @Test func groupAndScreenDefaults() {
+    @Test func groupAndScreenRepresentative() {
         #expect(style.group.cornerRadius == 28)
         #expect(style.group.fill == Color(.systemBackground))
         #expect(style.group.fillOpacity == 0.75)

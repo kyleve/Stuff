@@ -1,0 +1,6 @@
+---
+import { channelLabel, type App, type ActiveChannel } from '../data';
+interface Props { app: App; channel: ActiveChannel }
+const { app, channel } = Astro.props;
+---
+<a class="install" aria-label={'Install ' + app.name + ' · ' + channelLabel(channel)} href={channel.installURL}>Install</a>

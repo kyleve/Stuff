@@ -52,3 +52,6 @@ set_key WhereGitStatus "$status"
 set_key WhereConfiguration "${CONFIGURATION:-unknown}"
 set_key WhereSwiftOptimizationLevel "${SWIFT_OPTIMIZATION_LEVEL:-unknown}"
 set_key WhereSwiftCompilationMode "${SWIFT_COMPILATION_MODE:-unknown}"
+
+# Shared installer identity is stamped before the app is signed.
+bash "$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh"

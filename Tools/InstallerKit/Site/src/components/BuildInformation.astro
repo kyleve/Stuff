@@ -1,0 +1,18 @@
+---
+import { site, channelLabel, type App, type ActiveChannel } from '../data';
+import PublishedDate from './PublishedDate.astro';
+interface Props { app: App; channel: ActiveChannel }
+const { app, channel } = Astro.props;
+const release = channel.release;
+const github = 'https://github.com/' + site.repository;
+const source = github + (channel.name === 'main' ? '/tree/main' : '/pull/' + channel.name.slice(3));
+---
+<section class="information"><h2>Information</h2><dl>
+  <div><dt>Channel</dt><dd><a href={source}>{channelLabel(channel)}</a></dd></div>
+  {channel.name !== 'main' && <div><dt>Pull request</dt><dd><a href={source}>#{channel.name.slice(3)}</a></dd></div>}
+  <div><dt>Published</dt><dd><PublishedDate date={release.publishedAt} includeYear={true}/> at {release.publishedAt.slice(11, 16)} UTC</dd></div>
+  <div><dt>Build</dt><dd>{release.bundleVersion}</dd></div>
+  <div><dt>Workflow run</dt><dd><a href={github + '/actions/runs/' + release.id.run + '/attempts/' + release.id.attempt}>{release.id.run} · Attempt {release.id.attempt}</a></dd></div>
+  <div><dt>Commit</dt><dd><a href={github + '/commit/' + release.sha}><code>{release.sha.slice(0, 12)}</code></a></dd></div>
+  <div><dt>Bundle ID</dt><dd>{app.bundleIdentifier}</dd></div>
+</dl></section>

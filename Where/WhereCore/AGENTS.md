@@ -21,6 +21,10 @@ internal shape.
 
 ## Shape & invariants
 
+- Use InstallerKit for local and published build identity, feed validation, and cache policy.
+  Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
+  installer identity only for the Development audience.
+
 - **`WhereServices` is the composition root, not a god-object.** It wires
   focused single-responsibility collaborators (the live list is its
   initializer. `README.md` describes them). It owns the one
@@ -129,8 +133,12 @@ internal shape.
   assessment and review retain raw observations. Pin live attribution to the
   tracked set in the same store snapshot.
 - **Read related year projections from one samples snapshot.** Use
-  `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
-  report and primary-region locations.
+  `ReportReader.yearReportDetails(for:)` for the scene's report, configured
+  primary set, primary-region locations, and Elsewhere evidence.
+- **Elsewhere is a read-only projection.** `ElsewhereResolver` expands ordinary
+  Other coordinates against the catalog on its actor. Preserve explicit sample
+  corrections and manual assertions. Never write inferred names back to reports,
+  calendars, or widget totals. Load full-catalog geometry only on demand.
 - **`LocationSource` abstracts GPS.** `CoreLocationSource` runs in production.
   `ScriptedLocationSource` runs in tests/previews. `requestCurrentLocation()`
   returns a typed, nonthrowing outcome and coalesces concurrent waiters without
@@ -167,6 +175,9 @@ internal shape.
 - **Location-card history is non-authoritative preference state.** Keep its
   snapshots year-keyed by stable `Region` id. Clear them through
   `WherePreferences.reset()`. Current report totals remain the source of truth.
+- Keep calendar zoom choices device-local and outside backup archives. Use stable `CalendarZoomKey` namespaces and clear all of them through `WherePreferences.reset()`. Guards: `CalendarZoomKeyTests`, `WherePreferencesTests`.
+- Keep welcome history in one encoded preference. Distinguish missing history from an explicit reset with no saved region.
+  Keep it outside backup archives. Guard: `WherePreferencesTests`.
 - **Keep diagnostic reporting intent in one encoded composite preference.** Keep crash,
   replay, remote threshold, and export policy vendor-neutral. Invalid stored
   values assert in Debug and resolve remote logging Off. Reset removes every reporting key.
@@ -209,6 +220,12 @@ a fix; never start passive monitoring in those tests. The CloudKit remote-import
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
 `@testable import WhereCore`.
+
+Keep raw flight archives and export configurations outside Git. Preserve the complete selected GPS window before minimizing a regression.
+Verify transformation fidelity with `FlightFixtureExporterTests` and write expected flight behavior independently of detector output.
+Require explicit `coordinateMode: preserve` to export original coordinates. Keep coordinate provenance in the JSON fixture's `coordinates` field.
+Keep recorded windows in `Tests/Fixtures/Flights/` as `RecordedFlightFixture` JSON. Load them from the test bundle and keep expected behavior in Swift tests.
+The [recorded-fixture procedure](README.md#recorded-flight-fixtures) covers extraction and publication.
 
 `InMemoryKeyValueStore` and the noop schedulers/refreshers are plain `public`
 production API, not test scaffolding. Demo mode assembles a session out of

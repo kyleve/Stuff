@@ -6,6 +6,22 @@ import Testing
 struct FlightPointCorrectionAssessmentTests {
     private typealias F = FlightTrajectoryFixtures
 
+    @Test func uncertainArrivalOffersOnlySupportedAirborneIdentities() throws {
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            F.sample(4, minutes: 4320, east: 4000),
+            F.sample(5, minutes: 4325, east: 4000),
+            F.sample(6, minutes: 4330, east: 4000),
+        ]
+        let reviews = SampleCorrectionAssessmentFixtures.reviews(samples, now: samples[5].timestamp)
+        let review = try #require(reviews.first { $0.proposal != nil })
+        #expect(review.flights.first?.progress.arrival?.isTimingUncertain == true)
+        #expect(review.proposal?.edits.map(\.sampleID) == [samples[1].id])
+        #expect(review.pointCorrections.map(\.sampleID) == [samples[1].id])
+    }
+
     @Test func completedFlightOffersUncertainEndpointsAsExplicitDecisions() throws {
         let trace = F.turningFlight()
         let review = try #require(SampleCorrectionAssessmentFixtures.reviews(

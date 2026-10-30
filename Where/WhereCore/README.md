@@ -103,12 +103,16 @@ one it belongs to rather than to a god-object:
 ### Reads & aggregation
 
 - **`ReportReader`** — the pure read path: `yearReport(for:)`, the one-read
-  `yearReportDetails(for:primaryRegionCount:)` bundle used by the scene, the
+  `yearReportDetails(for:)` bundle used by the scene, the
   year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
-  `YearReportDetails` keeps the aggregate report and its primary-region effective
-  locations on the same samples snapshot, including location-only changes that
-  do not alter day totals.
+  `YearReportDetails` keeps the aggregate report, configured primary set, effective
+  locations, and `ElsewhereInput` on one store snapshot. Its identity includes
+  location-only changes that do not alter day totals.
+- **`ElsewhereResolver`** — an injected actor that lazily resolves ordinary Other
+  coordinates against the existing catalog. Its `ElsewhereReport` keeps distinct
+  days and map points together. Explicit corrections and manual assertions win.
+  The projection does not change stored data, annual reports, or widget totals.
 - **`YearReport` / `YearReportDetails` / `DayPresence` /
   `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
   renders, each keyed by a
@@ -178,7 +182,8 @@ one it belongs to rather than to a god-object:
   Applying or dismissing those edits leaves the pending flight review available without an actionable count.
   Dismissing a ready suggestion with no pending flights hides its review and live notice.
   `DataIssueScanResult.completedFlights` retains historical flights independently of review dismissal.
-  `FlightAssessment.completedDays(in:)` includes every local day from departure through confirmed arrival.
+  `FlightAssessment.completedDays(in:)` includes only days covered by supported travel intervals.
+  Unsupported gaps and later ground observations do not add flight days.
   Calendar builders accept these days through their explicit `flightDays` argument.
   Pending and completed informational reviews remain accessible.
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
@@ -190,20 +195,55 @@ one it belongs to rather than to a god-object:
   the shared inference limits: three anchors spanning three minutes, with each
   leg's uncertainty-adjusted average speed at 450–1,500 km/h. Arrival requires
   three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
+  `FlightGroundInference` also accepts bounded sparse stationary observations and measured slow ground travel.
+  The policy keeps their duration, gap, accuracy, and sensor requirements explicit.
   `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
   `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
 
-  A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
+  `FlightAssessment.Progress.completed` carries typed `Arrival` evidence, including its confirmation time.
+  Ground first observed over 30 minutes after supported travel produces `uncertainTiming`.
+  That flight remains in history. Only independently supported airborne points remain eligible for exclusion.
+  Existing exclusions in the arrival gap remain reversible through restoration-only reviews, without adding flight days.
+  `supportedIntervals` retains observed motion and corroborated displacement separately.
+  `supportedPeriods` coalesces touching intervals for display without filling gaps.
+
+  A qualifying ground episode confirms the trip ended. The 30-minute freshness limit
   only changes live-notice presentation. Cruise inference uses positional
   movement. Reported speed can veto ground dwell, and altitude is context only.
-  Missing or stale updates never establish arrival. Slower aircraft and sparse
+  Missing or stale updates never establish arrival. Slower aircraft and uncorroborated
   recordings can remain uncertain.
+
+  `FlightDisplacementInference` also recognizes sparse journeys from distance and elapsed time.
+  Both endpoints need independent nearby observations from the same recording device.
+  The search spans intervening fixes and stops at confirmed ground episodes.
+  Recognition accepts up to 1 km horizontal uncertainty; observed cruise and point corrections retain the 250 m limit.
+  Travel must span at least five minutes, with an uncertainty-adjusted average speed of 450–1,500 km/h.
+  Speed comes from the distance and elapsed time between positions, including both endpoints' uncertainty.
+  The gap must not exceed 18 hours. Each supporting observation must be within 30 minutes and 100 km of its endpoint.
+  It must also be closer to its own endpoint than the opposite endpoint after uncertainty is included.
+  This prevents alternating short GPS jumps from corroborating one another.
+
+  Conflicting dense callbacks veto this inference. Reported speed and altitude are not required.
+  Stationary speed readings at the endpoints do not describe the travel between them.
+  This evidence joins observed cruise segments before arrival and trip boundaries are resolved.
+  It establishes flight history without classifying the gap or its endpoints as airborne.
+  Automatic point exclusions still require observed cruise evidence. Explicit reviewed point decisions remain available after confirmed arrival.
 
   `FlightEndpointInference` can corroborate a resumed cruise endpoint through
   reported speed or a bounded recording gap followed by sustained cruise.
   Slow sensor readings veto this inference. The gap remains unknown and never
   becomes an observed motion leg. Each inferred endpoint carries its reason
   into the correction review.
+
+  `FlightTrajectoryGenerator` builds synthetic journeys and then simulates GPS observations.
+  The analyzer tests run 1,000 fixed seeds per profile by default: 12,000 journeys across twelve profiles.
+  These include short sparse flights and stationary journeys with brief clusters of remote GPS errors.
+  Replay a failure with
+  `TEST_RUNNER_WHERE_FLIGHT_FUZZ_PROFILE` and `TEST_RUNNER_WHERE_FLIGHT_FUZZ_SEED`.
+  Run the suite with `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests`.
+  Use `TEST_RUNNER_WHERE_FLIGHT_FUZZ_COUNT` to override the count for a focused run.
+  Failures report the seed, sampling parameters, and synthetic trace.
+  Recorded regressions use the [flight fixture export procedure](#recorded-flight-fixtures).
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
@@ -271,8 +311,14 @@ one it belongs to rather than to a god-object:
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
   live-region welcome, and estimated-time/planning visibility) plus the
-  year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
-  continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
+  year-keyed Location-card counts, welcome history, and recording-warning generation used for presentation
+  continuity, behind a `KeyValueStore`. Missing welcome history requires a quiet initial baseline.
+  Calendar zoom choices use caller-supplied `CalendarZoomKey` namespaces. Your Year and each
+  region have independent keys. Missing or invalid entries leave the caller's initial mode intact.
+  `reset()` clears every calendar zoom namespace, including custom keys.
+  An explicit developer reset retains a history value with no region, which permits a greeting.
+  These preferences stay outside the backup archive. The former welcome-region key does not seed the new history.
+  It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
   this configuration directly. Invalid data keeps the channel defaults. Invalid data
@@ -285,6 +331,12 @@ one it belongs to rather than to a god-object:
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing. Recording confirmation is deliberately absent:
   it lives beside the non-backed-up installation identity instead.
+- **Installer updates** — `BuildInfo.distribution` exposes InstallerKit's signed
+  `InstalledBuild` only for the Development audience, including explicitly configured local builds.
+  `WherePreferences` implements
+  `UpdatePreferencesStoring` with a device-local `installerUpdates` value.
+  [InstallerKit](../../Shared/InstallerKit/README.md) owns catalog validation,
+  update selection, request throttling, and cache policy.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
   version, build number, the commit the app was built from, and how the Swift
@@ -348,10 +400,10 @@ let services = try await WhereServices.make(
 let report = try await services.reports.yearReport(for: 2026)
 
 // Read the scene's aggregate and primary-region recorded fixes together.
-let details = try await services.reports.yearReportDetails(
-    for: 2026,
-    primaryRegionCount: 2,
-)
+let details = try await services.reports.yearReportDetails(for: 2026)
+
+// Resolve named non-primary visits when the Elsewhere tab needs them.
+let elsewhere = try await services.elsewhere.resolve(details.elsewhereInput)
 
 // Write a manual day (the caller supplies the ManualEntryAudit); the journal
 // commits, then reconciles reminders + widgets.
@@ -425,3 +477,84 @@ requires those seams instead: naming the real world is the composition root's
 job, not something a caller falls into by omission.
 
 Calendar-day persistence keys use `CalendarDay.iso8601` (`YYYY-MM-DD`); diagnostic `description` is not a storage API.
+
+### Recorded flight fixtures
+
+The recorded corpus covers sparse displacement, legacy recordings with mixed sampling, interrupted cruise with a turning approach, and late cruise resumption.
+Each JSON fixture in `Tests/Fixtures/Flights/` retains its complete selected window, including ground travel and duplicate callbacks.
+The analyzer regressions check flight recognition, positive arrival evidence, supported days, and protection of ground points.
+They also check reordered delivery, repeated callbacks, and removal of arrival evidence.
+
+The recorded cruise regression checks live progress, stale observations, and arrival confirmation from successive callback prefixes.
+`RecordedFlightArchiveFixture` packages that complete window with replacement device metadata and fixed test regions.
+The correction regression imports this archive, applies reviewed exclusions, and checks the report and preservation of ground points and raw samples.
+These checks run in ordinary CI without a private backup or replay configuration.
+
+`RecordedFlightFixture` uses synthesized `Codable` with the existing `LocationSample` representation.
+Its JSON contains `coordinates` (`rotated` or `original`), `now`, and the ordered `samples` array.
+Fixture dates use Foundation's default Codable representation: seconds since January 1, 2001 UTC.
+This representation preserves timestamp precision without conversion to another epoch.
+The encoder preserves nonfinite sensor values as `NaN`, `Infinity`, or `-Infinity` strings.
+The JSON contains observations only. Swift tests keep the independently reviewed expectations.
+`Project.swift` copies the `Flights` folder into `WhereCoreTests.xctest`, including for CI workers that receive prebuilt products.
+A missing or malformed fixture throws an error.
+
+```swift
+let fixture = try RecordedFlightFixture.load(.sparse)
+let flights = FlightTrajectoryAnalyzer().analyze(samples: fixture.samples, now: fixture.now)
+```
+
+`FlightFixtureExporterTests.exportArchiveFixtureOnRequest` extracts GPS callbacks from a current-format backup through `BackupService`.
+It applies device-removal cutoffs and selects the half-open interval `[from, until)`.
+It retains callback order, duplicates, conflicting identities, accuracy, motion readings, and device boundaries.
+Manual and evidence-derived samples are outside this GPS-only fixture.
+
+The exporter replaces sample and device IDs and shifts every timestamp by one constant.
+By default, it rotates all coordinates together. The rotation preserves spherical distances, including across the date line and near the poles.
+The optional `coordinateMode` accepts `rotate` or `preserve`. Preserve mode copies the original coordinates exactly, so RegionKit attribution and boundary distances remain unchanged.
+Both modes omit the input path and replace IDs. The JSON `coordinates` field identifies whether coordinates are original or rotated.
+The date shift depends on `replacementStart`; coordinate preservation does not disable it.
+Route shape, timing, accuracy, and sensor values remain recognizable characteristics. Review the output before publishing it.
+
+1. Keep the backup and export configuration outside the checkout.
+   Upgrade an old backup with [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) first.
+2. Select a window with departure support, arrival observations, and any relevant layover.
+   Keep the complete window before reducing a failure to a smaller example.
+3. Save a local JSON configuration. Dates are Unix seconds. This example uses invented dates and paths:
+
+   ```json
+   {
+     "backupPath": "/private/tmp/where-backup.zip",
+     "from": 1767225600,
+     "until": 1767312000,
+     "now": 1767398400,
+     "replacementStart": 1577836800,
+     "replacementOrigin": {"latitude": 15, "longitude": -30},
+     "outputPath": "/private/tmp/sparse-flight.json"
+   }
+   ```
+
+   For original coordinates, add `"coordinateMode": "preserve"` and remove `replacementOrigin`.
+   For rotation, omit `coordinateMode` or set it to `"rotate"`, and supply `replacementOrigin`.
+   The exporter rejects a missing rotation origin or an origin supplied with preserve mode.
+   Preserve mode publishes the selected coordinates unchanged in the JSON file.
+
+4. Run from the repository root:
+
+   ```sh
+   TEST_RUNNER_WHERE_FLIGHT_FIXTURE_EXPORT_CONFIG=/private/tmp/flight-export.json \
+     ./test --only WhereCoreTests/FlightFixtureExporterTests
+   ```
+
+   The export stops if transformation or JSON decoding changes flight recognition, arrival evidence, supported intervals, or correction identities.
+   It also refuses to overwrite an existing output file.
+   These checks verify transformation fidelity. They do not establish the correct flight result.
+5. Review the generated JSON file. For calendar failures, select a replacement date that retains the relevant boundary.
+   Coordinate rotation does not preserve country or state attribution. Use preserve mode when a regression needs the original RegionKit geometry.
+6. Copy the reviewed JSON file into `Tests/Fixtures/Flights/`.
+   Add its filename stem to `RecordedFlightFixture.Name`.
+   Add a named regression in `FlightTrajectoryAnalyzerTests.swift` with independently reviewed expectations.
+   Assert flight count, arrival evidence, supported days, airborne identities, and protected ground points as applicable.
+   Use `sparse-flight.json` and `recordedSparseFlightRetainsRecognitionWithoutInventingAirbornePoints` as an example.
+7. Run `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests` with the export configuration unset.
+   The bundled JSON fixture runs in ordinary CI without the private archive or export configuration.

@@ -10,6 +10,8 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Guards: `SampleCorrectionCoordinatorTests` and `SampleCorrectionAssessmentTests`.
 - Offer explicit point corrections only within completed flights on the same recording device.
   Recheck the full review before inclusion or restoration. Write a newer reset revision to restore GPS attribution.
+  With uncertain arrival timing, offer exclusions only for independently supported airborne identities.
+  Retain restoration-only reviews for existing exclusions through the first ground observation; never add their unsupported days to flight indicators.
   Preserve pending-flight points, authoritative days, and conflicting identities. Guard: `FlightPointCorrectionAssessmentTests`.
 - Retain immutable attribution revisions, including revisions that arrive before their samples.
   Preserve bare UUID encoding and use `SampleAttributionRevision.nextUpdatedAt` for correction and reset writes.

@@ -13,7 +13,9 @@ FORMAT_VERSION = 2
 
 
 def command_output(*command):
-    return subprocess.run(command, capture_output=True, check=True, text=True).stdout.strip()
+    return subprocess.run(
+        command, capture_output=True, check=True, text=True
+    ).stdout.strip()
 
 
 def environment_metadata():
@@ -67,9 +69,13 @@ def load_and_validate(root, metadata=None):
     try:
         manifest = json.loads(manifest_path.read_text())
     except FileNotFoundError as error:
-        raise ValueError(f"test artifact manifest does not exist: {manifest_path}") from error
+        raise ValueError(
+            f"test artifact manifest does not exist: {manifest_path}"
+        ) from error
     except json.JSONDecodeError as error:
-        raise ValueError(f"test artifact manifest is not valid JSON: {error}") from error
+        raise ValueError(
+            f"test artifact manifest is not valid JSON: {error}"
+        ) from error
 
     if manifest.get("formatVersion") != FORMAT_VERSION:
         raise ValueError(
@@ -100,7 +106,10 @@ def load_and_validate(root, metadata=None):
 
     products_root = (root / products_root_value).resolve()
     built_products = (root / built_products_value).resolve()
-    for name, path in (("products root", products_root), ("built products", built_products)):
+    for name, path in (
+        ("products root", products_root),
+        ("built products", built_products),
+    ):
         if not path.is_relative_to(root):
             raise ValueError(f"test {name} path leaves the artifact root: {path}")
         if not path.is_dir():
@@ -210,7 +219,9 @@ def main():
     try:
         if args.command == "create":
             manifest = create_manifest(args.root, args.scheme)
-            print(f"Created {args.root / 'manifest.json'} for {len(manifest['schemes'])} schemes")
+            print(
+                f"Created {args.root / 'manifest.json'} for {len(manifest['schemes'])} schemes"
+            )
         elif args.command == "resolve":
             print(resolved_path(args.root, args.scheme, args.field))
         elif args.command == "resolve-all":

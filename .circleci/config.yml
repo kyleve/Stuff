@@ -1,15 +1,45 @@
 version: 2.1
 
 parameters:
+  flyover_export:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+  flyover_sha:
+    type: string
+    default: ""
   manual_full_gate:
     type: enum
     enum: ["false", "true"]
     default: "false"
 
+  installer_archive:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+  installer_app:
+    type: string
+    default: ""
+  installer_sha:
+    type: string
+    default: ""
+  installer_channel:
+    type: string
+    default: ""
+  installer_run:
+    type: string
+    default: ""
+  installer_attempt:
+    type: string
+    default: ""
+  installer_feed_url:
+    type: string
+    default: ""
+
 executors:
   m4-pro-medium:
     macos:
-      xcode: "27.0"
+      xcode: "27.1"
     resource_class: m4pro.medium
     shell: /bin/bash --login -eo pipefail
     environment:
@@ -18,7 +48,7 @@ executors:
       GIT_LFS_SKIP_SMUDGE: "1"
   m4-pro-large:
     macos:
-      xcode: "27.0"
+      xcode: "27.1"
     resource_class: m4pro.large
     shell: /bin/bash --login -eo pipefail
     environment:
@@ -61,18 +91,6 @@ commands:
             mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
             chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
 
-  test_ci_helpers:
-    steps:
-      - run:
-          name: Test CI helpers
-          command: |
-            ./shellcheck
-            python3 .circleci/Tests/test_xcresult_to_junit.py
-            python3 .circleci/Tests/test_test_artifacts.py
-            python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
-            mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
-            ./snapshot-shards check
-
   validate_build_environment:
     steps:
       - run:
@@ -93,9 +111,9 @@ commands:
 
             echo "Checkout: $(git rev-parse HEAD)"
             echo "Origin: $(git remote get-url origin)"
-            if git config --local --get-regexp 'credential|extraheader' >/tmp/git-credential-config.txt 2>/dev/null; then
-              echo "Unexpected persisted Git credential configuration:" >&2
-              sed -E 's/(authorization:).*/\1 [REDACTED]/I' /tmp/git-credential-config.txt >&2
+            if git config --local --name-only --get-regexp 'credential|extraheader' >/tmp/git-credential-config.txt 2>/dev/null; then
+              echo "Unexpected persisted Git credential configuration keys:" >&2
+              cat /tmp/git-credential-config.txt >&2
               exit 1
             fi
 
@@ -124,7 +142,7 @@ commands:
     parameters:
       test_workdir:
         type: string
-      run_ci_helper_tests:
+      use_caches:
         type: boolean
         default: true
       require_simulator:
@@ -132,15 +150,18 @@ commands:
         default: true
     steps:
       - checkout_without_lfs
-      - restore_cache:
-          keys:
-            - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
-      - restore_cache:
-          keys:
-            - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
-      - restore_cache:
-          keys:
-            - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - restore_cache:
+                keys:
+                  - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+            - restore_cache:
+                keys:
+                  - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+            - restore_cache:
+                keys:
+                  - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
       - run:
           name: Install pinned tools
           command: |
@@ -149,16 +170,18 @@ commands:
             fi
             mise trust .mise.toml
             mise install
-      - save_cache:
-          key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
-          paths:
-            - ~/.local/share/mise/installs
+      - run:
+          name: Install site dependencies
+          command: mise exec -- npm ci
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - save_cache:
+                key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+                paths:
+                  - ~/.local/share/mise/installs
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
-      - when:
-          condition: << parameters.run_ci_helper_tests >>
-          steps:
-            - test_ci_helpers
       - run:
           name: Generate project and resolve Swift packages
           command: |
@@ -173,14 +196,17 @@ commands:
               tail -n 20 "$TEST_WORKDIR/generate.log" >&2
               exit "$status"
             fi
-      - save_cache:
-          key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
-          paths:
-            - ~/Library/Caches/org.swift.swiftpm/repositories
-      - save_cache:
-          key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
-          paths:
-            - ~/Library/Caches/org.swift.swiftpm/artifacts
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - save_cache:
+                key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+                paths:
+                  - ~/Library/Caches/org.swift.swiftpm/repositories
+            - save_cache:
+                key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+                paths:
+                  - ~/Library/Caches/org.swift.swiftpm/artifacts
       - validate_build_environment
       - when:
           condition: << parameters.require_simulator >>
@@ -281,26 +307,101 @@ commands:
                     cp "$image" "$destination"
                   done
             fi
-            find diagnostics "<< parameters.test_workdir >>" -maxdepth 3 | head -200
+            find diagnostics "<< parameters.test_workdir >>" -maxdepth 3 | sed -n '1,200p'
       - store_artifacts:
           path: diagnostics
           destination: << parameters.artifact_name >>/diagnostics
 
 jobs:
+  export-flyover:
+    executor: m4-pro-medium
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FLYOVER_SOURCE_SHA: << pipeline.parameters.flyover_sha >>
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+    steps:
+      - prepare_builder:
+          test_workdir: .build/flyover-ci-tests
+          # Published artifacts must not execute tools cached by PR builds.
+          use_caches: false
+      - run_with_timeout:
+          step_name: Capture registered Flyover apps
+          seconds: 3600
+          command: python3 -m Tools.flyover_ci --output .build/flyover-ci/atlases.zip
+      - store_artifacts:
+          path: .build/flyover-ci/atlases.zip
+          destination: flyover/atlases.zip
+      - collect_diagnostics:
+          test_workdir: .build/flyover-ci-tests
+          artifact_name: flyover
+  archive-app:
+    executor: m4-pro-medium
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      RUNNER_TEMP: /tmp/installer-archive
+      INSTALLER_SIGNING_DIR: /tmp/installer-archive/installer-signing-material
+      INSTALLER_APP_ID: << pipeline.parameters.installer_app >>
+      INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_REPOSITORY_URL: https://github.com/<< pipeline.config.repository.name >>
+      INSTALLER_BUILD_SHA: << pipeline.parameters.installer_sha >>
+      INSTALLER_CHANNEL: << pipeline.parameters.installer_channel >>
+      INSTALLER_RUN: << pipeline.parameters.installer_run >>
+      INSTALLER_ATTEMPT: << pipeline.parameters.installer_attempt >>
+      INSTALLER_FEED_URL: << pipeline.parameters.installer_feed_url >>
+    steps:
+      # Both the pipeline config and this control checkout come from main.
+      # The context restriction must enforce this outside branch-editable YAML.
+      - checkout_without_lfs
+      - validate_build_environment
+      - run:
+          name: Recheck eligibility and checkout the exact source commit
+          command: |
+            umask 077
+            mkdir -p "$RUNNER_TEMP"
+            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
+            cmp .xcode-build-version "$RUNNER_TEMP/source/.xcode-build-version"
+      - run:
+          name: Install archive tools
+          command: |
+            if ! command -v mise >/dev/null 2>&1; then
+              brew install mise
+            fi
+            mise trust .mise.toml
+            mise install
+            BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
+            (cd "$RUNNER_TEMP/source" && mise trust .mise.toml && mise install)
+      - run:
+          name: Install temporary signing material
+          command: bash .github/installer-signing.sh prepare
+      - run:
+          name: Archive and export selected app
+          no_output_timeout: 45m
+          command: |
+            ./signing archive --app "$INSTALLER_APP_ID" --source "$RUNNER_TEMP/source" --output "$RUNNER_TEMP/output"
+      - run:
+          name: Validate the signed archive against the request
+          command: python3 -m Tools.InstallerKit.circleci_archive stage "$RUNNER_TEMP/output"
+      - run:
+          name: Remove temporary signing material
+          when: always
+          command: bash .github/installer-signing.sh cleanup
+      - store_artifacts:
+          path: /tmp/installer-archive/output/app.ipa
+          destination: installer/app.ipa
+
   build-ios-tests:
     executor: m4-pro-large
     steps:
       - prepare_builder:
           test_workdir: test-output-build
-      - run:
-          name: Test backup upgrader
-          command: mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+      # GitHub's required format and macOS jobs own helper and host tests.
+      # Start the shared simulator build without waiting for those checks.
       - run_with_timeout:
           seconds: 2700
           command: >-
             ./test --everything
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --no-generate --skip-architecture
+            --no-generate --skip-architecture --skip-host-tests
       - run:
           name: Validate changed snapshot inventory with Xcode
           command: |
@@ -348,7 +449,6 @@ jobs:
     steps:
       - prepare_builder:
           test_workdir: test-output-audience-build
-          run_ci_helper_tests: false
           require_simulator: false
       - run:
           name: Select Where audience
@@ -382,7 +482,7 @@ jobs:
     # one Mac shares a render server, and in-process captures share host state.
     # Measurements and guards: Shared/SnapshotKitTesting/AGENTS.md.
     executor: m4-pro-medium
-    parallelism: 4
+    parallelism: 5
     environment:
       SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
     steps:
@@ -440,6 +540,16 @@ jobs:
           include_snapshot_images: true
 
 workflows:
+  "Flyover Export":
+    when: >-
+      pipeline.parameters.flyover_export == "true" and
+      pipeline.event.name == "api" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - export-flyover:
+          name: Export Flyover
+
   "iOS CI":
     # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
     # pushes and explicit full-gate runs remain mandatory.
@@ -466,3 +576,14 @@ workflows:
           name: Snapshot Tests (iOS)
           requires:
             - Build iOS Tests
+
+  "Installer Archive":
+    when: >-
+      pipeline.parameters.installer_archive == "true" and
+      pipeline.event.name == "api" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - archive-app:
+          name: Archive App
+          context: where-distribution-signing

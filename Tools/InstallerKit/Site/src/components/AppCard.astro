@@ -1,0 +1,29 @@
+---
+import { appURL, mainChannel, type App } from '../data';
+import AppIcon from './AppIcon.astro';
+import InstallButton from './InstallButton.astro';
+import QuickFacts from './QuickFacts.astro';
+import Symbol from './Symbol.astro';
+interface Props { app: App }
+const { app } = Astro.props;
+const main = mainChannel(app);
+---
+<article class="app-card">
+  <div class="app-card-top">
+    <AppIcon app={app}/>
+    <div>
+      <h3><a class="app-name" href={appURL(app)}>{app.name}</a></h3>
+      <p class="subtitle">{app.presentation.subtitle}</p>
+      {main ? (
+        <InstallButton app={app} channel={main}/>
+      ) : (
+        <p class="unavailable">No main build is available yet.</p>
+      )}
+    </div>
+  </div>
+  {main && <QuickFacts release={main.release} expanded={false}/>}
+  <div class="card-footer">
+    <span class="tag">MAIN</span>
+    <a aria-label={'Browse ' + app.name + ' builds'} href={appURL(app)}>All builds <Symbol name="arrow" size={14}/></a>
+  </div>
+</article>

@@ -68,8 +68,18 @@ class FlakyResultsTests(unittest.TestCase):
     def test_reports_only_tests_with_both_passes_and_failures(self):
         suite = {
             "flaky": {"bundle": "CoreTests", "name": "flaky()", "fails": 1, "seen": 2},
-            "broken": {"bundle": "CoreTests", "name": "broken()", "fails": 2, "seen": 2},
-            "passing": {"bundle": "CoreTests", "name": "passing()", "fails": 0, "seen": 2},
+            "broken": {
+                "bundle": "CoreTests",
+                "name": "broken()",
+                "fails": 2,
+                "seen": 2,
+            },
+            "passing": {
+                "bundle": "CoreTests",
+                "name": "passing()",
+                "fails": 0,
+                "seen": 2,
+            },
         }
 
         rows = flaky_rows(
@@ -95,7 +105,9 @@ class FlakyResultsTests(unittest.TestCase):
         self.assertIn("2026-08-17T12:00:00Z", markdown)
         self.assertIn("| `flaky` | CoreTests | 1/2 | 1/4 | 38% |", markdown)
 
-    def test_analyze_suite_keeps_valid_partial_results_and_warns_about_malformed_files(self):
+    def test_analyze_suite_keeps_valid_partial_results_and_warns_about_malformed_files(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             suite = root / "suite"

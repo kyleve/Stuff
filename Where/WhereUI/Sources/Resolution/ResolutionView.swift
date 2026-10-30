@@ -251,7 +251,7 @@ private struct IssueRow: View {
 #if DEBUG
     extension ResolutionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithIssues", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "WithIssues", configurations: .fullContentScreenRepresentative) {
                 ResolutionView(
                     report: PreviewSupport.loadedYearReportModel(),
                     resolve: PreviewSupport.resolveModel(),

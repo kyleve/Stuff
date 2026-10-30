@@ -1,0 +1,21 @@
+---
+import '../styles/site.css';
+import { site } from '../data';
+import Symbol from '../components/Symbol.astro';
+interface Props { title: string }
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"/>
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-header"><div class="shell"><a class="brand" href={site.basePath}><Symbol name="apps"/>Apps</a><span class="site-label">Development builds</span></div></header>
+    <main class="shell"><slot/></main>
+    <footer class="site-footer"><div class="shell"><span>Built for your registered devices.</span><a href={'https://github.com/' + site.repository}>GitHub</a></div></footer>
+  </body>
+</html>
