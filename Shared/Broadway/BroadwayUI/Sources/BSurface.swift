@@ -49,6 +49,9 @@ public struct BSurface<
             .contentShape(shape)
             .modifier(finish)
             .overlay { exterior.allowsHitTesting(false).accessibilityHidden(true) }
+            // SwiftUI can include hidden overlay paint in a combined element's frame.
+            // Keep its focus contour on the native surface after exterior composition.
+            .contentShape(.accessibility, shape)
     }
 }
 

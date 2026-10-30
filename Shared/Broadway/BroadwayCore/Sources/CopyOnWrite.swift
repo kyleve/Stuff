@@ -85,6 +85,38 @@ extension CopyOnWrite: Equatable where Value: Equatable {}
 extension CopyOnWrite: Hashable where Value: Hashable {}
 extension CopyOnWrite: @unchecked Sendable where Value: Sendable {}
 
+extension CopyOnWrite: Decodable where Value: Decodable {
+    public init(from decoder: any Decoder) throws {
+        try self.init(wrappedValue: decoder.singleValueContainer().decode(Value.self))
+    }
+}
+
+extension CopyOnWrite: Encodable where Value: Encodable {
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(wrappedValue)
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// Preserve optional-field semantics when synthesis sees the non-optional wrapper.
+    public func decode<Value: Decodable>(
+        _: CopyOnWrite<Value?>.Type,
+        forKey key: Key,
+    ) throws -> CopyOnWrite<Value?> {
+        try .init(wrappedValue: decodeIfPresent(Value.self, forKey: key))
+    }
+}
+
+extension KeyedEncodingContainer {
+    public mutating func encode(
+        _ value: CopyOnWrite<(some Encodable)?>,
+        forKey key: Key,
+    ) throws {
+        try encodeIfPresent(value.wrappedValue, forKey: key)
+    }
+}
+
 extension CopyOnWrite.Box: Equatable where Value: Equatable {
     static func == (lhs: CopyOnWrite.Box, rhs: CopyOnWrite.Box) -> Bool {
         lhs === rhs || lhs.value == rhs.value
