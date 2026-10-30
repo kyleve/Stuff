@@ -38,15 +38,18 @@
             case reduceTransparency = "ReduceTransparency"
         }
 
-        static func snapshot(_ policy: AccessibilityPolicy) throws -> SnapshotCase {
-            let theme = try WhereThemeExamples.halloween.prepare()
+        static func snapshot(
+            _ policy: AccessibilityPolicy,
+            theme selection: WhereTheme,
+        ) throws -> SnapshotCase {
+            let theme = try WhereBundledThemes.prepared(selection)
             return SnapshotCase(
                 name: policy.rawValue,
                 configurations: SnapshotConfiguration.combinations(
                     devices: [.init(name: "iPhone", size: .intrinsic(maxWidth: 402))],
                     colorSchemes: [.light, .dark],
                 ),
-                referenceGroup: .init(rawValue: "halloween"),
+                referenceGroup: selection.snapshotReferenceGroup,
             ) {
                 WhereThemePreview(theme: theme).content
                     .bTraitOverrides { traits, overrides in
@@ -71,13 +74,16 @@
             case planning = "Planning"
         }
 
-        static func snapshot(_ subject: Subject) throws -> SnapshotCase {
-            let theme = try WhereThemeExamples.halloween.prepare()
+        static func snapshot(
+            _ subject: Subject,
+            theme selection: WhereTheme,
+        ) throws -> SnapshotCase {
+            let theme = try WhereBundledThemes.prepared(selection)
             let cache = RegionOutlinePathCache()
             let report = PreviewSupport.itineraryYearReportModel()
             let model = PreviewSupport.loadedModel()
             let session = PreviewSupport.loadedSession()
-            model.previewTheme(.halloween)
+            model.previewTheme(selection)
             let configurations: [SnapshotConfiguration] = switch subject {
                 case .forecast, .welcome, .privacy: .componentLightDark
                 case .timeline, .appearance, .planning: .fullContentPhoneLightDark
@@ -85,7 +91,7 @@
             return SnapshotCase(
                 name: subject.rawValue,
                 configurations: configurations,
-                referenceGroup: .init(rawValue: "halloween"),
+                referenceGroup: selection.snapshotReferenceGroup,
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(
                         for: [.california, .newYork],
@@ -138,4 +144,5 @@
     }
 
     #Preview("Halloween") { WhereThemePreview.example(.halloween) }
+    #Preview("Holiday") { WhereThemePreview.example(.holiday) }
 #endif
