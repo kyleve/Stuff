@@ -78,7 +78,8 @@ struct LocationsView: View {
                     }
                 }
         }
-        .environment(\.whereThemeLayersAreActive, isCardSurfaceUncovered)
+        // Each layer tracks its own visibility, including backgrounds in empty/loading states.
+        .environment(\.whereThemeLayersAreActive, !showingResolution && planningDestination == nil)
         .observesTilt(
             tilt,
             enabled: isCardSurfaceUncovered && cardSurface.usesReflection,
