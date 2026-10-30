@@ -238,7 +238,7 @@ private struct SettingsDestinationView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(InstallerPreview.model(.available))
@@ -248,7 +248,7 @@ private struct SettingsDestinationView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(InstallerPreview.model(.local))
