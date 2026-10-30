@@ -35,6 +35,16 @@ Hosts supply semantic background colors and dimension scales. Fonts preserve sem
 
 Assets are prepared SwiftUI images keyed by typed identities. Hosts load packaged PNG/JPEG assets and register approved symbols before rendering. Documents cannot access paths or URLs.
 
+Use `raster(ViewImageDescriptor)` for fit, clipped fill, or native image tiling. The original `image` operation retains its fit behavior.
+Tile scale is bounded to prevent excessive texture density. Tiling does not repeat document nodes.
+
+`ViewArtworkPlacement` describes a host-relative frame and separate paint bounds. Hosts validate placement before rendering.
+Sizes have finite point caps. Fixed artwork shrinks uniformly when the host becomes narrower, including its offset.
+Leading and trailing anchors, offsets, and outsets follow layout direction.
+Interior artwork cannot declare outsets. Exterior artwork can extend up to 128 points per edge.
+The host must clip all transforms to the declared paint bounds and keep those bounds outside layout, hit testing, and accessibility.
+The host owns surface composition, edge protection, reserved gaps, and viewport clipping.
+
 Animations sample elapsed seconds. Curves use linear, quadratic ease-in/out, or cosine ease-in-out interpolation. Autoreversing repetition counts complete forward-and-back cycles. Each animation has a separate static pose. Inactive views render that pose and restart on activation. Finite animations stop requesting frames after their final cycle.
 
 Validation checks versions, ranges, resource availability, identity uniqueness, and complexity. Standard limits are 1 MiB, depth 16, 256 nodes, and 32 animated nodes. Validation errors carry a document path. Unknown enum operations fail decoding; additive object fields follow Codable's forward-compatible decoding behavior.
