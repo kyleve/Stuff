@@ -335,15 +335,14 @@ struct CalendarContentView: View {
             if displayMode == .year, !overview,
                let target = presentation.target
             {
-                let initialTarget = isInitial ? estimateMonth
-                    .map { CalendarPresentationModel.Target.estimate(monthKey($0)) } ?? target :
-                    target
+                if isInitial { presentation.prepareInitialPosition() }
+                let initialBottomTarget = presentation.initialBottomTarget
                 if zoom.phase == nil {
                     calendarScrollPosition.scrollTo(
-                        id: initialTarget,
-                        anchor: isInitial ? .bottom : .top,
+                        id: initialBottomTarget ?? target,
+                        anchor: initialBottomTarget == nil ? .top : .bottom,
                     )
-                    if !isInitial { focusedTarget = target }
+                    if initialBottomTarget == nil { focusedTarget = target }
                 }
             } else if displayMode == .month, let month = navigation.displayedMonth,
                       month.year == report.selectedYear
