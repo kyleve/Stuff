@@ -52,8 +52,7 @@ def snapshot_source_roots(repo):
     project = (repo / "Project.swift").read_text()
     roots = {}
     declared = {
-        match.group("bundle")
-        for match in re.finditer(SNAPSHOT_TARGET_HEADER, project)
+        match.group("bundle") for match in re.finditer(SNAPSHOT_TARGET_HEADER, project)
     }
     parsed = set()
     for match in SNAPSHOT_TARGET_PATTERN.finditer(project):
@@ -64,7 +63,9 @@ def snapshot_source_roots(repo):
         parsed.add(bundle)
         for source in sources:
             if source in roots:
-                raise ValueError(f"duplicate snapshot source path in Project.swift: {source}")
+                raise ValueError(
+                    f"duplicate snapshot source path in Project.swift: {source}"
+                )
             roots[source] = bundle
     if missing := sorted(declared - parsed):
         raise ValueError(f"snapshot targets need literal source arrays: {missing}")

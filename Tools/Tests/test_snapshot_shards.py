@@ -80,7 +80,7 @@ class ShardTests(unittest.TestCase):
             (other / "OtherTests.swift").write_text(
                 "import Testing\nstruct OtherTests { @Test func example() {} }\n"
             )
-            (repo / "Project.swift").write_text('''
+            (repo / "Project.swift").write_text("""
             unitTests(
                 name: "ModuleSnapshotTests",
                 sources: [
@@ -92,22 +92,33 @@ class ShardTests(unittest.TestCase):
                 name: "OtherSnapshotTests",
                 sources: ["Other/SnapshotTests/**"],
             ),
-            ''')
+            """)
             plan = self.make_plan()
             plan["shards"][0]["suites"].append("OtherSnapshotTests/OtherTests")
             path = repo / "plan.json"
             path.write_text(json.dumps(plan))
 
-            self.assertEqual(MODULE.source_inventory(repo), {
-                "ModuleSnapshotTests/FirstSnapshotTests",
-                "ModuleSnapshotTests/SecondSnapshotTests",
-                "ModuleSnapshotTests/ThirdSnapshotTests",
-                "OtherSnapshotTests/OtherTests",
-            })
+            self.assertEqual(
+                MODULE.source_inventory(repo),
+                {
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/SecondSnapshotTests",
+                    "ModuleSnapshotTests/ThirdSnapshotTests",
+                    "OtherSnapshotTests/OtherTests",
+                },
+            )
             result = subprocess.run(
-                [str(SCRIPT.parents[1] / "snapshot-shards"), "--plan", str(path),
-                 "check", "--repo", str(repo)],
-                cwd=repo, capture_output=True, text=True,
+                [
+                    str(SCRIPT.parents[1] / "snapshot-shards"),
+                    "--plan",
+                    str(path),
+                    "check",
+                    "--repo",
+                    str(repo),
+                ],
+                cwd=repo,
+                capture_output=True,
+                text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("4 suites", result.stdout)
@@ -116,28 +127,38 @@ class ShardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             project = repo / "Project.swift"
-            project.write_text('''
+            project.write_text(
+                """
             unitTests(
                 name: "BrokenSnapshotTests",
                 sources: ["Module/Tests/Support/TestStore.swift"],
             ),
-            ''' + project.read_text())
+            """
+                + project.read_text()
+            )
 
-            with self.assertRaisesRegex(ValueError, "BrokenSnapshotTests has no literal"):
+            with self.assertRaisesRegex(
+                ValueError, "BrokenSnapshotTests has no literal"
+            ):
                 MODULE.source_inventory(repo)
 
     def test_nonliteral_sources_fail_without_borrowing_the_next_target(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             project = repo / "Project.swift"
-            project.write_text('''
+            project.write_text(
+                """
             unitTests(
                 name: "BrokenSnapshotTests",
                 sources: sharedSources,
             ),
-            ''' + project.read_text())
+            """
+                + project.read_text()
+            )
 
-            with self.assertRaisesRegex(ValueError, "literal source arrays.*BrokenSnapshotTests"):
+            with self.assertRaisesRegex(
+                ValueError, "literal source arrays.*BrokenSnapshotTests"
+            ):
                 MODULE.source_inventory(repo)
 
     def test_rejects_a_suite_that_is_missing_from_the_plan(self):
