@@ -29,6 +29,8 @@ struct CalendarContentView: View {
     @State private var presentation: CalendarPresentationModel
     @AccessibilityFocusState private var focusedTarget: CalendarPresentationModel.Target?
     @State private var zoom = CalendarZoomTransitionModel()
+    @State private var calendarScrollPosition = ScrollPosition(idType: CalendarPresentationModel
+        .Target.self)
     @State private var scrollOffset = CGPoint.zero
 
     /// A nil persistence key keeps zoom session-only, including in previews.
@@ -196,7 +198,6 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        @Bindable var navigation = navigation
         let availableMonths = CalendarPresentationModel.visibleMonths(
             months,
             report: report,
@@ -273,7 +274,7 @@ struct CalendarContentView: View {
         }
         .id(presentation.mode)
         .transition(stylesheet.calendar.overview.transition)
-        .scrollPosition($navigation.calendarScrollPosition)
+        .scrollPosition($calendarScrollPosition)
         .onScrollGeometryChange(for: CGPoint.self) {
             CGPoint(
                 x: $0.contentOffset.x + $0.contentInsets.leading,
@@ -283,7 +284,7 @@ struct CalendarContentView: View {
             scrollOffset = value
         }
         .onScrollTargetVisibilityChange(idType: CalendarPresentationModel.Target.self) { targets in
-            if zoom.phase == nil, navigation.calendarScrollPosition.isPositionedByUser,
+            if zoom.phase == nil, calendarScrollPosition.isPositionedByUser,
                let first = targets.first
             { presentation.remember(first)
                 navigation.recordVisibleMonths([first.month])
@@ -338,14 +339,21 @@ struct CalendarContentView: View {
                     .map { CalendarPresentationModel.Target.estimate(monthKey($0)) } ?? target :
                     target
                 if zoom.phase == nil {
-                    navigation.calendarScrollPosition.scrollTo(
+                    calendarScrollPosition.scrollTo(
                         id: initialTarget,
                         anchor: isInitial ? .bottom : .top,
                     )
                     if !isInitial { focusedTarget = target }
                 }
+            } else if displayMode == .month, let month = navigation.displayedMonth,
+                      month.year == report.selectedYear
+            {
+                calendarScrollPosition.scrollTo(
+                    id: CalendarPresentationModel.Target.month(month),
+                    anchor: .top,
+                )
             } else {
-                navigation.calendarScrollPosition.scrollTo(edge: .top)
+                calendarScrollPosition.scrollTo(edge: .top)
             }
         }
         .onChange(of: navigation.revealRequest, initial: true) { _, _ in
@@ -366,7 +374,7 @@ struct CalendarContentView: View {
                            let value, value.mode == .detail,
                            let target = presentation.target, value.frames[target] != nil
                         {
-                            navigation.calendarScrollPosition.scrollTo(id: target, anchor: .top)
+                            calendarScrollPosition.scrollTo(id: target, anchor: .top)
                         }
                     }
             }
@@ -396,7 +404,7 @@ struct CalendarContentView: View {
         else { return false }
         zoom.cancel()
         if displayMode == .year { presentation.expand(.month(request.month)) }
-        navigation.calendarScrollPosition.scrollTo(
+        calendarScrollPosition.scrollTo(
             id: CalendarPresentationModel.Target.month(request.month),
             anchor: .top,
         )
@@ -431,18 +439,17 @@ struct CalendarContentView: View {
             zoom.updateMeasurement(nil)
             switch presentation.mode {
                 case .overview:
-                    navigation.calendarScrollPosition = ScrollPosition(
+                    calendarScrollPosition = ScrollPosition(
                         idType: CalendarPresentationModel.Target.self,
                         edge: .top,
                     )
                 case .detail:
                     if zoom.phase != nil {
-                        navigation
-                            .calendarScrollPosition =
+                        calendarScrollPosition =
                             ScrollPosition(idType: CalendarPresentationModel.Target
                                 .self)
                     } else if let target = presentation.target {
-                        navigation.calendarScrollPosition = ScrollPosition(id: target, anchor: .top)
+                        calendarScrollPosition = ScrollPosition(id: target, anchor: .top)
                     }
             }
         }
@@ -557,6 +564,21 @@ struct CalendarContentView: View {
     }
 }
 
+/// Adds default activation while preserving the month card's full accessibility frame.
+private struct MonthSelectionAccessibility: ViewModifier {
+    let action: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let action {
+            content
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { action() }
+        } else {
+            content
+        }
+    }
+}
+
 /// One month section: weekday header row, a day grid, and a footer tallying the
 /// days spent in each region that month.
 private struct MonthGridView: View {
@@ -647,14 +669,10 @@ private struct MonthGridView: View {
                 }
         }
         .contentShape(cardShape)
-        .accessibilityRepresentation {
-            if let selectMonth {
-                Button(monthAccessibility.label, action: selectMonth)
-                    .accessibilityValue(monthAccessibility.value)
-            } else {
-                Text(monthAccessibility.label).accessibilityValue(monthAccessibility.value)
-            }
-        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthAccessibility.label)
+        .accessibilityValue(monthAccessibility.value)
+        .modifier(MonthSelectionAccessibility(action: selectMonth))
     }
 
     private var monthHeading: some View {
@@ -670,7 +688,7 @@ private struct MonthGridView: View {
     }
 
     private var monthSummary: some View {
-        VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+        Group {
             if displayMode == .month, let focusedRegion {
                 MonthFooter(
                     totals: [month.regionTotals
