@@ -110,6 +110,7 @@ inbox rather than here.
 - docs [quick-win]: `Where/` is missing the group-level `README.md` required by root `AGENTS.md`; it already has `AGENTS.md`. Write a human-facing entry point covering the shared module graph and group invariants without duplicating leaf docs. The Ledger group-doc gap was retired with Ledger on 2026-10-26. (audit 2026-08-09; narrowed 2026-10-26)
 
 ## P2s (Nice to have)
+- fix(Scripts) [quick-win]: Count parameterized Swift Testing completions — `Tools/test_runner.py:138` expects the test name immediately before `passed after`, so it misses `with 2 test cases passed after`. The isolated `WhereUITests/CalendarContentViewTests` run on Xcode `27A9275` passed one parameterized test, but `./test` reported no tests and exited 1. Accept the parameterized completion form and leading output markers, or reconcile the final summary, with a captured-output regression. (agent 2026-10-30)
 
 - fix(Tools) [quick-win]: Count parameterized Swift Testing completions — `Tools/test_runner.py:138` does not match `Test name(...) with 5 test cases passed after ...`. A parameterized-only suite can pass in the raw log yet fail the wrapper's empty-run guard (`:270-284`). Reproduced during the JSON fixture migration with five successful cases. Accept that completion form and add a parser regression while preserving the genuine empty-selection failure. (agent 2026-10-22)
 - perf(CI) [needs-design]: Re-evaluate caching Git LFS snapshot objects without
