@@ -5,10 +5,43 @@ import ViewDocumentCore
 enum WhereThemeValidation {
     static func validate(_ value: Double, path: String) throws {
         let field = path.split(separator: ".").last.map(String.init)?.lowercased() ?? path
+        // These values feed divisors and repeated artwork, so zero and tiny positive values
+        // cannot use the general dimension range.
+        if path.contains(".backgroundPattern.") && field == "horizontalscale" {
+            guard value.isFinite, (0.25 ... 4).contains(value) else {
+                throw WhereThemeValidationError(
+                    path: path,
+                    reason: "Contour horizontal scale must be between 0.25 and 4",
+                )
+            }
+            return
+        }
+        if path.contains(".backgroundPattern.") && ["centerxratio", "centeryratio"]
+            .contains(field)
+        {
+            guard value.isFinite, (0 ... 1).contains(value) else {
+                throw WhereThemeValidationError(
+                    path: path,
+                    reason: "Contour center must stay inside the canvas",
+                )
+            }
+            return
+        }
+        if field == "preferredcellsize" {
+            guard value.isFinite, (32 ... 10000).contains(value) else {
+                throw WhereThemeValidationError(
+                    path: path,
+                    reason: "Background artwork cells must be at least 32 points",
+                )
+            }
+            return
+        }
         let signed = ["offset", "rotation", "roll", "pitch", "spacing", "indent", "tracking"]
             .contains { field.contains($0) }
         let fraction = ["opacity", "fraction", "tintmix"].contains { field.contains($0) }
-        let density = field.contains("ringspacing") || field == "hatchspacing" || field == "contourspacing"
+        let density = field
+            .contains("ringspacing") || field == "hatchspacing" || field == "contourspacing" ||
+            field == "microprintspacing"
             || field == "preferredcellsize" ||
             (field == "spacing" && (path.contains("securityBorder") || path.contains(".border.")))
         if density && (!value.isFinite || value < 2) {

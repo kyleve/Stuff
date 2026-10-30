@@ -3,6 +3,30 @@ import Testing
 @testable import WhereUI
 
 struct RegionArtworkTransformTests {
+    @Test(arguments: [CGFloat.zero, -.infinity, .infinity, .nan])
+    func rejectsDegenerateArtworkScale(_ scale: CGFloat) throws {
+        let path = Path(CGRect(x: 0, y: 0, width: 100, height: 50))
+        var style = try #require(WhereStylesheet.default.card.regular.regionShape?.watermark)
+        style.scale = scale
+        #expect(RegionArtworkTransform(
+            path: path,
+            size: .init(width: 320, height: 180),
+            style: style,
+        ) == nil)
+    }
+
+    @Test func zeroExtentAndCollapsedLayoutHaveNoTransform() throws {
+        let path = Path(CGRect(x: 0, y: 0, width: 100, height: 50))
+        var style = try #require(WhereStylesheet.default.card.regular.regionShape?.watermark)
+        #expect(RegionArtworkTransform(path: path, size: .zero, style: style) == nil)
+        style.extent.width = 0
+        #expect(RegionArtworkTransform(
+            path: path,
+            size: .init(width: 320, height: 180),
+            style: style,
+        ) == nil)
+    }
+
     @Test func fitsAndCentersProjectedGeometryUsingTheArtworkSpec() throws {
         let path = Path { $0.addRect(CGRect(x: 0, y: 0, width: 100, height: 50)) }
         let style = try #require(WhereStylesheet.default.card.regular.regionShape?.watermark)

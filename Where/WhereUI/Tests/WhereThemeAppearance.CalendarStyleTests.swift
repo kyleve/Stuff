@@ -1,9 +1,37 @@
+import BroadwayCore
 import Foundation
 import Testing
 @testable import WhereUI
 
 @MainActor
 struct WhereThemeCalendarStylePatchTests {
+    @Test func overviewPatchesPreserveAccessibilityConstraints() throws {
+        var appearance = WhereThemeAppearance()
+        appearance.calendar = .init()
+        appearance.calendar?.overview = .init()
+        appearance.calendar?.overview?.columns = .constant(4)
+        appearance.calendar?.overview?.dayHeight = .constant(18)
+        appearance.calendar?.overview?.usesSpatialMotion = .constant(true)
+        let document = themeDocument(appearance: appearance, fallback: .flat)
+        let ordinary = try resolveTheme(document, traits: .system)
+        #expect(ordinary.calendar.overview.columns == 4)
+        #expect(ordinary.calendar.overview.dayHeight == 18)
+        var accessible = BTraits.system
+        accessible.contentSizeCategory = .accessibilityExtraExtraExtraLarge
+        accessible.accessibility = .init(isReduceMotionEnabled: true)
+        let resolved = try resolveTheme(document, traits: accessible)
+        #expect(resolved.calendar.overview.columns == 1)
+        #expect(resolved.calendar.overview.dayHeight == 28)
+        #expect(!resolved.calendar.overview.usesSpatialMotion)
+        appearance.calendar?.overview?.columns = .constant(0)
+        #expect(throws: WhereThemeValidationError.self) {
+            try resolveTheme(
+                themeDocument(appearance: appearance, fallback: .flat),
+                traits: .system,
+            )
+        }
+    }
+
     @Test func changesOnlyAuthoredFieldsAfterRoundTrip() throws {
         try verifyThemePatch(
             json: #"{"calendar":{"monthSpacing":{"constant":{"_0":42}}}}"#,

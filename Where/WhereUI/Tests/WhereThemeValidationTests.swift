@@ -3,6 +3,49 @@ import ViewDocumentCore
 @testable import WhereUI
 
 struct WhereThemeValidationTests {
+    @Test func rejectsPatternDivisorsAndExcessiveArtworkDensity() throws {
+        for scale in [0.0, 1e-300, 0.24, 4.01] {
+            #expect(throws: WhereThemeValidationError.self) {
+                try WhereThemeValidation.validate(
+                    scale,
+                    path: "appearance.featureDiscovery.backgroundPattern.horizontalScale",
+                )
+            }
+        }
+        for center in [-0.1, 1.1, 10000] {
+            #expect(throws: WhereThemeValidationError.self) {
+                try WhereThemeValidation.validate(
+                    center,
+                    path: "appearance.featureDiscovery.backgroundPattern.centerXRatio",
+                )
+            }
+        }
+        #expect(throws: WhereThemeValidationError.self) {
+            try WhereThemeValidation.validate(
+                1e-300,
+                path: "appearance.locationForecast.surface.microprintSpacing",
+            )
+        }
+        #expect(throws: WhereThemeValidationError.self) {
+            try WhereThemeValidation.validate(
+                2.0,
+                path: "appearance.locationsBackground.preferredCellSize",
+            )
+        }
+        try WhereThemeValidation.validate(
+            0.25,
+            path: "appearance.featureDiscovery.backgroundPattern.horizontalScale",
+        )
+        try WhereThemeValidation.validate(
+            2.0,
+            path: "appearance.locationForecast.surface.microprintSpacing",
+        )
+        try WhereThemeValidation.validate(
+            32.0,
+            path: "appearance.locationsBackground.preferredCellSize",
+        )
+    }
+
     @Test func descriptorFailureRetainsTheAppearancePathAndUnderlyingError() throws {
         do {
             try WhereThemeValidation.validate(
