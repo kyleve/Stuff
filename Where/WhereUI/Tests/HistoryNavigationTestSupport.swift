@@ -34,8 +34,12 @@ enum HistoryNavigationTestSupport {
             airborneSampleIDs: [],
             groundSampleIDs: [],
             peakSpeedKMH: 900,
-            progress: .completed(arrivedAt: arrival),
+            progress: .completed(arrival: .observedGround(
+                firstObservedAt: arrival,
+                confirmedAt: arrival,
+            )),
             inferredEndpoints: [],
+            supportedIntervals: [.init(start: departure, end: arrival, kind: .observedMotion)],
         )
     }
 }
