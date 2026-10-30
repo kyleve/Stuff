@@ -303,7 +303,7 @@ struct LocationsContent: View {
                     LocationsToolbar(report: report, navigation: navigation)
                 }
             }
-            .environment(\.whereThemeLayersAreActive, isCardSurfaceUncovered)
+            .environment(\.whereThemeLayersAreActive, !navigation.showingResolution && navigation.planningDestination == nil && navigation.flightReview == nil)
             .observesTilt(tilt, enabled: isCardSurfaceUncovered && cardSurface.usesReflection)
             .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
