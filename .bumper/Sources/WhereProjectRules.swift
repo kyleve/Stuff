@@ -3,6 +3,15 @@ import SwiftSyntax
 
 let whereProjectRules = RuleSet {
     Rules.constructionOwnership(
+        "SceneNavigationModel",
+        allowed: RuleScope.files([
+            "Where/WhereUI/Sources/MainTabs.swift",
+            "Where/WhereUI/Sources/Developer/AdaptiveHistory/AdaptiveHistoryLabModel.swift",
+        ])
+        .union(nonWhereProductionScope),
+        id: "where.scene_navigation_ownership",
+    )
+    Rules.constructionOwnership(
         "WhereServices",
         allowed: whereServicesConstructionScope.union(nonWhereProductionScope),
         id: "where.services_composition_ownership",
@@ -18,6 +27,7 @@ let whereProjectRules = RuleSet {
         owner: whereLoggingScope.union(nonWhereProductionScope),
         id: "where.logging_type_ownership",
     )
+    reservedRegionLayoutOwnershipRule
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -304,4 +314,29 @@ private let previewCoverageRule = Rules.files(
             ),
         )
     }
+}
+
+/// Keep system geometry mapping in one adapter, shared by production and injected fixtures.
+private let reservedRegionLayoutOwnershipRule = Rules.files(
+    "where.reserved_region_layout_ownership",
+    severity: .error,
+    summary: "WhereUI reads system reserved regions through its shared geometry adapter.",
+    scope: .component(WhereComponent.whereUI),
+) { file in
+    guard file.path.rawValue != "Where/WhereUI/Sources/Shared/AdaptiveHistoryGeometry.swift"
+    else { return [] }
+    return functionCalls()
+        .filter { match in
+            match.node.calledExpression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "reservedRegions"
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Reserved regions are read outside AdaptiveHistoryGeometry.",
+                evidence: ViolationEvidence(
+                    observed: file.path.rawValue,
+                    expectation: "use AdaptiveHistoryGeometry or AdaptiveHistoryContainer",
+                ),
+            )
+        }
 }

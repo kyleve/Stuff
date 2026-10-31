@@ -7,13 +7,18 @@ import WhereCore
 /// two regions ends one stint and starts the next, so adjacent stints can
 /// share an endpoint date.
 public struct RegionStint: Hashable, Sendable, Identifiable {
+    public struct ID: Hashable, Sendable {
+        public let region: Region
+        public let start: Date
+    }
+
     public let region: Region
     public let start: Date
     public let end: Date
     public let dayCount: Int
 
-    public var id: String {
-        "\(region.rawValue)@\(start.timeIntervalSinceReferenceDate)"
+    public var id: ID {
+        ID(region: region, start: start)
     }
 
     public init(region: Region, start: Date, end: Date, dayCount: Int) {
