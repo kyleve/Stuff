@@ -105,10 +105,16 @@ The default location is `~/Library/Developer/Xcode/DerivedData`.
 
 `worktree_cleanup.py` reads each cache's `info.plist` and matches its absolute `WorkspacePath` to the checkout.
 Root-level projects, workspaces, and workspaces embedded in root-level projects are supported.
+Ownership paths with `..` components are rejected before normalization.
 Cache names alone never establish ownership. Shared caches and caches without usable metadata remain untouched.
-Before removal, the command checks the directory identity and metadata again.
+Before removal, the command checks the directory identity, metadata, and resolved checkout ownership again.
 The orphan sweep also checks that the checkout is still absent.
 It reports parse errors, skipped repository caches, and removal failures on stderr.
+
+Before cleanup, stop builds for the affected checkouts.
+Keep checkout and cache paths stable until cleanup finishes.
+Validation and deletion are separate operations.
+The command does not coordinate concurrent builds, checkout restoration, or path changes.
 
 ## Snapshot shard policy
 

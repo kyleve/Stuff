@@ -84,6 +84,35 @@ class WorktreeCommandTests(unittest.TestCase):
         self.assertIn("Would run ./simulator --delete", result.stderr)
         self.assertFalse((self.checkout / "Tools/__pycache__").exists())
 
+    def test_cleanup_retains_traversal_metadata_and_removes_a_valid_neighbor(self):
+        cache = self.cache()
+        other = self.root / "other"
+        (other / "child").mkdir(parents=True)
+        (other / "Stuff.xcworkspace").mkdir()
+        (self.checkout / "bridge").symlink_to(other / "child", target_is_directory=True)
+        (cache / "info.plist").write_bytes(
+            plistlib.dumps(
+                {"WorkspacePath": str(self.checkout / "bridge/../Stuff.xcworkspace")}
+            )
+        )
+        valid = self.derived_data / "valid"
+        valid.mkdir()
+        (valid / "info.plist").write_bytes(
+            plistlib.dumps({"WorkspacePath": str(self.checkout / "Stuff.xcworkspace")})
+        )
+
+        result = self.run_command(
+            "--cleanup", "--derived-data-root", str(self.derived_data)
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertTrue(cache.exists())
+        self.assertFalse(valid.exists())
+        self.assertIn("WorkspacePath contains parent traversal", result.stderr)
+        self.assertIn("Removed 1 DerivedData directory", result.stderr)
+        self.assertEqual(self.simulator_log.read_text(), "--delete\n")
+
     def test_prune_never_calls_simulator(self):
         result = self.run_command(
             "--prune-derived-data",

@@ -81,6 +81,62 @@ class WorktreeCleanupTests(unittest.TestCase):
         self.assertEqual(status, 0, output)
         self.assertFalse(owned.exists())
 
+    def test_cleanup_rechecks_resolved_ownership_after_alias_retarget(self):
+        other = self.root / "other/Stuff"
+        other.mkdir(parents=True)
+        alias = self.root / "alias"
+        alias.symlink_to(self.checkout, target_is_directory=True)
+        owned = self.cache("alias-cache", checkout=alias)
+        original_read = worktree_cleanup.read_cache
+        reads = 0
+
+        def retarget_before_recheck(directory):
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                alias.unlink()
+                alias.symlink_to(other, target_is_directory=True)
+            return original_read(directory)
+
+        with mock.patch.object(worktree_cleanup, "read_cache", retarget_before_recheck):
+            status, output = self.run_cleanup()
+        self.assertEqual(status, 1, output)
+        self.assertTrue(owned.exists())
+        self.assertEqual(alias.resolve(), other)
+        self.assertIn("resolved checkout ownership changed", output)
+
+    def test_cleanup_rejects_parent_traversal_through_a_checkout_symlink(self):
+        other = self.root / "other"
+        (other / "child").mkdir(parents=True)
+        (other / "Stuff.xcworkspace").mkdir()
+        (self.checkout / "bridge").symlink_to(other / "child", target_is_directory=True)
+        workspace = self.checkout / "bridge/../Stuff.xcworkspace"
+        self.assertEqual(workspace.resolve().parent, other)
+        cache = self.cache("traversal", workspace=workspace)
+
+        status, output = self.run_cleanup()
+
+        self.assertEqual(status, 0, output)
+        self.assertTrue(cache.exists())
+        self.assertIn("WorkspacePath contains parent traversal", output)
+
+    def test_prune_rejects_parent_traversal_to_a_live_checkout(self):
+        live = self.root / "live"
+        (live / "child").mkdir(parents=True)
+        (live / "Stuff/Stuff.xcworkspace").mkdir(parents=True)
+        old = self.worktree_roots[0] / "old"
+        old.mkdir()
+        (old / "bridge").symlink_to(live / "child", target_is_directory=True)
+        workspace = old / "bridge/../Stuff/Stuff.xcworkspace"
+        self.assertEqual(workspace.resolve().parent, live / "Stuff")
+        cache = self.cache("traversal", workspace=workspace)
+
+        status, output = self.run_cleanup(prune=True)
+
+        self.assertEqual(status, 0, output)
+        self.assertTrue(cache.exists())
+        self.assertIn("WorkspacePath contains parent traversal", output)
+
     def test_dry_run_preserves_every_file_and_reports_exact_target(self):
         owned = self.cache("owned")
         before = {path: path.read_bytes() for path in owned.iterdir()}

@@ -60,9 +60,11 @@ def read_cache(directory: Path) -> Optional[Cache]:
         ".xcodeproj",
     ):
         raise ValueError("WorkspacePath is not an absolute Xcode project or workspace")
+    if ".." in workspace.parts:
+        raise ValueError("WorkspacePath contains parent traversal ('..')")
     return Cache(
         directory,
-        Path(os.path.normpath(workspace)),
+        workspace,
         directory_stat.st_dev,
         directory_stat.st_ino,
     )
@@ -142,14 +144,16 @@ def cleanup(
                 raise ValueError("cache ownership or directory changed during cleanup")
             if prune and not is_deleted_worktree(cache, checkout, worktree_roots):
                 raise ValueError("checkout reappeared or its worktree root disappeared")
+            if not prune and current.checkout.resolve() != checkout:
+                raise ValueError("resolved checkout ownership changed during cleanup")
             verb = "Would remove" if dry_run else "Removing"
             print(
                 f"{verb} {cache.directory} (workspace: {cache.workspace})",
                 file=sys.stderr,
             )
             if not dry_run:
-                # rmtree does not follow child symlinks. Its descriptor-based
-                # implementation also rejects replacement links on macOS/Linux.
+                # rmtree rejects target symlinks and does not follow child symlinks.
+                # These checks do not make concurrent path replacement safe.
                 if not shutil.rmtree.avoids_symlink_attacks:
                     raise RuntimeError("this Python cannot safely remove cache trees")
                 shutil.rmtree(cache.directory)
