@@ -29,8 +29,9 @@ public struct TodayRegionsIntent: AppIntent {
                 services: services,
                 todaySnapshot: { [appGroupIdentifier = intentServices.appGroupIdentifier] in
                     do {
-                        return try WidgetSnapshotStore.shared(
-                            appGroupIdentifier: appGroupIdentifier,
+                        return try CompatibleWidgetSnapshotReader(
+                            snapshotStore: .shared(appGroupIdentifier: appGroupIdentifier),
+                            compatibilityStore: .shared(appGroupIdentifier: appGroupIdentifier),
                         ).read()
                     } catch {
                         WhereIntentsLog.logger.widgetSnapshotReadFailed(
@@ -46,6 +47,7 @@ public struct TodayRegionsIntent: AppIntent {
             ).todayRegions()
         }
         let ordered = orderedRegions(regions)
+
         return .result(
             dialog: IntentDialog("\(IntentStrings.today(regions: ordered))"),
             view: RegionsSnippetView.today(regions: ordered)

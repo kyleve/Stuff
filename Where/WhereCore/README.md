@@ -577,7 +577,11 @@ Pausing recording leaves ownership unchanged. Secondary devices can still reques
 a one-shot location for a manual action.
 
 ```swift
-let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+let authority = RecordingAuthorityCoordinator(
+    store: store,
+    transport: transport,
+    installation: installationContextStore
+)
 let state = try await authority.refresh()
 let claim = try RecordingAuthorityProposal(
     state: state, action: .claim, deviceID: installation.currentDevice.id,
@@ -607,9 +611,19 @@ state without networking.
 missed while offline, then projects commits in one store transaction. Missing
 predecessors and conflicting records throw. The projection is operational metadata:
 reset and Replace must retain it and backups must not restore its live grants.
-CloudKit account changes must invalidate a consumer's cached authority before
-allowing offline recording; consumers must not treat a missing established head
-as permission to claim again.
+`RecordingAuthorityCoordinator` requires the installation sidecar as well as its
+store and transport. The first identity verification binds the projection to that
+CloudKit account. An account-change notification revokes existing permits and
+persists invalidation before retrying. Old responses cannot project authority or
+restore access. A different account remains blocked; history and pending commands
+stay with the original account. Returning to that account permits a fresh scope.
+
+A cold launch requires identity verification before offline fallback. This also
+covers account changes while the process was absent. A temporary outage during an
+already verified session retains the existing offline behavior. Missing established
+authority never permits another initial claim. Device rejoin preserves the account
+binding. These rules are covered by `DataCompatibilityCoordinatorTests` and the
+`AccountVerification` model.
 
 ### Replacing the recording phone
 
@@ -677,7 +691,7 @@ Recovery metadata remains available while the normal session is blocked.
 
 Control-plane inspection and recording coordination remain available while blocked.
 The production raw store remains at the bootstrap; services receive the scoped
-boundary. Startup and output adapters are integrated in subsequent stack layers.
+boundary. Session teardown and output cleanup use that same lifetime.
 
 ### Retiring a compatibility scope
 
@@ -686,3 +700,31 @@ location source, cancels pending one-shot requests, and stops recording. It
 preserves installation consent and accepted outbox entries. Late callbacks
 cannot enqueue new samples through a revoked store. Recovery assembles a new
 service world with a new store permit.
+
+### System outputs
+
+Session teardown stops recording and asks `DataCompatibilityOutputs` to clear
+notification schedules, badges, and widget availability. The cleanup value holds
+the process adapters and also works when startup fails before store opening.
+Saved notification preferences remain unchanged.
+
+Cleanup does not wait for in-flight publications. Previously started notifications,
+widget writes, or Spotlight indexing can finish afterward. This contract prevents
+stale store transactions, but does not guarantee immediate removal of every display.
+
+A successful widget snapshot write publishes its supported version.
+`CompatibleWidgetSnapshotReader` checks availability once before reading the cache.
+Missing or malformed metadata hides cached data. WidgetKit refresh remains asynchronous.
+
+`StandaloneDataCompatibility.requireAccess(to:)` permits a short-lived extension
+to write only at the current global version. It never claims recording ownership
+or advances the floor. The share extension checks it inside the store transaction.
+
+History observation uses local verified metadata. Explicit retry, foreground,
+CloudKit pushes refresh server authority. Account changes invalidate access first,
+then verify the original account again. A known verification
+failure remains blocked until remote verification succeeds. A remote retry that
+joins a local check waits for a remote verification before returning. Concurrent
+remote callers share that verification. Local imports can still enforce a higher
+floor while it is suspended. The `CompatibilityVerification` model checks this
+ordering; `CompatibilityWrites` checks the transaction boundary across lockout and recovery.

@@ -6,6 +6,35 @@ import Testing
 
 @MainActor
 struct WhereCompatibilityLifecycleTests {
+    @Test func accountChangeInterruptsOnboardingBeforeVerificationReturns() async throws {
+        let bootstrap = try CompatibilityBootstrap()
+        _ = try await bootstrap.recording.selectRecordingRole(.recordingRequested)
+        let model = makeOnboardingModel(bootstrap)
+        let runner = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        let drive = Task { await runner.run() }
+        try await wait { runner.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        let oldScope = try await bootstrap.compatibility.openDomainStore()
+        let gate = CompatibilityOperationGate()
+        defer { gate.release() }
+        await bootstrap.transport.holdIdentity(gate)
+        let change = Task { await model.accountDidChange() }
+        try await wait { gate.entered }
+        try await wait { !runner.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(bootstrap.withdrawals > 0)
+        #expect(model.activeScope == nil)
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await oldScope.perform {}
+        }
+        gate.release()
+        await change.value
+        await drive.value
+        try await wait { runner.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(model.compatibility.isCompatible)
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await oldScope.perform {}
+        }
+    }
+
     @Test func historyChangeInterruptsOnboardingBeforeAnyScopeExists() async throws {
         let bootstrap = try CompatibilityBootstrap()
         _ = try await bootstrap.recording.selectRecordingRole(.recordingRequested)
@@ -168,6 +197,7 @@ struct WhereCompatibilityLifecycleTests {
         try await wait { runner.phase.gateHandle?.id == AnyHashable(LaunchStepID.compatibility) }
         #expect(model.compatibility.state == .recordingChoiceRequired)
         #expect(bootstrap.makeServicesCount == 0)
+        #expect(bootstrap.withdrawals > 0)
         #expect(model.activeScope == nil)
         _ = try await bootstrap.recording.selectRecordingRole(.recordingRequested)
         await model.compatibility.refresh()

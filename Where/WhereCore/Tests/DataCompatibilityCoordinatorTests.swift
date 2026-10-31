@@ -4,12 +4,218 @@ import Testing
 
 @MainActor
 struct DataCompatibilityCoordinatorTests {
+    @Test func accountInvalidationBlocksOfflineCacheAndSurvivesRestart() async throws {
+        let fixture = try CompatibilityAccountFixture()
+        let oldScope = try await fixture.establish()
+        await fixture.transport.setAvailability(.offline)
+        #expect(await fixture.coordinator.recheck() == .compatible(.current))
+        await fixture.coordinator.invalidateAccount()
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await oldScope.perform {}
+        }
+        guard case .verificationFailed = await fixture.coordinator.recheck() else {
+            Issue.record("Invalidated authority must not authorize offline use."); return
+        }
+        let restarted = CompatibilityAccountFixture(
+            store: fixture.store,
+            transport: fixture.transport,
+            installation: fixture.installation,
+        )
+        guard case .verificationFailed = await restarted.coordinator.recheck() else {
+            Issue.record("Restart must not restore invalidated trust."); return
+        }
+        await fixture.transport.setAvailability(.online)
+        #expect(await fixture.coordinator.recheck() == .compatible(.current))
+        let freshScope = try await fixture.coordinator.openDomainStore()
+        #expect(try await freshScope.allSamples().isEmpty)
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await oldScope.perform {}
+        }
+    }
+
+    @Test func oldAccountResponseCannotProjectHistoryOrRestoreAccess() async throws {
+        let fixture = try CompatibilityAccountFixture()
+        let oldScope = try await fixture.establish()
+        let original = try await fixture.authority.observed()
+        let originalCommits = try await fixture.store.recordingAuthorityCommits()
+        _ = try await fixture.transport.commit(RecordingAuthorityProposal(
+            state: original,
+            action: .recover(.keep),
+            deviceID: .init(rawValue: UUID()),
+            buildVersion: .current,
+            eventID: .init(rawValue: UUID()),
+        ))
+        let gate = CompatibilityTestGate()
+        await fixture.transport.holdNextRead(gate)
+        let oldRequest = Task { await fixture.coordinator.recheck() }
+        await gate.waitUntilEntered()
+        await fixture.coordinator.invalidateAccount()
+        await fixture.transport.setAvailability(.offline)
+        gate.resume()
+        guard case .verificationFailed = await oldRequest.value else {
+            Issue.record("The old account's successful response must be discarded."); return
+        }
+        #expect(try await fixture.store.recordingAuthorityCommits() == originalCommits)
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await oldScope.perform {}
+        }
+        guard case .verificationFailed = await fixture.coordinator.recheckLocalHistory() else {
+            Issue.record("Local history cannot clear account invalidation."); return
+        }
+    }
+
+    @Test func differentAccountCannotReadOrReplayOriginalPendingHandoff() async throws {
+        let fixture = try CompatibilityAccountFixture()
+        _ = try await fixture.establish()
+        let original = try await fixture.authority.observed()
+        let pending = try RecordingAuthorityProposal(
+            state: original,
+            action: .requestHandoff,
+            deviceID: .init(rawValue: UUID()),
+            buildVersion: .current,
+            eventID: .init(rawValue: UUID()),
+        )
+        try fixture.installation.setRecordingControl(.init(
+            selection: .recordingRequested,
+            pendingTransition: pending,
+        ))
+        let commits = try await fixture.store.recordingAuthorityCommits()
+        let reads = await fixture.transport.readCount
+        await fixture.coordinator.invalidateAccount()
+        await fixture.transport.setAccountID(.cloudKit(recordName: "account-b"))
+        guard case .verificationFailed = await fixture.coordinator.recheck() else {
+            Issue.record("A different account must stay blocked."); return
+        }
+        await #expect(throws: RecordingAccountError.differentAccount) {
+            _ = try await fixture.recording.retryPendingRequest()
+        }
+        #expect(await fixture.transport.readCount == reads)
+        #expect(try await fixture.store.recordingAuthorityCommits() == commits)
+        #expect(try fixture.installation.resolve().recordingControl.pendingTransition == pending)
+        await fixture.transport.setAccountID(.cloudKit(recordName: "account-a"))
+        #expect(await fixture.coordinator.recheck() == .compatible(.current))
+    }
+
+    @Test(arguments: [CompatibilityRemoteChange.signedOut, .newerRequirement])
+    func remoteRetriesDuringLocalInspectionStillVerifyAuthority(
+        change: CompatibilityRemoteChange,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = CompatibilityTestTransport()
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
+        let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
+        let recording = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await recording.selectRecordingRole(.recordingRequested)
+        let coordinator = DataCompatibilityCoordinator(
+            store: store,
+            recording: recording,
+            installation: installation,
+        )
+        #expect(await coordinator.recheck() == .compatible(.current))
+        let domain = try await coordinator.openDomainStore()
+        // Hold a user operation so the local check parks at waitUntilIdle().
+        let gate = CompatibilityTestGate()
+        await transport.holdNextRead(gate)
+        let selection = Task { try await recording.selectRecordingRole(.secondary) }
+        await gate.waitUntilEntered()
+        defer { gate.resume() }
+        let local = Task { await coordinator.recheckLocalHistory() }
+        try await waitForCompatibilityChecks(1, in: coordinator)
+        let firstRemote = Task { await coordinator.recheck() }
+        let secondRemote = Task { await coordinator.recheck() }
+        try await waitForCompatibilityChecks(3, in: coordinator)
+        let reads = await transport.readCount
+        let identityReads = await transport.identityReadCount
+        let newerVersion = DataCompatibilityVersion(rawValue: 2)
+        switch change {
+            case .signedOut: await transport.setAvailability(.signedOut)
+            case .newerRequirement:
+                _ = try await transport.commit(RecordingAuthorityProposal(
+                    state: owned,
+                    action: .upgrade,
+                    deviceID: installation.onboardingContext.currentDevice.id,
+                    buildVersion: newerVersion,
+                    eventID: .init(rawValue: UUID()),
+                ))
+        }
+        gate.resume()
+        _ = try await selection.value
+        #expect(await local.value == .compatible(.current))
+        let results = await [firstRemote.value, secondRemote.value]
+        for result in results {
+            switch change {
+                case .signedOut:
+                    guard case .verificationFailed = result else {
+                        Issue.record("A remote retry must observe the account failure.")
+                        continue
+                    }
+                case .newerRequirement: #expect(result == .updateRequired(newerVersion))
+            }
+        }
+        #expect(await transport.identityReadCount == identityReads + 1)
+        switch change {
+            case .signedOut: #expect(await transport.readCount == reads)
+            case .newerRequirement: #expect(await transport.readCount == reads + 1)
+        }
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await domain.perform {}
+        }
+    }
+
+    @Test func localHigherFloorWinsWhileRemoteVerificationIsSuspended() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = CompatibilityTestTransport()
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
+        let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
+        let recording = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: installation,
+        )
+        _ = try await recording.selectRecordingRole(.recordingRequested)
+        let coordinator = DataCompatibilityCoordinator(
+            store: store,
+            recording: recording,
+            installation: installation,
+        )
+        #expect(await coordinator.recheck() == .compatible(.current))
+        let domain = try await coordinator.openDomainStore()
+        let gate = CompatibilityTestGate()
+        await transport.holdNextRead(gate)
+        let remote = Task { await coordinator.recheck() }
+        await gate.waitUntilEntered()
+        let version = DataCompatibilityVersion(rawValue: 2)
+        try await store.perform { try await store.addDataCompatibilityRequirement(.init(
+            id: UUID(),
+            version: version,
+        )) }
+        #expect(await coordinator.recheckLocalHistory() == .updateRequired(version))
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await domain.perform {}
+        }
+        gate.resume()
+        #expect(await remote.value == .updateRequired(version))
+    }
+
     @Test func secondaryUpdatingFirstWaitsWithoutRaisingTheFloor() async throws {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         _ = try await authority.submit(fixture.proposal(.initial, .claim, device: fixture.phone))
         let installation = RecordingCoordinationInstallation(deviceID: fixture.tablet)
@@ -39,6 +245,7 @@ struct DataCompatibilityCoordinatorTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
         let oldRecording = RecordingDeviceCoordination(
@@ -84,6 +291,7 @@ struct DataCompatibilityCoordinatorTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await authority.submit(claim)
@@ -109,7 +317,11 @@ struct DataCompatibilityCoordinatorTests {
     @Test func offlineUseRetainsTheExistingContractButCannotAdvanceIt() async throws {
         let store = try SwiftDataStore.inMemory()
         let transport = CompatibilityTestTransport()
-        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
         let current = RecordingDeviceCoordination(
             supportedVersion: .initial,
@@ -142,6 +354,10 @@ struct DataCompatibilityCoordinatorTests {
         await transport.setAvailability(.signedOut)
         guard case .verificationFailed = await established.recheck() else {
             Issue.record("Account failures must not authorize cached use.")
+            return
+        }
+        guard case .verificationFailed = await established.recheckLocalHistory() else {
+            Issue.record("Local history must not erase a known account-verification failure.")
             return
         }
     }

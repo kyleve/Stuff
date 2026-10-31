@@ -79,7 +79,8 @@ public actor WidgetSnapshotPublisher {
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
-                await widgetRefresher.publish(snapshot)
+                try await widgetRefresher.publish(snapshot)
+                try await widgetRefresher.publishCompatibility(.init(requiredVersion: .current))
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
                 Self.logger.published(
                     day: .restricted(.dateTime, dayLogLabel(snapshot.day)),
@@ -98,15 +99,21 @@ public actor WidgetSnapshotPublisher {
                     dayRegions: [],
                     totals: [:],
                 )
-                await widgetRefresher.publish(snapshot)
-                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
-                Self.logger.buildFailed(
-                    error: .restricted(.errorDetails, error),
-                )
+                do {
+                    try await widgetRefresher.publish(snapshot)
+                    try await widgetRefresher.publishCompatibility(.init(requiredVersion: .current))
+                    lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
+                } catch { Self.logger.buildFailed(error: .restricted(.errorDetails, error)) }
+                Self.logger.buildFailed(error: .restricted(.errorDetails, error))
             } catch {
-                Self.logger.buildFailed(
-                    error: .restricted(.errorDetails, error),
-                )
+                lastPublished = nil
+                if error is DataCompatibilityError {
+                    do {
+                        try await widgetRefresher.publishCompatibility(.init(requiredVersion: nil))
+                    } catch { Self.logger.buildFailed(error: .restricted(.errorDetails, error))
+                    }
+                }
+                Self.logger.buildFailed(error: .restricted(.errorDetails, error))
             }
         }
     }

@@ -44,9 +44,10 @@ When a scene actually activates, `RootView` promotes the launch to `.userForegro
 
 The bootstrap opens and retains one real store for compatibility and recording
 authority. Compatibility and onboarding gate the domain services that use it.
-Blocking retires the active scope and permanently revokes its access permit.
+Blocking retires the active scope and permanently revokes its write permit.
 After verification succeeds again, a new scope receives a fresh permit over
-the retained store. Suspended operations keep their original revoked permit.
+the retained store. Suspended transactions keep their original revoked permit. Reads and external
+publications can finish after teardown.
 The `ScopeExclusivity` model checks these ownership and lifetime boundaries.
 
 Before either the regular or Inspector runtime receives that callback, the app
@@ -126,3 +127,8 @@ Before shipping a schema change:
 On a fresh install, onboarding recommends automatic recording On for an iPhone only when no other device recently reported recording, and Off for an iPad/other device or explicit rejoin, then requires the user to confirm.
 Existing installations created before that choice was introduced revisit only the final recording page once.
 Enabling is the only path that asks for location access.
+
+The regular runtime routes `CKAccountChanged` to `WhereModel.accountDidChange()`.
+That path invalidates account trust before refreshing. It does not join an older
+foreground refresh. The original account must be verified again before access
+resumes; a different account cannot adopt this installation's local history.

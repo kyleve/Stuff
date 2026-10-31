@@ -42,6 +42,7 @@ final class ShareEvidenceModel {
     /// Storage the extension opens; injectable so a future test can point it at
     /// an in-memory store instead of the shared container.
     private let storage: SwiftDataStore.Storage
+    private var preparedStore: SwiftDataStore?
     private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     init(
@@ -93,8 +94,15 @@ final class ShareEvidenceModel {
         phase = .saving
         let pending = buildPendingEvidence()
         do {
-            let store = try SwiftDataStore.make(storage: storage)
+            let store: SwiftDataStore
+            if let preparedStore { store = preparedStore }
+            else {
+                store = try SwiftDataStore.make(storage: storage)
+                preparedStore = store
+            }
+            try await StandaloneDataCompatibility.requireAccess(to: store)
             try await store.perform {
+                try await StandaloneDataCompatibility.requireAccess(to: store)
                 for item in pending {
                     try await store.write(evidence: item.evidence, blob: item.blob)
                 }

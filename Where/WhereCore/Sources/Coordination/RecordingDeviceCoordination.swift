@@ -33,6 +33,20 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         }
     }
 
+    public func invalidateAccount() async throws {
+        try await authority.invalidateAccount()
+    }
+
+    public func subscribeToChanges() async {
+        do { try await authority.subscribe() }
+        catch {
+            WhereLog.root(DataCompatibilityLog.self).subscriptionFailed(error: .restricted(
+                .errorDetails,
+                error,
+            ))
+        }
+    }
+
     public nonisolated func updates() -> AsyncStream<Void> {
         authority.updates()
     }
@@ -47,11 +61,15 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     public func refresh() async throws -> RecordingAuthority {
+        try await authority.withAccountAccess { try await self.refreshInAccount() }
+    }
+
+    private func refreshInAccount() async throws -> RecordingAuthority {
         let state = try await authority.refresh()
         // An in-flight command owns its sidecar until it completes or reports uncertainty.
         guard !isOperating else { return state }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         try await reconcilePendingTransition(verified: state)
         return state
     }
@@ -85,6 +103,14 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     public func selectRecordingRole(_ selection: RecordingInstallationControl
         .Selection) async throws -> RecordingAuthority
     {
+        try await authority.withAccountAccess {
+            try await self.selectRecordingRoleInAccount(selection)
+        }
+    }
+
+    private func selectRecordingRoleInAccount(_ selection: RecordingInstallationControl
+        .Selection) async throws -> RecordingAuthority
+    {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
@@ -97,10 +123,10 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         }
         let context = try await installation.resolve()
         _ = try await installation
-            .confirmInitialRecording(isEnabled: selection == .recordingRequested)
-        try await installation.setAutomaticRecordingEnabled(selection == .recordingRequested)
+            .confirmAccountRecording(isEnabled: selection == .recordingRequested)
+        try await installation.saveAccountRecordingEnabled(selection == .recordingRequested)
         let state = try await authority.refresh()
-        try await installation.setRecordingControl(.init(
+        try await installation.saveAccountRecordingControl(.init(
             selection: selection,
             pendingTransition: nil,
         ))
@@ -125,6 +151,15 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         replacing reviewedOwner: RecordingAuthority.Owner,
         history: RecordingRecoveryHistory,
     ) async throws -> RecordingAuthority {
+        try await authority.withAccountAccess {
+            try await self.recoverInAccount(replacing: reviewedOwner, history: history)
+        }
+    }
+
+    private func recoverInAccount(
+        replacing reviewedOwner: RecordingAuthority.Owner,
+        history: RecordingRecoveryHistory,
+    ) async throws -> RecordingAuthority {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
@@ -137,8 +172,8 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         }
         let state = try await authority.refresh()
         guard state.owner == reviewedOwner else { throw RecordingAuthorityError.conflict }
-        _ = try await installation.confirmInitialRecording(isEnabled: true)
-        try await installation.setAutomaticRecordingEnabled(true)
+        _ = try await installation.confirmAccountRecording(isEnabled: true)
+        try await installation.saveAccountRecordingEnabled(true)
         try await authority.registerInstallation(context)
         let proposal = try RecordingAuthorityProposal(
             state: state,
@@ -153,6 +188,12 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
 
     /// Only the designated owner can advance the global contract, including on background boot.
     public func advanceCompatibility() async throws {
+        try await authority.withAccountAccess {
+            try await self.advanceCompatibilityInAccount()
+        }
+    }
+
+    private func advanceCompatibilityInAccount() async throws {
         let version = supportedVersion
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
@@ -179,6 +220,12 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     public func cancelHandoff(requestID: RecordingAuthority.EventID) async throws {
+        try await authority.withAccountAccess {
+            try await self.cancelHandoffInAccount(requestID: requestID)
+        }
+    }
+
+    private func cancelHandoffInAccount(requestID: RecordingAuthority.EventID) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
@@ -190,7 +237,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
            state.owner?.deviceID != context.currentDevice.id ||
            state.pendingHandoff?.requestID != requestID
         {
-            try await installation.setRecordingControl(.init(
+            try await installation.saveAccountRecordingControl(.init(
                 selection: context.recordingControl.selection,
                 pendingTransition: nil,
             ))
@@ -215,6 +262,12 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
 
     /// Does not retry an approval: the recording controller must first stop all automatic work.
     public func retryPendingRequest() async throws -> RecordingAuthority {
+        try await authority.withAccountAccess {
+            try await self.retryPendingRequestInAccount()
+        }
+    }
+
+    private func retryPendingRequestInAccount() async throws -> RecordingAuthority {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
@@ -243,13 +296,21 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
               let verifiedRevision = state.revision,
               verifiedRevision.sequence >= proposedRevision.sequence
         else { return }
-        try await installation.setRecordingControl(.init(
+        try await installation.saveAccountRecordingControl(.init(
             selection: context.recordingControl.selection,
             pendingTransition: nil,
         ))
     }
 
     func prepareApproval(requestID: RecordingAuthority
+        .EventID) async throws -> RecordingAuthorityProposal
+    {
+        try await authority.withAccountAccess {
+            try await self.prepareApprovalInAccount(requestID: requestID)
+        }
+    }
+
+    private func prepareApprovalInAccount(requestID: RecordingAuthority
         .EventID) async throws -> RecordingAuthorityProposal
     {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
@@ -276,7 +337,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         guard let target = proposal.result.owner
         else { throw RecordingAuthorityError.invalidHandoff }
         try await authority.requireEligibleHandoffTarget(target.deviceID)
-        try await installation.setRecordingControl(.init(
+        try await installation.saveAccountRecordingControl(.init(
             selection: context.recordingControl.selection,
             pendingTransition: proposal,
         ))
@@ -284,6 +345,14 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     func commitStoppedApproval(_ proposal: RecordingAuthorityProposal) async throws {
+        try await authority.withAccountAccess {
+            try await self.commitStoppedApprovalInAccount(proposal)
+        }
+    }
+
+    private func commitStoppedApprovalInAccount(
+        _ proposal: RecordingAuthorityProposal,
+    ) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
@@ -300,7 +369,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         _ proposal: RecordingAuthorityProposal,
         selection: RecordingInstallationControl.Selection,
     ) async throws {
-        try await installation.setRecordingControl(.init(
+        try await installation.saveAccountRecordingControl(.init(
             selection: selection,
             pendingTransition: proposal,
         ))
@@ -312,7 +381,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             if proposal.kind != .transfer,
                try await installation.resolve().recordingControl.pendingTransition == proposal
             {
-                try await installation.setRecordingControl(.init(
+                try await installation.saveAccountRecordingControl(.init(
                     selection: selection,
                     pendingTransition: nil,
                 ))
@@ -322,9 +391,28 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         // Never clear a newer command after an actor suspension.
         guard try await installation.resolve().recordingControl.pendingTransition == proposal
         else { throw RecordingAuthorityError.conflict }
-        try await installation.setRecordingControl(.init(
+        try await installation.saveAccountRecordingControl(.init(
             selection: selection,
             pendingTransition: nil,
         ))
+    }
+}
+
+extension InstallationRecordingContextStoring {
+    fileprivate func saveAccountRecordingControl(_ control: RecordingInstallationControl) throws {
+        try DataAccessPermit.current?.validate()
+        try setRecordingControl(control)
+    }
+
+    fileprivate func confirmAccountRecording(isEnabled: Bool) throws
+        -> InstallationRecordingContext
+    {
+        try DataAccessPermit.current?.validate()
+        return try confirmInitialRecording(isEnabled: isEnabled)
+    }
+
+    fileprivate func saveAccountRecordingEnabled(_ enabled: Bool) throws {
+        try DataAccessPermit.current?.validate()
+        try setAutomaticRecordingEnabled(enabled)
     }
 }

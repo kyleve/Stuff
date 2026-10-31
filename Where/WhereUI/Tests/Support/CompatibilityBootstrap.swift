@@ -8,12 +8,18 @@ import PeriscopeCore
 final class CompatibilityBootstrap: WhereScopeAssembling {
     let store: SwiftDataStore
     let installation: InMemoryInstallationRecordingContextStore
+    let transport = CompatibilityAccountTransport()
     let authority: RecordingAuthorityCoordinator
     let recording: RecordingDeviceCoordination
     let compatibility: DataCompatibilityCoordinator
     var preparationError: (any Error)?
     var serviceAssemblyGate: CompatibilityOperationGate?
     var locationSource: any LocationSource = ScriptedLocationSource(authorizationStatus: .always)
+    private(set) var withdrawals = 0
+    func withdrawCompatibilityOutputs() async {
+        withdrawals += 1
+    }
+
     private(set) var makeServicesCount = 0
     private(set) var makeLogStoreCount = 0
     private(set) var lastDomainStore: (any WhereStore)?
@@ -34,7 +40,8 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
         self.installation = installation
         let authority = RecordingAuthorityCoordinator(
             store: store,
-            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            transport: transport,
+            installation: installation,
         )
         self.authority = authority
         let recording = RecordingDeviceCoordination(

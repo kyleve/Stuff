@@ -627,6 +627,21 @@ public final class WhereModel {
         Self.logger.endedSession()
     }
 
+    /// Foreground and system wakeups verify the real world without opening it for a pending demo.
+    public func refreshCompatibility() async {
+        guard !isInDemoMode else { return }
+        switch launchDemoState {
+            case .pending, .building: return
+            case .inactive: await compatibility.refresh()
+        }
+    }
+
+    /// System account changes invalidate trust even while the real world is hidden by demo mode.
+    public func accountDidChange() async {
+        await compatibility.invalidateAccount()
+        await refreshCompatibility()
+    }
+
     /// Release a revoked world without changing preferences, consent, or queued samples.
     func suspendForCompatibility() async {
         guard let scope = activeScope, scope.kind == .real else { return }

@@ -61,6 +61,7 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
                 theme: context.theme,
             )
         }
+
         return .result(view: snippet)
     }
 }

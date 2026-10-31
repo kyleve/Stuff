@@ -4,11 +4,31 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct RecordingDeviceCoordinationTests {
+    @Test @MainActor func invalidatedRoleCommandCannotOverwriteTheInstallationSidecar(
+    ) async throws {
+        let fixture = try CompatibilityAccountFixture()
+        _ = try await fixture.establish()
+        let originalControl = try fixture.installation.resolve().recordingControl
+        let gate = CompatibilityTestGate()
+        await fixture.transport.holdNextRead(gate)
+        let command = Task { try await fixture.recording.selectRecordingRole(.secondary) }
+        await gate.waitUntilEntered()
+        defer { gate.resume() }
+        await fixture.coordinator.invalidateAccount()
+        gate.resume()
+        await #expect(throws: DataCompatibilityError.accessRevoked) { _ = try await command.value }
+        #expect(try fixture.installation.resolve().recordingControl == originalControl)
+    }
+
     @Test @MainActor func restoredPhoneRequestsTransferWithoutClaimingExistingOwner() async throws {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
-        let authority = RecordingAuthorityCoordinator(store: store, transport: server)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let oldInstallation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let old = RecordingDeviceCoordination(
             supportedVersion: .current,
@@ -50,7 +70,11 @@ struct RecordingDeviceCoordinationTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let transport = RecordingCoordinationTransport()
-        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
             supportedVersion: .current,
@@ -84,7 +108,11 @@ struct RecordingDeviceCoordinationTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let transport = RecordingCoordinationTransport()
-        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
             supportedVersion: .current,
@@ -107,7 +135,11 @@ struct RecordingDeviceCoordinationTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let transport = RecordingCoordinationTransport()
-        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
             supportedVersion: .current,
@@ -150,7 +182,11 @@ struct RecordingDeviceCoordinationTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let transport = RecordingCoordinationTransport()
-        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
             supportedVersion: .current,
@@ -180,6 +216,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -212,6 +249,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -245,6 +283,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -281,7 +320,11 @@ struct RecordingDeviceCoordinationTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
-        let authority = RecordingAuthorityCoordinator(store: store, transport: server)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
             supportedVersion: .current,
@@ -316,6 +359,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -334,6 +378,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -358,6 +403,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -390,6 +436,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
@@ -434,6 +481,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { cutoff }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let old = RecordingDeviceCoordination(
             supportedVersion: .current,

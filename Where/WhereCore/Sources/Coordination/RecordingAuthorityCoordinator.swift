@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 
 /// Reconciles the server's immutable authority history into an injected store.
@@ -9,9 +10,33 @@ public actor RecordingAuthorityCoordinator {
     private let store: any WhereStore
     private let transport: any RecordingAuthorityTransport
 
-    public init(store: any WhereStore, transport: any RecordingAuthorityTransport) {
+    private let account: RecordingAccountAccess
+
+    public init(
+        store: any WhereStore,
+        transport: any RecordingAuthorityTransport,
+        installation: any InstallationRecordingContextStoring,
+    ) {
         self.store = store
         self.transport = transport
+        account = RecordingAccountAccess(installation: installation, transport: transport)
+    }
+
+    func withAccountAccess<T: Sendable>(
+        _ operation: @Sendable () async throws -> T,
+    ) async throws -> T {
+        try Task.checkCancellation()
+        try DataAccessPermit.current?.validate()
+        let session = try await account.verify()
+        return try await session.withAccess(operation)
+    }
+
+    public func invalidateAccount() async throws {
+        try await account.invalidate()
+    }
+
+    public func subscribe() async throws {
+        try await transport.subscribe()
     }
 
     public nonisolated func updates() -> AsyncStream<Void> {
@@ -20,7 +45,8 @@ public actor RecordingAuthorityCoordinator {
 
     /// Reads the local commit projection without a network request or a freshness guarantee.
     public func observed() async throws -> RecordingAuthority {
-        try await store.recordingAuthority()
+        let session = try await account.cachedSession()
+        return try await session.withAccess { try await self.store.recordingAuthority() }
     }
 
     public func deviceNames() async throws -> [RecordingDeviceID: String] {
@@ -59,6 +85,23 @@ public actor RecordingAuthorityCoordinator {
     /// cannot overwrite newer authority already observed by the store.
     @discardableResult
     public func refresh() async throws -> RecordingAuthority {
+        try Task.checkCancellation()
+        try DataAccessPermit.current?.validate()
+        let session = try await account.verify()
+        do {
+            let result = try await session.withAccess { try await self.refreshVerified() }
+            try await account.acceptAuthority(using: session)
+            return result
+        } catch {
+            if (error as? CKError)?.code == .notAuthenticated {
+                try await account.rejectAuthority(using: session)
+            }
+            throw error
+        }
+    }
+
+    private func refreshVerified() async throws -> RecordingAuthority {
+        try DataAccessPermit.current?.validate()
         guard let head = try await transport.current() else {
             // An absent head is valid only while local history is empty.
             // Established authority cannot disappear and enable another initial claim.
@@ -80,6 +123,7 @@ public actor RecordingAuthorityCoordinator {
             commits.append(commit)
             cursor = commit
         }
+        try DataAccessPermit.current?.validate()
         let verified = commits.reversed().map(\.self)
         // An unchanged refresh must not emit a store change that triggers another refresh.
         let existing = try await store.recordingAuthorityCommits()
@@ -100,8 +144,15 @@ public actor RecordingAuthorityCoordinator {
     public func submit(_ proposal: RecordingAuthorityProposal) async throws
         -> RecordingAuthorityCommit
     {
-        let commit = try await transport.commit(proposal)
-        _ = try await refresh()
-        return commit
+        try Task.checkCancellation()
+        try DataAccessPermit.current?.validate()
+        let session = try await account.verify()
+        return try await session.withAccess {
+            let commit = try await self.transport.commit(proposal)
+            try session.validate()
+            _ = try await self.refreshVerified()
+            try await self.account.acceptAuthority(using: session)
+            return commit
+        }
     }
 }
