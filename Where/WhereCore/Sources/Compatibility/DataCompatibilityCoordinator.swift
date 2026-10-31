@@ -7,22 +7,12 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
     private let installation: any InstallationRecordingContextStoring
     private let supportedVersion: DataCompatibilityVersion
     private var permit: DataAccessPermit?
-    private enum Verification {
-        case localHistory, remoteAuthority
-    }
-
-    private struct Check {
-        let verification: Verification
-        let task: Task<DataCompatibilityState, Never>
-    }
-
     private struct AccountSession: Equatable { let id = UUID() }
     private var accountSession = AccountSession()
-    private var checking: Check?
+    private var checking: Task<DataCompatibilityState, Never>?
     private var invalidating: Task<Void, Never>?
     #if DEBUG
-        /// Counts admitted checks so race tests can hold a local check before a remote caller
-        /// joins.
+        /// Counts callers sharing remote verification so race tests can hold its dependency.
         @_spi(Testing) public private(set) var pendingCheckCountForTesting = 0
     #endif
     private var stateRevision: UInt64 = 0
@@ -52,7 +42,7 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
     /// Revoke before touching persistence or the network. Old completions retain their old token.
     public func invalidateAccount() async {
         accountSession = AccountSession()
-        checking?.task.cancel()
+        checking?.cancel()
         checking = nil
         revokeAccess()
         if case .updateRequired = state {} else {
@@ -78,11 +68,11 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
         guard session == accountSession else { return state }
         await recording.subscribeToChanges()
         guard session == accountSession else { return state }
-        return await check(.remoteAuthority)
+        return await check()
     }
 
-    /// Local history changes need no network round trip. A prior verification failure
-    /// remains blocked until an explicit remote retry succeeds.
+    /// Local history can only block access. A sufficient requirement preserves the current
+    /// decision until explicit verification; it never reads authority or advances the floor.
     public func recheckLocalHistory() async -> DataCompatibilityState {
         let session = accountSession
         do {
@@ -100,28 +90,22 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
             revokeAccess()
             return state
         }
-        if case .verificationFailed = state { return state }
-        if checking != nil { return state }
-        return await check(.localHistory)
+        return state
     }
 
-    private func check(_ verification: Verification) async -> DataCompatibilityState {
+    private func check() async -> DataCompatibilityState {
         #if DEBUG
             pendingCheckCountForTesting += 1
             defer { pendingCheckCountForTesting -= 1 }
         #endif
         let session = accountSession
         if let checking {
-            let result = await checking.task.value
+            let result = await checking.value
             guard session == accountSession else { return state }
-            if verification == .remoteAuthority, checking.verification == .localHistory {
-                // Re-enter after the local task: another queued caller may already own this read.
-                return await check(.remoteAuthority)
-            }
             return result
         }
         let task = Task {
-            let result = await self.evaluate(verification)
+            let result = await self.evaluate()
             guard session == self.accountSession else { return self.state }
             // A locally observed higher floor cannot be undone by an older remote completion.
             if case .updateRequired = self.state {} else { self.state = result }
@@ -131,7 +115,7 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
             self.checking = nil
             return self.state
         }
-        checking = Check(verification: verification, task: task)
+        checking = task
         return await task.value
     }
 
@@ -166,13 +150,10 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
         try CompatibilityScopedStore(base: SwiftDataStore.inMemory(), permit: DataAccessPermit())
     }
 
-    private func evaluate(_ verification: Verification) async -> DataCompatibilityState {
+    private func evaluate() async -> DataCompatibilityState {
         do {
             await recording.waitUntilIdle()
-            let authority: RecordingAuthority = switch verification {
-                case .localHistory: try await recording.observed()
-                case .remoteAuthority: try await recording.refreshForUse()
-            }
+            let authority = try await recording.refreshForUse()
             let required = try await store.requiredDataCompatibilityVersion()
             guard supportedVersion >= required else { return .updateRequired(required) }
             let context = try await installation.resolve()

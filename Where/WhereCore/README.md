@@ -751,11 +751,18 @@ Missing or malformed metadata hides cached data. WidgetKit refresh remains async
 to write only at the current global version. It never claims recording ownership
 or advances the floor. The share extension checks it inside the store transaction.
 
-History observation uses local verified metadata. Explicit retry, foreground,
-CloudKit pushes refresh server authority. Account changes invalidate access first,
-then verify the original account again. A known verification
-failure remains blocked until remote verification succeeds. A remote retry that
-joins a local check waits for a remote verification before returning. Concurrent
-remote callers share that verification. Local imports can still enforce a higher
-floor while it is suspended. The `CompatibilityVerification` model checks this
-ordering; `CompatibilityWrites` checks the transaction boundary across lockout and recovery.
+History observation only checks the local version requirement. It can block access,
+but cannot restore access or advance the global version. A sufficient local
+requirement preserves the current decision, including waiting and failed states.
+Startup, foreground, CloudKit pushes, and explicit user actions request full
+verification. Concurrent callers share one verification task. Local imports can
+still enforce a higher floor while that task waits.
+
+A blocked device can therefore wait for the next verification trigger after sync
+makes its history compatible. Recording-role choices and Retry already request
+verification. Account changes still invalidate access before verification of the
+original account. Previously verified devices retain the existing offline fallback
+for temporary network failures.
+
+The `CompatibilityVerification` model checks these transitions.
+`CompatibilityWrites` checks the transaction boundary across lockout and recovery.
