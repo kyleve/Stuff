@@ -333,10 +333,15 @@ It reads fallback width and display scale from the marked test host window.
 Each configuration invokes the content builder again. Models captured outside that builder still need separate fixtures and hooks.
 See [SnapshotKit's adaptive container contract](../SnapshotKit/README.md#adaptive-containers) for viewport coverage and measured device profiles.
 
-Synthetic captures temporarily detach the marked host window from its physical scene.
-The window and its appeared root resize with the captured content.
-This prevents iOS 27.1 search chrome from anchoring to the physical display during full-content measurement.
+Fixed, regular-width phone captures retain their scene so native bar heights stay stable during settlement.
+The pipeline selects this path from the content controller’s layout traits before hosting.
+Other synthetic captures detach the marked window. This prevents physical reserved regions from truncating compact titles and keeps full-content search anchored to expanded content.
+For fixed captures, the pipeline subtracts the resized host controller’s native insets from the requested clearance.
+It detaches already-mounted subjects before configuring the capture host.
+Only the captured root overrides its safe-area getter. Native controller insets supply ancestor clearance; root pinning preserves translated tile geometry.
+Annotation padding has zero safe-area insets so image content and accessibility outlines share the same layout.
 The host controller propagates the configured content insets through native navigation containers.
+
 The pipeline restores the scene, frames, additional insets, visibility, and key state after success or failure.
 Window discovery, environment checks, and content preparation run under the same capture lock.
 Capture hooks use their retained model or view references while the window is detached.

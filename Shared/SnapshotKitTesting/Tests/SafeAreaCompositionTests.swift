@@ -17,7 +17,7 @@ import UIKit
 /// such contributions; this pins that it doesn't.
 @MainActor
 struct SafeAreaCompositionTests {
-    @Test func nativeNavigationPropagatesIndependentContentInsets() async throws {
+    @Test func fullContentNavigationPropagatesIndependentContentInsets() async throws {
         try waitFor { hostKeyWindow() != nil }
         let screen = NavigationStack {
             List { Text("History") }
@@ -33,6 +33,7 @@ struct SafeAreaCompositionTests {
         _ = try await renderSnapshotImage(
             of: host,
             named: "native-asymmetric-insets",
+            sizing: .intrinsic(width: 402, minimumHeight: 874),
             safeAreaInsets: insets,
             onReadyToSnapshot: {
                 @MainActor func navigationControllers(in controller: UIViewController)

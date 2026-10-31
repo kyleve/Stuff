@@ -32,6 +32,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
+- **Keep annotation padding’s safe-area insets at zero.** Subject clearance belongs to the captured root; guard centered-content outline alignment.
 - **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
@@ -59,7 +60,11 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **When they were one function, this module's own tests put a fabricated reference at the top of `./test --review`.** Its numbers were borrowed from a real regression.
 - **Five invented captures also landed in `--timings`.** Then a run that captured nothing reported "5 captures, 0.024s per image".
 - **Read display bounds and scale from the marked test-host window.** Never select a process-global main screen.
-- **Isolate synthetic captures from the physical scene.** Detach the marked window during an inset-overridden capture, resize it with the content, then restore its scene, frames, visibility, and key state.
+- **Keep the scene only for fixed, regular-width phone captures with inset overrides.** Resolve the predicate from the content controller’s traits before hosting.
+- **Detach already-mounted subjects before configuring the capture host.** For fixed captures, subtract the resized host controller’s native insets from the requested clearance.
+- **Override only the captured root’s safe-area getter.** Native controller insets own ancestor propagation; root pinning preserves translated tile geometry.
+- **Detach other synthetic captures, including compact phones, tablets, and full content.** Resize the marked window with the content.
+- **Restore the scene, frames, insets, visibility, and key state after every capture.** Guard: `SnapshotImageRenderingTests`.
 - **Keep native geometry when the inset override is nil.** Synthetic captures do not validate Duo system bars or reserved-region delivery.
 - **Inset overrides describe content clearance.** Propagate them through the host controller. Native floating bars can retain system positioning; validate their reserved-region clearance on the native runtime.
 - **Guards:** `SnapshotImageRenderingTests` checks restoration after success and failure. `LargeViewCaptureTests` checks full searchable content and search placement.

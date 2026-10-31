@@ -5,14 +5,14 @@ import UIKit
 /// instead of the host simulator's device insets. This decouples the image from
 /// the physical simulator (notch / home indicator). Unswizzled in all paths.
 ///
-/// Only the captured root and its ancestors (the capture scaffolding up to the
-/// window) report the override; views *inside* the hosted tree keep the native
-/// implementation. UIKit composes safe areas root-down, so the interior sees the
-/// zeroed device insets from our root **plus** everything legitimately layered on
-/// mid-tree — navigation-bar overlap, `safeAreaInset` accessories, a VC's
-/// `additionalSafeAreaInsets`. Two earlier designs failed here:
+/// Only the captured root reports the override. The host controller supplies
+/// native insets through `additionalSafeAreaInsets`; ancestors and descendants
+/// keep their native getters. Overriding ancestors applies nonzero insets twice
+/// when full-content measurement rehosts a navigation container.
+/// Root pinning keeps translated tiles from acquiring artificial safe areas.
+/// Two earlier designs failed here:
 ///
-/// - Returning the override for **every** in-tree view erased those interior
+/// - Returning the override for **every** in-tree view erased interior
 ///   contributions, so scroll content laid out flush under floating bars (a
 ///   summary screen crammed its text into the bar blur).
 /// - Geometrically re-deriving the root's safe rect per view produced phantom
@@ -82,12 +82,9 @@ extension UIView {
             return _overrideSafeAreaInsets
         }
 
-        // The captured root and the scaffolding above it report the override;
-        // everything inside the tree keeps the native implementation (which,
-        // after the method exchange, *is* `snapshotKitOverriddenSafeAreaInsets`)
-        // so interior contributions — bars, `safeAreaInset` accessories,
-        // `additionalSafeAreaInsets` — still compose on top of the zeroed base.
-        if self === testedView || testedView.isDescendant(of: self) {
+        // Pin the root during tile translation. Native getters on both sides
+        // of this boundary preserve controller insets and interior accessories.
+        if self === testedView {
             return _overrideSafeAreaInsets
         }
         return snapshotKitOverriddenSafeAreaInsets

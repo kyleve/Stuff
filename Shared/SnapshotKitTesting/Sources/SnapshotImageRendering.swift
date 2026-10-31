@@ -271,6 +271,13 @@ func renderSnapshotCaptureLocked(
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
 ) async throws -> SnapshotCapture {
+    let initialContentFrame = viewController.view.frame
+    // Reparent before configuring the host so an existing hierarchy cannot apply
+    // the requested insets once before and once after capture hosting.
+    if viewController.parent != nil || viewController.view.superview != nil {
+        removeChildAfterCapture(viewController)
+    }
+
     func capture() async throws -> SnapshotCapture {
         guard let hostRoot = window.rootViewController else {
             preconditionFailure(
@@ -278,7 +285,6 @@ func renderSnapshotCaptureLocked(
             )
         }
 
-        let initialContentFrame = viewController.view.frame
         let initialScene = window.windowScene
         let initialKeyWindow = initialScene?.keyWindow
         let initialWindowFrame = window.frame
@@ -306,17 +312,23 @@ func renderSnapshotCaptureLocked(
             UIView.setAnimationsEnabled(animationsWereEnabled)
         }
 
-        // iOS 27.1 anchors native search chrome to the scene's physical display,
-        // even when the window and every child have a larger synthetic frame.
-        // Isolate the marked host window for this serialized capture, retaining
-        // its appeared root and restoring its scene on success and failure.
-        // A nil inset override requests native scene geometry instead.
         if let safeAreaInsets {
-            window.windowScene = nil
-            window.makeKeyAndVisible()
-            // UIKit containers propagate these insets through their controller
-            // hierarchy; a root UIView getter override alone covers SwiftUI only.
-            hostRoot.additionalSafeAreaInsets = safeAreaInsets
+            // Regular-width phone bars require a scene to keep their height stable.
+            // Other synthetic layouts detach so physical reserved regions cannot
+            // truncate their titles or move controls into overflow.
+            let retainsScene: Bool = if case .fixed = sizing {
+                viewController.traitCollection.horizontalSizeClass == .regular
+                    && viewController.traitCollection.userInterfaceIdiom == .phone
+            } else { false }
+            if !retainsScene {
+                window.windowScene = nil
+                window.makeKeyAndVisible()
+            }
+            if case .fixed = sizing {
+                hostRoot.additionalSafeAreaInsets = .zero
+            } else {
+                hostRoot.additionalSafeAreaInsets = safeAreaInsets
+            }
         }
 
         // Set on the content controller itself (not a wrapper) so it survives
@@ -327,6 +339,17 @@ func renderSnapshotCaptureLocked(
 
         if case .fixed = sizing {
             resizeHostWindow(window, root: hostRoot, to: initialContentFrame.size)
+            if let safeAreaInsets {
+                // The native controller can retain clearance even with no scene.
+                // Match its effective inset to the captured root's getter override.
+                let nativeInsets = hostRoot.view.safeAreaInsets
+                hostRoot.additionalSafeAreaInsets = UIEdgeInsets(
+                    top: safeAreaInsets.top - nativeInsets.top,
+                    left: safeAreaInsets.left - nativeInsets.left,
+                    bottom: safeAreaInsets.bottom - nativeInsets.bottom,
+                    right: safeAreaInsets.right - nativeInsets.right,
+                )
+            }
         }
 
         try await resolveContentSize(

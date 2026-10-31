@@ -81,6 +81,12 @@ final class AccessibilitySnapshotViewController: UIViewController {
 private final class InsetView: UIView {
     private static let inset: CGFloat = 8
 
+    /// This wrapper adds annotation padding, not device clearance. Native insets
+    /// here can move centered content between image rendering and marker parsing.
+    override var safeAreaInsets: UIEdgeInsets {
+        .zero
+    }
+
     init(content: UIView) {
         let frame = content.frame.inset(
             by: UIEdgeInsets(
