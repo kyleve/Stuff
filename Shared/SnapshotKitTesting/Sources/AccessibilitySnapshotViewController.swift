@@ -8,7 +8,10 @@ import UIKit
 /// all-element view's region border isn't clipped, and the wrapper is sized to
 /// fit the annotations.
 final class AccessibilitySnapshotViewController: UIViewController {
+    /// Upstream UIView+ImageRendering's tile limit, in points. Re-check on upgrades.
+    private static let upstreamTileSideLength: CGFloat = 2000
     private let content: UIViewController
+    private let insetView: InsetView
 
     private var snapshotView: SwiftUIAccessibilitySnapshotContainerView {
         guard let snapshotView = view as? SwiftUIAccessibilitySnapshotContainerView else {
@@ -21,6 +24,7 @@ final class AccessibilitySnapshotViewController: UIViewController {
 
     init(wrapping content: UIViewController) {
         self.content = content
+        insetView = InsetView(content: content.view)
         super.init(nibName: nil, bundle: nil)
         addChild(content)
         content.didMove(toParent: self)
@@ -32,30 +36,38 @@ final class AccessibilitySnapshotViewController: UIViewController {
     }
 
     override func loadView() {
-        view = SwiftUIAccessibilitySnapshotContainerView(
-            containedView: InsetView(content: content.view),
+        let container = SwiftUIAccessibilitySnapshotContainerView(
+            containedView: insetView,
             snapshotConfiguration: AccessibilitySnapshotConfiguration(
                 viewRenderingMode: .drawHierarchyInRect,
                 colorRenderingMode: .monochrome,
             ),
         )
+        container.addSubview(insetView)
+        view = container
     }
 
-    /// Parses the content's accessibility and sizes the view to fit the resulting
-    /// annotations. Must be called while the view is in the hierarchy. Rendering
+    /// Parses accessibility without expanding the capture viewport.
+    /// Must be called while the view is in the hierarchy. Rendering
     /// failures surface loudly rather than producing a blank image.
     func parseAccessibility() {
-        // AccessibilitySnapshot temporarily moves the contained view into its
-        // renderer. Suspend controller containment around that move, then
-        // restore it before the annotated wrapper is captured.
-        content.willMove(toParent: nil)
-        content.removeFromParent()
+        // The upstream tiled renderer temporarily adopts the padding view.
+        let requiresTiling = insetView.bounds.width > Self.upstreamTileSideLength
+            || insetView.bounds.height > Self.upstreamTileSideLength
+        if requiresTiling {
+            content.willMove(toParent: nil)
+            content.removeFromParent()
+        }
         defer {
-            addChild(content)
-            content.didMove(toParent: self)
+            if requiresTiling {
+                addChild(content)
+                content.didMove(toParent: self)
+            }
         }
         do {
-            try snapshotView.parseAccessibility()
+            try SnapshotAccessibilityViewport.withUnclippedNavigationBars(in: insetView) {
+                try snapshotView.parseAccessibility()
+            }
         } catch let ImageRenderingError.containedViewExceedsMaximumSize(viewSize, maximumSize) {
             preconditionFailure(
                 "Accessibility snapshot content \(viewSize) exceeds the maximum renderable size \(maximumSize); "
@@ -72,6 +84,10 @@ final class AccessibilitySnapshotViewController: UIViewController {
         } catch {
             preconditionFailure("Failed to render accessibility snapshot image: \(error)")
         }
+    }
+
+    /// Expand after the final parse, keeping preparation at the subject's size.
+    func sizeToFitAnnotations() {
         snapshotView.sizeToFit()
     }
 }

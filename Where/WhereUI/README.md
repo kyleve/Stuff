@@ -83,6 +83,7 @@ selection reveals the first overlapping displayed entry.
 On a wide window, Locations shows cards beside the selected region's calendar.
 Without a region selection, the detail pane shows the year calendar.
 Your Year shows the calendar and timeline together. Settings uses native list and detail navigation.
+Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
 Narrow windows and accessibility text sizes use one pane. The compact calendar/timeline choice remains stored while both panes are visible.
 Theme choices stack when the available pane cannot fit two readable card specimens.
 
