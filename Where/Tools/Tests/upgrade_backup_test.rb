@@ -8,7 +8,7 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 7, upgraded.fetch("formatVersion")
+    assert_equal 8, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
@@ -16,7 +16,7 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal [], upgraded.fetch("homeRegionRecords")
     assert_equal [], upgraded.fetch("sampleAttributionRevisions")
     assert_nil upgraded.fetch("samples").first.fetch("motion")
-    assert_nil upgraded.fetch("samples").first.fetch("recordingDeviceID")
+    assert_nil upgraded.fetch("samples").first["recordingDeviceID"]
   end
 
   def test_v1_synthesizes_primary_regions_and_rekeys_legacy_ids
@@ -58,7 +58,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 7, upgraded.fetch("formatVersion")
+    assert_equal 8, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -74,6 +74,23 @@ class UpgradeBackupTest < Minitest::Test
   def test_v7_is_idempotent
     once = upgrade_manifest(base_manifest(7))
     assert_equal once, upgrade_manifest(Marshal.load(Marshal.dump(once)))
+  end
+
+  def test_v7_adds_recording_metadata_without_changing_planning_history
+    manifest = base_manifest(7).merge(
+      "plannedStayRecords" => [{ "id" => "deletion", "stayID" => "stay", "updatedAt" => 1000 }],
+      "homeRegionRecords" => [{ "id" => "home", "region" => "us-CA", "updatedAt" => 1001 }, { "id" => "clear", "updatedAt" => 1002 }],
+    )
+    original = Marshal.load(Marshal.dump(manifest))
+
+    upgraded = upgrade_manifest(manifest)
+
+    assert_equal 8, upgraded.fetch("formatVersion")
+    assert_equal 1, upgraded.fetch("requiredCompatibilityVersion")
+    assert_equal [], upgraded.fetch("recordingRecoveryExclusions")
+    assert_equal original.fetch("plannedStayRecords"), upgraded.fetch("plannedStayRecords")
+    assert_equal original.fetch("homeRegionRecords"), upgraded.fetch("homeRegionRecords")
+    refute upgraded.fetch("samples").first.key?("recordingOwnershipID")
   end
 
   def test_v5_gains_empty_corrections_and_unknown_motion_without_altering_raw_fixes
@@ -146,8 +163,26 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
   end
 
+  def test_v6_preserves_legacy_installation_without_inventing_ownership
+    manifest = base_manifest(6)
+    manifest["samples"].first["recordingDeviceID"] = "store://recording-devices/example"
+    upgraded = upgrade_manifest(manifest)
+    assert_equal 1, upgraded.fetch("requiredCompatibilityVersion")
+    assert_equal [], upgraded.fetch("recordingRecoveryExclusions")
+    assert_equal "store://recording-devices/example", upgraded.fetch("samples").first.fetch("recordingDeviceID")
+    refute upgraded.fetch("samples").first.key?("recordingOwnershipID")
+  end
+
+  def test_v8_preserves_floor_and_recovery_history
+    manifest = upgrade_manifest(base_manifest(6))
+    manifest["requiredCompatibilityVersion"] = 3
+    manifest["recordingRecoveryExclusions"] = [{ "id" => "receipt", "replacedAt" => 1000.25 }]
+    expected = Marshal.load(Marshal.dump(manifest))
+    assert_equal expected, upgrade_manifest(manifest)
+  end
+
   def test_rejects_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(8)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(9)) }
     assert_equal 1, error.status
   end
 

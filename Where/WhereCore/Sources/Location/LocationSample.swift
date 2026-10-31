@@ -106,6 +106,18 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     /// Installation that produced an automatic GPS sample. Nil for legacy
     /// samples and user-asserted/manual data.
     public let recordingDeviceID: RecordingDeviceID?
+    // Keep recordingDeviceID as its own optional wire field so existing outboxes retain
+    // attribution.
+    // recorded(under:) stamps ownership from its mandatory owner.
+    private let recordingOwnershipID: RecordingAuthority.EventID?
+    public var recordingProvenance: SampleRecordingProvenance? {
+        recordingDeviceID.map { .init(deviceID: $0, ownershipID: recordingOwnershipID) }
+    }
+
+    var hasValidRecordingProvenance: Bool {
+        recordingOwnershipID == nil || (recordingDeviceID != nil && source.isGPS)
+    }
+
     /// Sensor readings when the source supplies valid speed or altitude evidence.
     public let motion: LocationMotion?
 
@@ -124,7 +136,28 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.horizontalAccuracy = horizontalAccuracy
         self.source = source
         self.recordingDeviceID = recordingDeviceID
+        recordingOwnershipID = nil
         self.motion = motion
+    }
+
+    private init(copying sample: Self, provenance: SampleRecordingProvenance) {
+        id = sample.id
+        timestamp = sample.timestamp
+        coordinate = sample.coordinate
+        horizontalAccuracy = sample.horizontalAccuracy
+        source = sample.source
+        motion = sample.motion
+        recordingDeviceID = provenance.deviceID
+        recordingOwnershipID = provenance.ownershipID
+    }
+
+    /// Stamp only automatically admitted samples, leaving manual one-shot actions unclaimed.
+    func recorded(under owner: RecordingAuthority.Owner) -> Self {
+        guard source.isGPS else { return self }
+        return .init(
+            copying: self,
+            provenance: .init(deviceID: owner.deviceID, ownershipID: owner.ownershipID),
+        )
     }
 
     /// Stamp an automatic sample with the installation that received it.

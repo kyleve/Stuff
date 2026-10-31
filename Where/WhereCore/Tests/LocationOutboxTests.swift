@@ -41,7 +41,7 @@ struct LocationOutboxTests {
         samples.map { LocationOutboxEntry(
             sample: $0,
             dataGenerationID: .initial,
-            recordingOwnershipID: nil,
+
         ) }
     }
 
@@ -93,7 +93,6 @@ struct LocationOutboxTests {
         let entry = LocationOutboxEntry(
             sample: sample,
             dataGenerationID: .initial,
-            recordingOwnershipID: nil,
         )
         try await outbox.save([entry])
         let reopened = FileLocationOutbox(fileURL: url)
@@ -109,7 +108,6 @@ struct LocationOutboxTests {
             dataGenerationID: WhereDataGenerationID(rawValue: #require(UUID(
                 uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
             ))),
-            recordingOwnershipID: nil,
         )
 
         try await outbox.save([entry])
