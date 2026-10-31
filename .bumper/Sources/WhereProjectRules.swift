@@ -18,6 +18,13 @@ let whereProjectRules = RuleSet {
         owner: whereLoggingScope.union(nonWhereProductionScope),
         id: "where.logging_type_ownership",
     )
+    Rules.constructionOwnership(
+        "CKContainer",
+        allowed: .files(
+            ["Where/WhereCore/Sources/Coordination/CloudKitRecordingAuthorityTransport.swift"],
+        ),
+        id: "where.recording_cloud_authority_ownership",
+    )
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -160,6 +167,7 @@ private let whereStoreMutatingMethods: Set<String> = [
     "setTrackedRegion",
     "setPrimaryRegions",
     "addSampleAttributionRevision",
+    "addRecordingAuthorityCommit",
 ]
 
 private let storeTransactionBoundaryRule = Rules.files(
