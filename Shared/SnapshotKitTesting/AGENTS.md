@@ -32,6 +32,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
+- **Keep annotation padding’s safe-area insets at zero.** Subject clearance belongs to the captured root; guard centered-content outline alignment.
 - **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
@@ -58,6 +59,17 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **A test that pins the wire shape calls `line(...)`.**
 - **When they were one function, this module's own tests put a fabricated reference at the top of `./test --review`.** Its numbers were borrowed from a real regression.
 - **Five invented captures also landed in `--timings`.** Then a run that captured nothing reported "5 captures, 0.024s per image".
+- **Read display bounds and scale from the marked test-host window.** Never select a process-global main screen.
+- **Keep the scene only for fixed, regular-width phone captures with inset overrides.** Resolve the predicate from the content controller’s traits before hosting.
+- **Detach already-mounted subjects before configuring the capture host.** For fixed captures, subtract the resized host controller’s native insets from the requested clearance.
+- **Override only the captured root’s safe-area getter.** Native controller insets own ancestor propagation; root pinning preserves translated tile geometry.
+- **Detach other synthetic captures, including compact phones, tablets, and full content.** Resize the marked window with the content.
+- **Restore the scene, frames, insets, visibility, and key state after every capture.** Guard: `SnapshotImageRenderingTests`.
+- **Keep native geometry when the inset override is nil.** Synthetic captures do not validate Duo system bars or reserved-region delivery.
+- **Inset overrides describe content clearance.** Propagate them through the host controller. Native floating bars can retain system positioning; validate their reserved-region clearance on the native runtime.
+- **Guards:** `SnapshotImageRenderingTests` checks restoration after success and failure. `LargeViewCaptureTests` checks full searchable content and search placement.
+- **Viewport shell captures require companion full-content pane captures.** They do not prove content completeness.
+- **Full-content captures reset the primary scroll view to the top after readiness.** Viewport captures preserve restored scroll positions. Guard: `LargeViewCaptureTests.restoredScrollOffsetsApplyOnlyToViewportCaptures`.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
@@ -93,7 +105,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **A change-free settle loop keeps running until it can prove stability.** A starved machine can fit fewer passes than stability needs.
 - **Only a hard cap gives up as `.starved`.** That is an environment failure, not view motion.
 - **Guard: `SnapshotRenderingSupportTests`.**
-- **Captures are single-tenant per process.** `renderSnapshotImage` serializes through a FIFO `@MainActor` mutex.
+- **Captures are single-tenant per process.** All entry points acquire the FIFO `@MainActor` mutex before window discovery, environment validation, and content preparation.
 - **The safe-area swizzle is depth-counted.** Nested captures trap.
 - **Keep the suite serial anyway.** Concurrent scheduling degrades to queued-serial, gaining nothing.
 - **Guard: `SnapshotKitTestingTests.ConcurrentCaptureTests`.** The rejected experiments below record the interleaving failure. CircleCI shards across isolated VMs and keeps each worker serial; see [the snapshot job](../../.circleci/config.yml).

@@ -25,16 +25,13 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Non-default values include `dark`, `xxxl`, `contrast`, `rtl`, `bold`, `accessibility`, and `iPad`.** The light/standard/default baseline stays empty.
 - **Reference-image filenames depend on this.** Treat omission rules as a wire format.
 - **When you add an axis, give it a default that is omitted.** That is how `layoutDirection`/`legibilityWeight` landed.
-- **Treat explicit layout traits as non-default.** Their idiom and size classes must add one stable identifier token.
 - **Filter `.accessibility` configs out of previews.** `snapshotPreviews` drops them.
 - **Stuff keeps AccessibilitySnapshot's annotation renderer in the test-only `SnapshotKitTesting` product.** It does not link into shipping UI modules.
 - **Accessibility configs only render as snapshot tests.** Do not "fix" previews to include them without a preview-only dependency boundary.
 - **Keep `SnapshotCase` content builders lazy.** Constructing a provider's descriptor array must not instantiate every view or model.
-- **Do not assume captured models are isolated between configurations.** The
-  `SnapshotKitTesting` runner evaluates ordinary content once per case and re-hosts it.
-  Cutsheet panel builders run per configuration and must create fresh fixtures.
-  Retries reuse the supplied view and captured models in both paths. Ordinary
-  per-configuration model isolation remains in [`TODOs.md`](TODOs.md).
+- **Do not assume captured models are isolated between configurations.** The current
+  runner invokes the content builder per configuration. Models captured outside
+  that builder and shared hooks still need independent cases. See [`TODOs.md`](TODOs.md).
 - **Use `\.isCapturingSnapshot` for motion end-states only.** A view may read it only to freeze motion at a deterministic phase.
 - **Never use it to change layout, content, or behavior.**
 - **One carve-out (documented on the property):** content no settle window can make deterministic may substitute a placeholder of identical layout.
@@ -50,7 +47,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Custom full-content frames shrink-wrap unless given a minimum.**
 - **Capture the production screen including navigation, tab, sheet, search, and toolbar chrome when measurement converges.**
 - **If a container is intentionally bounded or greedy, snapshot its shared scrolling child directly.** Never add snapshot-only production layout.
-- **Fixed device frames are for non-scrolling subjects.**
+- **Fixed device frames are for non-scrolling subjects.** Use explicit `Frame.viewport` captures for bounded adaptive shells only with full-content pane coverage.
+- **Keep frame names stable when setting layout traits.** Presets carry truthful size classes and idioms; component frames inherit.
+- **Source Duo frames from native measurements.** Re-measure `Documentation/DuoMeasurements.json` when the runtime pin changes. Synthetic frames do not change native pose or bar arrangement.
+- **Create a separate case and model for each new adaptive configuration.** Readiness hooks must target that configuration's model.
 - **Use two-axis full-content frames only for spatial canvases.** Choose `.iPhoneFullContent2D`, `.iPadFullContent2D`, or an explicit `.fullContent2D` when the production subject intentionally scrolls in both dimensions.
 - **Keep ordinary screen presets fixed-width.** Guard: `SnapshotConfigurationTests`.
 - **Measurement readiness never replaces capture readiness.**
@@ -77,3 +77,5 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 ## Testing
 
 `SnapshotKitTests` covers the matrix logic — `combinations` counts and `identifierParts` omission — as pure value assertions (no rendering). Consumers' snapshot bundles exercise the rendering pipeline through `SnapshotKitTesting`.
+
+Explicit configuration layout traits override frame traits and retain their identifier tokens. With no explicit override, previews and captures use the frame’s measured traits.

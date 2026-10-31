@@ -17,6 +17,61 @@ import UIKit
 /// such contributions; this pins that it doesn't.
 @MainActor
 struct SafeAreaCompositionTests {
+    @Test func fullContentNavigationPropagatesIndependentContentInsets() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let screen = NavigationStack {
+            List { Text("History") }
+                .searchable(text: .constant(""))
+                .navigationTitle("History")
+                .navigationBarTitleDisplayMode(.inline)
+        }
+        let host = UIHostingController(rootView: screen)
+        host.traitOverrides.horizontalSizeClass = .compact
+        host.traitOverrides.userInterfaceIdiom = .phone
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let insets = UIEdgeInsets(top: 37, left: 11, bottom: 59, right: 29)
+        _ = try await renderSnapshotImage(
+            of: host,
+            named: "native-asymmetric-insets",
+            sizing: .intrinsic(width: 402, minimumHeight: 874),
+            safeAreaInsets: insets,
+            onReadyToSnapshot: {
+                @MainActor func navigationControllers(in controller: UIViewController)
+                    -> [UINavigationController]
+                {
+                    if let navigation = controller as? UINavigationController { return [navigation]
+                    }
+                    return controller.children.flatMap { navigationControllers(in: $0) }
+                }
+                let controllers = navigationControllers(in: host)
+                #expect(!controllers.isEmpty)
+                for controller in controllers {
+                    let bar = controller.navigationBar
+                    let frame = bar.convert(bar.bounds, to: host.view)
+                    #expect(frame.minY >= insets.top)
+                    #expect(frame.minY <= insets.top + 8)
+                    #expect(controller.view.safeAreaInsets.left == insets.left)
+                    #expect(controller.view.safeAreaInsets.right == insets.right)
+                    #expect(controller.view.safeAreaInsets.bottom >= insets.bottom)
+                }
+                @MainActor func fields(in view: UIView) -> [UITextField] {
+                    if let field = view as? UITextField { return [field] }
+                    return view.subviews.flatMap { fields(in: $0) }
+                }
+                let searchFields = fields(in: host.view)
+                #expect(!searchFields.isEmpty)
+                for field in searchFields {
+                    let frame = field.convert(field.bounds, to: host.view)
+                    // Floating search chrome uses system geometry rather than
+                    // additional content insets. Its placement within native
+                    // reserved regions requires a native-device check.
+                    #expect(host.view.bounds.contains(frame))
+                    #expect(frame.maxY >= host.view.bounds.maxY - 120)
+                }
+            },
+        )
+    }
+
     @Test func zeroedRootLeavesNoDeviceInset() async throws {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: Color.red)

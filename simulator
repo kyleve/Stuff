@@ -32,8 +32,8 @@ set -euo pipefail
 # Registry-backed deletion requires an exact checkout, UDID, name, and runtime
 # match. A derived name without a registry claim is discoverable but unowned.
 
-DEVICE="iPhone 17"
-OS="27.0"
+DEVICE="iPhone Duo"
+OS="27.1"
 BOOT=true
 SHARED=false
 DRY_RUN=false
@@ -51,8 +51,8 @@ Every checkout — clone or worktree — owns a separate device, so parallel wor
 on one machine can't collide booting, installing, or erasing the same one.
 
 Options:
-  --device NAME   Simulator device name (default: "iPhone 17")
-  --os VERSION    Simulator iOS version (default: "27.0")
+  --device NAME   Simulator device name (default: "iPhone Duo")
+  --os VERSION    Simulator iOS version (default: "27.1")
   --no-boot       Only resolve (creating if needed) and print the UDID
   --shared        Target any existing device with that name instead of this
                   checkout's own — for throwaway machines (CI) that are already
@@ -71,7 +71,7 @@ fresh device and the old one turns up as unowned in --list.
 
 Examples:
   ./simulator
-  ./simulator --device 'iPhone 17 Pro' --os 27.0
+  ./simulator --device 'iPhone Duo' --os 27.1
   ./simulator --list
   ./simulator --prune --dry-run
   xcodebuild test -destination "platform=iOS Simulator,id=$(./simulator)" …
@@ -209,7 +209,9 @@ create_device() { # <name> -> udid on stdout
     fi
 
     echo "==> Creating $1 ($DEVICE / iOS $OS) for $checkout" >&2
-    udid="$(xcrun simctl create "$1" "$type_id" "$runtime_key" | tr -d '[:space:]')"
+    # Bash clears errexit in command substitutions. Preserve a failed create
+    # even when simctl writes its error description to stdout.
+    udid="$(xcrun simctl create "$1" "$type_id" "$runtime_key" | tr -d '[:space:]')" || return $?
     if [ -z "$udid" ]; then
         echo "error: simctl create returned no UDID for '$1'." >&2
         exit 1

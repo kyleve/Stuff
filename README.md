@@ -4,8 +4,8 @@ Random apps and stuff.
 
 ## Requirements
 
-- Xcode 27+ (a full Xcode.app, not the Command Line Tools)
-- iOS 27.0+
+- Xcode matching [the renderer pin](.xcode-build-version) (a full Xcode.app, not the Command Line Tools)
+- iOS 27.1+
 - [mise](https://mise.jdx.dev) pins Tuist, SwiftFormat, and Ruby.
   `./ide --bootstrap` installs it for you (see below).
 

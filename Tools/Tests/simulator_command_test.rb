@@ -78,9 +78,10 @@ class SimulatorCommandTest < Minitest::Test
     with_fixture(create_status: 23) do |fixture|
       fixture.write_inventory(all: {}, available: {})
 
-      _stdout, _stderr, status = fixture.run("--no-boot")
+      stdout, _stderr, status = fixture.run("--no-boot")
 
-      refute status.success?
+      assert_equal 23, status.exitstatus
+      assert_empty stdout
       refute_path_exists fixture.registry_path
       assert_path_exists fixture.lock_file
     end
@@ -367,6 +368,8 @@ class SimulatorCommandTest < Minitest::Test
         PY
             fi
             printf '%s\n' created
+          else
+            printf '%s\n' 'Unable to create a device for device type: incompatible runtime'
           fi
           exit #{create_status}
         elif [ "$1 $2" = "simctl delete" ]; then

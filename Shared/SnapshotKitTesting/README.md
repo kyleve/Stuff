@@ -35,7 +35,7 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   through `sizeThatFits`. This fallback applies only when scroll content exceeds
   the reported intrinsic height. A fully visible short document keeps its intrinsic height.
   Device presets retain their normal viewport height as
-  the minimum. Height measurement iterates to a stable fixed point for lazy
+  the minimum. After readiness, full-content captures reset the primary scroll view to the top; viewport captures preserve it. Height measurement iterates to a stable fixed point for lazy
   content. if it cannot converge within the bounded pass budget, capture throws,
   the assertion records a test issue, and no arbitrary image is compared or
   recorded. Captures serialize process-wide through an internal FIFO mutex — 
@@ -49,6 +49,9 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   case whose final content arrives asynchronously has to be made deterministic
   (seed the fixture so the first frame is final, or gate on
   `onReadyToSnapshot`). 
+  The digest permits one 8-bit color step against the quiet-window anchor to
+  absorb renderer quantization noise. It keeps that anchor unchanged; any
+  two-step change anywhere restarts stability. Final image tolerances are separate.
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
   appearance work that starts quiet and lands after the default floor (the
   native glass toolbar/tab bar material adaptation). `.immediate` skips the
@@ -145,8 +148,10 @@ reference image. It accepts the view, configuration, name, sizing strategy,
 safe-area insets, readiness hooks, and settle policy. The returned
 `SnapshotPNG` contains PNG data, point and pixel dimensions, and image scale.
 
-The operation holds the existing capture lock. It also applies snapshot traits,
-including explicit interface idiom and size classes. It then does full-content
+The operation acquires the capture lock before it finds the host window or prepares content.
+Queued cancellation is checked before content mounts. It also applies snapshot traits,
+including the interface idiom and size classes from `Frame.layoutTraits`.
+It then does full-content
 measurement, accessibility annotation, settling, and PNG round-tripping. Call
 it only from a test bundle hosted by `StuffTestHost`. It needs the host app's
 key window. A rendering or encoding error throws. The caller must not publish
@@ -280,7 +285,7 @@ emits one timing line that includes time spent on failed attempts.
 - Runs in a hosted test bundle (needs a host app window. in this repo that's
   `StuffTestHost`, reached via `TestHostSupport`).
 - Device/OS-pinned: reference images are captured on a fixed simulator (this
-  repo's CI uses iPhone 17 / iOS 27.0).
+  repo's CI uses the defaults and runtime pins in `Project.swift` and `test`).
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
@@ -320,3 +325,27 @@ the hosted test capture remains authoritative.
 The runner reads SnapshotKit's `Capture` SPI and switches exhaustively between
 single-view and cutsheet captures. Panel collections are validated before capture.
 No empty-array fallback selects the single-view path.
+
+## Adaptive containers
+
+The runner applies each frame's layout traits before mounting its content.
+It reads fallback width and display scale from the marked test host window.
+Each configuration invokes the content builder again. Models captured outside that builder still need separate fixtures and hooks.
+See [SnapshotKit's adaptive container contract](../SnapshotKit/README.md#adaptive-containers) for viewport coverage and measured device profiles.
+
+Fixed, regular-width phone captures retain their scene so native bar heights stay stable during settlement.
+The pipeline selects this path from the content controller’s layout traits before hosting.
+Other synthetic captures detach the marked window. This prevents physical reserved regions from truncating compact titles and keeps full-content search anchored to expanded content.
+For fixed captures, the pipeline subtracts the resized host controller’s native insets from the requested clearance.
+It detaches already-mounted subjects before configuring the capture host.
+Only the captured root overrides its safe-area getter. Native controller insets supply ancestor clearance; root pinning preserves translated tile geometry.
+Annotation padding has zero safe-area insets so image content and accessibility outlines share the same layout.
+The host controller propagates the configured content insets through native navigation containers.
+
+The pipeline restores the scene, frames, additional insets, visibility, and key state after success or failure.
+Window discovery, environment checks, and content preparation run under the same capture lock.
+Capture hooks use their retained model or view references while the window is detached.
+
+A nil safe-area override retains native scene geometry.
+Synthetic captures validate composition and complete content. Native floating bars can retain system positioning despite custom content insets.
+Native Duo checks validate their clearance and reserved-region delivery.

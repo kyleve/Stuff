@@ -32,8 +32,8 @@ set -euo pipefail
 
 SUITE_RUNS=10          # Phase 1: how many times to run the full suite
 ITERATIONS=50          # Phase 2: how many times to tight-loop each suspect
-DEVICE="iPhone 17"
-OS="27.0"
+DEVICE="iPhone Duo"
+OS="27.1"
 SCHEME="Stuff-iOS-Tests"
 RELAUNCH="YES"         # fresh process per tight-loop iteration (-test-repetition-relaunch-enabled)
 UPDATE=true            # write FLAKY_TESTS.md (disable with --no-update)
@@ -50,8 +50,8 @@ FLAKY_TESTS.md. Report only — it never fails on flaky tests.
 Options:
   --suite-runs N       Times to run the whole suite in phase 1 (default: 10)
   --iterations M       Times to tight-loop each suspect in phase 2 (default: 50)
-  --device NAME        Simulator device name (default: "iPhone 17")
-  --os VERSION         Simulator iOS version (default: "27.0")
+  --device NAME        Simulator device name (default: "iPhone Duo")
+  --os VERSION         Simulator iOS version (default: "27.1")
   --scheme NAME        Scheme to test (default: "Stuff-iOS-Tests")
   --relaunch YES|NO    New process per tight-loop iteration (default: YES)
   --no-update          Print the report but don't write FLAKY_TESTS.md

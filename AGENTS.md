@@ -37,6 +37,10 @@ Roughly, this file covers:
 
 Read the exact pinned versions from those files. Do not trust a copy in prose. A version in a doc goes stale without notice.
 
+Update deployment targets, simulator command defaults, CI Xcode selection, and
+snapshot runtime/renderer pins together. Review renderer changes before product
+changes. Validate both the iOS suites and the native-macOS suite after an Xcode upgrade.
+
 Library targets live in the root [`Package.swift`](Package.swift) (one local
 package). Apps, app extensions, and test bundles are Tuist targets in
 [`Project.swift`](Project.swift) (plus [`Tuist.swift`](Tuist.swift)). That file
@@ -221,7 +225,7 @@ Keep the review history in the PR and link the rule to its guard or source.
 - **A new image suite gets a target, not a scheme.** Add the `*SnapshotTests` target. List only `SnapshotKitTesting` in `extraPackageProducts`. Add it to the `StuffSnapshotTests` scheme's build and test lists. Never add a scheme or CI job of its own. An image bundle links only what its module needs (the Periscope and Inspector suites don't build against WhereUI at all). References follow the sources automatically via `#filePath`.
 - **Generated websites use the same snapshot scheme.** `ToolsSnapshotTests` renders the install site's production Astro HTML in hosted WebKit through `SnapshotKitTesting`. Its fixture generator runs during each bundle build and needs the installed site dependencies; see [`Tools/AGENTS.md`](Tools/AGENTS.md#install-site-snapshots).
 - **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes. Details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state. Two copies in one process corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
-- **Snapshots containing scrolling content use full-content sizing.** Use SnapshotKit's full-content device presets for ordinary `ScrollView`, `List`, `Form`, or equivalent UIKit-backed content. Those presets keep the normal device width and minimum viewport height while growing vertically. Use an explicit two-axis preset for a spatial canvas that intentionally scrolls in both dimensions. Its bounded capture grows from the normal viewport along both axes. Fixed device frames are for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when measurement converges. Snapshot an intentionally bounded or greedy container's shared scrolling child directly. Never add snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent` and `.fullContent2D`).
+- **Snapshots containing scrolling content use full-content sizing.** Use SnapshotKit's full-content device presets for ordinary `ScrollView`, `List`, `Form`, or equivalent UIKit-backed content. Those presets keep the normal device width and minimum viewport height while growing vertically. Use an explicit two-axis preset for a spatial canvas that intentionally scrolls in both dimensions. Its bounded capture grows from the normal viewport along both axes. Fixed device frames are for subjects without scrolling content. The explicit `Frame.viewport` API also covers bounded adaptive shells. Pair each shell with full-content captures of its scrolling panes; viewport coverage proves composition and chrome only. Preserve production navigation, tab, sheet, search, and toolbar chrome when measurement converges. Snapshot an intentionally bounded or greedy container's shared scrolling child directly. Never add snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent` and `.fullContent2D`).
 
 ### Never double-link a product WhereUI already carries
 

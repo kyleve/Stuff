@@ -235,11 +235,12 @@ private struct LoggedDayRow: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.large) {
+        HStack(alignment: .top, spacing: stylesheet.spacing.large) {
             Image(systemSymbol: day.isAuthoritative ? .pencilCircle : .calendarBadgePlus)
                 .font(.title3)
                 .foregroundStyle(.tint)
-                .frame(width: stylesheet.size.statusIconWidth)
+                .fixedSize()
+                .frame(minWidth: stylesheet.size.statusIconWidth)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(dateText)
@@ -251,21 +252,28 @@ private struct LoggedDayRow: View {
                     Text(note)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(stylesheet.loggedDay.layout == .stacked ? nil : 2)
+                }
+                if stylesheet.loggedDay.layout == .stacked {
+                    kindLabel
                 }
             }
-            Spacer(minLength: stylesheet.spacing.small)
-            // `fixedSize` keeps the tag at its intrinsic width so long region
-            // lists wrap in the VStack rather than squeezing "Logged"/"Overridden".
-            Text(kindText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if stylesheet.loggedDay.layout == .inline {
+                Spacer(minLength: stylesheet.spacing.small)
+                kindLabel.fixedSize()
+            }
         }
         .padding(.vertical, stylesheet.spacing.xxSmall)
         // Make the whole row (including the spacer) tap into the edit sheet.
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+
+    private var kindLabel: some View {
+        Text(kindText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     private var dateText: String {

@@ -248,6 +248,9 @@ extension AppearanceSettingsView: SettingsSection {
                 name: "Default",
                 configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
+                // Native navigation adapts when the Form reaches its full height.
+                // Reparse accessibility after that preparation pass, as About does.
+                settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },

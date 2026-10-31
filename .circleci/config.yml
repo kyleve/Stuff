@@ -124,12 +124,12 @@ commands:
           command: |
             echo "Available simulator runtimes:"
             xcrun simctl list runtimes available
-            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27(\.0)? '; then
-              echo "An available iOS 27 simulator runtime is required" >&2
+            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27\.1 '; then
+              echo "An available iOS 27.1 simulator runtime is required" >&2
               exit 1
             fi
 
-            selected_simulator="$(./simulator --shared --os 27.0 --no-boot)"
+            selected_simulator="$(./simulator --shared --os 27.1 --no-boot)"
             echo "Selected simulator: $selected_simulator"
             xcrun simctl list devices available | grep "$selected_simulator"
 
@@ -410,7 +410,7 @@ jobs:
               echo "Snapshot definitions did not change. The source-plan validation is sufficient."
               exit 0
             fi
-            ./test --snapshots --shared --os 27.0 \
+            ./test --snapshots --shared --os 27.1 \
               --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
               --enumerate-suites "$TEST_WORKDIR/suites.txt" \
               --skip-architecture
@@ -433,7 +433,7 @@ jobs:
       - run_with_timeout:
           seconds: 2700
           command: >-
-            ./test --all --shared --os 27.0
+            ./test --all --shared --os 27.1
             --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --skip-architecture
       - export_test_results:
@@ -511,7 +511,7 @@ jobs:
       - run_with_timeout:
           seconds: 3600
           command: >-
-            ./test --snapshots --shared --os 27.0 --review --timings
+            ./test --snapshots --shared --os 27.1 --review --timings
             --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --only-file "$TEST_WORKDIR/shard.txt"
             --skip-architecture
