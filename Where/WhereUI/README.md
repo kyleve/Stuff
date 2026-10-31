@@ -758,3 +758,7 @@ original account creates a fresh scope. History
 notifications check the local projection without a network round trip. Bootstrap
 output destinations remain available to clear stale notifications and widget
 access even when no normal service world can be assembled.
+`WhereCompatibilityModel` owns cleanup requests for blocked startup and normal scope
+retirement. Concurrent requests share one cleanup task. Recovery waits for that task
+before it resumes launch. Services retire recording and location resources without
+withdrawing process outputs themselves.
