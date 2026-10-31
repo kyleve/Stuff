@@ -488,11 +488,12 @@ fi
 for scheme in ${SCHEMES[@]+"${SCHEMES[@]}"}; do
     [ "$scheme" = "$SNAPSHOT_SCHEME" ] || continue
 
-    expected_xcode_build="$(< .xcode-build-version)"
-    xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
-    if [ "$xcode_build" != "$expected_xcode_build" ]; then
-        echo "error: snapshot tests require Xcode build $expected_xcode_build; found $xcode_build" >&2
-        echo "       Install the pinned Xcode build. Then select it before capturing snapshots." >&2
+    expected_xcode_version="$(< .xcode-version)"
+    xcode_version="$(xcodebuild -version | awk '/^Xcode /{print $2}')"
+    xcode_version="$(printf '%s\n' "$xcode_version" | cut -d. -f1,2)"
+    if [ "$xcode_version" != "$expected_xcode_version" ]; then
+        echo "error: snapshot tests require Xcode $expected_xcode_version; found $xcode_version" >&2
+        echo "       Install the pinned Xcode major.minor version. Then select it before capturing snapshots." >&2
         exit 1
     fi
     break

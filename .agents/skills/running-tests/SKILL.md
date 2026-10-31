@@ -70,10 +70,10 @@ dependency graph says they're affected.
   `never` (default). Fix the view first; re-record only when the render is
   correct
 
-Snapshot runs require the exact Xcode build in
-[`.xcode-build-version`](../../../.xcode-build-version). `./test` rejects a
-different selected build before project generation or simulator boot. Install
-the pinned build. Then select it before you review or record references.
+Snapshot runs require the Xcode major.minor version in
+[`.xcode-version`](../../../.xcode-version). `./test` rejects a
+different major.minor version before project generation or simulator boot. Install
+the pinned version. Then select it before you review or record references.
 
 For component comparison sheets, run the component suites plus selected screen
 integration suites. Inspect every theme panel at light/dark and relevant accessibility

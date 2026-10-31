@@ -32,7 +32,7 @@ Roughly, this file covers:
 | Astro and TypeScript | `package-lock.json` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
-| Xcode snapshot renderer | `.xcode-build-version` |
+| Xcode snapshot renderer | `.xcode-version` |
 
 
 Read the exact pinned versions from those files. Do not trust a copy in prose. A version in a doc goes stale without notice.
@@ -621,8 +621,8 @@ Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to
 `simctl`). Development commands default to the iOS 27.2 Simulator runtime.
-Snapshot runs require the exact Xcode build in
-[`.xcode-build-version`](.xcode-build-version). `./test` checks it before it
+Snapshot runs require the Xcode major.minor version in
+[`.xcode-version`](.xcode-version). `./test` checks it before it
 generates the project or starts a simulator.
 
 ## Working in this repo

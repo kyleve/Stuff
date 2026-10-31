@@ -102,10 +102,11 @@ commands:
             echo "Architecture: $(uname -m)"
             sw_vers
             xcodebuild -version
-            expected_xcode_build="$(< .xcode-build-version)"
-            xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
-            if [[ "$xcode_build" != "$expected_xcode_build" ]]; then
-              echo "Expected Xcode build $expected_xcode_build, found $xcode_build" >&2
+            expected_xcode_version="$(< .xcode-version)"
+            xcode_version="$(xcodebuild -version | awk '/^Xcode /{print $2}')"
+            xcode_version="$(printf '%s\n' "$xcode_version" | cut -d. -f1,2)"
+            if [[ "$xcode_version" != "$expected_xcode_version" ]]; then
+              echo "Expected Xcode $expected_xcode_version, found $xcode_version" >&2
               exit 1
             fi
 
@@ -359,7 +360,7 @@ jobs:
             umask 077
             mkdir -p "$RUNNER_TEMP"
             python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
-            cmp .xcode-build-version "$RUNNER_TEMP/source/.xcode-build-version"
+            cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
       - run:
           name: Install archive tools
           command: |
