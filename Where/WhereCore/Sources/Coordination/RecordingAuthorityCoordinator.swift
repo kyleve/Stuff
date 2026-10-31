@@ -117,9 +117,9 @@ public actor RecordingAuthorityCoordinator {
         while let parent = cursor.proposal.expected.revision {
             try Task.checkCancellation()
             guard let commit = try await transport.fetchCommit(for: parent.eventID),
-                  commit.proposal.result == cursor.proposal.expected,
-                  let sequence = cursor.proposal.result.revision?.sequence,
-                  parent.sequence < sequence else { throw RecordingAuthorityError.invalidRecord }
+                  commit.proposal.result.authority == cursor.proposal.expected,
+                  parent.sequence < cursor.proposal.result.revision.sequence
+            else { throw RecordingAuthorityError.invalidRecord }
             commits.append(commit)
             cursor = commit
         }

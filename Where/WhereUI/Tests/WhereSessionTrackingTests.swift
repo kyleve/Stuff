@@ -29,10 +29,10 @@ struct WhereSessionTrackingTests {
         let store = try store ?? SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: status)
         let resolvedContext = try installationContextStore?.resolve() ?? installationContext
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: source,
-            installationContext: resolvedContext,
+            installationContext: resolvedContext.confirmed(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
@@ -125,7 +125,7 @@ struct WhereSessionTrackingTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
-            installationContext: installationContext(initialRecordingEnabled: false),
+            installationContext: installationContext(initialRecordingEnabled: false).confirmed(),
         )
         let preferences = makePreferences()
         let contextStore = InMemoryInstallationRecordingContextStore(
@@ -176,7 +176,7 @@ struct WhereSessionTrackingTests {
         let store = try SwiftDataStore.inMemory(remoteChangeSource: remoteChanges)
         let source = TrackingLocationSource()
         let now = Date(timeIntervalSinceReferenceDate: 1000)
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: source,
             installationContext: .testing,

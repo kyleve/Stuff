@@ -224,7 +224,7 @@ public protocol WhereScopeAssembling {
     func makeServices() async throws -> WhereServices
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination?
     func withdrawCompatibilityOutputs() async
-    func prepareCompatibility() async throws -> DataCompatibilityCoordinator?
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking
 
     /// Open and retain the real store while onboarding remains dormant, then read synced device
     /// status without constructing services or activating location/App Intents.
@@ -309,11 +309,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         do {
-            let installationContext = try installationContextStore.resolve()
-            precondition(
-                installationContext.automaticRecordingEnabled != nil,
-                "A real scope cannot open before this installation confirms recording.",
-            )
+            let installationContext = try installationContextStore.resolve().confirmed()
             let compatibility = try await compatibilityCoordinator()
             guard case .compatible = await compatibility.recheck()
             else { throw DataCompatibilityError.notReady }
@@ -350,7 +346,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
         await outputDestinations.withdraw()
     }
 
-    public func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
+    public func prepareCompatibility() async throws -> any DataCompatibilityChecking {
         try await compatibilityCoordinator()
     }
 
@@ -513,8 +509,4 @@ final class ForegroundNotificationPresenter:
 
 extension WhereScopeAssembling {
     public func withdrawCompatibilityOutputs() async {}
-    /// Injected preview/test worlds have no shared compatibility control plane.
-    public func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
-        nil
-    }
 }

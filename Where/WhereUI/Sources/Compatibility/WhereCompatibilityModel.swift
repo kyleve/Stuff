@@ -8,7 +8,7 @@ import WhereCore
 public final class WhereCompatibilityModel {
     public var onStateChange: (@MainActor (DataCompatibilityState) async -> Void)?
     public private(set) var state: DataCompatibilityState
-    @ObservationIgnored private var coordinator: DataCompatibilityCoordinator?
+    @ObservationIgnored private var coordinator: (any DataCompatibilityChecking)?
     private let bootstrap: any WhereScopeAssembling
     private struct Refresh {
         struct ID: Equatable { let rawValue = UUID() }
@@ -34,8 +34,8 @@ public final class WhereCompatibilityModel {
         if case .compatible = state { true } else { false }
     }
 
-    var hasControlPlane: Bool {
-        coordinator != nil
+    func retireScope(_ services: WhereServices) async {
+        await coordinator?.retireScope(services)
     }
 
     func revokeAccess() async {
@@ -55,9 +55,8 @@ public final class WhereCompatibilityModel {
         do {
             let coordinator = try await bootstrap.prepareCompatibility()
             self.coordinator = coordinator
-            await coordinator?.invalidateAccount()
-            if let coordinator { await apply(coordinator.snapshot()) }
-            else { await apply(state) }
+            await coordinator.invalidateAccount()
+            await apply(coordinator.snapshot())
         } catch {
             await apply(.verificationFailed(error.localizedDescription))
             Self.logger.verificationFailed(error: .restricted(.errorDetails, error))
@@ -72,12 +71,8 @@ public final class WhereCompatibilityModel {
             guard let self else { return }
             defer { if self.refreshOperation?.id == refreshID { refreshOperation = nil } }
             do {
-                let prepared = try await bootstrap.prepareCompatibility()
+                let coordinator = try await bootstrap.prepareCompatibility()
                 guard refreshOperation?.id == refreshID else { return }
-                guard let coordinator = prepared else {
-                    state = .compatible(.current)
-                    return
-                }
                 self.coordinator = coordinator
                 if monitoring == nil {
                     let changes = coordinator.changes()

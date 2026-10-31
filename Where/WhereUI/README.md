@@ -699,7 +699,9 @@ reference; preserve PNG metadata when copying them.
 concurrent preparation. `RecordingDeviceRoleModel` drives the same panel in
 onboarding and Devices settings. A new installation must choose a role even if
 restored preferences contain completed onboarding. The installation sidecar
-stores that choice outside device backups.
+stores that choice outside device backups. Role commands accept `RoleChoice`, which
+contains only secondary and recording-requested choices. Confirmation returns
+`ConfirmedInstallationContext`; boot narrows persisted settings before assembling services.
 
 A replacement phone requests a handoff. The current recorder approves through
 `DeviceRecordingController`, which stops GPS before transferring ownership.
@@ -716,7 +718,10 @@ A changed owner requires a new review. Reset preserves this installation's choic
 ### Compatibility startup and recovery
 
 The process retains one `WhereBootstrap`, its open store, and its compatibility
-coordinator. `DataCompatibilityGate` runs before onboarding data operations and
+coordinator. `WhereScopeAssembling.prepareCompatibility()` must supply a
+`DataCompatibilityChecking` implementation. There is no missing-value path that
+marks a production bootstrap compatible. Injected fixtures explicitly supply
+`IsolatedDataCompatibility`. `DataCompatibilityGate` runs before onboarding data operations and
 normal service assembly, including headless launch. The bootstrap remains
 available for recording-role selection and lost-phone recovery while blocked.
 An owner can cancel an interrupted handoff from this bootstrap surface, even

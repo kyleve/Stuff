@@ -19,16 +19,7 @@ public actor DeviceRecordingController {
     private let configurationBroadcaster = RecordingConfigurationBroadcaster()
     private let policyResolver: RecordingDevicePolicyResolver
 
-    private enum AutomaticRecordingChoice: Equatable {
-        case off
-        case on(enabledAt: Date)
-
-        var isEnabled: Bool {
-            if case .on = self { true } else { false }
-        }
-    }
-
-    private var automaticRecordingChoice: AutomaticRecordingChoice
+    private var automaticRecordingChoice: ConfirmedInstallationContext.RecordingChoice
     private var preparedGenerationID: WhereDataGenerationID?
 
     /// Actor reentrancy permits another command to enter at an `await`; this gate serializes the
@@ -53,15 +44,12 @@ public actor DeviceRecordingController {
     init(
         store: any WhereStore,
         ingestor: LocationIngestor,
-        installationContext: InstallationRecordingContext,
+        installationContext: ConfirmedInstallationContext,
         authority: any RecordingAuthorityReading,
         coordination: RecordingDeviceCoordination?,
         now: @escaping @Sendable () -> Date,
         onPolicyChanged: @escaping @Sendable () async -> Void,
     ) {
-        guard let automaticRecordingEnabled = installationContext.automaticRecordingEnabled else {
-            preconditionFailure("Recording services require a confirmed installation context.")
-        }
         self.authority = authority
         self.coordination = coordination
         self.store = store
@@ -72,14 +60,7 @@ public actor DeviceRecordingController {
             currentDeviceID: installationContext.currentDevice.id,
         )
         registeredAt = installationContext.registeredAt
-        if automaticRecordingEnabled {
-            guard let enabledAt = installationContext.recordingEnabledAt else {
-                preconditionFailure("An enabled installation context must carry its consent date.")
-            }
-            automaticRecordingChoice = .on(enabledAt: enabledAt)
-        } else {
-            automaticRecordingChoice = .off
-        }
+        automaticRecordingChoice = installationContext.recordingChoice
         self.now = now
         self.onPolicyChanged = onPolicyChanged
     }
@@ -98,12 +79,12 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         guard let coordination else { throw RecordingAuthorityError.invalidHandoff }
-        let proposal = try await coordination.prepareApproval(requestID: requestID)
+        let approval = try await coordination.prepareApproval(requestID: requestID)
         // The durable pending approval already fences restart; now stop and drain before commit.
         await ingestor.pause()
         needsReconciliation = true
         publishRuntimeState(.unavailable)
-        try await coordination.commitStoppedApproval(proposal)
+        try await coordination.commitStoppedApproval(approval)
         let authorization = await ingestor.authorizationStatus()
         _ = try await reconcileOrFailClosed(authorization: authorization)
     }

@@ -138,7 +138,7 @@ struct LocationIngestorTests {
         )
         try await ingestor.start()
         _ = try await coordinator.submit(fixture.proposal(
-            claim.result,
+            claim.result.authority,
             .recover(.keep),
             device: fixture.tablet,
         ))

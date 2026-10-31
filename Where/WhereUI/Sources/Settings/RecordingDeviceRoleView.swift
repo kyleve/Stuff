@@ -92,7 +92,7 @@ struct RecordingDeviceRoleView: View {
                     deviceID: tablet,
                     buildVersion: .current,
                     eventID: .init(rawValue: UUID()),
-                ).result
+                ).result.authority
             } catch { preconditionFailure("Invalid role snapshot fixture: \(error)") }
             let names = [phone: "iPhone", tablet: "New iPhone"]
             return [

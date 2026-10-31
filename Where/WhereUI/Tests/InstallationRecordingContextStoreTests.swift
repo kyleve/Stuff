@@ -77,7 +77,7 @@ struct InstallationRecordingContextStoreTests {
         let relaunched = fixture.makeStore()
         let restored = try relaunched.resolve()
 
-        #expect(restored == confirmed)
+        #expect(restored == confirmed.context)
         #expect(restored.currentDevice.id.rawValue == Self.deviceID)
         #expect(restored.registeredAt == Self.registeredAt)
         #expect(restored.automaticRecordingEnabled == false)
@@ -99,7 +99,7 @@ struct InstallationRecordingContextStoreTests {
         let first = try store.confirmInitialRecording(isEnabled: true)
         let second = try store.confirmInitialRecording(isEnabled: true)
 
-        #expect(try store.resolve() == first)
+        #expect(try store.resolve() == first.context)
         #expect(second == first)
     }
 
@@ -180,7 +180,7 @@ struct InstallationRecordingContextStoreTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            installationContext: installationContext,
+            installationContext: installationContext.confirmed(),
             importRecoveryPersistence: installationStore,
         )
         let acknowledgedPreferences = makePreferences()
@@ -228,7 +228,7 @@ struct InstallationRecordingContextStoreTests {
 
         #expect(repeated == first)
         #expect(repeated.automaticRecordingEnabled == false)
-        #expect(try fixture.makeStore().resolve() == first)
+        #expect(try fixture.makeStore().resolve() == first.context)
     }
 
     @Test func launchPromotesACompletePendingFirstWriteAfterACrash() throws {
@@ -239,7 +239,7 @@ struct InstallationRecordingContextStoreTests {
 
         let restored = try fixture.makeStore().resolve()
 
-        #expect(restored == confirmed)
+        #expect(restored == confirmed.context)
         #expect(fixture.fileExists)
         #expect(fixture.pendingExists == false)
     }
@@ -260,7 +260,7 @@ struct InstallationRecordingContextStoreTests {
 
         let restored = try oldFixture.makeStore().resolve()
 
-        #expect(restored == replacement)
+        #expect(restored == replacement.context)
         #expect(oldFixture.pendingExists == false)
     }
 
@@ -272,7 +272,7 @@ struct InstallationRecordingContextStoreTests {
 
         let restored = try fixture.makeStore().resolve()
 
-        #expect(restored == confirmed)
+        #expect(restored == confirmed.context)
         #expect(fixture.pendingExists == false)
     }
 

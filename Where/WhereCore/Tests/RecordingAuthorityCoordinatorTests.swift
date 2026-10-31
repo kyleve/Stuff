@@ -10,7 +10,7 @@ struct RecordingAuthorityCoordinatorTests {
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await server.commit(claim)
         let upgrade = try fixture.proposal(
-            claim.result,
+            claim.result.authority,
             .upgrade,
             device: fixture.phone,
             version: .init(rawValue: 2),
@@ -25,7 +25,7 @@ struct RecordingAuthorityCoordinatorTests {
             transport: server,
             installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
-        #expect(try await coordinator.refresh() == upgrade.result)
+        #expect(try await coordinator.refresh() == upgrade.result.authority)
     }
 
     @Test func generationRotationPreservesAuthorityAndRequirement() async throws {
@@ -40,7 +40,7 @@ struct RecordingAuthorityCoordinatorTests {
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await coordinator.submit(claim)
         let upgrade = try fixture.proposal(
-            claim.result,
+            claim.result.authority,
             .upgrade,
             device: fixture.phone,
             version: .init(rawValue: 2),
@@ -54,7 +54,7 @@ struct RecordingAuthorityCoordinatorTests {
                 at: Date(),
             )
         }
-        #expect(try await coordinator.observed() == upgrade.result)
+        #expect(try await coordinator.observed() == upgrade.result.authority)
     }
 
     @Test func refreshRecoversMissedTransitionsAndNeverRegresses() async throws {
@@ -69,15 +69,15 @@ struct RecordingAuthorityCoordinatorTests {
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await server.commit(claim)
         let recovery = try fixture.proposal(
-            claim.result,
+            claim.result.authority,
             .recover(.excludeAfterReplacement),
             device: fixture.tablet,
         )
         _ = try await server.commit(recovery)
-        #expect(try await coordinator.refresh() == recovery.result)
+        #expect(try await coordinator.refresh() == recovery.result.authority)
         #expect(try await store.recordingAuthorityCommits().count == 2)
         _ = try await coordinator.submit(claim)
-        #expect(try await coordinator.observed() == recovery.result)
+        #expect(try await coordinator.observed() == recovery.result.authority)
         #expect(try await store.recordingAuthorityCommits().count == 2)
     }
 

@@ -1582,10 +1582,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         var unique: [RecordingAuthority.EventID: RecordingAuthorityCommit] = [:]
         for row in rows {
             guard let payload = row.payload else { throw RecordingAuthorityError.invalidRecord }
-            let value = try JSONDecoder().decode(RecordingAuthorityCommit.self, from: payload)
-            try value.proposal.validate()
-            guard let eventID = value.proposal.result.revision?.eventID,
-                  row.id == eventID.rawValue
+            let value = try JSONDecoder()
+                .decode(RecordingAuthorityRecord.Commit.self, from: payload).value
+            let eventID = value.proposal.result.revision.eventID
+            guard row.id == eventID.rawValue
             else {
                 throw RecordingAuthorityError.invalidRecord
             }
@@ -1597,20 +1597,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingAuthorityCommit(_ commit: RecordingAuthorityCommit) async throws {
-        try commit.proposal.validate()
-        guard let eventID = commit.proposal.result.revision?.eventID
-        else { throw RecordingAuthorityError.invalidRecord }
+        let eventID = commit.proposal.result.revision.eventID
         let context = controlMutationContext()
         let commits = try await recordingAuthorityCommits()
         if let existing = commits
-            .first(where: { $0.proposal.result.revision?.eventID == eventID })
+            .first(where: { $0.proposal.result.revision.eventID == eventID })
         {
             guard existing == commit else { throw RecordingAuthorityError.invalidRecord }
             return
         }
         let row = SDRecordingAuthorityCommit()
         row.id = eventID.rawValue
-        row.payload = try JSONEncoder().encode(commit)
+        row.payload = try JSONEncoder().encode(RecordingAuthorityRecord.Commit(commit))
         context.insert(row)
     }
 

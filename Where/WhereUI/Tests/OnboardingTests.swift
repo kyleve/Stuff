@@ -31,7 +31,7 @@ struct OnboardingModelTests {
         let relaunched = makeModel(preferences: preferences, contextStore: contextStore)
         #expect(relaunched.hasOnboarded)
         #expect(relaunched.hasConfirmedRecordingChoice)
-        #expect(relaunched.installationRecordingContext == confirmed)
+        #expect(relaunched.installationRecordingContext == confirmed.context)
     }
 
     @Test func retryPersistsAChangedRecordingChoice() throws {

@@ -38,7 +38,8 @@ struct CloudKitRecordingAuthorityRecordTests {
         let proposal = try fixture.proposal(.initial, .claim, device: fixture.phone)
         let recordID = CloudKitRecordingAuthorityRecord.ID.event(.init(rawValue: UUID()))
         let record = CKRecord(recordType: recordID.recordType, recordID: recordID.recordID)
-        record["payload"] = try JSONEncoder().encode(proposal) as CKRecordValue
+        record["payload"] = try JSONEncoder()
+            .encode(RecordingAuthorityRecord.Proposal(proposal)) as CKRecordValue
         let wrapped = try CloudKitRecordingAuthorityRecord(record: record, id: recordID)
         #expect(throws: RecordingAuthorityError.invalidRecord) { try wrapped.proposal }
         #expect(throws: RecordingAuthorityError.invalidRecord) {
@@ -51,7 +52,11 @@ struct CloudKitRecordingAuthorityRecordTests {
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         let head = try CloudKitRecordingAuthorityRecord(id: .head, proposal: claim)
         let fetchedRecord = head.record
-        let recovered = try fixture.proposal(claim.result, .recover(.keep), device: fixture.tablet)
+        let recovered = try fixture.proposal(
+            claim.result.authority,
+            .recover(.keep),
+            device: fixture.tablet,
+        )
         try head.setProposal(recovered)
         #expect(head.record === fetchedRecord)
         #expect(try head.proposal == recovered)
@@ -60,7 +65,7 @@ struct CloudKitRecordingAuthorityRecordTests {
     @Test func anUnsavedEventCannotSupplyAServerCommitTime() throws {
         let fixture = RecordingAuthorityFixture()
         let proposal = try fixture.proposal(.initial, .claim, device: fixture.phone)
-        let eventID = try #require(proposal.result.revision?.eventID)
+        let eventID = proposal.result.revision.eventID
         let event = try CloudKitRecordingAuthorityRecord(id: .event(eventID), proposal: proposal)
         #expect(throws: RecordingAuthorityError.invalidRecord) { try event.commit }
         let head = try CloudKitRecordingAuthorityRecord(id: .head, proposal: proposal)
@@ -81,7 +86,8 @@ struct CloudKitRecordingAuthorityRecordTests {
         let fixture = RecordingAuthorityFixture()
         let proposal = try fixture.proposal(.initial, .claim, device: fixture.phone)
         var object = try #require(JSONSerialization
-            .jsonObject(with: JSONEncoder().encode(proposal)) as? [String: Any])
+            .jsonObject(with: JSONEncoder()
+                .encode(RecordingAuthorityRecord.Proposal(proposal))) as? [String: Any])
         object["kind"] = "upgrade"
         let record = CKRecord(
             recordType: "WhereAuthorityHead",
@@ -100,7 +106,8 @@ struct CloudKitRecordingAuthorityRecordTests {
             recordType: "WhereAuthorityHead",
             recordID: CloudKitRecordingAuthorityRecord.ID.head.recordID,
         )
-        record["payload"] = try JSONEncoder().encode(proposal) as CKRecordValue
+        record["payload"] = try JSONEncoder()
+            .encode(RecordingAuthorityRecord.Proposal(proposal)) as CKRecordValue
         #expect(try CloudKitRecordingAuthorityRecord(record: record, id: .head)
             .proposal == proposal)
     }

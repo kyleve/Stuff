@@ -86,10 +86,10 @@ struct DevicesSettingsModelTests {
             recordingChoice: .on(enabledAt: Self.date),
             isRejoining: false,
         )
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: context,
+            installationContext: context.confirmed(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
