@@ -715,6 +715,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// The earliest snapshot read in this transaction determines which
         /// external commits may invalidate the pending evidence-based writes.
         var snapshotHistoryTransactionID: Int64?
+        var requiresDataCompatibility = false
     }
 
     private struct ActiveSnapshot {
@@ -724,6 +725,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     /// The context and logical generation are installed and cleared as one value, so neither an
     /// active transaction nor a multi-table snapshot can expose only half of its authority state.
+    var supportedCompatibilityVersion = DataCompatibilityVersion.current
     private var activeTransaction: ActiveTransaction?
     private var activeSnapshot: ActiveSnapshot?
 
@@ -909,6 +911,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         expectedDataGenerationID: WhereDataGenerationID?,
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
+        try DataAccessPermit.current?.validate()
         precondition(
             !Self.activeSnapshotStores.contains(ObjectIdentifier(self)),
             "A read snapshot cannot start a store mutation.",
@@ -973,7 +976,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
+                try validateTransaction(in: peer)
                 try peer.save()
+                try validateTransaction(in: peer)
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
                 // rows is harmless (they are inert), but reporting success would
@@ -1016,6 +1021,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// contract surfaces immediately instead of silently no-op'ing
     /// the save.
     private func mutationContext() -> ModelContext {
+        let context = controlMutationContext()
+        activeTransaction?.requiresDataCompatibility = true
+        return context
+    }
+
+    private func controlMutationContext() -> ModelContext {
         guard let context = activeTransaction?.context else {
             preconditionFailure(
                 "SwiftDataStore mutations must be called inside store.perform { ... }",
@@ -1043,6 +1054,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             return context
         }
         return modelContext
+    }
+
+    func compatibilityContext() -> ModelContext {
+        readContext()
+    }
+
+    private func validateTransaction(in context: ModelContext) throws {
+        try DataAccessPermit.current?.validate()
+        if activeTransaction?.requiresDataCompatibility == true {
+            try assertDataCompatible(in: context)
+        }
     }
 
     public func dataGeneration() async throws -> WhereDataGeneration {
@@ -1486,7 +1508,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func dataCompatibilityRequirements() async throws -> [DataCompatibilityRequirement] {
-        let rows = try readContext().fetch(FetchDescriptor<SDDataCompatibilityRequirement>())
+        try Self.compatibilityRequirements(in: readContext())
+    }
+
+    static func compatibilityRequirements(in context: ModelContext) throws
+        -> [DataCompatibilityRequirement]
+    {
+        let rows = try context.fetch(FetchDescriptor<SDDataCompatibilityRequirement>())
         var unique: [UUID: DataCompatibilityRequirement] = [:]
         for row in rows {
             guard let payload = row.payload else { throw RecordingAuthorityError.invalidRecord }
@@ -1502,7 +1530,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func addDataCompatibilityRequirement(
         _ requirement: DataCompatibilityRequirement,
     ) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         if let previous = try await dataCompatibilityRequirements()
             .first(where: { $0.id == requirement.id })
         {
@@ -1546,7 +1574,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
-        let rows = try readContext().fetch(FetchDescriptor<SDRecordingAuthorityCommit>())
+        try Self.authorityCommits(in: readContext())
+    }
+
+    static func authorityCommits(in context: ModelContext) throws -> [RecordingAuthorityCommit] {
+        let rows = try context.fetch(FetchDescriptor<SDRecordingAuthorityCommit>())
         var unique: [RecordingAuthority.EventID: RecordingAuthorityCommit] = [:]
         for row in rows {
             guard let payload = row.payload else { throw RecordingAuthorityError.invalidRecord }
@@ -1568,7 +1600,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         try commit.proposal.validate()
         guard let eventID = commit.proposal.result.revision?.eventID
         else { throw RecordingAuthorityError.invalidRecord }
-        let context = mutationContext()
+        let context = controlMutationContext()
         let commits = try await recordingAuthorityCommits()
         if let existing = commits
             .first(where: { $0.proposal.result.revision?.eventID == eventID })
@@ -1583,7 +1615,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let id = profile.id.rawValue
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceProfile>(predicate: #Predicate { $0.id == id }),
@@ -1630,7 +1662,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func addRecordingDeviceMetadataChange(
         _ change: RecordingDeviceMetadataChange,
     ) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let generationID = mutationGenerationID()
         let storedChangeID = change.id.rawValue
         let existing = try context.fetch(GenerationScopedFetch.metadataChanges(
@@ -1672,7 +1704,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.checkIns(
             belongingTo: generationID,
@@ -1737,7 +1769,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let generationID = mutationGenerationID()
         let id = archive.id.rawValue
         let existing = try context.fetch(

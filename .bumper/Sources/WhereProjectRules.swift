@@ -31,6 +31,14 @@ let whereProjectRules = RuleSet {
             .union(nonWhereProductionScope),
         id: "where.recording_coordination_composition",
     )
+    Rules.constructionOwnership(
+        "CompatibilityScopedStore",
+        allowed: RuleScope.files(
+            ["Where/WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift"],
+        ).union(nonWhereProductionScope),
+        id: "where.compatibility_scope_ownership",
+    )
+    compatibilityStoreBoundaryRule
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -320,4 +328,32 @@ private let previewCoverageRule = Rules.files(
             ),
         )
     }
+}
+
+/// These operations inspect or maintain the control plane while normal data is unavailable.
+private let compatibilityStoreBoundaryRule = Rules.files(
+    "where.compatibility_store_boundary",
+    severity: .error,
+    summary: "Persistence checks the transaction lifetime and version immediately before save.",
+    scope: .files(["Where/WhereCore/Sources/Persistence/SwiftDataStore.swift"]),
+) { file in
+    SyntaxQuery<FunctionDeclSyntax>()
+        .filter { match in
+            guard let body = match.node.body?.trimmedDescription,
+                  body.contains("try peer.save()") else { return false }
+            return body.range(
+                of: #"try validateTransaction\(in: peer\)\s+try peer\.save\(\)"#,
+                options: .regularExpression,
+            ) == nil
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Persistence save lacks its adjacent transaction check.",
+                evidence: ViolationEvidence(
+                    observed: match.node.name.text,
+                    expectation: "call validateTransaction(in: peer) immediately before peer.save()",
+                ),
+            )
+        }
 }

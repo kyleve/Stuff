@@ -1,0 +1,29 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityWrites.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "missing-commit-check",
+      "config": "missing-commit-check.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleCommit is violated."
+    },
+    {
+      "name": "reused-permit",
+      "config": "reused-permit.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldScopeStaysRevoked is violated."
+    },
+    {
+      "name": "recovery-reached",
+      "config": "recovery-reached.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryNotReached is violated."
+    }
+  ]
+}

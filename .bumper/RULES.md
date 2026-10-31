@@ -183,3 +183,16 @@ is needed.
 - `where.recording_cloud_authority_ownership`: construct direct CloudKit containers only in the dedicated recording-authority transport. The existing SwiftData mirror remains separate. Guard: `WhereProjectRulesTests.direct CloudKit authority has one adapter`.
 
 - `where.recording_coordination_composition`: construct the production authority coordinator once in `WhereLaunch`, then inject it into onboarding and services. Isolated test fixtures may construct their own. Mutation guard: `recording coordination is composed once at bootstrap`.
+
+## Compatibility access
+
+`where.compatibility_store_boundary` requires `validateTransaction(in: peer)`
+immediately before the persistence save. The check validates the scope permit
+and the compatibility requirement for transactions that contain domain writes.
+Mutation guard: `transactionSaveRequiresCompatibilityCheck`.
+The rule recognizes the current `peer.save()` syntax. Unit tests cover the
+mutation-context marker and rollback behavior.
+
+`where.compatibility_scope_ownership` permits production scoped-store construction
+only in `DataCompatibilityCoordinator`. Isolated test fixtures may construct their
+own. Guard: `compatibilityPermitsComeFromTheCoordinator`.

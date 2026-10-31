@@ -368,6 +368,43 @@ struct WhereProjectRulesTests {
         #expect(rejected.violations.map(\.rule.id) == ["where.store_transaction_boundary"])
     }
 
+    @Test func transactionSaveRequiresCompatibilityCheck() throws {
+        let path: RelativeFilePath = "Where/WhereCore/Sources/Persistence/SwiftDataStore.swift"
+        let allowed = try evaluate(
+            path: path,
+            component: .whereCore,
+            source: "func commit() throws { try validateTransaction(in: peer)\ntry peer.save() }",
+        )
+        let rejected = try evaluate(
+            path: path,
+            component: .whereCore,
+            source: "func commit() throws { try peer.save() }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_store_boundary"])
+    }
+
+    @Test func compatibilityPermitsComeFromTheCoordinator() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift",
+            component: .whereCore,
+            source: "func open() { _ = CompatibilityScopedStore(base: store, permit: permit) }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/Worker.swift",
+            component: .whereCore,
+            source: "func open() { _ = CompatibilityScopedStore(base: store, permit: permit) }",
+        )
+        let fixture = try evaluate(
+            path: "Where/WhereCore/Tests/Support/CompatibilityFixture.swift",
+            component: .loggingTests,
+            source: "func open() { _ = CompatibilityScopedStore(base: store, permit: permit) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(fixture.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_scope_ownership"])
+    }
+
     private func evaluate(
         path: RelativeFilePath,
         component: WhereComponent,
