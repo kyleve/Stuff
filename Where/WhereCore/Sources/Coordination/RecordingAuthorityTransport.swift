@@ -25,6 +25,28 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
         self.now = now
     }
 
+    public init(
+        restoring commits: [RecordingAuthorityCommit],
+        now: @escaping @Sendable () -> Date,
+    ) throws {
+        self.now = now
+        var state = RecordingAuthority.initial
+        for commit in commits
+            .sorted(by: {
+                ($0.proposal.result.revision?.sequence ?? 0) <
+                    ($1.proposal.result.revision?.sequence ?? 0)
+            })
+        {
+            try commit.proposal.validate()
+            guard commit.proposal.expected == state,
+                  let eventID = commit.proposal.result.revision?.eventID
+            else { throw RecordingAuthorityError.invalidRecord }
+            self.commits[eventID] = commit
+            latest = commit
+            state = commit.proposal.result
+        }
+    }
+
     public func current() -> RecordingAuthorityCommit? {
         latest
     }
@@ -50,4 +72,10 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
         latest = commit
         return commit
     }
+}
+
+/// The host selects CloudKit only for audiences whose domain store syncs to iCloud.
+public enum RecordingAuthorityEnvironment: Sendable {
+    case local
+    case cloudKit(containerIdentifier: String)
 }

@@ -61,20 +61,37 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         let event = try CloudKitRecordingAuthorityRecord(id: immutableID, proposal: proposal)
         // Both records must succeed. A losing change tag cannot leave an orphan commit.
         // The coordinator's later SwiftData projection is a separate transaction.
-        let result = try await database.modifyRecords(
-            saving: [head.record, event.record],
-            deleting: [],
-            savePolicy: .ifServerRecordUnchanged,
-            atomically: true,
-        )
-        guard let savedHead = result.saveResults[head.id.recordID],
-              let savedEvent = result.saveResults[immutableID.recordID]
+        let result: SaveResults
+        do {
+            let saved = try await database.modifyRecords(
+                saving: [head.record, event.record],
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: true,
+            )
+            result = SaveResults(records: saved.saveResults)
+        } catch {
+            if Self.isConflict(error) { throw RecordingAuthorityError.conflict }
+            throw error
+        }
+        guard let savedHead = result.records[head.id.recordID],
+              let savedEvent = result.records[immutableID.recordID]
         else {
             throw RecordingAuthorityError.invalidRecord
         }
-        _ = try savedHead.get()
-        return try CloudKitRecordingAuthorityRecord(record: savedEvent.get(), id: immutableID)
-            .commit
+        for result in [savedHead, savedEvent] {
+            if case let .failure(error) = result, Self.isConflict(error) {
+                throw RecordingAuthorityError.conflict
+            }
+        }
+        do {
+            _ = try savedHead.get()
+            return try CloudKitRecordingAuthorityRecord(record: savedEvent.get(), id: immutableID)
+                .commit
+        } catch {
+            if Self.isConflict(error) { throw RecordingAuthorityError.conflict }
+            throw error
+        }
     }
 
     public func fetchCommit(for transitionID: RecordingAuthority
@@ -98,6 +115,30 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         notification.shouldSendContentAvailable = true
         subscription.notificationInfo = notification
         _ = try await database.save(subscription)
+    }
+
+    private struct SaveResults {
+        let records: [CKRecord.ID: Result<CKRecord, any Error>]
+    }
+
+    static func isTemporarilyUnavailable(_ error: any Error) -> Bool {
+        guard let error = error as? CKError else { return false }
+        return [
+            .networkUnavailable,
+            .networkFailure,
+            .serviceUnavailable,
+            .requestRateLimited,
+            .zoneBusy,
+        ].contains(error.code)
+    }
+
+    static func isConflict(_ error: any Error) -> Bool {
+        guard let error = error as? CKError else { return false }
+        if error.code == .serverRecordChanged { return true }
+        guard error.code == .partialFailure,
+              let errors = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: any Error]
+        else { return false }
+        return errors.values.contains(where: isConflict)
     }
 
     private func fetch(_ recordID: CloudKitRecordingAuthorityRecord

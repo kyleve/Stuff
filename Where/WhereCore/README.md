@@ -559,7 +559,7 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
 7. Run `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests` with the export configuration unset.
    The bundled JSON fixture runs in ordinary CI without the private archive or export configuration.
 
-## Recording authority foundation
+## Recording authority
 
 The [recording authority guide](RECORDING_AUTHORITY.md) explains the state model,
 conditional server writes, retry outcomes, local reconciliation, and review order.
@@ -569,8 +569,11 @@ records what this device learned. `CloudKitRecordingAuthorityRecord` owns the
 typed head/event identities and payload coding inside the transport boundary.
 
 `RecordingAuthorityCoordinator` reconciles a server-confirmed owner and data
-version into the existing store. This foundation does not yet change recording
-behavior. The single-recorder lifecycle is the next stack slice.
+version into the existing store. `RecordingDeviceCoordination` owns explicit role
+selection and durable transition retries. `DeviceRecordingController` permits
+automatic GPS only for the designated owner with local recording consent.
+Pausing recording leaves ownership unchanged. Secondary devices can still request
+a one-shot location for a manual action.
 
 ```swift
 let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
@@ -606,3 +609,24 @@ reset and Replace must retain it and backups must not restore its live grants.
 CloudKit account changes must invalidate a consumer's cached authority before
 allowing offline recording; consumers must not treat a missing established head
 as permission to claim again.
+
+### Replacing the recording phone
+
+```swift
+// On the new phone: claim an empty account or ask its existing recorder.
+let state = try await coordination.selectRecordingRole(.recordingRequested)
+// On the existing phone, after explicit approval:
+try await services.recording.approveHandoff(requestID: request.requestID)
+```
+
+Approval persists an installation-local fence, stops GPS, then commits the
+reviewed server transition. Uncertain responses reuse the same event ID.
+Restart and pending cancellation honor the fence. A cancellation retry retains its event ID.
+A verified newer server revision resolves a completed or rejected pending command.
+An unchanged head retains the command because a request can still be in flight.
+Consent remains local and unchanged on the old phone.
+Known removed targets cannot receive approval. A pending request must be cancelled before its target is removed.
+An offline established installation uses its last verified authority; malformed
+or unauthenticated responses fail closed. Foreground reconciliation refreshes
+authority before starting recording. Cloud push refresh is added in the system
+integration slice of this stack.

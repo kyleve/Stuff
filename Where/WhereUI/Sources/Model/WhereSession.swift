@@ -366,6 +366,7 @@ public final class WhereSession {
         observeRecordingConfigurationChanges()
         let wasTracking = isTracking
         do {
+            try await services.recording.refreshAuthority()
             await services.recording.startMonitoringChanges()
             if didRegisterRecordingDevice {
                 _ = try await services.recording.reconcile(

@@ -17,6 +17,7 @@ public protocol InstallationRecordingContextStoring: AnyObject, BackupImportReco
 
     /// Persist a later Settings choice locally. The installation must already be confirmed.
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws
+    func setRecordingControl(_ control: RecordingInstallationControl) throws
 
     /// Replace a removed installation identity without touching synced account data or recovery.
     func rejoin() throws -> InstallationRecordingContext

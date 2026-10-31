@@ -268,45 +268,71 @@ public struct OnboardingView: View {
                     }
                     Spacer(minLength: 0)
 
-                    VStack(spacing: stylesheet.spacing.large) {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                            switch flow.deviceDiscovery {
-                                case .idle, .loading:
-                                    ProgressView(String(localized: .onboardingRecordingChecking))
-                                case let .ready(recommendation):
-                                    if recommendation.recentRecordingDevice != nil {
-                                        Label(
-                                            String(localized: .onboardingRecordingRecent),
-                                            systemSymbol: .iphoneRadiowavesLeftAndRight,
-                                        )
-                                    }
-                                case let .failed(description):
-                                    Label(description, systemSymbol: .icloudSlash)
-                                        .foregroundStyle(.secondary)
+                    if let role = flow.role {
+                        RecordingDeviceRoleView(
+                            state: role.state,
+                            canApprove: false,
+                            choose: { recording in Task {
+                                if let confirmed = await role
+                                    .choose(recording: recording)
+                                {
+                                    flow.recordingEnabled = confirmed
+                                    flow.finish(using: model)
+                                }
+                            } },
+                            retry: { Task { await role.refresh() } },
+                            approve: {},
+                            cancel: { Task { await role.cancelRequest() } },
+                        )
+                        .task { await role.run() }
+                        .onChange(of: role.isOwner, initial: true) { _, isOwner in
+                            if isOwner {
+                                flow.recordingEnabled = true; flow.finish(using: model)
                             }
-                            Toggle(
-                                String(localized: .settingsDevicesAutomaticRecording),
-                                isOn: $flow.recordingEnabled,
-                            )
-                            Text(recordingRecommendation)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        VStack(spacing: stylesheet.spacing.large) {
+                            VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                                switch flow.deviceDiscovery {
+                                    case .idle, .loading:
+                                        ProgressView(
+                                            String(localized: .onboardingRecordingChecking),
+                                        )
+                                    case let .ready(recommendation):
+                                        if recommendation.recentRecordingDevice != nil {
+                                            Label(
+                                                String(localized: .onboardingRecordingRecent),
+                                                systemSymbol: .iphoneRadiowavesLeftAndRight,
+                                            )
+                                        }
+                                    case let .failed(description):
+                                        Label(description, systemSymbol: .icloudSlash)
+                                            .foregroundStyle(.secondary)
+                                }
+                                Toggle(
+                                    String(localized: .settingsDevicesAutomaticRecording),
+                                    isOn: $flow.recordingEnabled,
+                                )
+                                Text(recordingRecommendation)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Button {
-                            // Request Always-location only after the user confirms an
-                            // enabled choice; the launch's reconcile step picks up
-                            // whatever the system grants.
-                            flow.finish(using: model)
-                        } label: {
-                            Text(String(localized: .onboardingContinue))
-                                .frame(maxWidth: .infinity)
+                            Button {
+                                // Request Always-location only after the user confirms an
+                                // enabled choice; the launch's reconcile step picks up
+                                // whatever the system grants.
+                                flow.finish(using: model)
+                            } label: {
+                                Text(String(localized: .onboardingContinue))
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
                     }
-                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)

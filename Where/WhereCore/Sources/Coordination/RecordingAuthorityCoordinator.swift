@@ -14,9 +14,44 @@ public actor RecordingAuthorityCoordinator {
         self.transport = transport
     }
 
+    public nonisolated func updates() -> AsyncStream<Void> {
+        store.changes()
+    }
+
     /// Reads the local commit projection without a network request or a freshness guarantee.
     public func observed() async throws -> RecordingAuthority {
         try await store.recordingAuthority()
+    }
+
+    public func deviceNames() async throws -> [RecordingDeviceID: String] {
+        try await Dictionary(uniqueKeysWithValues: store.recordingDevices().map { (
+            $0.id,
+            $0.displayName,
+        ) })
+    }
+
+    public func registerInstallation(_ context: InstallationRecordingContext) async throws {
+        try await store.perform {
+            guard try await self.store.recordingDeviceRemovals()
+                .contains(where: { $0.deviceID == context.currentDevice.id }) == false
+            else { throw RecordingPersistenceError.currentDeviceRemoved(context.currentDevice.id) }
+            if try await self.store.recordingDeviceProfiles()
+                .contains(where: { $0.id == context.currentDevice.id }) { return }
+            let generation = try await self.store.dataGeneration()
+            try await self.store.addRecordingDeviceProfile(.init(
+                id: context.currentDevice.id,
+                systemName: context.currentDevice.systemName,
+                kind: context.currentDevice.kind,
+                registeredAt: context.registeredAt,
+                registrationGenerationID: generation.id,
+            ))
+        }
+    }
+
+    func requireEligibleHandoffTarget(_ deviceID: RecordingDeviceID) async throws {
+        guard try await store.recordingDeviceRemovals()
+            .contains(where: { $0.deviceID == deviceID }) == false
+        else { throw RecordingAuthorityError.invalidHandoff }
     }
 
     /// Fetches the head and every predecessor before adding commits in one local transaction.
