@@ -17,7 +17,7 @@ script = "./worktree --check-main && ./.cursor/install.sh"
 script = ""
 
 [cleanup.darwin]
-script = "./simulator --delete"
+script = "./worktree --cleanup"
 
 [[actions]]
 name = "Update to latest main"

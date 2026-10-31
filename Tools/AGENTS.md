@@ -28,6 +28,14 @@ These rules also apply when changing a root command or installer that calls this
   Match the claim's UDID, expected name, and runtime to `simctl` inventory.
   A matching name alone never authorizes deletion or transfer of a stale claim.
   Guard: [simulator_registry_test.rb](Tests/simulator_registry_test.rb).
+- Remove DerivedData only when its regular `info.plist` identifies the owning checkout through `WorkspacePath`.
+  Reject ownership paths with `..` components before resolving or normalizing them.
+  Preserve shared caches, linked directories, and caches without usable ownership metadata.
+  For orphan removal, require an absent checkout under an available Codex worktree root, including the legacy root.
+  Treat only a missing-path error as checkout absence. Propagate permission and other inspection errors before removal.
+  Recheck resolved ownership, directory identity, and checkout absence before removal.
+  Run cleanup with stable checkout and cache paths. Validation and deletion do not coordinate concurrent path changes.
+  Guards: [test_worktree_cleanup.py](Tests/test_worktree_cleanup.py) and [test_worktree_command.py](Tests/test_worktree_command.py).
 - Keep dry runs free of the mutations they preview. Test the public command
   with fake processes and temporary destinations, not developer devices or installed apps.
 

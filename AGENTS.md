@@ -680,8 +680,10 @@ editor when changing its schema.
 - [`.worktreeinclude`](.worktreeinclude) copies only ignored machine-local files
   required by a new managed worktree. `AGENTS.override.md` is copied by Codex
   automatically and must not be listed there.
-- Cleanup uses `./simulator --delete`, which deletes only that checkout's
-  device. It is safe when no device was created.
+- Cleanup uses `./worktree --cleanup` for that checkout's DerivedData and
+  registered simulator. Use `--dry-run` to preview both actions.
+- `./worktree --prune-derived-data --dry-run` previews cache removal for deleted
+  Codex worktrees. [Tools/AGENTS.md](Tools/AGENTS.md) owns cache ownership rules.
 
 ## Cursor Cloud specific instructions
 
