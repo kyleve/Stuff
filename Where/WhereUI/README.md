@@ -69,6 +69,43 @@ An automatic check that can reuse Core's cache preserves an active manual check 
 Demo mode hides this surface and performs no update checks.
 
 
+`MainTabs` owns one report model and one `SceneNavigationModel` for the session.
+The navigation model retains tab selection, region routes, the compact year mode, Settings routes, search, and calendar anchors.
+Each destination receives its own child state. Calendar, timeline, and Locations anchors survive pane remounts.
+The calendar keeps its native scroll binding in the mounted view. Retained presentation state restores the typed month or estimate target after a remount. The initial bottom alignment survives remounts until browsing, selection, zoom, or a year change replaces it.
+A report-year change waits for matching data before positioning. Stale visibility callbacks cannot replace the new year's anchor.
+Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
+The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
+Timeline stays also measure eagerly so resizing cannot shift the content origin.
+Timeline anchors refer to displayed stay segments or flight identities. Month
+selection reveals the first overlapping displayed entry.
+
+On a wide window, Locations shows cards beside the selected region's calendar.
+Without a region selection, the detail pane shows the year calendar.
+Your Year shows the calendar and timeline together. Settings uses native list and detail navigation.
+Narrow windows and accessibility text sizes use one pane. The compact calendar/timeline choice remains stored while both panes are visible.
+Theme choices stack when the available pane cannot fit two readable card specimens.
+
+`AdaptiveHistoryGeometry` reads independent edge insets and the system's reserved regions.
+`AdaptiveHistoryArrangement` combines that geometry with the stylesheet's pane limits.
+An active horizontal division places the selected month above the hinge and browsing controls below it.
+A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
+The adapter uses container geometry, without device-name or hinge-angle checks.
+
+`HistoryNavigationModel` links explicit month and stay selections through typed day intervals.
+It highlights the interval and reveals it in the companion pane. Scroll observations only retain local anchors.
+Each month reveal has a typed request identity. Consuming it preserves that identity, so repeated selections work without an observer feedback loop.
+Planning sheets sit above the changing containers, with one shared presentation owner per destination.
+The developer overlay and welcome overlay use the same geometry adapter to find clear space.
+
+The DEBUG **Duo Layout Lab** retains one production demo world while its pose control changes bounds, traits, and synthetic regions.
+Embedded demo tools omit the session's Exit Demo action. The containing tool owns dismissal.
+Its measurements come from the pinned runtime; see [Duo measurements](../../Shared/SnapshotKit/Documentation/DuoMeasurements.json).
+Viewport shell captures supplement full-content captures of the shared scrolling panes.
+Shell fixtures request their initial browse position after asynchronous demo preparation.
+Synthetic layouts do not validate system bars, camera activation, or physical folding. Those require native-device checks.
+The reusable panes also support iPad layouts. There is no HomeView target.
+
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
@@ -694,18 +731,3 @@ reference; preserve PNG metadata when copying them.
 
 Calendar month sections and day rows measure eagerly. This gives full-content
 snapshots their complete height before capture on the pinned Duo runtime.
-
-## Adaptive history foundations
-
-`SceneNavigationModel` groups navigation by destination. `HistoryNavigationModel`
-connects explicit month and stay selections. Calendar and timeline models retain
-typed scroll anchors without coupling their scroll offsets. A consumed month reveal
-keeps its request identity, so repeated selections remain observable.
-
-`AdaptiveHistoryGeometry` maps safe areas and reserved regions into physical
-container coordinates. `AdaptiveHistoryArrangement` applies the stylesheet's pane
-limits. `AdaptiveHistoryContainer` hosts compact, columns, and tabletop arrangements.
-The DEBUG Testing SPI supplies synthetic reserved regions to the same adapter.
-
-This foundation does not replace the current destination containers. The dependent
-app integration installs scene ownership and presents these arrangements.

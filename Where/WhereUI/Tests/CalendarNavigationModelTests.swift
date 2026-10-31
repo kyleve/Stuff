@@ -48,6 +48,19 @@ struct CalendarNavigationModelTests {
         #expect(navigation.scrollPosition.viewID(type: CalendarDay.self) == newMonth)
     }
 
+    @Test func yearChangeConsumesStaleRevealWithoutReplacingItsIdentity() {
+        let navigation = CalendarNavigationModel()
+        navigation.reveal(month: CalendarDay(year: 2026, month: 2, day: 1))
+        let request = navigation.revealRequest
+        navigation.restorePosition(
+            in: 2025,
+            initialMonth: CalendarDay(year: 2025, month: 7, day: 1),
+        )
+        #expect(navigation.pendingReveal == nil)
+        #expect(navigation.revealRequest == request)
+        #expect(navigation.displayedMonth?.year == 2025)
+    }
+
     @Test func visibilityDoesNotCreateScrollRequests() {
         let navigation = CalendarNavigationModel()
         let initial = CalendarDay(year: 2026, month: 7, day: 1)

@@ -1,6 +1,7 @@
 #if DEBUG
     @_spi(Testing) import InstallerKitUI
 #endif
+import BroadwayUI
 import InstallerKit
 import RegionKit
 import SFSafeSymbols
@@ -15,29 +16,25 @@ import WhereCore
 /// deep-links to the screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
-/// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene's report model and
-/// the two view-scoped editing models (backup, reminders) are owned here and
-/// handed down; the `WhereSession` coordinator (recording/location) and
+/// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene injects its report.
+/// This view owns the backup and reminders models above the adaptive container;
+/// the `WhereSession` coordinator (recording/location) and
 /// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
     let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
-    @State private var searchText = ""
-    @State private var showRegions = false
+    @State private var navigation: SceneNavigationModel.Settings
 
-    @Environment(WhereSession.self) private var session
-    @Environment(UpdateModel.self) private var updates: UpdateModel?
-    @Environment(WhereModel.self) private var model
-    @Environment(\.lifecycle) private var lifecycle
-    @Environment(\.isInDemoMode) private var isInDemoMode
-    @Environment(\.primaryAppIconName) private var primaryAppIconName
+    @Environment(\.stylesheet) private var stylesheet
 
     init(
         report: YearReportModel,
         recordingWarning: RecordingConfigurationWarningModel? = nil,
+        navigation: SceneNavigationModel.Settings? = nil,
     ) {
+        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Settings())
         self.report = report
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
             preferences: report.preferences,
@@ -50,223 +47,78 @@ struct SettingsView: View {
         ))
     }
 
-    private var searchQuery: String {
-        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var isSearching: Bool {
-        !searchQuery.isEmpty
-    }
-
-    private var searchResults: [SettingsSearchResult] {
-        SettingsCatalog.results(matching: searchQuery)
-            .filter { isAvailable($0.destination) }
-    }
-
-    /// Whether a group is offered right now. Everything is, except the few
-    /// groups a demo has no business showing (see
-    /// `SettingsDestination.isAvailableInDemoMode`) — filtered here rather than
-    /// per-row so the list and the search index can't disagree about what
-    /// exists.
-    private func isAvailable(_ destination: SettingsDestination) -> Bool {
-        destination.isAvailable(isInDemoMode: isInDemoMode, updatesEnabled: updates != nil)
-    }
-
     var body: some View {
-        NavigationStack {
-            List {
-                if isSearching {
-                    ForEach(searchResults) { result in
-                        searchNavigationRow(result)
-                    }
-                } else {
-                    if recordingWarning.isPresented {
-                        recordingWarningSection
-                    }
-                    if isInDemoMode {
-                        demoSection
-                    }
-                    ForEach(SettingsListSection.allCases, id: \.self) { section in
-                        let destinations = section.destinations.filter(isAvailable)
-                        if !destinations.isEmpty {
-                            Section {
-                                ForEach(destinations, id: \.self) { destination in
-                                    groupNavigationRow(destination)
-                                }
-                            } header: {
-                                if let headerTitle = section.headerTitle {
-                                    Text(headerTitle)
-                                }
-                            }
+        @Bindable var navigation = navigation
+        AdaptiveHistoryContainer { arrangement in
+            NavigationSplitView(
+                columnVisibility: .constant(.all),
+                preferredCompactColumn: $navigation.compactColumn,
+            ) {
+                SettingsContent(
+                    report: report,
+                    recordingWarning: recordingWarning,
+                    navigation: navigation,
+                )
+                .navigationSplitViewColumnWidth(
+                    min: stylesheet.adaptiveHistory.minimumControlsWidth,
+                    ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                )
+            } detail: {
+                NavigationStack(path: $navigation.path) {
+                    Group {
+                        if let route = navigation.selectedRoute {
+                            destination(for: route)
+                        } else {
+                            ContentUnavailableView(
+                                String(localized: .settingsTitle),
+                                systemSymbol: .gearshape,
+                            )
                         }
                     }
-                }
-            }
-            .navigationTitle(String(localized: .settingsTitle))
-            .searchable(text: $searchText, prompt: String(localized: .settingsSearchPrompt))
-            .overlay {
-                if isSearching, searchResults.isEmpty {
-                    ContentUnavailableView.search(text: searchQuery)
-                }
-            }
-            .navigationDestination(for: SettingsRoute.self) { route in
-                destination(for: route)
-            }
-            .sheet(isPresented: $showRegions) {
-                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
-            }
-        }
-    }
-
-    private var recordingWarningSection: some View {
-        Section {
-            NavigationLink(value: SettingsRoute(.devices)) {
-                Label {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(.settingsRecordingWarningTitle)
-                            .font(.headline)
-                        Text(.settingsRecordingWarningMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    .navigationDestination(for: SettingsRoute.self) { route in
+                        destination(for: route)
                     }
-                } icon: {
-                    Image(systemSymbol: .exclamationmarkTriangleFill)
-                        .foregroundStyle(.yellow)
-                        .accessibilityHidden(true)
                 }
-            }
-            Button(.settingsRecordingWarningDismiss, role: .cancel) {
-                recordingWarning.dismiss()
-            }
-        }
-    }
-
-    /// The way out of demo mode, at the very top of the list where a temporary
-    /// state belongs — above the real settings rather than filed among them.
-    ///
-    /// No confirmation: there is nothing to lose. Demo data was never saved,
-    /// and leaving is exactly what quitting the app would do anyway, so a
-    /// "are you sure?" would overstate the stakes.
-    private var demoSection: some View {
-        Section {
-            Button {
-                exitDemoMode()
-            } label: {
-                Label(
-                    String(localized: .settingsDemoExit),
-                    systemSymbol: .rectanglePortraitAndArrowRight,
+                .navigationSplitViewColumnWidth(
+                    min: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                    ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
                 )
             }
-        } header: {
-            Text(String(localized: .settingsDemoHeader))
-        } footer: {
-            Text(String(localized: .settingsDemoFooter))
+            .navigationSplitViewStyle(.balanced)
+            .environment(\.horizontalSizeClass, arrangement == .compact ? .compact : .regular)
+            .bHorizontalSizeClass(arrangement == .compact ? .compact : .regular)
+        }
+        .sheet(isPresented: $navigation.showRegions) {
+            RegionsSettingsView(usedThisYear: regionsUsedThisYear)
         }
     }
 
-    /// Tear the demo world down and re-drive the launch, through the same
-    /// `LifecycleProxy` the reset flow uses. The relaunch parks on the
-    /// onboarding gate (or resolves straight through for someone who had
-    /// already onboarded before trying the demo).
-    private func exitDemoMode() {
-        Task { await lifecycle.teardown(WhereLaunch.exitDemoPlan(for: model), input: session) }
-    }
-
-    /// A top-level row that either pushes its sub-screen or, for a sheet group
-    /// (Regions), presents it modally.
-    @ViewBuilder
-    private func groupNavigationRow(_ destination: SettingsDestination) -> some View {
-        if destination.isSheet {
-            Button { present(destination) } label: { groupRow(destination) }
-                .tint(.primary)
-        } else {
-            NavigationLink(value: SettingsRoute(destination)) { groupRow(destination) }
-        }
-    }
-
-    /// A search-result row that mirrors the group row's push-vs-sheet routing.
-    @ViewBuilder
-    private func searchNavigationRow(_ result: SettingsSearchResult) -> some View {
-        if result.destination.isSheet {
-            Button { present(result.destination) } label: { searchRow(result) }
-                .tint(.primary)
-        } else {
-            NavigationLink(value: SettingsRoute(result)) { searchRow(result) }
-        }
-    }
-
-    /// Present a sheet group. Non-sheet destinations are pushed via
-    /// `NavigationLink`, so reaching them here is a programmer error.
-    private func present(_ destination: SettingsDestination) {
-        switch destination {
-            case .regions:
-                showRegions = true
-            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
-                 .alerts, .appearance, .year, .siri,
-                 .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
-                 .data, .privacyDiagnostics, .updates, .about:
-                assertionFailure("\(destination) is a push destination, not a sheet")
-        }
-    }
-
-    /// A top-level drill-in row: icon + group title, with a value subtitle where
-    /// one is cheap and useful (location status, the report year).
-    private func groupRow(_ destination: SettingsDestination) -> some View {
-        LabeledContent {
-            if let subtitle = subtitle(for: destination) {
-                Text(subtitle)
-                    .foregroundStyle(.secondary)
-            }
-        } label: {
-            Label {
-                Text(destination.rowTitle)
-            } icon: {
-                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
-            }
-        }
-    }
-
-    /// A cheap, always-available value shown on the right of a group row; `nil`
-    /// for groups without a meaningful one-line summary.
-    private func subtitle(for destination: SettingsDestination) -> String? {
-        switch destination {
-            case .devices:
-                LocationStatusRow.statusTitle(
-                    status: session.authorizationStatus,
-                    isTracking: session.isTracking,
-                )
-            case .updates:
-                updates?.attentionTitle
-            case .year:
-                report.selectedYear.formatted(.number.grouping(.never))
-            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .regions,
-                 .alerts, .appearance, .siri, .widgets,
-                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
-                 .privacyDiagnostics, .about:
-                nil
-        }
-    }
-
-    /// A search result row: the owning group's icon beside the setting's name
-    /// over its parent group, so a result reads as belonging to its section.
-    private func searchRow(_ result: SettingsSearchResult) -> some View {
-        Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(result.title)
-                Text(result.destination.rowTitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        } icon: {
-            SettingsIcon(
-                systemSymbol: result.destination.systemSymbol,
-                color: result.destination.iconColor,
-            )
-        }
-    }
-
-    @ViewBuilder
     private func destination(for route: SettingsRoute) -> some View {
+        SettingsDestinationView(route: route, report: report, backup: backup, reminders: reminders)
+    }
+
+    /// Regions with days in the selected report year, so the region editor can
+    /// surface a "used this year" group (grouping order only — it doesn't affect
+    /// what's saved). `.other` isn't a pickable region, so it's dropped.
+    private var regionsUsedThisYear: Set<Region> {
+        guard let totals = report.report?.totals else { return [] }
+        return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
+    }
+}
+
+/// The shared typed destination builder for both adaptive navigation and standalone panes.
+private struct SettingsDestinationView: View {
+    let route: SettingsRoute
+    let report: YearReportModel
+    let backup: BackupModel
+    let reminders: RemindersSettingsModel
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(\.isInDemoMode) private var isInDemoMode
+    @Environment(WhereSession.self) private var session
+    @Environment(WhereModel.self) private var model
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
+
+    var body: some View {
         switch route.destination {
             case .attachments:
                 EvidenceListView(report: report)
@@ -343,14 +195,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Regions with days in the selected report year, so the region editor can
-    /// surface a "used this year" group (grouping order only — it doesn't affect
-    /// what's saved). `.other` isn't a pickable region, so it's dropped.
-    private var regionsUsedThisYear: Set<Region> {
-        guard let totals = report.report?.totals else { return [] }
-        return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
-    }
-
     private var featureDiscoveryPresentation: FeatureDiscoveryPresentation {
         FeatureDiscoveryPresentation(
             report: report.report,
@@ -367,6 +211,15 @@ struct SettingsView: View {
         /// on a directional screen (leading labels, trailing values/toggles).
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
+                name: "BrowseColumn",
+                configurations: [SnapshotConfiguration(device: AdaptiveHistorySnapshotFixture
+                        .browseColumn)],
+            ) {
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+            }
+            whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenRepresentative + [
                     SnapshotConfiguration(
@@ -376,7 +229,7 @@ struct SettingsView: View {
                 ],
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
             }
@@ -385,7 +238,7 @@ struct SettingsView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(InstallerPreview.model(.available))
@@ -395,7 +248,7 @@ struct SettingsView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(InstallerPreview.model(.local))
@@ -407,7 +260,7 @@ struct SettingsView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                snapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)
@@ -417,12 +270,35 @@ struct SettingsView: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                SettingsView(
+                snapshotList(
                     report: PreviewSupport.loadedYearReportModel(),
                     recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
                 )
                 .environment(PreviewSupport.loadedModel())
                 .environment(PreviewSupport.loadedSession())
+            }
+        }
+
+        private static func snapshotList(
+            report: YearReportModel,
+            recordingWarning: RecordingConfigurationWarningModel? = nil,
+        ) -> some View {
+            let backup = BackupModel(services: report.services)
+            let reminders = RemindersSettingsModel(
+                services: report.services,
+                preferences: report.preferences,
+                now: report.now,
+            )
+            return NavigationStack {
+                SettingsContent(report: report, recordingWarning: recordingWarning)
+                    .navigationDestination(for: SettingsRoute.self) { route in
+                        SettingsDestinationView(
+                            route: route,
+                            report: report,
+                            backup: backup,
+                            reminders: reminders,
+                        )
+                    }
             }
         }
     }

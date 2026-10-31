@@ -1,10 +1,12 @@
 import SwiftUI
+import WhereCore
 
 /// Bounds loading, failure, and empty-state construction separately from the
 /// navigation shell. Keep the state payload behind its own view boundary.
 struct LocationsStateView: View {
     let report: YearReportModel
     let planningAction: () -> Void
+    var openReview: ((GPSCorrectionReview) -> Void)?
     var openElsewhere: (() -> Void)?
 
     @Environment(\.stylesheet.spacing) private var spacing
@@ -12,7 +14,7 @@ struct LocationsStateView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: spacing.xxLarge) {
-                LocationsFlightNotice(report: report)
+                LocationsFlightNotice(report: report, openReview: openReview)
                 LocationsStateContent(
                     report: report,
                     planningAction: planningAction,
