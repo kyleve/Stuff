@@ -32,8 +32,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
+- **Mount accessibility subjects before readiness and settling.** Preserve their controller parent during parsing unless upstream tiling requires temporary detachment. Guard: `AccessibilitySnapshotViewControllerTests`.
+- **Keep native bar metadata sampling synchronous and instance-scoped.** Restore window geometry before rendering or parsing paths. Restore native getters on every exit; never assign a stored `accessibilityElements` list. Guard: `SnapshotAccessibilityViewportTests`.
 - **Keep annotation padding’s safe-area insets at zero.** Subject clearance belongs to the captured root; guard centered-content outline alignment.
-- **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
+- **Raised-floor accessibility captures parse twice.** Settle between passes at the original capture size; expand for annotations only after the final parse (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
 - **Keep autorelease pools synchronous.** Drain settle samples, tile-rendering intermediates, capture normalization, and comparison temporaries before the next async suspension.

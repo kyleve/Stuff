@@ -1,4 +1,4 @@
-@_spi(Testing) import SnapshotKitTesting
+@_spi(Testing) @testable import SnapshotKitTesting
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -6,6 +6,61 @@ import UIKit
 
 @MainActor
 struct AccessibilitySnapshotViewControllerTests {
+    @Test func preparationKeepsTheCaptureSizeUntilAnnotationsAreFinal() throws {
+        let subject = ContainmentProbeController()
+        subject.view.frame = CGRect(x: 0, y: 0, width: 100, height: 200)
+        let capture = AccessibilitySnapshotViewController(wrapping: subject)
+        let originalSize = capture.view.bounds.size
+        try show(capture) { controller in
+            controller.view.frame.size = originalSize
+            controller.view.layoutIfNeeded()
+            for _ in 0 ..< 2 {
+                controller.parseAccessibility()
+                #expect(controller.view.bounds.size == originalSize)
+                #expect(subject.parent === controller)
+            }
+            controller.sizeToFitAnnotations()
+            #expect(controller.view.bounds.width > originalSize.width
+                || controller.view.bounds.height > originalSize.height)
+        }
+    }
+
+    @Test(arguments: [
+        CGSize(width: 100, height: 200),
+        CGSize(width: 1984, height: 100),
+        CGSize(width: 100, height: 1984),
+    ])
+    func untiledParsingKeepsTheSubjectParent(size: CGSize) async throws {
+        // Annotation padding adds 16 points: equality at 2,000 does not tile.
+        try await verifyContainment(size: size, expectedRemovals: 1)
+    }
+
+    @Test(arguments: [CGSize(width: 1985, height: 100), CGSize(width: 100, height: 1985)])
+    func tiledParsingRestoresTheSubjectParent(size: CGSize) async throws {
+        // At 2,001 padded points the upstream renderer adopts a temporary controller.
+        try await verifyContainment(size: size, expectedRemovals: 3)
+    }
+
+    private func verifyContainment(size: CGSize, expectedRemovals: Int) async throws {
+        let host = ContainmentProbeController()
+        host.view.frame = CGRect(origin: .zero, size: size)
+        _ = try await renderSnapshotImage(
+            of: host,
+            named: "accessibility-containment",
+            safeAreaInsets: .zero,
+            isAccessibility: true,
+            settle: .settledAtLeast(minDuration: 0.01),
+            onReadyToSnapshot: {
+                #expect(host.view.window != nil)
+                #expect(host.removals == 0)
+            },
+        )
+        // Cleanup removes the subject once; tiling adds one removal per parse.
+        #expect(host.removals == expectedRemovals)
+        #expect(host.parent == nil)
+        #expect(host.view.superview == nil)
+    }
+
     @Test func annotationsStayAlignedWithCenteredNavigationContent() async throws {
         let configuration = SnapshotConfiguration(device: .iPad)
         let host = UIHostingController(rootView: CenteredAccessibilityFixture())
@@ -61,6 +116,22 @@ struct AccessibilitySnapshotViewControllerTests {
         #expect(contentCenter.red > 0.5)
         #expect(contentCenter.green > 0.5)
         #expect(contentCenter.blue > 0.5)
+    }
+}
+
+@MainActor
+private final class ContainmentProbeController: UIViewController {
+    var removals = 0
+
+    override func loadView() {
+        let button = UIButton(type: .system)
+        button.setTitle("Action", for: .normal)
+        view = button
+    }
+
+    override func willMove(toParent parent: UIViewController?) {
+        super.willMove(toParent: parent)
+        if parent == nil { removals += 1 }
     }
 }
 

@@ -94,6 +94,7 @@ struct SettingsContent: View {
         .navigationTitle(String(localized: .settingsTitle))
         .searchable(
             text: $navigation.searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
             prompt: String(localized: .settingsSearchPrompt),
         )
         .overlay {

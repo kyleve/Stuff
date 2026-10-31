@@ -474,9 +474,6 @@ func renderSnapshotCaptureLocked(
         {
             func parseAccessibility() {
                 accessibilityViewController.parseAccessibility()
-                wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
-                wrappingViewController.view.setNeedsLayout()
-                CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
             }
 
             if case .settledAtLeast = settle {
@@ -500,6 +497,10 @@ func renderSnapshotCaptureLocked(
             }
             timing.measure(.accessibilityParse) {
                 parseAccessibility()
+                accessibilityViewController.sizeToFitAnnotations()
+                wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
+                wrappingViewController.view.setNeedsLayout()
+                CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
             }
         }
 

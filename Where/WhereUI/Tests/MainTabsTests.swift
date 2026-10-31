@@ -75,6 +75,48 @@ struct MainTabsTests {
 
 @MainActor
 struct MainTabsTestsDuo {
+    @Test func settingsSearchStaysVisibleAcrossFoldLayouts() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        let navigation = SceneNavigationModel()
+        navigation.selectedTab = .settings
+        let state = AdaptiveHistoryHostState()
+        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+            MainTabs(world: world, navigation: navigation)
+                .environment(world.model)
+                .environment(world.session)
+                .environment(\.isInDemoMode, true)
+        })
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            for pose in [
+                AdaptiveHistoryPose.outerPortrait,
+                .innerPortrait,
+                .tabletop,
+                .book,
+                .outerPortrait,
+            ] {
+                try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                let window = try #require(controller.view.window)
+                try await waitForAsync {
+                    AdaptiveHistoryTestSupport.descendants(
+                        of: window,
+                        matching: UISearchTextField.self,
+                    )
+                    .contains { field in
+                        var ancestor: UIView? = field
+                        while let view = ancestor {
+                            if view.isHidden || view.alpha == 0 { return false }
+                            ancestor = view.superview
+                        }
+                        let frame = field.convert(field.bounds, to: controller.view)
+                        return frame.width > 0 && frame.height > 0 && controller.view.bounds
+                            .contains(frame)
+                    }
+                }
+            }
+        }
+    }
+
     @Test func foldingKeepsOnePresentedEditorAndItsUnsavedDate() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = SceneNavigationModel()
