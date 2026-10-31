@@ -62,7 +62,7 @@ set -euo pipefail
 # Exits non-zero when tests fail (./profile's posture, not ./flaky's).
 
 DEVICE="iPhone 17"
-OS="27.0"
+OS="27.2"
 SCOPE=changed          # changed | all | snapshots | everything | bundles | only
 BUNDLES=()
 ONLY=()
@@ -128,7 +128,7 @@ Running:
                     Write the selected artifact's Bundle/Suite identifiers
   --record MODE     Re-record snapshots: all | failed | missing | never
   --device NAME     Simulator device name (default: "iPhone 17")
-  --os VERSION      Simulator iOS version (default: "27.0")
+  --os VERSION      Simulator iOS version (default: "27.2")
   --shared          Use any existing simulator with that name rather than this
                     checkout's own — for a throwaway machine (CI) that is
                     already isolated

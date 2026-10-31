@@ -620,7 +620,8 @@ Artifact consumers also skip host checks. Normal local runs retain their default
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to
-`simctl`). Snapshot runs require the exact Xcode build in
+`simctl`). Development commands default to the iOS 27.2 Simulator runtime.
+Snapshot runs require the exact Xcode build in
 [`.xcode-build-version`](.xcode-build-version). `./test` checks it before it
 generates the project or starts a simulator.
 

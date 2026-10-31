@@ -4,7 +4,8 @@ Random apps and stuff.
 
 ## Requirements
 
-- Xcode 27+ (a full Xcode.app, not the Command Line Tools)
+- Xcode 27.2 (build pinned in `.xcode-build-version`; a full Xcode.app, not the Command Line Tools)
+- iOS 27.2 Simulator runtime for development and tests
 - iOS 27.0+
 - [mise](https://mise.jdx.dev) pins Tuist, SwiftFormat, and Ruby.
   `./ide --bootstrap` installs it for you (see below).
