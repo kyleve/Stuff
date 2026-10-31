@@ -56,8 +56,7 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
         checking = nil
         revokeAccess()
         if case .updateRequired = state {} else {
-            state = .verificationFailed(RecordingAccountError.verificationRequired
-                .localizedDescription)
+            state = .verificationFailed(.init(RecordingAccountError.verificationRequired))
         }
         let session = accountSession
         let task = Task {
@@ -65,7 +64,7 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
             catch {
                 Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
                 guard session == self.accountSession else { return }
-                self.state = .verificationFailed(error.localizedDescription)
+                self.state = .verificationFailed(.init(error))
             }
         }
         invalidating = task
@@ -97,7 +96,7 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
         } catch {
             guard session == accountSession else { return state }
             Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
-            state = .verificationFailed(error.localizedDescription)
+            state = .verificationFailed(.init(error))
             revokeAccess()
             return state
         }
@@ -190,12 +189,15 @@ public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
             let verified = try await store.requiredDataCompatibilityVersion()
             guard verified == supportedVersion else {
                 return verified > supportedVersion ? .updateRequired(verified) :
-                    .verificationFailed("The shared version did not advance.")
+                    .verificationFailed(.init(DataCompatibilityFailure.UnchangedRequirement(
+                        expected: supportedVersion,
+                        observed: verified,
+                    )))
             }
             return .compatible(verified)
         } catch {
             Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
-            return .verificationFailed(error.localizedDescription)
+            return .verificationFailed(.init(error))
         }
     }
 

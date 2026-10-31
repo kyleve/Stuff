@@ -109,9 +109,13 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     // Keep recordingDeviceID as its own optional wire field so existing outboxes retain
     // attribution.
     // recorded(under:) stamps ownership from its mandatory owner.
-    private let recordingOwnershipID: RecordingAuthority.EventID?
+    private let recordingOwnershipID: RecordingAuthority.OwnershipID?
     public var recordingProvenance: SampleRecordingProvenance? {
-        recordingDeviceID.map { .init(deviceID: $0, ownershipID: recordingOwnershipID) }
+        guard let recordingDeviceID else { return nil }
+        if let recordingOwnershipID {
+            return .owned(.init(deviceID: recordingDeviceID, ownershipID: recordingOwnershipID))
+        }
+        return .legacy(deviceID: recordingDeviceID)
     }
 
     var hasValidRecordingProvenance: Bool {
@@ -156,7 +160,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         guard source.isGPS else { return self }
         return .init(
             copying: self,
-            provenance: .init(deviceID: owner.deviceID, ownershipID: owner.ownershipID),
+            provenance: .owned(owner),
         )
     }
 

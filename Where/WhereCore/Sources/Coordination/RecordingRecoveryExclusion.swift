@@ -22,9 +22,8 @@ public struct RecordingRecoveryExclusion: Identifiable, Codable, Hashable, Senda
     }
 
     public func excludes(_ sample: LocationSample) -> Bool {
-        sample.recordingProvenance?.deviceID == formerOwner.deviceID
-            && sample.recordingProvenance?.ownershipID == formerOwner.ownershipID
-            && sample.timestamp >= replacedAt
+        guard case let .owned(owner) = sample.recordingProvenance else { return false }
+        return owner == formerOwner && sample.timestamp >= replacedAt
     }
 
     static func from(_ commit: RecordingAuthorityCommit) throws -> Self? {

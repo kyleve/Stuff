@@ -580,6 +580,9 @@ An established value always has an owner and revision. Every proposal returns
 that narrower type. Its `Transition.recover` case carries the required history choice.
 `RecordingAuthorityRecord` retains the existing synthesized JSON shapes and
 validates them before constructing domain values. Domain enums are not serialized.
+`EventID`, `OwnershipID`, and `RequestID` are distinct types. A creating transition
+uses its event UUID to identify the new grant or request. The persisted
+`store://recording-authority/<uuid>` spelling stays unchanged.
 
 `RecordingAuthorityCoordinator` reconciles a server-confirmed owner and data
 version into the existing store. `RecordingDeviceCoordination` owns explicit role
@@ -675,6 +678,10 @@ try await coordination.recover(
 
 An exclusion applies only to that ownership period at or after the server cutoff.
 Raw observations remain stored. Manual entries and earlier ownership grants remain visible.
+`SampleRecordingProvenance` distinguishes `.legacy(deviceID:)` from `.owned(Owner)`.
+Only the owned case can match a recovery exclusion. A missing provenance value
+means no installation attribution. `LocationSample` retains its existing optional
+wire fields; backups, outboxes, and SwiftData keep their boundary validation.
 An offline former phone stops when it next observes the replacement.
 
 Backup format 8 preserves sample ownership grants, recovery exclusions, and the required
@@ -710,6 +717,11 @@ The production raw store remains at the bootstrap. `openDomainStore()` returns
 Its base and permit are private. Demo composition uses the explicit
 `isolatedDomainStore()` SPI, which creates a new memory-only store. Session teardown and
 output cleanup use that same lifetime.
+
+`DataCompatibilityState.verificationFailed` and its blocking error carry a
+`DataCompatibilityFailure`. Its `error` retains the original typed error and any
+underlying cause. Presentation formats the message. Equality identifies one
+failure occurrence, so copies remain equal and a new failed check remains observable.
 
 ### Retiring a compatibility scope
 
