@@ -1,45 +1,30 @@
 # Scope exclusivity
 
-Models at-most-one active [`WhereScope`](../../WhereUI/Sources/Model/WhereScope.swift)
-and at-most-one live real [`SwiftDataStore`](../../WhereCore/Sources/Store/SwiftDataStore.swift)
-container over the user's store file. Complements
-[`LogRouting`](../LogRouting/README.md), which covers Periscope sink ownership. 
-this spec covers scope/container *lifetime*.
+Run `./tla-check ScopeExclusivity`.
 
-## Correspondence
+The process bootstrap owns one real store across normal scope replacement.
+Compatibility and onboarding gate domain scopes, not the bootstrap store.
+Each new scope receives a fresh permit.
+Revocation remains permanent for suspended work that retains an older scope.
+
+## Source correspondence
 
 | Model | Production |
 | --- | --- |
-| `activeScope` | `WhereModel.activeScope` (real / demo / none) |
-| `realContainersAlive` | live disk `ModelContainer` count (0 or 1 in production) |
-| `demoContainerOpen` | in-memory demo / Flyover sibling container |
-| `onboardingGate` | launch parks before `resolveScope()` until user chooses |
-| `flyoverBuilt` | `WhereFlyoverWorld.build()` sibling scope (DEBUG) |
+| `realContainersAlive` | The retained store in `WhereBootstrap` |
+| `activeScopes` | `WhereModel.activeScope` |
+| `verified`, `onboardingGate` | Compatibility and recording/onboarding launch gates |
+| `permits`, `revoked` | `DataCompatibilityCoordinator.openDomainStore` and `DataAccessPermit` |
+| `suspended`, `completed` | Operations that retain a scope across an await |
+| `Flyover` | A separate in-memory sibling that never activates the real scope |
 
-## Properties
+The model checks one container, one active scope, gate ordering, and permanent revocation.
+It replaces the obsolete assumptions that onboarding precedes store opening and logout closes the store.
+Negative controls open a duplicate container, revive an old permit, or skip the gates.
+Reachability controls exercise retained bootstrap storage and a second domain scope.
 
-- `AtMostOneActiveScope` — singleton active scope
-- `GateBeforeOpen` — onboarding gate blocks real store open
-- `NoOverlappingRealContainers` — at most one live real container at a time
-- `RealReleasedBeforeRelogin` — logged-out state has no live real container
-
-`BuildFlyoverSibling` leaves `activeScope` unchanged (Flyover never calls
-`WhereModel.activateDemo`).
-
-## Result
-
-**Verified for these model bounds and assumptions** on `Current.cfg`.
-`Broken.cfg` (second `ResolveRealScope` without releasing the first container)
-falsifies `NoOverlappingRealContainers`.
-
-Swift guards:
-
-- [`WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`](../../WhereUI/Tests/WhereResetTests.swift)
-- [`WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`](../../WhereUI/Tests/WhereLaunchTests.swift)
-- [`WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`](../../WhereUI/Tests/WhereFlyoverWorldTests.swift)
-- [`DemoModeTests.demoingFromAFreshInstallOpensNoRealStore`](../../WhereUI/Tests/DemoModeTests.swift)
-
-Log sink routing is separately verified by [`LogRouting`](../LogRouting/README.md).
-Static `WhereLog` bypass in Flyover remains in [`Where/TODOs.md`](../../TODOs.md).
-
-Run: `./tla-check ScopeExclusivity`
+Bounds: one process, two domain scopes, one compatibility block, and one retained operation per scope.
+This is a safety model without a delivery or launch-completion guarantee.
+`CompatibilityOutputs` checks draining external work before a replacement scope publishes.
+`LogRouting` separately checks sink ownership.
+Swift guards live in `WhereCompatibilityLifecycleTests`, `WhereResetTests`, and `DataCompatibilityCoordinatorTests`.

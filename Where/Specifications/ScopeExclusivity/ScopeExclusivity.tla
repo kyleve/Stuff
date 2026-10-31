@@ -1,93 +1,81 @@
 ---- MODULE ScopeExclusivity ----
-EXTENDS Integers
-
-CONSTANTS Implementation
-
-ASSUME Implementation \in {"current", "broken"}
-
-ActiveScopes == {"none", "real", "demo"}
+EXTENDS Integers, FiniteSets
+CONSTANT Implementation
+ASSUME Implementation \in {"current", "duplicate-container", "revived-permit", "ungated-scope"}
+Epochs == {1, 2}
 
 (* --algorithm ScopeExclusivityAlgorithm {
-variables activeScope = "none",
-          realContainersAlive = 0,
-          demoContainerOpen = FALSE,
-          onboardingGate = TRUE,
-          flyoverBuilt = FALSE;
+variables realContainersAlive = 0, activeScopes = {}, nextEpoch = 1,
+          onboardingGate = TRUE, verified = FALSE, permits = {}, revoked = {},
+          suspended = {}, completed = {}, invalidCompletion = FALSE,
+          didBlock = FALSE, retiredWithBootstrap = FALSE, flyoverBuilt = FALSE;
 
-fair process (ClearOnboardingGate = "ClearOnboardingGate") {
-ClearOnboardingGateStep:
+process (Bootstrap = "bootstrap") {
+BootstrapStep:
     while (TRUE) {
-        await onboardingGate;
-        onboardingGate := FALSE;
+        await realContainersAlive = 0;
+        realContainersAlive := 1;
     }
 }
-
-fair process (ResolveRealScope = "ResolveRealScope") {
-ResolveRealScopeStep:
+process (Verify = "verify") {
+VerifyStep:
     while (TRUE) {
-        await ~onboardingGate /\
-              (IF Implementation = "current"
-                   THEN activeScope = "none" /\ realContainersAlive = 0
-                   ELSE activeScope \in {"none", "real"});
-        activeScope := "real" ||
-        realContainersAlive := realContainersAlive + 1;
+        await realContainersAlive = 1;
+        verified := TRUE;
     }
 }
-
-fair process (LogOut = "LogOut") {
-LogOutStep:
+process (Confirm = "confirm") {
+ConfirmStep: while (TRUE) { onboardingGate := FALSE; }
+}
+process (Resolve = "resolve") {
+ResolveStep:
     while (TRUE) {
-        await activeScope \in {"real", "demo"};
-        activeScope := "none" ||
-        realContainersAlive := IF activeScope = "real" THEN 0 ELSE realContainersAlive ||
-        demoContainerOpen := IF activeScope = "demo" THEN FALSE ELSE demoContainerOpen ||
-        onboardingGate := TRUE;
+        await realContainersAlive > 0 /\ activeScopes = {} /\ nextEpoch \in Epochs /\
+              (Implementation = "ungated-scope" \/ (verified /\ ~onboardingGate));
+        activeScopes := {nextEpoch} ||
+        permits := IF Implementation = "revived-permit" THEN 1..nextEpoch ELSE {nextEpoch} ||
+        nextEpoch := nextEpoch + 1;
+        if (Implementation = "duplicate-container") { realContainersAlive := realContainersAlive + 1; };
     }
 }
-
-fair process (ActivateDemo = "ActivateDemo") {
-ActivateDemoStep:
+process (Suspend = "suspend") {
+SuspendStep:
     while (TRUE) {
-        await ~onboardingGate /\ activeScope \in {"none", "real"};
-        activeScope := "demo" ||
-        demoContainerOpen := TRUE ||
-        realContainersAlive := IF activeScope = "real" THEN 0 ELSE realContainersAlive;
+        with (e \in activeScopes) { suspended := suspended \cup {e}; };
     }
 }
-
-fair process (BuildFlyoverSibling = "BuildFlyoverSibling") {
-BuildFlyoverSiblingStep:
+process (Resume = "resume") {
+ResumeStep:
     while (TRUE) {
-        demoContainerOpen := TRUE ||
-        flyoverBuilt := TRUE;
+        with (e \in suspended \ completed) {
+            completed := completed \cup {e};
+            if (e \in permits /\ e \in revoked) { invalidCompletion := TRUE; };
+        };
     }
 }
-
-process (Stutter = "Stutter") {
-StutterStep:
+process (Block = "block") {
+BlockStep:
     while (TRUE) {
-        skip;
+        await activeScopes # {} /\ ~didBlock;
+        revoked := revoked \cup activeScopes || permits := {} ||
+        verified := FALSE || activeScopes := {} || didBlock := TRUE ||
+        retiredWithBootstrap := realContainersAlive = 1;
     }
 }
+process (Flyover = "flyover") {
+FlyoverStep: while (TRUE) { flyoverBuilt := TRUE; }
+}
+process (Stutter = "stutter") { StutterStep: while (TRUE) { skip; } }
 } *)
 
-TypeOK ==
-    /\ activeScope \in ActiveScopes
-    /\ realContainersAlive \in 0..2
-    /\ demoContainerOpen \in BOOLEAN
-    /\ onboardingGate \in BOOLEAN
-    /\ flyoverBuilt \in BOOLEAN
-
-AtMostOneActiveScope ==
-    activeScope \in ActiveScopes
-
-GateBeforeOpen ==
-    onboardingGate => realContainersAlive = 0
-
-NoOverlappingRealContainers ==
-    realContainersAlive <= 1
-
-RealReleasedBeforeRelogin ==
-    activeScope = "none" => realContainersAlive = 0
-
+TypeOK == /\ realContainersAlive \in 0..2 /\ activeScopes \subseteq Epochs
+          /\ permits \subseteq Epochs /\ revoked \subseteq Epochs /\ nextEpoch \in 1..3
+          /\ suspended \subseteq Epochs /\ completed \subseteq Epochs
+AtMostOneActiveScope == Cardinality(activeScopes) <= 1
+NoOverlappingRealContainers == realContainersAlive <= 1
+GateBeforeScope == activeScopes # {} => (verified /\ ~onboardingGate)
+NoRevivedPermit == permits \cap revoked = {}
+SuspendedWorkCannotRecover == ~invalidCompletion
+RetainedBootstrapNotReached == ~retiredWithBootstrap
+ReplacementNotReached == ~(1 \in revoked /\ activeScopes = {2})
 ====

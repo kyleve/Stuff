@@ -3,15 +3,39 @@
   "module": "ScopeExclusivity.tla",
   "cases": [
     {
-      "name": "broken",
-      "config": "Broken.cfg",
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "duplicate-container",
+      "config": "DuplicateContainer.cfg",
       "expect": "fail",
       "outputContains": "Invariant NoOverlappingRealContainers is violated."
     },
     {
-      "name": "current",
-      "config": "Current.cfg",
-      "expect": "pass"
+      "name": "revived-permit",
+      "config": "RevivedPermit.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoRevivedPermit is violated."
+    },
+    {
+      "name": "ungated-scope",
+      "config": "UngatedScope.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant GateBeforeScope is violated."
+    },
+    {
+      "name": "retained-bootstrap",
+      "config": "RetainedBootstrap.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RetainedBootstrapNotReached is violated."
+    },
+    {
+      "name": "replacement",
+      "config": "Replacement.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReplacementNotReached is violated."
     }
   ]
 }
