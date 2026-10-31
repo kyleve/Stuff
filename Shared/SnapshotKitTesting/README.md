@@ -288,3 +288,69 @@ emits one timing line that includes time spent on failed attempts.
   `StuffTestHost`, reached via `TestHostSupport`).
 - Device/OS-pinned: reference images are captured on a fixed simulator (this
   repo's CI uses the defaults and runtime pins in `Project.swift` and `test`).
+<<<<<<< HEAD
+=======
+- Timezone-pinned: references bake wall-clock dates/times into pixels, so the
+  snapshot scheme pins `TZ` (and the runner verifies it via
+  `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
+
+## Component comparison sheets
+
+Use `SnapshotCase.cutsheet(name:configurations:panels:)` to capture the same
+component state across consumer-defined appearances. Each `SnapshotPanel` has a
+stable typed identity, a display label, and a lazy content builder. Build fresh
+fixture state inside that builder. Each configuration produces one two-column
+sheet with unscaled, independently hosted panels. Additional panels wrap to new rows.
+
+The consumer chooses the reference group; Where's theme helper selects `themes`.
+The runner stores one PNG with a versioned panel map in its Description metadata.
+Each panel uses the ordinary image comparator and its own pixel budget. The complete
+sheet also guards headings and spacing. Membership, labels, dimensions, and missing
+or malformed metadata fail explicitly. Review the PNG before recording. Preserve
+its metadata when copying references; image optimizers that strip metadata invalidate
+cutsheet references.
+
+Single views and cutsheets share configured capture and reference recording helpers.
+Each panel's hosting view uses the sheet's fixed white background, including in dark mode.
+This fills transparent margins without changing component layout. A component's own background remains visible above it.
+Panels retain independent settling and fresh fixtures. The runner compares panels
+before assembling their captured images in a SwiftUI `Grid`. SwiftUI lays out labels
+and images; geometry observations supply the embedded panel map. The shared hosted
+renderer captures the grid. The original component views run only for their independent
+captures. All failing panels appear in the verdict, subject to the existing recording policy.
+
+Ordinary cases accept an optional `SnapshotReferenceGroup`. The default keeps
+existing paths. Groups are stable lowercase slugs owned by the consumer; they do
+not change configuration identifiers. Special traits use `other/` inside the group.
+Use component sheets for appearance coverage and keep screen variants for critical
+integration or materially different composition. Preview sheets approximate layout;
+the hosted test capture remains authoritative.
+
+The runner reads SnapshotKit's `Capture` SPI and switches exhaustively between
+single-view and cutsheet captures. Panel collections are validated before capture.
+No empty-array fallback selects the single-view path.
+
+## Adaptive containers
+
+The runner applies each frame's layout traits before mounting its content.
+It reads fallback width and display scale from the marked test host window.
+Each configuration invokes the content builder again. Models captured outside that builder still need separate fixtures and hooks.
+See [SnapshotKit's adaptive container contract](../SnapshotKit/README.md#adaptive-containers) for viewport coverage and measured device profiles.
+
+Fixed, regular-width phone captures retain their scene so native bar heights stay stable during settlement.
+The pipeline selects this path from the content controller’s layout traits before hosting.
+Other synthetic captures detach the marked window. This prevents physical reserved regions from truncating compact titles and keeps full-content search anchored to expanded content.
+For fixed captures, the pipeline subtracts the resized host controller’s native insets from the requested clearance.
+It detaches already-mounted subjects before configuring the capture host.
+Only the captured root overrides its safe-area getter. Native controller insets supply ancestor clearance; root pinning preserves translated tile geometry.
+Annotation padding has zero safe-area insets so image content and accessibility outlines share the same layout.
+The host controller propagates the configured content insets through native navigation containers.
+
+The pipeline restores the scene, frames, additional insets, visibility, and key state after success or failure.
+Window discovery, environment checks, and content preparation run under the same capture lock.
+Capture hooks use their retained model or view references while the window is detached.
+
+A nil safe-area override retains native scene geometry.
+Synthetic captures validate composition and complete content. Native floating bars can retain system positioning despite custom content insets.
+Native Duo checks validate their clearance and reserved-region delivery.
+>>>>>>> 02f3c090 (Stabilize synthetic capture geometry and accessibility outlines)

@@ -60,3 +60,23 @@ jobs:
             git checkout --detach "<< pipeline.git.revision >>"
             git config gc.auto 0
       - run:
+          name: Classify the complete PR and continue
+          command: python3 -m Tools.ci_circleci
+
+workflows:
+  "Select workflows":
+    # Keep the existing event gates for CI, signed archives, and Flyover.
+    # Only one setup workflow runs, even when an API request sets several flags.
+    when: >-
+      pipeline.parameters.manual_full_gate == "true" or
+      (pipeline.event.name == "push" and pipeline.git.branch == "main") or
+      (pipeline.event.name == "pull_request" and
+      pipeline.event.github.pull_request.base.ref == "main" and
+      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/)) or
+      (pipeline.event.name == "api" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main" and
+      (pipeline.parameters.flyover_export == "true" or
+      pipeline.parameters.installer_archive == "true"))
+    jobs:
+      - select-workflows
