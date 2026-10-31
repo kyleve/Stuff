@@ -166,6 +166,7 @@ Layering, localization, preview, and testing conventions live in the feature
   Guard: `where.reserved_region_layout_ownership`.
 - Keep Locations, calendar, timeline, and Settings content reusable outside their navigation containers.
   Keep planning presentation above changing layout branches. Folding must not recreate report, session, store, or recording owners.
+- Keep Settings search visible in its native navigation drawer across compact and split layouts. Guard: `MainTabsTestsDuo.settingsSearchStaysVisibleAcrossFoldLayouts`.
 - Link explicit month and stay selections through `HistoryNavigationModel`. Keep domain identities typed.
   Resolve timeline anchors against displayed stay segments and flight IDs, including flights that cross a month boundary. Guard: `TimelineNavigationModelTests`.
   Scroll observations retain local anchors; they must not select or scroll the companion pane.

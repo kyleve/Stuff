@@ -84,6 +84,13 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped in AccessibilitySnapshot's SwiftUI renderer so the image is annotated
   with the VoiceOver reading order, labels, traits, and activation points.
+  The subject stays mounted during readiness and settling. Ordinary captures keep
+  their controller parent during parsing. Only oversized tiled captures temporarily
+  detach the subject for the upstream renderer.
+  Native bars filter accessible controls against the simulator's physical screen.
+  For larger viewports, `SnapshotAccessibilityViewport` samples native bar lists with the window fitted to that screen.
+  It restores window geometry before capture and supplies those lists only during the synchronous parse.
+  Native getters are restored afterward, including when parsing fails.
   AccessibilitySnapshot temporarily moves the content while it renders. A case
   that uses `.settledAtLeast` discards the first accessibility render, applies
   its settle policy, and parses again. This prevents a transient native-material
