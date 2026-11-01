@@ -118,6 +118,8 @@ An invalid catalog renders a diagnostic instead of a partial map.
 
 The bottom bar switches between canvas/list modes and controls zoom, device, orientation, color scheme, Dynamic Type, contrast, layout direction, and bold text.
 These settings are kept only for the current Flyover session and are applied to screen content through SnapshotKit's trait renderer.
+Device-sized previews apply the selected phone or tablet idiom and orientation size classes.
+Fixed-size component previews inherit the host layout traits.
 On compact widths, the bar scrolls horizontally so every control remains reachable.
 Flyover seeds its own Broadway root for chrome.
 Registered screen content keeps the isolated styling environment supplied by its host app.

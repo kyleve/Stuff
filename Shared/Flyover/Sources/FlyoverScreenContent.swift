@@ -38,13 +38,14 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
                     .accessibilityLabel("Loading \(screen.title)")
             }
         }
-        .frame(width: size.width, height: size.height)
         .snapshotTraits(
             model.configuration(
                 for: screen,
                 systemColorScheme: systemColorScheme,
             ),
         )
+        // Size the UIKit trait host itself before scaling native navigation content.
+        .frame(width: size.width, height: size.height)
         .environment(\.isCapturingSnapshot, isOverview)
         .scaleEffect(scale, anchor: .topLeading)
         .frame(
