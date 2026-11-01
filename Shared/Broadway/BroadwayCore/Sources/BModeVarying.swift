@@ -19,3 +19,5 @@ public struct BModeVarying<Value> {
 extension BModeVarying: Equatable where Value: Equatable {}
 extension BModeVarying: Hashable where Value: Hashable {}
 extension BModeVarying: Sendable where Value: Sendable {}
+
+extension BModeVarying: Codable where Value: Codable {}

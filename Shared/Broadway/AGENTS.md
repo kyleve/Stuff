@@ -7,7 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 ## Modules & dependencies
 
 - **BroadwayCore** — foundation types (Foundation and UIKit). No sibling deps.
-- **BroadwayUI** — components (SwiftUI and UIKit). Depends on BroadwayCore.
+- **BroadwayUI** — components (SwiftUI and UIKit). Depends on BroadwayCore, ViewDocumentCore, and ViewDocumentUI.
 - **BroadwayCatalog** — showcase app. Depends on BroadwayUI and SFSafeSymbols.
 
 UIKit hosting helpers for Broadway's hosted test bundles live in the shared [`TestHostSupport`](../TestHostSupport) module, not in a Broadway module.
@@ -21,3 +21,5 @@ Libraries live in [`Package.swift`](../../Package.swift). The app and hosted tes
 ## Testing
 
 Run `./test BroadwayCoreTests`, `./test BroadwayUITests`, or `./test BroadwayCatalogTests`. The Catalog bundle is currently hosted by the **BroadwayCatalog** app itself. That deviates from the shared-host convention. Track it in [`TODOs.md`](TODOs.md). Use 1:1 test files per the root rules.
+
+- Document decorations use validated, prepared content. Resolve scales and accessibility from the Broadway slice; inject host activity and snapshot motion policy. Keep networking and product attachment names in consumers.

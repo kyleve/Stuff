@@ -12,6 +12,17 @@ private enum Marker: String, BTheme {
 
 @MainActor
 struct BRootContextTests {
+    @Test func anEnvironmentOverrideCannotWeakenSystemContrast() {
+        let context = BRootContext.make(
+            colorScheme: .light,
+            contrast: .standard,
+            dynamicTypeSize: .large,
+            accessibility: .init(isDarkerSystemColorsEnabled: true),
+            themes: .init(),
+        )
+        #expect(context.traits.accessibility.isDarkerSystemColorsEnabled)
+    }
+
     @Test("make maps SwiftUI system inputs into the context traits and themes")
     func mapsSystemInputs() {
         var themes = BThemes()
@@ -19,6 +30,7 @@ struct BRootContextTests {
 
         let context = BRootContext.make(
             colorScheme: .dark,
+            contrast: .standard,
             dynamicTypeSize: .accessibility3,
             accessibility: BAccessibility(isVoiceOverRunning: true),
             themes: themes,
@@ -33,6 +45,15 @@ struct BRootContextTests {
 
 @MainActor
 struct BRootViewHostingTests {
+    @Test func effectiveContrastReachesTheRootStylesheet() throws {
+        let box = ContextBox()
+        let host = UIHostingController(rootView: BRootView { ContextProbe(box: box) })
+        host.traitOverrides.accessibilityContrast = .high
+        try show(host) { _ in
+            try waitFor { box.value?.traits.accessibility.isDarkerSystemColorsEnabled == true }
+        }
+    }
+
     @Test("Root injects its themes into the descendant environment")
     func injectsThemes() throws {
         var themes = BThemes()
