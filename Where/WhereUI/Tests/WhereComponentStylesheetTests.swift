@@ -39,8 +39,11 @@ struct WhereComponentStylesheetTests {
         #expect(normal[.welcome].body != large[.welcome].body)
     }
 
-    @Test func accessibilityKeepsEssentialSurfacesAndBoundsOptionalArtwork() throws {
-        let prepared = try WhereThemeExamples.halloween.prepare()
+    @Test(arguments: WhereThemeExamples.allCases)
+    func accessibilityKeepsEssentialSurfacesAndBoundsOptionalArtwork(
+        example: WhereThemeExamples,
+    ) throws {
+        let prepared = try example.prepare()
         var themes = BThemes()
         themes[WhereDocumentTheme.self] = .init(document: prepared.validated)
         var traits = BTraits()
@@ -50,7 +53,7 @@ struct WhereComponentStylesheetTests {
         #expect(regular[.welcome].secondaryForeground == regular[.welcome].foreground?
             .opacity(0.85))
         #expect(!regular[.regularCard].artworkOpacity.isEmpty)
-        #expect(regular[.regularCard].outsets.bottom == 70)
+        #expect(regular[.regularCard].outsets.bottom == (example == .halloween ? 70 : 60))
         traits.accessibility = .init(
             isDarkerSystemColorsEnabled: true,
             isReduceTransparencyEnabled: true,
@@ -60,7 +63,8 @@ struct WhereComponentStylesheetTests {
         #expect(accessible[.locations].background == regular[.locations].background)
         #expect(accessible[.welcome].secondaryForeground == accessible[.welcome].foreground?
             .opacity(1))
-        #expect(Set(accessible[.regularCard].artworkOpacity.keys) == [.init(rawValue: "edge")])
+        #expect(Set(accessible[.regularCard].artworkOpacity.keys) ==
+            [.init(rawValue: example == .halloween ? "edge" : "gildedEdge")])
         #expect(accessible[.regularCard].outsets == EdgeInsets())
         guard case let .matte(paper) = accessible[.calendarMonth].surface else {
             Issue.record("Essential paper surface disappeared")

@@ -44,6 +44,7 @@
                 case .standard: nil
                 case .alternate: SnapshotReferenceGroup(rawValue: "flat")!
                 case .halloween: SnapshotReferenceGroup(rawValue: "halloween")!
+                case .holiday: SnapshotReferenceGroup(rawValue: "holiday")!
             }
         }
     }

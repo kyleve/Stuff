@@ -9,7 +9,7 @@ import ViewDocumentUI
 struct WhereThemeCatalogTests {
     @Test func rejectedReplacementsPreserveTheAcceptedCatalogAndArtwork() throws {
         let accepted = try WhereBundledThemes.catalog()
-        let assets = try HalloweenThemeAssets.load()
+        let assets = try WhereBundledThemes.assets(.halloween)
         let original = try accepted.prepare(.halloween, assets: assets)
         var invalid = original.validated.document
         invalid.parent = invalid.id

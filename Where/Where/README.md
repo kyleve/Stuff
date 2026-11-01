@@ -120,4 +120,4 @@ On a fresh install, onboarding recommends automatic recording On for an iPhone o
 Existing installations created before that choice was introduced revisit only the final recording page once.
 Enabling is the only path that asks for location access.
 
-Standard, Flat, and Halloween share the saved theme preference and root rendering path in every audience. Appearance Settings saves the selection. Onboarding previews it through `WhereModel` and commits it on completion. The normal theme handoff supplies widgets and App Intents.
+Standard, Flat, Halloween, and Holiday share the saved theme preference and root rendering path in every audience. Appearance Settings saves the selection. Onboarding previews it through `WhereModel` and commits it on completion. The normal theme handoff supplies widgets and App Intents.

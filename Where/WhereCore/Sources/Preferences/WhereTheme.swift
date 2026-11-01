@@ -12,4 +12,7 @@ public enum WhereTheme: String, CaseIterable, Codable, Hashable, Sendable {
 
     /// Illustrated pumpkins and plum paper surfaces.
     case halloween
+
+    /// Evergreen paper, winter illustrations, and cranberry accents.
+    case holiday
 }

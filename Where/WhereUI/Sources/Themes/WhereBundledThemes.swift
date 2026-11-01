@@ -1,5 +1,6 @@
 import Foundation
 import PeriscopeCore
+import ViewDocumentCore
 import ViewDocumentUI
 import WhereCore
 
@@ -20,8 +21,31 @@ enum WhereBundledThemes {
     ) }
     private static let halloween = Result { try catalog().prepare(
         .halloween,
-        assets: HalloweenThemeAssets.load(),
+        assets: assets(.halloween),
     ) }
+    private static let holiday = Result { try catalog().prepare(
+        .holiday,
+        assets: assets(.holiday),
+    ) }
+
+    /// The host approves bundle resources; documents never choose filesystem paths.
+    static func assets(_ theme: WhereTheme) throws -> ViewDocumentAssets {
+        let illustrations: [ViewAssetID: String] = switch theme {
+            case .standard, .alternate: [:]
+            case .halloween: [
+                    .init(rawValue: "halloween.pumpkins"): "HalloweenPumpkins",
+                    .init(rawValue: "halloween.moon"): "HalloweenMoon",
+                    .init(rawValue: "halloween.vine"): "HalloweenVine",
+                ]
+            case .holiday: [
+                    .init(rawValue: "holiday.bells"): "HolidayBells",
+                    .init(rawValue: "holiday.bough"): "HolidayBough",
+                    .init(rawValue: "holiday.woodland"): "HolidayWoodland",
+                ]
+        }
+        return try WhereBundledThemeAssets.load(illustrations: illustrations)
+    }
+
     static func load(_ name: String) throws -> WhereThemeDocument {
         try WhereBundledThemeDefinitions
             .load(name)
@@ -41,6 +65,7 @@ enum WhereBundledThemes {
             case .standard: try standard.get()
             case .alternate: try flat.get()
             case .halloween: try halloween.get()
+            case .holiday: try holiday.get()
         }
     }
 }
@@ -48,7 +73,7 @@ enum WhereBundledThemes {
 /// Thread-safe immutable definitions also supply off-tree stylesheet fallbacks.
 enum WhereBundledThemeDefinitions {
     static let documents: Result<[WhereThemeDocument], any Error> = Result {
-        try ["StandardTheme", "FlatTheme", "HalloweenTheme"].map { try load($0) }
+        try ["StandardTheme", "FlatTheme", "HalloweenTheme", "HolidayTheme"].map { try load($0) }
     }
 
     private static let standard = Result {
@@ -63,11 +88,16 @@ enum WhereBundledThemeDefinitions {
         try WhereThemeCatalog(documents: documents.get()).resolve(.halloween)
     }
 
+    private static let holiday = Result {
+        try WhereThemeCatalog(documents: documents.get()).resolve(.holiday)
+    }
+
     static func resolved(_ theme: WhereTheme) throws -> ResolvedWhereTheme {
         switch theme {
             case .standard: try standard.get()
             case .alternate: try flat.get()
             case .halloween: try halloween.get()
+            case .holiday: try holiday.get()
         }
     }
 

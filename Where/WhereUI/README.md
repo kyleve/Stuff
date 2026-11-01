@@ -449,10 +449,10 @@ User-picked appearances and the original bespoke defaults take precedence.
 Glass and reflective artwork. Flat uses opaque, strongly colored paper with
 printed edges and neutral drop shadows. It keeps the passport artwork and
 omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
-and estimate surfaces share this finish. Halloween adds illustrated edges and coordinated paper and ink colors. System chrome stays native.
+and estimate surfaces share this finish. Halloween and Holiday add illustrated edges and coordinated paper and ink colors. System chrome stays native.
 
 Theme assembly starts with the bundled JSON catalog. Standard defines every authored value.
-Flat inherits Standard and replaces its finishes. Halloween inherits Flat. Every theme uses the same complete resolved document path.
+Flat inherits Standard and replaces its finishes. Halloween and Holiday each inherit Flat. Every theme uses the same complete resolved document path.
 The stylesheet selects light or dark values, then applies native accessibility constraints.
 Runtime region colors and live Card Designer drafts retain their existing ownership.
 
@@ -480,7 +480,7 @@ with the shared decorative opacities. Text uses a separate contrast adjustment.
 Its cards omit annual progress bars. Compact primary specimens in theme pickers
 and galleries retain the selected Locations theme. Elsewhere uses the shared
 matte renderer in Standard and Flat. Flat supplies its outline and shadow and
-preserves the white or neutral-dark fill. Halloween supplies its own paper, ink, and artwork.
+preserves the white or neutral-dark fill. Each seasonal theme supplies its own paper, ink, and artwork.
 Regions without geometry retain the symbol treatment. On both tabs, recorded
 fixes for the selected year are projected through that same geometry and
 reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
@@ -526,7 +526,7 @@ as dates pass. Appearance settings can hide estimates without removing plans or 
 The Estimated Time settings page also opens the planner.
 
 On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
-Flat and Halloween use opaque paper. Reduce Transparency also enforces opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+Flat and the seasonal themes use opaque paper. Reduce Transparency also enforces opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
 The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
 `LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
 `LocationForecastContent` (forecast rows and planning controls) with the always-expanded
@@ -689,8 +689,8 @@ reference; preserve PNG metadata when copying them.
 ## Portable themes
 
 `WhereThemeDocument` uses schema version 2. Each document defines a complete root or names a parent with a typed identity.
-Standard is the canonical root. Flat inherits Standard. Halloween inherits Flat.
-The persisted `WhereTheme` identities remain `standard` and `alternate`.
+Standard is the canonical root. Flat inherits Standard. Halloween and Holiday each inherit Flat.
+The existing `WhereTheme` identities remain `standard` and `alternate`. Seasonal choices use `halloween` and `holiday`.
 
 `WhereThemeAppearance` contains typed component geometry, colors, typography, and motion.
 `WhereThemeValues` names colors, fonts, and surfaces. `WhereThemeComponents` references these values through typed roles.
@@ -733,13 +733,19 @@ Privacy paper, text, and artwork share a dark appearance. Its elevation responds
 Native accessibility constraints apply after theme resolution. Essential backgrounds remain visible when optional ornament is hidden.
 Native component fonts scale with Dynamic Type, including authored point-size baselines.
 Supporting text uses stronger document ink when a component supplies a foreground color. Built-in secondary text retains its existing system style.
+The screen foreground also supplies the native tint. Define calendar marker and number colors together when that tint changes.
 Reduce Motion and snapshots use authored static poses. Animation also depends on visibility, the selected tab, scene activity, and covering presentations.
 
-Standard, Flat, and Halloween are saved `WhereTheme` choices in every app audience.
+Standard, Flat, Halloween, and Holiday are saved `WhereTheme` choices in every app audience.
 Appearance Settings and onboarding share the adaptive picker. `RootView` applies the selection through `whereBroadwayRoot`, including launch and ready content.
 The existing widget and App Intents handoffs carry the same selection to their lightweight native surfaces.
 Imported documents use `WhereThemeCatalog.replacing` followed by `prepare`; callers accept the replacement only after both succeed.
 This iteration includes no downloader or additional widget artwork.
+
+Holiday uses evergreen paper, serif headings, cranberry and gold details, snowy woodland backgrounds, and bells in reserved card margins.
+Its schema and rendering path are shared with Halloween. The host approves each theme’s asset names through `WhereBundledThemes.assets`.
+`WhereBundledThemeAssets` loads those images at preparation; the documents supply all placement and styling.
+See [Holiday artwork](HolidayArtwork.md) for the generated assets and prompts.
 
 The fast visual gate uses one iPhone size, normal Dynamic Type, and standard light/dark captures.
 Card and Locations comparisons pass before the remaining tabs. Extended entry points retain broader CI coverage and existing reference identities.

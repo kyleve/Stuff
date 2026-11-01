@@ -454,9 +454,11 @@ struct MainTabs: View {
 
 #if DEBUG
     extension MainTabs {
-        static func halloweenSnapshot(selection: MainTabSelection
-            .TabID) async throws -> SnapshotCase
-        {
+        static func themeSnapshot(
+            _ theme: WhereTheme,
+            selection: MainTabSelection
+                .TabID,
+        ) async throws -> SnapshotCase {
             let session = PreviewSupport.loadedSession()
             session.preferences.showsLocationWelcome = false
             let report = YearReportModel(
@@ -472,7 +474,7 @@ struct MainTabs: View {
             )
             let cache = RegionOutlinePathCache()
             let model = PreviewSupport.loadedModel()
-            model.previewTheme(.halloween)
+            model.previewTheme(theme)
             try await session.services.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: nil, order: 0),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
@@ -495,7 +497,7 @@ struct MainTabs: View {
             return SnapshotCase(
                 name: name,
                 configurations: .fullContentPhoneLightDark,
-                referenceGroup: .init(rawValue: "halloween"),
+                referenceGroup: theme.snapshotReferenceGroup,
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(
                         for: [.california, .newYork] +
@@ -509,7 +511,7 @@ struct MainTabs: View {
                     .environment(session)
                     .environment(model)
                     .environment(\.regionOutlinePathCache, cache)
-                    .whereBroadwayRoot(theme: .halloween)
+                    .whereBroadwayRoot(theme: theme)
             }
         }
     }

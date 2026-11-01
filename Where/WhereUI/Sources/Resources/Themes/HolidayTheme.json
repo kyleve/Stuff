@@ -1,0 +1,1910 @@
+{
+  "appearance": {
+    "calendar": {
+      "day": {
+        "todayMarker": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.2823529411764706,
+                "green": 0.23921568627450981,
+                "red": 0.5882352941176471
+              }
+            }
+          }
+        },
+        "todayNumberColor": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.9215686274509803,
+                "green": 0.9725490196078431,
+                "red": 1.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "card": {
+      "compact": {
+        "contentTint": {
+          "constant": {
+            "_0": {
+              "color": {
+                "modes": {
+                  "_0": {
+                    "dark": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1.0,
+                        "green": 1.0,
+                        "red": 1.0
+                      }
+                    },
+                    "light": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0.16862745098039217,
+                        "green": 0.22745098039215686,
+                        "red": 0.09019607843137255
+                      }
+                    }
+                  }
+                }
+              },
+              "fraction": 0.55
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 14
+          }
+        },
+        "dayUnitTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "default": {}
+              }
+            }
+          }
+        },
+        "heroNumberTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "progressBarHeight": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "regionNameTracking": {
+          "constant": {
+            "_0": 0.2
+          }
+        },
+        "regionNameTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "serif": {}
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "bold": {}
+              }
+            }
+          }
+        }
+      },
+      "nameOpacity": {
+        "constant": {
+          "_0": 1
+        }
+      },
+      "regular": {
+        "contentTint": {
+          "constant": {
+            "_0": {
+              "color": {
+                "modes": {
+                  "_0": {
+                    "dark": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1.0,
+                        "green": 1.0,
+                        "red": 1.0
+                      }
+                    },
+                    "light": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0.16862745098039217,
+                        "green": 0.22745098039215686,
+                        "red": 0.09019607843137255
+                      }
+                    }
+                  }
+                }
+              },
+              "fraction": 0.55
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "dayUnitTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "default": {}
+              }
+            }
+          }
+        },
+        "heroNumberTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 24
+          }
+        },
+        "progressBarHeight": {
+          "constant": {
+            "_0": 6
+          }
+        },
+        "regionNameTracking": {
+          "constant": {
+            "_0": 0.2
+          }
+        },
+        "regionNameTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "serif": {}
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "bold": {}
+              }
+            }
+          }
+        }
+      },
+      "securityPrint": {
+        "backgroundBlendMode": {
+          "constant": {
+            "_0": "normal"
+          }
+        }
+      },
+      "watermarkOpacity": {
+        "constant": {
+          "_0": 0.06
+        }
+      }
+    },
+    "locationForecast": {
+      "header": {
+        "elapsedFont": {
+          "constant": {
+            "_0": {
+              "design": "standard",
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              },
+              "weight": "regular"
+            }
+          }
+        },
+        "titleFont": {
+          "constant": {
+            "_0": {
+              "design": "serif",
+              "size": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              },
+              "weight": "bold"
+            }
+          }
+        }
+      }
+    },
+    "locationsBackground": {
+      "ink": {
+        "modes": {
+          "_0": {
+            "dark": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.5803921568627451,
+                "green": 0.6627450980392157,
+                "red": 0.5607843137254902
+              }
+            },
+            "light": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.4627450980392157,
+                "green": 0.5529411764705883,
+                "red": 0.4470588235294118
+              }
+            }
+          }
+        }
+      }
+    },
+    "privacyPassportCard": {
+      "outlineOpacity": {
+        "constant": {
+          "_0": 0.3
+        }
+      }
+    }
+  },
+  "components": {
+    "calendarMonth": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bough",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bough",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bough",
+          "opacity": {
+            "constant": {
+              "_0": 0.16
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 6,
+              "y": -10
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 54,
+                "width": 36
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "holiday.paper"
+        }
+      }
+    },
+    "compactCard": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "shape": {
+                  "_0": {
+                    "rectangle": {}
+                  }
+                }
+              },
+              "id": "gildedEdge",
+              "modifiers": [
+                {
+                  "foreground": {
+                    "_0": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 0,
+                            "blue": 0.0,
+                            "green": 0.0,
+                            "red": 0.0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "border": {
+                    "paint": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 1,
+                            "blue": 0.32941176470588235,
+                            "green": 0.5843137254901961,
+                            "red": 0.7215686274509804
+                          }
+                        }
+                      }
+                    },
+                    "shape": {
+                      "roundedRectangle": {
+                        "radius": 14
+                      }
+                    },
+                    "width": 2
+                  }
+                }
+              ]
+            },
+            "schemaVersion": 1
+          },
+          "id": "gildedEdge",
+          "opacity": {
+            "modes": {
+              "_0": {
+                "dark": 0.8,
+                "light": 0.55
+              }
+            }
+          },
+          "placement": {
+            "anchor": "center",
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "relative": {
+                "height": 1,
+                "maximumHeight": 2048,
+                "maximumWidth": 2048,
+                "width": 1
+              }
+            }
+          },
+          "role": "essential"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bells",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bells",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bells",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 4,
+              "y": 38
+            },
+            "outsets": {
+              "bottom": 38,
+              "leading": 0,
+              "top": 0,
+              "trailing": 4
+            },
+            "plane": "exterior",
+            "size": {
+              "fixed": {
+                "height": 53,
+                "width": 70
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "watermark"
+      ],
+      "surface": {
+        "value": {
+          "_0": "holiday.paper"
+        }
+      }
+    },
+    "elsewhere": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.woodland",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "woodland",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "woodland",
+          "opacity": {
+            "constant": {
+              "_0": 0.65
+            }
+          },
+          "placement": {
+            "anchor": "bottomLeading",
+            "offset": {
+              "x": -16,
+              "y": 24
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 160,
+                "width": 240
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "elsewhereCard": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "shape": {
+                  "_0": {
+                    "rectangle": {}
+                  }
+                }
+              },
+              "id": "gildedEdge",
+              "modifiers": [
+                {
+                  "foreground": {
+                    "_0": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 0,
+                            "blue": 0.0,
+                            "green": 0.0,
+                            "red": 0.0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "border": {
+                    "paint": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 1,
+                            "blue": 0.32941176470588235,
+                            "green": 0.5843137254901961,
+                            "red": 0.7215686274509804
+                          }
+                        }
+                      }
+                    },
+                    "shape": {
+                      "roundedRectangle": {
+                        "radius": 14
+                      }
+                    },
+                    "width": 2
+                  }
+                }
+              ]
+            },
+            "schemaVersion": 1
+          },
+          "id": "gildedEdge",
+          "opacity": {
+            "modes": {
+              "_0": {
+                "dark": 0.8,
+                "light": 0.55
+              }
+            }
+          },
+          "placement": {
+            "anchor": "center",
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "relative": {
+                "height": 1,
+                "maximumHeight": 2048,
+                "maximumWidth": 2048,
+                "width": 1
+              }
+            }
+          },
+          "role": "essential"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bough",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bough",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bough",
+          "opacity": {
+            "constant": {
+              "_0": 0.2
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 5,
+              "y": -5
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 60,
+                "width": 40
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "watermark"
+      ],
+      "surface": {
+        "value": {
+          "_0": "holiday.paper"
+        }
+      }
+    },
+    "forecastPanel": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "forecastBody"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "forecastHeading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "holiday.panel"
+        }
+      }
+    },
+    "locations": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.woodland",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "woodland",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "woodland",
+          "opacity": {
+            "constant": {
+              "_0": 0.82
+            }
+          },
+          "placement": {
+            "anchor": "bottomLeading",
+            "offset": {
+              "x": -16,
+              "y": 28
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 200,
+                "width": 300
+              }
+            }
+          },
+          "role": "ornament"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bough",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bough",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bough",
+          "opacity": {
+            "constant": {
+              "_0": 0.45
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 20,
+              "y": 18
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 195,
+                "width": 130
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "privacy": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "holiday.passport"
+        }
+      }
+    },
+    "regularCard": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "shape": {
+                  "_0": {
+                    "rectangle": {}
+                  }
+                }
+              },
+              "id": "gildedEdge",
+              "modifiers": [
+                {
+                  "foreground": {
+                    "_0": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 0,
+                            "blue": 0.0,
+                            "green": 0.0,
+                            "red": 0.0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "border": {
+                    "paint": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 1,
+                            "blue": 0.32941176470588235,
+                            "green": 0.5843137254901961,
+                            "red": 0.7215686274509804
+                          }
+                        }
+                      }
+                    },
+                    "shape": {
+                      "roundedRectangle": {
+                        "radius": 18
+                      }
+                    },
+                    "width": 2
+                  }
+                }
+              ]
+            },
+            "schemaVersion": 1
+          },
+          "id": "gildedEdge",
+          "opacity": {
+            "modes": {
+              "_0": {
+                "dark": 0.8,
+                "light": 0.55
+              }
+            }
+          },
+          "placement": {
+            "anchor": "center",
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "relative": {
+                "height": 1,
+                "maximumHeight": 2048,
+                "maximumWidth": 2048,
+                "width": 1
+              }
+            }
+          },
+          "role": "essential"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bough",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bough",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bough",
+          "opacity": {
+            "constant": {
+              "_0": 0.22
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 9,
+              "y": -6
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 108,
+                "width": 72
+              }
+            }
+          },
+          "role": "ornament"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "animation": {
+                "curve": "easeInOut",
+                "delay": 0,
+                "duration": 10,
+                "from": {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "opacity": 1,
+                  "rotation": -0.7,
+                  "scaleX": 1,
+                  "scaleY": 1
+                },
+                "repetition": {
+                  "forever": {
+                    "autoreverses": true
+                  }
+                },
+                "staticPose": {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1
+                },
+                "to": {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "opacity": 1,
+                  "rotation": 0.7,
+                  "scaleX": 1,
+                  "scaleY": 1
+                }
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bells",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bells",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bells",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 8,
+              "y": 60
+            },
+            "outsets": {
+              "bottom": 60,
+              "leading": 0,
+              "top": 0,
+              "trailing": 8
+            },
+            "plane": "exterior",
+            "size": {
+              "fixed": {
+                "height": 86,
+                "width": 114
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "watermark"
+      ],
+      "surface": {
+        "value": {
+          "_0": "holiday.paper"
+        }
+      }
+    },
+    "section": {
+      "artwork": [],
+      "background": {
+        "value": {
+          "_0": "panel"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "settings": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bough",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bough",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bough",
+          "opacity": {
+            "constant": {
+              "_0": 0.25
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 20,
+              "y": 4
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 150,
+                "width": 100
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "sheet": {
+      "artwork": [],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "summary": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "forecastBody"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "forecastHeading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "holiday.panel"
+        }
+      }
+    },
+    "timelineEntry": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "forecastBody"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "holiday.paper"
+        }
+      }
+    },
+    "welcome": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bells",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bells",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bells",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 6,
+              "y": 42
+            },
+            "outsets": {
+              "bottom": 42,
+              "leading": 0,
+              "top": 0,
+              "trailing": 6
+            },
+            "plane": "exterior",
+            "size": {
+              "fixed": {
+                "height": 59,
+                "width": 78
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "holiday.welcome"
+        }
+      }
+    },
+    "year": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "holiday.bough",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "bough",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "bough",
+          "opacity": {
+            "constant": {
+              "_0": 0.3
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 18,
+              "y": 18
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 180,
+                "width": 120
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    }
+  },
+  "id": "holiday",
+  "parent": "flat",
+  "schemaVersion": 2,
+  "values": {
+    "colors": [
+      {
+        "id": "page",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.1450980392156863,
+                  "green": 0.17254901960784313,
+                  "red": 0.0784313725490196
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.8980392156862745,
+                  "green": 0.9333333333333333,
+                  "red": 0.9098039215686274
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "paper",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.22745098039215686,
+                  "green": 0.26666666666666666,
+                  "red": 0.1450980392156863
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9215686274509803,
+                  "green": 0.9725490196078431,
+                  "red": 1.0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "panel",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.1843137254901961,
+                  "green": 0.2196078431372549,
+                  "red": 0.11764705882352941
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.8627450980392157,
+                  "green": 0.9098039215686274,
+                  "red": 0.8784313725490196
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "ink",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.8627450980392157,
+                  "green": 0.9333333333333333,
+                  "red": 0.9607843137254902
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.22745098039215686,
+                  "green": 0.2823529411764706,
+                  "red": 0.1607843137254902
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "accent",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.4470588235294118,
+                  "green": 0.7372549019607844,
+                  "red": 0.8980392156862745
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.2823529411764706,
+                  "green": 0.23921568627450981,
+                  "red": 0.5882352941176471
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "cranberry",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.6431372549019608,
+                  "green": 0.6352941176470588,
+                  "red": 0.8745098039215686
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.2823529411764706,
+                  "green": 0.23921568627450981,
+                  "red": 0.5882352941176471
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "gold",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.4470588235294118,
+                  "green": 0.7372549019607844,
+                  "red": 0.8980392156862745
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.32941176470588235,
+                  "green": 0.5843137254901961,
+                  "red": 0.7215686274509804
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "passport",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.17647058823529413,
+                  "green": 0.2196078431372549,
+                  "red": 0.09019607843137255
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.21176470588235294,
+                  "green": 0.27058823529411763,
+                  "red": 0.12941176470588237
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "softShadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.4,
+                  "blue": 0.07450980392156863,
+                  "green": 0.10196078431372549,
+                  "red": 0.027450980392156862
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.13,
+                  "blue": 0.22745098039215686,
+                  "green": 0.2823529411764706,
+                  "red": 0.1607843137254902
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "welcomePaper",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.058823529411764705,
+                  "green": 0.08627450980392157,
+                  "red": 0.023529411764705882
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9568627450980393,
+                  "green": 0.9882352941176471,
+                  "red": 1.0
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "fonts": [
+      {
+        "id": "heading",
+        "value": {
+          "constant": {
+            "_0": {
+              "design": "serif",
+              "size": {
+                "semantic": {
+                  "_0": "headline"
+                }
+              },
+              "weight": "semibold"
+            }
+          }
+        }
+      },
+      {
+        "id": "body",
+        "value": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "body"
+                }
+              },
+              "weight": "regular"
+            }
+          }
+        }
+      },
+      {
+        "id": "forecastHeading",
+        "value": {
+          "constant": {
+            "_0": {
+              "design": "serif",
+              "size": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              },
+              "weight": "bold"
+            }
+          }
+        }
+      },
+      {
+        "id": "forecastBody",
+        "value": {
+          "constant": {
+            "_0": {
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              },
+              "weight": "regular"
+            }
+          }
+        }
+      }
+    ],
+    "surfaces": [
+      {
+        "id": "holiday.paper",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "paper",
+                  "outline": {
+                    "opacity": 0.28,
+                    "width": 1
+                  },
+                  "pressedTintOpacity": 0.08,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 3,
+                    "radius": 8
+                  },
+                  "tintMix": 0.09
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "holiday.panel",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "panel",
+                  "outline": {
+                    "opacity": 0.28,
+                    "width": 1
+                  },
+                  "pressedTintOpacity": 0.08,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 3,
+                    "radius": 8
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "holiday.passport",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "passport",
+                  "outline": {
+                    "opacity": 0.28,
+                    "width": 1
+                  },
+                  "pressedTintOpacity": 0.08,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 3,
+                    "radius": 8
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "holiday.welcome",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "welcomePaper",
+                  "outline": {
+                    "opacity": 0.28,
+                    "width": 1
+                  },
+                  "pressedTintOpacity": 0.08,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 3,
+                    "radius": 8
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

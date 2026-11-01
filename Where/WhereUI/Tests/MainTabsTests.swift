@@ -9,8 +9,9 @@ import WhereCore
 
 @MainActor
 struct MainTabsTests {
-    @Test func halloweenSwitchesTabsAndReturnsFromBackground() async throws {
-        let snapshot = try await MainTabs.halloweenSnapshot(selection: .locations)
+    @Test(arguments: WhereThemeExamples.allCases)
+    func seasonalThemesSwitchTabsAndReturnFromBackground(example: WhereThemeExamples) async throws {
+        let snapshot = try await MainTabs.themeSnapshot(example.theme, selection: .locations)
         guard case let .single(content) = snapshot.capture else {
             Issue.record("Expected the production tab fixture")
             return
