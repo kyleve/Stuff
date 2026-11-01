@@ -201,3 +201,45 @@ func `Where consumers can use InstallerKit`() throws {
     ))
     #expect(report.violations.isEmpty)
 }
+
+@Test
+func `ViewDocument rejects consumer dependencies`() throws {
+    for component in [WhereComponent.viewDocumentCore, .viewDocumentUI] {
+        let path: RelativeFilePath = component == .viewDocumentCore ?
+            "Shared/ViewDocument/ViewDocumentCore/Sources/ViewDocument.swift" :
+            "Shared/ViewDocument/ViewDocumentUI/Sources/ViewDocumentView.swift"
+        let allowed = try bumper.evaluate(RepositoryInput(
+            architecture: bumper.architecture,
+            files: [SourceInput(
+                path: path,
+                component: ComponentID(component.rawValue),
+                source: component == .viewDocumentCore ? "import Foundation" :
+                    "import Foundation\nimport SwiftUI\nimport UIKit\nimport ViewDocumentCore",
+            )],
+        ))
+        #expect(allowed.violations.isEmpty)
+        for source in [
+            "import WhereUI",
+            "import BroadwayUI",
+            "import BroadwayCore",
+            "import SnapshotKit",
+            "import SnapshotKitTesting",
+        ] {
+            let report = try bumper.evaluate(RepositoryInput(
+                architecture: bumper.architecture,
+                files: [SourceInput(
+                    path: path,
+                    component: ComponentID(component.rawValue),
+                    source: source,
+                )],
+            ))
+            let violation = try #require(report.violations.first)
+            #expect(report.violations.count == 1)
+            let expected: RuleID = source == "import WhereUI" ? .componentBoundary :
+                .forbiddenImport
+            #expect(violation.rule.id == expected)
+            #expect(violation.rule.severity == .error)
+            #expect(violation.path == path)
+        }
+    }
+}

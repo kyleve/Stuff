@@ -209,6 +209,10 @@ Keep the review history in the PR and link the rule to its guard or source.
 
 ## Targets
 
+- ViewDocumentCore and ViewDocumentUI provide the independent document renderer.
+  Keep SnapshotKit in its test bundle; production rendering receives static-motion policy by injection.
+  See [ViewDocument](Shared/ViewDocument/AGENTS.md).
+
 - For the current list of library products, apps, extensions, and test
   bundles, read [`Package.swift`](Package.swift) and
   [`Project.swift`](Project.swift). Each module's own `README.md` /
