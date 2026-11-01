@@ -449,20 +449,14 @@ User-picked appearances and the original bespoke defaults take precedence.
 Glass and reflective artwork. Flat uses opaque, strongly colored paper with
 printed edges and neutral drop shadows. It keeps the passport artwork and
 omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
-and estimate surfaces share this finish. System chrome stays native.
+and estimate surfaces share this finish. Halloween adds illustrated edges and coordinated paper and ink colors. System chrome stays native.
 
-Theme assembly starts with Standard defaults, resolves shared traits, then applies
-`WhereThemeOverrides`. Standard supplies empty overrides. `WhereFlatTheme` owns
-Flat's values and resolves them against the adjusted base. Its `BModeVarying`
-values keep light and dark choices together. Accessibility decisions stay explicit
-in the resolver.
+Theme assembly starts with the bundled JSON catalog. Standard defines every authored value.
+Flat inherits Standard and replaces its finishes. Halloween inherits Flat. Every theme uses the same complete resolved document path.
+The stylesheet selects light or dark values, then applies native accessibility constraints.
+Runtime region colors and live Card Designer drafts retain their existing ownership.
 
-Overrides are `Equatable` values grouped by component. Omitted fields inherit the
-base, while explicit zero values disable effects. Application assigns only the
-specified fields. Views continue to consume complete component styles, and live
-Card Designer drafts compose over those styles.
-
-New custom components support both themes through their resolved styles.
+New custom components support every bundled theme through their resolved styles.
 The [module rules](AGENTS.md) define surface treatments and required snapshot coverage.
 
 Flat adjusts region text colors for contrast against its opaque fills.
@@ -470,8 +464,8 @@ The palette test covers every selectable region color in light and dark modes.
 
 Flat retains the persisted `alternate` raw value. Onboarding previews before
 commit. Appearance Settings persists immediately. Widgets and snippets
-receive the same identity through their cross-process snapshots. Their existing
-lightweight content and system backgrounds stay unchanged.
+receive the same identity through the widget presentation file and App Intents handoff.
+They retain their lightweight native content and system backgrounds.
 
 Both `RegionSummaryCard` sizes ask the root-owned `RegionOutlinePathCache` for
 region artwork. The watermark uses a medium path, and the stamp seal uses a
@@ -485,8 +479,8 @@ paper in dark mode. Silhouettes, stamps, and borders use the original region col
 with the shared decorative opacities. Text uses a separate contrast adjustment.
 Its cards omit annual progress bars. Compact primary specimens in theme pickers
 and galleries retain the selected Locations theme. Elsewhere uses the shared
-matte renderer in both themes. Flat supplies its outline and shadow and
-preserves the white or neutral-dark fill.
+matte renderer in Standard and Flat. Flat supplies its outline and shadow and
+preserves the white or neutral-dark fill. Halloween supplies its own paper, ink, and artwork.
 Regions without geometry retain the symbol treatment. On both tabs, recorded
 fixes for the selected year are projected through that same geometry and
 reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
@@ -532,7 +526,7 @@ as dates pass. Appearance settings can hide estimates without removing plans or 
 The Estimated Time settings page also opens the planner.
 
 On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
-Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+Flat and Halloween use opaque paper. Reduce Transparency also enforces opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
 The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
 `LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
 `LocationForecastContent` (forecast rows and planning controls) with the always-expanded
@@ -691,3 +685,62 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+## Portable themes
+
+`WhereThemeDocument` uses schema version 2. Each document defines a complete root or names a parent with a typed identity.
+Standard is the canonical root. Flat inherits Standard. Halloween inherits Flat.
+The persisted `WhereTheme` identities remain `standard` and `alternate`.
+
+`WhereThemeAppearance` contains typed component geometry, colors, typography, and motion.
+`WhereThemeValues` names colors, fonts, and surfaces. `WhereThemeComponents` references these values through typed roles.
+Omitted fields inherit. Explicit values replace. Named values merge by identity.
+Artwork collections replace as a unit; an empty collection removes inherited artwork.
+`WhereThemeOptional.clear` removes an optional visual part or named reference.
+A direct appearance value replaces an inherited reference. Supplying both in one document is an error.
+
+Prepare a theme before passing it to a view:
+
+```swift
+let catalog = try WhereThemeCatalog(documents: documents)
+let prepared = try catalog.prepare(themeID, assets: assets)
+content.whereBroadwayRoot(themeDocument: prepared)
+```
+
+`whereBroadwayRoot(theme:)` selects prepared bundled documents through the same path.
+Rootless stylesheet defaults come from canonical Standard. Native property initializers provide allocation storage and a logged packaging-failure fallback.
+They do not supply omitted values in accepted documents.
+
+The catalog rejects incomplete roots, missing parents, cycles, invalid named references, and invalid appearance values.
+Preparation checks artwork resources, placement, and shared rendering budgets before injection.
+A catalog contains at most 64 documents and four MiB of encoded content. Inheritance has a depth limit of 16.
+Resolution walks the parent chain without recursion. Composite appearance groups use copy-on-write storage so background decoding fits a worker thread stack.
+Each document retains ViewDocument's byte, node, animation, modifier, and transform limits.
+Version 1 imports convert to version 2. The old seasonal payloads remain test fixtures.
+
+Component surfaces compose base paint, interior artwork, native content, highlights, and exterior artwork.
+Native passport marks have document-owned parameters and explicit selection.
+Names, counts, geographic data, progress, controls, localization, and accessibility remain native.
+Artwork declares an anchor, size, offset, drawing plane, and finite per-edge outsets.
+Interior artwork clips to the surface. Exterior artwork clips to its paint bounds and cannot cover the protected content center.
+Parent layouts reserve gaps and gutters. Overflow does not change hit targets or accessibility bounds.
+Apply `whereThemeArtworkSpace` outside buttons and accessibility groups in additional card hosts.
+Native navigation owns page headings. Pages and List rows use `background`, not `surface`.
+List rows and joined timeline segments accept interior artwork only, preserving native clipping and connected rails.
+The catalog rejects unsupported fields and native artwork sources; see `WhereThemeComponents.Capabilities.swift` for the role contract.
+Privacy paper, text, and artwork share a dark appearance. Its elevation responds to the surrounding page.
+
+Native accessibility constraints apply after theme resolution. Essential backgrounds remain visible when optional ornament is hidden.
+Native component fonts scale with Dynamic Type, including authored point-size baselines.
+Supporting text uses stronger document ink when a component supplies a foreground color. Built-in secondary text retains its existing system style.
+Reduce Motion and snapshots use authored static poses. Animation also depends on visibility, the selected tab, scene activity, and covering presentations.
+
+Standard, Flat, and Halloween are saved `WhereTheme` choices in every app audience.
+Appearance Settings and onboarding share the adaptive picker. `RootView` applies the selection through `whereBroadwayRoot`, including launch and ready content.
+The existing widget and App Intents handoffs carry the same selection to their lightweight native surfaces.
+Imported documents use `WhereThemeCatalog.replacing` followed by `prepare`; callers accept the replacement only after both succeed.
+This iteration includes no downloader or additional widget artwork.
+
+The fast visual gate uses one iPhone size, normal Dynamic Type, and standard light/dark captures.
+Card and Locations comparisons pass before the remaining tabs. Extended entry points retain broader CI coverage and existing reference identities.
+The full integration suite and extended visual matrix run after the light/dark gate passes.

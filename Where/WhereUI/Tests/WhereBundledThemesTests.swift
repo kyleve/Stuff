@@ -5,14 +5,29 @@ import WhereCore
 @testable import WhereUI
 
 @MainActor
-struct WhereFlatThemeTests {
+struct WhereBundledThemesTests {
+    @Test(arguments: WhereTheme.allCases)
+    func everySavedThemePreparesThroughTheBundledCatalog(theme: WhereTheme) throws {
+        let prepared = try WhereBundledThemes.prepared(theme)
+        let resolved = try WhereBundledThemeDefinitions.resolved(theme)
+        #expect(prepared.resolved == resolved)
+        try resolved.appearance.requireComplete(path: "appearance")
+        if theme == .halloween {
+            #expect(resolved.id == .halloween)
+            #expect(prepared.componentArtwork[.regularCard]?.isEmpty == false)
+        }
+    }
+
     @Test(arguments: [BMode.light, .dark], [false, true])
     func resolvesModeAndContrast(mode: BMode, increasedContrast: Bool) throws {
         var traits = BTraits.system
         traits.mode = mode
         traits.accessibility = BAccessibility(isDarkerSystemColorsEnabled: increasedContrast)
-        let overrides = WhereFlatTheme.overrides(traits: traits, base: .default)
-        let surface = try #require(overrides.card.regular.surface)
+        let sheet = try WhereStylesheet(
+            resolved: WhereBundledThemeDefinitions.resolved(.alternate),
+            traits: traits,
+        )
+        let surface = sheet.card.regular.surface
         guard case let .matte(matte) = surface else {
             Issue.record("Flat requires an opaque matte surface")
             return
@@ -21,26 +36,7 @@ struct WhereFlatThemeTests {
         #expect(matte.fill.tintMix == (mode == .light ? 0.52 : 0.58))
         #expect(matte.outline.opacity == (increasedContrast ? 0.65 : (mode == .light ? 0.32 : 0.4)))
         #expect(matte.outline.width == (increasedContrast ? 1.5 : 1))
-        #expect(overrides.card.regular.contentTint?.fraction == (increasedContrast ? 0.75 : 0.6))
-    }
-
-    @Test func inheritsPaperAndPrivacyOutlineFromSuppliedBase() throws {
-        var base = WhereStylesheet.default
-        base.card.elsewherePaper.surface.fill.base = .purple
-        base.privacyPassportCard.outlineOpacity = 0.83
-        base.privacyPassportCard.outlineWidth = 2.25
-        var traits = BTraits.system
-        traits.accessibility = BAccessibility()
-        let overrides = WhereFlatTheme.overrides(traits: traits, base: base)
-        let elsewhere = try #require(overrides.elsewhere.surface)
-        let privacy = try #require(overrides.privacy.surface)
-        guard case let .matte(passport) = privacy else {
-            Issue.record("Flat requires matte paper and passport surfaces")
-            return
-        }
-        #expect(elsewhere.fill.base == .purple)
-        #expect(passport.outline.opacity == 0.83)
-        #expect(passport.outline.width == 2.25)
+        #expect(sheet.card.regular.contentTint.fraction == (increasedContrast ? 0.75 : 0.6))
     }
 
     @Test(arguments: [BMode.light, .dark], [false, true])

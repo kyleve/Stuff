@@ -64,26 +64,27 @@ struct WhereModelTests {
         )
     }
 
-    @Test func loadsPreviewsCommitsAndResetsTheme() throws {
+    @Test(arguments: [WhereTheme.alternate, .halloween])
+    func loadsPreviewsCommitsAndResetsTheme(theme: WhereTheme) throws {
         let preferences = makePreferences()
-        preferences.theme = .alternate
+        preferences.theme = theme
         let model = try WhereModel(
             services: makeServices(),
             preferences: preferences,
             logSystem: .isolated(),
         )
 
-        #expect(model.theme == .alternate)
+        #expect(model.theme == theme)
         model.previewTheme(.standard)
         #expect(model.theme == .standard)
-        #expect(preferences.theme == .alternate)
+        #expect(preferences.theme == theme)
 
         model.completeOnboarding()
         #expect(preferences.theme == .standard)
 
-        model.selectTheme(.alternate)
-        #expect(model.theme == .alternate)
-        #expect(preferences.theme == .alternate)
+        model.selectTheme(theme)
+        #expect(model.theme == theme)
+        #expect(preferences.theme == theme)
 
         try model.resetPreferences()
         #expect(model.theme == .standard)
@@ -113,7 +114,8 @@ struct WhereModelTests {
         #expect(await gate.delivered == [.standard])
     }
 
-    @Test func onboardingCommitLaunchSynchronizationAndResetPublishTheme() async throws {
+    @Test(arguments: [WhereTheme.alternate, .halloween])
+    func onboardingCommitLaunchSynchronizationAndResetPublishTheme(theme: WhereTheme) async throws {
         let preferences = makePreferences()
         let model = try WhereModel(
             services: makeServices(),
@@ -123,24 +125,24 @@ struct WhereModelTests {
         let recorder = ThemeRecorder()
         model.onThemeChanged = { await recorder.receive($0) }
 
-        model.previewTheme(.alternate)
+        model.previewTheme(theme)
         model.completeOnboarding()
         while await recorder.delivered.count < 1 {
             await Task.yield()
         }
-        #expect(await recorder.delivered == [.alternate])
+        #expect(await recorder.delivered == [theme])
 
         model.synchronizeTheme()
         while await recorder.delivered.count < 2 {
             await Task.yield()
         }
-        #expect(await recorder.delivered == [.alternate, .alternate])
+        #expect(await recorder.delivered == [theme, theme])
 
         try model.resetPreferences()
         while await recorder.delivered.count < 3 {
             await Task.yield()
         }
-        #expect(await recorder.delivered == [.alternate, .alternate, .standard])
+        #expect(await recorder.delivered == [theme, theme, .standard])
     }
 
     @Test func lateLogStoreArrivalPublishesReadyState() async throws {

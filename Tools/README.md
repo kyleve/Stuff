@@ -118,6 +118,8 @@ The command does not coordinate concurrent builds, checkout restoration, or path
 
 ## Snapshot shard policy
 
+Discovery accepts shared Swift helpers without test declarations. Each test file must contain one matching top-level suite; helper names cannot hide tests.
+
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
 places intake first, then stops existing-suite moves at a 5% reduction in the
 slowest worker. If single-suite moves cannot reach that target, it discards them.

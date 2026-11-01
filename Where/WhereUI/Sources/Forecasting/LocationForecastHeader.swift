@@ -5,6 +5,7 @@ struct LocationForecastHeader: View {
     let elapsedDays: Int?
     let isExpanded: Bool
     var expansionAction: (() -> Void)?
+    var role: WhereThemeComponents.Role = .summary
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -15,6 +16,7 @@ struct LocationForecastHeader: View {
                     elapsedDays: elapsedDays,
                     isExpanded: isExpanded,
                     showsDisclosure: true,
+                    role: role,
                 )
                 .contentShape(Rectangle())
             }
@@ -31,6 +33,7 @@ struct LocationForecastHeader: View {
                 elapsedDays: elapsedDays,
                 isExpanded: true,
                 showsDisclosure: false,
+                role: role,
             )
         }
     }

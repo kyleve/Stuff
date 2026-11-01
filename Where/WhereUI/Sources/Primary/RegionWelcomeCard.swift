@@ -15,6 +15,7 @@ struct RegionWelcomeCard: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
     @Environment(\.regionStyles) private var regionStyles
 
     private var welcome: WhereStylesheet.LocationWelcomeStyle {
@@ -42,20 +43,22 @@ struct RegionWelcomeCard: View {
                     .font(.largeTitle)
                     .accessibilityHidden(true)
                 Spacer()
-                PassportSeal(systemSymbol: regionStyle.symbol, tint: regionStyle.tint)
+                if components[.welcome].nativeArtwork.contains(.stamp) { PassportSeal(
+                    systemSymbol: regionStyle.symbol,
+                    tint: regionStyle.tint,
+                ) }
             }
 
             VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                 Text(title)
-                    .font(.title2.bold())
-                    .fontDesign(.serif)
+                    .font(components[.welcome].heading ?? .system(.title2, design: .serif).bold())
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(String(localized: .locationWelcomeMessage(
                     presentation.region.localizedName,
                 )))
-                .font(.body)
-                .foregroundStyle(.secondary)
+                .font(components[.welcome].body ?? .body)
+                .foregroundStyle(.whereSecondary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -91,17 +94,22 @@ struct RegionWelcomeCard: View {
                 }
 
                 ZStack {
-                    SecurityPrintRosette(
-                        tint: regionStyle.tint,
-                        wobble: stylesheet.card.regular.rosette.wobble,
-                        lineWidth: stylesheet.card.regular.rosette.lineWidth,
-                        primaryRingSpacing: stylesheet.card.regular.rosette.primaryRingSpacing,
-                        secondaryRingSpacing: stylesheet.card.regular.rosette.secondaryRingSpacing,
-                        primaryOpacity: stylesheet.card.rosetteFill.primary,
-                        secondaryOpacity: stylesheet.card.rosetteFill.secondary,
-                    )
+                    if let background = components[.welcome].background { shape.fill(background) }
+                    if components[.welcome].nativeArtwork.contains(.rosette) {
+                        SecurityPrintRosette(
+                            tint: regionStyle.tint,
+                            wobble: stylesheet.card.regular.rosette.wobble,
+                            lineWidth: stylesheet.card.regular.rosette.lineWidth,
+                            primaryRingSpacing: stylesheet.card.regular.rosette.primaryRingSpacing,
+                            secondaryRingSpacing: stylesheet.card.regular.rosette
+                                .secondaryRingSpacing,
+                            primaryOpacity: stylesheet.card.rosetteFill.primary,
+                            secondaryOpacity: stylesheet.card.rosetteFill.secondary,
+                        )
+                    }
 
                     if
+                        components[.welcome].nativeArtwork.contains(.microprint),
                         let regionShape = stylesheet.card.regular.regionShape,
                         let microprint = regionPaths?.microprint,
                         !microprint.isEmpty
@@ -118,6 +126,7 @@ struct RegionWelcomeCard: View {
                     }
 
                     if
+                        components[.welcome].nativeArtwork.contains(.watermark),
                         let artwork = stylesheet.card.regular.regionShape,
                         let watermark = regionPaths?.watermark,
                         !watermark.isEmpty
@@ -130,11 +139,13 @@ struct RegionWelcomeCard: View {
                     }
                 }
                 .blendMode(stylesheet.card.securityPrint.backgroundBlendMode)
+                WhereComponentArtwork(role: .welcome, plane: .interior, shape: shape)
             }
             .clipShape(shape)
             .allowsHitTesting(false)
         }
         .matteSurface(welcome.surface, tint: regionStyle.tint, in: shape)
+        .overlay { WhereComponentArtwork(role: .welcome, plane: .exterior, shape: shape) }
         .overlay(alignment: .topTrailing) {
             Button(action: dismissAction) {
                 Label(String(localized: .locationWelcomeDismiss), systemSymbol: .xmark)
@@ -191,6 +202,8 @@ struct RegionWelcomeCard: View {
                 microprint: microprintPath,
             )
         }
+        .modifier(WhereComponentTextStyle(role: .welcome))
+        .whereThemeArtworkSpace(.welcome)
     }
 
     private func planStay() {

@@ -279,6 +279,7 @@ one it belongs to rather than to a god-object:
   read, with a freshness policy for the independently aggregated data.
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
+  Bundled seasonal themes use this same preference and publication path.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables, planned-stay and home-region revisions, sample-attribution revisions, and evidence blobs
   to one generation-consistent snapshot. Merge preserves queued locations

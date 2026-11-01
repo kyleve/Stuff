@@ -52,6 +52,7 @@ struct RegionAppearanceEditor: View {
                 styleOverride: RegionStyle(appearance),
             )
         }
+        .whereThemeArtworkSpace(.regularCard)
         .animation(stylesheet.motion.captionFade, value: appearance)
     }
 

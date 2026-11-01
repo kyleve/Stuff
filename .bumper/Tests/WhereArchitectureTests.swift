@@ -78,7 +78,7 @@ func `Where architecture accepts downward dependencies`() throws {
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
                     component: ComponentID(WhereComponent.whereUI.rawValue),
-                    source: "import WhereCore\nimport SwiftUI\nstruct Screen {}",
+                    source: "import WhereCore\nimport SwiftUI\nimport ViewDocumentCore\nimport ViewDocumentUI\nstruct Screen {}",
                 ),
             ],
         ),

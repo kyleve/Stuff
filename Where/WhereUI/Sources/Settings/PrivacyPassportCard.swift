@@ -1,22 +1,47 @@
+import BroadwayUI
 import SwiftUI
 
 /// Reassures the reader that Where's location history stays in their Apple storage.
 struct PrivacyPassportCard: View {
     let presentation: PrivacyPassportPresentation
     let disclosureInteraction: PrivacyPassportDisclosureInteraction
-    @State private var tilt = TiltProvider()
-
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
+        PrivacyPassportDarkCard(
+            presentation: presentation,
+            disclosureInteraction: disclosureInteraction,
+            ambientShadow: ambientShadow,
+        )
+        .environment(\.colorScheme, .dark)
+        .bMode(.dark)
+    }
+
+    private var ambientShadow: WhereStylesheet.MatteSurface.Shadow? {
+        if case let .matte(paper) = stylesheet.privacyPassportCard.surface { paper.shadow }
+        else { nil }
+    }
+}
+
+/// Resolves layout, typography, and reflection policy in the same mode as the paper.
+private struct PrivacyPassportDarkCard: View {
+    let presentation: PrivacyPassportPresentation
+    let disclosureInteraction: PrivacyPassportDisclosureInteraction
+    let ambientShadow: WhereStylesheet.MatteSurface.Shadow?
+    @State private var tilt = TiltProvider()
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
+
+    var body: some View {
         let style = stylesheet.privacyPassportCard
-        PrivacyPassportCardSurface(tilt: tilt) {
+        PrivacyPassportCardSurface(tilt: tilt, content: {
             VStack(alignment: .leading, spacing: style.sectionSpacing) {
                 PrivacyPassportHeader()
 
                 Text(presentation.locationDetail)
-                    .font(style.detailFont)
-                    .foregroundStyle(.secondary)
+                    .font(components[.privacy].body ?? style.detailFont)
+                    .foregroundStyle(.whereSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 VStack(spacing: style.disclosure.rowSpacing) {
@@ -30,8 +55,9 @@ struct PrivacyPassportCard: View {
             }
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .observesTilt(tilt, enabled: style.surface.usesReflection)
+        }, ambientShadowOverride: ambientShadow)
+            .observesTilt(tilt, enabled: style.surface.usesReflection)
+            .whereThemeArtworkSpace(.privacy)
     }
 }
 

@@ -23,7 +23,7 @@ struct PlannedStaySummaryRow: View {
                     .font(.headline)
                 Spacer(minLength: 0)
                 Image(systemSymbol: .pencil)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
                     .accessibilityHidden(true)
             }
             LabeledContent(String(localized: .plannedStayEditorArrival)) {
@@ -38,7 +38,7 @@ struct PlannedStaySummaryRow: View {
                     systemSymbol: .rectangleOnRectangle,
                 )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
             }
             if hasPossibleOverlap {
                 Label(
@@ -46,7 +46,7 @@ struct PlannedStaySummaryRow: View {
                     systemSymbol: .rectangleDashed,
                 )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
             }
         }
         .foregroundStyle(.primary)

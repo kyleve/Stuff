@@ -18,6 +18,7 @@ struct InsightsAccuracyFeaturesView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .whereThemeActivity(!showingResolution)
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }

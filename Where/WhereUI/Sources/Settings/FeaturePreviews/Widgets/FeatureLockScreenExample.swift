@@ -7,6 +7,18 @@ struct FeatureLockScreenExample: View {
     let date: Date
     let snapshot: WidgetSnapshot
 
+    var body: some View {
+        FeatureLockScreenContent(date: date, snapshot: snapshot)
+            .environment(\.colorScheme, .dark)
+            .bMode(.dark)
+    }
+}
+
+/// Reads the wallpaper and geometry after the miniature device's appearance is scoped.
+private struct FeatureLockScreenContent: View {
+    let date: Date
+    let snapshot: WidgetSnapshot
+
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -58,8 +70,6 @@ struct FeatureLockScreenExample: View {
             ),
             in: .rect(cornerRadius: style.widgets.device.cornerRadius),
         )
-        .environment(\.colorScheme, .dark)
-        .bMode(.dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsLockPreviewLabel))
     }

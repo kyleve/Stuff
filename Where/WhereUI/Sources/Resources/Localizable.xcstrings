@@ -11320,6 +11320,28 @@
         }
       }
     },
+    "theme.halloween.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Illustrated pumpkins, warm paper, and deep plum colors."
+          }
+        }
+      }
+    },
+    "theme.halloween.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halloween"
+          }
+        }
+      }
+    },
     "theme.notSelected.value" : {
       "extractionState" : "manual",
       "localizations" : {

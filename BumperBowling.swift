@@ -104,6 +104,8 @@ let bumper = BumperProject {
             Owns("Where/WhereIntents/Tests")
             Owns("Where/Where/Tests")
             MayDependOn(
+                .viewDocumentCore,
+                .viewDocumentUI,
                 .periscope,
                 .installerKit,
                 .installerKitUI,
@@ -136,7 +138,15 @@ let bumper = BumperProject {
         Component(.whereUI) {
             Owns("Where/WhereUI/Sources")
             Modules("WhereUI")
-            MayDependOn(.periscope, .installerKit, .installerKitUI, .regionKit, .whereCore)
+            MayDependOn(
+                .periscope,
+                .installerKit,
+                .installerKitUI,
+                .regionKit,
+                .whereCore,
+                .viewDocumentCore,
+                .viewDocumentUI,
+            )
             Applies(.wherePresentationLayer)
         }
 

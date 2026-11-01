@@ -214,6 +214,8 @@ let package = Package(
         .target(
             name: "WhereUI",
             dependencies: [
+                .target(name: "ViewDocumentCore"),
+                .target(name: "ViewDocumentUI"),
                 .target(name: "InstallerKitUI"),
                 .target(name: "InstallerKit"),
                 .target(name: "WhereCore"),

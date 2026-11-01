@@ -4,7 +4,23 @@ import Testing
 
 @MainActor
 struct RegionWelcomeCardSnapshotTests {
-    @Test func regionWelcomeCard() async {
-        await assertSnapshots(of: RegionWelcomeCard.self)
+    @Test func regionWelcomeCardLightDark() async {
+        await assertSnapshots(
+            of: WhereLightDarkSnapshots<RegionWelcomeCard>.self,
+            testName: "regionWelcomeCard()",
+        )
+    }
+
+    @Test func regionWelcomeCardExtended() async {
+        await assertSnapshots(
+            of: WhereExtendedSnapshots<RegionWelcomeCard>.self,
+            testName: "regionWelcomeCard()",
+        )
+    }
+}
+
+extension RegionWelcomeCard: WhereThemeSnapshotGate {
+    static var lightDarkCases: Set<String> {
+        ["Welcome"]
     }
 }

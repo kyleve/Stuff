@@ -73,6 +73,7 @@ struct SettingsRowModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .modifier(WhereComponentTextStyle(role: .section))
             .id(focus)
             .listRowBackground(background)
             .overlay {
@@ -84,10 +85,13 @@ struct SettingsRowModifier: ViewModifier {
             }
     }
 
-    private var background: some View {
+    @ViewBuilder private var background: some View {
         // Ordinary settings rows keep the system grouped fill; marketing rows
         // opt into clear so their page background can show through.
-        isHighlighted ? Color.accentColor.opacity(0.25) : restingBackground.color
+        if isHighlighted { Color.accentColor.opacity(0.25) }
+        else if restingBackground == .grouped {
+            WhereThemeRowBackground()
+        } else { restingBackground.color }
     }
 }
 
@@ -118,6 +122,7 @@ struct SettingsFocusScope<Content: View>: View {
     var body: some View {
         ScrollViewReader { proxy in
             content
+                .whereThemeScreen(.sheet)
                 .environment(\.settingsHighlight, highlighted)
                 .task(id: isReady) {
                     guard isReady, !didReveal else { return }

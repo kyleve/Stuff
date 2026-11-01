@@ -41,6 +41,7 @@ struct DataSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         // Keep one presenter outside the Form's reusable section content.
         // The export row changes from progress to idle as the archive arrives.
+        .whereThemeActivity(presentedShareItem == nil)
         .sheet(item: $presentedShareItem, content: BackupShareSheet.init)
         .alert(
             String(localized: .settingsBackupErrorTitle),

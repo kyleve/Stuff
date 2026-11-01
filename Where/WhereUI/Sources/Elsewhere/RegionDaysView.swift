@@ -128,7 +128,7 @@ private struct DayRow: View {
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
             Image(systemSymbol: .calendar)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(day.displayDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
@@ -141,7 +141,7 @@ private struct DayRow: View {
                     .secondaryRegionCurrent(regions: Region.inCanonicalOrder(day.regions)
                         .map(\.localizedName).joined(separator: ", ")))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
             }
         }
         .padding(.vertical, stylesheet.spacing.xSmall)

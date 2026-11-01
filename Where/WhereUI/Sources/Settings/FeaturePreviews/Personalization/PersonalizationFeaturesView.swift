@@ -39,6 +39,7 @@ struct PersonalizationFeaturesView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .whereThemeActivity(presentedSheet == nil)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
                 case .regions: RegionsSettingsView(usedThisYear: regionsUsedThisYear)

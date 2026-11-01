@@ -31,7 +31,7 @@ struct YearRibbon: View {
                     ForEach(monthStarts, id: \.self) { month in
                         Text(month, format: .dateTime.month(.narrow))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.whereSecondary)
                             .frame(maxWidth: .infinity)
                     }
                 }

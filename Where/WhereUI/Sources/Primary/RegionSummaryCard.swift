@@ -1,3 +1,4 @@
+import BroadwayUI
 import Foundation
 import RegionKit
 import SFSafeSymbols
@@ -67,6 +68,8 @@ struct RegionSummaryCard: View {
     /// Identity of the loaded recorded-point snapshot. Callers supply it to
     /// restart projection only when the underlying point content changes.
     var recordedPointsID: RegionCardLocations.ID?
+    var transitionNamespace: Namespace.ID?
+    @State private var artworkIsVisible = true
 
     /// Loaded from the root-owned UI path cache. The large watermark uses
     /// medium fidelity, the stamp uses small, and the repeated border uses
@@ -82,6 +85,7 @@ struct RegionSummaryCard: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var componentStylesheet
     @Environment(\.regionStyles) private var regionStyles
     #if DEBUG
         // The live designer draft is a runtime override, outside the cached base slice.
@@ -203,17 +207,20 @@ struct RegionSummaryCard: View {
         let rosette = card.rosette
         let rosetteFill = cardStyles.rosetteFill
         return ZStack {
-            SecurityPrintRosette(
-                tint: tint,
-                wobble: rosette.wobble,
-                lineWidth: rosette.lineWidth,
-                primaryRingSpacing: rosette.primaryRingSpacing,
-                secondaryRingSpacing: rosette.secondaryRingSpacing,
-                primaryOpacity: rosetteFill.primary,
-                secondaryOpacity: rosetteFill.secondary,
-            )
+            if nativeArtwork.contains(.rosette) {
+                SecurityPrintRosette(
+                    tint: tint,
+                    wobble: rosette.wobble,
+                    lineWidth: rosette.lineWidth,
+                    primaryRingSpacing: rosette.primaryRingSpacing,
+                    secondaryRingSpacing: rosette.secondaryRingSpacing,
+                    primaryOpacity: rosetteFill.primary,
+                    secondaryOpacity: rosetteFill.secondary,
+                )
+            }
 
             if
+                nativeArtwork.contains(.microprint),
                 let regionShape = card.regionShape,
                 let regionPath = regionPaths?.microprint,
                 !regionPath.isEmpty
@@ -237,13 +244,9 @@ struct RegionSummaryCard: View {
                 RegionOutlineArtwork(
                     path: regionPath,
                     tint: tint,
-                    style: regionShape.watermark,
-                    constellationPoints: showsRecordedPoints
-                        ? regionPaths?.constellation ?? []
-                        : [],
-                    constellationStyle: cardStyles.constellation,
+                    style: watermarkStyle(regionShape.watermark),
                 )
-            } else {
+            } else if nativeArtwork.contains(.watermark) {
                 Image(systemSymbol: style.symbol)
                     .font(.system(size: card.watermarkFontSize))
                     .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
@@ -256,6 +259,26 @@ struct RegionSummaryCard: View {
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var recordedConstellation: some View {
+        if showsRecordedPoints,
+           let artwork = card.regionShape?.watermark,
+           let paths = regionPaths,
+           !paths.constellation.isEmpty
+        {
+            RegionLocationConstellation(
+                path: paths.watermark,
+                points: paths.constellation,
+                tint: securityPrintTint,
+                artworkStyle: artwork,
+                style: cardStyles.constellation,
+            )
+            .blendMode(card.paper == nil ? cardStyles.securityPrint.backgroundBlendMode : .normal)
+            .clipShape(cardShape)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
     }
 
     private func loadRegionOutlines(_ regionOutlinePathCache: RegionOutlinePathCache) async
@@ -302,7 +325,7 @@ struct RegionSummaryCard: View {
 
     private var content: some View {
         let regionName = Text(regionDays.region.localizedName)
-            .font(card.regionNameTypography.font)
+            .font(componentStylesheet[componentRole].heading ?? card.regionNameTypography.font)
             .tracking(card.regionNameTracking)
             .lineLimit(1)
             .allowsTightening(true)
@@ -333,7 +356,7 @@ struct RegionSummaryCard: View {
 
                 Spacer(minLength: 0)
 
-                if renderPurpose == .content {
+                if renderPurpose == .content, nativeArtwork.contains(.stamp) {
                     entryStamp
                 }
             }
@@ -403,18 +426,55 @@ struct RegionSummaryCard: View {
         .animation(dayCount.animation, value: estimatedDays)
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background { stampPaper }
+        // Recorded locations are native information and stay above decorative interior art.
+        .background { recordedConstellation }
+    }
+
+    private var componentRole: WhereThemeComponents.Role {
+        switch variant {
+            case .regular: .regularCard; case .compact: .compactCard; case .elsewhere: .elsewhereCard
+        }
+    }
+
+    private var nativeArtwork: Set<WhereThemeNativeArtwork> {
+        componentStylesheet[componentRole].nativeArtwork
+    }
+
+    private func watermarkStyle(_ authored: WhereStylesheet.CardStyle.RegionShape
+        .Artwork) -> WhereStylesheet.CardStyle.RegionShape.Artwork
+    {
+        guard !nativeArtwork.contains(.watermark) else { return authored }
+        var style = authored
+        style.fillOpacity = 0
+        style.stroke?.opacity = 0
+        return style
     }
 
     var body: some View {
         content
-            .modifier(RegionCardSurface(
-                card: card,
-                glassTintOpacity: cardStyles.glassTintOpacity,
-                tint: style.tint,
-                interactive: interactive,
-                tilt: tilt,
-            ))
+            .modifier(WhereComponentSurface(
+                role: componentRole,
+                shape: cardShape,
+                finish: WhereCardFinish(
+                    surface: RegionCardSurface(
+                        card: card,
+                        glassTintOpacity: cardStyles.glassTintOpacity,
+                        tint: style.tint,
+                        interactive: interactive,
+                        tilt: tilt,
+                    ),
+                    transition: RegionCardTransition(
+                        region: regionDays.region,
+                        namespace: transitionNamespace,
+                        card: card,
+                        tint: style.tint,
+                    ),
+                ),
+            ) { stampPaper })
+            .whereThemeActivity(artworkIsVisible)
+            .onScrollVisibilityChange(threshold: 0.01) { artworkIsVisible = $0 }
+            .onAppear { artworkIsVisible = true }
+            .onDisappear { artworkIsVisible = false }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilityLabel)
             .accessibilityValue(places ?? "")
@@ -629,6 +689,11 @@ private struct ArcText: View {
                 case .compact: "Compact"
                 case .elsewhere: "Elsewhere"
             }
+            let role: WhereThemeComponents.Role = switch variant {
+                case .regular: .regularCard
+                case .compact: .compactCard
+                case .elsewhere: .elsewhereCard
+            }
             return whereThemeSnapshot(
                 name: name + (reduceTransparency ? "ReduceTransparency" : ""),
                 configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
@@ -648,6 +713,7 @@ private struct ArcText: View {
                     estimatedDays: variant == .elsewhere ? nil : DayBounds(lower: 180, upper: 220),
                     year: 2026,
                 )
+                .whereThemeArtworkSpace(role)
                 .padding(24)
                 .background(.background)
                 .environment(\.regionOutlinePathCache, cache)

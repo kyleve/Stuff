@@ -12,6 +12,7 @@ struct PlannedPresenceJourneyCardContent: View {
     let tint: Color
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
 
     var body: some View {
         let timeline = stylesheet.timeline
@@ -31,20 +32,20 @@ struct PlannedPresenceJourneyCardContent: View {
                 if row.stacksDayCount {
                     VStack(alignment: .leading, spacing: row.labelSpacing) {
                         Text(regionName)
-                            .font(.subheadline.bold())
+                            .font(components[.timelineEntry].heading ?? .subheadline.bold())
                         Text(dateRange)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(components[.timelineEntry].body ?? .subheadline)
+                            .foregroundStyle(.whereSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     HStack(spacing: planned.joinedLabelSpacing) {
                         Text(regionName)
-                            .font(.subheadline.bold())
+                            .font(components[.timelineEntry].heading ?? .subheadline.bold())
                             .layoutPriority(1)
                         Text(dateRange)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(components[.timelineEntry].body ?? .subheadline)
+                            .foregroundStyle(.whereSecondary)
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -62,13 +63,13 @@ struct PlannedPresenceJourneyCardContent: View {
             } else {
                 VStack(alignment: .leading, spacing: row.labelSpacing) {
                     Text(regionName)
-                        .font(.headline)
+                        .font(components[.timelineEntry].heading ?? .headline)
                     Text(dateRange)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(components[.timelineEntry].body ?? .subheadline)
+                        .foregroundStyle(.whereSecondary)
                     Text(detailLabel)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                         .opacity(planned.labelOpacity)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

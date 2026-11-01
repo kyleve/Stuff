@@ -75,6 +75,12 @@ def source_inventory(repo):
                 text,
                 re.MULTILINE,
             )
+            if (
+                not suite.endswith("Tests")
+                and not declarations
+                and not re.search(r"@(?:Testing\.)?Test\b", text)
+            ):
+                continue
             if declarations != [suite]:
                 relative = path.relative_to(repo)
                 found = ", ".join(declarations) if declarations else "none"

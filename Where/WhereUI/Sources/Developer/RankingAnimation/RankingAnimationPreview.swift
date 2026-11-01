@@ -25,6 +25,7 @@
                         yearLength: 365,
                         year: RankingAnimationLabModel.year,
                     )
+                    .whereThemeArtworkSpace(.regularCard)
                     .locationCardOvertakeEffect(
                         region: item.region,
                         presentation: model.presentation,
