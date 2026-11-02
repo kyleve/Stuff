@@ -3,6 +3,10 @@ import { largeFixture } from './large-fixture.ts';
 
 test.use({ deviceScaleFactor: 3 });
 
+// Under CI load, WebKit can take over five seconds to return even a matching
+// decoded-pixel count. Keep exact assertions while allowing bounded browser work.
+const thumbnailLoadTimeout = 15_000;
+
 async function openFittedAtlas(page: Page) {
     const requests: string[] = [];
     const errors: string[] = [];
@@ -23,7 +27,7 @@ async function openFittedAtlas(page: Page) {
     await expect.poll(async () => {
         const pixels = await loadedPixels();
         return pixels > 0 && pixels < 7_000_000;
-    }).toBe(true);
+    }, { timeout: thumbnailLoadTimeout }).toBe(true);
     const fittedPixels = await loadedPixels();
     expect(fittedPixels).toBeGreaterThan(0);
     // The former fixed thumbnails decode 27,491,328 pixels for this catalog.
@@ -39,16 +43,16 @@ test('production-sized atlas upgrades and downgrades thumbnails across selection
     await expect.poll(() => page.locator('.screen-card img[src]').evaluateAll(images =>
         images.some(image => (image as HTMLImageElement).naturalHeight === 1024))).toBe(true);
     await page.keyboard.press('f');
-    await expect.poll(loadedPixels).toBe(fittedPixels);
+    await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
     // A retained selection must pick the new profile at the same small size.
     await page.locator('.header-profile select').selectOption('phone-dark');
-    await expect.poll(loadedPixels).toBe(fittedPixels);
+    await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     await expect.poll(() => page.locator('.screen-card img[src]').evaluateAll(images =>
         images.every(image => image.getAttribute('src')?.includes('phone-dark')))).toBe(true);
     await page.locator('.screen-card select').nth(30).selectOption('alternate');
     await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/);
-    await expect.poll(loadedPixels).toBe(fittedPixels);
+    await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
     expect(errors).toEqual([]);
 });
@@ -58,12 +62,12 @@ test('inspector releases and restores production-sized atlas thumbnails', async 
     await page.locator('.header-profile select').selectOption('phone-dark');
     await page.locator('.screen-card select').nth(30).selectOption('alternate');
     await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/);
-    await expect.poll(loadedPixels).toBe(fittedPixels);
+    await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     await page.locator('.card-image-button').nth(30).click();
     await expect(page.locator('.inspector img')).toHaveAttribute('src', /phone-dark\.png$/);
     await expect(page.locator('.screen-card img[src]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Close inspector', exact: true }).click();
-    await expect.poll(loadedPixels).toBe(fittedPixels);
+    await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     expect(errors).toEqual([]);
 });
 
