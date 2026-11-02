@@ -1,4 +1,5 @@
 @testable import Flyover
+import SnapshotKit
 import SwiftUI
 import Testing
 
@@ -47,6 +48,37 @@ struct FlyoverModelTests {
 
         model.orientation = .landscape
         #expect(model.viewportSize == CGSize(width: 874, height: 402))
+    }
+
+    @Test func devicePreviewsApplyTheirOwnLayoutTraits() throws {
+        let catalog = makeFlyoverTestCatalog()
+        let screen = try #require(catalog.screen(id: .root))
+        let model = FlyoverModel(catalog: catalog)
+
+        #expect(model.configuration(for: screen, systemColorScheme: .light)
+            .layoutTraits == .phonePortrait)
+        model.orientation = .landscape
+        #expect(model.configuration(for: screen, systemColorScheme: .dark)
+            .layoutTraits == .phoneLandscape)
+        model.device = .tablet
+        #expect(model.configuration(for: screen, systemColorScheme: .dark)
+            .layoutTraits == .tabletPortrait)
+        model.orientation = .portrait
+        #expect(model.configuration(for: screen, systemColorScheme: .light)
+            .layoutTraits == .tabletPortrait)
+    }
+
+    @Test func fixedComponentsInheritHostLayoutTraits() {
+        let catalog = makeFlyoverTestCatalog()
+        let model = FlyoverModel(catalog: catalog)
+        let screen = FlyoverScreen(
+            id: FlyoverTestScreen.root,
+            title: "Component",
+            viewport: .fixed(CGSize(width: 200, height: 100)),
+            variants: [variant(id: "first")],
+        )
+
+        #expect(model.configuration(for: screen, systemColorScheme: .light).layoutTraits == nil)
     }
 
     @Test func previewSelectionKeepsOnlyOneCanvasScreenLive() throws {

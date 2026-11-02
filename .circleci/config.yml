@@ -39,7 +39,7 @@ parameters:
 executors:
   m4-pro-medium:
     macos:
-      xcode: "27.1"
+      xcode: "27.2"
     resource_class: m4pro.medium
     shell: /bin/bash --login -eo pipefail
     environment:
@@ -48,7 +48,7 @@ executors:
       GIT_LFS_SKIP_SMUDGE: "1"
   m4-pro-large:
     macos:
-      xcode: "27.1"
+      xcode: "27.2"
     resource_class: m4pro.large
     shell: /bin/bash --login -eo pipefail
     environment:
@@ -102,10 +102,11 @@ commands:
             echo "Architecture: $(uname -m)"
             sw_vers
             xcodebuild -version
-            expected_xcode_build="$(< .xcode-build-version)"
-            xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
-            if [[ "$xcode_build" != "$expected_xcode_build" ]]; then
-              echo "Expected Xcode build $expected_xcode_build, found $xcode_build" >&2
+            expected_xcode_version="$(< .xcode-version)"
+            xcode_version="$(xcodebuild -version | awk '/^Xcode /{print $2}')"
+            xcode_version="$(printf '%s\n' "$xcode_version" | cut -d. -f1,2)"
+            if [[ "$xcode_version" != "$expected_xcode_version" ]]; then
+              echo "Expected Xcode $expected_xcode_version, found $xcode_version" >&2
               exit 1
             fi
 
@@ -124,12 +125,12 @@ commands:
           command: |
             echo "Available simulator runtimes:"
             xcrun simctl list runtimes available
-            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27(\.0)? '; then
-              echo "An available iOS 27 simulator runtime is required" >&2
+            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27\.2 '; then
+              echo "An available iOS 27.2 simulator runtime is required" >&2
               exit 1
             fi
 
-            selected_simulator="$(./simulator --shared --os 27.0 --no-boot)"
+            selected_simulator="$(./simulator --shared --os 27.2 --no-boot)"
             echo "Selected simulator: $selected_simulator"
             xcrun simctl list devices available | grep "$selected_simulator"
 
@@ -359,7 +360,7 @@ jobs:
             umask 077
             mkdir -p "$RUNNER_TEMP"
             python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
-            cmp .xcode-build-version "$RUNNER_TEMP/source/.xcode-build-version"
+            cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
       - run:
           name: Install archive tools
           command: |
@@ -410,7 +411,7 @@ jobs:
               echo "Snapshot definitions did not change. The source-plan validation is sufficient."
               exit 0
             fi
-            ./test --snapshots --shared --os 27.0 \
+            ./test --snapshots --shared --os 27.2 \
               --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
               --enumerate-suites "$TEST_WORKDIR/suites.txt" \
               --skip-architecture
@@ -433,7 +434,7 @@ jobs:
       - run_with_timeout:
           seconds: 2700
           command: >-
-            ./test --all --shared --os 27.0
+            ./test --all --shared --os 27.2
             --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --skip-architecture
       - export_test_results:
@@ -511,7 +512,7 @@ jobs:
       - run_with_timeout:
           seconds: 3600
           command: >-
-            ./test --snapshots --shared --os 27.0 --review --timings
+            ./test --snapshots --shared --os 27.2 --review --timings
             --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --only-file "$TEST_WORKDIR/shard.txt"
             --skip-architecture

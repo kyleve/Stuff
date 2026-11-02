@@ -117,11 +117,31 @@ final class FlyoverModel<ScreenID: Hashable> {
             contrast: contrast,
             layoutDirection: layoutDirection,
             legibilityWeight: legibilityWeight,
+            layoutTraits: layoutTraits(for: screen),
             device: SnapshotConfiguration.Frame(
                 name: "Flyover",
                 size: .fixed(size(for: screen)),
             ),
         )
+    }
+
+    private func layoutTraits(for screen: FlyoverScreen<ScreenID>) -> SnapshotConfiguration
+        .LayoutTraits?
+    {
+        switch screen.viewport {
+            case .fixed:
+                nil
+            case .device:
+                switch device {
+                    case .phone:
+                        switch orientation {
+                            case .portrait: .phonePortrait
+                            case .landscape: .phoneLandscape
+                        }
+                    case .tablet:
+                        .tabletPortrait
+                }
+        }
     }
 
     func size(for screen: FlyoverScreen<ScreenID>) -> CGSize {

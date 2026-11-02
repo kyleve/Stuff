@@ -14,7 +14,7 @@ require "tmpdir"
 require File.expand_path("../simulator_registry", __dir__)
 
 class SimulatorCommandTest < Minitest::Test
-  RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+  RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-27-2"
 
   def test_delete_targets_only_the_exact_registered_runtime_device
     with_fixture do |fixture|
@@ -23,7 +23,7 @@ class SimulatorCommandTest < Minitest::Test
         checkout: fixture.repository,
         udid: "owned",
         device: "iPhone 17",
-        os: "27.0",
+        os: "27.2",
       )
       fixture.write_inventory(
         all: {
@@ -94,7 +94,7 @@ class SimulatorCommandTest < Minitest::Test
         checkout: missing_checkout,
         udid: "owned",
         device: "iPhone 17",
-        os: "27.0",
+        os: "27.2",
       )
       fixture.write_inventory(
         all: {
@@ -159,7 +159,7 @@ class SimulatorCommandTest < Minitest::Test
         checkout: fixture.repository,
         udid: "owned",
         device: "iPhone 17",
-        os: "27.0",
+        os: "27.2",
       )
       fixture.write_inventory(all: { RUNTIME => [fixture.device("owned", fixture.owned_name)] })
 
@@ -178,7 +178,7 @@ class SimulatorCommandTest < Minitest::Test
         checkout: fixture.repository,
         udid: "old",
         device: "iPhone 17",
-        os: "27.0",
+        os: "27.2",
       )
       fixture.write_inventory(all: { RUNTIME => [fixture.device("old", fixture.owned_name)] })
 
@@ -251,7 +251,7 @@ class SimulatorCommandTest < Minitest::Test
       @root = root
       @repository = Repository.root(__FILE__)
       checkout_hash = Digest::SHA256.hexdigest(repository)[0, 8]
-      @owned_name = "Stuff-#{File.basename(repository)}-#{checkout_hash}-iPhone-17-27.0"
+      @owned_name = "Stuff-#{File.basename(repository)}-#{checkout_hash}-iPhone-17-27.2"
       home = root / "home"
       temporary = root / "tmp"
       binary = root / "bin"
@@ -307,7 +307,7 @@ class SimulatorCommandTest < Minitest::Test
           "--device",
           "iPhone 17",
           "--os",
-          "27.0",
+          "27.2",
           *arguments,
           chdir: repository,
         )

@@ -40,10 +40,8 @@ class XcodeCommandFixture:
         ):
             self._copy(f"Tools/{module}")
         self._copy(".circleci/test_artifacts.py")
-        self._copy(".xcode-build-version")
-        self.expected_xcode_build = (
-            (self.root / ".xcode-build-version").read_text().strip()
-        )
+        self._copy(".xcode-version")
+        self.expected_xcode_version = (self.root / ".xcode-version").read_text().strip()
         (self.root / "Project.swift").write_text('name: "ExampleSnapshotTests"\n')
         self._write_executable(
             self.root / "simulator",
@@ -93,7 +91,8 @@ while True:
             "MISE_STATUS": "0",
             "TEST_STATUS": "0",
             "XCODE_OUTPUT": "passing",
-            "FAKE_XCODE_BUILD": self.expected_xcode_build,
+            "FAKE_XCODE_BUILD": "27B52",
+            "FAKE_XCODE_VERSION": self.expected_xcode_version,
             "XCRUN_OUTPUT": "valid",
         }
         environment.update(overrides or {})
@@ -121,7 +120,7 @@ while True:
             "productsRoot": str(products.relative_to(root)),
             "schemes": {scheme: str(xctestrun.relative_to(root))},
             "sdkBuild": "fixture-sdk-build",
-            "xcodeBuild": self.expected_xcode_build,
+            "xcodeBuild": "27B52",
         }
         (root / "manifest.json").write_text(json.dumps(manifest))
         return root
@@ -165,7 +164,7 @@ exit "$status"
             """#!/bin/bash
 printf 'xcodebuild %s\\n' "$*" >>"$TOOL_LOG"
 if [ "$*" = "-version" ]; then
-  printf 'Xcode 27.0\\nBuild version %s\\n' "${FAKE_XCODE_BUILD:?}"
+  printf 'Xcode %s\\nBuild version %s\\n' "${FAKE_XCODE_VERSION:?}" "${FAKE_XCODE_BUILD:?}"
   exit 0
 fi
 case " $* " in
@@ -436,7 +435,7 @@ class XcodeCommandContractTests(unittest.TestCase):
         self.assertIn("did not produce PeriscopeMacrosTests.xctest", result.stderr)
         self.assertNotIn("xcrun xctest", fixture.command_log())
 
-    def test_snapshot_run_rejects_a_different_xcode_build_before_generation(self):
+    def test_snapshot_run_rejects_a_different_xcode_minor_before_generation(self):
         fixture = self.fixture()
 
         result = fixture.run(
@@ -445,15 +444,36 @@ class XcodeCommandContractTests(unittest.TestCase):
             "--skip-architecture",
             "--no-generate",
             "--no-build",
+            FAKE_XCODE_VERSION="27.1",
             FAKE_XCODE_BUILD="27A5228h",
         )
 
         self.assertEqual(1, result.returncode, result.stdout + result.stderr)
         self.assertIn(
-            f"snapshot tests require Xcode build {fixture.expected_xcode_build}",
+            f"snapshot tests require Xcode {fixture.expected_xcode_version}",
             result.stderr,
         )
         self.assertNotIn("test-without-building", fixture.command_log())
+
+    def test_snapshot_run_accepts_builds_and_patches_of_the_same_minor(self):
+        for version, build in [
+            ("27.2", "27B48"),
+            ("27.2", "27B52"),
+            ("27.2.1", "27B99"),
+        ]:
+            with self.subTest(version=version, build=build):
+                fixture = self.fixture()
+                result = fixture.run(
+                    "test",
+                    "--snapshots",
+                    "--skip-architecture",
+                    "--no-generate",
+                    "--no-build",
+                    FAKE_XCODE_VERSION=version,
+                    FAKE_XCODE_BUILD=build,
+                )
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertIn("test-without-building", fixture.command_log())
 
     def test_unit_run_does_not_require_the_snapshot_xcode_build(self):
         fixture = self.fixture()
@@ -464,6 +484,7 @@ class XcodeCommandContractTests(unittest.TestCase):
             "--no-generate",
             "--no-build",
             "CoreTests",
+            FAKE_XCODE_VERSION="27.1",
             FAKE_XCODE_BUILD="27A5228h",
         )
 

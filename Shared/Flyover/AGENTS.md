@@ -18,6 +18,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Present Flyover outside an ambient `NavigationStack`.** Use a separate presentation domain such as `fullScreenCover`.
 - **Route Flyover appearance through `FlyoverStylesheet`.** `FlyoverView` seeds its Broadway root so the tool renders independently of its host. Follow the repo [`building-ui`](../../.agents/skills/building-ui/SKILL.md) skill for the general stylesheet, layout, accessibility, preview, and snapshot rules.
 - **Keep overview screen content inert.** Enable native interaction only in the focused inspector. Per-frame controls remain interactive in both modes.
+- **Frame trait-hosted content at its unscaled viewport before overview scaling.** Keep navigation titles, toolbars, and full preview content inside that viewport.
 - **Give every screen a `NavigationStack` by default** so its navigation chrome renders in the frame. Use `.none` only for self-contained navigation roots and non-screen surfaces.
 - Adapt snapshot cases with `FlyoverVariant.snapshots`. Keep each cutsheet panel in its own variant with a stable panel-derived ID.
 - **Keep variant content builders lazy.** Catalog construction must not instantiate off-screen views or their models.
@@ -27,6 +28,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Invoke variant builders through the serial deferred load coordinator.** Never invoke them synchronously from a SwiftUI `body`. Preview fixtures may open expensive in-memory stores.
 - **Canvas preview readiness is the latest nonempty visible-load expectation.** Variant or generation changes supersede stale completions. Cancelled waiters must resume. `FlyoverSnapshotTests` awaits it before full-content measurement.
 - **Keep global traits session-only.** Apply them to registered content, not Flyover chrome.
+- **Apply device layout traits to device-sized previews.** Phone orientation selects compact/regular or compact/compact; tablet uses regular/regular. Fixed components inherit host layout traits. Guard: `FlyoverModelTests.devicePreviewsApplyTheirOwnLayoutTraits`.
 - **Register forward push/modal routes only.** Flyover derives Back/Dismiss cues from incoming routes.
 - **Render connectors as vector views.** A graph-sized Canvas texture can exceed the GPU dimension limit. Source: [`FlyoverConnectorCanvas`](Sources/FlyoverConnectorCanvas.swift).
 - **Type erase only at the heterogeneous content/control registry boundary.**

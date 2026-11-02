@@ -75,7 +75,7 @@ def build_environment(workspace: Path, destination: Path) -> dict[str, str]:
         ),
         "FLYOVER_EXPORT_XCODE_VERSION": xcode or "unknown",
         "FLYOVER_EXPORT_SIMULATOR_DEVICE": "iPhone 17",
-        "FLYOVER_EXPORT_SIMULATOR_OS": "27.0",
+        "FLYOVER_EXPORT_SIMULATOR_OS": "27.2",
     }
 
 

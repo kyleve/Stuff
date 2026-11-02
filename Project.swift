@@ -266,7 +266,7 @@ let packageResourceEnvironment: [String: EnvironmentVariable] = [
 
 let snapshotEnvironment: [String: EnvironmentVariable] =
     packageResourceEnvironment.merging([
-        "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+        "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.2",
         "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
         "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
         "TZ": "America/Los_Angeles",
