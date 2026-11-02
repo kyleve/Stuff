@@ -31,6 +31,7 @@
         @State private var dragOffset: CGSize = .zero
         @State private var isDraggingButton = false
         @State private var isPresentingFlyover = false
+        @State private var isPresentingOnboarding = false
         @State private var isPresentingDemoConfiguration = false
         /// The collapsed button's rendered size, measured rather than hardcoded so
         /// the drag/anchor math tracks whatever ``DeveloperOverlayButton`` draws
@@ -43,6 +44,7 @@
         @State private var windowResize: CGSize = .zero
 
         @Environment(\.stylesheet) private var stylesheet
+        @Environment(WhereModel.self) private var appModel: WhereModel?
         @Environment(WhereDeveloperLaunchController.self) private var launchController:
             WhereDeveloperLaunchController?
 
@@ -130,6 +132,12 @@
             .fullScreenCover(isPresented: $isPresentingFlyover) {
                 WhereFlyoverPresentationView()
             }
+            .fullScreenCover(isPresented: $isPresentingOnboarding) {
+                DeveloperOnboardingView(
+                    diagnostics: appModel?.diagnosticReporting.effectiveConfiguration
+                        ?? .defaults(isDebugBuild: true),
+                )
+            }
             .sheet(isPresented: $isPresentingDemoConfiguration) {
                 if let launchController {
                     DeveloperDemoLaunchSheet(controller: launchController)
@@ -182,6 +190,9 @@
                         model.closeMenu()
                     }
                     isPresentingFlyover = true
+                case .onboarding:
+                    closeMenu()
+                    isPresentingOnboarding = true
             }
         }
 

@@ -12,6 +12,7 @@ import WhereCore
 /// onboarding and the Settings region editor.
 struct RegionPickerView: View {
     @Bindable var model: PrimaryRegionSelectionModel
+    let presentation: RegionSetupPresentation
 
     /// Map vs list, the two ways to pick.
     enum Mode: String, CaseIterable, Hashable {
@@ -33,13 +34,25 @@ struct RegionPickerView: View {
 
     private static let logger = WhereLog.session(RegionPickerViewLog.self)
 
-    init(model: PrimaryRegionSelectionModel, initialMode: Mode = .list) {
+    init(
+        model: PrimaryRegionSelectionModel,
+        initialMode: Mode = .list,
+        presentation: RegionSetupPresentation = .settings,
+    ) {
         self.model = model
+        self.presentation = presentation
         _mode = State(initialValue: initialMode)
     }
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.medium) {
+            if presentation == .onboarding {
+                Text(.onboardingRegionsTitle)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, stylesheet.onboarding.padding)
+            }
             modePicker
 
             VStack(spacing: stylesheet.spacing.xSmall) {
@@ -182,7 +195,16 @@ struct RegionPickerView: View {
         .disabled(!model.canToggle(region))
     }
 
+    @ViewBuilder
     private var listContent: some View {
+        if presentation == .onboarding {
+            regionList.listStyle(.insetGrouped)
+        } else {
+            regionList.listStyle(.plain)
+        }
+    }
+
+    private var regionList: some View {
         List {
             // Grouped (Settings) shows your-regions / used-this-year / more via
             // the shared sections; onboarding and any active search fall back to
@@ -193,7 +215,6 @@ struct RegionPickerView: View {
                 ForEach(filteredRegions, id: \.self, content: regionRow)
             }
         }
-        .listStyle(.plain)
         .searchable(text: $searchText, prompt: String(localized: .regionPickerSearchPrompt))
         .overlay {
             if isSearching, filteredRegions.isEmpty {

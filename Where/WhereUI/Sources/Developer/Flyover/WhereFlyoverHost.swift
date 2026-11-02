@@ -8,10 +8,7 @@
 
         var body: some View {
             content
-                .environment(world.model)
-                .environment(world.session)
-                .environment(\.isInDemoMode, true)
-                .whereBroadwayRoot(regionStyles: world.session.regionStyles)
+                .whereEnvironment(.isolated(model: world.model, session: world.session))
         }
     }
 

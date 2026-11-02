@@ -224,38 +224,8 @@ public final class WhereScope {
         let aggregator = DayAggregator()
         let referenceDate = configuration.referenceDate(from: now(), calendar: aggregator.calendar)
         let demoNow: @Sendable () -> Date = { referenceDate }
-        let locationSource = ScriptedLocationSource(authorizationStatus: .always)
-        locationSource.setNextRequestedLocation(LocationSample(
-            timestamp: referenceDate,
-            coordinate: DemoDataBuilder.homeCoordinate,
-            horizontalAccuracy: 12,
-            source: .gpsVisit,
-        ))
-        // Off the main actor, as the real scope opens its store
-        // (`WhereBootstrap.makeServices`): building a container is synchronous
-        // work, and this one runs while the entry interstitial is animating.
-        // Everything else here already hops off — seeding and the log store are
-        // `nonisolated async` — so this call was the last main-actor stall on
-        // the way into demo mode.
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.inMemory()
-        }.value
-        let services = try await WhereServices.make(
-            store: store,
-            locationSource: locationSource,
+        let services = try await makeInMemoryServices(
             installationContext: .demo,
-            aggregator: aggregator,
-            // Authorized, like the location source is: the demo presents a user
-            // who has granted everything, so the alerts screen shows its real
-            // controls rather than a "denied, open Settings" dead end. They
-            // still schedule nothing — the demo asks the system for nothing and
-            // posts nothing.
-            reminderScheduler: NoopLoggingReminderScheduler(authorized: true),
-            summaryScheduler: NoopDailySummaryScheduler(authorized: true),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
-            locationOutbox: NoOpLocationOutbox(),
-            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: demoNow,
         )
         try await DemoDataBuilder(
@@ -290,6 +260,48 @@ public final class WhereScope {
             ),
         ))
         return scope
+    }
+
+    /// Shared disposable service wiring for demos and the developer onboarding preview.
+    /// Location is scripted; notification, widget, outbox, and recovery collaborators are no-ops.
+    static func makeInMemoryServices(
+        installationContext: InstallationRecordingContext,
+        now: @escaping @Sendable () -> Date,
+    ) async throws -> WhereServices {
+        let locationSource = ScriptedLocationSource(authorizationStatus: .always)
+        locationSource.setNextRequestedLocation(LocationSample(
+            timestamp: now(),
+            coordinate: DemoDataBuilder.homeCoordinate,
+            horizontalAccuracy: 12,
+            source: .gpsVisit,
+        ))
+        // Off the main actor, as the real scope opens its store
+        // (`WhereBootstrap.makeServices`): building a container is synchronous
+        // work, and this one runs while the entry interstitial is animating.
+        // Everything else here already hops off — seeding and the log store are
+        // `nonisolated async` — so this call was the last main-actor stall on
+        // the way into demo mode.
+        let store = try await Task.detached(priority: .userInitiated) {
+            try SwiftDataStore.inMemory()
+        }.value
+        return try await WhereServices.make(
+            store: store,
+            locationSource: locationSource,
+            installationContext: installationContext,
+            aggregator: DayAggregator(),
+            // Authorized, like the location source is: the demo presents a user
+            // who has granted everything, so the alerts screen shows its real
+            // controls rather than a "denied, open Settings" dead end. They
+            // still schedule nothing — the demo asks the system for nothing and
+            // posts nothing.
+            reminderScheduler: NoopLoggingReminderScheduler(authorized: true),
+            summaryScheduler: NoopDailySummaryScheduler(authorized: true),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            locationOutbox: NoOpLocationOutbox(),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+            now: now,
+        )
     }
 
     /// Hand this scope the durable log store it will record into, without

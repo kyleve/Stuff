@@ -131,6 +131,8 @@ public final class WhereModel {
 
     /// Process reporting state stays real even while the active data scope is a demo.
     public let diagnosticReporting: DiagnosticReportingSettingsModel
+    /// Scene presentation only; completion never changes which scope owns the user's data.
+    let onboardingWelcome = OnboardingWelcomeModel()
 
     /// The active presentation theme. Onboarding can preview this value in
     /// memory before committing; Appearance Settings persists immediately.
@@ -627,6 +629,7 @@ public final class WhereModel {
     /// false or unset, so the relaunch parks for the user before anything
     /// re-opens. The old container is long gone by the time they answer.
     private func logOut() async {
+        onboardingWelcome.cancel()
         await activeScope?.stopLogRouting()
         session = nil
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))

@@ -166,6 +166,7 @@ final class OnboardingFlowModel {
             if !model.hasOnboarded {
                 model.completeOnboarding()
             }
+            model.onboardingWelcome.present()
             gate.complete()
         }
     }
@@ -179,6 +180,7 @@ final class OnboardingFlowModel {
                 async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
                 _ = try await settle
                 try await model.activateDemo(scope)
+                model.onboardingWelcome.present()
                 gate.complete()
             } catch is CancellationError {
                 intro.activity = .browsing

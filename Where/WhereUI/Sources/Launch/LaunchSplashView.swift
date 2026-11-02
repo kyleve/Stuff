@@ -62,6 +62,8 @@ struct LaunchSplashView: View {
         /// that happens to be slow. Nothing to fade in: the wait is expected,
         /// and saying so late would read as something having gone wrong.
         case work(title: String, subtitle: String)
+        /// Successful onboarding, shown while the prepared destination warms behind its cover.
+        case welcome
     }
 
     private let caption: Caption
@@ -86,7 +88,7 @@ struct LaunchSplashView: View {
         switch caption {
             case .slowLaunchReassurance:
                 _showCaption = State(initialValue: previewShowsCaption)
-            case .work:
+            case .work, .welcome:
                 _showCaption = State(initialValue: true)
         }
     }
@@ -95,6 +97,7 @@ struct LaunchSplashView: View {
         switch caption {
             case .slowLaunchReassurance: String(localized: .launchCaptionTitle)
             case let .work(title, _): title
+            case .welcome: String(localized: .onboardingCompletionTitle)
         }
     }
 
@@ -102,6 +105,7 @@ struct LaunchSplashView: View {
         switch caption {
             case .slowLaunchReassurance: String(localized: .launchCaptionSubtitle)
             case let .work(_, subtitle): subtitle
+            case .welcome: String(localized: .onboardingCompletionSubtitle)
         }
     }
 
@@ -151,12 +155,18 @@ struct LaunchSplashView: View {
     /// work being waited on. The radar and pulsing icon already say "working",
     /// so this is just text, pinned light since the backdrop is always dark.
     private var captionView: some View {
-        VStack(spacing: stylesheet.spacing.small) {
-            Text(captionTitle)
-                .font(.headline)
-            Text(captionSubtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        Group {
+            if case .welcome = caption {
+                OnboardingHeader(title: captionTitle, detail: captionSubtitle)
+            } else {
+                VStack(spacing: stylesheet.spacing.small) {
+                    Text(captionTitle)
+                        .font(.headline)
+                    Text(captionSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .foregroundStyle(.primary)
         .multilineTextAlignment(.center)

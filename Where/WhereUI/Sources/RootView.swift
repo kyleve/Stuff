@@ -145,10 +145,23 @@ public struct RootView: View {
         RootStyledContent { stylesheet in
             rootContent(stylesheet: stylesheet)
         }
-        .whereBroadwayRoot(
-            theme: model.theme,
-            regionStyles: model.session?.regionStyles ?? .default,
-        )
+        .whereEnvironment(environment)
+    }
+
+    private var environment: WhereEnvironment {
+        #if DEBUG
+            .app(.init(
+                model: model,
+                updates: updates,
+                developer: .init(
+                    inspector: inspector,
+                    launchController: developerLaunchController,
+                    cardDesigner: cardDesigner,
+                ),
+            ))
+        #else
+            .app(.init(model: model, updates: updates))
+        #endif
     }
 
     private func rootContent(stylesheet: WhereStylesheet) -> some View {
@@ -209,6 +222,11 @@ public struct RootView: View {
             #if DEBUG
             .safeAreaPadding(developerOverlayInsets)
             #endif
+            .modifier(OnboardingWelcomePresentation(
+                model: model.onboardingWelcome,
+                destination: .init(phase: launcher.phase),
+                isPresentationVisible: isLifecyclePresentationVisible,
+            ))
 
             // The floating developer launcher/accordion sits above every launch
             // phase and tab so its tools are reachable from anywhere (even logged
@@ -224,7 +242,6 @@ public struct RootView: View {
         #if DEBUG
         .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
             .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
-            .environment(\.periscopeInspector, inspector)
             .task { configureDeveloperLogging() }
             .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
                 configureDeveloperLogging()
@@ -233,28 +250,7 @@ public struct RootView: View {
             // Seed the app's root logging context so any view that logs freeform via
             // `\.logContext` emits under the "Where" scope rather than a bare root.
             .logContext(WhereLog.root)
-            .environment(model)
-            .environment(updates)
-            // The logged-in session appears once the launch's `start-session`
-            // step builds it. Injected as an optional `Observable`, so the
-            // `TabView`'s `@Environment(WhereSession.self)` views resolve it
-            // (they only render at `.ready`, by which point it's present) and
-            // re-inject when a reset rebuilds it. The DEBUG developer overlay
-            // reads it optionally — it can appear before login.
-            .environment(model.session)
             .environment(\.primaryAppIconName, primaryAppIconName)
-        #if DEBUG
-            .environment(developerLaunchController)
-            .environment(\.cardDesignerModel, cardDesigner)
-            .environment(
-                \.cardDesignerConfiguration,
-                cardDesigner.appliesToApp ? cardDesigner.configuration : nil,
-            )
-        #endif
-            // Which world the app is in, seeded once here so no view has to
-            // ask the model. Reading the model's mode tracks its scope state,
-            // so entering or leaving demo mode re-renders what branches on it.
-            .demoMode(of: model)
             // Settings' "Erase all data & reset" runs the teardown through the
             // `LifecycleProxy` that `LifecycleContainer` publishes into the
             // environment, which wipes data + preferences and re-drives the

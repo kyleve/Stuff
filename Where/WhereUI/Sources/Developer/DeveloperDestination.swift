@@ -9,6 +9,7 @@
     enum DeveloperDestination: Hashable, Identifiable {
         case tool(DeveloperTool)
         case flyover
+        case onboarding
 
         var id: Self {
             self
@@ -18,6 +19,7 @@
             switch self {
                 case let .tool(tool): tool.title
                 case .flyover: String(localized: .developerFlyoverLink)
+                case .onboarding: String(localized: .developerOnboardingTitle)
             }
         }
 
@@ -25,6 +27,7 @@
             switch self {
                 case let .tool(tool): tool.systemSymbol
                 case .flyover: .rectangle3Group
+                case .onboarding: .iphone
             }
         }
 
@@ -37,6 +40,7 @@
                 .tool(.logs),
                 .tool(.openSpans),
                 .flyover,
+                .onboarding,
                 .tool(.regionMap),
                 .tool(.crashTesting),
             ]
