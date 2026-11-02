@@ -5,6 +5,33 @@ It is the design foundation for a new stack based on `main` at `93062f7c`.
 This first slice changes documentation only. History selection and conflict review remain unimplemented.
 This document also owns the implementation plan for the replacement stack.
 
+## Why
+
+The previous authority model gives recording a clear owner and makes the origin of location history explicit.
+That certainty is useful when a user replaces a phone or wants one dedicated recording device.
+However, exclusive ownership makes routine changes between devices require a recording handoff.
+
+The motivating case is everyday use of an iPhone Duo alongside an iPhone Pro Max.
+A future Where Watch app also needs to record outings without either phone.
+The device that accompanies the user can change several times during a day.
+Recording must accommodate that pattern without requiring the user to manage ownership before each outing.
+
+Collecting observations from several devices preserves evidence that later decisions can use.
+Automatic selection, suggested resolutions, and manual choices can filter that evidence into useful history.
+Those decisions can change as more observations arrive or the user corrects an inference.
+An observation that no device recorded is unavailable for any later correction.
+
+Where's coarse regions make this approach practical.
+Phones several kilometers apart within the same region can agree completely about the region history.
+When devices disagree across regions, movement can help identify the device that accompanied the user.
+A moving phone and another repeatedly reporting from home provide a useful automatic-selection case.
+Ambiguous evidence still needs review, and every automatic selection remains reversible.
+
+This approach moves complexity from recording permission and handoffs into evidence assessment and history resolution.
+It does not promise less total implementation work.
+It aligns that work with flexible device use while preserving clear provenance and a coherent account of the user's history.
+The new stack starts from main so each reused component serves this model without carrying unnecessary ownership machinery forward.
+
 ## Product contract
 
 Each device can record with its own local consent.
