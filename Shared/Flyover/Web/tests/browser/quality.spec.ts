@@ -1,18 +1,19 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from '@playwright/test';
 
-test('web chrome passes automated accessibility checks across primary surfaces', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto('./');
-    await expect(page.locator('.screen-card')).toHaveCount(24);
-    for (const surface of ['canvas', 'list', 'inspector', 'details']) {
-        if (surface === 'list') await page.getByRole('button', { name: 'List', exact: true }).click();
-        if (surface === 'inspector') await page.locator('.list-thumbnail').first().click();
+// Each axe scan gets its own test budget; four sequential scans can exceed it on CI WebKit.
+for (const surface of ['canvas', 'list', 'inspector', 'details']) {
+    test(`web chrome passes automated accessibility checks on ${surface}`, async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.goto('./');
+        await expect(page.locator('.screen-card')).toHaveCount(24);
+        if (surface !== 'canvas') await page.getByRole('button', { name: 'List', exact: true }).click();
+        if (surface === 'inspector' || surface === 'details') await page.locator('.list-thumbnail').first().click();
         if (surface === 'details') await page.getByRole('button', { name: 'Capture details', exact: true }).click();
         const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
         expect(result.violations, surface).toEqual([]);
-    }
-});
+    });
+}
 
 test('two-finger input zooms the canvas through the browser touch pipeline', async ({ page, context, browserName }, testInfo) => {
     test.skip(browserName !== 'chromium' || !testInfo.project.name.endsWith('portrait'), 'CDP touch injection uses Chromium portrait');
