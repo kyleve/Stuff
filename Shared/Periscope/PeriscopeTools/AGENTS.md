@@ -14,7 +14,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 
 Follow the repo [`building-ui`](../../../.agents/skills/building-ui/SKILL.md) skill for Broadway token ownership, variants, trait derivation, layout, accessibility, previews, and rendering coverage. This module's sheet is [`PeriscopeStylesheet`](Sources/Styling/PeriscopeStylesheet.swift), read through `@Environment(\.stylesheet)` and defaulted to `PeriscopeStylesheet.default` off the view tree.
 
-- **Seed each public tool view with its own root** through `periscopeBroadwayRoot()`. Then tooling styles correctly with or without a host Broadway root.
+- **Seed each public tool view with its own root** through `periscopeBroadwayRoot(_:)`. Choose an explicit density or inherit the tool presentation with supplied standalone defaults. Drill-ins must not replace inherited density with `.standard`. Guard: `PeriscopeToolPresentationTests`.
 - **Resolve row density** (`comfortable` / `compact`) as a `RowStyle` axis through `stylesheet.row[density]`, riding the `\.logRowDensity` environment value.
 - **The viewer seeds density from a `UserDefaults`-persisted preference** (`Density.load`/`save`, defaulting `compact`).
 - **Keep color decisions in `Palette`, not on `LogLevel` / `SpanExit.Mode`.** `tint(forLevel:)` bands by severity so custom levels inherit a color.

@@ -36,8 +36,7 @@ struct ScopeEventsView: View {
         content
             .navigationTitle(scopePath.isEmpty ? "Scope" : scopePath)
             .navigationBarTitleDisplayMode(.inline)
-            .environment(\.logRowDensity, .load(from: .standard))
-            .periscopeBroadwayRoot()
+            .periscopeBroadwayRoot(.inheritedOrSaved(.standard))
             .task(id: Inputs(store: ObjectIdentifier(store), scope: scopeID)) {
                 if model.store !== store || model.inspectedScopes != [scopeID] {
                     model = LogInspectorModel(

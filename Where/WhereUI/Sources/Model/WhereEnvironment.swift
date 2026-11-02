@@ -84,9 +84,9 @@ private struct WhereEnvironmentModifier: ViewModifier {
                 },
             )
         #endif
-            .whereBroadwayRoot(
+            .whereBroadwayRoot(WherePresentationContext(
                 theme: environment.model.theme,
                 regionStyles: environment.session?.regionStyles ?? .default,
-            )
+            ))
     }
 }

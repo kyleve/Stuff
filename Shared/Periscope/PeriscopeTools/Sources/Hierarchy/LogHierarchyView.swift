@@ -21,7 +21,7 @@ public struct LogHierarchyView: View {
         content
             .navigationTitle("Hierarchy")
             .navigationBarTitleDisplayMode(.inline)
-            .periscopeBroadwayRoot()
+            .periscopeBroadwayRoot(.inheritedOrSaved(.standard))
             .task(id: ObjectIdentifier(store)) {
                 if model.store !== store {
                     model = LogHierarchyModel(store: store)

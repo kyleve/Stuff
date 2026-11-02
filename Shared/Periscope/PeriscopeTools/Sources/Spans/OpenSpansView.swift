@@ -22,7 +22,7 @@ public struct OpenSpansView: View {
         }
         .navigationTitle("Open Spans")
         .navigationBarTitleDisplayMode(.inline)
-        .periscopeBroadwayRoot()
+        .periscopeBroadwayRoot(.inheritedOrSaved(.standard))
     }
 
     @ViewBuilder

@@ -1,5 +1,6 @@
 import RegionKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -170,6 +171,52 @@ extension RegionsSnippetView {
 }
 
 #if DEBUG
+    extension RegionsSnippetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            .cutsheet(
+                name: "Appearances",
+                configurations: .componentLightDark,
+                referenceGroup: .themes,
+            ) {
+                // Native snippet layout is shared across themes; exercise both
+                // default and saved region appearances without duplicate panels.
+                let theme = WhereTheme.standard
+                SnapshotPanel(
+                    id: .init(rawValue: "\(theme.rawValue)-default"),
+                    label: "\(theme.title) · Default",
+                ) {
+                    RegionsSnippetView.today(regions: [.california, .newYork])
+                        .background(.background)
+                        .whereBroadwayRoot(WherePresentationContext(
+                            theme: theme,
+                            regionStyles: .default,
+                        ))
+                }
+                SnapshotPanel(
+                    id: .init(rawValue: "\(theme.rawValue)-custom"),
+                    label: "\(theme.title) · Customized",
+                ) {
+                    RegionsSnippetView.today(regions: [.california, .newYork])
+                        .background(.background)
+                        .whereBroadwayRoot(WherePresentationContext(
+                            theme: theme,
+                            regionStyles: RegionStyleResolver(appearances: [
+                                .california: RegionAppearance(
+                                    color: .pink,
+                                    emoji: "🦋",
+                                    symbolName: .starFill,
+                                ),
+                            ]),
+                        ))
+                }
+            }
+        }
+    }
+
+    #Preview("Region appearances") {
+        RegionsSnippetView.snapshotPreviews
+    }
+
     #Preview("Days in region") {
         DaysInRegionSnippetView(
             snapshot: DaysInRegionSnapshot(region: .california, year: 2026, dayCount: 132),

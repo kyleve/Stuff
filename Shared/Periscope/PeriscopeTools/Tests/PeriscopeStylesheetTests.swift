@@ -168,7 +168,7 @@ struct PeriscopeStylesheetEnvironmentTests {
         let host = UIHostingController(
             rootView: StylesheetProbe(box: box)
                 .bContentSizeCategory(.accessibilityLarge)
-                .periscopeBroadwayRoot(),
+                .periscopeBroadwayRoot(.density(.comfortable)),
         )
         try await showHosted(host) { _ in
             #expect(await waitUntil { box.messageLineLimit == 4 })

@@ -41,6 +41,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.
+  Derive the required `WherePresentationContext` from that resolved context.
+  Include saved region styles for every region snippet, within its measured
+  read. Guard: `IntentServicesTests`.
 - **Every `perform()` wraps its work in `measureIntent(_:)`.** Each
   `WhereIntentsLog.IntentName` carries the budget for its own kind of work.
   Then the span history reads per intent (`perform(days-in-region)`). A slow

@@ -24,8 +24,8 @@ public struct TodayRegionsIntent: AppIntent {
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let context = try await intentServices.currentContext()
         let services = context.services
-        let regions = try await measureIntent(.todayRegions) {
-            try await WhereIntentReader(
+        let snippet = try await measureIntent(.todayRegions) {
+            let regions = try await WhereIntentReader(
                 services: services,
                 todaySnapshot: { [appGroupIdentifier = intentServices.appGroupIdentifier] in
                     do {
@@ -44,12 +44,12 @@ public struct TodayRegionsIntent: AppIntent {
                     }
                 },
             ).todayRegions()
+            return context.regionsSnippet(regions)
         }
-        let ordered = orderedRegions(regions)
         return .result(
-            dialog: IntentDialog("\(IntentStrings.today(regions: ordered))"),
-            view: RegionsSnippetView.today(regions: ordered)
-                .whereBroadwayRoot(theme: context.theme),
+            dialog: IntentDialog("\(IntentStrings.today(regions: snippet.regions))"),
+            view: RegionsSnippetView.today(regions: snippet.regions)
+                .whereBroadwayRoot(snippet.presentation),
         )
     }
 }

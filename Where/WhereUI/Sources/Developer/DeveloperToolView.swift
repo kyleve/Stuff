@@ -68,9 +68,9 @@ import SFSafeSymbols
     }
 
     #Preview("Region map") {
+        let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
         DeveloperToolView(tool: .regionMap)
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+            .whereEnvironment(world.environment(updates: nil, developer: nil))
     }
 
     #Preview("Crash testing") {

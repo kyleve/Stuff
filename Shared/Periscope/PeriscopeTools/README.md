@@ -85,8 +85,11 @@ Session headers also require the identifier grant. Consumer-defined grants remai
 ## Design system
 
 Appearance — row geometry, badge chrome, typography, and the severity / span-exit / inspect color palette — lives in `PeriscopeStylesheet` ([`Sources/Styling/`](Sources/Styling)), a Broadway `BStylesheet`, rather than inline in views.
-Each public tool view seeds `periscopeBroadwayRoot()` and reads tokens via `@Environment(\.stylesheet)`, so the tooling styles correctly with or without a host-app Broadway root.
+Each public tool view seeds `periscopeBroadwayRoot(_:)` and reads tokens via `@Environment(\.stylesheet)`, so the tooling styles correctly with or without a host-app Broadway root.
 Row density (`comfortable` / `compact`) is a stylesheet axis carried on `\.logRowDensity`.
+The root requires a presentation source. The viewer supplies its selected
+density. Drill-ins inherit that presentation and follow its changes. Standalone
+tools load density from their supplied defaults only when no presentation exists.
 
 ## Testing
 

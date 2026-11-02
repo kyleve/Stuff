@@ -163,14 +163,14 @@ extension DataSettingsView: SettingsSection {
                 name: "Default",
                 configurations: .fullContentScreenRepresentative,
             ) {
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
                 NavigationStack {
                     DataSettingsView(
-                        report: PreviewSupport.loadedYearReportModel(),
-                        backup: PreviewSupport.backupModel(),
+                        report: world.report,
+                        backup: world.backup,
                     )
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
                 }
+                .whereEnvironment(world.environment(updates: nil, developer: nil))
             }
         }
     }

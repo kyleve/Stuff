@@ -75,7 +75,7 @@ struct WhereIntentReaderTests {
                 totals: [:],
             )
         }
-        #expect(try await reader.todayRegions() == [.canada])
+        #expect(try await reader.todayRegions().regions == [.canada])
     }
 
     @Test func todayRegionsFallsBackToTheStoreWithoutASnapshot() async throws {
@@ -83,10 +83,16 @@ struct WhereIntentReaderTests {
         let services = IntentTestSupport.services(store: store)
         let today = IntentTestSupport.iso("2026-06-15T12:00:00-07:00")
         try await services.journal.addManualDay(date: today, regions: [.california], audit: nil)
+        let appearance = RegionAppearance(color: .pink, emoji: "🦋", symbolName: .starFill)
+        try await services.setPrimaryRegions([
+            .init(region: .california, appearance: appearance, order: 0),
+        ])
 
         var reader = reader(services, now: { today })
         reader.todaySnapshot = { nil }
-        #expect(try await reader.todayRegions() == [.california])
+        let answer = try await reader.todayRegions()
+        #expect(answer.regions == [.california])
+        #expect(answer.appearances[.california] == appearance)
     }
 
     @Test func todayRegionsIgnoresAStaleSnapshotFromAnotherDay() async throws {
@@ -106,6 +112,6 @@ struct WhereIntentReaderTests {
                 totals: [:],
             )
         }
-        #expect(try await reader.todayRegions() == [.newYork])
+        #expect(try await reader.todayRegions().regions == [.newYork])
     }
 }

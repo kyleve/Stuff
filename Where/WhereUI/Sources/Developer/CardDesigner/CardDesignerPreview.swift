@@ -31,8 +31,7 @@ import BroadwayUI
                 .buttonStyle(cardStyle.buttonStyle(tint: previewStyle.tint))
             }
             .environment(\.cardDesignerConfiguration, configuration)
-            .environment(\.colorScheme, colorScheme)
-            .bMode(.init(colorScheme))
+            .bColorScheme(colorScheme)
         }
 
         private var cardStyle: WhereStylesheet.CardStyle {

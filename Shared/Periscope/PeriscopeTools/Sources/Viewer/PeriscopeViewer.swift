@@ -83,11 +83,10 @@ public struct PeriscopeViewer: View {
             .alert("Export Failed", isPresented: $exportFailed) {
                 Button("OK", role: .cancel) {}
             }
-            .environment(\.logRowDensity, density)
             .onChange(of: density) { _, newValue in
                 newValue.save(to: defaults)
             }
-            .periscopeBroadwayRoot()
+            .periscopeBroadwayRoot(.density(density))
             // Keyed on the store's identity: swapping stores in place cancels
             // the old model's live stream and rebinds a fresh model —
             // `State(initialValue:)` alone would keep serving the first store

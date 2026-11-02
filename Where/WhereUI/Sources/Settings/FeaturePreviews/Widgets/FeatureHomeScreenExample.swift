@@ -28,13 +28,7 @@ struct FeatureHomeScreenExample: View {
             }
             .aspectRatio(2, contentMode: .fit)
         }
-        .dynamicTypeSize(...style.widgets.device.dynamicTypeLimit)
-        .bTraitOverrides { traits, overrides in
-            overrides.contentSizeCategory = min(
-                traits.contentSizeCategory,
-                .init(style.widgets.device.dynamicTypeLimit),
-            )
-        }
+        .bDynamicTypeSize(upTo: style.widgets.device.dynamicTypeLimit)
         .containerRelativeFrame(.horizontal) { length, _ in
             style.widgets.contentWidth(in: length)
         }

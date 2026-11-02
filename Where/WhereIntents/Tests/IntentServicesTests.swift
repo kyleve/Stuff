@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @_spi(Testing) import WhereCore
 @testable import WhereIntents
+import WhereUI
 
 /// The intent layer's services handoff: `current()` returns the installed
 /// stack, parks until one is installed (never self-assembling a store — the
@@ -92,5 +93,79 @@ struct IntentServicesTests {
         let context = try await handoff.currentContext()
         #expect(context.services.journal === stack.journal)
         #expect(context.theme == .alternate)
+    }
+
+    @Test func regionSnippetsResolveSavedAppearancesFromTheirHandedOffWorld() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let first = try makeStack()
+        try await first.setPrimaryRegions([
+            .init(
+                region: .california,
+                appearance: RegionAppearance(color: .pink, emoji: "🦋", symbolName: .starFill),
+                order: 0,
+            ),
+        ])
+        await handoff.install(first, theme: .alternate)
+        let firstContext = try await handoff.currentContext()
+
+        let second = try makeStack()
+        try await second.setPrimaryRegions([
+            .init(
+                region: .california,
+                appearance: RegionAppearance(color: .teal, emoji: "🌊", symbolName: .waterWaves),
+                order: 0,
+            ),
+        ])
+        await handoff.install(second, theme: .standard)
+
+        // The resolved context keeps its own theme and services across a new installation.
+        let firstSnippet = try await firstContext.regionsSnippet(regions: [.california, .newYork])
+        #expect(firstSnippet.regions == [.california, .newYork])
+        #expect(firstSnippet.presentation.theme == .alternate)
+        #expect(firstSnippet.presentation.regionStyles.style(for: .california).emoji == "🦋")
+
+        let secondSnippet = try await handoff.currentContext()
+            .regionsSnippet(regions: [.california])
+        #expect(secondSnippet.presentation.theme == .standard)
+        #expect(secondSnippet.presentation.regionStyles.style(for: .california).emoji == "🌊")
+    }
+
+    @Test(arguments: [false, true])
+    func todayPresentationUsesCachedAppearancesWithoutAnotherAsyncRead(
+        hasRegions: Bool,
+    ) async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let services = try makeStack()
+        try await services.setPrimaryRegions([
+            .init(
+                region: .california,
+                appearance: RegionAppearance(color: .teal, emoji: "🌊", symbolName: .waterWaves),
+                order: 0,
+            ),
+        ])
+        await handoff.install(services, theme: .alternate)
+        let context = try await handoff.currentContext()
+        let today = IntentTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let snapshot = WidgetSnapshot(
+            day: today,
+            year: 2026,
+            dayRegions: hasRegions ? [.california] : [],
+            totals: [:],
+            appearances: [
+                .california: RegionAppearance(color: .pink, emoji: "🦋", symbolName: .starFill),
+            ],
+        )
+        var reader = WhereIntentReader(
+            services: context.services,
+            calendar: IntentTestSupport.calendar(),
+            now: { today },
+        )
+        reader.todaySnapshot = { snapshot }
+        let answer = try await reader.todayRegions()
+        // A synchronous conversion cannot introduce a second async store dependency.
+        let snippet = context.regionsSnippet(answer)
+        #expect(Set(snippet.regions) == snapshot.dayRegions)
+        #expect(snippet.presentation.theme == .alternate)
+        #expect(snippet.presentation.regionStyles.style(for: .california).emoji == "🦋")
     }
 }

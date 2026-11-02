@@ -207,8 +207,7 @@ struct AppIconView: View {
             )
             .ignoresSafeArea(edges: .bottom)
         }
-        .environment(\.colorScheme, previewMode)
-        .bMode(.init(previewMode))
+        .bColorScheme(previewMode)
         .offset(y: max(dragOffset, 0))
         .gesture(dragToDismiss)
     }

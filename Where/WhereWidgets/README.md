@@ -37,6 +37,10 @@ after the next local midnight so the timeline `date` stays current even if the
 app never wakes. Missing or unknown presentation values resolve to Standard.
 Appearance changes publish only that small value before reloading timelines.
 
+Each widget constructs a required `WherePresentationContext` from the entry's
+theme and snapshot appearances. WhereUI's `whereBroadwayRoot(_:)` applies both
+values together without an app model or session.
+
 ## Localization
 
 - **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s `Localizable.xcstrings` (shared views and `WhereFormat`).

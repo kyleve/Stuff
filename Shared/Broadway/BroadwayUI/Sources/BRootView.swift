@@ -75,8 +75,8 @@ enum BRootContext {
         // `mode` is seeded from the root's `@Environment(\.colorScheme)`. A
         // descendant that forces a different scheme with
         // `.environment(\.colorScheme, …)` does NOT re-seed this context, so its
-        // `mode` would diverge from what that subtree renders — use `.bMode(_:)`
-        // there instead when a token needs to follow a scoped scheme override.
+        // `mode` would diverge from what that subtree renders — use
+        // `.bColorScheme(_:)` there to keep both systems aligned.
         traits.mode = BMode(colorScheme)
         traits.contentSizeCategory = BContentSizeCategory(dynamicTypeSize)
         traits.accessibility = accessibility

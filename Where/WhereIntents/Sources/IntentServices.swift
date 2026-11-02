@@ -1,5 +1,7 @@
 import PeriscopeCore
+import RegionKit
 import WhereCore
+import WhereUI
 
 /// The handoff of the intent layer's `WhereServices`.
 ///
@@ -32,6 +34,37 @@ public actor IntentServices {
     struct Context {
         let services: WhereServices
         let theme: WhereTheme
+
+        /// Region identities and appearance read from this same handed-off world.
+        struct RegionsSnippet {
+            let regions: [Region]
+            let presentation: WherePresentationContext
+        }
+
+        func presentation() async throws -> WherePresentationContext {
+            try await WherePresentationContext(
+                theme: theme,
+                regionStyles: RegionStyleResolver(primaryRegions: services.primaryRegions()),
+            )
+        }
+
+        func regionsSnippet(regions: Set<Region>) async throws -> RegionsSnippet {
+            try await RegionsSnippet(
+                regions: orderedRegions(regions),
+                presentation: presentation(),
+            )
+        }
+
+        /// Cache-backed Today answers keep their appearances without another store read.
+        func regionsSnippet(_ today: WhereIntentReader.TodayRegions) -> RegionsSnippet {
+            RegionsSnippet(
+                regions: orderedRegions(today.regions),
+                presentation: WherePresentationContext(
+                    theme: theme,
+                    regionStyles: RegionStyleResolver(appearances: today.appearances),
+                ),
+            )
+        }
     }
 
     private var installed: Context?

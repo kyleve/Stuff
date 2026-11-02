@@ -11,7 +11,7 @@ import SwiftUI
 /// tokens are fixed; a slice derives from the ``BContext`` traits handed to
 /// `init(context:)` (roomier rows at accessibility Dynamic Type sizes). Views
 /// read the active tokens from the environment via `@Environment(\.stylesheet)`
-/// (seeded by ``SwiftUI/View/periscopeBroadwayRoot()`` on each public tool
+/// (seeded by ``SwiftUI/View/periscopeBroadwayRoot(_:)`` on each public tool
 /// view); code off the `View` tree (tests) uses ``default``.
 struct PeriscopeStylesheet: BStylesheet {
     var spacing = Spacing()
@@ -228,7 +228,7 @@ extension PeriscopeStylesheet {
 // MARK: - Themes
 
 /// PeriscopeTools' Broadway themes, seeded at each tool root by
-/// ``SwiftUI/View/periscopeBroadwayRoot()``. Empty for now — the sheet derives
+/// ``SwiftUI/View/periscopeBroadwayRoot(_:)``. Empty for now — the sheet derives
 /// from traits, not themes — and the seam a future palette theme would use.
 enum PeriscopeThemes {
     static var current: BThemes {
@@ -236,27 +236,11 @@ enum PeriscopeThemes {
     }
 }
 
-// MARK: - Root
-
-extension View {
-    /// Seeds PeriscopeTools' Broadway context — live system traits plus
-    /// ``PeriscopeThemes`` — so descendants resolve `@Environment(\.stylesheet)`
-    /// against real traits rather than ``PeriscopeStylesheet/default``.
-    ///
-    /// Applied on each public tool view (the viewer, tracer, inspector sheet,
-    /// open-spans view) so the tooling styles correctly whether or not the host
-    /// app has its own Broadway root; nesting under an app root simply re-seeds
-    /// from the same system traits.
-    func periscopeBroadwayRoot() -> some View {
-        broadwayRoot(themes: PeriscopeThemes.current)
-    }
-}
-
 // MARK: - Environment
 
 extension EnvironmentValues {
     /// The active PeriscopeTools tokens, resolved from the Broadway `BContext`
-    /// seeded by ``SwiftUI/View/periscopeBroadwayRoot()``. With no root present
+    /// seeded by ``SwiftUI/View/periscopeBroadwayRoot(_:)``. With no root present
     /// (e.g. an inspect badge on a host view, isolated previews) resolution
     /// falls back to ``PeriscopeStylesheet/default``. A resolution failure is a
     /// programmer error (the initializer never throws), so it traps in debug and
@@ -264,9 +248,4 @@ extension EnvironmentValues {
     var stylesheet: PeriscopeStylesheet {
         bContext.stylesheet(PeriscopeStylesheet.self, fallback: .default)
     }
-
-    /// The row density for the event list, read by ``LogEventRow`` to pick a
-    /// ``PeriscopeStylesheet/RowStyle``. Seeded by the viewer from a persisted
-    /// preference; defaults to comfortable everywhere else.
-    @Entry var logRowDensity: PeriscopeStylesheet.Density = .comfortable
 }

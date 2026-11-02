@@ -17,6 +17,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Guard: `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the copies split.** Mechanism: PR #145.
 - **Re-export `SnapshotKit` and `SnapshotTesting`** so consumers need one import.
 - Read case subjects through SnapshotKit's `Capture` SPI. Dispatch exhaustively by case, never by panel-array emptiness.
+- Apply native SwiftUI traits through SnapshotKit's `snapshotSwiftUITraits(_:)` Capture SPI. Keep capture-only UIKit overrides, frame setup, and disabled-animation transactions in `makeHostingController`. Guard: `SnapshotHostingControllerTests`.
 - **Declare the library target in [`Package.swift`](../../Package.swift).**
 
 ## Invariants an agent can't re-derive

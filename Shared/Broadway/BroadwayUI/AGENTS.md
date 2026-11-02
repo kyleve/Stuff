@@ -17,6 +17,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 - **Read it synchronously.** Do not round-trip through `UITraitCollection`. Do not accept first-frame lag.
 - **Mirror the value into the UIKit trait system** so nested UIKit views receive it.
 - **If none is set, fall back to the UIKit trait-bridged value.** Then a `BRootViewController`-set context still reaches SwiftUI.
+- **Use `bColorScheme(_:)` and `bDynamicTypeSize(_:)` / `bDynamicTypeSize(upTo:)` for paired native and Broadway overrides.** Mirror the effective native Dynamic Type value after SwiftUI applies inherited limits. Keep `bMode(_:)` and `bContentSizeCategory(_:)` for deliberate Broadway-only overrides. Guard: `BTraitOverridesSwiftUITests`.
 
 ## Testing
 

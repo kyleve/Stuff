@@ -37,8 +37,7 @@ struct PrivacyPassportCardSurface<Content: View>: View {
             }
         }
         .tint(reflection.accent)
-        .environment(\.colorScheme, .dark)
-        .bMode(.dark)
+        .bColorScheme(.dark)
         .contentShape(shape)
     }
 
