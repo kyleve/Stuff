@@ -14,6 +14,10 @@ extension reads published App Group snapshots without opening the store. For
 the domain/presentation layering and the rules this module enforces, see the
 feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
+The [multi-device recording design](../MULTI_DEVICE_RECORDING.md) defines the proposed
+history-selection model. Its first stack slice changes documentation only.
+That document also contains the implementation plan.
+
 ## What you get
 
 `WhereServices` is a small struct of focused collaborators — add behavior to the

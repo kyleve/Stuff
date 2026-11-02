@@ -13,6 +13,10 @@ feature [`Where/AGENTS.md`](../AGENTS.md#layering). Read that and the root
 [`AGENTS.md`](../../AGENTS.md) first. This file adds only the module's
 internal shape.
 
+For multi-device history work, read [the design contract](../MULTI_DEVICE_RECORDING.md).
+It distinguishes proposed behavior from the current implementation.
+That document also owns the implementation plan.
+
 ## Scope & dependencies
 
 - Dependencies live in the root [`Package.swift`](../../Package.swift). It
