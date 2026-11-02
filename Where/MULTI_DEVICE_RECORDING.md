@@ -320,6 +320,46 @@ A sync-completion event alone cannot provide that guarantee.
 
 These scenarios define acceptance criteria. They are not claims of current test coverage.
 
+## Formal verification
+
+Protocol activation requires PlusCal specifications checked with TLC.
+The models follow the existing [specification workflow](Specifications/README.md) and live under `Where/Specifications/`.
+They check narrow properties within explicit bounds and assumptions.
+They do not establish an unbounded mathematical proof or prove that the Swift implementation matches the model.
+This design slice adds the requirements only. It contains no new models or model-checking results.
+
+| Model family | Required properties | Owning implementation slices |
+| --- | --- | --- |
+| Decision merging | Replicas with the same complete decision set and protocol version converge regardless of delivery order or duplicates. Incompatible concurrent choices survive until explicitly resolved. Missing revisions never count as observed. Recovery never assigns an existing operation identity to a new operation. Replacements affect only their specified periods. | 1 establishes the model. 4 refines it against durable decisions and counter recovery. |
+| History selection | Equal evidence, decisions, policy versions, and query context produce equal history. Late uploads respect explicit choices and historical ignore intervals. Resume, expiry, and undo have distinct effects. Selection preserves raw observations and never fills an explicitly selected device's gaps from another device. | 4 models ignore intervals. 5 completes the model against shared history selection. |
+| Compatibility and scope retirement | The required version never decreases. Stale verification cannot restore revoked access. Suspended work cannot commit through a revoked permit. Recovery uses a new scope and permit. Offline behavior follows the selected activation policy. | 3 defines and checks the compatibility protocol. |
+
+Each family uses small models with explicit atomicity, delivery, persistence, and failure assumptions.
+The model separates receipt of a decision from knowledge of its dependencies.
+Liveness properties state their fairness assumptions separately from safety properties.
+No model assumes that every offline device receives a change before it performs another action.
+
+Each model requires:
+
+- Passing configurations that exhaust the stated finite bounds.
+- Deliberately broken variants that fail the expected named invariant or temporal property.
+- Reachability controls that establish coverage of the critical race or delivery order.
+- A README that records bounds, assumptions, exclusions, and correspondence with the implementation and its regression tests.
+- Swift regression tests for important counterexamples and the implementation boundaries that the model abstracts.
+
+The owning PR runs the relevant concerns through `./tla-check` and records the checked revision and results.
+Before activation, the source correspondence must match the implementation, including suspension points and commit boundaries.
+A relevant implementation or protocol change requires another correspondence review and model-checking run.
+
+The existing [remote-device removal model](Specifications/RemoteDeviceRemoval/README.md) supplies useful patterns for reordered delivery, cutoffs, and source correspondence.
+The previous stack's `CompatibilityVerification` and `CompatibilityWrites` models provide candidates for selective reuse.
+Adaptation must remove recording-owner dependencies and reflect the new offline policy.
+Their previous results do not validate the replacement protocol.
+
+The models use representative evidence and time values.
+GPS quality, movement thresholds, calendar arithmetic, and actual device transfer still require scenario, property, and physical-device tests.
+Model checking cannot establish which phone actually accompanied the user.
+
 ## What main already provides
 
 The new stack starts from the existing implementation.
@@ -371,6 +411,7 @@ Model regular homes and temporary bases as optional evidence with historical val
 Use the required scenarios as executable fixtures.
 Preserve same-region agreement and separate device trajectories.
 Define causal replacement, concurrent overlap, reversal, and agreement without production writes.
+Add the initial decision-merging specification and its TLC control cases.
 Exercise reordered, duplicated, and incomplete inputs. This slice does not change production filtering.
 
 ### 2. Device identity and setup
@@ -387,12 +428,15 @@ Selectively reuse compatibility guards, scope retirement, and stale-output withd
 Remove ownership dependencies from these components.
 Implement the monotonic data-semantics requirement, recent-contributor eligibility, and explicit upgrade action.
 Define the offline policy and activation protocol before incompatible data writes.
+Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
 Cover stale responses, old backups, failed verification, and foreground and background consumers.
 
 ### 4. Durable choices, device controls, and places
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Implement causal context, durable reversal, and concurrent-choice behavior.
+Refine the decision-merging model against persistence, dependency delivery, and counter recovery.
+Add history-selection model cases for ignore intervals, resume, expiry, and undo.
 Define precedence with per-sample corrections, manual overlays, and device removals.
 Cover expiry, time-zone changes, late imports, partial delivery, counter recovery, and both backup import strategies.
 Preserve observation provenance and the local identity across account data operations.
@@ -404,6 +448,7 @@ Apply selection before region aggregation and preserve device boundaries through
 Cover reports, issue scans, widgets, reminders, exports, and relevant App Intents.
 Exercise local writes, delayed sync, user overrides, reset, and device removal.
 Preserve raw review, lossless backups, and manual assertions.
+Complete the history-selection model and add Swift regressions for its important counterexamples.
 Define unresolved-conflict presentation before changing totals.
 
 ### 6. Review experience, reminders, and activation
@@ -413,6 +458,7 @@ Support exclusive period choices, whole-day convenience, return to automatic, an
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Keep remaining work accessible through the issues bar button.
 Use representative phone journeys and concurrent-edit scenarios in previews, snapshots, and interaction tests.
+Require passing TLC cases and reviewed source correspondence before activation, as specified under [Formal verification](#formal-verification).
 Activate selection after compatibility, durable decisions, shared consumers, and review surfaces satisfy the acceptance criteria.
 
 ## Open implementation decisions
