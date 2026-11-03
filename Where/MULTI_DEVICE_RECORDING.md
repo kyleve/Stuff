@@ -181,7 +181,7 @@ For example, a phone left in New York cannot add New York to a California trip m
 
 Explicit period choices remain in force as other devices upload observations.
 Ignored intervals also apply by observation time, including after expiry.
-Automatic periods use the combined available evidence and the same selection policy regardless of upload order.
+For a given full policy version, automatic periods use the combined available evidence regardless of upload order.
 
 Good late evidence can fill missing periods or automatically correct earlier automatic history when the evidence is strong.
 The resulting explanation remains inspectable.
@@ -197,7 +197,9 @@ Automatic selection does not erase observations or rewrite their device identity
 Existing explicit removal, reset, and deletion operations retain their separate contracts.
 
 Automatic decisions are derived results.
-Their evidence and policy version explain the result and permit reassessment after late sync or a policy change.
+Their evidence and full policy version explain the result and permit reassessment after late sync or a policy change.
+Derived results and caches carry that full version.
+A policy update invalidates affected cached results and reassesses automatic history without rewriting raw observations or durable user choices.
 User choices are durable decisions with explicit period boundaries.
 They take precedence over automatic selection and remain reversible.
 
@@ -207,7 +209,10 @@ It composes with existing per-sample region corrections.
 Legacy samples without a device identity remain available without an invented identity.
 
 Every consumer uses the same effective history contract.
-Reports, widgets, reminders, issue scans, exports, and relevant App Intents agree after local writes, remote imports, and user choices.
+Reports, widgets, reminders, issue scans, exports, and relevant App Intents use the same policy version on a device.
+They agree for identical evidence, decisions, and query context after local writes, remote imports, user choices, and policy updates.
+Different compatible policy versions can produce different automatic history, totals, and issues across devices.
+They preserve the same shared meaning of durable user choices and controls.
 Raw track review and lossless backups remain available separately.
 Flight and movement inference preserve device boundaries.
 An unresolved region conflict remains visible to consumers instead of silently becoming a confident combined history.
@@ -243,16 +248,36 @@ Counter allocation, persistence, and recovery must prevent reuse after crashes, 
 Dates remain useful for display and diagnosis. Wall-clock ordering does not decide between incompatible concurrent user choices.
 
 Raw observations merge by stable identity and retain provenance.
-Automatic selection recomputes from the available evidence and policy version instead of accepting a remotely chosen derived winner.
-Merge behavior must converge after all relevant records arrive, regardless of duplicates or delivery order.
+Automatic selection recomputes from the available evidence and full policy version instead of accepting a remotely chosen derived winner.
+Shared observations and decisions converge across compatible clients after all relevant records arrive, regardless of duplicates or delivery order.
+Equal automatic history additionally requires identical full policy versions and query context.
 Sync status reports observable facts, such as the last successful operation and known pending changes.
 It never promises that every device is fully current.
 
 ## Compatibility
 
-The account carries a monotonic minimum data-semantics version, separate from the app version.
-It covers incompatible interpretation of stored data as well as structural changes.
-An older client cannot ignore source choices and continue to publish different history.
+Data-semantics versions use `major.minor.patch`, separate from the app version.
+The full data-semantics version also identifies the resolver policy.
+The account carries a monotonic required major version for the shared data and decision contract.
+The gate blocks clients that cannot honor that contract.
+Minor and patch differences alone never trigger the incompatible-data gate.
+
+| Component | Meaning | Compatibility effect |
+| --- | --- | --- |
+| Major | Incompatible stored-data structures or interpretation of shared decisions. | Activation advances the required major and gates clients that cannot honor it. |
+| Minor | Compatible improvements, including new automatic-selection heuristics. | Clients remain compatible. Automatic results can differ. |
+| Patch | Bug fixes within the existing shared contract. | Clients remain compatible. Automatic results can differ. |
+
+Within a major version, clients preserve the shared meaning of observations, explicit source choices, ignore intervals, and causal decisions.
+A new control that older clients cannot honor requires a major change.
+An older client cannot ignore a saved choice because it lacks that feature.
+
+Each build uses its current resolver. It does not retain every earlier algorithm implementation.
+The account does not pin an active minor or patch version.
+Compatible versions can produce different automatic history, totals, and issues, even from identical inputs.
+Those differences can persist while devices run different policy versions.
+Exact history equality requires identical evidence, decisions, full policy versions, and query context.
+Regression scenarios preserve established automatic behavior where practical and check the shared decision contract across supported versions.
 
 The incompatible-data state uses direct copy:
 
@@ -263,10 +288,11 @@ The incompatible-data state uses direct copy:
 A failed compatibility check has a separate retry state. A network error does not claim that the app needs an update.
 The gate covers foreground access, background work, relevant App Intents, and published widget output.
 It prevents incompatible writes and withdraws misleading output from retired scopes.
-An old backup, stale response, or older client cannot lower the required version.
+An old backup, stale response, or older client cannot lower the required major version.
 
-The required version advances when incompatible behavior activates. A routine app update alone does not advance it.
-Automatic upgrade eligibility requires a meaningful contribution to effective history within the preceding **15 days**.
+The required major advances when incompatible behavior activates. A routine app update alone does not advance it.
+Minor and patch updates do not require shared-data upgrade eligibility or the explicit upgrade action.
+Automatic major-upgrade eligibility requires a meaningful contribution to effective history within the preceding **15 days**.
 Explicit source selection for a period within that window also qualifies the device.
 The window uses the observation or selected period dates, not the upload date or the time of the selection action.
 
@@ -275,18 +301,18 @@ Redundant observations that never contributed useful history do not qualify an i
 Useful stationary observations do qualify. Movement is not required.
 Old observations uploaded today do not make their device a recent contributor.
 
-Any capable device can offer an explicit **Upgrade shared data** action.
-The explanation states that older apps will need an update.
+Any capable device can offer an explicit **Upgrade shared data** action to advance the required major.
+The explanation states that apps which cannot honor the new major will need an update.
 This action supports replacement phones, long absences, and incomplete recent history without a 15-day waiting period.
-An ineligible device continues with the current format when it supports that format.
-A new empty account initializes with the current supported version.
+An ineligible device continues with the current required major when it supports that contract.
+A new empty account initializes with the current supported major version.
 
-The recent-contributor rule prevents incidental automatic upgrades from unused devices.
-A legitimate upgrade can still require updates on other active devices because the compatibility boundary applies to the account.
+The recent-contributor rule prevents incidental automatic major upgrades from unused devices.
+A legitimate major upgrade can still require updates on other active devices because the compatibility boundary applies to the account.
 No device needs exclusive recording ownership to perform an upgrade.
 
 Compatibility requires a separate offline policy before incompatible behavior activates.
-Causal metadata cannot notify an offline older app about an upgrade on another device.
+Causal metadata cannot notify an offline older app about a major upgrade on another device.
 The implementation must define offline capture, reads, writes, verification expiry, and the synchronization point for activation.
 The rollout must establish compatibility-aware clients before activating data that older clients cannot safely interpret.
 A sync-completion event alone cannot provide that guarantee.
@@ -312,9 +338,13 @@ A sync-completion event alone cannot provide that guarantee.
 | The user selects a new home or a different hotel | Apply the place to its validity period without silently rewriting earlier context. |
 | The user exits the notification flow after resolving one issue | Retain the saved choice and expose the remaining issues through the bar button. |
 | Another device resolves an issue before the notification opens | Refresh the queue and omit that issue. |
-| An idle updated device only produces unused pings | Do not automatically upgrade shared data from that activity. |
-| A stationary device contributes useful recent history | Permit it to qualify for automatic upgrade without movement. |
-| A replacement phone has no recent contribution | Offer an explicit shared-data upgrade and retain its new recording identity. |
+| An idle updated device only produces unused pings | Do not automatically advance the required major from that activity. |
+| A stationary device contributes useful recent history | Permit it to qualify for an automatic major upgrade without movement. |
+| A replacement phone has no recent contribution | Offer an explicit shared-data major upgrade and retain its new recording identity. |
+| Compatible minor or patch versions assess identical inputs | Permit different automatic history, totals, and issues. Preserve the shared decision contract without a compatibility gate. |
+| Identical full policy versions assess identical evidence, decisions, and query context | Produce identical history regardless of input or sync order. |
+| A device installs a compatible policy update | Invalidate affected cached results and reassess automatic history. Preserve raw observations and user choices without a shared-data upgrade. |
+| A new control has a meaning that older clients cannot honor | Require a major upgrade before activation and gate clients that cannot honor the new contract. |
 | Two offline devices choose different sources for the same period | Preserve both decisions and request review of the overlap. |
 | A decision arrives before one of its predecessors | Preserve incomplete knowledge instead of claiming a complete revision prefix. |
 
@@ -330,9 +360,9 @@ This design slice adds the requirements only. It contains no new models or model
 
 | Model family | Required properties | Owning implementation slices |
 | --- | --- | --- |
-| Decision merging | Replicas with the same complete decision set and protocol version converge regardless of delivery order or duplicates. Incompatible concurrent choices survive until explicitly resolved. Missing revisions never count as observed. Recovery never assigns an existing operation identity to a new operation. Replacements affect only their specified periods. | 1 establishes the model. 4 refines it against durable decisions and counter recovery. |
-| History selection | Equal evidence, decisions, policy versions, and query context produce equal history. Late uploads respect explicit choices and historical ignore intervals. Resume, expiry, and undo have distinct effects. Selection preserves raw observations and never fills an explicitly selected device's gaps from another device. | 4 models ignore intervals. 5 completes the model against shared history selection. |
-| Compatibility and scope retirement | The required version never decreases. Stale verification cannot restore revoked access. Suspended work cannot commit through a revoked permit. Recovery uses a new scope and permit. Offline behavior follows the selected activation policy. | 3 defines and checks the compatibility protocol. |
+| Decision merging | Replicas with the same complete decision set and major contract converge regardless of delivery order, duplicates, or compatible minor and patch differences. Incompatible concurrent choices survive until explicitly resolved. Missing revisions never count as observed. Recovery never assigns an existing operation identity to a new operation. Replacements affect only their specified periods. | 1 establishes the model. 4 refines it against durable decisions and counter recovery. |
+| History selection | Equal evidence, decisions, full policy versions, and query context produce equal history. Compatible policies can differ in automatic results while preserving shared decision semantics. Late uploads respect explicit choices and historical ignore intervals. Resume, expiry, and undo have distinct effects. Selection preserves raw observations and never fills an explicitly selected device's gaps from another device. | 4 models ignore intervals. 5 completes the model against shared history selection. |
+| Compatibility and scope retirement | The required major never decreases. Minor and patch differences alone never revoke access. Stale verification cannot restore revoked access. Suspended work cannot commit through a revoked permit. Recovery uses a new scope and permit. Offline behavior follows the selected activation policy. | 3 defines and checks the compatibility protocol. |
 
 Each family uses small models with explicit atomicity, delivery, persistence, and failure assumptions.
 The model separates receipt of a decision from knowledge of its dependencies.
@@ -411,6 +441,7 @@ Model regular homes and temporary bases as optional evidence with historical val
 Use the required scenarios as executable fixtures.
 Preserve same-region agreement and separate device trajectories.
 Define causal replacement, concurrent overlap, reversal, and agreement without production writes.
+Give the resolver a full policy version and fixtures for deterministic results from identical inputs.
 Add the initial decision-merging specification and its TLC control cases.
 Exercise reordered, duplicated, and incomplete inputs. This slice does not change production filtering.
 
@@ -426,7 +457,9 @@ Validate restore and transfer on physical devices before activation.
 
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.
-Implement the monotonic data-semantics requirement, recent-contributor eligibility, and explicit upgrade action.
+Implement `major.minor.patch` semantics and the monotonic required major.
+Apply recent-contributor eligibility and the explicit upgrade action to major upgrades only.
+Keep compatible minor and patch differences outside the incompatible-data gate.
 Define the offline policy and activation protocol before incompatible data writes.
 Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
 Cover stale responses, old backups, failed verification, and foreground and background consumers.
@@ -435,6 +468,7 @@ Cover stale responses, old backups, failed verification, and foreground and back
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Implement causal context, durable reversal, and concurrent-choice behavior.
+Add compatibility fixtures for shared decision interpretation across supported minor and patch versions.
 Refine the decision-merging model against persistence, dependency delivery, and counter recovery.
 Add history-selection model cases for ignore intervals, resume, expiry, and undo.
 Define precedence with per-sample corrections, manual overlays, and device removals.
@@ -446,6 +480,9 @@ Preserve observation provenance and the local identity across account data opera
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.
 Apply selection before region aggregation and preserve device boundaries through movement and flight inference.
 Cover reports, issue scans, widgets, reminders, exports, and relevant App Intents.
+Carry the full policy version through derived results and caches.
+Invalidate affected caches and reassess automatic history after policy updates.
+Exercise compatible policy differences while preserving raw observations and the shared meaning of user choices.
 Exercise local writes, delayed sync, user overrides, reset, and device removal.
 Preserve raw review, lossless backups, and manual assertions.
 Complete the history-selection model and add Swift regressions for its important counterexamples.
@@ -475,7 +512,7 @@ The following details require explicit decisions in the relevant slices:
 - Offline compatibility policy, activation synchronization, and the required rollout sequence.
 
 Thresholds require named units and scenario tests before they affect history.
-The automatic policy produces the same result for the same evidence and policy version, regardless of input or sync order.
+The automatic policy produces the same result for identical evidence, decisions, full policy versions, and query context, regardless of input or sync order.
 The first executable slice establishes that policy without changing capture or report behavior.
 Activation follows durable choices, consistent consumer integration, compatibility protection, and a usable review path.
 
@@ -483,44 +520,21 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the review of `2658e4d4`.
 The proposals in this section are not agreed decisions.
-Discussion proceeds through R1–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
+Discussion proceeds through R2–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
 
-### R1. P1 — Define compatibility across automatic-selection policy versions
-
-Two app builds can understand the same stored format but use different resolver policies and derive different history from identical inputs.
-Recording a policy version explains this difference without preventing it.
-The plan needs a rule for compatible policy differences and changes that require the compatibility gate.
-
-The initial proposal selects one account-wide policy through the shared data-semantics version.
-This requires newer clients to retain earlier algorithms for as long as accounts use them.
-Retaining those implementations indefinitely is not a practical guarantee.
-
-The alternative under discussion uses `major.minor.patch` data-semantics versions and gates access only on an unsupported required major:
-
-- Major: incompatible stored-data or saved-decision semantics that older clients cannot honor.
-- Minor: compatible improvements to automatic selection, including new heuristics.
-- Patch: bug fixes within the existing shared contract.
-
-Under this alternative, each build uses its current resolver without retaining every earlier implementation.
-Same-major clients preserve the shared meaning of raw observations, explicit choices, ignore intervals, and causal decisions.
-New controls that older clients cannot honor require a major change.
-Compatible resolver versions can produce different automatic history, totals, and issues, even from identical inputs.
-The full resolver version identifies derived results and invalidates cached results after an update.
-Regression tests check the shared contract across supported versions.
-History equality requires identical evidence, decisions, query context, and full policy versions.
-
-The remaining decision is whether automatic-result differences between compatible versions are acceptable until the versions align.
-Explicit choices remain durable, and automatic reassessment preserves raw observations.
-
 ### R2. P2 — Distinguish an unverified account from a new account
 
 A new installation has an empty local store before existing account data arrives.
-Using local emptiness to initialize the latest shared version can bypass recent-contributor eligibility and explicit upgrade consent.
+Using local emptiness to initialize the latest required major can bypass recent-contributor eligibility and explicit upgrade consent.
 Proposal: distinguish unknown account state, a verified existing account, and a verified new account.
 Define what evidence establishes account newness before automatic initialization.
+An absent compatibility record also requires a legacy-data check before classifying the shared account as new.
+Initial creation must handle two devices that attempt setup concurrently.
+Unknown or failed verification cannot authorize initialization or a major upgrade.
+Offline capture and reads remain part of D2.
 
 ### R3. P2 — Clarify identity across reset, rejoin, and restore
 
@@ -589,7 +603,7 @@ Define the user-visible explanation and acceptance scenarios before the shared-r
 
 ### D2. Offline compatibility and activation
 
-An offline older app cannot immediately learn that another device raised the required version.
+An offline older app cannot immediately learn that another device raised the required major.
 Define offline capture, reads, writes, verification expiry, and recovery after verification fails.
 Specify the activation and rollout protocol, including independent arrival of compatibility metadata and incompatible records.
 The compatibility models must check that protocol under explicit delivery assumptions before activation.
