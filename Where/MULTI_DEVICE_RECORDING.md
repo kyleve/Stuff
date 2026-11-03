@@ -478,3 +478,99 @@ Thresholds require named units and scenario tests before they affect history.
 The automatic policy produces the same result for the same evidence and policy version, regardless of input or sync order.
 The first executable slice establishes that policy without changing capture or report behavior.
 Activation follows durable choices, consistent consumer integration, compatibility protection, and a usable review path.
+
+## Pending review discussion
+
+This temporary section preserves unresolved points from the review of `2658e4d4`.
+The proposals in this section are not agreed decisions.
+Discussion proceeds through R1–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
+After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
+Then remove the resolved entry from this section.
+When no entries remain, remove this section.
+
+### R1. P1 — Coordinate the automatic-selection policy version
+
+Two app builds can understand the same stored format but use different resolver policies and derive different history from identical inputs.
+Recording a policy version explains this difference without preventing it.
+The account needs a rule that selects the active policy and determines which clients can evaluate it.
+Proposal: coordinate the active policy through the shared data-semantics version and compatibility gate.
+The discussion must cover policy activation, support for earlier policies, and reassessment of automatic history after an upgrade.
+
+### R2. P2 — Distinguish an unverified account from a new account
+
+A new installation has an empty local store before existing account data arrives.
+Using local emptiness to initialize the latest shared version can bypass recent-contributor eligibility and explicit upgrade consent.
+Proposal: distinguish unknown account state, a verified existing account, and a verified new account.
+Define what evidence establishes account newness before automatic initialization.
+
+### R3. P2 — Clarify identity across reset, rejoin, and restore
+
+Slice 4 preserves local identity across account-data operations, but the existing reset contract rotates that identity.
+The existing rejoin contract also creates a new identity.
+See [installation-context reset and rejoin](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) and their [regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift).
+Proposal: specify an operation-by-operation lifecycle for backup import, reset, rejoin, reinstall, and device transfer.
+Keychain persistence must support intentional recording-identity rotation and safe recovery of operation counters.
+
+### R4. P2 — Validate the reviewed state atomically with the decision write
+
+A remote decision can arrive between a separate validation and the subsequent save.
+If the save adopts the latest causal context, it can supersede a decision that the user never reviewed.
+Proposal: bind the operation to the reviewed evidence, decision revisions, and data generation.
+Revalidate those inputs inside the guarded write transaction.
+The [sample-correction coordinator](WhereCore/Sources/DataResolution/SampleCorrectionCoordinator.swift) supplies an existing pattern.
+
+### R5. P2 — Include historical years in issue reminders
+
+The plan keeps older issues eligible, but the current reminder scans only the current year.
+A December conflict can disappear from reminders in January if the new flow retains that scope.
+See the [current issue-alert reconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift).
+Proposal: preserve historical year context in issue discovery, notification queues, and review lookup.
+Add a year-boundary acceptance scenario.
+
+### E1. Ignore intervals versus explicit source choices
+
+Example: the user selects the Duo for today, then ignores that device until tomorrow.
+Define which instruction wins and how the UI explains the result.
+The decision must cover existing choices and new choices that overlap an ignored interval.
+
+### E2. Whole-day choices across travel and daylight-saving changes
+
+Define which time zone converts a whole-day choice into a bounded period.
+Cover travel after the choice and days that contain fewer or more than 24 hours.
+Proposal: retain the chosen `CalendarDay` and time zone alongside fixed instant boundaries.
+Clarify how the choice appears when the report uses a different time zone.
+
+### E3. Evening notifications on multiple phones
+
+Notification preferences are local and default to enabled, so both phones can send the combined evening reminder.
+See [WherePreferences](WhereCore/Sources/Preferences/WherePreferences.swift).
+Define whether the product promises one reminder per device or one reminder across the account.
+Specify the device-level controls and defaults independently of recording consent.
+
+### E4. Late observations from the explicitly selected device
+
+An explicit source choice identifies a device and period. It does not currently freeze the reviewed set of observations.
+Later observations from that same device can still change effective history inside the chosen period.
+Define that behavior and its review or notification consequences without promising that source selection freezes all historical results.
+Add an acceptance scenario for late observations from the selected device.
+
+### E5. Queued issues that split or merge after sync
+
+A queued conflict can change its boundaries, split into several conflicts, or merge with another conflict.
+An obsolete issue ID must not produce an "already resolved" result while the underlying disagreement remains.
+Define how queue entries retain their identity or original review scope through reassessment.
+Preserve the bounded notification flow while unrelated new issues remain in the main list.
+
+### D1. Treatment of unresolved conflicts in totals
+
+The document requires visible uncertainty but leaves its effect on counts and exports open.
+Decide which region presence contributes to totals while a conflict remains unresolved.
+Apply the same rule to reports, widgets, reminders, history exports, and relevant App Intents.
+Define the user-visible explanation and acceptance scenarios before the shared-reader slice activates.
+
+### D2. Offline compatibility and activation
+
+An offline older app cannot immediately learn that another device raised the required version.
+Define offline capture, reads, writes, verification expiry, and recovery after verification fails.
+Specify the activation and rollout protocol, including independent arrival of compatibility metadata and incompatible records.
+The compatibility models must check that protocol under explicit delivery assumptions before activation.
