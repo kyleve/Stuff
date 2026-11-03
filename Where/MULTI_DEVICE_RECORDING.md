@@ -279,6 +279,30 @@ Those differences can persist while devices run different policy versions.
 Exact history equality requires identical evidence, decisions, full policy versions, and query context.
 Regression scenarios preserve established automatic behavior where practical and check the shared decision contract across supported versions.
 
+### Account verification and initialization
+
+Account verification distinguishes three states:
+
+| State | Shared-data initialization and upgrade behavior |
+| --- | --- |
+| Unknown | Verification is incomplete or failed. Do not initialize or advance the required major. Expose a retry state. |
+| Verified existing | Adopt the required major from verified shared account state. Advancing it follows the eligibility or explicit-upgrade rules. |
+| Verified new | Initialize the current supported major through guarded account initialization. |
+
+An empty local store does not establish a new account.
+Neither an absent compatibility record nor completion of one sync operation establishes account newness.
+Verification uses shared state for the current account and store.
+Legacy data without compatibility metadata remains an existing-account case.
+Its bootstrap path establishes the applicable major without bypassing upgrade eligibility or explicit consent.
+
+Initialization must handle simultaneous setup on multiple devices.
+A concurrent initializer adopts the established shared account state instead of overwriting it with its preferred major.
+Incomplete or failed verification remains unknown and preserves any previously observed required major.
+The implementation defines the shared evidence and guarded creation protocol before activation.
+The separate offline policy determines capture and read access while verification is unavailable.
+
+### Major upgrades and access
+
 The incompatible-data state uses direct copy:
 
 > **Update Where to continue**
@@ -305,11 +329,12 @@ Any capable device can offer an explicit **Upgrade shared data** action to advan
 The explanation states that apps which cannot honor the new major will need an update.
 This action supports replacement phones, long absences, and incomplete recent history without a 15-day waiting period.
 An ineligible device continues with the current required major when it supports that contract.
-A new empty account initializes with the current supported major version.
 
 The recent-contributor rule prevents incidental automatic major upgrades from unused devices.
 A legitimate major upgrade can still require updates on other active devices because the compatibility boundary applies to the account.
 No device needs exclusive recording ownership to perform an upgrade.
+
+### Offline compatibility
 
 Compatibility requires a separate offline policy before incompatible behavior activates.
 Causal metadata cannot notify an offline older app about a major upgrade on another device.
@@ -345,6 +370,11 @@ A sync-completion event alone cannot provide that guarantee.
 | Identical full policy versions assess identical evidence, decisions, and query context | Produce identical history regardless of input or sync order. |
 | A device installs a compatible policy update | Invalidate affected cached results and reassess automatic history. Preserve raw observations and user choices without a shared-data upgrade. |
 | A new control has a meaning that older clients cannot honor | Require a major upgrade before activation and gate clients that cannot honor the new contract. |
+| A new installation has an empty store before account data arrives | Keep account verification unknown. Do not initialize or advance the required major from local emptiness. |
+| Shared legacy data exists without compatibility metadata | Treat the account as existing. Establish its applicable major through the legacy bootstrap path. |
+| Account verification fails or remains incomplete | Retain unknown status and the last observed required major. Expose retry without claiming that an app update is necessary. |
+| Shared account verification establishes a new account | Initialize the current supported major through guarded creation. |
+| Two devices attempt first setup concurrently | Adopt the established shared account state. Do not overwrite it or bypass major-upgrade rules. |
 | Two offline devices choose different sources for the same period | Preserve both decisions and request review of the overlap. |
 | A decision arrives before one of its predecessors | Preserve incomplete knowledge instead of claiming a complete revision prefix. |
 
@@ -363,6 +393,12 @@ This design slice adds the requirements only. It contains no new models or model
 | Decision merging | Replicas with the same complete decision set and major contract converge regardless of delivery order, duplicates, or compatible minor and patch differences. Incompatible concurrent choices survive until explicitly resolved. Missing revisions never count as observed. Recovery never assigns an existing operation identity to a new operation. Replacements affect only their specified periods. | 1 establishes the model. 4 refines it against durable decisions and counter recovery. |
 | History selection | Equal evidence, decisions, full policy versions, and query context produce equal history. Compatible policies can differ in automatic results while preserving shared decision semantics. Late uploads respect explicit choices and historical ignore intervals. Resume, expiry, and undo have distinct effects. Selection preserves raw observations and never fills an explicitly selected device's gaps from another device. | 4 models ignore intervals. 5 completes the model against shared history selection. |
 | Compatibility and scope retirement | The required major never decreases. Minor and patch differences alone never revoke access. Stale verification cannot restore revoked access. Suspended work cannot commit through a revoked permit. Recovery uses a new scope and permit. Offline behavior follows the selected activation policy. | 3 defines and checks the compatibility protocol. |
+
+The compatibility model includes unknown, verified-existing, and verified-new account states.
+Only verified-new state can authorize account initialization.
+Unknown state cannot authorize initialization or a major upgrade.
+Concurrent initialization cannot overwrite established account state or bypass upgrade rules.
+The model also covers legacy-data discovery, verification failures, and delayed initial imports.
 
 Each family uses small models with explicit atomicity, delivery, persistence, and failure assumptions.
 The model separates receipt of a decision from knowledge of its dependencies.
@@ -458,11 +494,15 @@ Validate restore and transfer on physical devices before activation.
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.
 Implement `major.minor.patch` semantics and the monotonic required major.
+Implement unknown, verified-existing, and verified-new account states from shared-account verification.
+Define the evidence that establishes account newness and the legacy-data bootstrap path.
+Guard account initialization against concurrent setup and preserve previously observed requirements after verification failures.
 Apply recent-contributor eligibility and the explicit upgrade action to major upgrades only.
 Keep compatible minor and patch differences outside the incompatible-data gate.
 Define the offline policy and activation protocol before incompatible data writes.
 Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
-Cover stale responses, old backups, failed verification, and foreground and background consumers.
+Cover empty local stores, delayed imports, legacy accounts, concurrent setup, stale responses, old backups, and failed verification.
+Exercise foreground and background consumers.
 
 ### 4. Durable choices, device controls, and places
 
@@ -507,6 +547,7 @@ The following details require explicit decisions in the relevant slices:
 - Precedence between ignore intervals, explicit source choices, per-sample corrections, and manual overlays.
 - The representation of causal context, incomplete dependencies, and counter allocation and recovery.
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
+- The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
 - Treatment of unresolved conflicts in totals, history exports, widgets, and reminders.
 - Backup, reset, reinstall, rejoin, and device-removal behavior for new identities and stored decisions.
 - Offline compatibility policy, activation synchronization, and the required rollout sequence.
@@ -520,21 +561,10 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the review of `2658e4d4`.
 The proposals in this section are not agreed decisions.
-Discussion proceeds through R2–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
+Discussion proceeds through R3–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### R2. P2 — Distinguish an unverified account from a new account
-
-A new installation has an empty local store before existing account data arrives.
-Using local emptiness to initialize the latest required major can bypass recent-contributor eligibility and explicit upgrade consent.
-Proposal: distinguish unknown account state, a verified existing account, and a verified new account.
-Define what evidence establishes account newness before automatic initialization.
-An absent compatibility record also requires a legacy-data check before classifying the shared account as new.
-Initial creation must handle two devices that attempt setup concurrently.
-Unknown or failed verification cannot authorize initialization or a major upgrade.
-Offline capture and reads remain part of D2.
 
 ### R3. P2 — Clarify identity across reset, rejoin, and restore
 
@@ -543,6 +573,21 @@ The existing rejoin contract also creates a new identity.
 See [installation-context reset and rejoin](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) and their [regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift).
 Proposal: specify an operation-by-operation lifecycle for backup import, reset, rejoin, reinstall, and device transfer.
 Keychain persistence must support intentional recording-identity rotation and safe recovery of operation counters.
+
+Proposed lifecycle for discussion:
+
+| Operation | Proposed recording identity and consent behavior |
+| --- | --- |
+| App update or ordinary relaunch | Preserve the local identity and consent. |
+| In-app backup import, including replace | Preserve this installation's identity and consent. Never adopt them from the archive. |
+| Explicit app reset | Create a new identity and request recording consent again, consistent with the existing reset contract. |
+| Rejoin after removal | Create a new identity and request recording consent again. Keep the old removal effective. |
+| Reinstall or restore on the same phone | Reuse a surviving valid Keychain identity. If it is absent, create a new identity through setup. Request recording consent again. |
+| Restore or transfer to another physical phone | Create a new identity and establish local consent through setup. Preserve historical provenance. |
+
+An inaccessible Keychain item remains a retry or unlock state, never evidence that the identity is absent.
+Reusing an identity must not reuse decision operation identities or restart counters from an older backup.
+The exact operation-identity recovery mechanism remains part of the causal persistence design.
 
 ### R4. P2 — Validate the reviewed state atomically with the decision write
 
