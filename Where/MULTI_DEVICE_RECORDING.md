@@ -164,6 +164,23 @@ Existing GPS and flight corrections still apply within the selected device's tra
 The resolver can then reconsider eligible observations from other devices.
 Choices for other periods remain intact.
 
+### Saving a reviewed choice
+
+A save retains the reviewed period, relevant evidence and decisions, causal context, full policy version, query context, and data generation.
+Reassessment and the decision write occur inside the same guarded transaction.
+The transaction checks the expected data generation, relevant read state, and current compatibility permit.
+If relevant inputs changed, reject the proposal and return the refreshed issue without applying the choice.
+Known incompatibility follows the update gate instead of permitting the write.
+
+The new operation uses the reviewed causal context. It never silently adopts newer decisions as intentional predecessors.
+Unrelated imports do not require another user review when the relevant inputs remain unchanged.
+Decisions that arrive after commit retain their causal relationship to the reviewed decision set.
+Incompatible concurrent choices remain available for resolution under the existing merge rules.
+The [sample-correction coordinator](WhereCore/Sources/DataResolution/SampleCorrectionCoordinator.swift) provides an existing guarded review-and-write pattern.
+
+This transaction protects local state. It cannot establish knowledge of unreceived changes on other devices.
+[Offline compatibility](#offline-compatibility) must define publication ordering and completion guarantees across major upgrades before activation.
+
 ### Evening reminders and guided review
 
 One combined evening local notification covers missing history and unresolved issues, including device conflicts.
@@ -180,8 +197,8 @@ A notification opens a guided flow for the issues that it raised:
 1. Refresh the referenced issues and omit those that no longer need action.
 2. Show one issue with its date, explanation, available actions, and progress through the queue.
 3. Offer **Save and continue** and **Skip for now**. A skipped issue remains unresolved.
-4. Before a save, verify that the evidence and relevant decisions still match the review.
-5. If they changed, show the updated issue before the user commits a choice.
+4. Validate the reviewed inputs inside the guarded decision-write transaction.
+5. If they changed, reject the proposal and show the updated issue before the user commits a choice.
 
 The user can close the flow at any time. Completed choices remain saved.
 The issues bar button provides access to the remaining issues and a **Review remaining** action.
@@ -329,7 +346,7 @@ The incompatible-data state uses direct copy:
 
 A failed compatibility check has a separate retry state. A network error does not claim that the app needs an update.
 The gate covers foreground access, background work, relevant App Intents, and published widget output.
-It prevents incompatible writes and withdraws misleading output from retired scopes.
+It rejects writes through revoked scopes and withdraws their misleading output.
 An old backup, stale response, or older client cannot lower the required major version.
 
 The required major advances when incompatible behavior activates. A routine app update alone does not advance it.
@@ -389,6 +406,11 @@ A sync-completion event alone cannot provide that guarantee.
 | The user selects a new home or a different hotel | Apply the place to its validity period without silently rewriting earlier context. |
 | The user exits the notification flow after resolving one issue | Retain the saved choice and expose the remaining issues through the bar button. |
 | Another device resolves an issue before the notification opens | Refresh the queue and omit that issue. |
+| Relevant evidence or decisions change after the review opens | Reject the stale proposal and show the refreshed issue without applying the choice. |
+| The guarded write detects changed inputs or a retired data generation | Abort the effective decision write. Preserve the reviewed causal context and require a valid current review. |
+| A known compatibility change revokes the write permit | Reject the write and follow the compatibility gate. |
+| An unrelated import leaves the reviewed inputs unchanged | Permit the valid choice without another user review after transaction revalidation. |
+| An incompatible decision arrives after the local commit | Preserve its causal relationship to the reviewed decision set. Retain concurrent choices for resolution instead of silently replacing them. |
 | An idle updated device only produces unused pings | Do not automatically advance the required major from that activity. |
 | A stationary device contributes useful recent history | Permit it to qualify for an automatic major upgrade without movement. |
 | A replacement phone has no recent contribution | Offer an explicit shared-data major upgrade and retain its new recording identity. |
@@ -422,6 +444,10 @@ This design slice adds the requirements only. It contains no new models or model
 
 The decision-merging model includes identity preservation after recovery and identity rotation after reset or rejoin.
 It checks that recovery or backup replay never assigns an existing operation identity to a new decision.
+Reviewed-write cases bind the new operation to the reviewed causal context and reject stale proposals at the guarded commit boundary.
+The model covers relevant imports before validation, during the write, and after commit.
+It also covers unrelated imports and data-generation retirement.
+Local transaction guarantees do not imply a server-accepted decision or knowledge of an unseen major upgrade.
 
 The compatibility model includes unknown, verified-existing, and verified-new account states.
 Only verified-new state can authorize account initialization.
@@ -541,6 +567,10 @@ Exercise foreground and background consumers.
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Implement causal context, durable reversal, and concurrent-choice behavior.
+Bind reviewed writes to their evidence, decisions, period, policy, query context, causal context, and expected data generation.
+Reassess and save inside the guarded transaction without adopting unreviewed causal predecessors.
+Exercise relevant and unrelated imports before validation, during the write, and after commit.
+Reject writes under retired generations or revoked compatibility permits.
 Add compatibility fixtures for shared decision interpretation across supported minor and patch versions.
 Refine the decision-merging model against persistence, dependency delivery, and counter recovery.
 Add history-selection model cases for ignore intervals, resume, expiry, and undo.
@@ -567,6 +597,7 @@ Define unresolved-conflict presentation before changing totals.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Support exclusive period choices, whole-day convenience, return to automatic, and previews of affected region-days.
+Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Keep remaining work accessible through the issues bar button.
 Use representative phone journeys and concurrent-edit scenarios in previews, snapshots, and interaction tests.
@@ -596,28 +627,11 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the review of `2658e4d4`.
 The proposals in this section are not agreed decisions.
-Discussion proceeds through R4–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
+R5 remains the prioritized review finding, followed by E1–E5.
+D1 and D2 retain the broader open decisions. D2 also tracks the current offline-save discussion.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### R4. P2 — Validate the reviewed state atomically with the decision write
-
-A remote decision can arrive between a separate validation and the subsequent save.
-If the save adopts the latest causal context, it can supersede a decision that the user never reviewed.
-Proposal: bind the operation to the reviewed evidence, decision revisions, and data generation.
-Revalidate those inputs inside the guarded write transaction.
-The [sample-correction coordinator](WhereCore/Sources/DataResolution/SampleCorrectionCoordinator.swift) supplies an existing pattern.
-
-The proposed save retains the reviewed period, relevant evidence and decisions, causal context, full policy version, query context, and data generation.
-Validation and the decision write occur inside the same guarded transaction.
-If relevant inputs changed, write nothing and return the refreshed issue for review.
-The new operation uses the reviewed causal context. It never silently adopts newer decisions as intentional predecessors.
-Unrelated imports do not require another user review when the relevant inputs remain unchanged.
-
-Decisions that arrive after the commit retain their causal relationship to the reviewed decision set.
-Incompatible concurrent choices follow the existing merge rules rather than silently replacing each other.
-The implementation needs regression cases for arrivals before validation, during the guarded write, and after commit.
 
 ### R5. P2 — Include historical years in issue reminders
 
@@ -674,3 +688,31 @@ An offline older app cannot immediately learn that another device raised the req
 Define offline capture, reads, writes, verification expiry, and recovery after verification fails.
 Specify the activation and rollout protocol, including independent arrival of compatibility metadata and incompatible records.
 The compatibility models must check that protocol under explicit delivery assumptions before activation.
+
+Concrete case: an offline device saves a choice locally and dismisses the review.
+Another device activates a newer required major before the first device receives that change.
+The pending choice can reach shared storage after the upgrade.
+The protocol must distinguish local durability, shared acceptance, and later compatibility changes.
+
+A connection check followed by a local save does not order the write against a concurrent major upgrade.
+The current [SwiftData store](WhereCore/Sources/Persistence/SwiftDataStore.swift) uses automatic CloudKit mirroring.
+Apple documents separate local saves, exports, and imports in [TN3163](https://developer.apple.com/documentation/technotes/tn3163-understanding-the-synchronization-of-nspersistentcloudkitcontainer).
+The design cannot assume that application code verifies compatibility before every pending export.
+
+Two approaches remain under discussion:
+
+| Approach | Proposed behavior and cost |
+| --- | --- |
+| Offline pending choices | Save durable choices locally and show pending sync status. Permit local history to reflect them. Preserve their authoring semantics and reviewed context. Define migration or renewed review for choices that arrive after a major upgrade. |
+| Online-confirmed shared choices | Preserve offline drafts. Report shared acceptance only after a server commit ordered against major activation. This needs a conditional publication protocol, not a connection check followed by ordinary mirroring. |
+
+For online confirmation, the protocol must make compatibility validation and decision acceptance one conditional server operation.
+Decision publication and major activation must participate in the same conditional guard.
+CloudKit provides [conditional record saves](https://developer.apple.com/documentation/cloudkit/ckmodifyrecordsoperation/recordsavepolicy/ifserverrecordunchanged) and [atomic changes within a supported record zone](https://developer.apple.com/documentation/cloudkit/ckmodifyrecordsoperation/isatomic).
+These primitives require an explicit protocol and do not establish an account-wide transaction across independently mirrored stores.
+An accepted choice can still precede a later major upgrade. Online acceptance does not keep its authoring app compatible indefinitely.
+
+The discussion must define preservation of accepted choices, pending choices, and drafts across upgrades.
+It must also cover lost server acknowledgments, idempotent retries, late imports, and out-of-order compatibility metadata.
+Record the chosen guarantee in the UI and formal models before activation.
+Keep the decision about offline raw capture separate from the decision about shared edits.
