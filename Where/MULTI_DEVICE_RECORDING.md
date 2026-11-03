@@ -488,13 +488,32 @@ After agreement, update the relevant contract, acceptance scenarios, and impleme
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
 
-### R1. P1 — Coordinate the automatic-selection policy version
+### R1. P1 — Define compatibility across automatic-selection policy versions
 
 Two app builds can understand the same stored format but use different resolver policies and derive different history from identical inputs.
 Recording a policy version explains this difference without preventing it.
-The account needs a rule that selects the active policy and determines which clients can evaluate it.
-Proposal: coordinate the active policy through the shared data-semantics version and compatibility gate.
-The discussion must cover policy activation, support for earlier policies, and reassessment of automatic history after an upgrade.
+The plan needs a rule for compatible policy differences and changes that require the compatibility gate.
+
+The initial proposal selects one account-wide policy through the shared data-semantics version.
+This requires newer clients to retain earlier algorithms for as long as accounts use them.
+Retaining those implementations indefinitely is not a practical guarantee.
+
+The alternative under discussion uses `major.minor.patch` data-semantics versions and gates access only on an unsupported required major:
+
+- Major: incompatible stored-data or saved-decision semantics that older clients cannot honor.
+- Minor: compatible improvements to automatic selection, including new heuristics.
+- Patch: bug fixes within the existing shared contract.
+
+Under this alternative, each build uses its current resolver without retaining every earlier implementation.
+Same-major clients preserve the shared meaning of raw observations, explicit choices, ignore intervals, and causal decisions.
+New controls that older clients cannot honor require a major change.
+Compatible resolver versions can produce different automatic history, totals, and issues, even from identical inputs.
+The full resolver version identifies derived results and invalidates cached results after an update.
+Regression tests check the shared contract across supported versions.
+History equality requires identical evidence, decisions, query context, and full policy versions.
+
+The remaining decision is whether automatic-result differences between compatible versions are acceptable until the versions align.
+Explicit choices remain durable, and automatic reassessment preserves raw observations.
 
 ### R2. P2 — Distinguish an unverified account from a new account
 
