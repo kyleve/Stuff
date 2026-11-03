@@ -59,6 +59,22 @@ See [Keychain accessibility](https://developer.apple.com/documentation/security/
 An inaccessible Keychain item produces a retry or unlock state, never a replacement identity.
 Device restore and direct transfer require physical-device validation before release.
 
+Identity and consent follow this lifecycle:
+
+| Operation | Recording identity and consent behavior |
+| --- | --- |
+| App update or ordinary relaunch | Preserve the local identity and consent. |
+| In-app backup import, including replace | Preserve this installation's identity and consent. Never adopt them from the archive. |
+| Explicit app reset | Create a new identity and request recording consent again. Apply the existing data-reset contract. |
+| Rejoin after removal | Create a new identity and request recording consent again. Keep the old removal effective. |
+| Reinstall or system restore on the same phone | Reuse a surviving valid Keychain identity. If it is absent, create a new identity through setup. Request recording consent again. |
+| System restore or transfer to another physical phone | Create a new identity and establish local consent through setup. Preserve historical provenance. |
+
+A removed identity remains retired. Rejoin never revives that identity or removes its removal records.
+Retained historical observations and decisions keep their original device and operation identities.
+Identity reuse must preserve the uniqueness of decision operation identities, including after reinstall or restore.
+An older backup cannot restart counter allocation for an existing identity.
+
 Setup asks whether this phone is an additional device or replaces an existing device.
 An additional device keeps the existing devices active.
 A replacement still receives a new identity and offers removal of the selected old device through the existing removal contract.
@@ -245,6 +261,8 @@ The exact representation can use revision vectors or explicit predecessor identi
 Counters describe decisions actually received and incorporated.
 Receipt of revision 50 before revision 49 cannot imply knowledge of every revision through 50.
 Counter allocation, persistence, and recovery must prevent reuse after crashes, backup restore, or reset.
+Reusing a recording identity does not permit reuse of an operation identity for a new decision.
+The causal persistence design defines safe recovery before new decision writes resume.
 Dates remain useful for display and diagnosis. Wall-clock ordering does not decide between incompatible concurrent user choices.
 
 Raw observations merge by stable identity and retain provenance.
@@ -350,6 +368,14 @@ A sync-completion event alone cannot provide that guarantee.
 | One phone travels while another repeatedly reports from home | Select the moving phone where evidence is strong. Explain the selection. |
 | Several phones remain at home while one accompanies the user | Assess evidence without a device-count vote. |
 | The user changes phones during the day | Permit different selected devices in different periods. |
+| The app updates or relaunches normally | Preserve the installation's identity and local recording consent. |
+| The user imports a backup through merge or replace | Preserve local identity and consent. Retained historical records keep their original provenance. |
+| The user explicitly resets the app | Create a new identity and request recording consent again. Apply the existing data-reset contract. |
+| A removed device rejoins | Create a new identity and request consent again. Keep the previous identity removed. |
+| The user reinstalls Where or restores the same phone | Reuse a surviving valid Keychain identity, or create one through setup if absent. Request recording consent again. |
+| The identity's Keychain item is inaccessible | Show retry or unlock state. Do not treat the item as absent or create a replacement identity. |
+| A system backup restores or transfers to another physical phone | Create a new identity and establish local consent. Keep historical records attributed to their original devices. |
+| Recovery retains an identity but encounters older counter state | Prevent operation-identity reuse. Complete safe recovery before new decision writes resume. |
 | One device reports and another remains silent | Assess the available track without inventing a stationary competitor. |
 | Two devices travel in different regions during the same period | Request review unless independent evidence supports automatic selection. |
 | A sparse track or inaccurate boundary point suggests movement | Preserve uncertainty. Do not classify it as strong movement evidence. |
@@ -393,6 +419,9 @@ This design slice adds the requirements only. It contains no new models or model
 | Decision merging | Replicas with the same complete decision set and major contract converge regardless of delivery order, duplicates, or compatible minor and patch differences. Incompatible concurrent choices survive until explicitly resolved. Missing revisions never count as observed. Recovery never assigns an existing operation identity to a new operation. Replacements affect only their specified periods. | 1 establishes the model. 4 refines it against durable decisions and counter recovery. |
 | History selection | Equal evidence, decisions, full policy versions, and query context produce equal history. Compatible policies can differ in automatic results while preserving shared decision semantics. Late uploads respect explicit choices and historical ignore intervals. Resume, expiry, and undo have distinct effects. Selection preserves raw observations and never fills an explicitly selected device's gaps from another device. | 4 models ignore intervals. 5 completes the model against shared history selection. |
 | Compatibility and scope retirement | The required major never decreases. Minor and patch differences alone never revoke access. Stale verification cannot restore revoked access. Suspended work cannot commit through a revoked permit. Recovery uses a new scope and permit. Offline behavior follows the selected activation policy. | 3 defines and checks the compatibility protocol. |
+
+The decision-merging model includes identity preservation after recovery and identity rotation after reset or rejoin.
+It checks that recovery or backup replay never assigns an existing operation identity to a new decision.
 
 The compatibility model includes unknown, verified-existing, and verified-new account states.
 Only verified-new state can authorize account initialization.
@@ -444,6 +473,8 @@ It does not require a wholesale import of the previous stack.
 
 The current [recording context](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) uses a file excluded from backups.
 It does not yet use the proposed Keychain identity.
+Its reset and rejoin operations already create new identities and require recording confirmation again.
+The [recording-context regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift) establish those existing behaviors.
 The current reader has no device-selection policy or unresolved-conflict result.
 It provides an integration boundary, not a completed multi-device resolver.
 The existing correction guards do not prove the new acceptance scenarios.
@@ -484,9 +515,11 @@ Exercise reordered, duplicated, and incomplete inputs. This slice does not chang
 ### 2. Device identity and setup
 
 Implement device-local Keychain identity with explicit unavailable and recovery states.
+Implement the [identity and consent lifecycle](#device-identity-and-setup), including deliberate rotation and renewed consent after reset, rejoin, reinstall, or system restore.
 Add the additional-device and replacement-device setup choices.
-Preserve local consent and the existing removal contract.
-Cover backup restore, direct transfer, reset, rejoin, and Keychain failures.
+Preserve local identity and consent during in-app backup imports, including replace.
+Keep removed identities retired and distinguish absent Keychain items from inaccessible items.
+Cover updates, relaunches, backup imports, same-phone recovery, new-phone transfer, reset, rejoin, and Keychain failures.
 Validate restore and transfer on physical devices before activation.
 
 ### 3. Compatibility gate
@@ -513,7 +546,9 @@ Refine the decision-merging model against persistence, dependency delivery, and 
 Add history-selection model cases for ignore intervals, resume, expiry, and undo.
 Define precedence with per-sample corrections, manual overlays, and device removals.
 Cover expiry, time-zone changes, late imports, partial delivery, counter recovery, and both backup import strategies.
-Preserve observation provenance and the local identity across account data operations.
+Preserve the provenance of retained observations and decisions across account data operations.
+Apply the identity lifecycle instead of preserving local identity through every operation.
+Prevent backup import and recovery from reusing decision operation identities.
 
 ### 5. Shared history selection
 
@@ -549,7 +584,7 @@ The following details require explicit decisions in the relevant slices:
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
 - The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
 - Treatment of unresolved conflicts in totals, history exports, widgets, and reminders.
-- Backup, reset, reinstall, rejoin, and device-removal behavior for new identities and stored decisions.
+- Persistence and recovery for the agreed identity lifecycle and stored decisions across backup import, reset, and device removal.
 - Offline compatibility policy, activation synchronization, and the required rollout sequence.
 
 Thresholds require named units and scenario tests before they affect history.
@@ -561,33 +596,10 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the review of `2658e4d4`.
 The proposals in this section are not agreed decisions.
-Discussion proceeds through R3–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
+Discussion proceeds through R4–R5 first, then E1–E5. D1 and D2 retain the two broader open decisions.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### R3. P2 — Clarify identity across reset, rejoin, and restore
-
-Slice 4 preserves local identity across account-data operations, but the existing reset contract rotates that identity.
-The existing rejoin contract also creates a new identity.
-See [installation-context reset and rejoin](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) and their [regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift).
-Proposal: specify an operation-by-operation lifecycle for backup import, reset, rejoin, reinstall, and device transfer.
-Keychain persistence must support intentional recording-identity rotation and safe recovery of operation counters.
-
-Proposed lifecycle for discussion:
-
-| Operation | Proposed recording identity and consent behavior |
-| --- | --- |
-| App update or ordinary relaunch | Preserve the local identity and consent. |
-| In-app backup import, including replace | Preserve this installation's identity and consent. Never adopt them from the archive. |
-| Explicit app reset | Create a new identity and request recording consent again, consistent with the existing reset contract. |
-| Rejoin after removal | Create a new identity and request recording consent again. Keep the old removal effective. |
-| Reinstall or restore on the same phone | Reuse a surviving valid Keychain identity. If it is absent, create a new identity through setup. Request recording consent again. |
-| Restore or transfer to another physical phone | Create a new identity and establish local consent through setup. Preserve historical provenance. |
-
-An inaccessible Keychain item remains a retry or unlock state, never evidence that the identity is absent.
-Reusing an identity must not reuse decision operation identities or restart counters from an older backup.
-The exact operation-identity recovery mechanism remains part of the causal persistence design.
 
 ### R4. P2 — Validate the reviewed state atomically with the decision write
 
@@ -596,6 +608,16 @@ If the save adopts the latest causal context, it can supersede a decision that t
 Proposal: bind the operation to the reviewed evidence, decision revisions, and data generation.
 Revalidate those inputs inside the guarded write transaction.
 The [sample-correction coordinator](WhereCore/Sources/DataResolution/SampleCorrectionCoordinator.swift) supplies an existing pattern.
+
+The proposed save retains the reviewed period, relevant evidence and decisions, causal context, full policy version, query context, and data generation.
+Validation and the decision write occur inside the same guarded transaction.
+If relevant inputs changed, write nothing and return the refreshed issue for review.
+The new operation uses the reviewed causal context. It never silently adopts newer decisions as intentional predecessors.
+Unrelated imports do not require another user review when the relevant inputs remain unchanged.
+
+Decisions that arrive after the commit retain their causal relationship to the reviewed decision set.
+Incompatible concurrent choices follow the existing merge rules rather than silently replacing each other.
+The implementation needs regression cases for arrivals before validation, during the guarded write, and after commit.
 
 ### R5. P2 — Include historical years in issue reminders
 
