@@ -170,5 +170,5 @@ mise install
 
 This recipe is not the complete CI gate. Read
 [GitHub Actions](../../../.github/workflows/ci.yml) for the format and retained-tool checks.
-Read [CircleCI](../../../.circleci/config.yml) for audience builds and artifact/shard validation.
+Read [CircleCI](../../../.circleci/continue.yml) for audience builds and artifact/shard validation.
 Select additional checks for the changed inputs rather than treating one green command as all CI coverage.
