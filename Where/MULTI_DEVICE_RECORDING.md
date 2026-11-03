@@ -179,7 +179,9 @@ Incompatible concurrent choices remain available for resolution under the existi
 The [sample-correction coordinator](WhereCore/Sources/DataResolution/SampleCorrectionCoordinator.swift) provides an existing guarded review-and-write pattern.
 
 This transaction protects local state. It cannot establish knowledge of unreceived changes on other devices.
-[Offline compatibility](#offline-compatibility) must define publication ordering and completion guarantees across major upgrades before activation.
+In a permitted account scope, Save confirms durable local storage. Normal CloudKit mirroring handles synchronization.
+The save operation adds no separate online-confirmation requirement or pending-approval state.
+[Offline compatibility](#offline-compatibility) defines version admission and the remaining access rules before activation.
 
 ### Evening reminders and guided review
 
@@ -234,6 +236,7 @@ Their evidence and full policy version explain the result and permit reassessmen
 Derived results and caches carry that full version.
 A policy update invalidates affected cached results and reassesses automatic history without rewriting raw observations or durable user choices.
 User choices are durable decisions with explicit period boundaries.
+They retain their authoring data-semantics version, immutable identity, and reviewed causal context.
 They take precedence over automatic selection and remain reversible.
 
 Device selection applies to automatic GPS evidence.
@@ -371,9 +374,34 @@ No device needs exclusive recording ownership to perform an upgrade.
 
 ### Offline compatibility
 
-Compatibility requires a separate offline policy before incompatible behavior activates.
+The first version uses guarded local saves and the existing automatic CloudKit mirroring path for shared choices.
+Save confirms local durability. It does not confirm server acceptance or knowledge of every device's current state.
+The UI reports observable sync activity without a separate per-choice approval workflow.
+The first version adds no offline-draft store or server-confirmed decision-publication protocol.
+Future versions can add stronger confirmation at the save boundary because review proposals remain separate values.
+
+On observing an unsupported required major, the client rejects further shared edits and requires an app update.
+It preserves previously saved observations and decisions.
+The client does not continue editing with an older resolver under the unsupported major.
+Minor and patch differences retain their agreed compatibility behavior.
+
+Readers validate a decision's authoring semantics before applying it.
+Minor and patch differences alone cannot reject a shared decision within its supported major contract.
+Each future major change defines explicit handling for existing and late-arriving earlier decisions before activation.
+Compatible migrations preserve their meaning and identity.
+
+If a decision cannot be interpreted safely, retain the original record and require a new review in a compatible app.
+Its affected history remains unresolved instead of silently returning to automatic selection.
+Version one does not attempt automatic replay of choices whose meaning is uncertain.
+
+Local durability and forced app updates do not prevent every offline upgrade race.
 Causal metadata cannot notify an offline older app about a major upgrade on another device.
-The implementation must define offline capture, reads, writes, verification expiry, and the synchronization point for activation.
+Pending exports can arrive before the app observes the new required major.
+The protocol handles those records through version admission rather than assuming that application code can gate every export.
+
+Offline access remains an activation prerequisite.
+Define when cached verification permits capture, reads, and shared edits, including expiry and recovery after verification failure.
+Define the synchronization point for major activation and handling of independently arriving metadata and records.
 The rollout must establish compatibility-aware clients before activating data that older clients cannot safely interpret.
 A sync-completion event alone cannot provide that guarantee.
 
@@ -411,6 +439,9 @@ A sync-completion event alone cannot provide that guarantee.
 | A known compatibility change revokes the write permit | Reject the write and follow the compatibility gate. |
 | An unrelated import leaves the reviewed inputs unchanged | Permit the valid choice without another user review after transaction revalidation. |
 | An incompatible decision arrives after the local commit | Preserve its causal relationship to the reviewed decision set. Retain concurrent choices for resolution instead of silently replacing them. |
+| A permitted account scope saves a choice while offline | Commit the guarded local write and use normal mirroring. Do not claim server acceptance. |
+| An older client observes an unsupported required major | Require an app update and reject further shared edits. Preserve previously saved observations and decisions. |
+| An earlier-version choice arrives after a major upgrade | Apply the defined version-admission rules. Preserve safely interpretable meaning, or retain the record and require review with affected history unresolved. |
 | An idle updated device only produces unused pings | Do not automatically advance the required major from that activity. |
 | A stationary device contributes useful recent history | Permit it to qualify for an automatic major upgrade without movement. |
 | A replacement phone has no recent contribution | Offer an explicit shared-data major upgrade and retain its new recording identity. |
@@ -448,6 +479,9 @@ Reviewed-write cases bind the new operation to the reviewed causal context and r
 The model covers relevant imports before validation, during the write, and after commit.
 It also covers unrelated imports and data-generation retirement.
 Local transaction guarantees do not imply a server-accepted decision or knowledge of an unseen major upgrade.
+
+The models allow delayed earlier-version decisions after major activation.
+Unsafe interpretation cannot produce an effective choice or erase the retained decision.
 
 The compatibility model includes unknown, verified-existing, and verified-new account states.
 Only verified-new state can authorize account initialization.
@@ -558,6 +592,7 @@ Define the evidence that establishes account newness and the legacy-data bootstr
 Guard account initialization against concurrent setup and preserve previously observed requirements after verification failures.
 Apply recent-contributor eligibility and the explicit upgrade action to major upgrades only.
 Keep compatible minor and patch differences outside the incompatible-data gate.
+Reuse local permits, scope retirement, and normal mirroring without a separate server-confirmed decision-publication path.
 Define the offline policy and activation protocol before incompatible data writes.
 Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
 Cover empty local stores, delayed imports, legacy accounts, concurrent setup, stale responses, old backups, and failed verification.
@@ -567,6 +602,8 @@ Exercise foreground and background consumers.
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Implement causal context, durable reversal, and concurrent-choice behavior.
+Persist authoring data-semantics versions and validate them before applying decisions.
+Retain decisions that lack a safe interpretation and expose their affected history for review.
 Bind reviewed writes to their evidence, decisions, period, policy, query context, causal context, and expected data generation.
 Reassess and save inside the guarded transaction without adopting unreviewed causal predecessors.
 Exercise relevant and unrelated imports before validation, during the write, and after commit.
@@ -628,7 +665,7 @@ Activation follows durable choices, consistent consumer integration, compatibili
 This temporary section preserves unresolved points from the review of `2658e4d4`.
 The proposals in this section are not agreed decisions.
 R5 remains the prioritized review finding, followed by E1–E5.
-D1 and D2 retain the broader open decisions. D2 also tracks the current offline-save discussion.
+D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
@@ -685,34 +722,23 @@ Define the user-visible explanation and acceptance scenarios before the shared-r
 ### D2. Offline compatibility and activation
 
 An offline older app cannot immediately learn that another device raised the required major.
-Define offline capture, reads, writes, verification expiry, and recovery after verification fails.
+The [v1 save policy](#offline-compatibility) uses local durability, ordinary mirroring, and forced updates for known unsupported majors.
+It prioritizes implementation simplicity and permits renewed user review after an upgrade when a saved choice cannot be interpreted safely.
+The remaining decisions concern when an account scope can operate offline and how major activation becomes safe.
+
+Define when cached verification permits offline capture, reads, and shared edits.
+Specify verification expiry, recovery after failed checks, and behavior after account changes.
+Decide whether raw capture continues when verification is unavailable or a known major blocks shared edits.
 Specify the activation and rollout protocol, including independent arrival of compatibility metadata and incompatible records.
 The compatibility models must check that protocol under explicit delivery assumptions before activation.
 
 Concrete case: an offline device saves a choice locally and dismisses the review.
 Another device activates a newer required major before the first device receives that change.
 The pending choice can reach shared storage after the upgrade.
-The protocol must distinguish local durability, shared acceptance, and later compatibility changes.
+The protocol must preserve that choice and apply its version-admission rules without assuming immediate knowledge of the upgrade.
 
 A connection check followed by a local save does not order the write against a concurrent major upgrade.
 The current [SwiftData store](WhereCore/Sources/Persistence/SwiftDataStore.swift) uses automatic CloudKit mirroring.
 Apple documents separate local saves, exports, and imports in [TN3163](https://developer.apple.com/documentation/technotes/tn3163-understanding-the-synchronization-of-nspersistentcloudkitcontainer).
 The design cannot assume that application code verifies compatibility before every pending export.
-
-Two approaches remain under discussion:
-
-| Approach | Proposed behavior and cost |
-| --- | --- |
-| Offline pending choices | Save durable choices locally and show pending sync status. Permit local history to reflect them. Preserve their authoring semantics and reviewed context. Define migration or renewed review for choices that arrive after a major upgrade. |
-| Online-confirmed shared choices | Preserve offline drafts. Report shared acceptance only after a server commit ordered against major activation. This needs a conditional publication protocol, not a connection check followed by ordinary mirroring. |
-
-For online confirmation, the protocol must make compatibility validation and decision acceptance one conditional server operation.
-Decision publication and major activation must participate in the same conditional guard.
-CloudKit provides [conditional record saves](https://developer.apple.com/documentation/cloudkit/ckmodifyrecordsoperation/recordsavepolicy/ifserverrecordunchanged) and [atomic changes within a supported record zone](https://developer.apple.com/documentation/cloudkit/ckmodifyrecordsoperation/isatomic).
-These primitives require an explicit protocol and do not establish an account-wide transaction across independently mirrored stores.
-An accepted choice can still precede a later major upgrade. Online acceptance does not keep its authoring app compatible indefinitely.
-
-The discussion must define preservation of accepted choices, pending choices, and drafts across upgrades.
-It must also cover lost server acknowledgments, idempotent retries, late imports, and out-of-order compatibility metadata.
-Record the chosen guarantee in the UI and formal models before activation.
 Keep the decision about offline raw capture separate from the decision about shared edits.
