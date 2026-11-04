@@ -120,8 +120,11 @@ Reports group selected observations by this recorded day instead of recomputing 
 Retaining the timestamp and time-zone context also preserves the information needed for future projections.
 
 Absolute timestamps remain authoritative for ordering, movement, competing-track comparisons, and fixed time-range choices.
+The resolver first compares full timestamps and bounded track coverage to establish overlap.
+Sharing a UTC calendar date alone does not establish overlap.
 Two devices can label the same instant with different recording days.
 Their observations still compete when they cover the same absolute period.
+
 Whole-day source choices use the selected device's recorded calendar context to determine their coverage.
 Other devices cannot bypass that choice by assigning another date label to overlapping observations.
 
@@ -166,6 +169,15 @@ Derived history retains that geographic specificity before reporting groups the 
 Different coordinates in the same known region do not create a region-history conflict.
 Those observations remain distinct records with their original coordinates.
 Region agreement does not justify joining different devices into one physical trajectory.
+
+Overlapping observations agree for reporting only when both their known catalog region and resolved recording day agree.
+If their days differ, source selection determines the region and recording day together.
+Strong source evidence permits automatic selection. Ambiguous recording-day conflicts use the existing review flow, which shows both dates.
+Both devices retain their raw observations and original day assignments.
+
+For example, two New York observations at 06:00 UTC on December 9 can carry December 8 and December 9 labels.
+Their timestamps establish the overlap, but do not choose the local day that represents the user.
+Selection never counts both days merely because their region agrees.
 
 **Other** is a reporting group for non-primary regions or unresolved geography.
 It is not a geographic identity that establishes agreement between devices.
@@ -400,13 +412,13 @@ Different compatible policy versions can produce different automatic history, to
 They preserve the same shared meaning of durable user choices and controls.
 Raw track review and lossless backups remain available separately.
 Flight and movement inference preserve device boundaries.
-An unresolved region conflict remains visible to consumers instead of silently becoming a confident combined history.
+An unresolved source or recording-day conflict remains visible to consumers instead of silently becoming a confident combined history.
 Counts and report completeness follow the unresolved-history policy below.
 
 ### Totals and exports with unresolved history
 
 Totals include presence supported by resolved history, including valid user choices and strong automatic selections under the existing policy.
-If a conflict remains ambiguous, require user input before assigning its disputed region presence.
+If a conflict remains ambiguous, require user input before assigning its disputed region or recording day.
 Do not infer a winner or count every competing region to fill the gap.
 Unresolved contributions stay excluded until resolution. Raw observations and competing decisions remain intact.
 
@@ -419,6 +431,7 @@ Affected reports show **Incomplete** and the distinct affected recording days th
 Several conflicts on one day count once in that indicator.
 A partly resolved day can contribute to region totals and also appear in the review count.
 Unresolved day assignments remain separately visible when their affected recording days cannot yet be established.
+An unresolved recording-day conflict marks each candidate day incomplete and contributes no disputed region-day.
 Turning reminders off never changes report completeness or export eligibility.
 
 Reports, Elsewhere, widgets, summaries, reminders, and relevant App Intents apply the same contribution and completeness rules.
@@ -427,7 +440,7 @@ Do not convert an unresolved source conflict into Other to make the report appea
 Existing manual assertions, authoritative overlays, and explicit unknown-geography assertions retain their own contracts.
 
 History-report exports require resolved history for the exported scope.
-Unresolved selection conflicts or day assignments block export when they can affect that scope.
+Unresolved selection conflicts, recording-day conflicts, or day assignments block export when they can affect that scope.
 The export action directs the user to review those periods before producing the report.
 Unresolved work outside that scope does not block an otherwise eligible export.
 Eligibility and exported content use the same local history snapshot.
@@ -479,7 +492,8 @@ It never promises that every device is fully current.
 
 Data-semantics versions use `major.minor.patch`, separate from the app version.
 The full data-semantics version also identifies the resolver policy.
-The account carries a monotonic required major version for the shared data and decision contract.
+Each dataset carries a monotonic required major version for its data and decision contract.
+Cloud-backed datasets share this requirement through the account. Local-only datasets retain it locally.
 The gate blocks clients that cannot honor that contract.
 Minor and patch differences alone never trigger the incompatible-data gate.
 
@@ -500,9 +514,22 @@ Those differences can persist while devices run different policy versions.
 Exact history equality requires identical evidence, decisions, full policy versions, and query context.
 Regression scenarios preserve established automatic behavior where practical and check the shared decision contract across supported versions.
 
+### Dataset scope
+
+Cloud-backed datasets use account verification and guarded server confirmation for shared initialization and major activation.
+Local-only datasets initialize and advance their required major through guarded local transactions.
+They require no iCloud account or network connection. The default Where Development dataset uses this local path.
+Both paths validate stored data and backup imports. An unsupported dataset enters the compatibility gate.
+An unsupported backup fails admission without changing the active dataset.
+
+The dataset's configuration determines this distinction, independently of network availability or the current process's storage adapter.
+A cloud-backed dataset remains subject to account verification while offline.
+A widget that reads its published local files remains subject to that dataset's compatibility gate.
+A local compatibility check never supplies a shared-account permit.
+
 ### Account verification and initialization
 
-Account verification distinguishes three states:
+For cloud-backed datasets, account verification distinguishes three states:
 
 | State | Shared-data initialization and upgrade behavior |
 | --- | --- |
@@ -537,7 +564,7 @@ An old backup, stale response, or older client cannot lower the required major v
 
 The required major advances when incompatible behavior activates. A routine app update alone does not advance it.
 Minor and patch updates do not require shared-data upgrade eligibility or the explicit upgrade action.
-Automatic major-upgrade eligibility requires a meaningful contribution to effective history within the preceding **15 days**.
+For cloud-backed datasets, automatic major-upgrade eligibility requires a meaningful contribution to effective history within the preceding **15 days**.
 Explicit source selection for a period within that window also qualifies the device.
 The window uses the observation or selected period dates, not the upload date or the time of the selection action.
 
@@ -554,6 +581,18 @@ An ineligible device continues with the current required major when it supports 
 The recent-contributor rule prevents incidental automatic major upgrades from unused devices.
 A legitimate major upgrade can still require updates on other active devices because the compatibility boundary applies to the account.
 No device needs exclusive recording ownership to perform an upgrade.
+
+#### Beta use across devices
+
+If a user uses Where Beta, every device that accesses the same history must use Where Beta.
+A beta update can require updates on other devices before they can continue.
+This support policy adds no protocol to verify the build channel on every device.
+The ordinary upgrade eligibility, server confirmation, compatibility gate, and update notification rules still apply.
+A beta can activate a new major before an App Store build supports it.
+
+Returning to the App Store build requires a release that supports the dataset's current required major.
+Installing an older App Store build cannot downgrade the history.
+Setup and update guidance explain the beta requirement and the condition for returning to the App Store build.
 
 #### Local notification when an update is required
 
@@ -583,6 +622,9 @@ Changing accounts also clears the old account's notification without authorizing
 Revalidate the current gate when the user opens an old notification.
 
 ### Offline compatibility
+
+The following account-verification and cached-access rules apply to cloud-backed datasets.
+Local-only datasets use the local transactions and compatibility checks defined under [Dataset scope](#dataset-scope).
 
 The first version uses guarded local saves and the existing automatic CloudKit mirroring path for shared choices.
 Save confirms local durability. It does not confirm server acceptance or knowledge of every device's current state.
@@ -637,7 +679,8 @@ A connection check followed by a local save does not order that write against a 
 
 ### Major activation and rollout
 
-Major activation requires online account verification and a guarded, server-confirmed advance of the shared required major before incompatible behavior starts.
+For a cloud-backed dataset, major activation requires online account verification.
+A guarded, server-confirmed advance of the shared required major must precede incompatible behavior.
 An offline cache or a local compatibility-record save cannot authorize activation.
 This confirmation applies to the major upgrade, while ordinary decisions retain their guarded local-save contract.
 If confirmation fails or its outcome is uncertain, reverify shared state before retrying activation. Never assume that the server rolled back.
@@ -658,7 +701,7 @@ The formal models must check both delivery orders and the actual store boundarie
 
 | Evidence or action | Expected behavior |
 | --- | --- |
-| Both phones report different coordinates within the same known catalog region | No region-history conflict, including outside the primary set. Preserve both sets of observations. |
+| Both phones report different coordinates within the same known catalog region and recording day | No region-history conflict, including outside the primary set. Preserve both sets of observations. |
 | Simultaneous tracks occupy Nevada and Oregon while neither region is primary | Retain both geographic identities. Select from strong evidence or expose a conflict before reporting Other or counting Elsewhere visits. |
 | Both phones report coordinates outside the catalog | Keep geography unresolved. Infer neither agreement nor conflict from fallback values alone. Assess the tracks for independently supported divergence. |
 | The user changes primary regions without changing evidence or decisions | Regroup reports without changing geographic agreement or source selection. |
@@ -669,7 +712,9 @@ The formal models must check both delivery orders and the actual store boundarie
 | An observation has a resolved December 8 recording day and is later viewed in another time zone | Keep it on December 8 in history. Preserve its timestamp and recording time-zone context. |
 | A callback arrives after midnight or after a device time-zone change | Assign the day from the observation time and its device-local context. Do not substitute the delivery date or current zone. |
 | The observation-time zone cannot be established | Preserve the raw observation and expose unresolved day assignment. Do not invent a day or publish apparently complete history. |
-| Simultaneous observations have different device-local date labels | Compare them by absolute time. Apply source-choice coverage without letting a different date label bypass the selection. |
+| Overlapping observations have different device-local date labels | Establish overlap from full timestamps and bounded track coverage. Select the region and recording day together through strong evidence or user review. Date labels cannot bypass source-choice coverage. |
+| Overlapping observations agree on the region but disagree on the day, without strong source evidence | Keep both candidate days incomplete and exclude the disputed contribution. Show both dates in the existing review flow. Preserve both raw assignments. |
+| Observations share a UTC calendar date but cover separate periods | Do not infer overlap or a conflict from the shared UTC date alone. |
 | A whole recording day spans daylight-saving or date-line changes | Use the selected device's recorded calendar context. Do not assume a fixed 24-hour window. |
 | A historical archive lacks recording-day context | Resolve it through offline conversion with supported metadata or explicit mappings. Preserve existing assignments and original timestamps. |
 | The app updates or relaunches normally | Preserve the installation's identity and local recording consent. |
@@ -736,6 +781,9 @@ The formal models must check both delivery orders and the actual store boundarie
 | An unrelated import leaves the reviewed inputs unchanged | Permit the valid choice without another user review after transaction revalidation. |
 | An incompatible decision arrives after the local commit | Preserve its causal relationship to the reviewed decision set. Retain concurrent choices for resolution instead of silently replacing them. |
 | A permitted account scope saves a choice while offline | Commit the guarded local write and use normal mirroring. Do not claim server acceptance. |
+| A local-only Development dataset starts or activates a supported major without a network connection | Initialize or advance its required major through a guarded local transaction. Require no shared-account verification. |
+| A local-only dataset imports a backup with unsupported semantics | Reject the import without changing the active dataset. Local operation does not bypass format admission. |
+| A cloud-backed dataset is offline, or a widget reads its published local files | Retain the shared-account compatibility requirements. Local access does not make the dataset local-only. |
 | A verified compatible phone remains offline for a long period | Keep recording, cached reads, and guarded local saves available without a time-based expiry. Preserve local consent requirements. |
 | Verification refresh fails for the same account and store | Keep valid cached access and expose sync uncertainty. Preserve the highest known major without sending an update alert. |
 | The account changes or valid verification is unavailable | Require verification before activating recording or shared-data access. Do not reuse another account's permit. |
@@ -747,7 +795,9 @@ The formal models must check both delivery orders and the actual store boundarie
 | The user opens an old update notification after recovery or an account change | Revalidate the current state. Do not restore an old scope or block a compatible account from stale notification data. |
 | A compatible update restores access | Recreate the scope and permit, respect recording consent and permissions, and clear the owned update alert. |
 | An incompatible record arrives before the shared required-major metadata | Detect its unsupported contract before interpretation and enter the update gate. Do not publish a partial compatible-looking result. |
-| A major upgrade is attempted while offline or its server confirmation fails | Do not activate incompatible behavior. Preserve the highest known major and verify the outcome before retrying activation. |
+| A shared major upgrade is attempted while offline or its server confirmation fails | Do not activate incompatible behavior. Preserve the highest known major and verify the outcome before retrying activation. |
+| An eligible beta activates a major before a compatible App Store release exists | Apply the ordinary shared-upgrade rules. Require beta use across devices and update incompatible phones through the existing gate. |
+| A phone returns from Beta to an App Store build that cannot honor the required major | Keep access gated. Require a compatible beta or App Store build without lowering the required major. |
 | An earlier-version choice arrives after a major upgrade | Apply the defined version-admission rules. Preserve safely interpretable meaning, or retain the record and require review with affected history unresolved. |
 | An idle updated device only produces unused pings | Do not automatically advance the required major from that activity. |
 | A stationary device contributes useful recent history | Permit it to qualify for an automatic major upgrade without movement. |
@@ -794,6 +844,9 @@ They cover failed assessment, unaffected scopes, disabled reminders, and lossles
 
 The history-selection model retains resolved recording days and their context under sync, import, and viewer time-zone changes.
 It compares competing observations by absolute time even when their recording-day labels differ.
+Matching UTC dates alone never establish overlap.
+Overlapping region agreement with conflicting day labels requires source selection for both region and day.
+Unresolved recording-day conflicts preserve both raw assignments, exclude disputed contributions, and mark each candidate day incomplete.
 Whole-day coverage and overlap with fixed time ranges must follow the selected device's recorded calendar context.
 Swift tests cover delayed callbacks, unresolved day assignments, daylight-saving changes, date-line travel, and day/year query boundaries.
 
@@ -817,7 +870,10 @@ Unresolved geography alone establishes neither agreement nor a device conflict.
 The model assumes that every admitted automatic GPS observation has a recording-device identity.
 Conversion and Swift admission tests must validate this assumption before selection.
 
-The compatibility model includes unknown, verified-existing, and verified-new account states.
+The compatibility model distinguishes cloud-backed datasets from local-only datasets.
+Local-only initialization and major activation use guarded local transactions without account verification or server confirmation.
+Local access never grants a shared-account permit or bypasses record admission.
+For cloud-backed datasets, the model includes unknown, verified-existing, and verified-new account states.
 Only verified-new state can authorize account initialization.
 Unknown state cannot authorize initialization or a major upgrade.
 Concurrent initialization cannot overwrite established account state or bypass upgrade rules.
@@ -826,8 +882,10 @@ The model also covers legacy-data discovery, verification failures, and delayed 
 Cached offline access survives elapsed time and failed refreshes only for the same verified account and store.
 The model rejects cached access after an identity change or known incompatibility and blocks new capture through the retired scope.
 Recovery creates a new scope and cannot reuse a revoked permit or lower the known required major.
-Activation requires the guarded server confirmation, while metadata and incompatible records remain independently deliverable.
+Shared major activation requires the guarded server confirmation, while metadata and incompatible records remain independently deliverable.
 Swift tests cover durable retry-data preservation, notification denial and failure, repeat suppression, stale notification routing, and recovery cleanup.
+They also cover offline local-only startup and upgrades, unsupported backup admission, and shared-output gating through local adapters.
+Beta and App Store transition scenarios retain the same required-major gate without a separate channel-verification protocol.
 Notification delivery never supplies a compatibility permit or proof that recording resumed.
 
 Each family uses small models with explicit atomicity, delivery, persistence, and failure assumptions.
@@ -915,10 +973,12 @@ Each slice receives its own tests and PR.
 Define bounded periods, accuracy-aware movement evidence, stationary evidence, and uncertainty around sparse observations.
 Model recording-day assignments with their observation-time zone context, including an explicit unresolved state.
 Define whole-day coverage from the selected device's recorded context and compare conflicting evidence by absolute time.
+Establish overlap from full timestamps and bounded track coverage, independently of UTC calendar-date equality.
 Require recording-device identity in the automatic GPS inputs to the new resolver.
 Model regular homes and temporary bases as optional evidence with historical validity.
 Use the required scenarios as executable fixtures.
-Preserve same-region agreement and separate device trajectories.
+Preserve reporting agreement for matching regions and recording days, and retain separate device trajectories.
+Resolve recording-day conflicts through strong source evidence or the existing review flow.
 Assess agreement with full-catalog region identities, independently of primary-region reporting groups.
 Represent unresolved geography without inferring agreement or conflict from equal fallback values.
 Define causal replacement, concurrent overlap, reversal, and agreement without production writes.
@@ -942,6 +1002,9 @@ Validate restore and transfer on physical devices before activation.
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.
 Implement `major.minor.patch` semantics and the monotonic required major.
+Distinguish cloud-backed datasets from local-only datasets independently of process adapters and network availability.
+Implement guarded local initialization and major activation without account verification for local-only datasets.
+Preserve record admission and compatibility gating in both paths.
 Implement unknown, verified-existing, and verified-new account states from shared-account verification.
 Define the evidence that establishes account newness and the legacy-data bootstrap path.
 Guard account initialization against concurrent setup and preserve previously observed requirements after verification failures.
@@ -952,9 +1015,11 @@ Implement cached offline access without time-based expiry for a verified compati
 Revoke access on identity changes or known incompatibility, including incompatible records received before their metadata.
 Pause capture at the known-incompatible gate while preserving consent and accepted durable retry data.
 Keep update notification scheduling and routing available after scope retirement.
-Define and verify the server-confirmed activation operation, version admission, and initial rollout before incompatible data writes.
+Define and verify shared major activation, version admission, and initial rollout before incompatible data writes.
 Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
 Cover empty local stores, delayed imports, legacy accounts, concurrent setup, stale responses, old backups, and failed verification.
+Cover offline local-only startup and upgrades, unsupported imports, and cloud-backed output through local adapters.
+Cover beta upgrades and return to App Store builds under the existing compatibility gate.
 Exercise foreground and background consumers.
 
 ### 4. Durable choices, device controls, and places
@@ -991,6 +1056,8 @@ Prevent backup import and recovery from reusing decision operation identities.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.
 Group selected observations by resolved recording day consistently across consumers.
+When overlapping devices disagree on the day, select region and recording day together.
+Keep candidate days incomplete while that conflict remains unresolved, and exclude its disputed contribution.
 Preserve observable uncertainty for unresolved day assignments.
 Cover day/year queries whose observations fall outside the viewing zone's corresponding instant window.
 Apply selection before region aggregation and preserve device boundaries through movement and flight inference.
@@ -1018,8 +1085,10 @@ Verify unresolved contributions, report completeness, and export gating before a
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
+When users resolve a recording-day conflict through source selection, show both candidate dates.
 Show incomplete totals and guide affected history-report exports into review before producing the report.
 Add the local update alert, duplicate suppression, permission fallback, and current-state routing to the appropriate update destination.
+Explain beta use across devices and the compatibility requirement for return to the App Store build during setup and updates.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
@@ -1055,7 +1124,7 @@ The following details require explicit decisions in the relevant slices:
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
 - The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
 - Persistence and recovery for the agreed identity lifecycle and stored decisions across backup import, reset, and device removal.
-- Guarded server confirmation for major activation, record-level version admission, and the required rollout sequence.
+- Guarded server confirmation for shared major activation, record-level version admission, and the required rollout sequence.
 
 Thresholds require named units and scenario tests before they affect history.
 The automatic policy produces the same result for identical evidence, decisions, full policy versions, and query context, regardless of input or sync order.
