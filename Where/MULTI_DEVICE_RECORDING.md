@@ -45,6 +45,7 @@ A whole-day choice uses the recording device's logical `CalendarDay`. A time-ran
 The first version automatically selects a device when the evidence is strong.
 Each automatic decision exposes its reason and supports a manual override.
 Ambiguous conflicts remain available for review.
+They require user input before disputed presence contributes to totals.
 The first version includes setup, temporary device controls, and guided review of unresolved issues.
 
 ## Device identity and setup
@@ -400,7 +401,39 @@ They preserve the same shared meaning of durable user choices and controls.
 Raw track review and lossless backups remain available separately.
 Flight and movement inference preserve device boundaries.
 An unresolved region conflict remains visible to consumers instead of silently becoming a confident combined history.
-The exact treatment of unresolved totals remains an activation prerequisite.
+Counts and report completeness follow the unresolved-history policy below.
+
+### Totals and exports with unresolved history
+
+Totals include presence supported by resolved history, including valid user choices and strong automatic selections under the existing policy.
+If a conflict remains ambiguous, require user input before assigning its disputed region presence.
+Do not infer a winner or count every competing region to fill the gap.
+Unresolved contributions stay excluded until resolution. Raw observations and competing decisions remain intact.
+
+Resolved presence elsewhere on the same recording day still contributes normally.
+For example, an unresolved California/New York conflict contributes neither disputed presence.
+A separate resolved California observation that day still counts once for California.
+The day remains incomplete because the unresolved period can affect its history.
+
+Affected reports show **Incomplete** and the distinct affected recording days that need review.
+Several conflicts on one day count once in that indicator.
+A partly resolved day can contribute to region totals and also appear in the review count.
+Unresolved day assignments remain separately visible when their affected recording days cannot yet be established.
+Turning reminders off never changes report completeness or export eligibility.
+
+Reports, Elsewhere, widgets, summaries, reminders, and relevant App Intents apply the same contribution and completeness rules.
+A surface must expose incomplete status with its counts or withhold the counts when it cannot express that status.
+Do not convert an unresolved source conflict into Other to make the report appear complete.
+Existing manual assertions, authoritative overlays, and explicit unknown-geography assertions retain their own contracts.
+
+History-report exports require resolved history for the exported scope.
+Unresolved selection conflicts or day assignments block export when they can affect that scope.
+The export action directs the user to review those periods before producing the report.
+Unresolved work outside that scope does not block an otherwise eligible export.
+Eligibility and exported content use the same local history snapshot.
+
+A failed or incomplete assessment blocks export with an observable error or review state.
+Lossless backups remain available and preserve raw evidence and durable decisions.
 
 ## Sync and concurrent decisions
 
@@ -587,6 +620,14 @@ A sync-completion event alone cannot provide that guarantee.
 | One device reports and another remains silent | Assess the available track without inventing a stationary competitor. |
 | Two devices travel in different regions during the same period | Request review unless independent evidence supports automatic selection. |
 | A sparse track or inaccurate boundary point suggests movement | Preserve uncertainty. Do not classify it as strong movement evidence. |
+| An unresolved California/New York conflict has no separately resolved presence | Exclude both disputed contributions and require user input. Mark the report incomplete and block history-report export for the affected scope. |
+| The same day also has a resolved California observation | Count California once from the resolved evidence. Keep the disputed contribution excluded and the day marked for review. |
+| Several conflicts affect one recording day | Count that day once in the review indicator. Preserve every unresolved concern. |
+| The user disables issue reminders while conflicts remain | Preserve incomplete status, excluded contributions, and the affected export gate. Keep the issues accessible. |
+| A widget or intent cannot express report incompleteness with its counts | Withhold the counts instead of presenting them as complete. |
+| A history-report export covers a resolved period while another period remains unresolved | Permit the unaffected scope after a successful assessment. Use the same snapshot for eligibility and exported content. |
+| Export assessment fails or remains incomplete | Block the history-report export and expose the failure or remaining review. Do not treat unavailable assessment as no conflicts. |
+| The user creates a lossless backup while history conflicts remain | Preserve the raw observations and durable decisions. Keep backup export available. |
 | Devices disagree throughout a car, train, or plane journey | Review one continuous issue and preview an exclusive period choice. |
 | The explicitly selected device has a gap | Preserve the gap instead of filling it from another device. |
 | The user ignores a device after explicitly selecting it for a period | Keep the explicit choice effective. Exclude that device only from automatic selection within the ignored interval. |
@@ -669,6 +710,11 @@ Late eligible observations from the selected device can change history without c
 Other devices remain excluded within that decision's scope, including gaps before and after the late import.
 Swift tests cover refreshed totals, unchanged choices, and normal issue routing after new selected-device evidence.
 
+The history-selection model excludes disputed contributions while preserving resolved presence from other periods on the same day.
+Swift tests verify incomplete status, distinct affected-day counts, and contribution consistency across consumers.
+Export tests require resolved history for the exported scope and one snapshot for eligibility and content.
+They cover failed assessment, unaffected scopes, disabled reminders, and lossless backups with unresolved decisions.
+
 The history-selection model retains resolved recording days and their context under sync, import, and viewer time-zone changes.
 It compares competing observations by absolute time even when their recording-day labels differ.
 Whole-day coverage and overlap with fixed time ranges must follow the selected device's recorded calendar context.
@@ -739,6 +785,7 @@ It does not require a wholesale import of the previous stack.
 | [LocationHistoryReader](WhereCore/Sources/Devices/LocationHistoryReader.swift) | The shared read boundary already applies device removals and region corrections. |
 | [LocationHistoryReaderTests](WhereCore/Tests/LocationHistoryReaderTests.swift) | Existing guards preserve raw observations while applying corrections and removal cutoffs. |
 | [DayAggregator](WhereCore/Sources/Days/DayAggregator.swift) | Current GPS bucketing derives days from timestamps and the query calendar. Recorded-day grouping requires a replacement across consumers and day/year queries. |
+| [YearReport](WhereCore/Sources/Reporting/YearReport.swift) and [YearReportDetails](WhereCore/Sources/Reporting/YearReportDetails.swift) | Reports currently carry day counts and related projections without unresolved selection state. Add unresolved periods and completeness to the shared consumer contract. |
 | [ElsewhereResolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) and its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) | Existing catalog lookup expands ordinary Other observations for presentation. Reuse that lookup in shared geographic assessment before selection and report grouping. |
 | [Backup upgrader](Tools/upgrade-backup.rb) and its [regression tests](Tools/Tests/upgrade_backup_test.rb) | Existing offline conversion preserves archives but currently adds nil device attribution when absent. Required attribution needs a new conversion step and guards. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
@@ -863,6 +910,10 @@ Retain specific region identities and unresolved geography through history selec
 Make Elsewhere consume the shared selection and uncertainty before it counts named visits.
 Preserve explicit assertions of unknown presence during catalog lookup.
 Cover reports, Elsewhere, issue scans, widgets, reminders, exports, and relevant App Intents.
+Exclude disputed contributions while retaining resolved presence on the same day.
+Expose incomplete status and distinct affected recording days across consumers, independently of reminder preferences.
+Gate history-report exports on resolution within the exported scope, using one snapshot for eligibility and content.
+Preserve lossless backup export while conflicts remain.
 Carry the full policy version through derived results and caches.
 Invalidate affected caches and reassess automatic history after policy updates.
 Exercise compatible policy differences while preserving raw observations and the shared meaning of user choices.
@@ -871,13 +922,14 @@ Exercise local writes, delayed sync, user overrides, reset, and device removal.
 Include late eligible observations from an explicitly selected device without changing the source choice or admitting another device into gaps.
 Preserve raw review, lossless backups, and manual assertions.
 Complete the history-selection model and add Swift regressions for its important counterexamples.
-Define unresolved-conflict presentation before changing totals.
+Verify unresolved contributions, report completeness, and export gating before activation.
 
 ### 6. Review experience, reminders, and activation
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
+Show incomplete totals and guide affected history-report exports into review before producing the report.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
@@ -912,7 +964,6 @@ The following details require explicit decisions in the relevant slices:
 - The representation of causal context, incomplete dependencies, and counter allocation and recovery.
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
 - The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
-- Treatment of unresolved conflicts in totals, history exports, widgets, and reminders.
 - Persistence and recovery for the agreed identity lifecycle and stored decisions across backup import, reset, and device removal.
 - Offline compatibility policy, activation synchronization, and the required rollout sequence.
 
@@ -925,17 +976,10 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-D1 and D2 remain the pending decisions. D2 tracks the remaining offline-access and activation rules.
+D2 remains the pending decision. It tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### D1. Treatment of unresolved conflicts in totals
-
-The document requires visible uncertainty but leaves its effect on counts and exports open.
-Decide which region presence contributes to totals while a conflict remains unresolved.
-Apply the same rule to reports, widgets, reminders, history exports, and relevant App Intents.
-Define the user-visible explanation and acceptance scenarios before the shared-reader slice activates.
 
 ### D2. Offline compatibility and activation
 
