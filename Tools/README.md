@@ -19,6 +19,7 @@ The standard duplicate-property rule permits different CSS syntaxes, but rejects
 `flyover_pages.py` includes the latest bundle in the existing install-site deployment.
 `circleci_pipeline.py` owns shared CircleCI transport. Installer-specific IPA policy remains in `InstallerKit`.
 Pipeline and workflow discovery retry HTTP 404 responses within the existing polling deadline.
+The client closes discarded HTTP error responses before each retry.
 Other HTTP failures propagate immediately, including missing jobs or artifacts.
 
 The daily controller uses the existing `INSTALLER_CIRCLECI_PROJECT`, `INSTALLER_CIRCLECI_PIPELINE`, and `INSTALLER_CIRCLECI_TOKEN` configuration.
