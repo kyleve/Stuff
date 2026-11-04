@@ -2,8 +2,13 @@
 
 This document defines the replacement direction for exclusive recording authority.
 It is the design foundation for a new stack based on `main` at `93062f7c`.
-This slice changes documentation only. The behavior described here is proposed unless the text identifies an existing implementation.
+The design PR changes documentation only. Dependent PRs implement the slices listed below.
+The behavior described here is proposed unless the text identifies an existing implementation.
 This document also owns the implementation plan for the replacement stack.
+
+The first implementation adds pure assessment and causal-decision types in WhereCore.
+It does not activate multi-device selection, change capture, or change stored and backup formats.
+The [initial assessment policy](#initial-assessment-policy) and [decision representation](#sync-and-concurrent-decisions) record its technical choices.
 
 ## Why
 
@@ -221,6 +226,44 @@ Movement remains an inference about the user.
 For example, a moving phone can travel with someone else while the user stays home.
 The user can correct that inference without losing either track.
 Stationary observations can also provide useful history. Movement is not a requirement for a device to contribute.
+
+### Initial assessment policy
+
+[`MultiDeviceAssessment`](WhereCore/Sources/Devices/MultiDeviceAssessment.swift) implements the pure foundation.
+Its inputs retain device identity, full-catalog geography, and resolved or unresolved recording-day assignments.
+An unresolved assignment never uses the viewing zone as a fallback.
+Production integration must supply effective geographic corrections before assessment, including explicit assertions of unknown presence.
+
+Periods use half-open boundaries: the start is inclusive and the end is exclusive.
+Each point has one second of bounded support.
+Consecutive observations connect only across gaps of at most 30 minutes.
+The resolver splits at observation and coverage boundaries before it clips results to a query.
+With identical input context, narrowing a query cannot change its overlapping assessment.
+Callers must supply adjacent evidence, including observations outside the displayed day or year.
+
+[`RecordingEvidencePolicy`](WhereCore/Sources/Devices/RecordingEvidencePolicy.swift) owns the policy version, thresholds, units, and decision meanings.
+The initial policy requires three independent fixes and accuracy of 250 meters or better for strong movement or stationary evidence.
+Movement also requires ten minutes, one kilometer of accuracy-adjusted displacement, two corroborating advances, and coherent progress.
+Stationary evidence requires twenty minutes of positive observations within the accuracy-adjusted dwell radius.
+All intervening fixes participate in plausibility checks. Dense callbacks cannot hide a contradictory jump.
+
+Matching known regions and recording days agree for reporting.
+A geographic conflict requires repeated, separated observations whose uncertainty circles remain more than two kilometers apart.
+Different region labels near a boundary remain uncertain. An isolated distant fix does not establish a geographic conflict.
+A known recording-day disagreement remains independent of geographic distance.
+Equal-timestamp observations all participate, so their identities cannot select an arbitrary geographic or day interpretation.
+
+[`RecordingDayCoverage`](WhereCore/Sources/Devices/RecordingDayCoverage.swift) resolves whole-day periods from explicit calendar-context intervals.
+It preserves repeated-date gaps and daylight-saving boundaries without requiring GPS throughout the day.
+Its caller must establish a search period that contains every occurrence of the date.
+Missing calendar context prevents a whole-day result. It does not invent coverage from the first and last GPS points.
+
+The assessment tests cover synthetic travel, stationary tracks, noise, sparse data, threshold boundaries, repeated dates, and input permutations.
+The pure policy remains inactive. Platform capture experiments and representative phone-journey measurements remain required before production activation.
+The current capture adapter passes `CLLocation.timestamp` or a `CLVisit` arrival/departure timestamp into the sample.
+Neither callback supplies the device's historical time-zone assignment.
+A current zone or a later zone-change notification cannot establish every intervening historical context.
+Slice 4 must validate context capture and recovery before it changes observation storage.
 
 ### Regular homes and temporary bases
 
@@ -495,7 +538,11 @@ The explicit choice takes precedence for its period after merge, regardless of t
 Other shared controls define their merge semantics before persistence ships.
 CRDTs provide useful models for this behavior, including a multi-value register that retains concurrent choices until a subsequent choice replaces them.
 See [INRIA's multi-value register](https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crdt/-m-v-register/index.html).
-The exact representation can use revision vectors or explicit predecessor identities. This plan does not select a general CRDT framework.
+[`HistoryDecision`](WhereCore/Sources/Devices/HistoryDecision.swift) uses explicit predecessor identities rather than revision prefixes.
+Each operation has a UUID identity, author, normalized periods, action, predecessor set, and authoring semantics version.
+Retries and imports retain the original identity and payload. A new decision receives a new identity.
+No per-device counter determines causal knowledge or chooses a concurrent winner.
+This plan does not select a general CRDT framework.
 
 Counters describe decisions actually received and incorporated.
 Receipt of revision 50 before revision 49 cannot imply knowledge of every revision through 50.
@@ -503,6 +550,14 @@ Counter allocation, persistence, and recovery must prevent reuse after crashes, 
 Reusing a recording identity does not permit reuse of an operation identity for a new decision.
 The causal persistence design defines safe recovery before new decision writes resume.
 Dates remain useful for display and diagnosis. Wall-clock ordering does not decide between incompatible concurrent user choices.
+
+[`HistoryDecisionResolver`](WhereCore/Sources/Devices/HistoryDecisionResolver.swift) computes explicit predecessor closure for each received operation.
+Missing predecessors make the affected periods incomplete until those dependencies arrive.
+A replacement supersedes ancestors only where its own periods apply.
+The resolver rejects identity collisions, empty scopes, cycles, and unsupported major contracts.
+Compatible minor and patch versions preserve this decision interpretation.
+The [initial PlusCal model](Specifications/MultiDeviceDecisions/README.md) checks bounded delivery, concurrent choices, and replacement scope.
+It does not establish durable identity recovery, guarded writes, or server acceptance.
 
 Raw observations merge by stable identity and retain provenance.
 Automatic selection recomputes from the available evidence and full policy version instead of accepting a remotely chosen derived winner.
@@ -855,7 +910,10 @@ Protocol activation requires PlusCal specifications checked with TLC.
 The models follow the existing [specification workflow](Specifications/README.md) and live under `Where/Specifications/`.
 They check narrow properties within explicit bounds and assumptions.
 They do not establish an unbounded mathematical proof or prove that the Swift implementation matches the model.
-This design slice adds the requirements only. It contains no new models or model-checking results.
+The original design PR adds these requirements only.
+The first implementation adds [MultiDeviceDecisions](Specifications/MultiDeviceDecisions/README.md), with one passing model and four negative or reachability controls.
+Its current configuration checks 256 distinct states across two replicas and four fixed operations.
+All five cases pass their expected-result checks. The other model families remain required before activation.
 
 | Model family | Required properties | Owning implementation slices |
 | --- | --- | --- |
@@ -1031,6 +1089,10 @@ Give the resolver a full policy version and fixtures for deterministic results f
 Add the initial decision-merging specification and its TLC control cases.
 Exercise reordered, duplicated, and incomplete inputs. This slice does not change production filtering.
 
+**Implemented foundation:** the [initial policy](#initial-assessment-policy), [causal resolver](#sync-and-concurrent-decisions), and bounded decision model have executable fixtures.
+The module [README](WhereCore/README.md#multi-device-assessment-foundation) describes the pure API boundary.
+Observation-time context acquisition remains an early investigation for slice 4.
+
 ### 2. Device identity and setup
 
 Implement device-local Keychain identity with explicit unavailable and recovery states.
@@ -1186,10 +1248,8 @@ Their results must precede the dependent decisions listed here.
 
 | Decision | Owning slice | Resolve before | Required evidence |
 | --- | --- | --- | --- |
-| Interval segmentation, exact boundary inclusivity, and context outside a queried day | 1: assessment | Merging the period-assessment rules in 1 | Fixtures for adjacent intervals, disjoint whole-day coverage, fixed time ranges, sparse tracks, day/year boundaries, and evidence outside the requested period. |
-| Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior | 1: assessment | Merging the initial assessment policy in 1 | Named units and representative tracks, including noisy points, useful stationary evidence, competing movement, and insufficient evidence. |
 | Device status eligibility, evidence requirements, freshness thresholds, and recovery conditions | 6: reminders | Activating device status issues or their notifications | Scenarios for quiet devices, receiver sync failures, delayed check-ins, recent selected periods, and recovery without complete observation delivery. |
-| Causal context, incomplete dependencies, and counter allocation and recovery | 1: causal model, with durable decisions in 4 | Merging the causal model in 1 and new decision persistence in 4 | Model controls for reordered and missing dependencies. Persistence tests for crashes, reinstall, restore, and prevention of operation-identity reuse. |
+| Durable operation identity allocation and recovery | 4: durable decisions | Merging new decision persistence in 4 | The pure model uses explicit predecessor identities. Persistence tests must cover crashes, reinstall, restore, retries, and prevention of operation-identity reuse. |
 | Meaningful-contribution criteria within the agreed 15-day window | 3: compatibility | Implementing automatic shared major upgrades | Fixtures for useful stationary history, redundant or excluded observations, late uploads, and explicit source choices. |
 | Persistence and recovery for the agreed identity lifecycle and stored decisions | 2: identity, with durable decisions in 4 | Persisting the new state in each owning slice. Physical-device validation precedes activation. | Both backup import strategies, reset, removal, rejoin, and counter recovery. Same-phone and new-phone restore or transfer validation. |
 

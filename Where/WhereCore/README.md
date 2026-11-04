@@ -15,8 +15,25 @@ the domain/presentation layering and the rules this module enforces, see the
 feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 The [multi-device recording design](../MULTI_DEVICE_RECORDING.md) defines the proposed
-history-selection model. Its first stack slice changes documentation only.
-That document also contains the implementation plan.
+history-selection model and its implementation plan.
+The pure assessment foundation exists below. Production history still uses the existing removal and correction rules.
+
+## Multi-device assessment foundation
+
+`MultiDeviceAssessment.assess(observations:within:places:)` compares separate device tracks without store access or mutations.
+Validated observations require GPS device attribution and explicit recording-day context, or an unresolved assignment.
+Region inputs come from the full catalog, with effective corrections applied by the caller.
+Results retain uncertainty, supporting evidence, and the full policy version.
+The [primary design](../MULTI_DEVICE_RECORDING.md#initial-assessment-policy) defines interval and evidence semantics.
+
+`RecordingDayCoverage.resolve(day:within:contexts:)` derives a logical day's possibly disjoint periods from calendar-context coverage.
+The caller supplies a complete search bound. Missing context produces a clarification requirement.
+
+`HistoryDecisionResolver.resolve(_:within:version:)` resolves immutable decisions with explicit predecessor identities.
+Concurrent incompatible decisions and missing dependencies remain visible per period.
+The [decision model](../Specifications/MultiDeviceDecisions/README.md) describes the bounded proof and source correspondence.
+These APIs do not change production capture, persistence, reports, or backup formats.
+The remaining integration and activation requirements stay in the primary design.
 
 ## What you get
 

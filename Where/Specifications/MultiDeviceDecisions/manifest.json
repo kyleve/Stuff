@@ -1,0 +1,11 @@
+{
+  "source": "pluscal",
+  "module": "MultiDeviceDecisions.tla",
+  "cases": [
+    {"name": "current", "config": "Current.cfg", "expect": "pass"},
+    {"name": "broken-prefix", "config": "BrokenPrefix.cfg", "expect": "fail", "outputContains": "Invariant MissingDependenciesRemainUnknown is violated."},
+    {"name": "broken-winner", "config": "BrokenWinner.cfg", "expect": "fail", "outputContains": "Invariant ConcurrentChoicesSurvive is violated."},
+    {"name": "broken-scope", "config": "BrokenScope.cfg", "expect": "fail", "outputContains": "Invariant ReplacementStaysInScope is violated."},
+    {"name": "missing-and-concurrent-reachability", "config": "Reachability.cfg", "expect": "fail", "outputContains": "Invariant CriticalScenarioNotReached is violated."}
+  ]
+}

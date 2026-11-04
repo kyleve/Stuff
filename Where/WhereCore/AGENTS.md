@@ -25,6 +25,11 @@ That document also owns the implementation plan.
 
 ## Shape & invariants
 
+- Keep the multi-device assessment foundation pure until the [activation gates](../MULTI_DEVICE_RECORDING.md#major-activation-and-rollout) pass.
+  Supply complete adjacent evidence before clipping a query. Preserve all equal-timestamp observations.
+  Resolve causal decisions through explicit predecessor identities, without timestamp or revision-prefix winners.
+  Guards: `MultiDeviceAssessmentTests`, `RecordingTrackAssessmentTests`, and the `MultiDeviceDecisions` model.
+
 - Use InstallerKit for local and published build identity, feed validation, and cache policy.
   Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
   installer identity only for the Development audience.
