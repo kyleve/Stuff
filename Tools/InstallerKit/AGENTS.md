@@ -32,6 +32,8 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
 - Run signed archives on the shared CircleCI macOS executor. Keep its config and control checkout on `main`.
   Require the signing context's project and config-source restrictions. Keep the CircleCI API token on the GitHub controller.
   Validate a successful pipeline, job, artifact path, and signed run identity before publication.
+  Use the shared CircleCI transport to preserve HTTP errors for discovery retries.
+  Guard the default transport through the command entry point in `test_circleci_distribution.py`.
 - Keep repository write credentials out of archive jobs. Only same-repository PRs
   labeled `installable` may receive signed branch builds. Use a controller from `main`.
 - Use `pull_request_target` so conflicts cannot suppress retirement. Require confirmed
