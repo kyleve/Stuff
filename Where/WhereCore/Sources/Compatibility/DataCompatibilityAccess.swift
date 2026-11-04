@@ -32,6 +32,10 @@ public final class DataCompatibilityAccess: Sendable {
         permit.revoke()
     }
 
+    public var isRevoked: Bool {
+        permit.isRevoked
+    }
+
     public func validate() throws {
         try permit.validate()
     }

@@ -4,6 +4,64 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DeviceRecordingControllerTests {
+    @Test func compatibilityRetirementKeepsConsentAndPendingDataAndCannotBeResumed()
+        async throws
+    {
+        let sample = LocationSample(
+            timestamp: Self.now,
+            coordinate: Coordinate(latitude: 37, longitude: -122),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+        )
+        let outbox = ScriptedLocationOutbox()
+        let (controller, store, ingestor, _) = try makeController(enabled: true, outbox: outbox)
+        _ = try await controller.register(authorization: .always)
+        try await outbox.save([LocationOutboxEntry(sample: sample, dataGenerationID: .initial)])
+        await ingestor.testingEnqueueForRetry(sample, dataGenerationID: .initial)
+        try await controller.pause()
+
+        await controller.retireScope()
+        await controller.resumeAfterFailedReset()
+        await controller.resumeAfterImportRollback()
+        await controller.startMonitoringChanges()
+        await #expect(throws: CancellationError.self) {
+            try await controller.resumeAfterImport(discardPendingSamples: true)
+        }
+        await #expect(throws: CancellationError.self) {
+            try await controller.register(authorization: .always)
+        }
+        await #expect(throws: CancellationError.self) { try await controller.retireForRejoin() }
+        await #expect(throws: CancellationError.self) { try await controller.finishReset() }
+        await #expect(throws: CancellationError.self) { try await ingestor.discardRetryBacklog() }
+        await #expect(throws: CancellationError.self) { try await ingestor.quiesce() }
+        await #expect(throws: CancellationError.self) {
+            try await ingestor.start(effectiveAt: Self.now, dataGenerationID: .initial)
+        }
+        #expect(await ingestor.isActive == false)
+        #expect(await ingestor.testingIsAcceptingSamples == false)
+        #expect(await outbox.persistedSamples == [sample])
+        #expect(await ingestor.testingRetryQueueSampleIDs() == [sample.id])
+        #expect(try await store.recordingDeviceRemovals().isEmpty)
+        #expect(try await store.recordingDeviceProfiles().count == 1)
+    }
+
+    @Test func freshScopeReplaysRetainedOutboxWithoutChangingItsDeviceProvenance() async throws {
+        let sample = LocationSample(
+            timestamp: Self.now,
+            coordinate: Coordinate(latitude: 37, longitude: -122),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+        ).recorded(by: InstallationRecordingContext.testing.currentDevice.id)
+        let outbox = ScriptedLocationOutbox([sample])
+        let (controller, store, ingestor, _) = try makeController(enabled: true, outbox: outbox)
+
+        _ = try await controller.register(authorization: .always)
+
+        #expect(try await store.allSamples() == [sample])
+        #expect(await outbox.persistedSamples.isEmpty)
+        #expect(await ingestor.isActive)
+    }
+
     private struct WaitTimeout: Error {}
 
     private static let now = Date(timeIntervalSinceReferenceDate: 1000)

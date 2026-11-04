@@ -56,6 +56,10 @@ That document also owns the implementation plan.
   Keep physical saves and permit revocation under the same mutex.
   A completed read does not authorize later output publication; retain a separate publication guard.
   Guard: `SwiftDataStoreTests.revokedScopeCannotCommitASuspendedTransaction`.
+- Compatibility-scoped services serialize asynchronous history output through `DataCompatibilityOutputs`.
+  Await its retirement before replacement services publish. Cancellation does not abandon submitted system calls.
+  Scope retirement preserves recording consent and the accepted outbox; only a new scope can resume capture.
+  Guards: `DataCompatibilityOutputsTests`, `DataCompatibilityOutputQueueTests`, `DeviceRecordingControllerTests`.
 - Admit version-envelope headers before payloads. Preserve observed major requirements even
   after stale verification. Keep shared observations in the account-bound, backup-excluded
   cache; never mirror a queued control-floor write across account changes. During shared

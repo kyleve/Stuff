@@ -53,6 +53,15 @@ public struct WidgetSnapshotStore: Sendable {
         try data.write(to: fileURL, options: .atomic)
     }
 
+    /// Absence is the widget's empty state. Treat an already absent publication as withdrawn.
+    public func withdraw() throws {
+        do {
+            try FileManager.default.removeItem(at: fileURL)
+        } catch CocoaError.fileNoSuchFile {
+            return
+        }
+    }
+
     /// The last published snapshot, or `nil` if nothing has been written yet
     /// or the file can't be read/decoded. A `nil` result is the widget's cue
     /// to render its placeholder/empty state.

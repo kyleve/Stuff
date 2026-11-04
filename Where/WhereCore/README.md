@@ -69,7 +69,19 @@ The scoped store cannot raise the required major or author above its admitted ma
 The physical save repeats admission, so a compatible higher-major import also retires an older scope.
 
 See the [verification](../Specifications/CompatibilityVerification/README.md) and [activation](../Specifications/CompatibilityActivation/README.md) models for bounds and source correspondence.
-Production scope creation and output withdrawal remain in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
+`DataCompatibilityOutputs` wraps notification schedulers and widget publication in one serial queue.
+Retirement drains submitted calls, removes owned output, and clears the history badge.
+Caller cancellation does not abandon a submitted system call.
+Replacement services must await retirement before publishing. Repeated retirement cannot remove replacement output.
+Widget file writes also validate access under the permit's physical-write lock.
+The [output model](../Specifications/CompatibilityOutputs/README.md) checks the bounded withdrawal ordering.
+
+Recording retirement is permanent for the old controller and ingestor.
+It joins a pending physical start before the final stop and preserves accepted retry data.
+Stale rollback and destructive cleanup calls cannot resume capture or clear that data.
+A fresh compatible scope restores its generation-matching outbox before accepting new samples.
+
+Production scope creation and output integration remain in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
 The foundation does not activate new history selection or write incompatible user data.
 
 ## What you get

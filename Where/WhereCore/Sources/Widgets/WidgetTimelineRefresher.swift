@@ -9,7 +9,18 @@ import WidgetKit
 public protocol WidgetTimelineRefreshing: Sendable {
     /// Persist `snapshot` where the widget process can read it, then ask
     /// WidgetKit to rebuild every timeline.
-    func publish(_ snapshot: WidgetSnapshot) async
+    func publish(_ snapshot: WidgetSnapshot, access: DataCompatibilityAccess?) async
+
+    /// Remove the published history and reload timelines after pending publications drain.
+    func withdraw() async
+}
+
+extension WidgetTimelineRefreshing {
+    /// Unscoped worlds use this entry point. Production services inject a compatibility wrapper
+    /// which supplies its access at the actual file-write boundary.
+    public func publish(_ snapshot: WidgetSnapshot) async {
+        await publish(snapshot, access: nil)
+    }
 }
 
 /// A `WidgetTimelineRefreshing` that does nothing. For SwiftUI previews and
@@ -18,7 +29,9 @@ public protocol WidgetTimelineRefreshing: Sendable {
 public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
     public init() {}
 
-    public func publish(_: WidgetSnapshot) async {}
+    public func publish(_: WidgetSnapshot, access _: DataCompatibilityAccess?) async {}
+
+    public func withdraw() async {}
 }
 
 /// Production `WidgetTimelineRefreshing`: writes the snapshot to the shared
@@ -33,14 +46,31 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
         self.appGroupIdentifier = appGroupIdentifier
     }
 
-    public func publish(_ snapshot: WidgetSnapshot) async {
+    public func publish(_ snapshot: WidgetSnapshot, access: DataCompatibilityAccess?) async {
         do {
-            try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier).write(snapshot)
+            let snapshotStore = try WidgetSnapshotStore
+                .shared(appGroupIdentifier: appGroupIdentifier)
+            if let access {
+                try access.publishWhileValid { try snapshotStore.write(snapshot) }
+            } else {
+                try snapshotStore.write(snapshot)
+            }
             Self.logger.wroteSnapshot()
+        } catch DataAccessPermit.AccessError.revoked {
+            return
         } catch {
             Self.logger.publishFailed(
                 error: .restricted(.errorDetails, error),
             )
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    public func withdraw() async {
+        do {
+            try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier).withdraw()
+        } catch {
+            Self.logger.withdrawFailed(error: .restricted(.errorDetails, error))
         }
         WidgetCenter.shared.reloadAllTimelines()
     }

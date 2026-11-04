@@ -71,7 +71,9 @@ struct DayJournalTests {
 
     private actor SpyRefresher: WidgetTimelineRefreshing {
         private(set) var publishCount = 0
-        func publish(_: WidgetSnapshot) async {
+        func withdraw() async {}
+
+        func publish(_: WidgetSnapshot, access _: DataCompatibilityAccess?) async {
             publishCount += 1
         }
     }

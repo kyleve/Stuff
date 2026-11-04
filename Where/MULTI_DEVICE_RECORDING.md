@@ -1158,6 +1158,12 @@ SwiftData fixtures exercise unsupported and supported-major imports before a sus
 Shared observations stay in the account-bound local cache, so an old account's queued mirrored write cannot alter another account's control state.
 The production scope and output integrations below remain required before activation.
 
+**Implemented retirement primitives:** output wrappers drain submitted system calls before withdrawing history notifications and widget output.
+The [output model](Specifications/CompatibilityOutputs/README.md) checks this ordering and replacement publication.
+Terminal recording retirement preserves accepted retry data, joins delayed physical starts, and rejects stale cleanup or resume calls.
+Fresh scopes replay retained observations with their original device provenance.
+These primitives still require production lifecycle wiring below.
+
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.
 Implement `major.minor.patch` semantics and the monotonic required major.

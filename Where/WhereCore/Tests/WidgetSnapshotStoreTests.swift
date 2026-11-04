@@ -4,6 +4,16 @@ import Testing
 import WhereCore
 
 struct WidgetSnapshotStoreTests {
+    @Test func withdrawalRemovesHistoryAndAcceptsRepeatedRemoval() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WidgetSnapshotStore(directory: directory)
+        try store.write(makeSnapshot())
+        try store.withdraw()
+        #expect(store.read() == nil)
+        try store.withdraw()
+        #expect(store.read() == nil)
+    }
+
     private let directory: URL
 
     init() throws {

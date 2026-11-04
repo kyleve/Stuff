@@ -12,7 +12,9 @@ struct WidgetSnapshotPublisherTests {
         private(set) var publishCount = 0
         private(set) var lastSnapshot: WidgetSnapshot?
 
-        func publish(_ snapshot: WidgetSnapshot) async {
+        func withdraw() async {}
+
+        func publish(_ snapshot: WidgetSnapshot, access _: DataCompatibilityAccess?) async {
             publishCount += 1
             lastSnapshot = snapshot
         }

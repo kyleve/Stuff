@@ -34,6 +34,7 @@ public actor DeviceRecordingController {
     private var isExclusive = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var acceptsOperations = true
+    private var isScopeRetired = false
     private var recordingLifecycleStarted = false
     private var shouldResumeAfterPause = false
     private var isRewritePaused = false
@@ -91,6 +92,7 @@ public actor DeviceRecordingController {
 
     /// Observe local commits and CloudKit imports for removal, status, and heartbeat changes.
     public func startMonitoringChanges() {
+        guard !isScopeRetired else { return }
         recordingLifecycleStarted = true
         guard observationTask == nil else { return }
         let updates = store.changes()
@@ -258,6 +260,21 @@ public actor DeviceRecordingController {
         await ingestor.pause()
     }
 
+    /// Permanently close this scope without changing consent or discarding accepted retry data.
+    /// Set the terminal flag before waiting so an older rollback cannot resume recording.
+    public func retireScope() async {
+        isScopeRetired = true
+        await ingestor.retireScope()
+        await beginExclusive()
+        defer { endExclusive() }
+        acceptsOperations = false
+        recordingLifecycleStarted = false
+        shouldResumeAfterPause = false
+        observationTask?.cancel()
+        observationTask = nil
+        publishRuntimeState(.unavailable)
+    }
+
     func resumeAfterFailedReset() async {
         await beginExclusive()
         defer { endExclusive() }
@@ -272,6 +289,10 @@ public actor DeviceRecordingController {
 
     func resumeAfterImport(discardPendingSamples: Bool) async throws {
         await beginExclusive()
+        guard !isScopeRetired else {
+            endExclusive()
+            throw CancellationError()
+        }
         acceptsOperations = true
         let shouldResume = shouldResumeAfterPause
         if discardPendingSamples {
@@ -313,6 +334,7 @@ public actor DeviceRecordingController {
     func finishReset() async throws {
         await beginExclusive()
         do {
+            guard !isScopeRetired else { throw CancellationError() }
             try await ingestor.discardRetryBacklog()
         } catch {
             isRewritePaused = false
@@ -329,6 +351,10 @@ public actor DeviceRecordingController {
     /// Permanently close the removed scope before the app rotates its local identity.
     public func retireForRejoin() async throws {
         await beginExclusive()
+        guard !isScopeRetired else {
+            endExclusive()
+            throw CancellationError()
+        }
         acceptsOperations = false
         recordingLifecycleStarted = false
         observationTask?.cancel()
@@ -346,6 +372,7 @@ public actor DeviceRecordingController {
     }
 
     private func resumeLocked() async {
+        guard !isScopeRetired else { return }
         acceptsOperations = true
         isRewritePaused = false
         let shouldResume = shouldResumeAfterPause
@@ -447,6 +474,7 @@ public actor DeviceRecordingController {
             .min { $0.removedAt < $1.removedAt }
 
         await ingestor.revokeRecordingAuthorization()
+        guard !isScopeRetired else { throw CancellationError() }
         if removal != nil {
             try await ingestor.discardRetryBacklog()
             needsReconciliation = false
@@ -455,10 +483,12 @@ public actor DeviceRecordingController {
         }
 
         let generation = snapshot.generation
-        if preparedGenerationID != generation.id {
+        if let preparedGenerationID, preparedGenerationID != generation.id {
             try await ingestor.discardRetryBacklog()
-            preparedGenerationID = generation.id
         }
+        // A fresh scope must restore its durable backlog. The ingestor filters stored entries
+        // by generation before replay; only an observed rotation discards this scope's queue.
+        preparedGenerationID = generation.id
 
         let status: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled {
             authorization.allowsBackgroundTracking ? .recording : .permissionRequired
@@ -604,7 +634,7 @@ public actor DeviceRecordingController {
     }
 
     private func requireActive() throws {
-        guard acceptsOperations else { throw CancellationError() }
+        guard acceptsOperations, !isScopeRetired else { throw CancellationError() }
     }
 
     private func beginExclusive() async {

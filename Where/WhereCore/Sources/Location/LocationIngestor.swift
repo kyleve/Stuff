@@ -64,6 +64,9 @@ public actor LocationIngestor {
     /// separately from `ingestTask` because the ingestion task outlives a
     /// `stop()` pause (see `start()` for why).
     private var isMonitoring = false
+    /// The system start can remain pending after the desired monitoring state turns off.
+    /// Terminal retirement joins this operation before its final physical stop.
+    private var pendingMonitoringStart: Task<Void, Never>?
 
     /// Whether the resolved device policy currently authorizes automatic samples. Closed before
     /// registration, while policy is Off/unavailable, and during teardown. This is independent
@@ -74,6 +77,7 @@ public actor LocationIngestor {
     private enum RecordingAuthority {
         case closed
         case open(dataGenerationID: WhereDataGenerationID, effectiveAt: Date)
+        case retired
     }
 
     private var recordingAuthority = RecordingAuthority.closed
@@ -139,9 +143,14 @@ public actor LocationIngestor {
     /// already-finished stream and silently drop every subsequent sample.
     public func start(effectiveAt: Date, dataGenerationID: WhereDataGenerationID) async throws {
         try await authorizeRecording(effectiveAt: effectiveAt, dataGenerationID: dataGenerationID)
+        guard case .open = recordingAuthority else { throw CancellationError() }
         guard !isMonitoring else { return }
         isMonitoring = true
-        await locationSource.start()
+        let source = locationSource
+        let start = Task { await source.start() }
+        pendingMonitoringStart = start
+        await start.value
+        pendingMonitoringStart = nil
         guard isMonitoring else { return }
         Self.logger.monitoringStarted()
         installIngestTaskIfNeeded()
@@ -154,6 +163,7 @@ public actor LocationIngestor {
         effectiveAt: Date,
         dataGenerationID: WhereDataGenerationID,
     ) async throws {
+        if case .retired = recordingAuthority { throw CancellationError() }
         let currentGenerationID: WhereDataGenerationID
         do {
             currentGenerationID = try await store
@@ -190,6 +200,7 @@ public actor LocationIngestor {
         guard confirmedGenerationID == dataGenerationID else {
             throw RecordingPersistenceError.dataGenerationChanged
         }
+        if case .retired = recordingAuthority { throw CancellationError() }
         recordingAuthority = .open(dataGenerationID: dataGenerationID, effectiveAt: effectiveAt)
         await Self.logger.measure(.postPersist, budget: .seconds(2)) {
             await onPersisted(IngestOutcome(
@@ -262,7 +273,7 @@ public actor LocationIngestor {
     }
 
     private func closeRecordingAuthorityUnconditionally() async {
-        recordingAuthority = .closed
+        if case .retired = recordingAuthority {} else { recordingAuthority = .closed }
         if isMonitoring {
             isMonitoring = false
             await locationSource.stop()
@@ -279,6 +290,18 @@ public actor LocationIngestor {
     /// samples captured during an earlier persistence outage.
     public func pause() async {
         await revokeRecordingAuthorization()
+    }
+
+    /// Compatibility retirement is terminal for this ingestor. A fresh scope can replay the
+    /// retained durable outbox only after its dataset and consent have been admitted again.
+    public func retireScope() async {
+        recordingAuthority = .retired
+        let pendingStart = pendingMonitoringStart
+        await revokeRecordingAuthorization()
+        await pendingStart?.value
+        // An already submitted start may complete after the first stop. No new start can pass
+        // the retired authority, so this final stop closes the physical lifetime as well.
+        await locationSource.stop()
     }
 
     /// Pause GPS ingestion by stopping the underlying location monitoring.
@@ -300,6 +323,7 @@ public actor LocationIngestor {
     /// Call ``pause()`` first when the discard is part of a teardown, so no new
     /// sample can enter the queue while the durable clear is suspended.
     public func discardRetryBacklog() async throws {
+        if case .retired = recordingAuthority { throw CancellationError() }
         try await outbox.clear()
         retryQueue.removeAll()
     }

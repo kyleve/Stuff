@@ -1,0 +1,29 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityOutputs.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "no-drain",
+      "config": "no-drain.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoObsoleteOutput is violated."
+    },
+    {
+      "name": "accept-retired",
+      "config": "accept-retired.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoObsoleteOutput is violated."
+    },
+    {
+      "name": "recovery",
+      "config": "recovery.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryNotReached is violated."
+    }
+  ]
+}

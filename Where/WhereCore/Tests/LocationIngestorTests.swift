@@ -6,6 +6,34 @@ import Testing
 /// Covers the GPS ingestion lifecycle, the post-persist hook, and the retry
 /// queue the controller delegates all of `startGPS`/`stopGPS`/auth to.
 struct LocationIngestorTests {
+    @Test func retirementJoinsALatePhysicalStartBeforeItsFinalStop() async throws {
+        let source = HeldStartLocationSource()
+        let ingestor = try LocationIngestor(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
+            calendar: WhereCoreTestSupport.calendar(),
+            outbox: NoOpLocationOutbox(),
+            retryQueueCapacity: 10,
+            onPersisted: { _ in },
+        )
+        let starting = Task {
+            try await ingestor.start(effectiveAt: .distantPast, dataGenerationID: .initial)
+        }
+        await source.startGate.waitUntilEntered()
+        let retirement = Task { await ingestor.retireScope() }
+        try await waitUntil { await source.stops == 1 }
+        await source.startGate.resume()
+        try await starting.value
+        await retirement.value
+        #expect(await source.isMonitoring == false)
+        #expect(await source.stops == 2)
+        #expect(await ingestor.testingIsAcceptingSamples == false)
+        await #expect(throws: CancellationError.self) {
+            try await ingestor.start(effectiveAt: .distantPast, dataGenerationID: .initial)
+        }
+    }
+
     private enum OutboxFailure: Error {
         case clear
         case save

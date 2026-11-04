@@ -33,6 +33,10 @@ final class DataAccessPermit: Sendable {
         revoked.withLock { $0 = true }
     }
 
+    var isRevoked: Bool {
+        revoked.withLock { $0 }
+    }
+
     func validate() throws {
         try revoked.withLock {
             guard !$0 else { throw AccessError.revoked }
