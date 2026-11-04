@@ -1110,21 +1110,45 @@ Use representative phone journeys and concurrent-edit scenarios in previews, sna
 Require passing TLC cases and reviewed source correspondence before activation, as specified under [Formal verification](#formal-verification).
 Activate selection after compatibility, durable decisions, shared consumers, and review surfaces satisfy the acceptance criteria.
 
-## Open implementation decisions
+## Decisions to resolve by implementation slice
 
-The following details require explicit decisions in the relevant slices:
+Each open decision has an owning slice, a deadline, and required evidence.
+The two product discussions precede slice 1. Technical investigations can proceed early without activating production behavior.
+The remaining technical decisions belong in their owning implementation PRs.
 
-- Interval segmentation, exact boundary inclusivity, and context outside a queried day.
-- Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion.
-- Whole-day coverage across recorded calendar changes, including gaps and overlap with fixed time ranges.
-- Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior.
-- Device status issues: eligibility for recent periods, evidence requirements, freshness thresholds, and recovery conditions for the combined evening reminder.
-- Composition of source choices and ignore intervals with per-sample corrections, manual overlays, and device removals.
-- The representation of causal context, incomplete dependencies, and counter allocation and recovery.
-- Meaningful-contribution criteria within the agreed 15-day eligibility window.
-- The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
-- Persistence and recovery for the agreed identity lifecycle and stored decisions across backup import, reset, and device removal.
-- Guarded server confirmation for shared major activation, record-level version admission, and the required rollout sequence.
+If an implementation result requires different user-visible behavior, discuss that change before adopting it.
+After a decision is resolved, add its outcome to the relevant contract section.
+Remove the resolved row from this section.
+Record the supporting evidence in the owning PR. The evidence listed below is required work, not current test coverage.
+
+### Discuss before implementation
+
+| Decision | Owning slice | Resolve before | Required evidence |
+| --- | --- | --- | --- |
+| Whole-day coverage across recorded calendar changes, gaps, and overlap with fixed time ranges | 1: assessment, with persistence in 4 and consumer integration in 5 | Starting slice 1 | Worked timelines for travel, repeated or skipped dates, missing calendar context, gaps, and adjacent source choices. |
+| Remaining precedence between source choices, ignore intervals, per-sample corrections, manual overlays, and device removals | 4: durable choices, with consumer integration in 5 | Starting slice 1 | Overlap examples that preserve the agreed contracts, including removal of a selected device and return to automatic. |
+
+### Investigate early
+
+These investigations establish whether the proposed contracts work at the platform and persistence boundaries.
+Their results must precede the dependent decisions listed here.
+
+| Decision | Owning slice | Resolve before | Required evidence |
+| --- | --- | --- | --- |
+| Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion | 4: persistence, with early investigation during 1 | Finalizing capture and persisted observation shapes in 4 | Platform experiments for delayed callbacks, time-zone changes, and relaunch. Conversion fixtures and a recovery path for unresolved assignments. |
+| Shared-account verification evidence and guarded initialization, including legacy-data bootstrap | 3: compatibility | Finalizing shared compatibility persistence in 3 | Concrete shared evidence and a prototype of the guarded operation. Compatibility-model cases for concurrent setup, legacy data, and failed verification. |
+| Guarded server confirmation for shared major activation, record-level version admission, and rollout | 3: compatibility | Finalizing incompatible record formats and writes in 4 | A prototype against the actual store boundaries and passing compatibility-model cases for both delivery orders. A rollout procedure for pre-foundation clients. |
+
+### Resolve in the owning implementation PR
+
+| Decision | Owning slice | Resolve before | Required evidence |
+| --- | --- | --- | --- |
+| Interval segmentation, exact boundary inclusivity, and context outside a queried day | 1: assessment | Merging the period-assessment rules in 1 | Fixtures for adjacent intervals, sparse tracks, day/year boundaries, and relevant evidence outside the requested period. |
+| Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior | 1: assessment | Merging the initial assessment policy in 1 | Named units and representative tracks, including noisy points, useful stationary evidence, competing movement, and insufficient evidence. |
+| Device status eligibility, evidence requirements, freshness thresholds, and recovery conditions | 6: reminders | Activating device status issues or their notifications | Scenarios for quiet devices, receiver sync failures, delayed check-ins, recent selected periods, and recovery without complete observation delivery. |
+| Causal context, incomplete dependencies, and counter allocation and recovery | 1: causal model, with durable decisions in 4 | Merging the causal model in 1 and new decision persistence in 4 | Model controls for reordered and missing dependencies. Persistence tests for crashes, reinstall, restore, and prevention of operation-identity reuse. |
+| Meaningful-contribution criteria within the agreed 15-day window | 3: compatibility | Implementing automatic shared major upgrades | Fixtures for useful stationary history, redundant or excluded observations, late uploads, and explicit source choices. |
+| Persistence and recovery for the agreed identity lifecycle and stored decisions | 2: identity, with durable decisions in 4 | Persisting the new state in each owning slice. Physical-device validation precedes activation. | Both backup import strategies, reset, removal, rejoin, and counter recovery. Same-phone and new-phone restore or transfer validation. |
 
 Thresholds require named units and scenario tests before they affect history.
 The automatic policy produces the same result for identical evidence, decisions, full policy versions, and query context, regardless of input or sync order.
