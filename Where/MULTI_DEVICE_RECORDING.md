@@ -39,8 +39,8 @@ History selection determines which observations represent the user for a period.
 Selection never requires another device to stop recording.
 
 A user can carry different phones during one day.
-Selection applies to bounded periods. A whole-day choice is a convenience over those periods.
-The day remains a useful review unit, with the existing calendar and time-zone rules for reports.
+Selection supports whole-day choices and bounded time ranges.
+A whole-day choice uses the recording device's logical `CalendarDay`. A time-range choice retains fixed start and end instants.
 
 The first version automatically selects a device when the evidence is strong.
 Each automatic decision exposes its reason and supports a manual override.
@@ -105,6 +105,30 @@ Export existing data before installing code that rejects its old shape.
 Validate the converted archive through the production backup decoder before replace-import.
 Reject automatic GPS without attribution at admission, including backup import and remote-store reads.
 Preserve invalid persisted evidence for repair and expose the failure instead of publishing apparently complete history.
+
+## Observation time and recording day
+
+Each automatic observation retains its absolute timestamp and a recording-day assignment.
+A resolved assignment stores a logical `CalendarDay` and the time-zone context used to establish it.
+The recording day means the recording device's local Gregorian date at the observation time.
+The assignment remains stored through sync, backup import, and later travel.
+Reports group selected observations by this recorded day instead of recomputing it in the viewing device's current time zone.
+Retaining the timestamp and time-zone context also preserves the information needed for future projections.
+
+Absolute timestamps remain authoritative for ordering, movement, competing-track comparisons, and fixed time-range choices.
+Two devices can label the same instant with different recording days.
+Their observations still compete when they cover the same absolute period.
+Whole-day source choices use the selected device's recorded calendar context to determine their coverage.
+Other devices cannot bypass that choice by assigning another date label to overlapping observations.
+
+Delayed callbacks use the observation time, never the callback, upload, or import date.
+The device's current time zone cannot establish its earlier time zone after an unobserved change.
+If the observation-time context is unavailable, retain the raw observation and expose an unresolved day assignment instead of guessing.
+Define the capture and recovery protocol before activation, including how an unresolved assignment becomes resolved.
+
+Historical conversion establishes missing day assignments from supported metadata or explicit mappings, while preserving original timestamps and existing assignments.
+The conversion must not silently use the importing device's current time zone.
+Manual entries and evidence-derived assertions retain their existing calendar-day and source contracts.
 
 ## Temporarily ignore a device
 
@@ -279,7 +303,7 @@ Every affected output refreshes after reassessment.
 ## Data and decision boundaries
 
 Raw observations remain the durable evidence.
-Backups and diagnostic review retain their original coordinates, timestamps, accuracy, source, and installation identity.
+Backups and diagnostic review retain original coordinates, timestamps, accuracy, source, and installation identity, plus recording-day assignments and their time-zone context.
 Automatic selection does not erase observations or rewrite their device identity.
 Existing explicit removal, reset, and deletion operations retain their separate contracts.
 
@@ -287,7 +311,7 @@ Automatic decisions are derived results.
 Their evidence and full policy version explain the result and permit reassessment after late sync or a policy change.
 Derived results and caches carry that full version.
 A policy update invalidates affected cached results and reassesses automatic history without rewriting raw observations or durable user choices.
-User choices are durable decisions with explicit period boundaries.
+User choices are durable decisions with a logical recording-day scope or fixed time-range boundaries.
 They retain their authoring data-semantics version, immutable identity, and reviewed causal context.
 They take precedence over automatic selection and remain reversible.
 
@@ -474,6 +498,12 @@ A sync-completion event alone cannot provide that guarantee.
 | One phone travels while another repeatedly reports from home | Select the moving phone where evidence is strong. Explain the selection. |
 | Several phones remain at home while one accompanies the user | Assess evidence without a device-count vote. |
 | The user changes phones during the day | Permit different selected devices in different periods. |
+| An observation has a resolved December 8 recording day and is later viewed in another time zone | Keep it on December 8 in history. Preserve its timestamp and recording time-zone context. |
+| A callback arrives after midnight or after a device time-zone change | Assign the day from the observation time and its device-local context. Do not substitute the delivery date or current zone. |
+| The observation-time zone cannot be established | Preserve the raw observation and expose unresolved day assignment. Do not invent a day or publish apparently complete history. |
+| Simultaneous observations have different device-local date labels | Compare them by absolute time. Apply source-choice coverage without letting a different date label bypass the selection. |
+| A whole recording day spans daylight-saving or date-line changes | Use the selected device's recorded calendar context. Do not assume a fixed 24-hour window. |
+| A historical archive lacks recording-day context | Resolve it through offline conversion with supported metadata or explicit mappings. Preserve existing assignments and original timestamps. |
 | The app updates or relaunches normally | Preserve the installation's identity and local recording consent. |
 | The user imports a backup through merge or replace | Preserve local identity and consent. Retained historical records keep their original provenance. |
 | A historical archive contains GPS without device attribution | Convert it offline with explicit source-device mappings before import. Preserve observations and existing identities. |
@@ -548,6 +578,11 @@ History-selection cases require explicit source choices to take precedence over 
 Return to automatic reapplies the historical ignore filter by observation time.
 An ignore interval and an overlapping source choice do not create a conflict from that overlap alone.
 
+The history-selection model retains resolved recording days and their context under sync, import, and viewer time-zone changes.
+It compares competing observations by absolute time even when their recording-day labels differ.
+Whole-day coverage and overlap with fixed time ranges must follow the selected device's recorded calendar context.
+Swift tests cover delayed callbacks, unresolved day assignments, daylight-saving changes, date-line travel, and day/year query boundaries.
+
 The decision-merging model includes identity preservation after recovery and identity rotation after reset or rejoin.
 It checks that recovery or backup replay never assigns an existing operation identity to a new decision.
 Reviewed-write cases bind the new operation to the reviewed causal context and reject stale proposals at the guarded commit boundary.
@@ -608,6 +643,7 @@ It does not require a wholesale import of the previous stack.
 | [LocationIngestor](WhereCore/Sources/Location/LocationIngestor.swift) and [LocationOutbox](WhereCore/Sources/Location/LocationOutbox.swift) | Capture stamps provenance and retains accepted writes across persistence failures. |
 | [LocationHistoryReader](WhereCore/Sources/Devices/LocationHistoryReader.swift) | The shared read boundary already applies device removals and region corrections. |
 | [LocationHistoryReaderTests](WhereCore/Tests/LocationHistoryReaderTests.swift) | Existing guards preserve raw observations while applying corrections and removal cutoffs. |
+| [DayAggregator](WhereCore/Sources/Days/DayAggregator.swift) | Current GPS bucketing derives days from timestamps and the query calendar. Recorded-day grouping requires a replacement across consumers and day/year queries. |
 | [ElsewhereResolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) and its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) | Existing catalog lookup expands ordinary Other observations for presentation. Reuse that lookup in shared geographic assessment before selection and report grouping. |
 | [Backup upgrader](Tools/upgrade-backup.rb) and its [regression tests](Tools/Tests/upgrade_backup_test.rb) | Existing offline conversion preserves archives but currently adds nil device attribution when absent. Required attribution needs a new conversion step and guards. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
@@ -648,6 +684,8 @@ Each slice receives its own tests and PR.
 ### 1. Evidence assessment and causal decisions
 
 Define bounded periods, accuracy-aware movement evidence, stationary evidence, and uncertainty around sparse observations.
+Model recording-day assignments with their observation-time zone context, including an explicit unresolved state.
+Define whole-day coverage from the selected device's recorded context and compare conflicting evidence by absolute time.
 Require recording-device identity in the automatic GPS inputs to the new resolver.
 Model regular homes and temporary bases as optional evidence with historical validity.
 Use the required scenarios as executable fixtures.
@@ -688,6 +726,9 @@ Exercise foreground and background consumers.
 ### 4. Durable choices, device controls, and places
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
+Persist observation timestamps, recording-day assignments, and their time-zone context without recalculation during sync or import.
+Extend historical conversion for missing recording-day metadata with supported evidence or explicit mappings.
+Define capture and recovery of observation-time context for delayed callbacks and unobserved device time-zone changes.
 Require device attribution for automatic GPS in the new stored-data contract.
 Bump the backup format and extend the offline upgrader with explicit historical source-device mappings.
 Preserve existing identities and raw observation fields during conversion.
@@ -715,6 +756,9 @@ Prevent backup import and recovery from reusing decision operation identities.
 ### 5. Shared history selection
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.
+Group selected observations by resolved recording day consistently across consumers.
+Preserve observable uncertainty for unresolved day assignments.
+Cover day/year queries whose observations fall outside the viewing zone's corresponding instant window.
 Apply selection before region aggregation and preserve device boundaries through movement and flight inference.
 Separate full-catalog geographic assessment from primary-region reporting groups.
 Retain specific region identities and unresolved geography through history selection.
@@ -734,7 +778,7 @@ Define unresolved-conflict presentation before changing totals.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
-Support exclusive period choices, whole-day convenience, return to automatic, and previews of affected region-days.
+Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Discover unresolved issues across all years containing history, independently of the current or selected year.
@@ -751,6 +795,8 @@ Activate selection after compatibility, durable decisions, shared consumers, and
 The following details require explicit decisions in the relevant slices:
 
 - Interval segmentation, exact boundary inclusivity, and context outside a queried day.
+- Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion.
+- Whole-day coverage across recorded calendar changes, including gaps and overlap with fixed time ranges.
 - Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior.
 - Composition of source choices and ignore intervals with per-sample corrections, manual overlays, and device removals.
 - The representation of causal context, incomplete dependencies, and counter allocation and recovery.
@@ -769,33 +815,11 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-E2–E5 remain the pending edge cases.
+E3–E5 remain the pending edge cases.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### E2. Whole-day choices and the logical recording day
-
-The preferred direction makes `CalendarDay` authoritative for a whole-day source choice.
-Specific time-range choices retain fixed start and end instants.
-The remaining question is how observations acquire their logical day.
-
-One approach uses the current report calendar to assign observations to the chosen day.
-This matches existing GPS bucketing, but travel can move near-midnight observations between days.
-The user also proposed storing a recording `CalendarDay` on each observation to keep its historical day stable.
-That alternative needs a rule for the time zone used to assign the day and whether reports treat it as authoritative.
-
-The current location source preserves observation timestamps, including a visit's earlier arrival time.
-The day of callback delivery, upload, or import cannot substitute for the observation day.
-Record the time-zone context used for any persisted day assignment.
-Cover delayed observations received after a time-zone change and historical conversion without reliable zone metadata.
-
-Two devices can assign different local dates to observations from the same instant.
-Compare competing evidence by absolute time rather than assuming equal day labels establish overlap.
-Define the coverage of a whole-day source choice when competing devices use different date labels.
-Cover daylight-saving transitions, travel across the date line, and overlap with fixed time-range choices.
-Apply the selected day policy consistently to reports, reminders, exports, and review.
 
 ### E3. Evening notifications on multiple phones
 
