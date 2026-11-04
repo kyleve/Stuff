@@ -10,7 +10,7 @@ The first implementation adds pure assessment and causal-decision types in Where
 It does not activate multi-device selection, change capture, or change stored and backup formats.
 The [initial assessment policy](#initial-assessment-policy) and [decision representation](#sync-and-concurrent-decisions) record its technical choices.
 The identity slice implements device-only Keychain storage, consent recovery, and additional/replacement-device setup.
-Physical restore and transfer validation remain required before activation.
+Automated restore and transfer validation remain required before activation.
 
 ## Why
 
@@ -1143,6 +1143,12 @@ Use production recovery, store, import, and conditional-update code through inje
 The fixture must fail if identity migrates, consent restores, an operation ID repeats, or an obsolete scope writes.
 Record platform assumptions separately from tested app behavior. Manual device checks are optional diagnostics, not an implementation gate.
 
+**Implemented lifecycle fixture:** [isolated installations](WhereUI/Tests/Support/INSTALLATION_FIXTURE.md) use production file adapters, temporary SQLite stores, launch, imports, and conditional shared control.
+Cases cover relaunch, reinstall, same-phone restore, new-phone restore and transfer, merge and replace imports, reset, rejoin, Keychain failure, and account changes.
+Restored preferences cannot bypass renewed consent. Actual backup-exclusion attributes determine which files transfer.
+Held conditional creates force the concurrent-initialization race. Reordered delivery tests retain attribution and reject unsupported records before their control metadata arrives.
+Slice 4 extends this fixture with durable decision identities and reviewed writes.
+
 ### 3. Compatibility gate
 
 **Implemented guard foundation:** scoped reads and transactions use an irrevocable permit.
@@ -1172,7 +1178,8 @@ App Intents reject retired handoffs and validate history results, including thei
 Cold rejection stops and discards the prepared location source, even before services exist.
 Shared-item drafts now remain outside history until an admitted app session imports them.
 Atomic delivery receipts make retries safe after commit, deletion, Reset, or Replace.
-Independent update alerts and the full automated installation fixture remain required below.
+The automated installation fixture also exercises these paths across process and file replacement.
+Independent update alerts remain part of the review and activation slice below.
 
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.

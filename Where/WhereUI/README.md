@@ -659,8 +659,12 @@ Elsewhere keeps its outlines with retained content during same-year refresh fail
 Swift Testing in [`Tests/`](Tests) (`WhereUITests`), hosted in `StuffTestHost`
 and linking `TestHostSupport` (`show(_:perform:)`, `waitFor`). View models are
 driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
-the on-disk/CloudKit store). Internal types are reached via
+the user's on-disk/CloudKit store). Internal types are reached via
 `@testable import WhereUI`.
+
+The [installation lifecycle fixture](Tests/Support/INSTALLATION_FIXTURE.md) also uses isolated temporary SQLite stores and production file adapters.
+It separates Keychain, backed-up preferences, excluded sidecars, raw history, and shared-account state.
+Its restore, transfer, import, and admission tests document their platform assumptions separately from app behavior.
 
 How screens *look* is pinned separately: every top-level screen, widget, and
 app-flow surface has image snapshots, with representative layouts covering
