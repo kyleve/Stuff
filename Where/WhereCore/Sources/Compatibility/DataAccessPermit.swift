@@ -5,10 +5,28 @@ import Synchronization
 final class DataAccessPermit: Sendable {
     @TaskLocal static var current: DataAccessPermit?
     private let revoked = Mutex(false)
+    let policy: DataCompatibilityPolicy
+    let requiredMajor: UInt
+    private let onCompatibilityFailure: @Sendable (any Error) -> Void
+
+    init(
+        policy: DataCompatibilityPolicy,
+        requiredMajor: UInt,
+        onCompatibilityFailure: @escaping @Sendable (any Error) -> Void,
+    ) {
+        self.policy = policy
+        self.requiredMajor = requiredMajor
+        self.onCompatibilityFailure = onCompatibilityFailure
+    }
 
     enum AccessError: Error, Equatable {
         case revoked
         case differentScope
+    }
+
+    func rejectAdmission(_ error: any Error) {
+        revoke()
+        onCompatibilityFailure(error)
     }
 
     func revoke() {
@@ -39,12 +57,24 @@ final class DataAccessPermit: Sendable {
             throw AccessError.differentScope
         }
         try Task.checkCancellation()
-        return try await Self.$current.withValue(self) {
-            let result = try await operation()
-            // Reject a result that reaches this check after retirement. Success does not
-            // authorize later publication, and an earlier physical commit remains durable.
-            try validate()
-            return result
+        do {
+            return try await Self.$current.withValue(self) {
+                let result = try await operation()
+                // Success here does not authorize later publication. An earlier save stays durable.
+                try validate()
+                return result
+            }
+        } catch let error as DataCompatibilityError {
+            switch error {
+                case .activationNotReady, .upgradeRequiresConfirmation, .concurrentChange: break
+                case .updateRequired, .verificationRequired, .accountChanged, .incompleteRecord,
+                     .conflictingRecord, .unsupportedStore:
+                    rejectAdmission(error)
+            }
+            throw error
+        } catch let error as DataCompatibilityAdmissionError {
+            rejectAdmission(error.underlyingError)
+            throw error.underlyingError
         }
     }
 }

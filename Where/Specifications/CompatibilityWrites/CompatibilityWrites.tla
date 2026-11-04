@@ -67,6 +67,13 @@ Again:
 }
 } *)
 
+TypeOK == /\ oldPermit \in BOOLEAN /\ retired \in BOOLEAN /\ recovered \in BOOLEAN
+          /\ pending \in BOOLEAN /\ finished \in BOOLEAN /\ staleCommit \in BOOLEAN
+          /\ freshCommit \in BOOLEAN /\ commitLock \in BOOLEAN /\ readPending \in BOOLEAN
+          /\ staleRead \in BOOLEAN /\ rejectedWrite \in BOOLEAN
+          /\ pc \in [{"old", "lockout", "reader", "recovery", "late", "stutter"} ->
+              {"Begin", "AcquireCommit", "PhysicalSave", "ReleaseCommit", "Finish", "Revoke",
+               "StartRead", "ValidateReadExit", "FreshScope", "FreshTransaction", "TryOldScope", "Again", "Done"}]
 NoStaleCommit == ~staleCommit
 NoStaleRead == ~staleRead
 OldScopeStaysRevoked == retired => ~oldPermit

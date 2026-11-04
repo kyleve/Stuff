@@ -35,7 +35,7 @@ The [decision model](../Specifications/MultiDeviceDecisions/README.md) describes
 These APIs do not change production capture, persistence, reports, or backup formats.
 The remaining integration and activation requirements stay in the primary design.
 
-## Compatibility guard foundation
+## Compatibility protocol foundation
 
 `CompatibilityScopedStore` binds reads and transactions to one `DataAccessPermit`.
 Revocation is permanent. A fresh scope requires a fresh permit.
@@ -48,8 +48,29 @@ Wrapping only a nested operation cannot guard a raw outer transaction.
 Returned values and external outputs still need publication guards in their owning services.
 The [bounded write model](../Specifications/CompatibilityWrites/README.md) documents these limits and the Swift regression guards.
 
-This foundation does not yet create compatibility scopes in production.
-Account verification, durable major requirements, version admission, scope retirement, and output withdrawal remain in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
+`DataCompatibilityCoordinator` separates local datasets from shared accounts.
+Local initialization uses a guarded store transaction. Shared initialization verifies the account and private zone inventory, then conditionally creates one control head.
+Any existing non-control custom zone is conservatively legacy, even if empty.
+`CloudKitDataCompatibilityTransport` uses a separate control zone and conditional change-tag saves.
+Its injected database boundary lets tests exercise the production protocol with delayed, failed, and reordered responses.
+
+The backup-excluded `FileDataCompatibilityCache` binds verification to the account and store.
+Network refresh failures can retain same-binding access without a time expiry.
+Before fetching shared requirements, invalidate the durable grant and retain the current process's verified proof.
+Only completed verification attempts can restore the durable grant. An interrupted check requires fresh verification after relaunch.
+This closes the crash window when saving a higher requirement fails.
+Account uncertainty, incompatible headers, and revoked permits block access.
+Major activation requires contributor eligibility or explicit confirmation, durable grant invalidation, and online server confirmation.
+A lost response requires fresh verification. A competing refresh cannot restore the old grant during the mutation.
+
+`VersionedHistoryRecord` stores the version and payload in one field.
+Readers decode the major header before interpreting the payload, including records received before metadata.
+The scoped store cannot raise the required major or author above its admitted major.
+The physical save repeats admission, so a compatible higher-major import also retires an older scope.
+
+See the [verification](../Specifications/CompatibilityVerification/README.md) and [activation](../Specifications/CompatibilityActivation/README.md) models for bounds and source correspondence.
+Production scope creation and output withdrawal remain in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
+The foundation does not activate new history selection or write incompatible user data.
 
 ## What you get
 

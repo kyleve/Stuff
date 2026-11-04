@@ -1,0 +1,29 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityActivation.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "no-fence",
+      "config": "no-fence.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoOldGrantAfterActivation is violated."
+    },
+    {
+      "name": "volatile-invalidation",
+      "config": "volatile-invalidation.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoOldGrantAfterActivation is violated."
+    },
+    {
+      "name": "uncertain-recovery",
+      "config": "uncertain-recovery.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant UncertainRecoveryNotReached is violated."
+    }
+  ]
+}

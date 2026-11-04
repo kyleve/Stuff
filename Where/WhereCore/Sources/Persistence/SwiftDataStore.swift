@@ -633,6 +633,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
         [
+            SDDataCompatibilityRequirement.self,
+            SDVersionedHistoryRecord.self,
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
             SDLocationSample.self,
@@ -971,7 +973,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
                 if let permit = DataAccessPermit.current {
-                    try permit.commitWhileValid { try peer.save() }
+                    try permit.commitWhileValid {
+                        do {
+                            let compatibility = try Self.compatibilityState(in: peer)
+                            try compatibility.validate(policy: permit.policy)
+                            guard compatibility.requiredMajor <= permit.requiredMajor else {
+                                throw DataCompatibilityError.verificationRequired
+                            }
+                        } catch { throw DataCompatibilityAdmissionError(underlyingError: error) }
+                        try peer.save()
+                    }
                 } else {
                     try peer.save()
                 }
@@ -1016,7 +1027,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// them outside is a programmer error and traps so the broken
     /// contract surfaces immediately instead of silently no-op'ing
     /// the save.
-    private func mutationContext() -> ModelContext {
+    func mutationContext() -> ModelContext {
         guard let context = activeTransaction?.context else {
             preconditionFailure(
                 "SwiftDataStore mutations must be called inside store.perform { ... }",
@@ -1029,7 +1040,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// use the in-flight peer so writes-within-the-transaction are
     /// visible to subsequent reads in the same block. Outside, reads
     /// observe the main `modelContext` (committed state only).
-    private func readContext() -> ModelContext {
+    func readContext() -> ModelContext {
         let storeID = ObjectIdentifier(self)
         if Self.activeTransactionStores.contains(storeID) {
             guard let context = activeTransaction?.context else {
@@ -1237,7 +1248,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         try resolvedDataGenerationResolution(in: context).current
     }
 
-    private func mutationGenerationID() -> WhereDataGenerationID {
+    func mutationGenerationID() -> WhereDataGenerationID {
         guard let activeTransaction else {
             preconditionFailure("SwiftDataStore mutations require an active data generation.")
         }

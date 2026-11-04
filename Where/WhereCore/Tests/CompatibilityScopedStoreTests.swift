@@ -5,7 +5,11 @@ import Testing
 struct CompatibilityScopedStoreTests {
     @Test func retirementBlocksReadsAndWritesWithoutDeletingData() async throws {
         let base = try SwiftDataStore.inMemory()
-        let permit = DataAccessPermit()
+        let permit = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
         let scoped = CompatibilityScopedStore(base: base, permit: permit)
         let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
         try await scoped.perform { try await scoped.restoreHomeRegionRecord(home) }
@@ -19,13 +23,24 @@ struct CompatibilityScopedStoreTests {
             try await scoped.perform { try await scoped.setPrimaryRegions([]) }
         }
         #expect(try await base.homeRegionRecords() == [home])
-        let resumed = CompatibilityScopedStore(base: base, permit: DataAccessPermit())
+        let resumed = CompatibilityScopedStore(
+            base: base,
+            permit: DataAccessPermit(
+                policy: .foundation,
+                requiredMajor: 0,
+                onCompatibilityFailure: { _ in },
+            ),
+        )
         #expect(try await resumed.homeRegionRecords() == [home])
     }
 
     @Test func revocationDuringSnapshotRejectsItsResult() async throws {
         let base = try SwiftDataStore.inMemory()
-        let permit = DataAccessPermit()
+        let permit = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
         let scoped = CompatibilityScopedStore(base: base, permit: permit)
         let gate = CompatibilityTestGate()
         let read = Task {

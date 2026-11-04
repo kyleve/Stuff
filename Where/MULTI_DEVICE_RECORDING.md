@@ -65,7 +65,8 @@ Recording identity uses a nonsynchronizing Keychain item with `kSecAttrAccessibl
 Apple documents that this accessibility permits access after the first unlock and prevents migration to a different device.
 See [Keychain accessibility](https://developer.apple.com/documentation/security/ksecattraccessibleafterfirstunlockthisdeviceonly).
 An inaccessible Keychain item produces a retry or unlock state, never a replacement identity.
-Device restore and direct transfer require physical-device validation before release.
+Automated lifecycle fixtures gate restore and transfer behavior. They model Keychain accessibility, nonmigration, and backup exclusion explicitly.
+Document these platform assumptions beside the fixture; do not report fixture results as physical-device measurements.
 
 Identity and consent follow this lifecycle:
 
@@ -718,10 +719,17 @@ It does not authorize account initialization, a major upgrade, or a different ac
 The client retains the highest observed required major across failures, relaunch, and backup import.
 A failed server refresh does not by itself establish that the account changed.
 
+Before an online check can observe a higher requirement, invalidate its durable cached grant.
+The running process retains its previously verified same-account proof for a completed transient network failure.
+Restore durable offline access only after every pending verification has completed safely.
+If the app quits during verification, the next launch requires one successful online check before reopening shared history.
+This also prevents a failed save of a newly observed requirement from restoring an older grant after a crash.
+
 | Local knowledge | Access policy |
 | --- | --- |
 | Compatible account and store with valid cached verification | Continue locally consented recording, cached history reads, and guarded local saves while offline. |
 | A refresh fails for that same verified account and store | Retain cached access and show sync uncertainty. Do not treat the failure as an update requirement. |
+| The app quits while an online compatibility check is pending | Require one successful online check after relaunch. Preserve consent and stored history while access is paused. |
 | No valid verification exists, or the account/store identity changes or cannot be established | Require successful verification before activating recording or shared-data access. Expose retry without initializing from local emptiness. |
 | An unsupported major becomes known | Retire the shared-data scope, stop automatic capture, reject further shared edits, and withdraw misleading output. Require an app update. |
 | A compatible app satisfies the ordinary activation checks after the gate | Create a fresh scope and permit. Resume only the recording allowed by local consent and system permissions. |
@@ -919,6 +927,9 @@ All five cases pass their expected-result checks. The other model families remai
 The compatibility slice also adds the [write-lifetime model](Specifications/CompatibilityWrites/README.md).
 Its passing configuration checks 75 distinct states. Three negative controls and one reachability control pass their expected-result checks.
 This model covers permit revocation and local saves only. It does not validate shared verification, activation, or output publication.
+The [verification model](Specifications/CompatibilityVerification/README.md) covers shared and local initialization, stale responses, and record-first delivery.
+The [activation model](Specifications/CompatibilityActivation/README.md) covers durable grant invalidation and uncertain server responses.
+Their twelve and four configurations respectively meet all expected-result checks. Output withdrawal still requires integration coverage.
 
 | Model family | Required properties | Owning implementation slices |
 | --- | --- | --- |
@@ -1017,7 +1028,8 @@ Adaptation must remove recording-owner dependencies and reflect the new offline 
 Their previous results do not validate the replacement protocol.
 
 The models use representative evidence and time values.
-GPS quality, movement thresholds, calendar arithmetic, and actual device transfer still require scenario, property, and physical-device tests.
+GPS quality, movement thresholds, calendar arithmetic, and restore or transfer behavior require scenario and property tests.
+Use deterministic platform fixtures for restore, transfer, and shared-account delivery. Record their assumptions and coverage limits.
 Model checking cannot establish which phone actually accompanied the user.
 
 ## What main already provides
@@ -1109,7 +1121,7 @@ Expose local reminder settings with enabled defaults, independently of recording
 Preserve local identity and consent during in-app backup imports, including replace.
 Keep removed identities retired and distinguish absent Keychain items from inaccessible items.
 Cover updates, relaunches, backup imports, same-phone recovery, new-phone transfer, reset, rejoin, and Keychain failures.
-Validate restore and transfer on physical devices before activation.
+Validate restore and transfer through the automated lifecycle fixture before activation.
 
 **Implemented local behavior:** [Keychain storage](WhereCore/Sources/Devices/KeychainRecordingIdentityStore.swift) and the [recovery policy](WhereCore/Sources/Devices/RecordingIdentityRecoveryPolicy.swift) distinguish absence from failure.
 Setup offers replacement candidates without suppressing this phone's recording default.
@@ -1120,14 +1132,16 @@ Consent confirmation and setup completion have separate durable states.
 An interrupted setup requires confirmation again, even when restored preferences report completed onboarding.
 The user can reselect an unfinished replacement removal; the app does not replay that destructive choice automatically.
 
-**Physical validation gate:** use two test phones and a disposable shared iCloud account before activation.
-Keep a lossless export and record each phone's identity before each operation.
-Test an ordinary update, merge import, replace import, same-phone reinstall, same-phone restore, new-phone restore, and direct transfer.
-Confirm identity and consent against the [lifecycle table](#device-identity-and-setup).
-For reset and rejoin, confirm a new identity and unchanged historical provenance.
-For first-unlock protection, confirm an unavailable identity cannot create a new profile or start capture.
-Record OS/build versions, operation, before/after identities, consent, and outcome with the activation evidence.
-Simulator CRUD and failure injection do not satisfy this gate.
+**Automated lifecycle gate:** use two isolated installations and a scripted shared account.
+Keep Keychain, backup-excluded sidecars, backed-up preferences, raw history, and server state as separate fixture resources.
+Drive update, relaunch, merge import, replace import, reinstall, same-phone restore, new-phone restore, and direct transfer.
+Model surviving, absent, inaccessible, and removed Keychain identities independently of restored preferences.
+Assert identity and consent against the [lifecycle table](#device-identity-and-setup).
+For reset and rejoin, assert a new identity and unchanged historical provenance.
+Hold persistence and sync at their suspension boundaries to exercise crashes, retries, account changes, and reordered delivery.
+Use production recovery, store, import, and conditional-update code through injected platform adapters.
+The fixture must fail if identity migrates, consent restores, an operation ID repeats, or an obsolete scope writes.
+Record platform assumptions separately from tested app behavior. Manual device checks are optional diagnostics, not an implementation gate.
 
 ### 3. Compatibility gate
 
@@ -1136,7 +1150,13 @@ The physical SwiftData save and revocation share one mutex.
 A held-transaction regression verifies that retirement discards staged changes before save.
 The [write-lifetime model](Specifications/CompatibilityWrites/README.md) checks this boundary and recovery with a fresh permit.
 These guards are not yet wired into production scope creation.
-The remaining work below includes the live shared-account prototype required before finalizing shared compatibility persistence.
+The remaining work includes a scripted shared-account integration fixture over the production conditional-update adapter boundary.
+
+**Implemented protocol foundation:** account verification, conditional creation and activation, account-bound cache persistence, and record-header admission have executable fixtures.
+The transport fixture runs the production algorithm with a controlled conditional database.
+SwiftData fixtures exercise unsupported and supported-major imports before a suspended physical save.
+Shared observations stay in the account-bound local cache, so an old account's queued mirrored write cannot alter another account's control state.
+The production scope and output integrations below remain required before activation.
 
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.
@@ -1273,8 +1293,8 @@ Their results must precede the dependent decisions listed here.
 | Decision | Owning slice | Resolve before | Required evidence |
 | --- | --- | --- | --- |
 | Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion | 4: persistence, with early investigation during 1 | Finalizing capture and persisted observation shapes in 4 | Platform experiments for delayed callbacks, time-zone changes, and relaunch. Conversion fixtures and a recovery path for unresolved assignments. Measure missing-context frequency on representative phone journeys. |
-| Shared-account verification evidence and guarded initialization, including legacy-data bootstrap | 3: compatibility | Finalizing shared compatibility persistence in 3 | Concrete shared evidence and a prototype of the guarded operation. Compatibility-model cases for concurrent setup, legacy data, and failed verification. |
-| Guarded server confirmation for shared major activation, record-level version admission, and rollout | 3: compatibility | Finalizing incompatible record formats and writes in 4 | A prototype against the actual store boundaries and passing compatibility-model cases for both delivery orders. A rollout procedure for pre-foundation clients. |
+| Shared-account verification evidence and guarded initialization, including legacy-data bootstrap | 3: compatibility | Finalizing shared compatibility persistence in 3 | Concrete shared evidence and a deterministic fixture of the guarded operation through the production adapter boundary. Compatibility-model cases for concurrent setup, legacy data, and failed verification. |
+| Guarded server confirmation for shared major activation, record-level version admission, and rollout | 3: compatibility | Finalizing incompatible record formats and writes in 4 | An automated fixture against the production store boundaries and passing compatibility-model cases for both delivery orders. A rollout procedure for pre-foundation clients. |
 
 ### Resolve in the owning implementation PR
 
@@ -1283,7 +1303,7 @@ Their results must precede the dependent decisions listed here.
 | Device status eligibility, evidence requirements, freshness thresholds, and recovery conditions | 6: reminders | Activating device status issues or their notifications | Scenarios for quiet devices, receiver sync failures, delayed check-ins, recent selected periods, and recovery without complete observation delivery. |
 | Durable operation identity allocation and recovery | 4: durable decisions | Merging new decision persistence in 4 | The pure model uses explicit predecessor identities. Persistence tests must cover crashes, reinstall, restore, retries, and prevention of operation-identity reuse. |
 | Meaningful-contribution criteria within the agreed 15-day window | 3: compatibility | Implementing automatic shared major upgrades | Fixtures for useful stationary history, redundant or excluded observations, late uploads, and explicit source choices. |
-| Persistence and recovery for the agreed identity lifecycle and stored decisions | 2: identity, with durable decisions in 4 | Persisting the new state in each owning slice. Physical-device validation precedes activation. | Both backup import strategies, reset, removal, rejoin, and counter recovery. Same-phone and new-phone restore or transfer validation. |
+| Persistence and recovery for the agreed identity lifecycle and stored decisions | 2: identity, with durable decisions in 4 | Persisting the new state in each owning slice. Automated lifecycle validation precedes activation. | Both backup import strategies, reset, removal, rejoin, and counter recovery. Same-phone and new-phone restore or transfer fixtures with separate Keychain and backup resources. |
 
 Thresholds require named units and scenario tests before they affect history.
 The automatic policy produces the same result for identical evidence, decisions, full policy versions, and query context, regardless of input or sync order.

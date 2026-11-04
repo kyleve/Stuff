@@ -11,7 +11,11 @@ import Testing
 struct SwiftDataStoreTests {
     @Test func revokedScopeCannotCommitASuspendedTransaction() async throws {
         let store = try SwiftDataStore.inMemory()
-        let permit = DataAccessPermit()
+        let permit = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
         let scoped = CompatibilityScopedStore(base: store, permit: permit)
         let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
         let gate = CompatibilityTestGate()

@@ -16,6 +16,13 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
+    func dataCompatibilityState() async throws -> DataCompatibilityStoreState
+    /// Append a requirement without lowering any observed major. Control-plane writes use the
+    /// raw store only at the compatibility coordinator; normal consumers receive its scoped store.
+    func raiseRequiredDataMajor(_ major: UInt) async throws
+    func versionedHistoryRecords(policy: DataCompatibilityPolicy) async throws
+        -> [VersionedHistoryRecord]
+    func addVersionedHistoryRecord(_ record: VersionedHistoryRecord) async throws
     /// Run `block` inside a write transaction. On outermost success
     /// the staged writes are committed atomically; on outermost throw
     /// the entire transaction is rolled back (no partial writes
@@ -257,6 +264,24 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    public func dataCompatibilityState() async throws -> DataCompatibilityStoreState {
+        throw DataCompatibilityError.unsupportedStore
+    }
+
+    public func raiseRequiredDataMajor(_: UInt) async throws {
+        throw DataCompatibilityError.unsupportedStore
+    }
+
+    public func versionedHistoryRecords(policy _: DataCompatibilityPolicy) async throws
+        -> [VersionedHistoryRecord]
+    {
+        throw DataCompatibilityError.unsupportedStore
+    }
+
+    public func addVersionedHistoryRecord(_: VersionedHistoryRecord) async throws {
+        throw DataCompatibilityError.unsupportedStore
+    }
+
     /// Run one mutation against the generation current at command start, failing if a reset or
     /// Replace wins before commit. Use this when the command does not already hold a snapshot id.
     public func performInCurrentGeneration<T: Sendable>(

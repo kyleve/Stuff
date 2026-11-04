@@ -56,6 +56,13 @@ That document also owns the implementation plan.
   Keep physical saves and permit revocation under the same mutex.
   A completed read does not authorize later output publication; retain a separate publication guard.
   Guard: `SwiftDataStoreTests.revokedScopeCannotCommitASuspendedTransaction`.
+- Admit version-envelope headers before payloads. Preserve observed major requirements even
+  after stale verification. Keep shared observations in the account-bound, backup-excluded
+  cache; never mirror a queued control-floor write across account changes. During shared
+  activation, durably invalidate cached grants and block re-admission until the mutation returns.
+  Invalidate durable grants before fetching shared requirements. Re-enable them only after
+  pending reads drain; a failed high-floor save must not expose an older grant after relaunch.
+  Guards: `DataCompatibilityCoordinatorTests`, `CloudKitDataCompatibilityTransportTests`.
 - **Resolve destructive generations as a multi-parent causal DAG.** A rotation
   names every real maximal head. Two unjoined reset heads resolve to a
   deterministic empty UUIDv8 synthetic generation until the next rotation joins

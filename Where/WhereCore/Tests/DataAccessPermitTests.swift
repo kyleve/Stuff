@@ -3,7 +3,11 @@ import Testing
 
 struct DataAccessPermitTests {
     @Test func retirementIsIrrevocableAndDoesNotRetireANewScope() throws {
-        let retired = DataAccessPermit()
+        let retired = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
         try retired.validate()
         retired.revoke()
         retired.revoke()
@@ -11,11 +15,16 @@ struct DataAccessPermitTests {
         #expect(throws: DataAccessPermit.AccessError.revoked) {
             try retired.commitWhileValid { Issue.record("A retired scope committed.") }
         }
-        try DataAccessPermit().validate()
+        try DataAccessPermit(policy: .foundation, requiredMajor: 0, onCompatibilityFailure: { _ in
+        }).validate()
     }
 
     @Test func suspendedReadCannotReturnThroughARetiredPermit() async throws {
-        let permit = DataAccessPermit()
+        let permit = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
         let gate = CompatibilityTestGate()
         let read = Task {
             try await permit.withAccess {
@@ -30,8 +39,16 @@ struct DataAccessPermitTests {
     }
 
     @Test func nestedAccessCannotReplaceTheCallersPermit() async throws {
-        let first = DataAccessPermit()
-        let second = DataAccessPermit()
+        let first = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
+        let second = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
         try await first.withAccess {
             try await first.withAccess { #expect(DataAccessPermit.current === first) }
             await #expect(throws: DataAccessPermit.AccessError.differentScope) {

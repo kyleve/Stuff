@@ -1,0 +1,73 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityVerification.tla",
+  "cases": [
+    {
+      "name": "shared-new",
+      "config": "shared-new.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "shared-legacy",
+      "config": "shared-legacy.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "local-new",
+      "config": "local-new.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "local-legacy",
+      "config": "local-legacy.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "overwrite-init",
+      "config": "overwrite-init.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant MajorNeverDecreases is violated."
+    },
+    {
+      "name": "stale-grant",
+      "config": "stale-grant.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleGrant is violated."
+    },
+    {
+      "name": "forget-high",
+      "config": "forget-high.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant KnowledgeIsDurable is violated."
+    },
+    {
+      "name": "payload-first",
+      "config": "payload-first.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant AdmitBeforePayload is violated."
+    },
+    {
+      "name": "record-first",
+      "config": "record-first.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecordFirstNotReached is violated."
+    },
+    {
+      "name": "stale-completion",
+      "config": "stale-completion.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleCompletionNotReached is violated."
+    },
+    {
+      "name": "failed-floor-write",
+      "config": "failed-floor-write.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "missing-read-fence",
+      "config": "missing-read-fence.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant KnowledgeIsDurable is violated."
+    }
+  ]
+}

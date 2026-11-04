@@ -1,7 +1,7 @@
 import Foundation
 
 /// The shared-data contract and exact automatic assessment policy, independent of app releases.
-public struct DataSemanticsVersion: Hashable, Sendable, Comparable {
+public struct DataSemanticsVersion: Hashable, Codable, Sendable, Comparable {
     public let major: UInt
     public let minor: UInt
     public let patch: UInt
