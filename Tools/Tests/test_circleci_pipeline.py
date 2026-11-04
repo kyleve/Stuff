@@ -1,3 +1,4 @@
+import io
 import unittest
 from unittest.mock import Mock
 from urllib.error import HTTPError
@@ -28,12 +29,16 @@ class CircleCIPipelineTests(unittest.TestCase):
             with self.subTest(path=path):
                 server = CircleCIServer()
                 missing = True
+                error = HTTPError(
+                    "https://circleci.com/discovery", 404, "not ready", {}, io.BytesIO()
+                )
+                self.addCleanup(error.close)
 
                 def transport(request):
                     nonlocal missing
                     if missing and request.full_url.endswith(path):
                         missing = False
-                        raise HTTPError(request.full_url, 404, "not ready", {}, None)
+                        raise error
                     return server(request)
 
                 sleep = Mock()
@@ -44,6 +49,7 @@ class CircleCIPipelineTests(unittest.TestCase):
                     ARTIFACT_URL,
                 )
                 sleep.assert_called_once_with(15)
+                self.assertTrue(error.closed)
                 self.assertTrue(all(call.method == "GET" for call in server.requests))
 
     def test_persistent_discovery_404_reaches_the_polling_deadline(self):
@@ -53,7 +59,9 @@ class CircleCIPipelineTests(unittest.TestCase):
 
                 def transport(request):
                     if request.full_url.endswith(path):
-                        raise HTTPError(request.full_url, 404, "not ready", {}, None)
+                        raise HTTPError(
+                            request.full_url, 404, "not ready", {}, io.BytesIO()
+                        )
                     return server(request)
 
                 ticks = iter([0, 0, 15, 30])

@@ -128,6 +128,7 @@ class CircleCI:
                 raise
             # Accepted pipelines can precede their availability on the read API.
             # The caller's polling deadline bounds discovery retries.
+            error.close()
             return None
         if (
             state.get("project_slug") != self.project
@@ -146,6 +147,7 @@ class CircleCI:
         except HTTPError as error:
             if error.code != 404:
                 raise
+            error.close()
             return None
         if not workflows:
             return None

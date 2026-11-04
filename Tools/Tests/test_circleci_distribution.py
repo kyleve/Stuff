@@ -57,7 +57,7 @@ class CircleCIDistributionTests(unittest.TestCase):
                             lookups += 1
                             if lookups == 1 or not recovers:
                                 raise HTTPError(
-                                    request.full_url, 404, "secret", {}, None
+                                    request.full_url, 404, "secret", {}, io.BytesIO()
                                 )
                         if request.full_url == ARTIFACT_URL:
                             downloads.append(request)
@@ -141,8 +141,9 @@ class CircleCIDistributionTests(unittest.TestCase):
         for code in (401, 403, 429, 500):
             with self.subTest(code=code):
                 error = HTTPError(
-                    "https://circleci.com/secret", code, "secret", {}, None
+                    "https://circleci.com/secret", code, "secret", {}, io.BytesIO()
                 )
+                self.addCleanup(error.close)
                 with patch("urllib.request.OpenerDirector.open", side_effect=error):
                     with self.assertRaises(HTTPError) as raised:
                         CircleCI(PROJECT, "fixture-token").artifact(PIPELINE)

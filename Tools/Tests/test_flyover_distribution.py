@@ -35,7 +35,9 @@ class FlyoverDistributionTests(unittest.TestCase):
                     if request.full_url.endswith(f"pipeline/{PIPELINE}"):
                         lookups += 1
                         if lookups == 1 or not recovers:
-                            raise HTTPError(request.full_url, 404, "secret", {}, None)
+                            raise HTTPError(
+                                request.full_url, 404, "secret", {}, io.BytesIO()
+                            )
                     return server(request)
 
                 client = CircleCI(
