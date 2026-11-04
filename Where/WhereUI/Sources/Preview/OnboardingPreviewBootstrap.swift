@@ -5,6 +5,10 @@
     /// Supplies known devices through setup's production discovery seam without disk or CloudKit.
     @MainActor
     struct OnboardingPreviewBootstrap: WhereScopeAssembling {
+        func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+            nil
+        }
+
         func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
             nil
         }

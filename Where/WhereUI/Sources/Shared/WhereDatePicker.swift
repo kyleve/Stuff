@@ -10,7 +10,7 @@ import SwiftUI
 /// reading `\.isCapturingSnapshot` and branching themselves — the capture
 /// handling, and the stand-in, stay a private detail here, so product code
 /// carries no snapshot-environment checks.
-struct WhereDatePicker: View {
+public struct WhereDatePicker: View {
     let title: String
     @Binding var selection: Date
     /// Optional inclusive selectable bounds, mapped onto `DatePicker`'s `in:`
@@ -23,7 +23,7 @@ struct WhereDatePicker: View {
 
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
-    init(
+    public init(
         _ title: String,
         selection: Binding<Date>,
         earliest: Date? = nil,
@@ -39,7 +39,7 @@ struct WhereDatePicker: View {
         self.displayedComponents = displayedComponents
     }
 
-    var body: some View {
+    public var body: some View {
         if isCapturingSnapshot {
             SnapshotDatePickerStandIn(
                 title: title,
@@ -84,7 +84,13 @@ struct WhereDatePicker: View {
     /// A capsule showing the date for a `.date` picker, or the time of day for a
     /// `.hourAndMinute` one.
     private var standInSelection: SnapshotDatePickerStandIn.Selection {
-        displayedComponents.contains(.date) ? .date(selection) : .timeOfDay(selection)
+        if displayedComponents.contains(.date), displayedComponents.contains(.hourAndMinute) {
+            .dateAndTime(selection)
+        } else if displayedComponents.contains(.date) {
+            .date(selection)
+        } else {
+            .timeOfDay(selection)
+        }
     }
 }
 
@@ -108,6 +114,7 @@ private struct SnapshotDatePickerStandIn: View {
     enum Selection {
         case date(Date)
         case timeOfDay(Date)
+        case dateAndTime(Date)
     }
 
     let title: String
@@ -121,7 +128,7 @@ private struct SnapshotDatePickerStandIn: View {
             row
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(accessibilityTitle)
-                .accessibilityValue(formattedSelection)
+                .accessibilityValue(formattedSelections.joined(separator: " "))
                 .accessibilityAddTraits(.isButton)
         } else {
             row
@@ -130,22 +137,27 @@ private struct SnapshotDatePickerStandIn: View {
 
     private var row: some View {
         LabeledContent(title) {
-            Text(formattedSelection)
-                .foregroundStyle(.primary)
-                // Mimics the compact picker's system capsule chrome — fixed
-                // system-control geometry, not themed stylesheet tokens.
-                .padding(.horizontal, 11)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemFill), in: .capsule)
+            HStack {
+                ForEach(formattedSelections, id: \.self) { value in
+                    Text(value)
+                        .foregroundStyle(.primary)
+                        // Mimics native control geometry, independent of authored themes.
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
+                        .background(Color(.tertiarySystemFill), in: .capsule)
+                }
+            }
         }
     }
 
-    private var formattedSelection: String {
+    private var formattedSelections: [String] {
         switch selection {
             case let .date(date):
-                date.formatted(dateStyle)
+                [date.formatted(dateStyle)]
             case let .timeOfDay(date):
-                date.formatted(timeStyle)
+                [date.formatted(timeStyle)]
+            case let .dateAndTime(date):
+                [date.formatted(dateStyle), date.formatted(timeStyle)]
         }
     }
 

@@ -162,6 +162,12 @@ public protocol WhereStore: Sendable {
     /// Insert an immutable removal tombstone. Must run inside `perform { ... }`.
     func addRecordingDeviceRemoval(_ removal: RecordingDeviceRemoval) async throws
 
+    /// Delivery receipts remain outside destructive generations and are not user backup data.
+    func sharedEvidenceImportReceipt(for draftID: SharedEvidenceDraft.ID) async throws
+        -> SharedEvidenceDraft.Receipt?
+    /// Insert atomically with the draft's evidence, inside the outermost guarded transaction.
+    func addSharedEvidenceImportReceipt(_ receipt: SharedEvidenceDraft.Receipt) async throws
+
     func write(evidence: Evidence, blob: Data?) async throws
     func evidence(in interval: DateInterval) async throws -> [Evidence]
     /// Every evidence record in the store, regardless of `capturedAt`. Used

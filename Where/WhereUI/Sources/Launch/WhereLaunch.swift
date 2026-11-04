@@ -231,6 +231,9 @@ public enum WhereLaunch {
 /// ``WhereBootstrap``.
 @MainActor
 public protocol WhereScopeAssembling {
+    /// The app's pending-share queue. Isolated fixtures and demo assembly explicitly return nil.
+    func sharedEvidenceDraftQueue() throws -> (any SharedEvidenceDraftQueuing)?
+
     /// Production returns its retained dataset coordinator. Isolated fixtures explicitly return
     /// nil.
     func prepareDataCompatibility() throws -> DataCompatibilityCoordinator?
@@ -279,6 +282,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let locationOutbox: any LocationOutbox
     private var locationSource: (any LocationSource)?
     private var dataCompatibility: DataCompatibilityCoordinator?
+    private var sharedDrafts: FileSharedEvidenceDraftQueue?
     private var currentServices: WhereServices?
     private var outputWithdrawal: Task<Void, Never>?
 
@@ -423,6 +427,18 @@ public final class WhereBootstrap: WhereScopeAssembling {
         let coordinator = try prepareCoordinator()
         if let access = coordinator.access, !access.isRevoked { return access }
         return try await coordinator.refresh()
+    }
+
+    public func sharedEvidenceDraftQueue() throws -> (any SharedEvidenceDraftQueuing)? {
+        let appGroupIdentifier: String
+        switch storeStorage {
+            case .inMemory: return nil
+            case let .cloudKit(group), let .localOnly(group): appGroupIdentifier = group
+        }
+        if let sharedDrafts { return sharedDrafts }
+        let queue = try FileSharedEvidenceDraftQueue.shared(appGroupIdentifier: appGroupIdentifier)
+        sharedDrafts = queue
+        return queue
     }
 
     public func prepareDataCompatibility() throws -> DataCompatibilityCoordinator? {

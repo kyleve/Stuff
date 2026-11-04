@@ -1170,7 +1170,9 @@ A new installation requests admission only after choosing discovery or setup of 
 Onboarding retains its draft through blocked checks. A retired scope cannot complete a pending setup or repeat an already committed import.
 App Intents reject retired handoffs and validate history results, including their cached widget path.
 Cold rejection stops and discards the prepared location source, even before services exist.
-Shared-item drafts, independent update alerts, and the full automated installation fixture remain required below.
+Shared-item drafts now remain outside history until an admitted app session imports them.
+Atomic delivery receipts make retries safe after commit, deletion, Reset, or Replace.
+Independent update alerts and the full automated installation fixture remain required below.
 
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.

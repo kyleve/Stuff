@@ -178,6 +178,16 @@ actor TestStore: WhereStore {
         try await backing.rotateDataGeneration(reason: reason, changedBy: deviceID, at: date)
     }
 
+    func sharedEvidenceImportReceipt(for draftID: SharedEvidenceDraft.ID) async throws
+        -> SharedEvidenceDraft.Receipt?
+    {
+        try await backing.sharedEvidenceImportReceipt(for: draftID)
+    }
+
+    func addSharedEvidenceImportReceipt(_ receipt: SharedEvidenceDraft.Receipt) async throws {
+        try await backing.addSharedEvidenceImportReceipt(receipt)
+    }
+
     func backupImportReceipt(
         id: UUID,
         installationID: RecordingDeviceID,

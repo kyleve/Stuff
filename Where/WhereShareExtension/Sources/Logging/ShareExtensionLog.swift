@@ -46,7 +46,7 @@ enum ShareExtensionLog {
         var evidenceCount: Int
 
         var message: String {
-            "Saved \(evidenceCount) shared evidence record(s)"
+            "Saved \(evidenceCount) pending shared evidence record(s)"
         }
     }
 

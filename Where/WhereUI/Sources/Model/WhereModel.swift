@@ -23,6 +23,7 @@ import PeriscopeCore
 @MainActor
 @Observable
 public final class WhereModel {
+    public let sharedEvidence = WhereSharedEvidenceModel()
     /// Observable bring-up state for the active scope's durable log store.
     ///
     /// The developer surface must not infer a failed asynchronous open from a
@@ -548,11 +549,22 @@ public final class WhereModel {
     public func refreshDataCompatibilityIfNeeded() async {
         guard !isInDemoMode, compatibility.hasChecked else { return }
         await compatibility.refresh()
+        await importPendingSharedEvidenceIfNeeded()
+    }
+
+    public func importPendingSharedEvidenceIfNeeded() async {
+        // Onboarding can open a scope before Replace imports finish. Only the established
+        // session may consume drafts, so a later restore cannot erase an acknowledged share.
+        guard !isInDemoMode, isDataCompatible, let session else { return }
+        await sharedEvidence.importPending(using: session.services, compatibility: compatibility) {
+            self.session === session && self.isDataCompatible
+        }
     }
 
     /// Retire an admitted world without erasing identity, consent, pending fixes, or history.
     func suspendForCompatibility() async {
         await onDataCompatibilityBlocked(compatibility.blockingError)
+        sharedEvidence.dismissFailure()
         session?.stopObserving()
         scopeResolution?.cancel()
         if let scopeResolution {
@@ -689,6 +701,7 @@ public final class WhereModel {
     /// Production's bootstrap keeps the physical dataset and coordinator. All scope-owned
     /// capture, reconciliation, and output must retire before another scope uses that dataset.
     private func logOut() async {
+        sharedEvidence.dismissFailure()
         session?.stopObserving()
         await activeScope?.services.retireCompatibilityScope()
         await activeScope?.stopLogRouting()
@@ -741,6 +754,10 @@ public final class WhereModel {
 /// quietly open the user's on-disk SwiftData and Periscope stores from inside
 /// a test host.
 private struct InjectedServicesAssembler: WhereScopeAssembling {
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        nil
+    }
+
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
         nil
     }

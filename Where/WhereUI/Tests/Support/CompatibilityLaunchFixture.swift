@@ -23,6 +23,7 @@ final class CompatibilityLaunchFixture: WhereScopeAssembling {
     private(set) var assemblyCount = 0
     private(set) var withdrawalCount = 0
     private(set) var services: WhereServices?
+    var sharedDrafts: (any SharedEvidenceDraftQueuing)?
     var beforeAssembly: @MainActor () async -> Void = {}
     var makeLocationSource: @MainActor () -> any LocationSource = {
         ScriptedLocationSource(authorizationStatus: .always)
@@ -51,6 +52,10 @@ final class CompatibilityLaunchFixture: WhereScopeAssembling {
             makeBootstrap: { _ in self },
             logSystem: .isolated(),
         )
+    }
+
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        sharedDrafts
     }
 
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {

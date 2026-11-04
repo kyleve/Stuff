@@ -41,6 +41,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Observe compatibility without a view tree. Mask retired sessions immediately, then drain their capture and output before reopening.
   Keep compatibility suspension separate from reset: preserve identity, consent, and accepted pending observations.
   Guards: `WhereCompatibilityLifecycleTests`, `DataCompatibilityLocationSourceTests`.
+- Import shared drafts only through the current admitted non-demo session, after onboarding import recovery completes.
+  Keep import failures visible without blocking valid history. Ignore results from retired scopes.
+  Guard: `WhereSharedEvidenceModelTests`.
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.

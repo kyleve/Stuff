@@ -1,8 +1,8 @@
 # WhereShareExtension – Module Shape
 
-The **Where** share extension is a Share-sheet action. It writes shared content
-(PDFs, images, Wallet passes, emails, links) into the app's store as a new
-`Evidence`. See [`README.md`](README.md) for the data path and design.
+The **Where** share extension is a Share-sheet action. It saves shared content
+(PDFs, images, Wallet passes, emails, links) as pending drafts for the next admitted app session.
+See [`README.md`](README.md) for the data path and design.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 [`Where/AGENTS.md`](../AGENTS.md). Read those first.
@@ -18,20 +18,17 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - Presentation reuses WhereUI's public `EvidenceKind.symbol`/`displayName`.
   Only extension chrome lives in this target's catalog. Reference it through its
   generated `LocalizedStringResource` symbols.
-- No test bundle. The store write contract is covered from **WhereCore** store
-  tests. This target's own compose/save model (`ShareEvidenceModel`) is
-  untested. Tracked in [`Where/TODOs.md`](../TODOs.md).
+- `WhereShareExtensionTests` compiles the actual compose model, loader, and view in StuffTestHost.
+  `WhereShareExtensionSnapshotTests` captures the compose form in the shared image scheme.
+  Keep the OS principal controller and audience adapter outside these hosted source lists.
 
 ## Invariants
 
-- **Writes directly through `SwiftDataStore.perform { write(evidence:blob:) }`,
-  not `WhereServices`/`DayJournal`.** A short-lived share process must not spin
-  up the GPS ingestor, notifiers, or widget publisher; the store commit's
-  persistent-history ping is what the app reconciles from later.
-- **Opens `.localOnly` storage, never CloudKit.** The extension holds only the
-  App Group entitlement (no iCloud), so it must not initialize the CloudKit
-  mirror; the app's container syncs the shared store's history. Resolve that
-  group through `WhereShareBuildEnvironment` and inject it into the store.
+- **Never open history or CloudKit.** The extension cannot verify shared compatibility.
+  Save metadata and bytes through `SharedEvidenceDraftQueuing`; the app imports through admitted services.
+  Resolve the App Group through `WhereShareBuildEnvironment` and inject the queue factory.
+- Preserve a prepared draft's identity and bytes through uncertain saves. Disable edits after preparation and retry that same draft.
+  Complete the extension request only after enqueue succeeds. Keep enqueue failures visible and preserve the original error.
 - **`NSExtensionPrincipalClass` is `$(PRODUCT_MODULE_NAME).ShareViewController`**
   — keep the class name and Info.plist in sync. Save/cancel bridge to
   `extensionContext` completion; the root view has no `@Environment(\.dismiss)`.
@@ -44,6 +41,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Testing
 
-No hosted bundle. Exercise `EvidenceContentType.classify` and the store write
-contract in **WhereCore**. Preview the compose sheet via the in-file `#Preview`
-(DEBUG). It uses an `.inMemory` model with no shared-container access.
+Core covers classification, draft publication, and receipt-based import. `WhereSharedEvidenceModelTests` covers the verified app-session handoff.
+The extension's hosted tests cover real item-provider loading, attachment composition, uncertain save retries, and concurrent Save.
+Keep compose snapshots with `ShareEvidenceView` through `SnapshotProviding`; use the shared date-picker wrapper for deterministic capture.
+The principal controller's system completion callbacks still require platform integration coverage.

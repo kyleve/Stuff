@@ -11449,6 +11449,28 @@
         }
       }
     },
+    "sharedEvidence.import.error.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your shared items are still saved. Where could not add them to your history. Try again."
+          }
+        }
+      }
+    },
+    "sharedEvidence.import.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared Items Are Waiting"
+          }
+        }
+      }
+    },
     "snippet.logTodayHere" : {
       "comment" : "Button in the day-count snippet that logs today for the shown region.",
       "extractionState" : "manual",

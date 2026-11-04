@@ -735,6 +735,41 @@ let project = Project(
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
         ),
+        // Compile the extension's actual compose sources in the test host. The OS-owned
+        // principal controller and audience adapter stay in the extension target.
+        unitTests(
+            name: "WhereShareExtensionTests",
+            bundleIdSuffix: "whereshare",
+            productDependency: "WhereUI",
+            sources: [
+                "Where/WhereShareExtension/Tests/**",
+                "Where/WhereShareExtension/Sources/ShareEvidenceModel.swift",
+                "Where/WhereShareExtension/Sources/ShareEvidenceView.swift",
+                "Where/WhereShareExtension/Sources/SharedItemLoader.swift",
+                "Where/WhereShareExtension/Sources/PreviewSharedEvidenceDraftQueue.swift",
+                "Where/WhereShareExtension/Sources/Logging/**",
+            ],
+            resources: ["Where/WhereShareExtension/Resources/**"],
+            // Like WhereUITests, direct symbol calls need the generated shared framework
+            // on this bundle's link command; the transitive copy alone cannot resolve them.
+            extraPackageProducts: ["SFSafeSymbols"],
+        ),
+        unitTests(
+            name: "WhereShareExtensionSnapshotTests",
+            bundleIdSuffix: "wheresharesnapshot",
+            productDependency: "WhereUI",
+            sources: [
+                "Where/WhereShareExtension/SnapshotTests/**/*.swift",
+                "Where/WhereShareExtension/Sources/ShareEvidenceModel.swift",
+                "Where/WhereShareExtension/Sources/ShareEvidenceView.swift",
+                "Where/WhereShareExtension/Sources/SharedItemLoader.swift",
+                "Where/WhereShareExtension/Sources/PreviewSharedEvidenceDraftQueue.swift",
+                "Where/WhereShareExtension/Sources/Logging/**",
+            ],
+            resources: ["Where/WhereShareExtension/Resources/**"],
+            extraPackageProducts: ["SnapshotKitTesting", "SFSafeSymbols"],
+            environmentVariables: snapshotEnvironment,
+        ),
         // Image snapshot bundles: one per module that owns image references,
         // all gathered into the single `StuffSnapshotTests` scheme below so CI
         // runs them in one `snapshot` job. They are slow and LFS-backed, so
@@ -915,6 +950,7 @@ let project = Project(
                 "WhereTests",
                 "WhereUITests",
                 "WhereIntentsTests",
+                "WhereShareExtensionTests",
                 "BroadwayCatalog",
                 "BroadwayCoreTests",
                 "BroadwayUITests",
@@ -941,6 +977,7 @@ let project = Project(
                     "WhereTests",
                     "WhereUITests",
                     "WhereIntentsTests",
+                    "WhereShareExtensionTests",
                     "BroadwayCoreTests",
                     "BroadwayUITests",
                     "BroadwayCatalogTests",
@@ -966,6 +1003,7 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        testScheme(name: "WhereShareExtensionTests"),
         // Every image-snapshot bundle, in one scheme, so CI runs them all in
         // the single `snapshot` job. A new module's image suite gets its own
         // `*SnapshotTests` target above and joins the lists here — it must not
@@ -980,6 +1018,7 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "WhereUISnapshotTests",
+                "WhereShareExtensionSnapshotTests",
                 "ToolsSnapshotTests",
                 "InstallerKitUISnapshotTests",
                 "FlyoverSnapshotTests",
@@ -989,6 +1028,7 @@ let project = Project(
             testAction: .targets(
                 [
                     "WhereUISnapshotTests",
+                    "WhereShareExtensionSnapshotTests",
                     "ToolsSnapshotTests",
                     "InstallerKitUISnapshotTests",
                     "FlyoverSnapshotTests",

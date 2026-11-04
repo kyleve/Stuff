@@ -101,6 +101,15 @@ public final class WhereDataCompatibilityModel {
         }
     }
 
+    func importSharedEvidence(using services: WhereServices) async throws {
+        guard isAvailable, services.dataAccessID == accessID else {
+            throw DataCompatibilityError.verificationRequired
+        }
+        if let queue = try bootstrap?.sharedEvidenceDraftQueue() {
+            try await services.sharedEvidence.importPending(from: queue)
+        }
+    }
+
     func withdrawHistoryOutputs() async {
         await bootstrap?.withdrawHistoryOutputs()
     }

@@ -3,29 +3,21 @@ import Observation
 import PeriscopeCore
 import WhereCore
 
-/// View-scoped model for the share-extension compose sheet. Pulls the shared
-/// bytes out of the extension items, holds the editable fields (kind, capture
-/// date, note), and persists a new `Evidence` straight into the App Group
-/// SwiftData store the app reads.
-///
-/// The extension writes to the store directly rather than through
-/// `WhereServices`/`DayJournal`: those assemble a live GPS ingestor, notifiers,
-/// and widget publishing that have no place in a short-lived share process. The
-/// store commit pings persistent history, so the app reconciles badges/widgets
-/// and (in production) mirrors to CloudKit the next time it opens.
+/// Composes an immutable pending share with attachment bytes. Only an admitted app session
+/// imports it into history; this extension never opens SwiftData or CloudKit.
 @MainActor
 @Observable
 final class ShareEvidenceModel {
     /// Where the compose sheet is in its lifecycle. Success isn't a case — the
     /// host view controller dismisses on the `true` return from `save()`.
-    enum Phase: Equatable {
+    enum Phase {
         /// Extracting the shared attachment before the form is shown.
         case loading
         /// Form is editable.
         case composing
         case saving
         /// A save failed; the form stays open with the message visible.
-        case failed(String)
+        case failed(any Error)
     }
 
     private(set) var phase: Phase = .loading
@@ -39,29 +31,37 @@ final class ShareEvidenceModel {
     var note: String = ""
 
     private let items: [NSExtensionItem]
-    /// Storage the extension opens; injectable so a future test can point it at
-    /// an in-memory store instead of the shared container.
-    private let storage: SwiftDataStore.Storage
+    private let makeQueue: @Sendable () throws -> any SharedEvidenceDraftQueuing
+    private var preparedDraft: SharedEvidenceDraft?
     private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     init(
         items: [NSExtensionItem],
-        storage: SwiftDataStore.Storage,
+        makeQueue: @escaping @Sendable () throws -> any SharedEvidenceDraftQueuing,
         now: @Sendable () -> Date = { Date() },
     ) {
         self.items = items
-        self.storage = storage
+        self.makeQueue = makeQueue
         capturedAt = now()
     }
 
     var isSaving: Bool {
-        phase == .saving
+        if case .saving = phase { true } else { false }
+    }
+
+    var isLoading: Bool {
+        if case .loading = phase { true } else { false }
+    }
+
+    /// An uncertain enqueue retries exactly the same identity and bytes.
+    var hasPreparedDraft: Bool {
+        preparedDraft != nil
     }
 
     /// The save error message, if the last save failed. Backing for the alert
     /// binding below.
     var saveErrorMessage: String? {
-        if case let .failed(message) = phase { return message }
+        if case let .failed(error) = phase { return error.localizedDescription }
         return nil
     }
 
@@ -77,45 +77,40 @@ final class ShareEvidenceModel {
     /// A share with nothing loadable still composes — the user can save metadata
     /// only.
     func loadAttachments() async {
-        attachments = await SharedItemLoader.loadAttachments(from: items)
+        guard isLoading else { return }
+        let loaded = await SharedItemLoader.loadAttachments(from: items)
+        guard isLoading, preparedDraft == nil else { return }
+        attachments = loaded
         if let first = attachments.first {
             kind = EvidenceKind.suggested(forTypeIdentifier: first.typeIdentifier)
         }
         phase = .composing
     }
 
-    /// Build one `Evidence` per shared attachment (all carrying the form's
-    /// kind/date/note) and persist them in a single transaction. Returns `true`
-    /// on success so the host can dismiss; on failure records `.failed(_)`,
-    /// logs, and returns `false` so the form stays open. Never silently swallows
-    /// the write error.
+    /// Save the complete batch atomically before the host dismisses. Retain the prepared
+    /// identity through a failed or uncertain enqueue so another Save cannot duplicate it.
     func save() async -> Bool {
+        guard !isSaving, !isLoading else { return false }
         phase = .saving
-        let pending = buildPendingEvidence()
         do {
-            let store = try SwiftDataStore.make(storage: storage)
-            try await store.perform {
-                for item in pending {
-                    try await store.write(evidence: item.evidence, blob: item.blob)
-                }
+            let draft: SharedEvidenceDraft
+            if let preparedDraft {
+                draft = preparedDraft
+            } else {
+                draft = try SharedEvidenceDraft(
+                    id: .init(rawValue: UUID()),
+                    items: buildPendingEvidence(),
+                )
+                preparedDraft = draft
             }
-            Self.logger.saved(evidenceCount: .restricted(.count, pending.count))
+            try await makeQueue().enqueue(draft)
+            Self.logger.saved(evidenceCount: .restricted(.count, draft.items.count))
             return true
         } catch {
-            phase = .failed(error.localizedDescription)
-            Self.logger.saveFailed(
-                error: .restricted(.errorDetails, error),
-            )
+            phase = .failed(error)
+            Self.logger.saveFailed(error: .restricted(.errorDetails, error))
             return false
         }
-    }
-
-    /// One evidence record plus its attachment bytes, ready to persist. A small
-    /// named value (not a tuple) since it escapes `buildPendingEvidence` into
-    /// `save`.
-    struct PendingEvidence {
-        let evidence: Evidence
-        let blob: Data?
     }
 
     /// Assemble the evidence records from the current field state via the shared
@@ -123,12 +118,15 @@ final class ShareEvidenceModel {
     /// own bytes), or a single metadata-only record when nothing was shared.
     /// `internal` so a test can assert the mapping without going through
     /// persistence.
-    func buildPendingEvidence() -> [PendingEvidence] {
+    func buildPendingEvidence() -> [SharedEvidenceDraft.Item] {
         guard !attachments.isEmpty else {
-            return [PendingEvidence(evidence: composed(attachment: nil), blob: nil)]
+            return [SharedEvidenceDraft.Item(evidence: composed(attachment: nil), blob: nil)]
         }
         return attachments.map { attachment in
-            PendingEvidence(evidence: composed(attachment: attachment), blob: attachment.data)
+            SharedEvidenceDraft.Item(
+                evidence: composed(attachment: attachment),
+                blob: attachment.data,
+            )
         }
     }
 

@@ -79,4 +79,12 @@ enum WhereLaunchLog {
             "Detached launch step '\(stepID)' failed: \(error.description)"
         }
     }
+
+    @LogEvent("shared-evidence-import-failed", level: .error)
+    struct SharedEvidenceImportFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails) var error: LogError
+        var message: String {
+            "Shared evidence remains pending: \(error.description)"
+        }
+    }
 }

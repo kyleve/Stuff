@@ -14,6 +14,10 @@ import WhereUI
 /// double-open the dormant-scope handoff exists to prevent.
 @MainActor
 final class ScriptedBootstrap: WhereScopeAssembling {
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        nil
+    }
+
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
         nil
     }
@@ -79,6 +83,10 @@ final class ScriptedBootstrap: WhereScopeAssembling {
 /// must surface an unopenable store rather than swallow it.
 @MainActor
 final class FailingBootstrap: WhereScopeAssembling {
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        nil
+    }
+
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
         nil
     }
@@ -107,6 +115,10 @@ final class FailingBootstrap: WhereScopeAssembling {
 /// logging presents an honest diagnostic.
 @MainActor
 final class FailingLogStoreBootstrap: WhereScopeAssembling {
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        nil
+    }
+
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
         nil
     }
@@ -144,6 +156,10 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
 /// world it will never assemble. Trips if a login is attempted anyway.
 @MainActor
 final class UnusedBootstrap: WhereScopeAssembling {
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        nil
+    }
+
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
         nil
     }

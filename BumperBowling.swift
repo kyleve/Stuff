@@ -41,6 +41,7 @@ let bumper = BumperProject {
         "Where/Where/Tests"
         "Where/WhereWidgets/Sources"
         "Where/WhereShareExtension/Sources"
+        "Where/WhereShareExtension/Tests"
         "Where/RegionViewer/Sources"
     }
 
@@ -85,6 +86,7 @@ let bumper = BumperProject {
             Owns("Where/WhereUI/Tests")
             Owns("Where/WhereIntents/Tests")
             Owns("Where/Where/Tests")
+            Owns("Where/WhereShareExtension/Tests")
             MayDependOn(
                 .periscope,
                 .installerKit,

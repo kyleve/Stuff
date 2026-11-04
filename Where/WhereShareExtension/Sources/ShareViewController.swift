@@ -22,9 +22,9 @@ final class ShareViewController: UIViewController {
         let buildEnvironment = WhereShareBuildEnvironment.current()
         let model = ShareEvidenceModel(
             items: items,
-            storage: .localOnly(
+            makeQueue: { try FileSharedEvidenceDraftQueue.shared(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
-            ),
+            ) },
         )
         let root = ShareEvidenceView(
             model: model,

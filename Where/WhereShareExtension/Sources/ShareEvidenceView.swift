@@ -3,8 +3,8 @@ import WhereCore
 import WhereUI
 
 /// The share-extension compose sheet: shows what was shared, lets the user pick
-/// a kind, set the capture date, and add a note, then saves a new `Evidence`
-/// into the shared store. Hosted by `ShareViewController`; `onSave`/`onCancel`
+/// a kind, set the capture date, and add a note, then saves a pending draft
+/// for the next admitted app session. Hosted by `ShareViewController`; `onSave`/`onCancel`
 /// complete or cancel the extension request (there's no `@Environment(.dismiss)`
 /// in an extension's root view controller).
 struct ShareEvidenceView: View {
@@ -35,7 +35,7 @@ struct ShareEvidenceView: View {
                         form
                 }
             }
-            .animation(.default, value: model.phase)
+            .animation(.default, value: model.isSaving)
             .navigationTitle(String(localized: .shareTitle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -46,7 +46,7 @@ struct ShareEvidenceView: View {
                     Button(.shareSave) {
                         Task { if await model.save() { onSave() } }
                     }
-                    .disabled(model.isSaving || model.phase == .loading)
+                    .disabled(model.isSaving || model.isLoading)
                 }
             }
             .alert(
@@ -70,13 +70,17 @@ struct ShareEvidenceView: View {
             Section {
                 Picker(String(localized: .shareFormKind), selection: $model.kind) {
                     ForEach(EvidenceKind.knownCases, id: \.self) { kind in
-                        Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
+                        Text(kind.displayName).tag(kind)
                     }
                 }
                 if case .other = model.kind {
                     TextField(String(localized: .shareFormOtherLabel), text: $model.otherLabel)
                 }
-                DatePicker(String(localized: .shareFormDate), selection: $model.capturedAt)
+                WhereDatePicker(
+                    String(localized: .shareFormDate),
+                    selection: $model.capturedAt,
+                    displayedComponents: [.date, .hourAndMinute],
+                )
             }
             Section {
                 TextField(
@@ -87,8 +91,11 @@ struct ShareEvidenceView: View {
                 .lineLimit(3, reservesSpace: true)
             } header: {
                 Text(.shareFormNoteHeader)
+            } footer: {
+                Text(.sharePendingExplanation)
             }
         }
+        .disabled(model.hasPreparedDraft)
     }
 
     private var attachmentSection: some View {
@@ -125,11 +132,30 @@ struct ShareEvidenceView: View {
 }
 
 #if DEBUG
-    #Preview {
-        ShareEvidenceView(
-            model: ShareEvidenceModel(items: [], storage: .inMemory),
-            onSave: {},
-            onCancel: {},
+    import SnapshotKit
+
+    extension ShareEvidenceView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            let fixture = ShareEvidencePreviewFixture()
+            return [whereSnapshot(
+                name: "PendingDraft",
+                configurations: .fullContentPhoneLightDarkWithAX5,
+                onReadyToMeasure: { await fixture.model.loadAttachments() },
+            ) {
+                ShareEvidenceView(model: fixture.model, onSave: {}, onCancel: {})
+            }]
+        }
+    }
+
+    /// The readiness hook and view share one lazy, isolated compose model.
+    @MainActor
+    private final class ShareEvidencePreviewFixture {
+        lazy var model = ShareEvidenceModel(
+            items: [],
+            makeQueue: { PreviewSharedEvidenceDraftQueue() },
+            now: { Date(timeIntervalSince1970: 1_749_996_000) },
         )
     }
+
+    #Preview { ShareEvidenceView.snapshotPreviews }
 #endif

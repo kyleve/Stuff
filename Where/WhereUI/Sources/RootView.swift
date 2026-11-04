@@ -142,6 +142,7 @@ public struct RootView: View {
     }
 
     public var body: some View {
+        @Bindable var sharedEvidence = model.sharedEvidence
         RootStyledContent { stylesheet in
             rootContent(stylesheet: stylesheet)
         }
@@ -149,6 +150,17 @@ public struct RootView: View {
             theme: model.theme,
             regionStyles: model.session?.regionStyles ?? .default,
         )
+        .alert(
+            String(localized: .sharedEvidenceImportErrorTitle),
+            isPresented: $sharedEvidence.isShowingFailure,
+        ) {
+            Button(String(localized: .commonRetry)) {
+                Task { await model.importPendingSharedEvidenceIfNeeded() }
+            }
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: {
+            Text(.sharedEvidenceImportErrorMessage)
+        }
     }
 
     private func rootContent(stylesheet: WhereStylesheet) -> some View {

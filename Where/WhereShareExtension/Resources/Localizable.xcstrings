@@ -145,6 +145,17 @@
         }
       }
     },
+    "share.pending.explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved items will be added to your history the next time Where opens and checks that it can use your history."
+          }
+        }
+      }
+    },
     "share.save" : {
       "comment" : "Save button persisting the shared evidence.",
       "extractionState" : "manual",

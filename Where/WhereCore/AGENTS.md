@@ -103,6 +103,11 @@ That document also owns the implementation plan.
   omit that device-local choice. Replace preserves it and every existing
   removal tombstone while rotating the data generation and discarding the local
   outbox (`BackupCoordinatorTests`).
+- Queue shared attachments without opening history. Import only through admitted services, with evidence and its receipt in one generation-guarded transaction.
+  Load one draft at a time and acknowledge it after commit. Keep receipts across evidence deletion, Reset, and Replace to prevent retry resurrection.
+  Close and join imports before Reset. Reopen only the owning failed reset's prior state; committed resets keep the old importer closed.
+  Exclude the pending inbox from system backup and omit delivery receipts from user archives.
+  Guards: `SharedEvidenceImporterTests`, `SwiftDataStoreSharedEvidenceTests`, `FileSharedEvidenceDraftQueueTests`.
 - **Gate import recovery with a two-phase sidecar plus an atomic store
   receipt.** Never clear a committed onboarding marker before its independent
   terminal completion tombstone

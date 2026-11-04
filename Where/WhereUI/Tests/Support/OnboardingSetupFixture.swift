@@ -63,6 +63,10 @@ struct OnboardingSetupFixture {
 
 @MainActor
 private struct OnboardingSetupBootstrap: WhereScopeAssembling {
+    func sharedEvidenceDraftQueue() -> (any SharedEvidenceDraftQueuing)? {
+        nil
+    }
+
     func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
         nil
     }

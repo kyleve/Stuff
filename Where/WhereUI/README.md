@@ -152,6 +152,8 @@ Demo mode hides this surface and performs no update checks.
   `WhereCompatibilityLifecycle` observes changes without a scene, retires old sessions, and restarts through the gate.
   Root content masks a revoked or superseded permit immediately. Retry creates fresh scoped services after output retirement.
   Identity, recording consent, and accepted pending observations survive this suspension.
+- **Pending shares** — the current admitted session imports queued share-sheet drafts after onboarding recovery and on compatibility refresh.
+  `WhereSharedEvidenceModel` retains import errors for the root's retry alert. Failed imports keep history usable and preserve queued bytes.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -703,3 +705,5 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+The public `WhereDatePicker` also serves extension forms. It preserves date, time, or combined selection and supplies deterministic snapshot capsules.

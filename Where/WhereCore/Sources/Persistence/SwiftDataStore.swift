@@ -457,9 +457,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// CloudKit database.
         case cloudKit(appGroupIdentifier: String)
 
-        /// Whether a store of this mode can receive writes from outside this
-        /// process — a sibling App Group process (the share extension) for any
-        /// on-disk store, or a CloudKit sync from another device. In-memory
+        /// Whether a store of this mode can receive external persistent-history
+        /// transactions, including CloudKit sync from another device. In-memory
         /// stores have no shared container and no other writers to observe.
         var observesRemoteChanges: Bool {
             switch self {
@@ -578,13 +577,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             )
         }
         let store = SwiftDataStore(modelContainer: container)
-        // On-disk stores live in a shared App Group container, so another process
-        // (the share extension) — or, for CloudKit, a sync from another device —
-        // can commit behind our back. SwiftData's history observer detects
-        // changes to this container. The source filters history by this store
-        // instance's author before forwarding only external writes into
-        // `changes()`. A share-extension add then appears live in the running
-        // app (debug included), not just on next launch.
+        // Observe external persistent-history transactions, including CloudKit imports.
+        // Filter by this store instance's author before forwarding external changes.
+        // The share extension queues drafts; the admitted app imports those locally.
         if storage.observesRemoteChanges {
             try store.startObservingRemoteChanges(HistoryObserverRemoteChangeSource(
                 modelContainer: container,
@@ -645,6 +640,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDVersionedHistoryRecord.self,
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
+            SDSharedEvidenceImportReceipt.self,
             SDLocationSample.self,
             SDSampleAttributionRevision.self,
             SDEvidence.self,

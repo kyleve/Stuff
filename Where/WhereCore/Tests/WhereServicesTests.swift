@@ -401,6 +401,34 @@ struct WhereServicesTests {
         }
     }
 
+    @Test func resetCleanupAndACompetingResetCannotReopenSharedEvidenceImports() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let gate = CompatibilityTestGate()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            locationOutbox: SharedEvidenceResetOutbox(gate: gate),
+        )
+        let queue = ScriptedSharedEvidenceDraftQueue()
+        let draft = try makeSharedEvidenceDraft()
+        try await queue.enqueue(draft)
+        let originalGeneration = try await store.dataGeneration().id
+        let reset = Task { try await services.reset() }
+        await gate.waitUntilEntered()
+        #expect(try await store.dataGeneration().id != originalGeneration)
+        await #expect(throws: RecordingPersistenceError.recordingRewriteInProgress) {
+            try await services.reset()
+        }
+        try await services.sharedEvidence.importPending(from: queue)
+        #expect(try await store.allEvidence().isEmpty)
+        #expect(await queue.pendingDraftIDs() == [draft.id])
+        await gate.resume()
+        try await reset.value
+        try await services.sharedEvidence.importPending(from: queue)
+        #expect(try await store.allEvidence().isEmpty)
+        #expect(await queue.pendingDraftIDs() == [draft.id])
+    }
+
     @Test func resetStopsTrackingAndErasesSyncedUserData() async throws {
         let (services, _, source) = try Self.makeServices()
         _ = try await services.recording.register(authorization: .always)
@@ -1798,6 +1826,16 @@ private actor ToggleFailingStore: WhereStore {
         at date: Date,
     ) async throws -> WhereDataGeneration {
         try await backing.rotateDataGeneration(reason: reason, changedBy: deviceID, at: date)
+    }
+
+    func sharedEvidenceImportReceipt(for draftID: SharedEvidenceDraft.ID) async throws
+        -> SharedEvidenceDraft.Receipt?
+    {
+        try await backing.sharedEvidenceImportReceipt(for: draftID)
+    }
+
+    func addSharedEvidenceImportReceipt(_ receipt: SharedEvidenceDraft.Receipt) async throws {
+        try await backing.addSharedEvidenceImportReceipt(receipt)
     }
 
     func backupImportReceipt(

@@ -27,9 +27,52 @@ struct WhereProjectRulesTests {
         #expect(
             violation.evidence == ViolationEvidence(
                 observed: "SwiftDataStore.make in \(rejectedPath.rawValue)",
-                expectation: "open the production store in WhereLaunch or ShareEvidenceModel",
+                expectation: "open the production store in WhereLaunch",
             ),
         )
+    }
+
+    @Test
+    func `share extension cannot bypass admission by opening history`() throws {
+        let path: RelativeFilePath = "Where/WhereShareExtension/Sources/ShareEvidenceModel.swift"
+        let rejected = try evaluate(
+            path: path,
+            component: .shareExtension,
+            source: "func save() throws { _ = try SwiftDataStore.make(storage: .localOnly(appGroupIdentifier: group)) }",
+        )
+        let allowed = try evaluate(
+            path: path,
+            component: .shareExtension,
+            source: "func save() async throws { try await queue.enqueue(draft) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        let violation = try #require(rejected.violations.first)
+        #expect(rejected.violations.count == 1)
+        #expect(violation.rule.id == "where.production_store_opening")
+        #expect(violation.rule.severity == .error)
+        #expect(violation
+            .message == "SwiftDataStore.make is called outside a process composition root.")
+    }
+
+    @Test
+    func `shared evidence receipts require the evidence transaction`() throws {
+        let path: RelativeFilePath = "Where/WhereCore/Sources/Evidence/SharedEvidenceImporter.swift"
+        let rejected = try evaluate(
+            path: path,
+            component: .whereCore,
+            source: "func save() async throws { try await store.addSharedEvidenceImportReceipt(receipt) }",
+        )
+        let allowed = try evaluate(
+            path: path,
+            component: .whereCore,
+            source: "func save() async throws { try await store.perform(expectedDataGenerationID: generation) { try await store.addSharedEvidenceImportReceipt(receipt) } }",
+        )
+        #expect(allowed.violations.isEmpty)
+        let violation = try #require(rejected.violations.first)
+        #expect(rejected.violations.count == 1)
+        #expect(violation.rule.id == "where.store_transaction_boundary")
+        #expect(violation.rule.severity == .error)
+        #expect(violation.message == "WhereStore mutation occurs outside a store transaction.")
     }
 
     @Test

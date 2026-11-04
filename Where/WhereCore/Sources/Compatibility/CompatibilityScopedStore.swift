@@ -230,6 +230,16 @@ struct CompatibilityScopedStore: WhereStore {
         }
     }
 
+    func sharedEvidenceImportReceipt(for draftID: SharedEvidenceDraft.ID) async throws
+        -> SharedEvidenceDraft.Receipt?
+    {
+        try await access { try await base.sharedEvidenceImportReceipt(for: draftID) }
+    }
+
+    func addSharedEvidenceImportReceipt(_ receipt: SharedEvidenceDraft.Receipt) async throws {
+        try await access { try await base.addSharedEvidenceImportReceipt(receipt) }
+    }
+
     func write(evidence: Evidence, blob: Data?) async throws {
         try await access {
             try await base.write(evidence: evidence, blob: blob)

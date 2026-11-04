@@ -1,49 +1,49 @@
 # WhereShareExtension
 
-The **Where** share extension.
-It is a Share-sheet action that saves shared content — a boarding pass, a PDF receipt, a screenshot, a forwarded reservation email, a Wallet ticket — into Where as a new piece of [`Evidence`](../WhereCore/Sources/Evidence/Evidence.swift).
-
-Pick "Where" from any app's Share sheet, confirm the kind / date / note in the compose sheet, and tap **Save**.
-The attachment bytes and metadata are written straight into the shared App Group SwiftData store the app reads.
+The Where Share-sheet action saves boarding passes, receipts, images, emails, tickets, and links as pending evidence.
+Choose Where from another app's Share sheet, edit the kind, date, and note, then tap **Save**.
+Where imports the saved items the next time an app session can access its history.
 
 ## How it works
 
-```
-Host app Share sheet
-    └─▶ ShareViewController (principal class)
-            └─▶ SharedItemLoader           (extract bytes from NSItemProviders)
-            └─▶ ShareEvidenceView + Model  (SwiftUI compose sheet)
-                    └─▶ SwiftDataStore.perform { write(evidence:blob:) }
-                            └─▶ audience-selected App Group store
-```
+1. `ShareViewController` receives the shared items.
+2. `SharedItemLoader` extracts available bytes from each item provider.
+3. `ShareEvidenceModel` prepares one immutable `SharedEvidenceDraft`, with one evidence record per attachment.
+4. `FileSharedEvidenceDraftQueue` publishes the complete draft in the audience's App Group.
+5. The admitted app session imports the draft through `SharedEvidenceImporter`.
 
-- **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields bytes (so a multi-item share — the activation rule allows up to 20 — keeps them all), preferring the most preview-friendly representation each registered: PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its string). A share with nothing loadable still composes as a metadata-only note, with whatever reason the provider gave logged as a warning. The whole load is one Periscope span, since it is what the wait between tapping Share and seeing the compose form is spent on.
-- **`ShareEvidenceModel`** holds the editable fields, classifies each attachment with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift), and persists one `Evidence` per attachment (all sharing the form's kind/date/note) in a single transaction.
-- **`ShareEvidenceView`** is the compose form.
-  Kind names/symbols reuse WhereUI's public `EvidenceKind` presentation helpers so they read identically to the in-app "Add evidence" sheet.
-  Extension-only chrome resolves through this target's own catalog via its generated symbols (`String(localized: .shareTitle)`).
+The loader prefers PDF, image, concrete file, text, then URL representations.
+A share without loadable bytes still composes a metadata-only note. Provider failures are logged.
+Each attachment keeps its own content type and bytes. All items use the form's kind, date, and note.
 
-## Why write to the store directly
+An uncertain save retries the same draft identity and contents. The form stays locked after preparation to preserve that contract.
+The extension completes its request only after enqueue succeeds. Failure keeps the compose sheet open for retry.
+The view reuses WhereUI's evidence names and symbols. Extension chrome uses this target's generated localization symbols.
 
-The extension opens the store and writes through `SwiftDataStore.perform { … }` rather than going through `WhereServices`/`DayJournal`.
-Those assemble a live GPS ingestor, notification reconcilers, and widget publishing — machinery with no place in a short-lived share process.
-The commit enters persistent history. The app’s container-scoped `HistoryObserverRemoteChangeSource` classifies external authors and forwards the change to its reconciliation streams; Beta and App Store also mirror the shared store through CloudKit.
+## History admission and recovery
 
-The extension opens `.localOnly` storage on purpose.
-It must not initialize CloudKit (it holds only the App Group entitlement, not iCloud).
-The app's CloudKit container picks the write up from the shared store's history.
+The extension has no iCloud entitlement, so it cannot verify shared-data compatibility.
+It never opens SwiftData or starts application services.
+Pending drafts retain their attachment bytes while app access is blocked.
+
+The app saves evidence and a delivery receipt in one guarded transaction, then acknowledges the draft.
+A crash after commit can retry without duplicating evidence or restoring evidence deleted afterward.
+Receipts survive Reset and Replace. The pending directory is excluded from system backup; delivery receipts are omitted from user archives.
+Import failures leave the draft available and show a retry action in the app.
 
 ## Installation
 
-`WhereShareExtension` is a Tuist app-extension target in
-[`Project.swift`](../../Project.swift), with a bundle ID and App Group selected
-by the Where audience (Development is isolated; Beta and App Store share the
-production family),
-depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**. The main **Where** app
-embeds the extension with the same audience-selected App Group entitlement so
-both processes open the same SwiftData store.
+`Project.swift` defines the audience-specific extension target, bundle ID, and App Group.
+Development has an isolated group. Beta and App Store share the production group.
+The extension uses WhereCore and WhereUI APIs and logs typed events through Periscope.
+The app embeds the matching extension and shares its draft directory.
 
-## Limitations
+## Validation limits
 
-- **No test bundle.** WhereCore tests cover the store-write contract and production history observation against temporary on-disk stores. This extension’s compose model, item loader, and view-controller glue remain untested; see [`../TODOs.md`](../TODOs.md).
-- **Refresh depends on app execution.** Both local-only and CloudKit app stores observe external commits through SwiftData history. Services reconcile when their observer can run, and scene-scoped reports subscribe while active and refresh on activation. A suspended app cannot repaint; the source does not deliberately defer every external write until the next foreground. Live cross-process and CloudKit delivery still require device validation.
+WhereCore tests cover draft publication, attachment preservation, transaction rollback, permit revocation, reset races, and receipt recovery.
+WhereUI tests cover blocked launch, successful admission, foreground import, and retry after failed acknowledgement.
+The hosted extension tests compile the production compose sources and use real item providers with scripted queue failures.
+They cover every attachment, metadata-only notes, uncertain retries, and overlapping Save actions.
+The image bundle captures the native form in light, dark, and accessibility sizes.
+The OS principal controller and system completion callbacks are outside these hosted tests.
+The in-file preview uses an injected memory queue. Import requires app execution; saving a draft cannot wake a suspended app.

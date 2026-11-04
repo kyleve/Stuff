@@ -96,6 +96,19 @@ The app retains one dataset coordinator across service scopes. Its launch gate w
 The remaining rollout requirements stay in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
 The foundation does not activate new history selection or write incompatible user data.
 
+### Pending shared evidence
+
+`FileSharedEvidenceDraftQueue` stores immutable metadata and attachment bytes in the App Group without opening history.
+Each draft has its own atomic file. Concurrent share processes cannot replace another draft.
+The pending directory is excluded from system backup.
+
+Admitted services expose `SharedEvidenceImporter`. It imports a complete draft and its delivery receipt in one guarded transaction.
+It loads one draft at a time and removes it only after commit. A retry checks the receipt before writing evidence again.
+Reset closes new imports and joins current work before erasure. A failed erase restores prior admission; committed erasure keeps the old importer closed.
+Receipts survive evidence deletion, Reset, and Replace, so interrupted acknowledgement cannot restore deleted data.
+These delivery receipts are omitted from user backups, like the local pending inbox.
+Import errors preserve the queued bytes and remain visible to the caller.
+
 ## What you get
 
 `WhereServices` is a small struct of focused collaborators — add behavior to the

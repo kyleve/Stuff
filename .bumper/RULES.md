@@ -64,16 +64,17 @@ and that representative upward/framework imports fail with the expected rule.
 ## Canonical production store opening
 
 `where.production_store_opening` permits `SwiftDataStore.make` only in
-`WhereLaunch` (the app process) and `ShareEvidenceModel` (the short-lived share
-process). This protects the documented create-once/inject-down rule and prevents
+`WhereLaunch`, after dataset admission. The share extension queues drafts without opening history.
+This protects the documented create-once/inject-down rule and prevents
 a feature, intent, widget, or view model from independently opening the
 production store. Tests and previews use `inMemory()` and are outside the
 production scan.
 
 Repair a violation by accepting the existing `WhereStore`/`WhereServices`
 through injection. Add another owner only when a genuinely separate process is
-introduced and its module documentation names that composition root. Delete the
+introduced, its compatibility admission is established, and its module documentation names that composition root. Delete the
 rule if production store construction becomes compiler-enforced by the API.
+The syntax guard recognizes the explicit `SwiftDataStore.make` spelling; it does not resolve aliases or prove admission ordering.
 
 ## Checked concurrency boundaries
 
@@ -140,7 +141,10 @@ Guard: `sample attribution revisions require a guarded transaction`.
 
 The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
 `clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
-`setTrackedRegion`, `setPrimaryRegions`, and `addSampleAttributionRevision`.
+`setTrackedRegion`, `setPrimaryRegions`, `addSampleAttributionRevision`, and `addSharedEvidenceImportReceipt`.
+Share evidence and its receipt must commit in the same guarded transaction.
+Guard: `shared evidence receipts require the evidence transaction`.
+The lexical guard does not resolve renamed receivers or prove that related writes share one transaction.
 
 ## App Shortcuts provider ownership
 

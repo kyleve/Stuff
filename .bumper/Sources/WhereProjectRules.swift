@@ -50,13 +50,12 @@ private let whereLoggingScope = RuleScope
 
 private let productionStoreOpeningPaths: Set<RelativeFilePath> = [
     "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
-    "Where/WhereShareExtension/Sources/ShareEvidenceModel.swift",
 ]
 
 private let productionStoreOpeningRule = Rules.files(
     "where.production_store_opening",
     severity: .error,
-    summary: "Production SwiftData stores open only at the app and share-extension composition roots.",
+    summary: "Production SwiftData stores open only at the admitted app composition root.",
     scope: whereProductionScope,
 ) { file in
     functionCalls()
@@ -70,7 +69,7 @@ private let productionStoreOpeningRule = Rules.files(
                 message: "SwiftDataStore.make is called outside a process composition root.",
                 evidence: ViolationEvidence(
                     observed: "SwiftDataStore.make in \(file.path.rawValue)",
-                    expectation: "open the production store in WhereLaunch or ShareEvidenceModel",
+                    expectation: "open the production store in WhereLaunch",
                 ),
             )
         }
@@ -160,6 +159,7 @@ private let whereStoreMutatingMethods: Set<String> = [
     "setTrackedRegion",
     "setPrimaryRegions",
     "addSampleAttributionRevision",
+    "addSharedEvidenceImportReceipt",
 ]
 
 private let storeTransactionBoundaryRule = Rules.files(

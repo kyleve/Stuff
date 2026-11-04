@@ -41,6 +41,7 @@ public struct WhereServices: Sendable {
     /// Pure reads over user-attached evidence (per-year list, per-day keys for
     /// the calendar badge, attachment bytes). Writes go through `journal`.
     public let evidence: EvidenceReader
+    public let sharedEvidence: SharedEvidenceImporter
     /// Widget snapshot publishing + freshness policy.
     public let widgets: WidgetSnapshotPublisher
     /// Daily logging-reminder intent + badge/schedule reconciliation.
@@ -294,6 +295,10 @@ public struct WhereServices: Sendable {
         self.reports = reports
         elsewhere = ElsewhereResolver()
         self.evidence = evidence
+        sharedEvidence = SharedEvidenceImporter(
+            store: store,
+            onCommitted: { await derivedData.reconcile() },
+        )
         self.reminders = reminders
         self.summary = summary
         self.issueAlerts = issueAlerts
@@ -401,11 +406,17 @@ public struct WhereServices: Sendable {
     public func retireCompatibilityScope() async {
         guard let compatibilityLifetime else { return }
         compatibilityLifetime.access.revoke()
+        async let sharedEvidenceRetirement: Void = sharedEvidence.retire()
         async let outputRetirement: Void = compatibilityLifetime.outputs.retire()
         async let locationRetirement: Void = compatibilityLifetime.location.retire()
         async let reconciliationRetirement: Void = remoteDataChangeReconciler.stop()
         await recording.retireScope()
-        _ = await (outputRetirement, locationRetirement, reconciliationRetirement)
+        _ = await (
+            outputRetirement,
+            locationRetirement,
+            reconciliationRetirement,
+            sharedEvidenceRetirement
+        )
     }
 
     @_spi(Demo) @_spi(Testing)
@@ -491,11 +502,17 @@ public struct WhereServices: Sendable {
     /// exact old authority and backlog. Throws on persistence failure so the caller can surface
     /// it rather than silently half-erasing.
     public func reset() async throws {
-        try await recording.pause()
+        try await sharedEvidence.pauseForReset()
+        do { try await recording.pause() }
+        catch {
+            await sharedEvidence.resumeAfterFailedReset()
+            throw error
+        }
         do {
             try await journal.eraseAllData()
         } catch {
             await recording.resumeAfterFailedReset()
+            await sharedEvidence.resumeAfterFailedReset()
             throw error
         }
         // The erase committed even if sidecar cleanup below fails. Refresh every derived
@@ -505,8 +522,10 @@ public struct WhereServices: Sendable {
         do {
             try await recording.finishReset()
         } catch {
+            await sharedEvidence.finishReset()
             throw ResetCleanupError(underlying: error)
         }
+        await sharedEvidence.finishReset()
     }
 
     /// Synced data committed as erased, but the local raw-location sidecar could not be removed.

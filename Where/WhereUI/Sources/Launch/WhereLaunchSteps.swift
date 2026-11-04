@@ -128,13 +128,14 @@ struct StartSessionStep: BudgetedLaunchStep {
     let onServicesReady: @MainActor (WhereServices) async -> Void
 
     let id = LaunchStepID.startSession
-    /// In-memory session construction plus the app's composition hook, which
-    /// derives the App Intents stack from the already-open store rather than
-    /// opening anything itself — so this should be fast.
-    let budget: Duration = .milliseconds(250)
+    /// Reconcile pending share drafts before the service handoff. Attachment size can make
+    /// this slower than ordinary in-memory session construction.
+    let budget: Duration = .seconds(3)
 
     func run(_ scope: WhereScope, _: LifecycleStepContext) async throws -> WhereSession {
         let session = model.startSession(scope: scope)
+        await model.importPendingSharedEvidenceIfNeeded()
+        try session.services.validateDataAccess()
         await onServicesReady(session.services)
         return session
     }
