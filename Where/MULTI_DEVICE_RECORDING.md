@@ -775,17 +775,27 @@ After agreement, update the relevant contract, acceptance scenarios, and impleme
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
 
-### E2. Whole-day choices across travel and daylight-saving changes
+### E2. Whole-day choices and the logical recording day
 
-Define which time zone converts a whole-day choice into a bounded period.
-Cover travel after the choice and days that contain fewer or more than 24 hours.
-Proposal: use the review screen's calendar and time zone, and show that zone before save.
-Resolve the chosen `CalendarDay` to a half-open interval from its local midnight to the next local midnight.
-Use calendar arithmetic so daylight-saving days can contain 23 or 25 hours.
-Retain the chosen day, time-zone identifier, and fixed instant boundaries.
+The preferred direction makes `CalendarDay` authoritative for a whole-day source choice.
+Specific time-range choices retain fixed start and end instants.
+The remaining question is how observations acquire their logical day.
 
-Later travel or report-zone changes do not move the selection.
-In another report zone, the choice can cover parts of two displayed days. Its detail retains the original day and zone.
+One approach uses the current report calendar to assign observations to the chosen day.
+This matches existing GPS bucketing, but travel can move near-midnight observations between days.
+The user also proposed storing a recording `CalendarDay` on each observation to keep its historical day stable.
+That alternative needs a rule for the time zone used to assign the day and whether reports treat it as authoritative.
+
+The current location source preserves observation timestamps, including a visit's earlier arrival time.
+The day of callback delivery, upload, or import cannot substitute for the observation day.
+Record the time-zone context used for any persisted day assignment.
+Cover delayed observations received after a time-zone change and historical conversion without reliable zone metadata.
+
+Two devices can assign different local dates to observations from the same instant.
+Compare competing evidence by absolute time rather than assuming equal day labels establish overlap.
+Define the coverage of a whole-day source choice when competing devices use different date labels.
+Cover daylight-saving transitions, travel across the date line, and overlap with fixed time-range choices.
+Apply the selected day policy consistently to reports, reminders, exports, and review.
 
 ### E3. Evening notifications on multiple phones
 
