@@ -228,9 +228,18 @@ The separate daily region-summary notification keeps its own purpose and schedul
 
 The combined notification describes the remaining work and its counts.
 Older unresolved issues remain eligible even when today's history is complete.
+Issue discovery covers all years containing history, independently of the current year or the year selected in the UI.
+Year boundaries never expire unresolved issues. A December issue remains eligible for reminders in January and later years.
+
+Late imports can add historical issues to this same scope.
+The main issue list includes this historical work.
+Reminder counts respect the existing category enablement choices.
+
 Confident automatic selections do not generate issue notifications. Their explanations remain available in the app.
 Changes to history or issue state refresh or cancel pending reminders.
 
+Notification references retain each issue's historical year, period, and query context for refresh and review lookup.
+Opening a notification uses that context instead of substituting the current or selected year.
 A notification opens a guided flow for the issues that it raised:
 
 1. Refresh the referenced issues and omit those that no longer need action.
@@ -480,6 +489,9 @@ A sync-completion event alone cannot provide that guarantee.
 | The user changes a source choice or returns to automatic | Rebuild effective history for the affected period while retaining raw observations. |
 | The user selects a new home or a different hotel | Apply the place to its validity period without silently rewriting earlier context. |
 | The user exits the notification flow after resolving one issue | Retain the saved choice and expose the remaining issues through the bar button. |
+| An unresolved December issue remains when January starts | Keep it in historical issue discovery, the issue list, and enabled reminder counts. Do not expire it at the year boundary. |
+| A notification references an older year while another year is selected | Refresh and open the referenced historical period with its query context. Do not substitute the current or selected year. |
+| A late import creates an issue in an older year | Include it in historical discovery and future enabled reminders. Keep an already-open notification queue bounded to its original work. |
 | Another device resolves an issue before the notification opens | Refresh the queue and omit that issue. |
 | Relevant evidence or decisions change after the review opens | Reject the stale proposal and show the refreshed issue without applying the choice. |
 | The guarded write detects changed inputs or a retired data generation | Abort the effective decision write. Preserve the reviewed causal context and require a valid current review. |
@@ -583,7 +595,7 @@ It does not require a wholesale import of the previous stack.
 | [ElsewhereResolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) and its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) | Existing catalog lookup expands ordinary Other observations for presentation. Reuse that lookup in shared geographic assessment before selection and report grouping. |
 | [Backup upgrader](Tools/upgrade-backup.rb) and its [regression tests](Tools/Tests/upgrade_backup_test.rb) | Existing offline conversion preserves archives but currently adds nil device attribution when absent. Required attribution needs a new conversion step and guards. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
-| [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. |
+| [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. Issue counts currently use the current year. The replacement must include historical years. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
 
 The current [recording context](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) uses a file excluded from backups.
@@ -706,6 +718,10 @@ Add the temporary-ignore row, place controls, and inspection of automatic-select
 Support exclusive period choices, whole-day convenience, return to automatic, and previews of affected region-days.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
+Discover unresolved issues across all years containing history, independently of the current or selected year.
+Use that historical scope for the main issue list and enabled reminder counts.
+Carry each referenced issue's year, period, and query context through notification refresh and review lookup.
+Cover year rollover, older-year notifications, and late imports that create historical issues.
 Keep remaining work accessible through the issues bar button.
 Use representative phone journeys and concurrent-edit scenarios in previews, snapshots, and interaction tests.
 Require passing TLC cases and reviewed source correspondence before activation, as specified under [Formal verification](#formal-verification).
@@ -734,25 +750,23 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-R5 remains the prioritized review finding, followed by E1–E5.
+E1–E5 remain the pending edge cases.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### R5. P2 — Include historical years in issue reminders
-
-The plan keeps older issues eligible, but the current reminder scans only the current year.
-A December conflict can disappear from reminders in January if the new flow retains that scope.
-See the [current issue-alert reconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift).
-Proposal: preserve historical year context in issue discovery, notification queues, and review lookup.
-Add a year-boundary acceptance scenario.
 
 ### E1. Ignore intervals versus explicit source choices
 
 Example: the user selects the Duo for today, then ignores that device until tomorrow.
 Define which instruction wins and how the UI explains the result.
 The decision must cover existing choices and new choices that overlap an ignored interval.
+
+Proposal: an explicit source choice takes precedence over an ignore interval for the selected period.
+Ignore continues to exclude that device from automatic selection elsewhere in its interval.
+Apply this precedence to existing and new choices, regardless of write or sync order.
+Return to automatic restores the applicable ignore filter for that period.
+The UI explains this interaction without adding another confirmation step.
 
 ### E2. Whole-day choices across travel and daylight-saving changes
 
