@@ -256,6 +256,18 @@ The resolver can then reconsider eligible observations from other devices.
 Ignore intervals apply again by observation time, including elapsed intervals whose end date has already passed.
 Choices for other periods remain intact.
 
+### Removal of a selected device
+
+Permanent device removal limits eligible GPS observations even when an explicit source choice selects that device.
+Observations before the removal cutoff remain eligible under the other history rules. Observations at or after the cutoff remain excluded.
+This precedence applies regardless of the write or delivery order of the removal and source choice.
+
+Removal preserves the source choice instead of returning its affected period to automatic selection.
+Other devices do not fill the resulting gap.
+The affected choice appears in the review flow for the portion at or after the cutoff.
+The user can select another device for that portion or return it to automatic selection.
+Earlier portions of the choice remain intact.
+
 ### Saving a reviewed choice
 
 A save retains the reviewed period, relevant evidence and decisions, causal context, full policy version, query context, and data generation.
@@ -408,7 +420,9 @@ They take precedence over automatic selection and remain reversible.
 
 Device selection applies to automatic GPS evidence.
 It does not override manual entries, authoritative day overlays, or evidence-derived assertions.
-It composes with existing per-sample region corrections.
+Existing per-sample corrections continue to affect eligible observations.
+A correction cannot bypass an applicable source choice, ignore interval, or removal cutoff.
+Corrections remain stored when their observations are excluded.
 Geographic attribution retains specific catalog regions where available, before primary-region reporting groups them under Other.
 Explicit assertions of unknown presence retain their meaning. Catalog lookup does not replace them with inferred named regions.
 Automatic GPS requires device attribution before history selection.
@@ -754,6 +768,12 @@ The formal models must check both delivery orders and the actual store boundarie
 | The user creates a lossless backup while history conflicts remain | Preserve the raw observations and durable decisions. Keep backup export available. |
 | Devices disagree throughout a car, train, or plane journey | Review one continuous issue and preview an exclusive period choice. |
 | The explicitly selected device has a gap | Preserve the gap instead of filling it from another device. |
+| Duo is selected for December 8 and removed at noon | Keep eligible morning observations and the saved choice. Exclude Duo observations at or after noon, preserve the afternoon gap, and show that portion for review. |
+| A source choice and its selected device's removal arrive in either order | Apply the removal cutoff without rewriting the choice or selecting another device automatically. |
+| A removed selected device uploads observations late | Assess eligibility by observation time against the cutoff. Retain eligible earlier observations and exclude those at or after removal. |
+| The user selects another device or returns the affected portion to automatic after removal | Apply the reviewed change only to that portion. Preserve earlier choices, removal cutoffs, and raw observations. |
+| A per-sample correction targets an observation excluded by an applicable source choice, ignore interval, or removal cutoff | Retain the correction without restoring that observation to effective history. |
+| A source choice overlaps a manual entry, authoritative overlay, or evidence-derived assertion | Apply the source choice only to automatic GPS. Preserve the other source contracts. |
 | The user ignores a device after explicitly selecting it for a period | Keep the explicit choice effective. Exclude that device only from automatic selection within the ignored interval. |
 | The user explicitly selects an ignored device | Apply the exclusive choice for its period. Explain the ignore interaction without another confirmation. |
 | Different devices independently create an ignore interval and an overlapping source choice | Retain both controls. Apply the explicit choice for its period without a conflict from this overlap or delivery order alone. |
@@ -849,6 +869,14 @@ An ignore interval and an overlapping source choice do not create a conflict fro
 Late eligible observations from the selected device can change history without changing the source decision.
 Other devices remain excluded within that decision's scope, including gaps before and after the late import.
 Swift tests cover refreshed totals, unchanged choices, and normal issue routing after new selected-device evidence.
+
+History-selection cases keep permanent removal cutoffs effective under explicit source choices, regardless of delivery order.
+Observations before the cutoff remain eligible. Observations at or after it remain excluded, including late uploads.
+Removal preserves the source choice and its gaps until the user saves a replacement choice or returns that portion to automatic.
+
+Swift tests cover review routing, selection of another device, and return to automatic without changing earlier portions.
+Swift tests also verify that corrections cannot bypass exclusions.
+They check source choices against the contracts for manual entries, overlays, and evidence-derived assertions.
 
 The history-selection model excludes disputed contributions while preserving resolved presence from other periods on the same day.
 Swift tests verify incomplete status, distinct affected-day counts, and contribution consistency across consumers.
@@ -1063,7 +1091,9 @@ Refine the decision-merging model against persistence, dependency delivery, and 
 Add history-selection model cases for ignore intervals, resume, expiry, and undo.
 Implement explicit-choice precedence over ignore intervals for existing and new choices, regardless of write or delivery order.
 Cover return to automatic after ignore expiry and independent creation of overlapping ignore and source choices.
-Define precedence with per-sample corrections, manual overlays, and device removals.
+Implement the agreed precedence with per-sample corrections, manual overlays, and device removals.
+Keep removal cutoffs effective under source choices without rewriting those choices or admitting another device into their gaps.
+Cover reordered removals, late uploads, and resolutions limited to the affected portion.
 Cover expiry, time-zone changes, late imports, partial delivery, counter recovery, and both backup import strategies.
 Preserve the provenance of retained observations and decisions across account data operations.
 Apply the identity lifecycle instead of preserving local identity through every operation.
@@ -1104,6 +1134,7 @@ Explain that ignore affects automatic selection while explicit period choices ta
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.
 When users resolve a recording-day conflict through source selection, show both candidate dates.
+Route choices affected by device removal into review, with actions to select another device or return that portion to automatic.
 Show incomplete totals and guide affected history-report exports into review before producing the report.
 Add the local update alert, duplicate suppression, permission fallback, and current-state routing to the appropriate update destination.
 Explain beta use across devices and the compatibility requirement for return to the App Store build during setup and updates.
@@ -1131,19 +1162,14 @@ Activate selection after compatibility, durable decisions, shared consumers, and
 ## Decisions to resolve by implementation slice
 
 Each open decision has an owning slice, a deadline, and required evidence.
-The remaining product discussion precedes slice 1. Technical investigations can proceed early without activating production behavior.
+The product decisions are recorded in the contract sections above.
+Technical investigations can proceed early without activating production behavior.
 The remaining technical decisions belong in their owning implementation PRs.
 
 If an implementation result requires different user-visible behavior, discuss that change before adopting it.
 After a decision is resolved, add its outcome to the relevant contract section.
 Remove the resolved row from this section.
 Record the supporting evidence in the owning PR. The evidence listed below is required work, not current test coverage.
-
-### Discuss before implementation
-
-| Decision | Owning slice | Resolve before | Required evidence |
-| --- | --- | --- | --- |
-| Remaining precedence between source choices, ignore intervals, per-sample corrections, manual overlays, and device removals | 4: durable choices, with consumer integration in 5 | Starting slice 1 | Overlap examples that preserve the agreed contracts, including removal of a selected device and return to automatic. |
 
 ### Investigate early
 
