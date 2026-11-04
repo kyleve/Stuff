@@ -118,12 +118,16 @@ The stored choice retains the selected day, time zone, and resolved time boundar
 Later travel does not move that boundary. Earlier observations remain unaffected.
 
 Automatic selection excludes the device during this interval, even with strong movement evidence.
+An explicit source choice takes precedence over the ignore filter for its selected period.
+This applies to existing and new choices, regardless of write or sync order.
+The control and review preview explain this interaction without another confirmation step.
+
 The user can change the end date or select **Resume now**.
 Resume ends the interval going forward and preserves the elapsed ignored interval.
 A separate undo action restores eligibility for the elapsed interval.
 
 Expired intervals remain durable decisions.
-The filter uses observation time, so late uploads from an ignored interval remain ignored after its expiry.
+Automatic selection filters late uploads by observation time, even after an ignore interval expires.
 An offline device applies the shared decision after sync. The UI does not promise immediate remote control.
 The existing permanent **Remove device** action remains available for lost, stolen, or replaced devices.
 
@@ -199,6 +203,7 @@ Existing GPS and flight corrections still apply within the selected device's tra
 
 **Return to automatic** reverses the explicit choice for the selected period.
 The resolver can then reconsider eligible observations from other devices.
+Ignore intervals apply again by observation time, including elapsed intervals whose end date has already passed.
 Choices for other periods remain intact.
 
 ### Saving a reviewed choice
@@ -261,7 +266,8 @@ Selection occurs before `DayAggregator` combines effective region presence.
 For example, a phone left in New York cannot add New York to a California trip merely because it uploads later.
 
 Explicit period choices remain in force as other devices upload observations.
-Ignored intervals also apply by observation time, including after expiry.
+Automatic periods apply ignore intervals by observation time, including after expiry.
+Explicit source choices retain precedence over those intervals.
 For a given full policy version, automatic periods use the combined available evidence regardless of upload order.
 
 Good late evidence can fill missing periods or automatically correct earlier automatic history when the evidence is strong.
@@ -322,6 +328,8 @@ A per-device counter alone cannot describe that knowledge.
 | Concurrent choices agree for an overlapping period | Treat that overlap as agreement while retaining the decision records. |
 
 Period selections, return-to-automatic actions, and edits to ignore intervals use these causal rules.
+An ignore interval and an explicit source choice do not conflict merely because their periods overlap.
+The explicit choice takes precedence for its period after merge, regardless of their write or delivery order.
 Other shared controls define their merge semantics before persistence ships.
 CRDTs provide useful models for this behavior, including a multi-value register that retains concurrent choices until a subsequent choice replaces them.
 See [INRIA's multi-value register](https://concordant.gitlabpages.inria.fr/software/c-crdtlib/c-crdtlib/crdtlib.crdt/-m-v-register/index.html).
@@ -482,8 +490,12 @@ A sync-completion event alone cannot provide that guarantee.
 | A sparse track or inaccurate boundary point suggests movement | Preserve uncertainty. Do not classify it as strong movement evidence. |
 | Devices disagree throughout a car, train, or plane journey | Review one continuous issue and preview an exclusive period choice. |
 | The explicitly selected device has a gap | Preserve the gap instead of filling it from another device. |
+| The user ignores a device after explicitly selecting it for a period | Keep the explicit choice effective. Exclude that device only from automatic selection within the ignored interval. |
+| The user explicitly selects an ignored device | Apply the exclusive choice for its period. Explain the ignore interaction without another confirmation. |
+| Different devices independently create an ignore interval and an overlapping source choice | Retain both controls. Apply the explicit choice for its period without a conflict from this overlap or delivery order alone. |
+| The user returns a historical period to automatic after its ignore interval expires | Reapply the original ignore interval by observation time. Preserve raw observations and choices for other periods. |
 | The user resumes an ignored device before the chosen end day | End the ignore interval going forward. Preserve its elapsed portion. |
-| An ignored device uploads after the ignore interval expires | Apply the interval to observation times. Preserve the raw uploads. |
+| An ignored device uploads after the ignore interval expires | Apply the interval to automatic history by observation time. Honor explicit source choices and preserve raw uploads. |
 | Late observations affect automatic history | Reassess the evidence. Permit strong corrections and expose genuine ambiguity. |
 | Late observations conflict with an explicit source choice | Preserve the explicit choice. |
 | The user changes a source choice or returns to automatic | Rebuild effective history for the affected period while retaining raw observations. |
@@ -531,6 +543,10 @@ This design slice adds the requirements only. It contains no new models or model
 | Decision merging | Replicas with the same complete decision set and major contract converge regardless of delivery order, duplicates, or compatible minor and patch differences. Incompatible concurrent choices survive until explicitly resolved. Missing revisions never count as observed. Recovery never assigns an existing operation identity to a new operation. Replacements affect only their specified periods. | 1 establishes the model. 4 refines it against durable decisions and counter recovery. |
 | History selection | Equal evidence, decisions, full policy versions, and query context produce equal history. Compatible policies can differ in automatic results while preserving shared decision semantics. Late uploads respect explicit choices and historical ignore intervals. Resume, expiry, and undo have distinct effects. Selection preserves raw observations and never fills an explicitly selected device's gaps from another device. | 4 models ignore intervals. 5 completes the model against shared history selection. |
 | Compatibility and scope retirement | The required major never decreases. Minor and patch differences alone never revoke access. Stale verification cannot restore revoked access. Suspended work cannot commit through a revoked permit. Recovery uses a new scope and permit. Offline behavior follows the selected activation policy. | 3 defines and checks the compatibility protocol. |
+
+History-selection cases require explicit source choices to take precedence over ignore intervals, including after expiry and under reordered delivery.
+Return to automatic reapplies the historical ignore filter by observation time.
+An ignore interval and an overlapping source choice do not create a conflict from that overlap alone.
 
 The decision-merging model includes identity preservation after recovery and identity rotation after reset or rejoin.
 It checks that recovery or backup replay never assigns an existing operation identity to a new decision.
@@ -688,6 +704,8 @@ Reject writes under retired generations or revoked compatibility permits.
 Add compatibility fixtures for shared decision interpretation across supported minor and patch versions.
 Refine the decision-merging model against persistence, dependency delivery, and counter recovery.
 Add history-selection model cases for ignore intervals, resume, expiry, and undo.
+Implement explicit-choice precedence over ignore intervals for existing and new choices, regardless of write or delivery order.
+Cover return to automatic after ignore expiry and independent creation of overlapping ignore and source choices.
 Define precedence with per-sample corrections, manual overlays, and device removals.
 Cover expiry, time-zone changes, late imports, partial delivery, counter recovery, and both backup import strategies.
 Preserve the provenance of retained observations and decisions across account data operations.
@@ -715,6 +733,7 @@ Define unresolved-conflict presentation before changing totals.
 ### 6. Review experience, reminders, and activation
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
+Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support exclusive period choices, whole-day convenience, return to automatic, and previews of affected region-days.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
@@ -733,7 +752,7 @@ The following details require explicit decisions in the relevant slices:
 
 - Interval segmentation, exact boundary inclusivity, and context outside a queried day.
 - Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior.
-- Precedence between ignore intervals, explicit source choices, per-sample corrections, and manual overlays.
+- Composition of source choices and ignore intervals with per-sample corrections, manual overlays, and device removals.
 - The representation of causal context, incomplete dependencies, and counter allocation and recovery.
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
 - The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
@@ -750,30 +769,23 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-E1–E5 remain the pending edge cases.
+E2–E5 remain the pending edge cases.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
 
-### E1. Ignore intervals versus explicit source choices
-
-Example: the user selects the Duo for today, then ignores that device until tomorrow.
-Define which instruction wins and how the UI explains the result.
-The decision must cover existing choices and new choices that overlap an ignored interval.
-
-Proposal: an explicit source choice takes precedence over an ignore interval for the selected period.
-Ignore continues to exclude that device from automatic selection elsewhere in its interval.
-Apply this precedence to existing and new choices, regardless of write or sync order.
-Return to automatic restores the applicable ignore filter for that period.
-The UI explains this interaction without adding another confirmation step.
-
 ### E2. Whole-day choices across travel and daylight-saving changes
 
 Define which time zone converts a whole-day choice into a bounded period.
 Cover travel after the choice and days that contain fewer or more than 24 hours.
-Proposal: retain the chosen `CalendarDay` and time zone alongside fixed instant boundaries.
-Clarify how the choice appears when the report uses a different time zone.
+Proposal: use the review screen's calendar and time zone, and show that zone before save.
+Resolve the chosen `CalendarDay` to a half-open interval from its local midnight to the next local midnight.
+Use calendar arithmetic so daylight-saving days can contain 23 or 25 hours.
+Retain the chosen day, time-zone identifier, and fixed instant boundaries.
+
+Later travel or report-zone changes do not move the selection.
+In another report zone, the choice can cover parts of two displayed days. Its detail retains the original day and zone.
 
 ### E3. Evening notifications on multiple phones
 
