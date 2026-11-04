@@ -39,19 +39,22 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.
-- Persist the installation identity, recording choice with its current-On
-  timestamp, stable profile/policy IDs and timestamps, two-phase backup-import
-  recovery, and the independent terminal onboarding-import tombstone together
-  in the excluded-from-backup sidecar. Never infer confirmation from
-  backed-up preferences or migrate it from `UserDefaults`. Persist an explicit
-  changed choice when onboarding retries after a later failure.
-- Retire the installation sidecar with an atomic directory rename before
-  cleanup. Retain the proposed replacement behind `ResetCleanupError` until
-  tombstone deletion succeeds (`InstallationRecordingContextStoreTests`).
+- Compose device-only Keychain identity with the backup-excluded consent/import sidecar.
+  Bind the sidecar to that identity. Adopt an unmarked previous sidecar only for the initial local Keychain handoff.
+  Never adopt a Keychain-bound sidecar identity after Keychain absence or failure.
+  Never infer consent from backed-up preferences. Timestamp renewed consent at confirmation.
+  Persist setup completion separately from consent. An interrupted setup must pass the gate again,
+  including with restored onboarding preferences or a scope opened by the failed attempt.
+- Commit reset/rejoin identity rotation before sidecar cleanup. Retain that replacement through retries.
+  Retire a reset sidecar with an atomic directory rename before deletion (`InstallationRecordingContextStoreTests`).
 - Reconcile every pending import after scope resolution but before session
   handoff or recording. Reconcile onboarding imports before offering Restore.
   Acknowledge their preference independently of cleanup. Retain the marker
   through any failure (`WhereLaunchTests`).
+- Run import preflight after renewed consent and before onboarding registers recording.
+  Let a removed surviving identity finish into the existing rejoin screen without a permission request.
+  Keep replacement-device removal explicit and independently confirmed (`OnboardingFlowModelTests`).
+- Keep setup reminder categories separate from recording consent. Preserve existing local schedule values and enabled defaults.
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
   Attach export sheets and error alerts to `DataSettingsView` outside its `Form` sections.

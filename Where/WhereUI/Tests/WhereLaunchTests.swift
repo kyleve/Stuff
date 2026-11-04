@@ -160,6 +160,7 @@ struct WhereLaunchTests {
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
             .activateDemo,
+            .resolveInstallation,
             .onboarding,
             .resolveScope,
             .startSession,
@@ -303,6 +304,7 @@ struct WhereLaunchTests {
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
@@ -312,8 +314,49 @@ struct WhereLaunchTests {
         #expect(launcher.phase.readyValue === model.session)
     }
 
-    @Test func coldPreparedOnboardingImportWithoutReceiptReturnsToOnboarding() async throws {
-        let installationStore = makeInstallationRecordingContextStore()
+    @Test func unreadableIdentityFailsBeforeOnboardingWithoutCreatingAReplacement() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "WhereLaunchIdentity.\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer {
+            do { try FileManager.default.removeItem(at: directory) }
+            catch { Issue.record(error) }
+        }
+        let fileURL = directory.appending(path: "context.json")
+        try Data("unreadable".utf8).write(to: fileURL)
+        var identityAllocations = 0
+        let installationStore = FileInstallationRecordingContextStore(
+            identityStore: ScriptedRecordingIdentityStore(),
+            fileURL: fileURL,
+            fileManager: .default,
+            systemName: "iPhone",
+            kind: .phone,
+            makeUUID: { identityAllocations += 1; return UUID() },
+            now: { Date() },
+        )
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        #expect(launcher.phase.failed(at: LaunchStepID.resolveInstallation))
+        #expect(identityAllocations == 0)
+        #expect(bootstrap.makeServicesCount == 0)
+        #expect(model.activeScope == nil)
+        #expect(model.session == nil)
+        #expect(throws: DecodingError.self) { try installationStore.onboardingContext }
+    }
+
+    @Test(arguments: [InstallationRecordingContext.SetupCompletion.pending, .complete])
+    func coldPreparedOnboardingImportWithoutReceiptReturnsToOnboarding(
+        setup: InstallationRecordingContext
+            .SetupCompletion,
+    ) async throws {
+        let installationStore = makeInstallationRecordingContextStore(setup: setup)
         let details = Self.onboardingRecoveryDetails()
         try installationStore.setBackupImportRecovery(.prepared(details))
         let services = try WhereServices(
@@ -329,7 +372,8 @@ struct WhereLaunchTests {
             logSystem: .isolated(),
         )
 
-        let isNeeded = await OnboardingGate(model: model).isNeeded(())
+        let isNeeded = try await OnboardingGate(model: model)
+            .isNeeded(.installation(model.installationRecordingContext))
 
         #expect(isNeeded)
         #expect(!model.hasOnboarded)
@@ -337,8 +381,12 @@ struct WhereLaunchTests {
         #expect(installationStore.backupImportRecovery == nil)
     }
 
-    @Test func coldCommittedOnboardingImportCompletesBeforeRestoreCanReappear() async throws {
-        let installationStore = makeInstallationRecordingContextStore()
+    @Test(arguments: [InstallationRecordingContext.SetupCompletion.pending, .complete])
+    func coldCommittedOnboardingImportCompletesBeforeRestoreCanReappear(
+        setup: InstallationRecordingContext
+            .SetupCompletion,
+    ) async throws {
+        let installationStore = makeInstallationRecordingContextStore(setup: setup)
         let details = Self.onboardingRecoveryDetails()
         try installationStore.setBackupImportRecovery(.committed(
             details,
@@ -358,16 +406,21 @@ struct WhereLaunchTests {
             logSystem: .isolated(),
         )
 
-        let isNeeded = await OnboardingGate(model: model).isNeeded(())
+        let isNeeded = try await OnboardingGate(model: model)
+            .isNeeded(.installation(model.installationRecordingContext))
 
-        #expect(!isNeeded)
+        #expect(isNeeded == (setup == .pending))
         #expect(model.hasOnboarded)
         #expect(model.activeScope != nil)
         #expect(installationStore.backupImportRecovery == nil)
     }
 
-    @Test func coldOnboardingRecoveryOpenFailureNeverFallsThroughToRestore() async throws {
-        let installationStore = makeInstallationRecordingContextStore()
+    @Test(arguments: [InstallationRecordingContext.SetupCompletion.pending, .complete])
+    func coldOnboardingRecoveryOpenFailureNeverFallsThroughToRestore(
+        setup: InstallationRecordingContext
+            .SetupCompletion,
+    ) async throws {
+        let installationStore = makeInstallationRecordingContextStore(setup: setup)
         try installationStore.setBackupImportRecovery(.committed(
             Self.onboardingRecoveryDetails(),
             cleanupCompleted: false,
@@ -380,7 +433,8 @@ struct WhereLaunchTests {
             logSystem: .isolated(),
         )
 
-        let isNeeded = await OnboardingGate(model: model).isNeeded(())
+        let isNeeded = try await OnboardingGate(model: model)
+            .isNeeded(.installation(model.installationRecordingContext))
 
         #expect(!isNeeded)
         #expect(!model.hasOnboarded)
@@ -391,6 +445,7 @@ struct WhereLaunchTests {
     private static func onboardingRecoveryDetails() -> BackupCoordinator.ImportRecoveryDetails {
         BackupCoordinator.ImportRecoveryDetails(
             transactionID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+            installationID: InstallationRecordingContext.testing.currentDevice.id,
             strategy: .merge,
             summary: BackupCoordinator.ImportSummary(
                 sampleCount: 3,
@@ -423,6 +478,7 @@ struct WhereLaunchTests {
         #expect(bootstrap.makeServicesCount == 0)
 
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await promote.value
@@ -466,10 +522,11 @@ struct WhereLaunchTests {
 
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(model.hasOnboarded)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(try model.hasConfirmedRecordingChoice == false)
         #expect(bootstrap.makeServicesCount == 0)
 
         try model.confirmInitialRecordingChoice(isEnabled: false)
+        try model.completeInstallationSetup()
         launcher.phase.gateHandle?.complete()
         await task.value
 
@@ -601,6 +658,7 @@ struct WhereLaunchTests {
         #expect(hookFires == 1)
 
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await teardown.value
@@ -636,6 +694,7 @@ struct WhereLaunchTests {
         #expect(launcher.reason.buildsNoViewTree)
 
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await run.value

@@ -11,6 +11,8 @@ import WhereCore
 public enum LaunchStepID: String, Sendable {
     /// Consume an optional one-shot demo request before onboarding can open a real store.
     case activateDemo = "activate-demo"
+    /// Resolve device-local identity before onboarding or a real store can use it.
+    case resolveInstallation = "resolve-installation"
     /// First-run onboarding gate, after optional demo activation: until the user
     /// chooses a world to work in, nothing downstream runs and no store is
     /// opened. Applies to every launch reason — a headless launch parks here
@@ -164,6 +166,7 @@ public enum WhereLaunch {
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
         LaunchPlan(ActivateLaunchDemoStep(model: model).measured())
+            .then(ResolveInstallationContextStep(model: model).measured())
             .gate(OnboardingGate(model: model))
             .then(ResolveScopeStep(model: model).measured())
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())

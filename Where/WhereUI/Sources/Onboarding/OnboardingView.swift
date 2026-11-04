@@ -12,17 +12,11 @@ import UniformTypeIdentifiers
 /// record automatically. Enabling it requests background-location permission
 /// here, rather than burying that decision in Settings.
 ///
-/// No session exists behind this screen: the gate precedes every step that builds
-/// the user's world. The final choice may prepare and retain the real store solely
-/// to discover synced authority; services and GPS remain dormant.
-/// Onboarding is what brings the
-/// user's world into being — restoring a backup or finishing the flow logs in
-/// to the real scope (`WhereModel.resolveScope()`, which performs the app's one
-/// store open), commits the picked regions + appearances to it, persists the
-/// confirmed recording choice beside this installation's non-backed-up
-/// identity, and resolves the `LifecycleGateHandle` so launch continues. The
-/// steps after the gate then build the session, seed region styling, and pick
-/// up whatever permission was granted.
+/// The final choice can prepare the real store to discover known devices.
+/// Confirmed consent permits service creation and pending-import recovery.
+/// Completing setup commits the chosen regions and local settings, then opens
+/// the gate. A failed attempt can retain its scope but must finish setup before
+/// launch continues. Recording starts only after import recovery.
 public struct OnboardingView: View {
     // The model is onboarding's whole world: it persists the app-level
     // `hasOnboarded` flag and vends the scope this flow creates. There is no
@@ -38,12 +32,14 @@ public struct OnboardingView: View {
     public init(
         gate: LifecycleGateHandle,
         installationContext: InstallationRecordingContext,
+        preferences: WherePreferences,
     ) {
         self.init(
             gate: gate,
             installationContext: installationContext,
             startsAtRecordingChoice: false,
             initialTheme: .standard,
+            preferences: preferences,
         )
     }
 
@@ -56,13 +52,19 @@ public struct OnboardingView: View {
         installationContext: InstallationRecordingContext,
         startsAtRecordingChoice: Bool,
         initialTheme: WhereTheme = .standard,
+        preferences: WherePreferences,
     ) {
-        _flow = State(initialValue: OnboardingFlowModel(
+        self.init(flow: OnboardingFlowModel(
             gate: gate,
             installationContext: installationContext,
             startsAtRecordingChoice: startsAtRecordingChoice,
             initialTheme: initialTheme,
+            preferences: preferences,
         ))
+    }
+
+    private init(flow: OnboardingFlowModel) {
+        _flow = State(initialValue: flow)
     }
 
     private let pages = OnboardingPage.all
@@ -270,20 +272,10 @@ public struct OnboardingView: View {
 
                     VStack(spacing: stylesheet.spacing.large) {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                            switch flow.deviceDiscovery {
-                                case .idle, .loading:
-                                    ProgressView(String(localized: .onboardingRecordingChecking))
-                                case let .ready(recommendation):
-                                    if recommendation.recentRecordingDevice != nil {
-                                        Label(
-                                            String(localized: .onboardingRecordingRecent),
-                                            systemSymbol: .iphoneRadiowavesLeftAndRight,
-                                        )
-                                    }
-                                case let .failed(description):
-                                    Label(description, systemSymbol: .icloudSlash)
-                                        .foregroundStyle(.secondary)
-                            }
+                            OnboardingDeviceSetupView(
+                                setup: flow.deviceSetup,
+                                installationContext: flow.installationContext,
+                            )
                             Toggle(
                                 String(localized: .settingsDevicesAutomaticRecording),
                                 isOn: $flow.recordingEnabled,
@@ -294,11 +286,13 @@ public struct OnboardingView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                        OnboardingReminderSettingsView(settings: $flow.reminders)
+
                         Button {
                             // Request Always-location only after the user confirms an
                             // enabled choice; the launch's reconcile step picks up
                             // whatever the system grants.
-                            flow.finish(using: model)
+                            flow.requestFinish(using: model)
                         } label: {
                             Text(String(localized: .onboardingContinue))
                                 .frame(maxWidth: .infinity)
@@ -306,7 +300,8 @@ public struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
-                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
+                    .disabled(flow.isFinishing || flow.deviceSetup.isLoading)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
@@ -314,7 +309,20 @@ public struct OnboardingView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
-        .task { await flow.discoverRecordingDevices(using: model) }
+        .task {
+            await flow.deviceSetup.discover(using: model, context: flow.installationContext)
+        }
+        .confirmationDialog(
+            String(localized: .settingsDevicesRemoveConfirmTitle),
+            isPresented: $flow.deviceSetup.isConfirmingRemoval,
+            titleVisibility: .visible,
+        ) {
+            Button(String(localized: .onboardingDevicesRemoveAndContinue), role: .destructive) {
+                Task { await flow.finish(using: model) }
+            }
+        } message: {
+            Text(String(localized: .settingsDevicesRemoveConfirmMessage))
+        }
     }
 
     private var recordingTitle: LocalizedStringResource {
@@ -326,11 +334,7 @@ public struct OnboardingView: View {
     }
 
     private var recordingRecommendation: LocalizedStringResource {
-        let recommendsEnabled = if case let .ready(recommendation) = flow.deviceDiscovery {
-            recommendation.isEnabled
-        } else {
-            flow.installationContext.recommendedRecordingEnabled
-        }
+        let recommendsEnabled = flow.installationContext.recommendedRecordingEnabled
         if recommendsEnabled {
             return .onboardingRecordingRecommendationOn
         } else {
@@ -451,14 +455,19 @@ struct OnboardingPage: Identifiable {
                             reason: .userForeground,
                         ),
                         installationContext: .testing,
+                        preferences: PreviewSupport.previewPreferences(),
                     )
                     .environment(PreviewSupport.onboardingModel())
                 },
                 whereSnapshot(
                     name: "PhoneRecordingChoice",
-                    configurations: SnapshotConfiguration.combinations(devices: [.iPhone]) + [
-                        SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
-                    ],
+                    configurations: SnapshotConfiguration
+                        .combinations(devices: [.iPhoneFullContent]) + [
+                            SnapshotConfiguration(
+                                dynamicType: .accessibility5,
+                                device: .iPhoneFullContent,
+                            ),
+                        ],
                 ) {
                     OnboardingView(
                         gate: LifecycleGateHandle(
@@ -467,12 +476,13 @@ struct OnboardingPage: Identifiable {
                         ),
                         installationContext: .testing,
                         startsAtRecordingChoice: true,
+                        preferences: PreviewSupport.previewPreferences(),
                     )
                     .environment(PreviewSupport.onboardingModel())
                 },
                 whereSnapshot(
                     name: "TabletRecordingChoice",
-                    configurations: SnapshotConfiguration.combinations(devices: [.iPad]),
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPadFullContent]),
                 ) {
                     OnboardingView(
                         gate: LifecycleGateHandle(
@@ -494,10 +504,25 @@ struct OnboardingPage: Identifiable {
                             isRejoining: false,
                         ),
                         startsAtRecordingChoice: true,
+                        preferences: PreviewSupport.previewPreferences(),
                     )
                     .environment(PreviewSupport.onboardingModel())
                 },
+                setupSnapshot(name: "AdditionalDevice", replacesOldDevice: false),
+                setupSnapshot(name: "ReplacementDevice", replacesOldDevice: true),
             ]
+        }
+
+        private static func setupSnapshot(name: String, replacesOldDevice: Bool) -> SnapshotCase {
+            let fixture = OnboardingPreviewFixture(replacesOldDevice: replacesOldDevice)
+            return whereSnapshot(
+                name: name,
+                configurations: replacesOldDevice ? .fullContentPhoneLightDarkWithAX5 :
+                    .fullContentPhoneLightDark,
+                onReadyToMeasure: fixture.prepare,
+            ) {
+                OnboardingView(flow: fixture.state.flow).environment(fixture.state.model)
+            }
         }
     }
 

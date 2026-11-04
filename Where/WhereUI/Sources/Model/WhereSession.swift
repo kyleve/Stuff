@@ -176,7 +176,7 @@ public final class WhereSession {
                 context: InstallationRecordingContext(
                     currentDevice: scope.services.recording.currentDevice,
                     registeredAt: registeredAt,
-                    recordingChoice: .on(enabledAt: registeredAt),
+                    recordingChoice: .on(enabledAt: registeredAt, setup: .complete),
                     isRejoining: false,
                 ),
             )

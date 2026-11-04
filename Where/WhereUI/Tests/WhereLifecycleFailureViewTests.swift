@@ -1,10 +1,36 @@
 import Foundation
 import LifecycleKit
+import Security
 import Testing
 @_spi(Testing) @testable import WhereCore
 @testable import WhereUI
 
 struct WhereLifecycleFailureViewTests {
+    @Test func lockedIdentityExplainsUnlockWithoutSuggestingAReplacement() throws {
+        let failure = LifecycleFailure(
+            stepID: LaunchStepID.resolveInstallation,
+            error: KeychainRecordingIdentityStore.StorageError
+                .keychain(errSecInteractionNotAllowed),
+        )
+        let presentation = try #require(WhereLifecycleFailurePresentation(failure: failure))
+        #expect(presentation == .recordingIdentityLocked)
+        #expect(presentation
+            .message == "Unlock your phone, then close and reopen Where to try again.")
+    }
+
+    @Test func unreadableIdentityUsesRetryCopyInsteadOfInventingAReplacement() throws {
+        let failure = LifecycleFailure(
+            stepID: LaunchStepID.resolveInstallation,
+            error: KeychainRecordingIdentityStore.StorageError
+                .corruptPayload,
+        )
+        let presentation = try #require(WhereLifecycleFailurePresentation(failure: failure))
+        #expect(presentation == .recordingIdentityUnavailable)
+        #expect(presentation
+            .message ==
+            "Where could not read this phone’s recording identity. Close and reopen Where to try again.")
+    }
+
     private static let summary = BackupCoordinator.ImportSummary(
         sampleCount: 3,
         evidenceCount: 2,

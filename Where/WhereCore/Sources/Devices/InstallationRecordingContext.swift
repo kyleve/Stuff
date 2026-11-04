@@ -2,15 +2,26 @@ import Foundation
 
 /// Device-local state that gives one installation a stable recording identity.
 ///
-/// The whole value is persisted outside backed-up preferences. A restored device
-/// therefore gets a new identity and must confirm its own initial recording
-/// choice, while repeated launches of the same installation reuse both the
-/// identity and its explicitly chosen local automatic-recording preference.
+/// Keychain storage owns identity; a backup-excluded sidecar owns consent and recovery.
+/// A surviving same-device identity requires fresh consent after its sidecar disappears.
+/// Ordinary relaunches and in-app imports preserve both.
 public struct InstallationRecordingContext: Sendable, Hashable {
+    public enum SetupCompletion: Sendable, Hashable {
+        case pending
+        case complete
+    }
+
     public enum RecordingChoice: Sendable, Hashable {
         case unconfirmed
-        case off
-        case on(enabledAt: Date)
+        case off(setup: SetupCompletion)
+        case on(enabledAt: Date, setup: SetupCompletion)
+
+        var completion: SetupCompletion {
+            switch self {
+                case .unconfirmed: .pending
+                case let .off(setup), let .on(_, setup): setup
+            }
+        }
     }
 
     public let currentDevice: CurrentRecordingDevice
@@ -43,8 +54,28 @@ public struct InstallationRecordingContext: Sendable, Hashable {
 
     /// Earliest historical location accepted for the current On interval.
     public var recordingEnabledAt: Date? {
-        guard case let .on(enabledAt) = recordingChoice else { return nil }
+        guard case let .on(enabledAt, _) = recordingChoice else { return nil }
         return enabledAt
+    }
+
+    public var hasCompletedSetup: Bool {
+        recordingChoice.completion == .complete
+    }
+
+    /// Confirmation permits service assembly; only a completed setup can skip the next gate.
+    public func completingSetup() -> Self {
+        precondition(recordingChoice != .unconfirmed, "Setup requires confirmed recording consent.")
+        let choice: RecordingChoice = if let recordingEnabledAt {
+            .on(enabledAt: recordingEnabledAt, setup: .complete)
+        } else {
+            .off(setup: .complete)
+        }
+        return Self(
+            currentDevice: currentDevice,
+            registeredAt: registeredAt,
+            recordingChoice: choice,
+            isRejoining: false,
+        )
     }
 
     /// The safe default shown until this installation confirms a choice.
@@ -53,7 +84,10 @@ public struct InstallationRecordingContext: Sendable, Hashable {
     }
 
     /// Return the confirmed form of a newly proposed context.
-    public func confirmingInitialRecording(isEnabled: Bool) -> InstallationRecordingContext {
+    public func confirmingInitialRecording(
+        isEnabled: Bool,
+        at date: Date,
+    ) -> InstallationRecordingContext {
         precondition(
             recordingChoice == .unconfirmed,
             "An installation's initial recording choice can only be confirmed once.",
@@ -61,7 +95,8 @@ public struct InstallationRecordingContext: Sendable, Hashable {
         return InstallationRecordingContext(
             currentDevice: currentDevice,
             registeredAt: registeredAt,
-            recordingChoice: isEnabled ? .on(enabledAt: registeredAt) : .off,
+            recordingChoice: isEnabled ? .on(enabledAt: date, setup: .pending) :
+                .off(setup: .pending),
             isRejoining: false,
         )
     }
@@ -73,10 +108,9 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             "Automatic recording must be confirmed before Settings can change it.",
         )
         let updatedChoice: RecordingChoice = if isEnabled {
-            recordingEnabledAt.map(RecordingChoice.on(enabledAt:))
-                ?? .on(enabledAt: date)
+            .on(enabledAt: recordingEnabledAt ?? date, setup: recordingChoice.completion)
         } else {
-            .off
+            .off(setup: recordingChoice.completion)
         }
         return InstallationRecordingContext(
             currentDevice: currentDevice,
@@ -98,7 +132,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             kind: .phone,
         ),
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-        recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0)),
+        recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0), setup: .complete),
         isRejoining: false,
     )
 
@@ -114,7 +148,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             kind: .phone,
         ),
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-        recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0)),
+        recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0), setup: .complete),
         isRejoining: false,
     )
 }

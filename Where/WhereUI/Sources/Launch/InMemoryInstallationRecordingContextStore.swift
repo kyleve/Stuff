@@ -42,12 +42,19 @@ public final class InMemoryInstallationRecordingContextStore:
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
         if onboardingContext.automaticRecordingEnabled != nil { return onboardingContext }
-        onboardingContext = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
+        onboardingContext = onboardingContext.confirmingInitialRecording(
+            isEnabled: isEnabled,
+            at: now(),
+        )
         return onboardingContext
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
         onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled, at: now())
+    }
+
+    public func completeSetup() throws {
+        onboardingContext = onboardingContext.completingSetup()
     }
 
     public func rejoin() throws -> InstallationRecordingContext {

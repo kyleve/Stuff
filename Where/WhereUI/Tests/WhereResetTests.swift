@@ -4,7 +4,7 @@ import RegionKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereUI
+@testable import WhereUI
 
 private struct WaitTimeout: Error {}
 
@@ -90,17 +90,17 @@ struct WhereResetTests {
         // (the editing surface, `RemindersSettingsModel`, writes here).
         preferences.remindersEnabled = false
         preferences.summaryEnabled = false
-        let originalInstallationID = model.installationRecordingContext.currentDevice.id
+        let originalInstallationID = try model.installationRecordingContext.currentDevice.id
         #expect(model.hasOnboarded)
-        #expect(model.hasConfirmedRecordingChoice)
+        #expect(try model.hasConfirmedRecordingChoice)
 
         try model.resetPreferences()
 
         // Removing the sidecar and keys restores a real first-install state:
         // onboarding returns with a new identity and schedules default back on.
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
-        #expect(model.installationRecordingContext.currentDevice.id != originalInstallationID)
+        #expect(try model.hasConfirmedRecordingChoice == false)
+        #expect(try model.installationRecordingContext.currentDevice.id != originalInstallationID)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
     }
@@ -180,6 +180,7 @@ struct WhereResetTests {
         #expect(bootstrap.makeServicesCount == 1)
 
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
@@ -230,6 +231,7 @@ struct WhereResetTests {
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
@@ -277,7 +279,7 @@ struct WhereResetTests {
         // no session, since the relaunch rebuilds one only once the user has
         // chosen a world again.
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(try model.hasConfirmedRecordingChoice == false)
         #expect(model.session == nil)
         #expect(launcher.phase.gateHandle != nil)
         // The erase paused GPS before its transaction, so the torn-down session is no
@@ -285,6 +287,7 @@ struct WhereResetTests {
         #expect(!session.isTracking)
 
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
@@ -328,11 +331,12 @@ struct WhereResetTests {
         // the off state above.
         #expect(model.session == nil)
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(try model.hasConfirmedRecordingChoice == false)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
 
         try model.confirmInitialRecordingChoice(isEnabled: true)
+        try model.completeInstallationSetup()
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
@@ -362,7 +366,7 @@ struct WhereResetTests {
         await launcher.teardown(failing, input: session)
         #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
         #expect(model.hasOnboarded) // reset-preferences never ran
-        #expect(model.hasConfirmedRecordingChoice)
+        #expect(try model.hasConfirmedRecordingChoice)
     }
 
     @Test func committedCleanupFailureLogsOutWhileKeepingInstallationContextForRetry() async throws {
@@ -384,7 +388,7 @@ struct WhereResetTests {
         model.completeOnboarding()
         var logOuts = 0
         model.onLoggedOut = { logOuts += 1 }
-        let installationID = model.installationRecordingContext.currentDevice.id
+        let installationID = try model.installationRecordingContext.currentDevice.id
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         let session = try #require(model.session)
@@ -405,8 +409,8 @@ struct WhereResetTests {
         #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
         #expect(launcher.phase.failure?.error is WhereServices.ResetCleanupError)
         #expect(model.hasOnboarded)
-        #expect(model.hasConfirmedRecordingChoice)
-        #expect(model.installationRecordingContext.currentDevice.id == installationID)
+        #expect(try model.hasConfirmedRecordingChoice)
+        #expect(try model.installationRecordingContext.currentDevice.id == installationID)
         #expect(model.session == nil)
         #expect(model.activeScope == nil)
         #expect(logOuts == 1)
@@ -441,7 +445,7 @@ struct WhereResetTests {
         #expect(model.activeScope == nil)
         #expect(logOuts == 1)
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(try model.hasConfirmedRecordingChoice == false)
         await report.refresh()
         #expect(report.trackedDayCount == 0)
     }
@@ -521,6 +525,10 @@ private final class CommittedFailingResetInstallationContextStore:
             isEnabled,
             at: Date(),
         )
+    }
+
+    func completeSetup() throws {
+        onboardingContext = onboardingContext.completingSetup()
     }
 
     func rejoin() throws -> InstallationRecordingContext {

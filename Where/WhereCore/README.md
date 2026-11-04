@@ -328,7 +328,11 @@ one it belongs to rather than to a god-object:
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
-  the domain value.
+  the domain value. `KeychainRecordingIdentityStore` keeps its identity and registration
+  time in a nonsynchronizing device-only item. `RecordingIdentityRecoveryPolicy` reconciles
+  that item with the consent sidecar. Missing consent requires confirmation again;
+  unavailable storage never creates a replacement identity. Reset and rejoin rotate deliberately.
+  `ImportRecoveryDetails.installationID` retains the original receipt owner through these changes.
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
   live-region welcome, and estimated-time/planning visibility) plus the

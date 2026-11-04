@@ -414,6 +414,7 @@ public actor BackupCoordinator {
         )
         let recoveryDetails = ImportRecoveryDetails(
             transactionID: transactionID,
+            installationID: currentDeviceID,
             strategy: strategy,
             summary: summary,
         )
@@ -621,7 +622,7 @@ public actor BackupCoordinator {
             case let .prepared(details):
                 let receipt = try await store.backupImportReceipt(
                     id: details.transactionID,
-                    installationID: currentDeviceID,
+                    installationID: details.installationID,
                 )
                 guard receipt != nil else {
                     await importLifecycle.didRollBack(details.strategy)
@@ -704,12 +705,12 @@ public actor BackupCoordinator {
     private func removeReceipt(for details: ImportRecoveryDetails) async throws {
         guard try await store.backupImportReceipt(
             id: details.transactionID,
-            installationID: currentDeviceID,
+            installationID: details.installationID,
         ) != nil else { return }
         try await store.perform {
             try await self.store.removeBackupImportReceipt(
                 id: details.transactionID,
-                installationID: self.currentDeviceID,
+                installationID: details.installationID,
             )
         }
     }
@@ -741,7 +742,7 @@ public actor BackupCoordinator {
             case let .prepared(details):
                 let receipt = try await store.backupImportReceipt(
                     id: details.transactionID,
-                    installationID: currentDeviceID,
+                    installationID: details.installationID,
                 )
                 if receipt == nil {
                     await importLifecycle.didRollBack(details.strategy)

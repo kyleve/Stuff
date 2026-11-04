@@ -1,107 +1,77 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct RecordingOnboardingRecommendationTests {
     private static let now = Date(timeIntervalSinceReferenceDate: 100_000)
-    private static let currentID = RecordingDeviceID(rawValue: UUID())
     private static let otherID = RecordingDeviceID(rawValue: UUID())
 
-    @Test func phoneDefaultsOnWithoutAnotherRecentRecorder() {
+    @Test(arguments: [RecordingDeviceStatus.recording, .permissionRequired, .off, .unknown])
+    func anotherDeviceNeverSuppressesThePhoneDefault(status: RecordingDeviceStatus) {
+        let other = device(deviceID: Self.otherID, status: status, removedAt: nil)
         let recommendation = RecordingOnboardingRecommendation(
-            for: installation(kind: .phone),
+            for: installation(kind: .phone, isRejoining: false),
+            devices: [other],
+        )
+        #expect(recommendation.isEnabled)
+        #expect(recommendation.existingDevices == [other])
+    }
+
+    @Test func replacementCandidatesExcludeCurrentAndRemovedDevices() {
+        let context = installation(kind: .phone, isRejoining: false)
+        let recommendation = RecordingOnboardingRecommendation(
+            for: context,
+            devices: [
+                device(deviceID: context.currentDevice.id, status: .recording, removedAt: nil),
+                device(deviceID: Self.otherID, status: .recording, removedAt: Self.now),
+            ],
+        )
+        #expect(recommendation.existingDevices.isEmpty)
+    }
+
+    @Test func rejoinDefaultsOffEvenForAPhone() {
+        #expect(!RecordingOnboardingRecommendation(
+            for: installation(kind: .phone, isRejoining: true),
             devices: [],
-            now: Self.now,
-        )
-
-        #expect(recommendation.isEnabled)
-        #expect(recommendation.recentRecordingDevice == nil)
+        ).isEnabled)
     }
 
-    @Test(arguments: [RecordingDeviceStatus.recording, .permissionRequired])
-    func recentRecorderDefaultsPhoneOff(status: RecordingDeviceStatus) {
-        let recent = device(status: status, lastSeenAt: Self.now.addingTimeInterval(-60))
-
-        let recommendation = RecordingOnboardingRecommendation(
-            for: installation(kind: .phone),
-            devices: [recent],
-            now: Self.now,
-        )
-
-        #expect(recommendation.isEnabled == false)
-        #expect(recommendation.recentRecordingDevice?.id == Self.otherID)
-    }
-
-    @Test func activityAtTheTwentyFourHourBoundaryIsRecent() {
-        let recent = device(
-            status: .recording,
-            lastSeenAt: Self.now.addingTimeInterval(-RecordingOnboardingRecommendation
-                .recentActivityWindow),
-        )
-
-        let recommendation = RecordingOnboardingRecommendation(
-            for: installation(kind: .phone),
-            devices: [recent],
-            now: Self.now,
-        )
-
-        #expect(recommendation.isEnabled == false)
-    }
-
-    @Test func staleAndRemovedRecordersDoNotSuppressThePhoneDefault() {
-        let stale = device(
-            status: .recording,
-            lastSeenAt: Self.now.addingTimeInterval(
-                -RecordingOnboardingRecommendation.recentActivityWindow - 1,
-            ),
-        )
-        let removed = device(
-            status: .recording,
-            lastSeenAt: Self.now,
-            removedAt: Self.now.addingTimeInterval(-1),
-        )
-
-        let recommendation = RecordingOnboardingRecommendation(
-            for: installation(kind: .phone),
-            devices: [stale, removed],
-            now: Self.now,
-        )
-
-        #expect(recommendation.isEnabled)
-    }
-
-    @Test(arguments: [
-        RecordingDeviceKind.tablet,
-        .computer,
-        .watch,
-        .other(nil),
-    ])
+    @Test(arguments: [RecordingDeviceKind.tablet, .computer, .other(nil)])
     func nonPhoneDefaultsOff(kind: RecordingDeviceKind) {
-        let recommendation = RecordingOnboardingRecommendation(
-            for: installation(kind: kind),
+        #expect(!RecordingOnboardingRecommendation(
+            for: installation(kind: kind, isRejoining: false),
             devices: [],
-            now: Self.now,
-        )
-
-        #expect(recommendation.isEnabled == false)
+        ).isEnabled)
     }
 
-    private func installation(kind: RecordingDeviceKind) -> CurrentRecordingDevice {
-        CurrentRecordingDevice(id: Self.currentID, systemName: "Current", kind: kind)
+    private func installation(
+        kind: RecordingDeviceKind,
+        isRejoining: Bool,
+    ) -> InstallationRecordingContext {
+        InstallationRecordingContext(
+            currentDevice: CurrentRecordingDevice(
+                id: InstallationRecordingContext.testing.currentDevice.id,
+                systemName: "Current",
+                kind: kind,
+            ),
+            registeredAt: Self.now,
+            recordingChoice: .unconfirmed,
+            isRejoining: isRejoining,
+        )
     }
 
     private func device(
+        deviceID: RecordingDeviceID,
         status: RecordingDeviceStatus,
-        lastSeenAt: Date,
-        removedAt: Date? = nil,
+        removedAt: Date?,
     ) -> RecordingDevice {
         RecordingDevice(
-            id: Self.otherID,
+            id: deviceID,
             systemName: "Other iPhone",
             nickname: nil,
             kind: .phone,
             registeredAt: Self.now.addingTimeInterval(-100_000),
-            lastSeenAt: lastSeenAt,
+            lastSeenAt: Self.now,
             removedAt: removedAt,
             status: status,
         )

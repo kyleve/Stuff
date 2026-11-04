@@ -4154,6 +4154,50 @@
         }
       }
     },
+    "launch.recordingIdentity.locked.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock your phone, then close and reopen Where to try again."
+          }
+        }
+      }
+    },
+    "launch.recordingIdentity.locked.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock to continue"
+          }
+        }
+      }
+    },
+    "launch.recordingIdentity.unavailable.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where could not read this phone’s recording identity. Close and reopen Where to try again."
+          }
+        }
+      }
+    },
+    "launch.recordingIdentity.unavailable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording identity unavailable"
+          }
+        }
+      }
+    },
     "launch.resetCleanup.message" : {
       "comment" : "Terminal launch message after synced data was erased but local post-commit cleanup failed.",
       "extractionState" : "manual",
@@ -5147,6 +5191,83 @@
         }
       }
     },
+    "onboarding.devices.additional" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use alongside my other devices"
+          }
+        }
+      }
+    },
+    "onboarding.devices.additional.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your other devices keep their own recording settings."
+          }
+        }
+      }
+    },
+    "onboarding.devices.removeAndContinue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove and Continue"
+          }
+        }
+      }
+    },
+    "onboarding.devices.removeOld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove the old device"
+          }
+        }
+      }
+    },
+    "onboarding.devices.replace %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace %@"
+          }
+        }
+      }
+    },
+    "onboarding.devices.replacement.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removal stops future contributions from the old device when it syncs. Earlier history keeps its original device attribution."
+          }
+        }
+      }
+    },
+    "onboarding.devices.setup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device"
+          }
+        }
+      }
+    },
     "onboarding.installationSecurityError" : {
       "comment" : "Launch failure shown when Where cannot prove that the device-local recording identity is excluded from backup and also cannot remove it safely.",
       "extractionState" : "manual",
@@ -5240,17 +5361,6 @@
         }
       }
     },
-    "onboarding.recording.recent" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Another device was recording recently"
-          }
-        }
-      }
-    },
     "onboarding.recording.recommendation.off" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5291,6 +5401,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Where do you spend your time?"
+          }
+        }
+      }
+    },
+    "onboarding.reminders.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These work even with recording off. Other devices can also notify you. Change these choices and times later in Settings."
+          }
+        }
+      }
+    },
+    "onboarding.reminders.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications on this device"
           }
         }
       }

@@ -171,16 +171,19 @@ public struct RootView: View {
                 },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate precedes every world-building step, so there is
-                    // no session (and no open store) behind it yet — onboarding
+                    // The gate owns setup and pending-import recovery. Onboarding
                     // builds the scope it commits regions with, through the model.
-                    GateView(for: OnboardingGate.self) { handle, _ in
-                        OnboardingView(
-                            gate: handle,
-                            installationContext: model.installationRecordingContext,
-                            startsAtRecordingChoice: model.hasOnboarded,
-                            initialTheme: model.theme,
-                        )
+                    GateView(for: OnboardingGate.self) { handle, value in
+                        if case let .installation(context) = value {
+                            OnboardingView(
+                                gate: handle,
+                                installationContext: context,
+                                startsAtRecordingChoice: model.hasOnboarded || model
+                                    .hasInterruptedOnboardingImport,
+                                initialTheme: model.theme,
+                                preferences: model.preferences,
+                            )
+                        }
                     }
                 },
             ) { session in

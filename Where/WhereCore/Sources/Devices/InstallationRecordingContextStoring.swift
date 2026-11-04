@@ -6,7 +6,7 @@
 @MainActor
 public protocol InstallationRecordingContextStoring: AnyObject, BackupImportRecoveryPersisting {
     /// Context used to render onboarding before any real store is opened.
-    var onboardingContext: InstallationRecordingContext { get }
+    var onboardingContext: InstallationRecordingContext { get throws }
 
     /// Resolve this installation's context. Repeated calls return the same
     /// value for the lifetime of the store object.
@@ -14,6 +14,9 @@ public protocol InstallationRecordingContextStoring: AnyObject, BackupImportReco
 
     /// Persist the first explicit local choice beside the installation identity.
     func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext
+
+    /// Complete device setup after its local choices and requested operations succeed.
+    func completeSetup() throws
 
     /// Persist a later Settings choice locally. The installation must already be confirmed.
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws

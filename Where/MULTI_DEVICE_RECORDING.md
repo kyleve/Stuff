@@ -9,6 +9,8 @@ This document also owns the implementation plan for the replacement stack.
 The first implementation adds pure assessment and causal-decision types in WhereCore.
 It does not activate multi-device selection, change capture, or change stored and backup formats.
 The [initial assessment policy](#initial-assessment-policy) and [decision representation](#sync-and-concurrent-decisions) record its technical choices.
+The identity slice implements device-only Keychain storage, consent recovery, and additional/replacement-device setup.
+Physical restore and transfer validation remain required before activation.
 
 ## Why
 
@@ -1038,10 +1040,12 @@ It does not require a wholesale import of the previous stack.
 | [RecordingDeviceCheckIn](WhereCore/Sources/Devices/RecordingDeviceCheckIn.swift) and [DeviceRecordingController](WhereCore/Sources/Devices/DeviceRecordingController.swift) | Device activity and recording status are advisory. They provide no guarantee of periodic delivery or complete observation uploads. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
 
-The current [recording context](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) uses a file excluded from backups.
-It does not yet use the proposed Keychain identity.
-Its reset and rejoin operations already create new identities and require recording confirmation again.
-The [recording-context regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift) establish those existing behaviors.
+The current [recording context](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) composes Keychain identity with a file excluded from backups.
+The file retains consent, import recovery, and terminal onboarding-import authority.
+An ordinary update adopts the previous excluded sidecar identity once, then binds the sidecar to Keychain.
+A missing Keychain item never adopts an already-bound sidecar identity.
+Reset and rejoin commit identity rotation before sidecar cleanup; retries retain the committed replacement.
+The [recording-context regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift) cover these local recovery paths.
 The current reader has no device-selection policy or unresolved-conflict result.
 Its attribution uses the tracked region set. Full-catalog assessment remains an integration change.
 It provides an integration boundary, not a completed multi-device resolver.
@@ -1103,6 +1107,24 @@ Preserve local identity and consent during in-app backup imports, including repl
 Keep removed identities retired and distinguish absent Keychain items from inaccessible items.
 Cover updates, relaunches, backup imports, same-phone recovery, new-phone transfer, reset, rejoin, and Keychain failures.
 Validate restore and transfer on physical devices before activation.
+
+**Implemented local behavior:** [Keychain storage](WhereCore/Sources/Devices/KeychainRecordingIdentityStore.swift) and the [recovery policy](WhereCore/Sources/Devices/RecordingIdentityRecoveryPolicy.swift) distinguish absence from failure.
+Setup offers replacement candidates without suppressing this phone's recording default.
+Removal requires a separate choice and confirmation. Reminder categories retain their local enabled defaults and existing schedules.
+Renewed consent triggers import recovery before recording. Pending imports retain the original receipt owner after identity changes.
+A surviving removed identity reaches the existing explicit rejoin flow.
+Consent confirmation and setup completion have separate durable states.
+An interrupted setup requires confirmation again, even when restored preferences report completed onboarding.
+The user can reselect an unfinished replacement removal; the app does not replay that destructive choice automatically.
+
+**Physical validation gate:** use two test phones and a disposable shared iCloud account before activation.
+Keep a lossless export and record each phone's identity before each operation.
+Test an ordinary update, merge import, replace import, same-phone reinstall, same-phone restore, new-phone restore, and direct transfer.
+Confirm identity and consent against the [lifecycle table](#device-identity-and-setup).
+For reset and rejoin, confirm a new identity and unchanged historical provenance.
+For first-unlock protection, confirm an unavailable identity cannot create a new profile or start capture.
+Record OS/build versions, operation, before/after identities, consent, and outcome with the activation evidence.
+Simulator CRUD and failure injection do not satisfy this gate.
 
 ### 3. Compatibility gate
 

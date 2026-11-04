@@ -1,5 +1,6 @@
 import LifecycleKit
 import LifecycleKitUI
+import Security
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -11,6 +12,8 @@ enum WhereLifecycleFailurePresentation: Equatable {
     case committedImportCleanup(BackupCoordinator.ImportSummary)
     case committedImportSetup(BackupCoordinator.ImportSummary)
     case committedResetCleanup
+    case recordingIdentityLocked
+    case recordingIdentityUnavailable
 
     init?(failure: LifecycleFailure) {
         if let error = failure.error as? BackupCoordinator.CommittedImportCleanupError {
@@ -19,6 +22,14 @@ enum WhereLifecycleFailurePresentation: Equatable {
             self = .committedImportSetup(error.summary)
         } else if failure.error is WhereServices.ResetCleanupError {
             self = .committedResetCleanup
+        } else if failure.stepID == AnyHashable(LaunchStepID.resolveInstallation) {
+            if let error = failure.error as? KeychainRecordingIdentityStore.StorageError,
+               error == .keychain(errSecInteractionNotAllowed)
+            {
+                self = .recordingIdentityLocked
+            } else {
+                self = .recordingIdentityUnavailable
+            }
         } else {
             return nil
         }
@@ -32,6 +43,10 @@ enum WhereLifecycleFailurePresentation: Equatable {
                 String(localized: .backupImportSetupTitle)
             case .committedResetCleanup:
                 String(localized: .launchResetCleanupTitle)
+            case .recordingIdentityLocked:
+                String(localized: .launchRecordingIdentityLockedTitle)
+            case .recordingIdentityUnavailable:
+                String(localized: .launchRecordingIdentityUnavailableTitle)
         }
     }
 
@@ -43,6 +58,10 @@ enum WhereLifecycleFailurePresentation: Equatable {
                 WhereFormat.backupImportSetupMessage(summary)
             case .committedResetCleanup:
                 String(localized: .launchResetCleanupMessage)
+            case .recordingIdentityLocked:
+                String(localized: .launchRecordingIdentityLockedMessage)
+            case .recordingIdentityUnavailable:
+                String(localized: .launchRecordingIdentityUnavailableMessage)
         }
     }
 
@@ -50,6 +69,8 @@ enum WhereLifecycleFailurePresentation: Equatable {
         switch self {
             case .committedImportCleanup, .committedImportSetup: .exclamationmarkIcloud
             case .committedResetCleanup: .trashSlash
+            case .recordingIdentityLocked: .lock
+            case .recordingIdentityUnavailable: .exclamationmarkTriangle
         }
     }
 }
@@ -60,7 +81,7 @@ enum WhereLifecycleFailurePresentation: Equatable {
 struct WhereLifecycleFailureView: View {
     private enum Content {
         case generic(LifecycleFailure)
-        case committed(WhereLifecycleFailurePresentation)
+        case dedicated(WhereLifecycleFailurePresentation)
     }
 
     @Environment(\.stylesheet) private var stylesheet
@@ -68,7 +89,7 @@ struct WhereLifecycleFailureView: View {
 
     init(failure: LifecycleFailure) {
         if let presentation = WhereLifecycleFailurePresentation(failure: failure) {
-            content = .committed(presentation)
+            content = .dedicated(presentation)
         } else {
             content = .generic(failure)
         }
@@ -76,7 +97,7 @@ struct WhereLifecycleFailureView: View {
 
     #if DEBUG
         init(presentation: WhereLifecycleFailurePresentation) {
-            content = .committed(presentation)
+            content = .dedicated(presentation)
         }
     #endif
 
@@ -84,7 +105,7 @@ struct WhereLifecycleFailureView: View {
         switch content {
             case let .generic(failure):
                 LifecycleFailureView(failure: failure)
-            case let .committed(presentation):
+            case let .dedicated(presentation):
                 GeometryReader { geometry in
                     ScrollView {
                         VStack(spacing: stylesheet.spacing.large) {
@@ -112,6 +133,20 @@ struct WhereLifecycleFailureView: View {
 #if DEBUG
     extension WhereLifecycleFailureView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "RecordingIdentityLocked",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                WhereLifecycleFailureView(presentation: .recordingIdentityLocked)
+            }
+            whereSnapshot(
+                name: "RecordingIdentityUnavailable",
+                configurations: .fullContentPhoneLightDarkWithAX5,
+                measurementReadiness: .immediate,
+            ) {
+                WhereLifecycleFailureView(presentation: .recordingIdentityUnavailable)
+            }
             whereSnapshot(
                 name: "CommittedResetCleanup",
                 configurations: .screenRepresentative,

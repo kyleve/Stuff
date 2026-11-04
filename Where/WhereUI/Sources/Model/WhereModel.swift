@@ -195,40 +195,34 @@ public final class WhereModel {
     /// The context onboarding renders. A newly proposed value is kept in memory
     /// until the user confirms it, so entering demo mode leaves no sidecar.
     public var installationRecordingContext: InstallationRecordingContext {
-        installationContextStore.onboardingContext
+        get throws { try installationContextStore.onboardingContext }
     }
 
     /// Confirmation lives beside the non-backed-up installation identity, not
     /// in backed-up preferences. Restoring onto a new device therefore makes
     /// this false even when `hasOnboarded` arrived in the backup.
     public var hasConfirmedRecordingChoice: Bool {
-        installationRecordingContext.automaticRecordingEnabled != nil
+        get throws { try installationRecordingContext.automaticRecordingEnabled != nil }
     }
 
-    /// Derive an advisory local default from synced device status while the app remains logged out.
+    /// Discover known replacement candidates without changing another installation's consent.
     func discoverRecordingRecommendation(
         for context: InstallationRecordingContext,
     ) async throws
         -> RecordingOnboardingRecommendation
     {
-        if context.isRejoining {
-            return RecordingOnboardingRecommendation(
-                isEnabled: false,
-                recentRecordingDevice: nil,
-            )
-        }
         guard case let .loggedOut(bootstrap) = scopeState else {
-            let devices = try await activeScope?.services.recording.devices() ?? []
+            guard let activeScope
+            else { preconditionFailure("A logged-in model must have a scope.") }
+            let devices = try await activeScope.services.recording.devices()
             return RecordingOnboardingRecommendation(
-                for: context.currentDevice,
+                for: context,
                 devices: devices.map(\.device),
-                now: now(),
             )
         }
         return try await RecordingOnboardingRecommendation(
-            for: context.currentDevice,
+            for: context,
             devices: bootstrap.discoverRecordingDevices(),
-            now: now(),
         )
     }
 
@@ -250,7 +244,10 @@ public final class WhereModel {
 
     /// Resolve any onboarding import transaction left across a process death before launch
     /// exposes this scope to App Intents or starts recording.
-    func preflightPendingImportRecovery(in scope: WhereScope) async throws {
+    @discardableResult
+    func preflightPendingImportRecovery(in scope: WhereScope) async throws
+        -> OnboardingImportRecoveryModel.PreflightOutcome
+    {
         try await onboardingImportRecovery.preflightPendingImport(
             in: scope,
             completeOnboarding: completeOnboarding,
@@ -279,6 +276,10 @@ public final class WhereModel {
         publishThemeChange(theme)
         hasOnboarded = true
         Self.logger.onboardingCompleted()
+    }
+
+    func completeInstallationSetup() throws {
+        try installationContextStore.completeSetup()
     }
 
     /// Preview a theme without writing device preferences.
@@ -312,10 +313,12 @@ public final class WhereModel {
 
     /// Reconcile a cold-launch onboarding import before the Restore UI can be presented.
     /// Returns whether ordinary onboarding is still required.
-    func recoverInterruptedOnboardingImport() async -> Bool {
+    func recoverInterruptedOnboardingImport(context: InstallationRecordingContext) async
+        -> OnboardingImportRecoveryModel.GateOutcome
+    {
         await onboardingImportRecovery.recoverInterruptedImport(
             requiresOnboarding: activeScope == nil
-                && (!hasOnboarded || !hasConfirmedRecordingChoice),
+                && (!hasOnboarded || context.automaticRecordingEnabled == nil),
             resolveScope: resolveScope,
             endSession: endSession,
             completeOnboarding: completeOnboarding,

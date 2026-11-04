@@ -261,10 +261,14 @@ journal intent.
   there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
-  choice. The final page opens the real store in a dormant state to inspect recent synced advisory
-  status before any services, App Intents, or GPS are active. A phone recommends On only when no
-  other installation recently reported recording. Tablets, other devices, and explicit rejoins
-  recommend Off. Only an enabled confirmation requests location permission. A restored device can
+  choice. Identity resolves before this gate; locked or unavailable Keychain storage shows a launch failure.
+  The final page opens the real store in a dormant state to discover known devices.
+  Phone recording defaults On independently of other recorders. Tablets, other devices, and explicit rejoins recommend Off.
+  Setup offers additional-device or replacement-device use. Replacement preserves the new identity and offers independently confirmed removal of the old device.
+  Notification categories appear separately, retain enabled defaults, and apply with recording Off.
+  Confirmed consent permits service creation; a separate durable state marks setup complete.
+  An interrupted setup returns to the gate for confirmation, including when a restored preference says onboarding finished.
+  Only an enabled confirmation on an active identity requests location permission. A restored device can
   inherit the backed-up onboarding flag but not the installation sidecar, so it
   skips straight to that final page. Finishing logs in to the real scope. The
   app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
@@ -281,7 +285,10 @@ journal intent.
   but never offer the same archive for import again. Every cold launch resolves
   that onboarding marker before handing services to App Intents or registering
   the recording device, so Replace cleanup finishes before GPS can reopen or
-  drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
+  drain an obsolete outbox. This preflight also runs after renewed recording consent.
+  Import recovery retains the original receipt owner when local identity changes.
+  A removed surviving identity completes into the existing rejoin screen.
+  `OnboardingImportRecoveryModel` owns that reconciliation rather than
   the process-wide `WhereModel`. Settings offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.

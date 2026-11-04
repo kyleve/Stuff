@@ -110,6 +110,18 @@
         }
 
         @MainActor
+        static func onboardingServices(installationContext: InstallationRecordingContext)
+            -> WhereServices
+        {
+            WhereServices(
+                store: try! SwiftDataStore.inMemory(),
+                locationSource: ScriptedLocationSource(),
+                installationContext: installationContext,
+                now: { referenceNow },
+            )
+        }
+
+        @MainActor
         private static func previewServices(
             locationSource: any LocationSource,
             now: @escaping @Sendable () -> Date,
@@ -867,7 +879,7 @@
             let context = InstallationRecordingContext(
                 currentDevice: InstallationRecordingContext.testing.currentDevice,
                 registeredAt: InstallationRecordingContext.testing.registeredAt,
-                recordingChoice: .off,
+                recordingChoice: .off(setup: .complete),
                 isRejoining: false,
             )
             let services = WhereServices(

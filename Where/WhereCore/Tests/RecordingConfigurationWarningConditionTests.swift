@@ -68,4 +68,78 @@ struct RecordingConfigurationWarningConditionTests {
 
         #expect(condition.isActive == false)
     }
+
+    struct OtherDeviceCase {
+        let elapsed: TimeInterval
+        let status: RecordingDeviceStatus
+        let isRemoved: Bool
+        let isCurrent: Bool
+        let expected: Bool
+    }
+
+    @Test(arguments: [
+        OtherDeviceCase(
+            elapsed: 86400,
+            status: .recording,
+            isRemoved: false,
+            isCurrent: false,
+            expected: false,
+        ),
+        OtherDeviceCase(
+            elapsed: 86401,
+            status: .recording,
+            isRemoved: false,
+            isCurrent: false,
+            expected: true,
+        ),
+        OtherDeviceCase(
+            elapsed: 0,
+            status: .permissionRequired,
+            isRemoved: false,
+            isCurrent: false,
+            expected: false,
+        ),
+        OtherDeviceCase(
+            elapsed: 0,
+            status: .off,
+            isRemoved: false,
+            isCurrent: false,
+            expected: true,
+        ),
+        OtherDeviceCase(
+            elapsed: 0,
+            status: .recording,
+            isRemoved: true,
+            isCurrent: false,
+            expected: true,
+        ),
+        OtherDeviceCase(
+            elapsed: 0,
+            status: .recording,
+            isRemoved: false,
+            isCurrent: true,
+            expected: true,
+        ),
+    ])
+    func onlyRecentActiveOtherRecordersSuppressWarning(testCase: OtherDeviceCase) {
+        let device = RecordingDevice(
+            id: testCase.isCurrent ? Self.currentDevice.id : RecordingDeviceID(rawValue: UUID()),
+            systemName: "iPhone",
+            nickname: nil,
+            kind: .phone,
+            registeredAt: Self.now.addingTimeInterval(-100_000),
+            lastSeenAt: Self.now.addingTimeInterval(-testCase.elapsed),
+            removedAt: testCase.isRemoved ? Self.now : nil,
+            status: testCase.status,
+        )
+        let condition = RecordingConfigurationWarningCondition(
+            currentDevice: Self.currentDevice,
+            devices: [device],
+            automaticRecordingEnabled: false,
+            authorizationStatus: .whenInUse,
+            now: Self.now,
+        )
+
+        #expect(condition.isActive == testCase.expected)
+    }
 }

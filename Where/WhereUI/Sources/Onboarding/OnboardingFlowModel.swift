@@ -16,13 +16,6 @@ final class OnboardingFlowModel {
         case location
     }
 
-    enum DeviceDiscovery: Equatable {
-        case idle
-        case loading
-        case ready(RecordingOnboardingRecommendation)
-        case failed(String)
-    }
-
     let installationContext: InstallationRecordingContext
     let gate: LifecycleGateHandle
     var phase: Phase
@@ -30,7 +23,8 @@ final class OnboardingFlowModel {
     var theme: WhereTheme
     var selection = PrimaryRegionSelectionModel()
     var recordingEnabled: Bool
-    var deviceDiscovery = DeviceDiscovery.idle
+    var deviceSetup = OnboardingDeviceSetupModel()
+    var reminders: OnboardingReminderSettings
     var isFinishing = false
     var restoreSelection = OnboardingRestoreSelection()
     var intro = OnboardingIntroState()
@@ -45,11 +39,13 @@ final class OnboardingFlowModel {
         installationContext: InstallationRecordingContext,
         startsAtRecordingChoice: Bool,
         initialTheme: WhereTheme,
+        preferences: WherePreferences,
     ) {
         self.gate = gate
         self.installationContext = installationContext
         phase = startsAtRecordingChoice ? .location : .intro
         theme = initialTheme
+        reminders = OnboardingReminderSettings(preferences: preferences)
         recordingEnabled = installationContext.automaticRecordingEnabled
             ?? installationContext.recommendedRecordingEnabled
     }
@@ -77,24 +73,19 @@ final class OnboardingFlowModel {
         phase = restoreSelection.readyImport == nil ? .pickRegions : .location
     }
 
-    func discoverRecordingDevices(using model: WhereModel) async {
-        guard deviceDiscovery == .idle else { return }
-        deviceDiscovery = .loading
-        do {
-            let recommendation = try await model.discoverRecordingRecommendation(
-                for: installationContext,
-            )
-            deviceDiscovery = .ready(recommendation)
-            if installationContext.automaticRecordingEnabled == nil {
-                recordingEnabled = recommendation.isEnabled
-            }
-        } catch {
-            deviceDiscovery = .failed(error.localizedDescription)
+    func requestFinish(using model: WhereModel) {
+        guard !isFinishing, !deviceSetup.isLoading else { return }
+        if deviceSetup.deviceToRemove != nil {
+            deviceSetup.isConfirmingRemoval = true
+        } else {
+            Task { await finish(using: model) }
         }
     }
 
-    func finish(using model: WhereModel) {
+    func finish(using model: WhereModel) async {
         guard !isFinishing else { return }
+        let deviceToRemove = deviceSetup.deviceToRemove
+        let reminderSettings = reminders
         let readyImport = restoreSelection.readyImport
         if restoreSelection.selectedURL != nil {
             guard readyImport != nil else {
@@ -106,68 +97,82 @@ final class OnboardingFlowModel {
             phase = .intro
         }
         isFinishing = true
-        Task {
-            do {
-                let context = try model.confirmInitialRecordingChoice(
-                    isEnabled: recordingEnabled,
-                )
-                guard context.automaticRecordingEnabled != nil else {
-                    preconditionFailure("A confirmed installation context must carry its choice.")
-                }
-            } catch {
-                Self.logger.installationContextWriteFailed(
-                    error: .restricted(.errorDetails, error),
-                )
-                gate.fail(error)
-                return
+        do {
+            let context = try model.confirmInitialRecordingChoice(
+                isEnabled: recordingEnabled,
+            )
+            guard context.automaticRecordingEnabled != nil else {
+                preconditionFailure("A confirmed installation context must carry its choice.")
             }
-
-            let scope: WhereScope
-            do {
-                scope = try await model.resolveScope()
-            } catch {
-                Self.logger.scopeCreationFailed(
-                    error: .restricted(.errorDetails, error),
-                )
-                gate.fail(error)
-                return
-            }
-
-            if let readyImport {
-                guard await importBackup(readyImport, into: scope, using: model) else { return }
-            }
-
-            do {
-                try await configureRecording(in: scope)
-            } catch {
-                Self.logger.recordingConfigurationFailed(
-                    error: .restricted(.errorDetails, error),
-                )
-                if let summary = restoreSelection.committedSummary {
-                    gate.fail(OnboardingCommittedImportSetupError(
-                        summary: summary,
-                        underlying: error,
-                    ))
-                } else {
-                    gate.fail(error)
-                }
-                return
-            }
-
-            if selection.hasSelection {
-                do {
-                    try await selection.commit(using: scope)
-                } catch {
-                    Self.logger.regionCommitFailed(
-                        error: .restricted(.errorDetails, error),
-                    )
-                }
-            }
-            if !model.hasOnboarded {
-                model.completeOnboarding()
-            }
-            gate.complete()
+            reminderSettings.save(to: model.preferences)
+        } catch {
+            Self.logger.installationContextWriteFailed(
+                error: .restricted(.errorDetails, error),
+            )
+            gate.fail(error)
+            return
         }
+
+        let scope: WhereScope
+        do {
+            scope = try await model.resolveScope()
+            if try await model.preflightPendingImportRecovery(in: scope) == .rolledBack {
+                // Consent was renewed before this old prepared marker could be checked. No
+                // store receipt means Restore never committed; keep that choice available.
+                await model.endSession()
+                phase = .intro
+                intro.activity = .browsing
+                isFinishing = false
+                return
+            }
+        } catch {
+            Self.logger.scopeCreationFailed(
+                error: .restricted(.errorDetails, error),
+            )
+            gate.fail(error)
+            return
+        }
+
+        if let readyImport {
+            guard await importBackup(readyImport, into: scope, using: model) else { return }
+        }
+
+        do {
+            try await configureRecording(in: scope, removing: deviceToRemove)
+        } catch {
+            Self.logger.recordingConfigurationFailed(
+                error: .restricted(.errorDetails, error),
+            )
+            if let summary = restoreSelection.committedSummary {
+                gate.fail(OnboardingCommittedImportSetupError(
+                    summary: summary,
+                    underlying: error,
+                ))
+            } else {
+                gate.fail(error)
+            }
+            return
+        }
+        if selection.hasSelection {
+            do {
+                try await selection.commit(using: scope)
+            } catch {
+                Self.logger.regionCommitFailed(
+                    error: .restricted(.errorDetails, error),
+                )
+            }
+        }
+        if !model.hasOnboarded {
+            model.completeOnboarding()
+        }
+        do {
+            try model.completeInstallationSetup()
+        } catch {
+            Self.logger.installationContextWriteFailed(error: .restricted(.errorDetails, error))
+            gate.fail(error)
+            return
+        }
+        gate.complete()
     }
 
     func enterDemoMode(using model: WhereModel) {
@@ -288,12 +293,24 @@ final class OnboardingFlowModel {
         }
     }
 
-    private func configureRecording(in scope: WhereScope) async throws {
+    private func configureRecording(
+        in scope: WhereScope,
+        removing deviceID: RecordingDeviceID?,
+    ) async throws {
         let authorization = await scope.services.ingestor.authorizationStatus()
-        try await scope.services.recording.registerForOnboarding(
-            desiredEnabled: recordingEnabled,
-            authorization: authorization,
-        )
+        do {
+            try await scope.services.recording.registerForOnboarding(
+                desiredEnabled: recordingEnabled,
+                authorization: authorization,
+            )
+        } catch RecordingPersistenceError.currentDeviceRemoved {
+            // The controller published .removed and stopped capture. Finish the gate so the
+            // normal launch can expose RemovedDeviceView and its explicit rejoin action.
+            return
+        }
+        if let deviceID {
+            _ = try await scope.services.recording.remove(deviceID)
+        }
         guard recordingEnabled else { return }
         do {
             try await scope.services.ingestor.requestPermission()

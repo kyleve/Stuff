@@ -10,14 +10,9 @@ import WhereCore
 // everything downstream takes the **non-optional** session as input — a step
 // cannot be scheduled before the thing it needs exists.
 //
-// The trunk first consumes an optional one-shot demo request, then reaches the
-// onboarding gate. Nothing real may be built until the user has chosen a world. That is
-// also the one place the "no step reaches into `WhereModel` for what an
-// earlier node should have set" rule bends: a gate carries no value (it is
-// pass-through by construction), so a choice made *at* the gate — onboarding
-// logging in for real, or demo mode activating an in-memory scope — reaches
-// `ResolveScopeStep` through the model rather than down the trunk. Every step
-// after that is threaded normally.
+// The trunk consumes a one-shot demo request, then resolves local identity before onboarding.
+// The gate receives that context and passes it through unchanged. A world chosen at the gate
+// reaches ResolveScopeStep through the model; subsequent steps receive the resolved scope.
 //
 // Each step also declares a span `budget` (see `BudgetedLaunchStep`), and
 // the plans compose them `.measured()` so every run is one Periscope span.
@@ -34,34 +29,49 @@ struct ActivateLaunchDemoStep: BudgetedLaunchStep {
     }
 }
 
-/// First-run onboarding and this installation's recording choice.
-/// Placed after the side-effect-free demo preflight and before every step that
-/// builds the user's world: no store is opened, no CloudKit is contacted, and no
-/// session exists behind this while the user has not chosen.
-///
-/// Unlike most gates it applies to **all** launch reasons rather than the
-/// foreground-only default. Parking a headless launch is the point here — the
-/// alternative is opening the user's store for a launch they can't see and may
-/// never have consented to. The non-backed-up recording context is also absent
-/// after a restore onto another device even when the backed-up onboarding flag
-/// is present; parking safely defers opening the store until the user verifies
-/// that new installation's choice in foreground.
+/// Resolve local identity before a gate can render or a scope can open. Unavailable identity
+/// storage throws without creating an onboarding identity. An existing demo scope needs none.
+struct ResolveInstallationContextStep: BudgetedLaunchStep {
+    enum Context {
+        case activeScope
+        case installation(InstallationRecordingContext)
+    }
+
+    let model: WhereModel
+    let id = LaunchStepID.resolveInstallation
+    let budget: Duration = .seconds(1)
+
+    func run(_: Void, _: LifecycleStepContext) async throws -> Context {
+        if model.isInDemoMode { return .activeScope }
+        let installation = try model.installationRecordingContext
+        if model.activeScope != nil, installation.hasCompletedSetup { return .activeScope }
+        return .installation(installation)
+    }
+}
+
+/// Gates every launch reason on this installation's completed setup.
+/// A restored onboarding preference cannot replace local consent. Confirmed
+/// consent permits import recovery before presenting the remaining setup.
+/// Unconfirmed installations wait for foreground input before opening services.
 struct OnboardingGate: LifecycleGate {
     let model: WhereModel
 
     let id = LaunchStepID.onboarding
     let modes: LifecycleModeSet = .all
 
-    func isNeeded(_: Void) async -> Bool {
+    func isNeeded(_ value: ResolveInstallationContextStep.Context) async -> Bool {
+        guard case let .installation(context) = value else { return false }
         model.repairOnboardingFromCompletedImportIfNeeded()
-        if model.hasInterruptedOnboardingImport {
-            return await model.recoverInterruptedOnboardingImport()
+        if model.hasInterruptedOnboardingImport, context.automaticRecordingEnabled != nil {
+            switch await model.recoverInterruptedOnboardingImport(context: context) {
+                case .needsOnboarding: return true
+                case .recovered: return !context.hasCompletedSetup
+                case .failed: return false
+            }
         }
-        // An active scope means the choice has already been made — by
-        // onboarding just now, or by a preview/test injecting one — so don't
-        // ask again even though `hasOnboarded` may not be written yet.
-        return model.activeScope == nil
-            && (!model.hasOnboarded || !model.hasConfirmedRecordingChoice)
+        // A failed setup may retain an open scope. Only durable completion
+        // lets that scope bypass the gate.
+        return !context.hasCompletedSetup || (model.activeScope == nil && !model.hasOnboarded)
     }
 }
 
@@ -94,7 +104,10 @@ struct ResolveScopeStep: BudgetedLaunchStep {
     /// assembly. Past a second the splash caption is about to appear.
     let budget: Duration = .seconds(1)
 
-    func run(_: Void, _: LifecycleStepContext) async throws -> WhereScope {
+    func run(
+        _: ResolveInstallationContextStep.Context,
+        _: LifecycleStepContext,
+    ) async throws -> WhereScope {
         if let recoveryError = model.takeInterruptedOnboardingImportError() {
             throw recoveryError
         }

@@ -7,3 +7,16 @@ func makeInstallationRecordingContextStore(
 ) -> InMemoryInstallationRecordingContextStore {
     InMemoryInstallationRecordingContextStore(context: context)
 }
+
+@MainActor
+func makeInstallationRecordingContextStore(
+    setup: InstallationRecordingContext.SetupCompletion,
+) -> InMemoryInstallationRecordingContextStore {
+    let context = InstallationRecordingContext.testing
+    return InMemoryInstallationRecordingContextStore(context: InstallationRecordingContext(
+        currentDevice: context.currentDevice,
+        registeredAt: context.registeredAt,
+        recordingChoice: .on(enabledAt: context.registeredAt, setup: setup),
+        isRejoining: false,
+    ))
+}

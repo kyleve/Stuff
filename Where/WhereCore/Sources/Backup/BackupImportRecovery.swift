@@ -4,15 +4,19 @@ extension BackupCoordinator {
     /// Immutable identity and result of one import attempt, persisted before the store write.
     public struct ImportRecoveryDetails: Sendable, Hashable {
         public let transactionID: UUID
+        /// The receipt owner at import time. Identity recovery must not change this key.
+        public let installationID: RecordingDeviceID
         public let strategy: ImportStrategy
         public let summary: ImportSummary
 
         public init(
             transactionID: UUID,
+            installationID: RecordingDeviceID,
             strategy: ImportStrategy,
             summary: ImportSummary,
         ) {
             self.transactionID = transactionID
+            self.installationID = installationID
             self.strategy = strategy
             self.summary = summary
         }

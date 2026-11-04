@@ -31,7 +31,8 @@ struct DeviceRecordingControllerTests {
         let context = InstallationRecordingContext(
             currentDevice: InstallationRecordingContext.testing.currentDevice,
             registeredAt: registeredAt,
-            recordingChoice: enabled ? .on(enabledAt: enabledAt ?? registeredAt) : .off,
+            recordingChoice: enabled ? .on(enabledAt: enabledAt ?? registeredAt, setup: .complete) :
+                .off(setup: .complete),
             isRejoining: false,
         )
         return (

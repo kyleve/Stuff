@@ -23,7 +23,7 @@ struct OnboardingImportRecoveryModelTests {
             completeOnboarding: {},
         )
 
-        #expect(needsOnboarding)
+        #expect(needsOnboarding == .needsOnboarding)
         #expect(!resolvedScope)
         #expect(model.takeInterruptedImportError() == nil)
     }

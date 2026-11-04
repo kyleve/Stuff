@@ -1,32 +1,24 @@
 import Foundation
 
-/// Advisory first-run choice derived from recently synced device status.
+/// Local recording default and known replacement candidates. Another phone's activity never
+/// disables this phone's recommendation; each installation confirms its own consent.
 public struct RecordingOnboardingRecommendation: Sendable, Hashable {
-    public static let recentActivityWindow: TimeInterval = 24 * 60 * 60
-
     public let isEnabled: Bool
-    public let recentRecordingDevice: RecordingDevice?
-
-    public init(isEnabled: Bool, recentRecordingDevice: RecordingDevice?) {
-        self.isEnabled = isEnabled
-        self.recentRecordingDevice = recentRecordingDevice
-    }
+    public let existingDevices: [RecordingDevice]
 
     public init(
-        for installation: CurrentRecordingDevice,
+        for installation: InstallationRecordingContext,
         devices: [RecordingDevice],
-        now: Date,
     ) {
-        let cutoff = now.addingTimeInterval(-Self.recentActivityWindow)
-        let recent = devices
+        existingDevices = devices
             .filter {
-                $0.id != installation.id
+                $0.id != installation.currentDevice.id
                     && $0.removedAt == nil
-                    && $0.lastSeenAt >= cutoff
-                    && ($0.status == .recording || $0.status == .permissionRequired)
             }
-            .max { $0.lastSeenAt < $1.lastSeenAt }
-        recentRecordingDevice = recent
-        isEnabled = installation.kind.recommendsAutomaticRecording && recent == nil
+            .sorted { $0.registeredAt == $1.registeredAt
+                ? $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+                : $0.registeredAt > $1.registeredAt
+            }
+        isEnabled = installation.recommendedRecordingEnabled
     }
 }

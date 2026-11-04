@@ -645,6 +645,50 @@ struct BackupCoordinatorTests {
         #expect(await persistence.recovery == nil)
     }
 
+    @Test func preparedImportKeepsItsOriginalReceiptOwnerAfterIdentityReplacement() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = try SwiftDataStore.inMemory()
+        let cleanup = CleanupSpy()
+        let rollback = HookSpy()
+        let persistence = RecoveryPersistenceSpy()
+        func makeCoordinator(deviceID: RecordingDeviceID) -> BackupCoordinator {
+            BackupCoordinator(
+                store: store,
+                currentDeviceID: deviceID,
+                now: { Date(timeIntervalSinceReferenceDate: 1000) },
+                importLifecycle: .init(
+                    prepare: { _ in },
+                    didCommit: { _ in try await cleanup.run() },
+                    didRollBack: { _ in await rollback.run() },
+                ),
+                importRecoveryPersistence: persistence,
+            )
+        }
+        let original = makeCoordinator(deviceID: Self.recordingDeviceID)
+        await #expect(throws: BackupCoordinator.CommittedImportCleanupError.self) {
+            try await original.importBackup(from: url, strategy: .replace) { _ in }
+        }
+        let recovery = try #require(await persistence.recovery)
+        // Model death after the atomic store save but before promotion of the prepared marker.
+        await persistence.saveBackupImportRecovery(.prepared(recovery.details))
+        let replacement = makeCoordinator(deviceID: RecordingDeviceID(rawValue: UUID()))
+        #expect(try await replacement
+            .importRecoveryState() == .cleanupRequired(recovery.details.summary))
+        #expect(await rollback.count == 0)
+        await cleanup.allowSuccess()
+        try await replacement.retryImportCleanup()
+        try await replacement.acknowledgeOnboardingImport()
+        #expect(try await replacement.importRecoveryState() == .ready)
+        #expect(await cleanup.count == 2)
+        #expect(await rollback.count == 0)
+        #expect(try await store.backupImportReceipt(
+            id: recovery.details.transactionID,
+            installationID: Self.recordingDeviceID,
+        ) == nil)
+    }
+
     @Test func concurrentImportCannotPassReadyWhileTheFirstImportFinishesCleanup() async throws {
         let source = try Self.makeHarness()
         let url = try await source.coordinator.exportBackup()

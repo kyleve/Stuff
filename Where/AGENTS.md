@@ -75,9 +75,9 @@ Rules the code enforces and agents must preserve:
   samples with their `RecordingDeviceID`. Route user-facing reads through
   `LocationHistoryReader`. Sync profiles, nickname events, advisory check-ins,
   and global removal tombstones. Never sync another device's recording toggle.
-  Keep consent beside the backup-excluded installation identity. Phone
-  onboarding recommends On only when no other active device recently reported
-  recording. Tablet/other and explicit rejoins recommend Off.
+  Keep identity in device-only Keychain storage and consent in the backup-excluded sidecar.
+  Phone onboarding recommends On independently of other recorders.
+  Tablet/other and explicit rejoins recommend Off.
 - **Manual entries carry a `ManualEntryAudit`.** `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill must not downgrade
   an authoritative row's regions. The newer audit always wins.
@@ -125,7 +125,7 @@ a screen felt slow.
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. It is created whole. `WhereSession` is built from one. A
   surface must not read one world's store against another's preferences.
-- **Onboarding may prepare the real store only for recording-authority
+- **Onboarding may prepare the real store only for known-device
   discovery.** Retain that exact store for scope resolution. Do not construct
   services, expose App Intents, start GPS, or open the log store until the
   user finishes choosing a world.
@@ -141,9 +141,9 @@ a screen felt slow.
   default. Parking a headless launch is the point. Keep recording confirmation
   in the backup-excluded installation sidecar. Then restoring backed-up
   `hasOnboarded` onto another device parks at the final choice page.
-- **A gate carries no value.** A choice made *at* it reaches `resolve-scope`
-  through `WhereModel`. That is the one step that reads model state rather than
-  the trunk.
+- **Resolve installation context before onboarding.** Pass the resolved context through the gate.
+  Surface storage failures before opening a real scope. A world chosen at the gate reaches
+  `resolve-scope` through `WhereModel`; later steps receive the scope through the typed trunk.
 - **Ambient log sources start at process launch. The durable sink is a
   scope's.** Records emitted before a scope exists reach OSLog only.
 - **Publish durable-log bring-up through `WhereModel.logStoreState`.** The

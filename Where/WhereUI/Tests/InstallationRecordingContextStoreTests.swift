@@ -6,6 +6,202 @@ import UIKit
 
 @MainActor
 struct InstallationRecordingContextStoreTests {
+    @Test func sameDeviceReinstallRetainsIdentityAndRequiresConsentAtTheNewTime() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let original = try fixture.makeStore().confirmInitialRecording(isEnabled: true)
+        try FileManager.default.removeItem(at: fixture.directory)
+        let confirmedAt = Self.registeredAt.addingTimeInterval(30 * 24 * 3600)
+        let reinstalled = fixture.makeStore(ids: [], dates: [confirmedAt])
+        let proposed = try reinstalled.resolve()
+        #expect(proposed.currentDevice.id == original.currentDevice.id)
+        #expect(proposed.registeredAt == original.registeredAt)
+        #expect(proposed.automaticRecordingEnabled == nil)
+        #expect(fixture.fileExists == false)
+        let confirmed = try reinstalled.confirmInitialRecording(isEnabled: true)
+        #expect(confirmed.recordingEnabledAt == confirmedAt)
+        #expect(fixture.identityStore.creationCount == 1)
+    }
+
+    @Test func missingKeychainCannotAdoptTheIdentityFromABoundSidecar() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let original = try fixture.makeStore().confirmInitialRecording(isEnabled: true)
+        fixture.identityStore.identity = nil
+        let replacement = fixture.makeStore(
+            ids: [Self.resetDeviceID],
+            dates: [Self.resetRegisteredAt, Self.resetRegisteredAt],
+        )
+        let proposed = try replacement.resolve()
+        #expect(proposed.currentDevice.id != original.currentDevice.id)
+        #expect(proposed.automaticRecordingEnabled == nil)
+        #expect(fixture.identityStore.identity == nil)
+        _ = try replacement.confirmInitialRecording(isEnabled: false)
+        #expect(fixture.identityStore.identity?.deviceID == proposed.currentDevice.id)
+    }
+
+    @Test func identityReplacementKeepsThePreparedImportsOriginalReceiptOwner() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let original = fixture.makeStore()
+        let confirmed = try original.confirmInitialRecording(isEnabled: true)
+        let details = BackupCoordinator.ImportRecoveryDetails(
+            transactionID: UUID(),
+            installationID: confirmed.currentDevice.id,
+            strategy: .replace,
+            summary: BackupCoordinator.ImportSummary(
+                sampleCount: 0,
+                evidenceCount: 0,
+                manualDayCount: 0,
+                dismissedIssueCount: 0,
+                trackedRegionCount: 0,
+                recordingDeviceCount: 0,
+                recordingDeviceRemovalCount: 0,
+            ),
+        )
+        try original.setBackupImportRecovery(.prepared(details))
+        // An older local marker had no separate owner. Bind it to its original sidecar before
+        // rebinding the sidecar itself to a replacement identity.
+        var payload = try #require(JSONSerialization.jsonObject(
+            with: Data(contentsOf: fixture.fileURL),
+        ) as? [String: Any])
+        var recovery = try #require(payload["backupImportRecovery"] as? [String: Any])
+        recovery.removeValue(forKey: "installationID")
+        payload["backupImportRecovery"] = recovery
+        try JSONSerialization.data(withJSONObject: payload).write(to: fixture.fileURL)
+        fixture.identityStore.identity = nil
+        let replacement = fixture.makeStore(
+            ids: [Self.resetDeviceID],
+            dates: [Self.resetRegisteredAt, Self.resetRegisteredAt],
+        )
+        _ = try replacement.confirmInitialRecording(isEnabled: false)
+        let relaunched = fixture.makeStore(ids: [], dates: [])
+        #expect(try relaunched.resolve().currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(relaunched.backupImportRecovery == .prepared(details))
+    }
+
+    @Test func lockedIdentityAllocatesNothingAndRetriesAfterAccessReturns() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let original = try fixture.makeStore().confirmInitialRecording(isEnabled: true)
+        fixture.identityStore.failure = .unavailable
+        let unavailable = fixture.makeStore(ids: [], dates: [])
+        #expect(throws: ScriptedRecordingIdentityStore.Failure.self) { try unavailable.resolve() }
+        #expect(throws: ScriptedRecordingIdentityStore.Failure.self) {
+            try unavailable.onboardingContext
+        }
+        #expect(fixture.identityStore.creationCount == 1)
+        fixture.identityStore.failure = nil
+        #expect(try unavailable.resolve() == original)
+        #expect(fixture.identityStore.creationCount == 1)
+    }
+
+    @Test func ordinaryUpgradeAdoptsLegacySidecarWithoutChangingConsent() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        _ = try store.confirmInitialRecording(isEnabled: true)
+        try store.completeSetup()
+        let original = try store.resolve()
+        var payload = try #require(JSONSerialization
+            .jsonObject(with: Data(contentsOf: fixture.fileURL)) as? [String: Any])
+        payload.removeValue(forKey: "usesKeychainIdentity")
+        payload.removeValue(forKey: "hasCompletedSetup")
+        try JSONSerialization.data(withJSONObject: payload).write(
+            to: fixture.fileURL,
+            options: .atomic,
+        )
+        fixture.identityStore.identity = nil
+        #expect(try fixture.makeStore(ids: [], dates: []).resolve() == original)
+        #expect(fixture.identityStore.identity?.deviceID == original.currentDevice.id)
+        let upgraded = try #require(JSONSerialization
+            .jsonObject(with: Data(contentsOf: fixture.fileURL)) as? [String: Any])
+        #expect(upgraded["usesKeychainIdentity"] as? Bool == true)
+    }
+
+    @Test func setupCompletionSurvivesRelaunchSeparatelyFromConsent() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        _ = try store.confirmInitialRecording(isEnabled: false)
+        let relaunched = fixture.makeStore(ids: [], dates: [])
+        #expect(try relaunched.resolve().automaticRecordingEnabled == false)
+        #expect(try !relaunched.resolve().hasCompletedSetup)
+        try relaunched.completeSetup()
+        #expect(try fixture.makeStore(ids: [], dates: []).resolve().hasCompletedSetup)
+    }
+
+    @Test func interruptedRejoinPreservesImportRecoveryAndUsesTheCommittedIdentity() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        let original = try store.confirmInitialRecording(isEnabled: true)
+        let completion = BackupCoordinator.OnboardingImportCompletion(transactionID: UUID())
+        try store.recordOnboardingImportCompletion(completion)
+        let replacement = InstallationRecordingIdentity(
+            deviceID: .init(rawValue: Self.resetDeviceID),
+            registeredAt: Self.resetRegisteredAt,
+            creation: .rejoin,
+        )
+        try fixture.identityStore.replace(replacement, expectedDeviceID: original.currentDevice.id)
+        let recovered = fixture.makeStore(ids: [], dates: [])
+        let context = try recovered.resolve()
+        #expect(context.currentDevice.id == replacement.deviceID)
+        #expect(context.automaticRecordingEnabled == nil)
+        #expect(context.isRejoining)
+        #expect(recovered.onboardingImportCompletion == completion)
+        #expect(try recovered.rejoin() == context)
+        #expect(fixture.identityStore.replacementCount == 1)
+    }
+
+    @Test func interruptedResetCannotRecoverOldConsentOrImportAuthority() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        let original = try store.confirmInitialRecording(isEnabled: true)
+        try store.recordOnboardingImportCompletion(.init(transactionID: UUID()))
+        let replacement = InstallationRecordingIdentity(
+            deviceID: .init(rawValue: Self.resetDeviceID),
+            registeredAt: Self.resetRegisteredAt,
+            creation: .reset,
+        )
+        try fixture.identityStore.replace(replacement, expectedDeviceID: original.currentDevice.id)
+        let recovered = fixture.makeStore(ids: [], dates: [])
+        #expect(try recovered.resolve().currentDevice.id == replacement.deviceID)
+        #expect(try recovered.resolve().automaticRecordingEnabled == nil)
+        #expect(recovered.onboardingImportCompletion == nil)
+        #expect(fixture.fileExists == false)
+        #expect(try fixture.makeStore(ids: [], dates: []).resolve().currentDevice.id == replacement
+            .deviceID)
+        #expect(fixture.identityStore.replacementCount == 1)
+    }
+
+    @Test func rejoinSidecarFailureRetainsTheCommittedIdentityAcrossRetryAndRelaunch() throws {
+        let fixture = try makeFixture(
+            ids: [Self.deviceID, Self.resetDeviceID],
+            dates: [Self.registeredAt, Self.registeredAt, Self.resetRegisteredAt],
+        )
+        defer { fixture.cleanup() }
+        let fileManager = FailingInstallationSidecarFileManager()
+        let store = fixture.makeStore(fileManager: fileManager)
+        _ = try store.confirmInitialRecording(isEnabled: true)
+        let completion = BackupCoordinator.OnboardingImportCompletion(transactionID: UUID())
+        try store.recordOnboardingImportCompletion(completion)
+        fileManager.failNextWrite()
+
+        #expect(throws: CocoaError.self) { try store.rejoin() }
+
+        #expect(fixture.identityStore.identity?.deviceID.rawValue == Self.resetDeviceID)
+        let relaunched = fixture.makeStore(ids: [], dates: [])
+        let recovered = try relaunched.resolve()
+        #expect(recovered.currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(recovered.automaticRecordingEnabled == nil)
+        #expect(recovered.isRejoining)
+        #expect(relaunched.onboardingImportCompletion == completion)
+        #expect(try store.rejoin() == recovered)
+        #expect(fixture.identityStore.replacementCount == 1)
+    }
+
     @Test func mapsInterfaceIdiomsToRecordingKinds() {
         #expect(FileInstallationRecordingContextStore.kind(for: .phone) == .phone)
         #expect(FileInstallationRecordingContextStore.kind(for: .pad) == .tablet)
@@ -19,9 +215,9 @@ struct InstallationRecordingContextStoreTests {
 
         let store = fixture.makeStore()
 
-        #expect(store.onboardingContext.currentDevice.id.rawValue == Self.deviceID)
-        #expect(store.onboardingContext.registeredAt == Self.registeredAt)
-        #expect(store.onboardingContext.automaticRecordingEnabled == nil)
+        #expect(try store.onboardingContext.currentDevice.id.rawValue == Self.deviceID)
+        #expect(try store.onboardingContext.registeredAt == Self.registeredAt)
+        #expect(try store.onboardingContext.automaticRecordingEnabled == nil)
         #expect(fixture.fileExists == false)
     }
 
@@ -62,7 +258,7 @@ struct InstallationRecordingContextStoreTests {
 
     @Test func latestEnableCutoffSurvivesStoreRecreation() throws {
         let enabledAt = Self.registeredAt.addingTimeInterval(100)
-        let fixture = try makeFixture(dates: [Self.registeredAt, enabledAt])
+        let fixture = try makeFixture(dates: [Self.registeredAt, Self.registeredAt, enabledAt])
         defer { fixture.cleanup() }
         let store = fixture.makeStore()
 
@@ -79,6 +275,7 @@ struct InstallationRecordingContextStoreTests {
         _ = try store.confirmInitialRecording(isEnabled: true)
         let details = try BackupCoordinator.ImportRecoveryDetails(
             transactionID: #require(UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")),
+            installationID: RecordingDeviceID(rawValue: Self.deviceID),
             strategy: .replace,
             summary: BackupCoordinator.ImportSummary(
                 sampleCount: 3,
@@ -104,7 +301,10 @@ struct InstallationRecordingContextStoreTests {
         #expect(fixture.makeStore().backupImportRecovery == committed)
     }
 
-    @Test func completedOnboardingImportRepairsLostPreferenceAfterStoreRecreation() async throws {
+    @Test(arguments: [false, true])
+    func completedOnboardingImportRepairsLostPreferenceAfterStoreRecreation(
+        setupCompleted: Bool,
+    ) async throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
         let installationStore = fixture.makeStore()
@@ -113,6 +313,7 @@ struct InstallationRecordingContextStoreTests {
             transactionID: #require(UUID(
                 uuidString: "11111111-2222-3333-4444-555555555555",
             )),
+            installationID: installationContext.currentDevice.id,
             strategy: .replace,
             summary: BackupCoordinator.ImportSummary(
                 sampleCount: 3,
@@ -143,6 +344,9 @@ struct InstallationRecordingContextStoreTests {
             logSystem: .isolated(),
         )
         acknowledgedModel.completeOnboarding()
+        if setupCompleted {
+            try installationStore.completeSetup()
+        }
 
         try await services.backup.acknowledgeOnboardingImport()
 
@@ -162,9 +366,10 @@ struct InstallationRecordingContextStoreTests {
             logSystem: .isolated(),
         )
 
-        let isNeeded = await OnboardingGate(model: relaunchedModel).isNeeded(())
+        let isNeeded = try await OnboardingGate(model: relaunchedModel)
+            .isNeeded(.installation(relaunchedModel.installationRecordingContext))
 
-        #expect(!isNeeded)
+        #expect(isNeeded == !setupCompleted)
         #expect(relaunchedModel.hasOnboarded)
         #expect(relaunchedStore.backupImportRecovery == nil)
         #expect(relaunchedStore.onboardingImportCompletion?.transactionID == details.transactionID)
@@ -199,8 +404,8 @@ struct InstallationRecordingContextStoreTests {
     @Test func completePendingReplacementWinsOverAnOlderAuthoritativeContext() throws {
         let oldFixture = try makeFixture()
         let newFixture = try makeFixture(
-            ids: [Self.resetDeviceID],
-            dates: [Self.resetRegisteredAt],
+            ids: [Self.deviceID],
+            dates: [Self.registeredAt, Self.registeredAt],
         )
         defer {
             oldFixture.cleanup()
@@ -234,6 +439,7 @@ struct InstallationRecordingContextStoreTests {
             Self.resetDeviceID,
         ], dates: [
             Self.registeredAt,
+            Self.registeredAt,
             Self.resetRegisteredAt,
         ])
         defer { fixture.cleanup() }
@@ -245,15 +451,15 @@ struct InstallationRecordingContextStoreTests {
 
         #expect(fixture.fileExists == false)
         #expect(store.onboardingImportCompletion == nil)
-        #expect(store.onboardingContext.currentDevice.id.rawValue == Self.resetDeviceID)
-        #expect(store.onboardingContext.registeredAt == Self.resetRegisteredAt)
-        #expect(store.onboardingContext.automaticRecordingEnabled == nil)
+        #expect(try store.onboardingContext.currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(try store.onboardingContext.registeredAt == Self.resetRegisteredAt)
+        #expect(try store.onboardingContext.automaticRecordingEnabled == nil)
     }
 
     @Test func rejoinPersistsANewIdentityWithRecordingDefaultedOff() throws {
         let fixture = try makeFixture(
             ids: [Self.deviceID, Self.resetDeviceID],
-            dates: [Self.registeredAt, Self.resetRegisteredAt],
+            dates: [Self.registeredAt, Self.registeredAt, Self.resetRegisteredAt],
         )
         defer { fixture.cleanup() }
         let store = fixture.makeStore()
@@ -275,6 +481,7 @@ struct InstallationRecordingContextStoreTests {
             Self.resetDeviceID,
         ], dates: [
             Self.registeredAt,
+            Self.registeredAt,
             Self.resetRegisteredAt,
         ])
         defer { fixture.cleanup() }
@@ -286,10 +493,9 @@ struct InstallationRecordingContextStoreTests {
             try store.reset()
         }
 
-        let proposedAfterCommit = store.onboardingContext
         #expect(fixture.fileExists == false)
         #expect(fixture.resetPendingExists)
-        #expect(proposedAfterCommit.currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(fixture.identityStore.identity?.deviceID.rawValue == Self.resetDeviceID)
         #expect(throws: WhereServices.ResetCleanupError.self) {
             try store.resolve()
         }
@@ -297,8 +503,8 @@ struct InstallationRecordingContextStoreTests {
         try store.reset()
 
         #expect(fixture.resetPendingExists == false)
-        #expect(try store.resolve() == proposedAfterCommit)
-        #expect(store.onboardingContext.currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(try store.onboardingContext.currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(fixture.identityStore.replacementCount == 1)
     }
 
     private nonisolated static let deviceID = UUID(
@@ -312,7 +518,7 @@ struct InstallationRecordingContextStoreTests {
 
     private func makeFixture(
         ids: [UUID] = [Self.deviceID],
-        dates: [Date] = [Self.registeredAt],
+        dates: [Date] = [Self.registeredAt, Self.registeredAt],
     ) throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "InstallationRecordingContextStoreTests.\(UUID().uuidString)")
@@ -350,7 +556,9 @@ struct InstallationRecordingContextStoreTests {
         }
     }
 
+    @MainActor
     private struct Fixture {
+        let identityStore = ScriptedRecordingIdentityStore()
         let directory: URL
         let fileURL: URL
         let ids: [UUID]
@@ -381,10 +589,13 @@ struct InstallationRecordingContextStoreTests {
         @MainActor
         func makeStore(
             fileManager: FileManager = .default,
+            ids: [UUID]? = nil,
+            dates: [Date]? = nil,
         ) -> FileInstallationRecordingContextStore {
-            let sequence = IDSequence(ids)
-            let clock = DateSequence(dates)
+            let sequence = IDSequence(ids ?? self.ids)
+            let clock = DateSequence(dates ?? self.dates)
             return FileInstallationRecordingContextStore(
+                identityStore: identityStore,
                 fileURL: fileURL,
                 fileManager: fileManager,
                 systemName: "iPhone",

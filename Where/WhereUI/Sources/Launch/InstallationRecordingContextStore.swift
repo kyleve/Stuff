@@ -2,15 +2,13 @@ import Foundation
 import UIKit
 import WhereCore
 
-/// File-backed installation context owned by the app composition root.
+/// Installation context composed from device-only Keychain identity and a local sidecar.
 ///
-/// The sidecar is excluded from backup, so restoring Where onto another device
-/// cannot clone the source installation's identity or recording consent. A new
-/// context stays in memory until onboarding confirms its first choice, which
-/// keeps merely viewing onboarding or entering demo mode free of durable writes.
-/// The sidecar also freezes the timestamp used by the immutable device profile
-/// and retains active import recovery plus terminal onboarding-import authority,
-/// so retries and cold-launch repair are deterministic.
+/// The backup-excluded sidecar owns consent and import recovery. Keychain retains the identity
+/// and profile creation time across same-device reinstalls when its item survives. Confirmed
+/// absence alone permits a new identity; inaccessible storage fails before setup or store open.
+/// New installs write nothing until confirmation. Ordinary updates adopt the existing excluded
+/// sidecar identity once. Reset/rejoin commit their rotation in Keychain before file cleanup.
 @MainActor
 public final class FileInstallationRecordingContextStore:
     InstallationRecordingContextStoring
@@ -18,26 +16,23 @@ public final class FileInstallationRecordingContextStore:
     private static let logger = WhereLog.root(OnboardingViewLog.self)
 
     private enum Resolution {
+        case unresolved
         case resolved(InstallationRecordingContext)
-        case failed(any Error, proposed: InstallationRecordingContext)
-        /// The authoritative directory was atomically retired, but deleting that retired copy
-        /// failed. The new context is the logical result and must not rotate again on retry.
+        case failed(any Error)
+        /// The Keychain rotation committed. Sidecar retirement or deletion still needs cleanup;
+        /// retries must retain the committed replacement identity.
         case resetCleanupRequired(
             WhereServices.ResetCleanupError,
             proposed: InstallationRecordingContext,
         )
 
-        var onboardingContext: InstallationRecordingContext {
-            switch self {
-                case let .resolved(context): context
-                case let .failed(_, proposed), let .resetCleanupRequired(_, proposed): proposed
-            }
-        }
-
         func get() throws -> InstallationRecordingContext {
             switch self {
+                case .unresolved: preconditionFailure(
+                        "Installation context initialization is incomplete.",
+                    )
                 case let .resolved(context): context
-                case let .failed(error, _): throw error
+                case let .failed(error): throw error
                 case let .resetCleanupRequired(error, _): throw error
             }
         }
@@ -88,6 +83,7 @@ public final class FileInstallationRecordingContextStore:
             }
 
             let transactionID: UUID
+            let installationID: RecordingDeviceID?
             let strategy: Strategy
             let summary: Summary
             let phase: Phase
@@ -97,6 +93,7 @@ public final class FileInstallationRecordingContextStore:
             init(_ recovery: BackupCoordinator.DurableImportRecovery) {
                 let details = recovery.details
                 transactionID = details.transactionID
+                installationID = details.installationID
                 strategy = switch details.strategy {
                     case .merge: .merge
                     case .replace: .replace
@@ -114,13 +111,16 @@ public final class FileInstallationRecordingContextStore:
                 }
             }
 
-            var value: BackupCoordinator.DurableImportRecovery {
+            func value(sidecarDeviceID: RecordingDeviceID) -> BackupCoordinator
+                .DurableImportRecovery
+            {
                 let strategy: BackupCoordinator.ImportStrategy = switch strategy {
                     case .merge: .merge
                     case .replace: .replace
                 }
                 let details = BackupCoordinator.ImportRecoveryDetails(
                     transactionID: transactionID,
+                    installationID: installationID ?? sidecarDeviceID,
                     strategy: strategy,
                     summary: summary.value,
                 )
@@ -135,6 +135,8 @@ public final class FileInstallationRecordingContextStore:
             }
         }
 
+        let usesKeychainIdentity: Bool?
+        let hasCompletedSetup: Bool?
         let deviceID: UUID
         let systemName: String
         let kind: RecordingDeviceKind
@@ -146,6 +148,8 @@ public final class FileInstallationRecordingContextStore:
         let onboardingImportCompletionID: UUID?
 
         enum CodingKeys: String, CodingKey {
+            case usesKeychainIdentity
+            case hasCompletedSetup
             case deviceID
             case systemName
             case kind
@@ -162,6 +166,8 @@ public final class FileInstallationRecordingContextStore:
             backupImportRecovery: BackupCoordinator.DurableImportRecovery?,
             onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?,
         ) {
+            usesKeychainIdentity = true
+            hasCompletedSetup = context.hasCompletedSetup
             deviceID = context.currentDevice.id.rawValue
             systemName = context.currentDevice.systemName
             kind = context.currentDevice.kind
@@ -174,12 +180,15 @@ public final class FileInstallationRecordingContextStore:
         }
 
         var value: InstallationRecordingContext {
+            let setup: InstallationRecordingContext
+                .SetupCompletion = hasCompletedSetup == false ? .pending : .complete
             let recordingChoice: InstallationRecordingContext.RecordingChoice =
                 switch automaticRecordingEnabled {
                     case nil: .unconfirmed
-                    case false?: .off
+                    case false?: .off(setup: setup)
                     case true?: .on(
                             enabledAt: recordingEnabledAt ?? registeredAt,
+                            setup: setup,
                         )
                 }
             return InstallationRecordingContext(
@@ -196,6 +205,7 @@ public final class FileInstallationRecordingContextStore:
     }
 
     private struct LoadedContext {
+        let usesKeychainIdentity: Bool
         let context: InstallationRecordingContext
         let backupImportRecovery: BackupCoordinator.DurableImportRecovery?
         let onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?
@@ -210,6 +220,9 @@ public final class FileInstallationRecordingContextStore:
     private static let directoryName = "RecordingInstallationContext"
     private static let fileName = "context.json"
 
+    private let identityStore: any RecordingIdentityStoring
+    private let configurationFailure: (any Error)?
+    private var loadedIdentity: InstallationRecordingIdentity?
     private let fileURL: URL
     private let fileManager: FileManager
     private let systemName: String
@@ -225,6 +238,11 @@ public final class FileInstallationRecordingContextStore:
     /// hardware without persisting the user-assigned device name.
     public convenience init() {
         let device = UIDevice.current
+        guard let bundleID = Bundle.main.bundleIdentifier else {
+            preconditionFailure("The app must provide its bundle identity for Keychain storage.")
+        }
+        let identityStore =
+            KeychainRecordingIdentityStore(service: bundleID + ".recording-identity")
         let directory: URL
         do {
             directory = try FileManager.default.url(
@@ -237,6 +255,7 @@ public final class FileInstallationRecordingContextStore:
             // Preserve the exact resolution failure so onboarding can render
             // and the launch can surface it when the user tries to continue.
             self.init(
+                identityStore: identityStore,
                 fileURL: URL(filePath: "/invalid/recording-installation-context.json"),
                 fileManager: .default,
                 systemName: device.model,
@@ -248,6 +267,7 @@ public final class FileInstallationRecordingContextStore:
             return
         }
         self.init(
+            identityStore: identityStore,
             fileURL: directory
                 .appending(path: Self.directoryName, directoryHint: .isDirectory)
                 .appending(path: Self.fileName),
@@ -262,6 +282,7 @@ public final class FileInstallationRecordingContextStore:
     /// Explicit-dependency initializer for tests and alternate composition.
     @_spi(Testing)
     public convenience init(
+        identityStore: any RecordingIdentityStoring,
         fileURL: URL,
         fileManager: FileManager,
         systemName: String,
@@ -270,6 +291,7 @@ public final class FileInstallationRecordingContextStore:
         now: @escaping @MainActor () -> Date,
     ) {
         self.init(
+            identityStore: identityStore,
             fileURL: fileURL,
             fileManager: fileManager,
             systemName: systemName,
@@ -281,6 +303,7 @@ public final class FileInstallationRecordingContextStore:
     }
 
     private init(
+        identityStore: any RecordingIdentityStoring,
         fileURL: URL,
         fileManager: FileManager,
         systemName: String,
@@ -289,6 +312,9 @@ public final class FileInstallationRecordingContextStore:
         now: @escaping @MainActor () -> Date,
         initialFailure: (any Error)?,
     ) {
+        self.identityStore = identityStore
+        configurationFailure = initialFailure
+        loadedIdentity = nil
         self.fileURL = fileURL
         self.fileManager = fileManager
         self.systemName = systemName
@@ -298,56 +324,30 @@ public final class FileInstallationRecordingContextStore:
         backupImportRecovery = nil
         onboardingImportCompletion = nil
 
-        let proposed = Self.proposedContext(
-            systemName: systemName,
-            kind: kind,
-            id: makeUUID(),
-            registeredAt: now(),
-            isRejoining: false,
-        )
-        if let initialFailure {
-            resolution = .failed(initialFailure, proposed: proposed)
-        } else {
-            do {
-                try Self.finishInterruptedReset(
-                    for: fileURL,
-                    fileManager: fileManager,
-                )
-                let loaded = try Self.load(from: fileURL, fileManager: fileManager)
-                resolution = .resolved(loaded?.context ?? proposed)
-                backupImportRecovery = loaded?.backupImportRecovery
-                onboardingImportCompletion = loaded?.onboardingImportCompletion
-            } catch {
-                let resetPendingURL = Self.resetPendingURL(for: fileURL)
-                if fileManager.fileExists(
-                    atPath: resetPendingURL.path(percentEncoded: false),
-                ) {
-                    resolution = .resetCleanupRequired(
-                        WhereServices.ResetCleanupError(underlying: error),
-                        proposed: proposed,
-                    )
-                } else {
-                    resolution = .failed(error, proposed: proposed)
-                }
-            }
-        }
+        resolution = .unresolved
+        do { try reload() }
+        catch { recordFailure(error) }
     }
 
     public var onboardingContext: InstallationRecordingContext {
-        resolution.onboardingContext
+        get throws { try resolve() }
     }
 
     public func resolve() throws -> InstallationRecordingContext {
-        try resolution.get()
+        if case .failed = resolution {
+            do { try reload() }
+            catch { recordFailure(error) }
+        }
+        return try resolution.get()
     }
 
     public func confirmInitialRecording(
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
-        let context = try resolution.get()
+        let context = try resolve()
         if context.automaticRecordingEnabled != nil { return context }
 
-        let confirmed = context.confirmingInitialRecording(isEnabled: isEnabled)
+        let confirmed = context.confirmingInitialRecording(isEnabled: isEnabled, at: now())
         try persist(
             confirmed,
             backupImportRecovery: backupImportRecovery,
@@ -358,7 +358,7 @@ public final class FileInstallationRecordingContextStore:
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        let updated = try resolution.get().settingAutomaticRecordingEnabled(isEnabled, at: now())
+        let updated = try resolve().settingAutomaticRecordingEnabled(isEnabled, at: now())
         try persist(
             updated,
             backupImportRecovery: backupImportRecovery,
@@ -367,27 +367,39 @@ public final class FileInstallationRecordingContextStore:
         resolution = .resolved(updated)
     }
 
-    public func rejoin() throws -> InstallationRecordingContext {
-        let proposed = Self.proposedContext(
-            systemName: systemName,
-            kind: kind,
-            id: makeUUID(),
-            registeredAt: now(),
-            isRejoining: true,
-        )
+    public func completeSetup() throws {
+        let completed = try resolve().completingSetup()
         try persist(
-            proposed,
+            completed,
             backupImportRecovery: backupImportRecovery,
             onboardingImportCompletion: onboardingImportCompletion,
         )
-        resolution = .resolved(proposed)
-        return proposed
+        resolution = .resolved(completed)
+    }
+
+    public func rejoin() throws -> InstallationRecordingContext {
+        let current = try resolve()
+        if current.isRejoining, current.automaticRecordingEnabled == nil { return current }
+        let identity = try rotateIdentity(creation: .rejoin)
+        let proposed = context(for: identity, isRejoining: true)
+        do {
+            try persist(
+                proposed,
+                backupImportRecovery: backupImportRecovery,
+                onboardingImportCompletion: onboardingImportCompletion,
+            )
+            resolution = .resolved(proposed)
+            return proposed
+        } catch {
+            recordFailure(error)
+            throw error
+        }
     }
 
     public func setBackupImportRecovery(
         _ recovery: BackupCoordinator.DurableImportRecovery?,
     ) throws {
-        let context = try resolution.get()
+        let context = try resolve()
         try persist(
             context,
             backupImportRecovery: recovery,
@@ -399,7 +411,7 @@ public final class FileInstallationRecordingContextStore:
     public func recordOnboardingImportCompletion(
         _ completion: BackupCoordinator.OnboardingImportCompletion,
     ) throws {
-        let context = try resolution.get()
+        let context = try resolve()
         try persist(
             context,
             backupImportRecovery: backupImportRecovery,
@@ -409,62 +421,146 @@ public final class FileInstallationRecordingContextStore:
     }
 
     public func reset() throws {
-        let directoryURL = fileURL.deletingLastPathComponent()
-        let resetPendingURL = Self.resetPendingURL(for: fileURL)
         let proposed: InstallationRecordingContext
-        let wasAlreadyCommitted: Bool
         switch resolution {
-            case let .resetCleanupRequired(_, pending):
-                proposed = pending
-                wasAlreadyCommitted = true
+            case let .resetCleanupRequired(_, pending): proposed = pending
+            case .unresolved: preconditionFailure(
+                    "Installation context initialization is incomplete.",
+                )
             case .resolved, .failed:
-                proposed = Self.proposedContext(
+                _ = try resolve()
+                proposed = try context(for: rotateIdentity(creation: .reset), isRejoining: false)
+        }
+        try clearSidecar(replacement: proposed)
+    }
+
+    private func clearSidecar(replacement: InstallationRecordingContext) throws {
+        let directoryURL = fileURL.deletingLastPathComponent()
+        let pendingURL = Self.resetPendingURL(for: fileURL)
+        backupImportRecovery = nil
+        onboardingImportCompletion = nil
+        do {
+            if fileManager.fileExists(atPath: pendingURL.path(percentEncoded: false)) {
+                try fileManager.removeItem(at: pendingURL)
+            }
+            if fileManager.fileExists(atPath: directoryURL.path(percentEncoded: false)) {
+                try fileManager.moveItem(at: directoryURL, to: pendingURL)
+                try fileManager.removeItem(at: pendingURL)
+            }
+            resolution = .resolved(replacement)
+        } catch {
+            let error = WhereServices.ResetCleanupError(underlying: error)
+            resolution = .resetCleanupRequired(error, proposed: replacement)
+            throw error
+        }
+    }
+
+    private func context(for identity: InstallationRecordingIdentity, isRejoining: Bool)
+        -> InstallationRecordingContext
+    {
+        Self.proposedContext(
+            systemName: systemName,
+            kind: kind,
+            id: identity.deviceID.rawValue,
+            registeredAt: identity.registeredAt,
+            isRejoining: isRejoining,
+        )
+    }
+
+    private func reload() throws {
+        if let configurationFailure { throw configurationFailure }
+        // Identity failure precedes file recovery and UUID allocation. Absence alone authorizes
+        // proposing a new identity; a locked or corrupt Keychain never takes that path.
+        loadedIdentity = try identityStore.load()
+        do { try Self.finishInterruptedReset(for: fileURL, fileManager: fileManager) }
+        catch { throw WhereServices.ResetCleanupError(underlying: error) }
+        let loaded = try Self.load(from: fileURL, fileManager: fileManager)
+        backupImportRecovery = loaded?.backupImportRecovery
+        onboardingImportCompletion = loaded?.onboardingImportCompletion
+        let sidecar: RecordingIdentityRecoveryPolicy.Sidecar = if let loaded {
+            loaded.usesKeychainIdentity ? .keychainBound(loaded.context) : .legacy(loaded.context)
+        } else {
+            .absent
+        }
+        switch try RecordingIdentityRecoveryPolicy.resolve(
+            identity: loadedIdentity,
+            sidecar: sidecar,
+        ) {
+            case .newIdentity:
+                resolution = .resolved(Self.proposedContext(
                     systemName: systemName,
                     kind: kind,
                     id: makeUUID(),
                     registeredAt: now(),
                     isRejoining: false,
+                ))
+            case let .adoptLegacy(context):
+                try persist(
+                    context,
+                    backupImportRecovery: backupImportRecovery,
+                    onboardingImportCompletion: onboardingImportCompletion,
                 )
-                wasAlreadyCommitted = false
+                resolution = .resolved(context)
+            case let .reuse(identity, confirmedContext):
+                let context = confirmedContext ?? context(
+                    for: identity,
+                    isRejoining: loaded != nil &&
+                        identity.creation == .rejoin,
+                )
+                if let loaded, !loaded.usesKeychainIdentity || loaded.context != context {
+                    try persist(
+                        context,
+                        backupImportRecovery: backupImportRecovery,
+                        onboardingImportCompletion: onboardingImportCompletion,
+                    )
+                }
+                resolution = .resolved(context)
+            case let .finishReset(identity):
+                try clearSidecar(replacement: context(for: identity, isRejoining: false))
         }
+    }
 
-        if fileManager.fileExists(atPath: resetPendingURL.path(percentEncoded: false)) {
-            do {
-                try fileManager.removeItem(at: resetPendingURL)
-            } catch {
-                let cleanupError = WhereServices.ResetCleanupError(underlying: error)
-                resolution = .resetCleanupRequired(cleanupError, proposed: proposed)
-                throw cleanupError
-            }
-            if wasAlreadyCommitted {
-                backupImportRecovery = nil
-                onboardingImportCompletion = nil
-                resolution = .resolved(proposed)
-                return
-            }
-        }
+    private func recordFailure(_ error: any Error) {
+        if case .resetCleanupRequired = resolution { return }
+        resolution = .failed(error)
+    }
 
-        guard fileManager.fileExists(atPath: directoryURL.path(percentEncoded: false)) else {
-            backupImportRecovery = nil
-            onboardingImportCompletion = nil
-            resolution = .resolved(proposed)
-            return
-        }
+    private enum IdentityError: Error { case changed }
 
-        // Renaming inside Application Support is the commit point: either the old authoritative
-        // directory still exists, or it has the reset-pending name and can never be loaded as a
-        // live installation again. Deleting the retired copy is retryable cleanup after that.
-        try fileManager.moveItem(at: directoryURL, to: resetPendingURL)
-        backupImportRecovery = nil
-        onboardingImportCompletion = nil
-        do {
-            try fileManager.removeItem(at: resetPendingURL)
-        } catch {
-            let cleanupError = WhereServices.ResetCleanupError(underlying: error)
-            resolution = .resetCleanupRequired(cleanupError, proposed: proposed)
-            throw cleanupError
+    private func ensureIdentity(for context: InstallationRecordingContext) throws {
+        if let loadedIdentity {
+            guard loadedIdentity.deviceID == context.currentDevice.id,
+                  try identityStore.load() == loadedIdentity
+            else { throw IdentityError.changed }
+        } else {
+            let identity = InstallationRecordingIdentity(
+                deviceID: context.currentDevice.id,
+                registeredAt: context.registeredAt,
+                creation: context
+                    .isRejoining ? .rejoin : .initial,
+            )
+            try identityStore.create(identity)
+            loadedIdentity = identity
         }
-        resolution = .resolved(proposed)
+    }
+
+    private func rotateIdentity(creation: InstallationRecordingIdentity.Creation) throws
+        -> InstallationRecordingIdentity
+    {
+        if let loadedIdentity,
+           try identityStore.load() != loadedIdentity { throw IdentityError.changed }
+        let identity = InstallationRecordingIdentity(
+            deviceID: RecordingDeviceID(rawValue: makeUUID()),
+            registeredAt: now(),
+            creation: creation,
+        )
+        if let loadedIdentity {
+            try identityStore.replace(identity, expectedDeviceID: loadedIdentity.deviceID)
+        } else {
+            try identityStore.create(identity)
+        }
+        loadedIdentity = identity
+        return identity
     }
 
     /// Hardware-family mapping kept at the UIKit composition boundary.
@@ -618,8 +714,11 @@ public final class FileInstallationRecordingContextStore:
             from: Data(contentsOf: fileURL),
         )
         return LoadedContext(
+            usesKeychainIdentity: stored.usesKeychainIdentity == true,
             context: stored.value,
-            backupImportRecovery: stored.backupImportRecovery?.value,
+            backupImportRecovery: stored.backupImportRecovery?.value(
+                sidecarDeviceID: RecordingDeviceID(rawValue: stored.deviceID),
+            ),
             onboardingImportCompletion: stored.onboardingImportCompletionID.map {
                 BackupCoordinator.OnboardingImportCompletion(transactionID: $0)
             },
@@ -631,6 +730,7 @@ public final class FileInstallationRecordingContextStore:
         backupImportRecovery: BackupCoordinator.DurableImportRecovery?,
         onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?,
     ) throws {
+        try ensureIdentity(for: context)
         let directoryURL = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(
             at: directoryURL,

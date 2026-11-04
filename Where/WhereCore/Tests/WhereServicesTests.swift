@@ -923,7 +923,7 @@ struct WhereServicesTests {
         let oldContext = InstallationRecordingContext(
             currentDevice: oldDevice,
             registeredAt: resetAt.addingTimeInterval(-100),
-            recordingChoice: .on(enabledAt: resetAt.addingTimeInterval(-100)),
+            recordingChoice: .on(enabledAt: resetAt.addingTimeInterval(-100), setup: .complete),
             isRejoining: false,
         )
 

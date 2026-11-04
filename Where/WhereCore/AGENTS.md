@@ -169,6 +169,12 @@ That document also owns the implementation plan.
   timelines, excluding non-restorable check-ins.
 - Keep historical device-name lookups inclusive of removed profiles.
   Use the latest saved nickname or the profile's hardware name.
+- Keep recording identity in a nonsynchronizing `AfterFirstUnlockThisDeviceOnly` Keychain item.
+  Only `errSecItemNotFound` means absence. Rotate with an expected-identity check.
+  Keep consent outside Keychain and require renewed consent when its sidecar is absent.
+  Guards: `KeychainRecordingIdentityStoreTests`, `RecordingIdentityRecoveryPolicyTests`.
+- Preserve an import recovery marker's original `installationID` through identity changes.
+  Query and delete its receipt with that owner. Guard: `BackupCoordinatorTests.preparedImportKeepsItsOriginalReceiptOwnerAfterIdentityReplacement`.
 - **Journal complete `LocationOutbox` snapshots through `JournalKit`.** Stamp
   every entry with its authorizing data generation. Never replay it into
   another generation. Keep the directory excluded from device backups. Make a

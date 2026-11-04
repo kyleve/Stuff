@@ -9,6 +9,18 @@ import WhereCore
 /// scope and onboarding lifecycle intents.
 @MainActor
 final class OnboardingImportRecoveryModel {
+    enum PreflightOutcome: Equatable {
+        case noPendingImport
+        case rolledBack
+        case committed
+    }
+
+    enum GateOutcome: Equatable {
+        case needsOnboarding
+        case recovered
+        case failed
+    }
+
     private let installationContextStore: any InstallationRecordingContextStoring
     private var interruptedImportError: (any Error)?
 
@@ -33,18 +45,20 @@ final class OnboardingImportRecoveryModel {
     func preflightPendingImport(
         in scope: WhereScope,
         completeOnboarding: () -> Void,
-    ) async throws {
-        guard hasInterruptedImport else { return }
+    ) async throws -> PreflightOutcome {
+        guard hasInterruptedImport else { return .noPendingImport }
         switch try await scope.services.backup.importRecoveryState() {
             case .ready:
-                return
+                return .rolledBack
             case .cleanupRequired:
                 completeOnboarding()
                 try await scope.services.backup.acknowledgeOnboardingImport()
                 try await scope.services.backup.retryImportCleanup()
+                return .committed
             case .onboardingAcknowledgementRequired:
                 completeOnboarding()
                 try await scope.services.backup.acknowledgeOnboardingImport()
+                return .committed
         }
     }
 
@@ -53,29 +67,29 @@ final class OnboardingImportRecoveryModel {
         resolveScope: () async throws -> WhereScope,
         endSession: () async -> Void,
         completeOnboarding: () -> Void,
-    ) async -> Bool {
+    ) async -> GateOutcome {
         guard hasInterruptedImport else {
-            return requiresOnboarding
+            return requiresOnboarding ? .needsOnboarding : .recovered
         }
         do {
             let scope = try await resolveScope()
             switch try await scope.services.backup.importRecoveryState() {
                 case .ready:
                     await endSession()
-                    return true
+                    return .needsOnboarding
                 case .cleanupRequired:
                     completeOnboarding()
                     try await scope.services.backup.acknowledgeOnboardingImport()
                     try await scope.services.backup.retryImportCleanup()
-                    return false
+                    return .recovered
                 case .onboardingAcknowledgementRequired:
                     completeOnboarding()
                     try await scope.services.backup.acknowledgeOnboardingImport()
-                    return false
+                    return .recovered
             }
         } catch {
             interruptedImportError = error
-            return false
+            return .failed
         }
     }
 

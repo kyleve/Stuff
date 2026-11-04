@@ -83,7 +83,7 @@ struct DevicesSettingsModelTests {
                 kind: .phone,
             ),
             registeredAt: Self.date,
-            recordingChoice: .on(enabledAt: Self.date),
+            recordingChoice: .on(enabledAt: Self.date, setup: .complete),
             isRejoining: false,
         )
         let services = WhereServices(

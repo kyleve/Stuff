@@ -5,15 +5,15 @@ import Testing
 
 @MainActor
 struct OnboardingModelTests {
-    @Test func freshInstallationStartsUnonboardedAndUnconfirmed() {
+    @Test func freshInstallationStartsUnonboardedAndUnconfirmed() throws {
         let model = makeModel(
             preferences: makePreferences(),
             contextStore: unconfirmedContextStore(kind: .phone),
         )
 
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
-        #expect(model.installationRecordingContext.recommendedRecordingEnabled)
+        #expect(try model.hasConfirmedRecordingChoice == false)
+        #expect(try model.installationRecordingContext.recommendedRecordingEnabled)
     }
 
     @Test func confirmationPersistsLocalChoiceOutsidePreferences() throws {
@@ -25,13 +25,13 @@ struct OnboardingModelTests {
         model.completeOnboarding()
 
         #expect(model.hasOnboarded)
-        #expect(model.hasConfirmedRecordingChoice)
+        #expect(try model.hasConfirmedRecordingChoice)
         #expect(confirmed.automaticRecordingEnabled == false)
 
         let relaunched = makeModel(preferences: preferences, contextStore: contextStore)
         #expect(relaunched.hasOnboarded)
-        #expect(relaunched.hasConfirmedRecordingChoice)
-        #expect(relaunched.installationRecordingContext == confirmed)
+        #expect(try relaunched.hasConfirmedRecordingChoice)
+        #expect(try relaunched.installationRecordingContext == confirmed)
     }
 
     @Test func retryPersistsAChangedRecordingChoice() throws {
@@ -45,7 +45,7 @@ struct OnboardingModelTests {
         #expect(try contextStore.resolve().automaticRecordingEnabled == false)
     }
 
-    @Test func restoredOnboardingFlagDoesNotConfirmANewInstallation() {
+    @Test func restoredOnboardingFlagDoesNotConfirmANewInstallation() throws {
         let restoredPreferences = makePreferences()
         restoredPreferences.hasOnboarded = true
         let model = makeModel(
@@ -54,8 +54,8 @@ struct OnboardingModelTests {
         )
 
         #expect(model.hasOnboarded)
-        #expect(model.hasConfirmedRecordingChoice == false)
-        #expect(model.installationRecordingContext.recommendedRecordingEnabled == false)
+        #expect(try model.hasConfirmedRecordingChoice == false)
+        #expect(try model.installationRecordingContext.recommendedRecordingEnabled == false)
     }
 
     private func makeModel(
