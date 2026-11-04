@@ -35,6 +35,22 @@ The [decision model](../Specifications/MultiDeviceDecisions/README.md) describes
 These APIs do not change production capture, persistence, reports, or backup formats.
 The remaining integration and activation requirements stay in the primary design.
 
+## Compatibility guard foundation
+
+`CompatibilityScopedStore` binds reads and transactions to one `DataAccessPermit`.
+Revocation is permanent. A fresh scope requires a fresh permit.
+`SwiftDataStore` holds the permit's mutex through the physical save, so retirement cannot cross that save's admission check.
+Calls suspended during retirement reject their result or staged transaction.
+A save that wins before retirement remains durable, even if its caller later receives a revoked-access error.
+
+The scoped store must own the outermost transaction.
+Wrapping only a nested operation cannot guard a raw outer transaction.
+Returned values and external outputs still need publication guards in their owning services.
+The [bounded write model](../Specifications/CompatibilityWrites/README.md) documents these limits and the Swift regression guards.
+
+This foundation does not yet create compatibility scopes in production.
+Account verification, durable major requirements, version admission, scope retirement, and output withdrawal remain in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
+
 ## What you get
 
 `WhereServices` is a small struct of focused collaborators — add behavior to the

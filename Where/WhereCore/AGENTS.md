@@ -51,6 +51,11 @@ That document also owns the implementation plan.
   through `WhereServices`. The separate DEBUG Inspector runtime uses
   `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
   `inspectorStoreURL` as its schema/storage adapter.
+- Keep the compatibility permit around the outermost store transaction.
+  Domain collaborators must receive the scoped wrapper, not its raw base.
+  Keep physical saves and permit revocation under the same mutex.
+  A completed read does not authorize later output publication; retain a separate publication guard.
+  Guard: `SwiftDataStoreTests.revokedScopeCannotCommitASuspendedTransaction`.
 - **Resolve destructive generations as a multi-parent causal DAG.** A rotation
   names every real maximal head. Two unjoined reset heads resolve to a
   deterministic empty UUIDv8 synthetic generation until the next rotation joins

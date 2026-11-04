@@ -970,7 +970,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
-                try peer.save()
+                if let permit = DataAccessPermit.current {
+                    try permit.commitWhileValid { try peer.save() }
+                } else {
+                    try peer.save()
+                }
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
                 // rows is harmless (they are inert), but reporting success would

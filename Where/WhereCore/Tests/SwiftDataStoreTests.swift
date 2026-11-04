@@ -9,6 +9,25 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    @Test func revokedScopeCannotCommitASuspendedTransaction() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let permit = DataAccessPermit()
+        let scoped = CompatibilityScopedStore(base: store, permit: permit)
+        let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
+        let gate = CompatibilityTestGate()
+        let write = Task {
+            try await scoped.perform {
+                try await scoped.restoreHomeRegionRecord(home)
+                await gate.suspend()
+            }
+        }
+        await gate.waitUntilEntered()
+        permit.revoke()
+        await gate.resume()
+        await #expect(throws: DataAccessPermit.AccessError.revoked) { try await write.value }
+        #expect(try await store.homeRegionRecords().isEmpty)
+    }
+
     @Test func planningRowsRoundTripFlexibleWindowsAndRejectPartialPayloads() throws {
         let stay = try PlannedStay(
             id: .init(rawValue: UUID()),

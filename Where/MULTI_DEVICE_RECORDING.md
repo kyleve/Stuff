@@ -916,6 +916,9 @@ The original design PR adds these requirements only.
 The first implementation adds [MultiDeviceDecisions](Specifications/MultiDeviceDecisions/README.md), with one passing model and four negative or reachability controls.
 Its current configuration checks 256 distinct states across two replicas and four fixed operations.
 All five cases pass their expected-result checks. The other model families remain required before activation.
+The compatibility slice also adds the [write-lifetime model](Specifications/CompatibilityWrites/README.md).
+Its passing configuration checks 75 distinct states. Three negative controls and one reachability control pass their expected-result checks.
+This model covers permit revocation and local saves only. It does not validate shared verification, activation, or output publication.
 
 | Model family | Required properties | Owning implementation slices |
 | --- | --- | --- |
@@ -1127,6 +1130,13 @@ Record OS/build versions, operation, before/after identities, consent, and outco
 Simulator CRUD and failure injection do not satisfy this gate.
 
 ### 3. Compatibility gate
+
+**Implemented guard foundation:** scoped reads and transactions use an irrevocable permit.
+The physical SwiftData save and revocation share one mutex.
+A held-transaction regression verifies that retirement discards staged changes before save.
+The [write-lifetime model](Specifications/CompatibilityWrites/README.md) checks this boundary and recovery with a fresh permit.
+These guards are not yet wired into production scope creation.
+The remaining work below includes the live shared-account prototype required before finalizing shared compatibility persistence.
 
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.

@@ -1,0 +1,11 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityWrites.tla",
+  "cases": [
+    {"name": "current", "config": "Current.cfg", "expect": "pass"},
+    {"name": "check-only", "config": "CheckOnly.cfg", "expect": "fail", "outputContains": "Invariant NoStaleCommit is violated."},
+    {"name": "reused-permit", "config": "ReusedPermit.cfg", "expect": "fail", "outputContains": "Invariant OldScopeStaysRevoked is violated."},
+    {"name": "unguarded-read", "config": "UnguardedRead.cfg", "expect": "fail", "outputContains": "Invariant NoStaleRead is violated."},
+    {"name": "suspended-write-recovery", "config": "Reachability.cfg", "expect": "fail", "outputContains": "Invariant SuspendedWriteRecoveryNotReached is violated."}
+  ]
+}
