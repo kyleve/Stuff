@@ -84,6 +84,28 @@ Setup also establishes local recording consent. The replacement choice never tra
 A replacement device can use the explicit shared-data upgrade action described under [Compatibility](#compatibility).
 It does not inherit the old device's recent-contributor status.
 
+### Required attribution and pre-release conversion
+
+Every automatic GPS observation admitted to the replacement model requires a recording-device identity.
+Missing attribution is invalid data that requires repair. It is not another selection category or permission to exclude an observation silently.
+Manual entries and evidence-derived assertions retain their separate source contracts.
+
+Where has not shipped. Existing data follows the established export, offline conversion, and replace-import process before the new contract activates.
+Conversion belongs in `Where/Tools/upgrade-backup.rb`, with a corresponding backup-format change.
+The runtime requires the current shape without an unattributed-GPS fallback or migration during reads.
+Compatibility protection and data repair precede activation of this incompatible contract.
+
+Conversion preserves existing device identities and assigns missing attribution through an explicit mapping to the historical source device.
+It never assumes that the importing phone produced the observations or combines unknown sources into one invented device.
+Incomplete mappings stop conversion without modifying the input archive.
+Conversion preserves sample identities, coordinates, timestamps, accuracy, motion, correction history, and evidence assets.
+Reusing a mapping across archives preserves the same historical device identities.
+
+Export existing data before installing code that rejects its old shape.
+Validate the converted archive through the production backup decoder before replace-import.
+Reject automatic GPS without attribution at admission, including backup import and remote-store reads.
+Preserve invalid persisted evidence for repair and expose the failure instead of publishing apparently complete history.
+
 ## Temporarily ignore a device
 
 The device detail screen includes an **Ignore this device until** row with a `CalendarDay` picker.
@@ -259,7 +281,8 @@ It does not override manual entries, authoritative day overlays, or evidence-der
 It composes with existing per-sample region corrections.
 Geographic attribution retains specific catalog regions where available, before primary-region reporting groups them under Other.
 Explicit assertions of unknown presence retain their meaning. Catalog lookup does not replace them with inferred named regions.
-Legacy samples without a device identity remain available without an invented identity.
+Automatic GPS requires device attribution before history selection.
+Pre-release conversion repairs historical missing attribution before the new data contract activates.
 
 Every consumer uses the same effective history contract.
 Reports, Elsewhere, widgets, reminders, issue scans, exports, and relevant App Intents use the same policy version on a device.
@@ -436,6 +459,9 @@ A sync-completion event alone cannot provide that guarantee.
 | The user changes phones during the day | Permit different selected devices in different periods. |
 | The app updates or relaunches normally | Preserve the installation's identity and local recording consent. |
 | The user imports a backup through merge or replace | Preserve local identity and consent. Retained historical records keep their original provenance. |
+| A historical archive contains GPS without device attribution | Convert it offline with explicit source-device mappings before import. Preserve observations and existing identities. |
+| Conversion lacks a required source-device mapping | Stop conversion without modifying the input. Do not guess a device or accept unattributed GPS. |
+| Unattributed GPS reaches backup import or a remote-store read under the new contract | Expose an admission failure. Preserve the original evidence for repair without silently excluding it or accepting incomplete history. |
 | The user explicitly resets the app | Create a new identity and request recording consent again. Apply the existing data-reset contract. |
 | A removed device rejoins | Create a new identity and request consent again. Keep the previous identity removed. |
 | The user reinstalls Where or restores the same phone | Reuse a surviving valid Keychain identity, or create one through setup if absent. Request recording consent again. |
@@ -507,6 +533,8 @@ Unsafe interpretation cannot produce an effective choice or erase the retained d
 The history-selection model keeps geographic agreement independent of reporting groups.
 Grouping distinct regions under Other cannot turn conflicting tracks into agreement.
 Unresolved geography alone establishes neither agreement nor a device conflict.
+The model assumes that every admitted automatic GPS observation has a recording-device identity.
+Conversion and Swift admission tests must validate this assumption before selection.
 
 The compatibility model includes unknown, verified-existing, and verified-new account states.
 Only verified-new state can authorize account initialization.
@@ -547,12 +575,13 @@ It does not require a wholesale import of the previous stack.
 
 | Existing owner | Reuse boundary |
 | --- | --- |
-| [RecordingDeviceID](WhereCore/Sources/Devices/RecordingDeviceID.swift) and [LocationSample](WhereCore/Sources/Location/LocationSample.swift) | Installation identity and automatic-sample provenance already exist. |
+| [RecordingDeviceID](WhereCore/Sources/Devices/RecordingDeviceID.swift) and [LocationSample](WhereCore/Sources/Location/LocationSample.swift) | Installation identity and automatic-sample provenance already exist. The current sample shape still permits missing GPS attribution. |
 | [DeviceRecordingController](WhereCore/Sources/Devices/DeviceRecordingController.swift) | Local consent and device lifecycle already operate without exclusive ownership. |
 | [LocationIngestor](WhereCore/Sources/Location/LocationIngestor.swift) and [LocationOutbox](WhereCore/Sources/Location/LocationOutbox.swift) | Capture stamps provenance and retains accepted writes across persistence failures. |
 | [LocationHistoryReader](WhereCore/Sources/Devices/LocationHistoryReader.swift) | The shared read boundary already applies device removals and region corrections. |
 | [LocationHistoryReaderTests](WhereCore/Tests/LocationHistoryReaderTests.swift) | Existing guards preserve raw observations while applying corrections and removal cutoffs. |
 | [ElsewhereResolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) and its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) | Existing catalog lookup expands ordinary Other observations for presentation. Reuse that lookup in shared geographic assessment before selection and report grouping. |
+| [Backup upgrader](Tools/upgrade-backup.rb) and its [regression tests](Tools/Tests/upgrade_backup_test.rb) | Existing offline conversion preserves archives but currently adds nil device attribution when absent. Required attribution needs a new conversion step and guards. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
 | [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
@@ -591,6 +620,7 @@ Each slice receives its own tests and PR.
 ### 1. Evidence assessment and causal decisions
 
 Define bounded periods, accuracy-aware movement evidence, stationary evidence, and uncertainty around sparse observations.
+Require recording-device identity in the automatic GPS inputs to the new resolver.
 Model regular homes and temporary bases as optional evidence with historical validity.
 Use the required scenarios as executable fixtures.
 Preserve same-region agreement and separate device trajectories.
@@ -630,6 +660,12 @@ Exercise foreground and background consumers.
 ### 4. Durable choices, device controls, and places
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
+Require device attribution for automatic GPS in the new stored-data contract.
+Bump the backup format and extend the offline upgrader with explicit historical source-device mappings.
+Preserve existing identities and raw observation fields during conversion.
+Cover repeat conversion across archives, missing mappings, and rejection of unattributed GPS at admission.
+Validate converted archives through the production backup decoder and preserve local identity and consent during replace-import.
+Complete historical data repair and compatibility protection before activating the required-attribution contract.
 Implement causal context, durable reversal, and concurrent-choice behavior.
 Persist authoring data-semantics versions and validate them before applying decisions.
 Retain decisions that lack a safe interpretation and expose their affected history for review.
@@ -698,7 +734,7 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-R5 and R7 remain the prioritized review findings, followed by E1–E5.
+R5 remains the prioritized review finding, followed by E1–E5.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
@@ -711,25 +747,6 @@ A December conflict can disappear from reminders in January if the new flow reta
 See the [current issue-alert reconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift).
 Proposal: preserve historical year context in issue discovery, notification queues, and review lookup.
 Add a year-boundary acceptance scenario.
-
-### R7. P2 — Define source selection for unattributed GPS
-
-Legacy GPS observations have no recording-device identity, but the plan does not define their eligibility during source selection.
-The [current removal filter](WhereCore/Sources/Devices/RecordingDeviceRemovalFilter.swift) preserves these observations.
-Its [regression test](WhereCore/Tests/RecordingDeviceRemovalFilterTests.swift) explicitly requires unattributed GPS to remain visible.
-
-Example: an older backup adds unattributed New York GPS inside a gap in an explicit Duo selection for a California trip.
-Passing those observations through device selection adds unwanted presence inside an exclusive period.
-Discarding all unattributed GPS instead removes legacy-only history from reports.
-
-Proposal for v1: preserve unattributed observations in automatic history and lossless backups.
-A named-device selection admits only that device's GPS within its period, including during gaps.
-Unattributed GPS never bypasses that explicit selection.
-In automatic periods, geographic agreement follows the same region rules.
-Competing unattributed observations retain unknown provenance and require review when the evidence cannot resolve them safely.
-No rule assumes that all unattributed observations came from one physical device.
-
-Add mixed-provenance, legacy-only, and late-backup-import acceptance scenarios.
 
 ### E1. Ignore intervals versus explicit source choices
 
