@@ -253,7 +253,7 @@ The [sample-correction coordinator](WhereCore/Sources/DataResolution/SampleCorre
 This transaction protects local state. It cannot establish knowledge of unreceived changes on other devices.
 In a permitted account scope, Save confirms durable local storage. Normal CloudKit mirroring handles synchronization.
 The save operation adds no separate online-confirmation requirement or pending-approval state.
-[Offline compatibility](#offline-compatibility) defines version admission and the remaining access rules before activation.
+[Offline compatibility](#offline-compatibility) defines cached access, version admission, and the update gate.
 
 ### Evening reminders and guided review
 
@@ -520,7 +520,7 @@ Initialization must handle simultaneous setup on multiple devices.
 A concurrent initializer adopts the established shared account state instead of overwriting it with its preferred major.
 Incomplete or failed verification remains unknown and preserves any previously observed required major.
 The implementation defines the shared evidence and guarded creation protocol before activation.
-The separate offline policy determines capture and read access while verification is unavailable.
+The offline policy permits continued access only through valid cached verification for the same account and store.
 
 ### Major upgrades and access
 
@@ -555,6 +555,33 @@ The recent-contributor rule prevents incidental automatic major upgrades from un
 A legitimate major upgrade can still require updates on other active devices because the compatibility boundary applies to the account.
 No device needs exclusive recording ownership to perform an upgrade.
 
+#### Local notification when an update is required
+
+When this phone detects an unsupported required major, request a local update notification without waiting for the evening reminder.
+An incompatible incoming record also triggers the gate when its version establishes the unsupported contract.
+Use **Update Where to continue** as the title.
+The notification opens the update screen, which offers the appropriate update destination for the installed build.
+If recording was active, the message explains that recording on this phone is paused until an update restores compatible access.
+The message must not claim that recording stopped when the user already had it off.
+
+This operational alert is separate from the evening reminder preferences and schedule.
+Use one owned notification request and local tracking to suppress repeated alerts during the same incompatible state, including across relaunch.
+Do not schedule a repeating alert. Repeated checks must not produce a notification storm.
+Notification handling remains available after the shared-data scope retires and does not read incompatible history.
+
+Delivery depends on existing system notification permission and settings.
+If permission is unavailable or scheduling fails, keep the update gate visible and expose the notification limitation.
+Do not delay the gate or request permission from a background callback.
+The unsent alert remains eligible for retry while the gate stays active. Successful scheduling does not prove delivery.
+
+The app can notify only after this device learns about the incompatibility and can run the scheduling code.
+It cannot promise immediate warning on an offline or suspended phone.
+Apple documents the permission and delivery behavior under [notification permission](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications) and [local scheduling](https://developer.apple.com/documentation/usernotifications/scheduling-a-notification-locally-from-your-app).
+
+After compatible access resumes, remove the owned pending or delivered update alert and clear its suppression state.
+Changing accounts also clears the old account's notification without authorizing access to the new account.
+Revalidate the current gate when the user opens an old notification.
+
 ### Offline compatibility
 
 The first version uses guarded local saves and the existing automatic CloudKit mirroring path for shared choices.
@@ -563,9 +590,31 @@ The UI reports observable sync activity without a separate per-choice approval w
 The first version adds no offline-draft store or server-confirmed decision-publication protocol.
 Future versions can add stronger confirmation at the save boundary because review proposals remain separate values.
 
-On observing an unsupported required major, the client rejects further shared edits and requires an app update.
-It preserves previously saved observations and decisions.
-The client does not continue editing with an older resolver under the unsupported major.
+Successful verification permits offline access for the same account and store while the app supports every known compatibility requirement.
+The cached permission has no time-based expiry solely because the phone remains offline.
+It does not authorize account initialization, a major upgrade, or a different account or store.
+The client retains the highest observed required major across failures, relaunch, and backup import.
+A failed server refresh does not by itself establish that the account changed.
+
+| Local knowledge | Access policy |
+| --- | --- |
+| Compatible account and store with valid cached verification | Continue locally consented recording, cached history reads, and guarded local saves while offline. |
+| A refresh fails for that same verified account and store | Retain cached access and show sync uncertainty. Do not treat the failure as an update requirement. |
+| No valid verification exists, or the account/store identity changes or cannot be established | Require successful verification before activating recording or shared-data access. Expose retry without initializing from local emptiness. |
+| An unsupported major becomes known | Retire the shared-data scope, stop automatic capture, reject further shared edits, and withdraw misleading output. Require an app update. |
+| A compatible app satisfies the ordinary activation checks after the gate | Create a fresh scope and permit. Resume only the recording allowed by local consent and system permissions. |
+
+A known incompatible requirement immediately revokes cached access. A stale response or lower cached major cannot restore it.
+The first version captures no new raw observations while this gate is active and adds no separate buffer for them.
+This can leave a recording gap until the user updates. The gate and update notification explain that consequence.
+The pause preserves local recording consent, stored observations, decisions, and already accepted durable retry data.
+It must not use a recording-off or reset path that discards that evidence.
+
+Resumption requires compatible admission of retained data and a fresh scope, not merely dismissal of the notification.
+Recovery never replays retained retry data into another account.
+
+Cancel pending history reminders and summaries owned by the retired scope, and withdraw its widget output.
+Keep the update notification and update screen available independently of that scope.
 Minor and patch differences retain their agreed compatibility behavior.
 
 Readers validate a decision's authoring semantics before applying it.
@@ -582,11 +631,28 @@ Causal metadata cannot notify an offline older app about a major upgrade on anot
 Pending exports can arrive before the app observes the new required major.
 The protocol handles those records through version admission rather than assuming that application code can gate every export.
 
-Offline access remains an activation prerequisite.
-Define when cached verification permits capture, reads, and shared edits, including expiry and recovery after verification failure.
-Define the synchronization point for major activation and handling of independently arriving metadata and records.
-The rollout must establish compatibility-aware clients before activating data that older clients cannot safely interpret.
-A sync-completion event alone cannot provide that guarantee.
+The current [SwiftData store](WhereCore/Sources/Persistence/SwiftDataStore.swift) uses automatic CloudKit mirroring.
+Apple documents separate local saves, exports, and imports in [TN3163](https://developer.apple.com/documentation/technotes/tn3163-understanding-the-synchronization-of-nspersistentcloudkitcontainer).
+A connection check followed by a local save does not order that write against a concurrent major upgrade.
+
+### Major activation and rollout
+
+Major activation requires online account verification and a guarded, server-confirmed advance of the shared required major before incompatible behavior starts.
+An offline cache or a local compatibility-record save cannot authorize activation.
+This confirmation applies to the major upgrade, while ordinary decisions retain their guarded local-save contract.
+If confirmation fails or its outcome is uncertain, reverify shared state before retrying activation. Never assume that the server rolled back.
+
+Metadata and incompatible records can reach another device in either order.
+Readers must identify an unsupported contract before interpreting its payload, even when the required-major record arrives later.
+Either observation enters the same gate. An incompatible record never becomes a compatible default or apparently complete history.
+Version admission also covers late observations and decisions authored before an offline client learns about the upgrade.
+Each major defines their preservation, safe conversion, or explicit repair before activation.
+
+The initial rollout establishes compatibility-aware readers and the required pre-release data conversion before exposing incompatible data.
+Pre-foundation clients must upgrade or be excluded from the replacement dataset through the rollout procedure.
+A sync-completion event or an advisory device check-in cannot establish this condition.
+Define the guarded server operation, record version representation, and rollout procedure in the compatibility slice before incompatible writes ship.
+The formal models must check both delivery orders and the actual store boundaries.
 
 ## Required scenarios
 
@@ -670,7 +736,18 @@ A sync-completion event alone cannot provide that guarantee.
 | An unrelated import leaves the reviewed inputs unchanged | Permit the valid choice without another user review after transaction revalidation. |
 | An incompatible decision arrives after the local commit | Preserve its causal relationship to the reviewed decision set. Retain concurrent choices for resolution instead of silently replacing them. |
 | A permitted account scope saves a choice while offline | Commit the guarded local write and use normal mirroring. Do not claim server acceptance. |
-| An older client observes an unsupported required major | Require an app update and reject further shared edits. Preserve previously saved observations and decisions. |
+| A verified compatible phone remains offline for a long period | Keep recording, cached reads, and guarded local saves available without a time-based expiry. Preserve local consent requirements. |
+| Verification refresh fails for the same account and store | Keep valid cached access and expose sync uncertainty. Preserve the highest known major without sending an update alert. |
+| The account changes or valid verification is unavailable | Require verification before activating recording or shared-data access. Do not reuse another account's permit. |
+| An older client observes an unsupported required major | Pause capture and shared-data access, retire its scope, and request an update notification. Preserve prior evidence and local consent. |
+| The gate closes with accepted observations still in the durable retry queue | Preserve the queue for compatible admission after recovery. Do not discard it through a recording-off or reset operation. |
+| The phone detects the same incompatible state repeatedly or after relaunch | Keep the gate active and suppress repeat update alerts. Do not schedule a repeating notification. |
+| Notification permission is denied or update-alert scheduling fails | Keep the in-app gate and recording pause effective. Expose the notification limitation without claiming delivery. |
+| The gated phone receives permission later | Permit its unsent update alert while incompatibility remains. Preserve duplicate suppression and revalidate the gate. |
+| The user opens an old update notification after recovery or an account change | Revalidate the current state. Do not restore an old scope or block a compatible account from stale notification data. |
+| A compatible update restores access | Recreate the scope and permit, respect recording consent and permissions, and clear the owned update alert. |
+| An incompatible record arrives before the shared required-major metadata | Detect its unsupported contract before interpretation and enter the update gate. Do not publish a partial compatible-looking result. |
+| A major upgrade is attempted while offline or its server confirmation fails | Do not activate incompatible behavior. Preserve the highest known major and verify the outcome before retrying activation. |
 | An earlier-version choice arrives after a major upgrade | Apply the defined version-admission rules. Preserve safely interpretable meaning, or retain the record and require review with affected history unresolved. |
 | An idle updated device only produces unused pings | Do not automatically advance the required major from that activity. |
 | A stationary device contributes useful recent history | Permit it to qualify for an automatic major upgrade without movement. |
@@ -746,6 +823,13 @@ Unknown state cannot authorize initialization or a major upgrade.
 Concurrent initialization cannot overwrite established account state or bypass upgrade rules.
 The model also covers legacy-data discovery, verification failures, and delayed initial imports.
 
+Cached offline access survives elapsed time and failed refreshes only for the same verified account and store.
+The model rejects cached access after an identity change or known incompatibility and blocks new capture through the retired scope.
+Recovery creates a new scope and cannot reuse a revoked permit or lower the known required major.
+Activation requires the guarded server confirmation, while metadata and incompatible records remain independently deliverable.
+Swift tests cover durable retry-data preservation, notification denial and failure, repeat suppression, stale notification routing, and recovery cleanup.
+Notification delivery never supplies a compatibility permit or proof that recording resumed.
+
 Each family uses small models with explicit atomicity, delivery, persistence, and failure assumptions.
 The model separates receipt of a decision from knowledge of its dependencies.
 Liveness properties state their fairness assumptions separately from safety properties.
@@ -791,6 +875,7 @@ It does not require a wholesale import of the previous stack.
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
 | [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. Issue counts currently use the current year. The replacement must include historical years. |
 | [WherePreferences](WhereCore/Sources/Preferences/WherePreferences.swift) | Reminder enablement and schedules already use local preferences. When setup exposes these settings, preserve enabled defaults and independent recording consent. |
+| [LoggingReminderScheduler](WhereCore/Sources/Reminders/LoggingReminderScheduler.swift) | The injected notification-center adapter supports local requests and owned cleanup. Reuse it for the update alert without relying on the retired history scope. |
 | [RecordingDeviceCheckIn](WhereCore/Sources/Devices/RecordingDeviceCheckIn.swift) and [DeviceRecordingController](WhereCore/Sources/Devices/DeviceRecordingController.swift) | Device activity and recording status are advisory. They provide no guarantee of periodic delivery or complete observation uploads. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
 
@@ -863,7 +948,11 @@ Guard account initialization against concurrent setup and preserve previously ob
 Apply recent-contributor eligibility and the explicit upgrade action to major upgrades only.
 Keep compatible minor and patch differences outside the incompatible-data gate.
 Reuse local permits, scope retirement, and normal mirroring without a separate server-confirmed decision-publication path.
-Define the offline policy and activation protocol before incompatible data writes.
+Implement cached offline access without time-based expiry for a verified compatible account and store.
+Revoke access on identity changes or known incompatibility, including incompatible records received before their metadata.
+Pause capture at the known-incompatible gate while preserving consent and accepted durable retry data.
+Keep update notification scheduling and routing available after scope retirement.
+Define and verify the server-confirmed activation operation, version admission, and initial rollout before incompatible data writes.
 Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
 Cover empty local stores, delayed imports, legacy accounts, concurrent setup, stale responses, old backups, and failed verification.
 Exercise foreground and background consumers.
@@ -930,6 +1019,7 @@ Add the temporary-ignore row, place controls, and inspection of automatic-select
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Show incomplete totals and guide affected history-report exports into review before producing the report.
+Add the local update alert, duplicate suppression, permission fallback, and current-state routing to the appropriate update destination.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
@@ -965,42 +1055,9 @@ The following details require explicit decisions in the relevant slices:
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
 - The shared-account verification evidence and guarded initialization protocol, including legacy-data bootstrap.
 - Persistence and recovery for the agreed identity lifecycle and stored decisions across backup import, reset, and device removal.
-- Offline compatibility policy, activation synchronization, and the required rollout sequence.
+- Guarded server confirmation for major activation, record-level version admission, and the required rollout sequence.
 
 Thresholds require named units and scenario tests before they affect history.
 The automatic policy produces the same result for identical evidence, decisions, full policy versions, and query context, regardless of input or sync order.
 The first executable slice establishes that policy without changing capture or report behavior.
 Activation follows durable choices, consistent consumer integration, compatibility protection, and a usable review path.
-
-## Pending review discussion
-
-This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
-The proposals in this section are not agreed decisions.
-D2 remains the pending decision. It tracks the remaining offline-access and activation rules.
-After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
-Then remove the resolved entry from this section.
-When no entries remain, remove this section.
-
-### D2. Offline compatibility and activation
-
-An offline older app cannot immediately learn that another device raised the required major.
-The [v1 save policy](#offline-compatibility) uses local durability, ordinary mirroring, and forced updates for known unsupported majors.
-It prioritizes implementation simplicity and permits renewed user review after an upgrade when a saved choice cannot be interpreted safely.
-The remaining decisions concern when an account scope can operate offline and how major activation becomes safe.
-
-Define when cached verification permits offline capture, reads, and shared edits.
-Specify verification expiry, recovery after failed checks, and behavior after account changes.
-Decide whether raw capture continues when verification is unavailable or a known major blocks shared edits.
-Specify the activation and rollout protocol, including independent arrival of compatibility metadata and incompatible records.
-The compatibility models must check that protocol under explicit delivery assumptions before activation.
-
-Concrete case: an offline device saves a choice locally and dismisses the review.
-Another device activates a newer required major before the first device receives that change.
-The pending choice can reach shared storage after the upgrade.
-The protocol must preserve that choice and apply its version-admission rules without assuming immediate knowledge of the upgrade.
-
-A connection check followed by a local save does not order the write against a concurrent major upgrade.
-The current [SwiftData store](WhereCore/Sources/Persistence/SwiftDataStore.swift) uses automatic CloudKit mirroring.
-Apple documents separate local saves, exports, and imports in [TN3163](https://developer.apple.com/documentation/technotes/tn3163-understanding-the-synchronization-of-nspersistentcloudkitcontainer).
-The design cannot assume that application code verifies compatibility before every pending export.
-Keep the decision about offline raw capture separate from the decision about shared edits.
