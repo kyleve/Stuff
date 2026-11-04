@@ -278,11 +278,11 @@ Reminder counts respect the existing category enablement choices.
 Confident automatic selections do not generate issue notifications. Their explanations remain available in the app.
 Changes to history or issue state refresh or cancel pending reminders.
 
-Notification references retain each issue's historical year, period, and query context for refresh and review lookup.
+Notification references retain each issue's original review scope, historical year, and query context as well as its current identifier.
 Opening a notification uses that context instead of substituting the current or selected year.
 A notification opens a guided flow for the issues that it raised:
 
-1. Refresh the referenced issues and omit those that no longer need action.
+1. Reassess the original review scopes and retain their remaining relevant issues.
 2. Show one issue with its date, explanation, available actions, and progress through the queue.
 3. Offer **Save and continue** and **Skip for now**. A skipped issue remains unresolved.
 4. Validate the reviewed inputs inside the guarded decision-write transaction.
@@ -291,8 +291,31 @@ A notification opens a guided flow for the issues that it raised:
 The user can close the flow at any time. Completed choices remain saved.
 The issues bar button provides access to the remaining issues and a **Review remaining** action.
 Both entry points use the same resolution screens and actions.
-New issues stay in the main list rather than extending the notification queue indefinitely.
-If no referenced issues remain, the flow shows that they are already resolved.
+Unrelated new issues stay in the main list rather than extending the notification queue indefinitely.
+Successful reassessment must find no remaining relevant issues before the flow reports that its work is resolved.
+
+#### Queue reassessment after splits and merges
+
+The queue follows the original concern and affected periods through reassessment. A derived issue identifier alone does not define that work.
+Changed identifiers or boundaries never count as resolution by themselves.
+Reassessment includes current relevant evidence and decisions, including newly arrived evidence from another device.
+It does not restrict assessment to the device set or observations available when the notification was created.
+
+If an issue splits, retain each unresolved part within the original scope. Omit parts that no longer require action.
+If issues merge, show the relevant combined context while preserving the original review scope.
+
+Overlapping queued scopes review the same remaining work once.
+A merge never adds intervening gaps or adjacent periods to the scope of a saved choice.
+Unrelated issues and work outside the original scope remain accessible from the main issue list.
+Queue progress reflects the current remaining work after reassessment.
+
+Each proposed resolution previews its actual affected periods and decisions.
+Changes remain within the reviewed scope. A broader choice requires an explicit scope change and review of the updated preview before save.
+The guarded write revalidates that scope and its relevant inputs, including changes caused by a split or merge.
+Reassessment and queue updates never delete raw observations, discard unresolved decisions, or extend a saved choice automatically.
+
+A failed reassessment leaves the work pending and exposes retry instead of reporting that all issues are resolved.
+Skipped work remains unresolved and accessible from the main issue list.
 
 #### Device status in the evening reminder
 
@@ -592,7 +615,14 @@ A sync-completion event alone cannot provide that guarantee.
 | An unresolved December issue remains when January starts | Keep it in historical issue discovery, the issue list, and enabled reminder counts. Do not expire it at the year boundary. |
 | A notification references an older year while another year is selected | Refresh and open the referenced historical period with its query context. Do not substitute the current or selected year. |
 | A late import creates an issue in an older year | Include it in historical discovery and future enabled reminders. Keep an already-open notification queue bounded to its original work. |
-| Another device resolves an issue before the notification opens | Refresh the queue and omit that issue. |
+| Another device resolves an issue before the notification opens | Reassess its original scope. Omit it only when no relevant issue remains. |
+| A queued issue changes identifier while its disagreement remains | Retain the work through its original review scope. Do not report resolution from an identifier change. |
+| A queued conflict splits into several conflicts | Include each unresolved part within the original scope. Keep resolved portions complete and update progress. |
+| Queued conflicts merge with each other or adjacent work | Review overlapping work once with the relevant context. Do not expand saved choices across gaps or outside the reviewed scope. |
+| New evidence changes the devices involved in the original disagreement | Reassess that concern using the new evidence. Do not lose it through a frozen device set. |
+| A split or merge changes the proposed resolution before save | Reject the stale proposal through the guarded write. Show the updated scope and preview before another save. |
+| The user explicitly expands the resolution period | Preview the broader effect and relevant choices. Save only after review and guarded revalidation of that scope. |
+| Queue reassessment fails | Preserve pending work and expose retry. Do not show an all-resolved state. |
 | Relevant evidence or decisions change after the review opens | Reject the stale proposal and show the refreshed issue without applying the choice. |
 | The guarded write detects changed inputs or a retired data generation | Abort the effective decision write. Preserve the reviewed causal context and require a valid current review. |
 | A known compatibility change revokes the write permit | Reject the write and follow the compatibility gate. |
@@ -650,6 +680,10 @@ Reviewed-write cases bind the new operation to the reviewed causal context and r
 The model covers relevant imports before validation, during the write, and after commit.
 It also covers unrelated imports and data-generation retirement.
 Local transaction guarantees do not imply a server-accepted decision or knowledge of an unseen major upgrade.
+
+Reviewed-write cases preserve unaffected decisions and periods when issues split or merge before save.
+Swift tests cover queue scope retention, changed identifiers, splits, merges, new device evidence, duplicate scopes, and failed reassessment.
+They verify that unrelated work remains accessible and that completion requires successful assessment of the original concern.
 
 The models allow delayed earlier-version decisions after major activation.
 Unsafe interpretation cannot produce an effective choice or erase the retained decision.
@@ -846,6 +880,9 @@ Explain that ignore affects automatic selection while explicit period choices ta
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
+Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
+Deduplicate overlapping work without expanding choices across gaps or unreviewed periods.
+Require an updated preview for an explicit scope expansion and preserve pending work after failed reassessment.
 Schedule independently on each device using local preferences, system notification permission, and available issue state.
 Cover reminders on both phones, disabling one phone's reminders, and reminders with recording off.
 Include device status issues for unavailable expected data in recent selected periods under the local issue-alert preference.
@@ -888,18 +925,10 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-E5 remains the pending edge case.
-D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
+D1 and D2 remain the pending decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### E5. Queued issues that split or merge after sync
-
-A queued conflict can change its boundaries, split into several conflicts, or merge with another conflict.
-An obsolete issue ID must not produce an "already resolved" result while the underlying disagreement remains.
-Define how queue entries retain their identity or original review scope through reassessment.
-Preserve the bounded notification flow while unrelated new issues remain in the main list.
 
 ### D1. Treatment of unresolved conflicts in totals
 
