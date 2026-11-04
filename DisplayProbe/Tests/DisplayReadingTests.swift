@@ -10,6 +10,7 @@ struct DisplayReadingTests {
                 nativeBounds: CGRect(x: 0, y: 0, width: 1800, height: 2700),
                 scale: 2,
                 nativeScale: 3,
+                pointsPerInch: .available(142.5),
                 modePixels: CGSize(width: 1800, height: 2700),
                 maximumFramesPerSecond: 120,
             ),
@@ -28,6 +29,8 @@ struct DisplayReadingTests {
         #expect(try field("Window bounds · points") == "450 × 600")
         #expect(try field("Rendering scale · scale") == "2×")
         #expect(try field("Native scale · nativeScale") == "3×")
+        #expect(try field("Points per inch · _pointsPerInch") == "142.5 pt/in")
+        #expect(reading.report.contains("Points per inch · _pointsPerInch: 142.5 pt/in"))
         #expect(reading.report.contains("Interface orientation: Landscape left"))
     }
 
@@ -46,5 +49,6 @@ struct DisplayReadingTests {
         #expect(reading.screen.nativeBounds == scene.screen.nativeBounds)
         #expect(reading.screen.scale == scene.screen.scale)
         #expect(reading.screen.nativeScale == scene.screen.nativeScale)
+        #expect(reading.screen.pointsPerInch == ScreenPointsPerInch.read(from: scene.screen))
     }
 }

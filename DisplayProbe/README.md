@@ -1,12 +1,12 @@
 # DisplayProbe
 
 DisplayProbe shows live display measurements from the app's active window and screen.
-It uses public UIKit APIs and requires iOS 27 or later.
+This personal diagnostic requires iOS 27 or later. It uses UIKit and the private `UIScreen._pointsPerInch` getter.
 
 ## Use
 
 1. Open DisplayProbe on the device.
-2. Read the screen points, native pixels, rendering scale, and native scale.
+2. Read the screen points, native pixels, scales, and points per inch.
 3. Tap **Save reading** before you fold or rotate the device.
 4. Change the device position, then save another reading with a descriptive label.
 5. Tap **Grid** to see the app's full drawable area with a 100-point grid.
@@ -22,6 +22,11 @@ and safe-area insets are separate measurements. A window can occupy less space t
 `nativeBounds` reports pixels in UIKit's native coordinate space. Rotation can change the
 orientation of the screen and window bounds without changing the order of the native dimensions.
 `scale` and `nativeScale` can differ. The app shows both without substituting one for the other.
+
+The points-per-inch row calls `_pointsPerInch` on the same screen as the other measurements.
+It refreshes when the app moves between screens and appears in saved readings and shared text.
+The adapter checks the getter's runtime signature before invocation. Missing, incompatible, or invalid results show an explicit unavailable state.
+It does not estimate this value from pixel density or scale.
 
 The grid measures its full view, including unsafe edges. The controls stay inside the safe area.
 The center line marks the mathematical midpoint. It does not identify a physical hinge.

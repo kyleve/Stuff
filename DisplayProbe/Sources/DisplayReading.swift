@@ -8,6 +8,7 @@ struct DisplayReading: Equatable {
         let nativeBounds: CGRect
         let scale: CGFloat
         let nativeScale: CGFloat
+        let pointsPerInch: ScreenPointsPerInch
         let modePixels: CGSize?
         let maximumFramesPerSecond: Int
     }
@@ -37,6 +38,7 @@ struct DisplayReading: Equatable {
                 nativeBounds: screen.nativeBounds,
                 scale: screen.scale,
                 nativeScale: screen.nativeScale,
+                pointsPerInch: ScreenPointsPerInch.read(from: screen),
                 modePixels: screen.currentMode?.size,
                 maximumFramesPerSecond: screen.maximumFramesPerSecond,
             ),
@@ -60,6 +62,10 @@ struct DisplayReading: Equatable {
             Field(
                 label: "Native scale · nativeScale",
                 value: "\(Self.number(screen.nativeScale))×",
+            ),
+            Field(
+                label: "Points per inch · _pointsPerInch",
+                value: screen.pointsPerInch.description,
             ),
             Field(
                 label: "Current mode · pixels",
