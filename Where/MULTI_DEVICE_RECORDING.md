@@ -228,6 +228,8 @@ The choice is exclusive within that period, including gaps in the selected track
 Other devices do not fill those gaps automatically.
 Existing GPS and flight corrections still apply within the selected device's track.
 
+The choice selects a source for the period. Later eligible observations from that source can change the resulting history and totals.
+
 **Return to automatic** reverses the explicit choice for the selected period.
 The resolver can then reconsider eligible observations from other devices.
 Ignore intervals apply again by observation time, including elapsed intervals whose end date has already passed.
@@ -292,6 +294,33 @@ Both entry points use the same resolution screens and actions.
 New issues stay in the main list rather than extending the notification queue indefinitely.
 If no referenced issues remain, the flow shows that they are already resolved.
 
+#### Device status in the evening reminder
+
+The combined evening reminder also includes device status issues when expected data for recent selected periods remains unavailable.
+These issues use the local issue-alert preference and the same bounded review flow.
+Opening one shows the affected period, device, last available observation, reported activity, and reported recording status.
+Unknown values remain explicit. Reported status and activity retain their timestamps.
+
+The guidance asks the user to open Where on that phone and check recording, permissions, and sync.
+The user can also review the affected period or change its source choice through the existing controls.
+
+The notice describes missing updates without claiming a proven upload failure.
+An absence of new GPS points alone cannot establish failure, and a quiet, adequately recorded day needs no device status issue.
+Advisory check-ins do not prove that all observations arrived or that recording still works.
+Assessment distinguishes source-device evidence from the receiving phone's own unavailable or failed sync.
+It never treats the receiver's stale view as proof that the source stopped recording.
+
+The check concerns devices needed for recent selected periods.
+An old historical choice does not create an indefinite expectation that its device keeps reporting.
+Missing historical data remains available for review under the existing issue rules.
+The warning never switches sources, changes recording consent, fills selected-track gaps, or creates location evidence.
+
+Fresh evidence reassesses the device status issue and its pending reminder.
+A new check-in can resolve an activity concern without proving that missing observations arrived.
+Any remaining history issue keeps its own resolution condition.
+Opening the device screen alone does not resolve the issue. Skipped work remains in the main issue list.
+Define recent-period eligibility, evidence requirements, freshness thresholds, and recovery conditions before this reminder activates.
+
 ## Late observations and historical changes
 
 A late upload adds raw evidence. It does not directly add every reported region to the recorded day.
@@ -303,10 +332,18 @@ Automatic periods apply ignore intervals by observation time, including after ex
 Explicit source choices retain precedence over those intervals.
 For a given full policy version, automatic periods use the combined available evidence regardless of upload order.
 
+Later eligible observations from the selected device contribute within the chosen period, including where the reviewed track had gaps.
+They can add region presence and change totals while the source choice remains effective.
+The reviewed inputs validate the save. They do not restrict future evidence to the observations available at that time.
+
+Ordinary changes to history or totals require no new confirmation and do not reopen the source choice.
+If reassessment discovers an unresolved issue, it enters the normal issue list and enabled evening reminder.
+Other devices remain excluded from the selected period, including any remaining gaps.
+
 Good late evidence can fill missing periods or automatically correct earlier automatic history when the evidence is strong.
 The resulting explanation remains inspectable.
 Genuinely ambiguous evidence produces a review issue instead of confident presence in every competing region.
-A previously populated day is not automatically final. Explicit user choices provide stability for reviewed periods.
+A previously populated day is not automatically final. Explicit choices preserve the selected source while its evidence can become more complete.
 Every affected output refreshes after reassessment.
 
 ## Data and decision boundaries
@@ -536,13 +573,21 @@ A sync-completion event alone cannot provide that guarantee.
 | The user resumes an ignored device before the chosen end day | End the ignore interval going forward. Preserve its elapsed portion. |
 | An ignored device uploads after the ignore interval expires | Apply the interval to automatic history by observation time. Honor explicit source choices and preserve raw uploads. |
 | Late observations affect automatic history | Reassess the evidence. Permit strong corrections and expose genuine ambiguity. |
-| Late observations conflict with an explicit source choice | Preserve the explicit choice. |
+| Late observations from another device conflict with an explicit source choice | Preserve the explicit choice and exclude the other device for that period. |
+| The selected device uploads more observations for a reviewed period | Include eligible observations and refresh history and totals. Keep the source choice and require no new confirmation for changed results alone. |
+| Late selected-device observations reveal an unresolved issue | Keep the source choice effective. Show the issue through normal review and enabled evening reminders. |
 | The user changes a source choice or returns to automatic | Rebuild effective history for the affected period while retaining raw observations. |
 | The user selects a new home or a different hotel | Apply the place to its validity period without silently rewriting earlier context. |
 | Two phones enable evening reminders | Each schedules one combined reminder from its local preferences and available issue state. Both can notify about the same work. |
 | The user disables reminders on a secondary phone | Preserve recording and history selection. Keep issues accessible and leave the other phone's reminder preferences unchanged. |
 | The user configures an additional or replacement phone | Show local reminder settings with enabled defaults, separately from recording consent. Permit changes during setup and later in Settings. |
 | Recording is off on a phone with reminders enabled | Schedule eligible reminders independently of recording consent, subject to system notification permission. |
+| Expected data from a device needed for recent selected periods remains unavailable | Include a device status issue in the combined reminder under the local issue-alert preference. Show the evidence and suggest checking that phone. |
+| A quiet device has an adequately recorded day | Do not infer an upload failure or create a device status issue solely from absent new GPS points. |
+| The receiving phone cannot refresh shared data | Expose its own sync uncertainty. Do not assert that another device stopped recording from the stale view. |
+| A device selected only for old history stops reporting | Do not require continued reporting solely because of that old choice. Keep any missing historical data reviewable. |
+| A fresh check-in arrives before missing observations | Reassess the activity concern without treating the check-in as proof of complete history. Preserve any unresolved history issue and source choice. |
+| The user opens or skips an unresolved device status issue | Keep it accessible. Opening or skipping the screen alone does not resolve it. |
 | The user exits the notification flow after resolving one issue | Retain the saved choice and expose the remaining issues through the bar button. |
 | An unresolved December issue remains when January starts | Keep it in historical issue discovery, the issue list, and enabled reminder counts. Do not expire it at the year boundary. |
 | A notification references an older year while another year is selected | Refresh and open the referenced historical period with its query context. Do not substitute the current or selected year. |
@@ -590,6 +635,9 @@ This design slice adds the requirements only. It contains no new models or model
 History-selection cases require explicit source choices to take precedence over ignore intervals, including after expiry and under reordered delivery.
 Return to automatic reapplies the historical ignore filter by observation time.
 An ignore interval and an overlapping source choice do not create a conflict from that overlap alone.
+Late eligible observations from the selected device can change history without changing the source decision.
+Other devices remain excluded within that decision's scope, including gaps before and after the late import.
+Swift tests cover refreshed totals, unchanged choices, and normal issue routing after new selected-device evidence.
 
 The history-selection model retains resolved recording days and their context under sync, import, and viewer time-zone changes.
 It compares competing observations by absolute time even when their recording-day labels differ.
@@ -662,6 +710,7 @@ It does not require a wholesale import of the previous stack.
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
 | [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. Issue counts currently use the current year. The replacement must include historical years. |
 | [WherePreferences](WhereCore/Sources/Preferences/WherePreferences.swift) | Reminder enablement and schedules already use local preferences. When setup exposes these settings, preserve enabled defaults and independent recording consent. |
+| [RecordingDeviceCheckIn](WhereCore/Sources/Devices/RecordingDeviceCheckIn.swift) and [DeviceRecordingController](WhereCore/Sources/Devices/DeviceRecordingController.swift) | Device activity and recording status are advisory. They provide no guarantee of periodic delivery or complete observation uploads. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
 
 The current [recording context](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) uses a file excluded from backups.
@@ -785,6 +834,7 @@ Invalidate affected caches and reassess automatic history after policy updates.
 Exercise compatible policy differences while preserving raw observations and the shared meaning of user choices.
 Exercise simultaneous untracked-region conflicts, catalog gaps, and primary-region changes without changing selection from reporting groups alone.
 Exercise local writes, delayed sync, user overrides, reset, and device removal.
+Include late eligible observations from an explicitly selected device without changing the source choice or admitting another device into gaps.
 Preserve raw review, lossless backups, and manual assertions.
 Complete the history-selection model and add Swift regressions for its important counterexamples.
 Define unresolved-conflict presentation before changing totals.
@@ -798,6 +848,11 @@ Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Schedule independently on each device using local preferences, system notification permission, and available issue state.
 Cover reminders on both phones, disabling one phone's reminders, and reminders with recording off.
+Include device status issues for unavailable expected data in recent selected periods under the local issue-alert preference.
+Show timestamped evidence and actions to check the source device, review the period, or change its choice.
+Validate the policy for device status issues before activation.
+Cover quiet devices, receiver sync failures, and independently arriving check-ins and observations.
+When the user opens or skips a device status issue, keep source choices effective and unresolved work accessible.
 Discover unresolved issues across all years containing history, independently of the current or selected year.
 Use that historical scope for the main issue list and enabled reminder counts.
 Carry each referenced issue's year, period, and query context through notification refresh and review lookup.
@@ -815,6 +870,7 @@ The following details require explicit decisions in the relevant slices:
 - Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion.
 - Whole-day coverage across recorded calendar changes, including gaps and overlap with fixed time ranges.
 - Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior.
+- Device status issues: eligibility for recent periods, evidence requirements, freshness thresholds, and recovery conditions for the combined evening reminder.
 - Composition of source choices and ignore intervals with per-sample corrections, manual overlays, and device removals.
 - The representation of causal context, incomplete dependencies, and counter allocation and recovery.
 - Meaningful-contribution criteria within the agreed 15-day eligibility window.
@@ -832,18 +888,11 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-E4 and E5 remain the pending edge cases.
+E5 remains the pending edge case.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### E4. Late observations from the explicitly selected device
-
-An explicit source choice identifies a device and period. It does not currently freeze the reviewed set of observations.
-Later observations from that same device can still change effective history inside the chosen period.
-Define that behavior and its review or notification consequences without promising that source selection freezes all historical results.
-Add an acceptance scenario for late observations from the selected device.
 
 ### E5. Queued issues that split or merge after sync
 
