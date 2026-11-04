@@ -81,6 +81,9 @@ A replacement still receives a new identity and offers removal of the selected o
 Earlier history retains its original provenance.
 Setup also establishes local recording consent. The replacement choice never transfers consent from another phone.
 
+Setup shows this phone's reminder settings separately from recording consent.
+The user can change these settings later in Settings.
+
 A replacement device can use the explicit shared-data upgrade action described under [Compatibility](#compatibility).
 It does not inherit the old device's recent-contributor status.
 
@@ -251,9 +254,15 @@ The save operation adds no separate online-confirmation requirement or pending-a
 
 ### Evening reminders and guided review
 
-One combined evening local notification covers missing history and unresolved issues, including device conflicts.
+Each device schedules one combined evening local notification for missing history and unresolved issues, including device conflicts.
 It retains the existing category enablement choices and the user-selected reminder time.
 The separate daily region-summary notification keeps its own purpose and schedule.
+
+Reminder preferences remain local and default to enabled.
+Each phone uses its own preferences and available issue state, subject to system notification permission.
+Both phones can notify about the same work. Delivery requires no account-wide notification owner or duplicate suppression.
+Disabling reminders on one phone does not change recording, history selection, or another phone's reminder preferences.
+Unresolved issues remain accessible in the main issue list.
 
 The combined notification describes the remaining work and its counts.
 Older unresolved issues remain eligible even when today's history is complete.
@@ -530,6 +539,10 @@ A sync-completion event alone cannot provide that guarantee.
 | Late observations conflict with an explicit source choice | Preserve the explicit choice. |
 | The user changes a source choice or returns to automatic | Rebuild effective history for the affected period while retaining raw observations. |
 | The user selects a new home or a different hotel | Apply the place to its validity period without silently rewriting earlier context. |
+| Two phones enable evening reminders | Each schedules one combined reminder from its local preferences and available issue state. Both can notify about the same work. |
+| The user disables reminders on a secondary phone | Preserve recording and history selection. Keep issues accessible and leave the other phone's reminder preferences unchanged. |
+| The user configures an additional or replacement phone | Show local reminder settings with enabled defaults, separately from recording consent. Permit changes during setup and later in Settings. |
+| Recording is off on a phone with reminders enabled | Schedule eligible reminders independently of recording consent, subject to system notification permission. |
 | The user exits the notification flow after resolving one issue | Retain the saved choice and expose the remaining issues through the bar button. |
 | An unresolved December issue remains when January starts | Keep it in historical issue discovery, the issue list, and enabled reminder counts. Do not expire it at the year boundary. |
 | A notification references an older year while another year is selected | Refresh and open the referenced historical period with its query context. Do not substitute the current or selected year. |
@@ -648,6 +661,7 @@ It does not require a wholesale import of the previous stack.
 | [Backup upgrader](Tools/upgrade-backup.rb) and its [regression tests](Tools/Tests/upgrade_backup_test.rb) | Existing offline conversion preserves archives but currently adds nil device attribution when absent. Required attribution needs a new conversion step and guards. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
 | [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. Issue counts currently use the current year. The replacement must include historical years. |
+| [WherePreferences](WhereCore/Sources/Preferences/WherePreferences.swift) | Reminder enablement and schedules already use local preferences. When setup exposes these settings, preserve enabled defaults and independent recording consent. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
 
 The current [recording context](WhereUI/Sources/Launch/InstallationRecordingContextStore.swift) uses a file excluded from backups.
@@ -702,6 +716,7 @@ Exercise reordered, duplicated, and incomplete inputs. This slice does not chang
 Implement device-local Keychain identity with explicit unavailable and recovery states.
 Implement the [identity and consent lifecycle](#device-identity-and-setup), including deliberate rotation and renewed consent after reset, rejoin, reinstall, or system restore.
 Add the additional-device and replacement-device setup choices.
+Expose local reminder settings with enabled defaults, independently of recording consent.
 Preserve local identity and consent during in-app backup imports, including replace.
 Keep removed identities retired and distinguish absent Keychain items from inaccessible items.
 Cover updates, relaunches, backup imports, same-phone recovery, new-phone transfer, reset, rejoin, and Keychain failures.
@@ -781,6 +796,8 @@ Explain that ignore affects automatic selection while explicit period choices ta
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Handle stale save proposals with a refreshed review before another confirmation.
 Combine evening reminders and add notification routing into the bounded resolution flow.
+Schedule independently on each device using local preferences, system notification permission, and available issue state.
+Cover reminders on both phones, disabling one phone's reminders, and reminders with recording off.
 Discover unresolved issues across all years containing history, independently of the current or selected year.
 Use that historical scope for the main issue list and enabled reminder counts.
 Carry each referenced issue's year, period, and query context through notification refresh and review lookup.
@@ -815,18 +832,11 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-E3–E5 remain the pending edge cases.
+E4 and E5 remain the pending edge cases.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
 When no entries remain, remove this section.
-
-### E3. Evening notifications on multiple phones
-
-Notification preferences are local and default to enabled, so both phones can send the combined evening reminder.
-See [WherePreferences](WhereCore/Sources/Preferences/WherePreferences.swift).
-Define whether the product promises one reminder per device or one reminder across the account.
-Specify the device-level controls and defaults independently of recording consent.
 
 ### E4. Late observations from the explicitly selected device
 
