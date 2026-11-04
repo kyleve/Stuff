@@ -595,6 +595,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     #if DEBUG
+        var compatibilityReadCompletion: (@Sendable () async -> Void)?
+
+        /// Hold the response of one real header read so a competing lifecycle operation can run.
+        @_spi(Testing)
+        public func afterNextCompatibilityRead(_ completion: @escaping @Sendable () async -> Void) {
+            compatibilityReadCompletion = completion
+        }
+
         /// Test seam: an `.inMemory` store wired to drive its `changes()`
         /// fan-out from `remoteChangeSource`, so the remote-import path is
         /// exercisable without CloudKit or a device. The production equivalent

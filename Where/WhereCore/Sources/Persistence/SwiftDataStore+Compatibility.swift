@@ -3,7 +3,13 @@ import SwiftData
 
 extension SwiftDataStore {
     public func dataCompatibilityState() async throws -> DataCompatibilityStoreState {
-        try Self.compatibilityState(in: readContext())
+        let state = try Self.compatibilityState(in: readContext())
+        #if DEBUG
+            let completion = compatibilityReadCompletion
+            compatibilityReadCompletion = nil
+            await completion?()
+        #endif
+        return state
     }
 
     static func compatibilityState(in context: ModelContext) throws -> DataCompatibilityStoreState {

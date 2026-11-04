@@ -67,6 +67,10 @@ That document also owns the implementation plan.
   Invalidate durable grants before fetching shared requirements. Re-enable them only after
   pending reads drain; a failed high-floor save must not expose an older grant after relaunch.
   Guards: `DataCompatibilityCoordinatorTests`, `CloudKitDataCompatibilityTransportTests`.
+- Establish shared compatibility before opening a new CloudKit mirror.
+  Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
+  Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.
+  Guard: `DataCompatibilityCoordinatorTests.sharedInitializationPrecedesMirrorCreation`.
 - **Resolve destructive generations as a multi-parent causal DAG.** A rotation
   names every real maximal head. Two unjoined reset heads resolve to a
   deterministic empty UUIDv8 synthetic generation until the next rotation joins

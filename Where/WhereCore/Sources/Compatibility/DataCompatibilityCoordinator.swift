@@ -42,7 +42,7 @@ public final class DataCompatibilityCoordinator {
     public private(set) var state: State = .unknown
     public private(set) var knownRequiredMajor: UInt = 0
     public let policy: DataCompatibilityPolicy
-    @ObservationIgnored private let store: any WhereStore
+    @ObservationIgnored private let storePreparation: DataCompatibilityStorePreparation
     @ObservationIgnored private let source: Source
     @ObservationIgnored private let activationReadiness: ActivationReadiness
     @ObservationIgnored private var identifiedAccount: DataCompatibilityAccountID?
@@ -58,14 +58,29 @@ public final class DataCompatibilityCoordinator {
     @ObservationIgnored private var accountTask: Task<Void, Never>?
     @ObservationIgnored private var importTask: Task<Void, Never>?
     @ObservationIgnored private var recoveryTask: Task<Void, Never>?
+    @ObservationIgnored private var observesChanges = false
 
-    public init(
+    public convenience init(
         store: any WhereStore,
         source: Source,
         policy: DataCompatibilityPolicy,
         activationReadiness: ActivationReadiness,
     ) {
-        self.store = store
+        self.init(
+            storePreparation: DataCompatibilityStorePreparation(store: store),
+            source: source,
+            policy: policy,
+            activationReadiness: activationReadiness,
+        )
+    }
+
+    public init(
+        storePreparation: DataCompatibilityStorePreparation,
+        source: Source,
+        policy: DataCompatibilityPolicy,
+        activationReadiness: ActivationReadiness,
+    ) {
+        self.storePreparation = storePreparation
         self.source = source
         self.policy = policy
         self.activationReadiness = activationReadiness
@@ -82,7 +97,8 @@ public final class DataCompatibilityCoordinator {
     }
 
     public func startObserving() {
-        if importTask == nil {
+        observesChanges = true
+        if importTask == nil, let store = storePreparation.openedStore {
             let changes = store.remoteChanges()
             importTask = Task { [weak self] in
                 for await _ in changes {
@@ -111,7 +127,10 @@ public final class DataCompatibilityCoordinator {
         attempt = request
         defer { pendingVerifications.remove(ObjectIdentifier(request)) }
         do {
-            let local = try await store.dataCompatibilityState()
+            let local: DataCompatibilityStoreState = switch source {
+                case .local: try await storePreparation.open().dataCompatibilityState()
+                case .cloudKit: try await storePreparation.stateBeforeOpening()
+            }
             if local.persistedRequiredMajor != nil || !local.recordMajors.isEmpty {
                 observeRequiredMajor(local.requiredMajor)
             }
@@ -127,6 +146,7 @@ public final class DataCompatibilityCoordinator {
                         try await persistRequirement(max(knownRequiredMajor, initialMajor))
                     }
                     try requireCurrent(request)
+                    try await admitPreparedStore(request)
                     return try makeAccess(synchronization: .verified)
                 case let .cloudKit(storeID, transport, cache):
                     let loaded = try cache.load()
@@ -166,6 +186,9 @@ public final class DataCompatibilityCoordinator {
                     try rememberSharedRequirement(accountID: accountID, major: shared.requiredMajor)
                     try requireCurrent(request)
                     try policy.validate(requiredMajor: knownRequiredMajor)
+                    // Establish the account head before creating a mirror zone. Otherwise our
+                    // own empty mirror would look like pre-existing legacy account history.
+                    try await admitPreparedStore(request)
                     pendingVerifications.remove(ObjectIdentifier(request))
                     let saved = DataCompatibilityCache(
                         storeID: storeID,
@@ -203,11 +226,19 @@ public final class DataCompatibilityCoordinator {
             }
             if canUseCache(after: error) {
                 do {
+                    try await admitPreparedStore(request)
+                    guard hasValidOfflineProof else {
+                        throw DataCompatibilityError.verificationRequired
+                    }
                     try persistOfflineGrant()
                     return try makeAccess(synchronization: .uncertain(error))
                 } catch {
-                    offlineProof = nil
-                    block(error)
+                    // Header admission can suspend. An older failed refresh must not retire
+                    // the fresh grant which superseded it while that read was pending.
+                    if attempt === request {
+                        offlineProof = nil
+                        block(error)
+                    }
                     throw error
                 }
             }
@@ -321,6 +352,7 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func recheckLocalRequirements() async {
+        guard let store = storePreparation.openedStore else { return }
         let shouldRefresh: Bool
         do {
             let local = try await store.dataCompatibilityState()
@@ -399,7 +431,8 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func persistRequirement(_ major: UInt) async throws {
-        try await store.perform { try await self.store.raiseRequiredDataMajor(major) }
+        let store = try await storePreparation.open()
+        try await store.perform { try await store.raiseRequiredDataMajor(major) }
         let local = try await store.dataCompatibilityState()
         observeRequiredMajor(local.requiredMajor)
     }
@@ -410,6 +443,9 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func makeAccess(synchronization: Synchronization) throws -> DataCompatibilityAccess {
+        guard let store = storePreparation.openedStore else {
+            throw DataCompatibilityError.verificationRequired
+        }
         try policy.validate(requiredMajor: knownRequiredMajor)
         if let access, access.requiredMajor == knownRequiredMajor {
             do {
@@ -431,6 +467,26 @@ public final class DataCompatibilityCoordinator {
         }
         state = .available(next, synchronization)
         return next
+    }
+
+    /// Revalidate the real headers after opening and before granting access or persisting a
+    /// verified cache. Preflight file presence can never substitute for this admission.
+    private func admitPreparedStore(_ request: Attempt) async throws {
+        let store = try await storePreparation.open()
+        try requireCurrent(request)
+        if observesChanges { startObserving() }
+        let accountID = identifiedAccount
+        let local = try await store.dataCompatibilityState()
+        if local.persistedRequiredMajor != nil || !local.recordMajors.isEmpty {
+            // Knowledge belongs to this retained dataset even if the reader was superseded.
+            observeRequiredMajor(local.requiredMajor)
+            if let accountID, accountID == identifiedAccount {
+                try rememberSharedRequirement(accountID: accountID, major: local.requiredMajor)
+            }
+        }
+        try requireCurrent(request)
+        try local.validate(policy: policy)
+        try policy.validate(requiredMajor: knownRequiredMajor)
     }
 
     private func observeFailure(_ error: any Error, accessID: DataCompatibilityAccess.ID) {

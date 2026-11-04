@@ -54,6 +54,14 @@ Any existing non-control custom zone is conservatively legacy, even if empty.
 `CloudKitDataCompatibilityTransport` uses a separate control zone and conditional change-tag saves.
 Its injected database boundary lets tests exercise the production protocol with delayed, failed, and reordered responses.
 
+`DataCompatibilityStorePreparation` retains and coalesces the dataset's physical store open.
+Pass it to the coordinator before creating a new CloudKit mirror.
+Shared verification and guarded head initialization precede the open, so the new mirror cannot establish its own legacy classification.
+An existing local file is conservative legacy evidence. It never establishes account newness or grants access.
+After opening, the coordinator admits actual headers before saving a verified cache or granting a scope.
+Cancelled waiters cannot abandon the shared open. Failed opens can retry without losing the existing-history classification.
+The already-open `init(store:source:policy:activationReadiness:)` remains available for isolated fixtures and existing-store adapters.
+
 The backup-excluded `FileDataCompatibilityCache` binds verification to the account and store.
 Network refresh failures can retain same-binding access without a time expiry.
 Before fetching shared requirements, invalidate the durable grant and retain the current process's verified proof.

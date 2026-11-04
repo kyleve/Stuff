@@ -36,6 +36,10 @@ actor ScriptedDataCompatibilityControlDatabase: DataCompatibilityControlDatabase
         return legacyZone
     }
 
+    func createMirrorZone() {
+        legacyZone = true
+    }
+
     func prepareControlZone() async throws {
         let gate = preparationGate
         preparationGate = nil

@@ -1156,6 +1156,8 @@ The remaining work includes a scripted shared-account integration fixture over t
 The transport fixture runs the production algorithm with a controlled conditional database.
 SwiftData fixtures exercise unsupported and supported-major imports before a suspended physical save.
 Shared observations stay in the account-bound local cache, so an old account's queued mirrored write cannot alter another account's control state.
+Lazy store preparation verifies and initializes shared control state before creating the local CloudKit mirror.
+Existing local file presence prevents accidental new-account activation. Actual headers must pass admission after the single shared open.
 The production scope and output integrations below remain required before activation.
 
 **Implemented retirement primitives:** output wrappers drain submitted system calls before withdrawing history notifications and widget output.

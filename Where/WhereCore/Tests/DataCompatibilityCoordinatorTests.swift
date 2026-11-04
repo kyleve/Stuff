@@ -5,6 +5,144 @@ import Testing
 
 @MainActor
 struct DataCompatibilityCoordinatorTests {
+    @Test func obsoleteOfflineHeaderCompletionCannotRevokeANewerVerifiedScope() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .legacyAccount)
+        let cache = InMemoryDataCompatibilityCache(value: nil)
+        let coordinator = DataCompatibilityTestSupport.coordinator(
+            store: store,
+            transport: transport,
+            cache: cache,
+        )
+        _ = try await coordinator.refresh()
+        let verificationGate = CompatibilityTestGate()
+        let headerGate = CompatibilityTestGate()
+        await transport.holdNextVerification(verificationGate)
+        await transport.failVerification(CKError(.networkUnavailable))
+        let older = Task { try await coordinator.refresh() }
+        await verificationGate.waitUntilEntered()
+        await store.afterNextCompatibilityRead { await headerGate.suspend() }
+        await verificationGate.resume()
+        await headerGate.waitUntilEntered()
+        await transport.failVerification(nil)
+        let current = try await coordinator.refresh()
+        await headerGate.resume()
+        await #expect(throws: DataCompatibilityError.verificationRequired) { try await older.value }
+        try current.validate()
+        #expect(coordinator.access?.id == current.id)
+        #expect(try cache.load()?.verified == true)
+    }
+
+    @Test(arguments: [false, true])
+    func sharedInitializationPrecedesMirrorCreation(hasExistingHistory: Bool) async throws {
+        let database = ScriptedDataCompatibilityControlDatabase(legacyZone: false)
+        let transport = CloudKitDataCompatibilityTransport(database: database)
+        let store = try SwiftDataStore.inMemory()
+        let factory = ScriptedCompatibilityStoreFactory(store: store, gate: nil)
+        let coordinator = DataCompatibilityCoordinator(
+            storePreparation: DataCompatibilityStorePreparation(
+                hasExistingHistory: hasExistingHistory,
+                makeStore: {
+                    await database.createMirrorZone()
+                    return try await factory.open()
+                },
+            ),
+            source: .cloudKit(
+                storeID: DataCompatibilityTestSupport.storeID,
+                transport: transport,
+                cache: InMemoryDataCompatibilityCache(value: nil),
+            ),
+            policy: DataCompatibilityTestSupport.policy,
+            activationReadiness: .ready,
+        )
+        coordinator.startObserving()
+        let access = try await coordinator.refresh()
+        #expect(access.requiredMajor == (hasExistingHistory ? 0 : 1))
+        #expect(await database.committedSaves == 1)
+        #expect(await factory.openings == 1)
+        #expect(try await coordinator.refresh().id == access.id)
+        #expect(await factory.openings == 1)
+    }
+
+    @Test func failedSharedPreflightDoesNotOpenAStoreOrCreateAMirror() async throws {
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .newAccount)
+        await transport.failVerification(CKError(.networkUnavailable))
+        let factory = try ScriptedCompatibilityStoreFactory(
+            store: SwiftDataStore.inMemory(),
+            gate: nil,
+        )
+        let coordinator = DataCompatibilityCoordinator(
+            storePreparation: .init(hasExistingHistory: false, makeStore: {
+                try await factory.open()
+            }),
+            source: .cloudKit(
+                storeID: DataCompatibilityTestSupport.storeID,
+                transport: transport,
+                cache: InMemoryDataCompatibilityCache(value: nil),
+            ),
+            policy: DataCompatibilityTestSupport.policy,
+            activationReadiness: .ready,
+        )
+        await #expect(throws: CKError.self) { try await coordinator.refresh() }
+        #expect(await factory.openings == 0)
+        #expect(await transport.creations == 0)
+    }
+
+    @Test func openedHeadersAreAdmittedBeforeSavingACompatibleGrant() async throws {
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform { try await store.raiseRequiredDataMajor(2) }
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .legacyAccount)
+        let cache = InMemoryDataCompatibilityCache(value: nil)
+        let coordinator = DataCompatibilityCoordinator(
+            storePreparation: .init(hasExistingHistory: true, makeStore: { store }),
+            source: .cloudKit(
+                storeID: DataCompatibilityTestSupport.storeID,
+                transport: transport,
+                cache: cache,
+            ),
+            policy: DataCompatibilityTestSupport.policy,
+            activationReadiness: .ready,
+        )
+        await #expect(throws: DataCompatibilityError.updateRequired(requiredMajor: 2)) {
+            try await coordinator.refresh()
+        }
+        #expect(coordinator.access == nil)
+        #expect(try cache.load()?.requiredMajor == 2)
+        #expect(try cache.load()?.verified == false)
+    }
+
+    @Test func accountInvalidationDuringOpeningCannotGrantAccess() async throws {
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .newAccount)
+        let cache = InMemoryDataCompatibilityCache(value: nil)
+        let gate = CompatibilityTestGate()
+        let factory = try ScriptedCompatibilityStoreFactory(
+            store: SwiftDataStore.inMemory(),
+            gate: gate,
+        )
+        let coordinator = DataCompatibilityCoordinator(
+            storePreparation: .init(hasExistingHistory: false, makeStore: {
+                try await factory.open()
+            }),
+            source: .cloudKit(
+                storeID: DataCompatibilityTestSupport.storeID,
+                transport: transport,
+                cache: cache,
+            ),
+            policy: DataCompatibilityTestSupport.policy,
+            activationReadiness: .ready,
+        )
+        let opening = Task { try await coordinator.refresh() }
+        await gate.waitUntilEntered()
+        coordinator.invalidateAccount()
+        await gate.resume()
+        await #expect(throws: DataCompatibilityError.verificationRequired) {
+            try await opening.value
+        }
+        #expect(coordinator.access == nil)
+        #expect(try cache.load()?.verified == false)
+        #expect(await factory.openings == 1)
+    }
+
     @Test func completedOverlappingReadsRestoreColdOfflineAccess() async throws {
         let store = try SwiftDataStore.inMemory()
         let transport = ScriptedSharedDataCompatibilityTransport(history: .legacyAccount)
