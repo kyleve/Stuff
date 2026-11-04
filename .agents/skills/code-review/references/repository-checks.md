@@ -135,6 +135,18 @@ Check which files remain owned and recoverable when another process creates a co
 Compare the relevant owner and guards: [file transactions](../../../../Tools/Tests/file_transaction_test.rb) or [Flyover publication](../../../../Tools/Tests/test_flyover_publication.py).
 Do not treat helper return values as proof of public exit status, output, or filesystem behavior.
 
+For cleanup driven by paths or metadata, distinguish an absent owner from an owner that cannot be inspected.
+Change a checkout symlink between planning and deletion. Check resolved ownership again, even when metadata and cache identity remain unchanged.
+Probe parent traversal through a symlink before accepting lexical path normalization as ownership evidence.
+Compare [worktree cleanup tests](../../../../Tools/Tests/test_worktree_cleanup.py) for inaccessible owners, retargeted aliases, rejected traversal, and valid owned caches.
+The [cleanup contract](../../../../Tools/AGENTS.md#mutations) requires stable paths during deletion. Preflight checks do not establish atomicity.
+
+For shared retry or error policy, trace each caller's default adapter as well as its injected test dependency.
+Inject the failure below that adapter so the regression retains production error conversion and resource ownership.
+Compare the [installer command regressions](../../../../Tools/Tests/test_circleci_distribution.py): discovery failures retry through the default transport, while other HTTP failures propagate.
+Check discarded response cleanup in the [shared client tests](../../../../Tools/Tests/test_circleci_pipeline.py).
+The [publication contract](../../../../Tools/InstallerKit/AGENTS.md#publication) owns the transport choice and command guard.
+
 For secret-bearing commands, inspect captured child output as well as constructed arguments.
 The [signing state tests](../../../../Tools/Tests/signing_state_test.rb) cover diagnostic redaction and cleanup that can fail and be retried.
 Trace trusted controller state separately from selected PR source when publication credentials are involved.
