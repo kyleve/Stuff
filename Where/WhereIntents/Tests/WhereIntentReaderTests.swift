@@ -7,6 +7,22 @@ import WhereCore
 /// The read seam the query intents delegate to, driven against an in-memory
 /// store seeded through `DayJournal`.
 struct WhereIntentReaderTests {
+    @Test func widgetFastPathCannotPublishAfterScopeRetirement() async throws {
+        let fixture = try await CompatibilityIntentFixture()
+        let today = IntentTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let access = fixture.access
+        let reader = WhereIntentReader(
+            services: fixture.services,
+            calendar: IntentTestSupport.calendar(),
+            now: { today },
+            todaySnapshot: {
+                access.revoke()
+                return WidgetSnapshot(day: today, year: 2026, dayRegions: [.canada], totals: [:])
+            },
+        )
+        await #expect(throws: (any Error).self) { try await reader.todayRegions() }
+    }
+
     private func reader(_ services: WhereServices, now: @escaping @Sendable () -> Date = { Date() })
         -> WhereIntentReader
     {

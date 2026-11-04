@@ -19,10 +19,7 @@ final class DataAccessPermit: Sendable {
         self.onCompatibilityFailure = onCompatibilityFailure
     }
 
-    enum AccessError: Error, Equatable {
-        case revoked
-        case differentScope
-    }
+    typealias AccessError = DataCompatibilityAccess.AccessError
 
     func rejectAdmission(_ error: any Error) {
         revoke()

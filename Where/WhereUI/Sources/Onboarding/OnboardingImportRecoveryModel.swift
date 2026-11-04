@@ -68,6 +68,7 @@ final class OnboardingImportRecoveryModel {
         endSession: () async -> Void,
         completeOnboarding: () -> Void,
     ) async -> GateOutcome {
+        interruptedImportError = nil
         guard hasInterruptedImport else {
             return requiresOnboarding ? .needsOnboarding : .recovered
         }

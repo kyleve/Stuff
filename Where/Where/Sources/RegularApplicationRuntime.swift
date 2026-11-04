@@ -56,6 +56,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 storeStorage: buildEnvironment.storage(
                     forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
                 ),
+                dataset: buildEnvironment
+                    .dataset(forCloudKitValidationBuild: Self.isCloudKitValidationBuild),
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
@@ -83,6 +85,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             model = Self.makeModel(
                 buildEnvironment: buildEnvironment,
                 storeStorage: buildEnvironment.storage,
+                dataset: buildEnvironment.dataset(forCloudKitValidationBuild: false),
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
@@ -108,23 +111,24 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     private static func makeModel(
         buildEnvironment: WhereBuildEnvironment,
         storeStorage: SwiftDataStore.Storage,
+        dataset: DataCompatibilityDataset,
         preferences: WherePreferences,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
     ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
+        let bootstrap = WhereBootstrap(
+            installationContextStore: installationContextStore,
+            storeStorage: storeStorage,
+            dataset: dataset,
+            widgetRefresher: buildEnvironment.makeWidgetRefresher(),
+            locationOutbox: locationOutbox,
+        )
         return WhereModel(
             preferences: preferences,
             installationContextStore: installationContextStore,
-            makeBootstrap: {
-                WhereBootstrap(
-                    installationContextStore: $0,
-                    storeStorage: storeStorage,
-                    widgetRefresher: buildEnvironment.makeWidgetRefresher(),
-                    locationOutbox: locationOutbox,
-                )
-            },
+            makeBootstrap: { _ in bootstrap },
             logSystem: .shared,
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
@@ -140,6 +144,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         WhereLaunch.startAmbientLogging(on: .shared)
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.onDataCompatibilityBlocked = { [intentServices] error in
+            await intentServices.block(error: error)
+        }
         model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
             await widgetPresentationPublisher.publish(theme)
             guard !Task.isCancelled else { return }
@@ -179,5 +186,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 updates: updates,
             ))
         #endif
+    }
+
+    func refreshDataCompatibility() async {
+        await model.refreshDataCompatibilityIfNeeded()
     }
 }

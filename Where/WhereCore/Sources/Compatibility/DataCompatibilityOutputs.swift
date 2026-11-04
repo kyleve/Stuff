@@ -26,16 +26,32 @@ public struct DataCompatibilityOutputs: Sendable {
         self.issues = Issues(base: issues, queue: queue)
         self.widgets = Widgets(base: widgets, queue: queue, access: access)
         withdraw = {
-            await reminders.reconcile(
-                badgeCount: 0,
-                scheduleDays: [],
-                reminderTime: .defaultEvening,
-                enabled: false,
+            await Self.withdraw(
+                reminders: reminders,
+                summary: summary,
+                issues: issues,
+                widgets: widgets,
             )
-            await summary.reconcile(enabled: false, time: .defaultMorning, body: "")
-            await issues.reconcile(enabled: false, time: .defaultEvening, body: "")
-            await widgets.withdraw()
         }
+    }
+
+    /// Cold-start cleanup when no scope has submitted work in this process. Active scopes must
+    /// use `retire()` so pending publications drain before removal.
+    public static func withdraw(
+        reminders: any LoggingReminderScheduling,
+        summary: any DailySummaryScheduling,
+        issues: any DataIssueAlertScheduling,
+        widgets: any WidgetTimelineRefreshing,
+    ) async {
+        await reminders.reconcile(
+            badgeCount: 0,
+            scheduleDays: [],
+            reminderTime: .defaultEvening,
+            enabled: false,
+        )
+        await summary.reconcile(enabled: false, time: .defaultMorning, body: "")
+        await issues.reconcile(enabled: false, time: .defaultEvening, body: "")
+        await widgets.withdraw()
     }
 
     public func retire() async {

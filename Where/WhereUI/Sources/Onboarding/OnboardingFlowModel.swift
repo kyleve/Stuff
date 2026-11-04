@@ -97,6 +97,7 @@ final class OnboardingFlowModel {
             phase = .intro
         }
         isFinishing = true
+        defer { isFinishing = false }
         do {
             let context = try model.confirmInitialRecordingChoice(
                 isEnabled: recordingEnabled,
@@ -114,8 +115,20 @@ final class OnboardingFlowModel {
         }
 
         let scope: WhereScope
+        var resolvedScope: WhereScope?
         do {
             scope = try await model.resolveScope()
+            resolvedScope = scope
+            if model.hasInterruptedOnboardingImport, restoreSelection.readyImport != nil {
+                // A revoked post-save result may leave the view holding an apparently uncommitted
+                // archive. Establish the durable receipt before deciding whether to import again.
+                switch try await scope.services.backup.importRecoveryState() {
+                    case .ready: break
+                    case let .cleanupRequired(summary),
+                         let .onboardingAcknowledgementRequired(summary):
+                        restoreSelection.markCommitted(summary)
+                }
+            }
             if try await model.preflightPendingImportRecovery(in: scope) == .rolledBack {
                 // Consent was renewed before this old prepared marker could be checked. No
                 // store receipt means Restore never committed; keep that choice available.
@@ -129,20 +142,27 @@ final class OnboardingFlowModel {
             Self.logger.scopeCreationFailed(
                 error: .restricted(.errorDetails, error),
             )
+            if retainDraftAfterCompatibilityFailure(
+                using: model,
+                scope: resolvedScope,
+                error: error,
+            ) { return }
             gate.fail(error)
             return
         }
 
-        if let readyImport {
+        if let readyImport = restoreSelection.readyImport {
             guard await importBackup(readyImport, into: scope, using: model) else { return }
         }
 
         do {
             try await configureRecording(in: scope, removing: deviceToRemove)
+            try scope.services.validateDataAccess()
         } catch {
             Self.logger.recordingConfigurationFailed(
                 error: .restricted(.errorDetails, error),
             )
+            if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return }
             if let summary = restoreSelection.committedSummary {
                 gate.fail(OnboardingCommittedImportSetupError(
                     summary: summary,
@@ -160,8 +180,10 @@ final class OnboardingFlowModel {
                 Self.logger.regionCommitFailed(
                     error: .restricted(.errorDetails, error),
                 )
+                if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return }
             }
         }
+        if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return }
         if !model.hasOnboarded {
             model.completeOnboarding()
         }
@@ -224,6 +246,20 @@ final class OnboardingFlowModel {
         restoreSelection.discardUncommittedSelection()
     }
 
+    /// The compatibility mask owns retry. Keep the gate and restore authority intact so Finish
+    /// can preflight the receipt in a fresh scope rather than reporting a terminal setup failure.
+    private func retainDraftAfterCompatibilityFailure(
+        using model: WhereModel,
+        scope: WhereScope?,
+        error: (any Error)? = nil,
+    ) -> Bool {
+        guard !model.isDataCompatible || scope?.services.isDataAccessRevoked == true
+            || (error as? DataCompatibilityAccess.AccessError) == .revoked else { return false }
+        phase = .location
+        intro.activity = .browsing
+        return true
+    }
+
     private func importBackup(
         _ readyImport: OnboardingRestoreSelection.ReadyImport,
         into scope: WhereScope,
@@ -239,6 +275,7 @@ final class OnboardingFlowModel {
             do {
                 try await scope.services.backup.acknowledgeOnboardingImport()
             } catch {
+                if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
                 gate.fail(OnboardingCommittedImportSetupError(
                     summary: summary,
                     underlying: error,
@@ -249,9 +286,11 @@ final class OnboardingFlowModel {
         } catch let error as BackupCoordinator.CommittedImportCleanupError {
             restoreSelection.markCommitted(error.summary)
             model.completeOnboarding()
+            if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
             do {
                 try await scope.services.backup.acknowledgeOnboardingImport()
             } catch let acknowledgementError {
+                if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
                 gate.fail(OnboardingCommittedImportSetupError(
                     summary: error.summary,
                     underlying: acknowledgementError,
@@ -266,9 +305,11 @@ final class OnboardingFlowModel {
         } catch let error as BackupCoordinator.CommittedImportSupersededError {
             restoreSelection.markCommitted(error.summary)
             model.completeOnboarding()
+            if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
             do {
                 try await scope.services.backup.acknowledgeOnboardingImport()
             } catch let acknowledgementError {
+                if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
                 gate.fail(OnboardingCommittedImportSetupError(
                     summary: error.summary,
                     underlying: acknowledgementError,
@@ -278,9 +319,11 @@ final class OnboardingFlowModel {
             gate.fail(error)
             return false
         } catch let error as BackupCoordinator.ImportRecoveryResolutionError {
+            if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
             gate.fail(error)
             return false
         } catch {
+            if retainDraftAfterCompatibilityFailure(using: model, scope: scope) { return false }
             restoreSelection.discardUncommittedSelection()
             await model.endSession()
             intro.activity = .failed(.init(flow: .restoreBackup, error: error))

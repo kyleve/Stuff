@@ -129,6 +129,9 @@ a screen felt slow.
   discovery.** Retain that exact store for scope resolution. Do not construct
   services, expose App Intents, start GPS, or open the log store until the
   user finishes choosing a world.
+- Verify dataset compatibility before opening or reading history, including onboarding discovery.
+  Production retains one dataset owner across service scopes. Scope retirement must drain before replacement service assembly.
+  The compatibility gate applies without a foreground scene and preserves local consent and pending observations.
 - **At most one scope is active and log-routing at a time.** Logging out — a
   reset, or leaving a demo — releases and tears down the scope. Logging back in
   builds a fresh one. Flyover is the narrow exception to "one open world". It

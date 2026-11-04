@@ -11,6 +11,7 @@
     /// needed to inspect the app's persisted records.
     @MainActor
     final class WhereInspectorApplicationRuntime: WhereApplicationRuntime {
+        func refreshDataCompatibility() async {}
         let configuration: InspectorConfiguration
         private let modeController: InspectorModeController
 

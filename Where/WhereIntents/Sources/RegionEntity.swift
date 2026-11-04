@@ -47,6 +47,7 @@ public struct RegionEntity: AppEntity, Identifiable, Sendable {
     /// `@Dependency`, and the Spotlight indexer receives it from the app.
     static func tracked(from services: WhereServices) async throws -> [RegionEntity] {
         let regions = try await services.trackedRegions()
+        try services.validateDataAccess()
         return Region.inCanonicalOrder(regions).map(RegionEntity.init)
     }
 }

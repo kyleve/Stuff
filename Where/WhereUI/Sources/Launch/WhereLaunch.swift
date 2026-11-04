@@ -1,4 +1,5 @@
 import LifecycleKit
+import Observation
 import PeriscopeCore
 import SwiftUI
 import UserNotifications
@@ -18,6 +19,8 @@ public enum LaunchStepID: String, Sendable {
     /// opened. Applies to every launch reason — a headless launch parks here
     /// rather than opening the user's store unseen.
     case onboarding
+    case compatibility
+    case suspendCompatibility = "suspend-compatibility"
     /// Resolve the scope the launch runs against, opening the user's real
     /// store if they onboarded on an earlier launch — the trunk's logged-in
     /// scope. The splash's slow-launch caption most often shows here.
@@ -137,6 +140,7 @@ public enum WhereLaunch {
         // renders — without this a throwing detached step would fail with no
         // trace in logs.
         DetachedFailureReporter.observe(runner)
+        WhereCompatibilityLifecycle.observe(runner: runner, model: model)
         return runner
     }
 
@@ -167,6 +171,7 @@ public enum WhereLaunch {
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
         LaunchPlan(ActivateLaunchDemoStep(model: model).measured())
             .then(ResolveInstallationContextStep(model: model).measured())
+            .gate(DataCompatibilityGate(model: model))
             .gate(OnboardingGate(model: model))
             .then(ResolveScopeStep(model: model).measured())
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
@@ -226,6 +231,13 @@ public enum WhereLaunch {
 /// ``WhereBootstrap``.
 @MainActor
 public protocol WhereScopeAssembling {
+    /// Production returns its retained dataset coordinator. Isolated fixtures explicitly return
+    /// nil.
+    func prepareDataCompatibility() throws -> DataCompatibilityCoordinator?
+
+    /// Drain current services or remove previous-process output before a blocked launch continues.
+    func withdrawHistoryOutputs() async
+
     /// Install the location manager without touching the store. Idempotent,
     /// and cheap enough to run on the synchronous launch path.
     func prepareLocation()
@@ -256,33 +268,88 @@ public protocol WhereScopeAssembling {
 /// the store opens. `makeServices()` then opens the store off the main actor
 /// and assembles the services from the two.
 @MainActor
+@Observable
 public final class WhereBootstrap: WhereScopeAssembling {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     private let installationContextStore: any InstallationRecordingContextStoring
     private let storeStorage: SwiftDataStore.Storage
+    private let dataset: DataCompatibilityDataset
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let locationOutbox: any LocationOutbox
-    private var locationSource: CoreLocationSource?
-    private var preparedStore: SwiftDataStore?
+    private var locationSource: (any LocationSource)?
+    private var dataCompatibility: DataCompatibilityCoordinator?
+    private var currentServices: WhereServices?
+    private var outputWithdrawal: Task<Void, Never>?
+
+    /// Fixed at construction; the testing initializer supplies isolated protocol adapters.
+    @MainActor
+    private struct PlatformAdapters {
+        let makeLocationSource: @MainActor () -> any LocationSource
+        let imports: any CloudKitImportReadying
+        let reminders: any LoggingReminderScheduling
+        let summary: any DailySummaryScheduling
+        let issues: any DataIssueAlertScheduling
+
+        static var live: Self {
+            Self(
+                makeLocationSource: { CoreLocationSource() },
+                imports: CloudKitImportReadiness(),
+                reminders: UserNotificationReminderScheduler(),
+                summary: UserNotificationDailySummaryScheduler(),
+                issues: UserNotificationDataIssueAlertScheduler(),
+            )
+        }
+    }
+
+    private var adapters = PlatformAdapters.live
 
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
         storeStorage: SwiftDataStore.Storage,
+        dataset: DataCompatibilityDataset,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox,
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
+        self.dataset = dataset
         self.widgetRefresher = widgetRefresher
         self.locationOutbox = locationOutbox
+    }
+
+    @_spi(Testing)
+    public convenience init(
+        installationContextStore: any InstallationRecordingContextStoring,
+        storeStorage: SwiftDataStore.Storage,
+        coordinator: DataCompatibilityCoordinator,
+        makeLocationSource: @escaping @MainActor () -> any LocationSource,
+        importReadiness: any CloudKitImportReadying,
+        widgetRefresher: any WidgetTimelineRefreshing,
+        locationOutbox: any LocationOutbox,
+    ) {
+        self.init(
+            installationContextStore: installationContextStore,
+            storeStorage: storeStorage,
+            dataset: .local(.init(rawValue: "bootstrap-fixture")),
+            widgetRefresher: widgetRefresher,
+            locationOutbox: locationOutbox,
+        )
+        dataCompatibility = coordinator
+        adapters = PlatformAdapters(
+            makeLocationSource: makeLocationSource,
+            imports: importReadiness,
+            reminders: NoopLoggingReminderScheduler(),
+            summary: NoopDailySummaryScheduler(),
+            issues: NoopDataIssueAlertScheduler(),
+        )
     }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
     /// the store. Idempotent.
     public func prepareLocation() {
         guard locationSource == nil else { return }
-        locationSource = CoreLocationSource()
+        locationSource = adapters.makeLocationSource()
     }
 
     /// Open the SwiftData store (on a detached task so a slow open or first
@@ -302,7 +369,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// `.failed`, so without this line the failure would leave no trace
     /// anywhere.
     public func makeServices() async throws -> WhereServices {
-        let source = locationSource ?? CoreLocationSource()
+        let source = locationSource ?? adapters.makeLocationSource()
         locationSource = nil
         do {
             let installationContext = try installationContextStore.resolve()
@@ -310,25 +377,33 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 installationContext.automaticRecordingEnabled != nil,
                 "A real scope cannot open before this installation confirms recording.",
             )
-            let store = try await prepareStore()
+            await outputWithdrawal?.value
+            if let currentServices { await currentServices.retireCompatibilityScope() }
+            let access = try await admittedAccess()
             let services = try await WhereServices.make(
-                store: store,
+                access: access,
                 locationSource: source,
                 installationContext: installationContext,
+                aggregator: DayAggregator(),
                 // The real world's seams, named here because this is the only
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by
                 // default.
-                reminderScheduler: UserNotificationReminderScheduler(),
-                summaryScheduler: UserNotificationDailySummaryScheduler(),
-                issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
+                reminderScheduler: adapters.reminders,
+                summaryScheduler: adapters.summary,
+                issueAlertScheduler: adapters.issues,
                 widgetRefresher: widgetRefresher,
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
+                now: Date.init,
             )
+            await outputWithdrawal?.value
+            try services.validateDataAccess()
+            currentServices = services
             Self.logger.servicesAssembled()
             return services
         } catch {
+            await source.stop()
             Self.logger.servicesAssemblyFailed(
                 error: .restricted(.errorDetails, error),
             )
@@ -337,23 +412,106 @@ public final class WhereBootstrap: WhereScopeAssembling {
     }
 
     public func discoverRecordingDevices() async throws -> [RecordingDevice] {
-        let readiness = CloudKitImportReadiness()
-        if storeStorage.usesCloudKit { readiness.start() }
-        let store = try await prepareStore()
-        if storeStorage.usesCloudKit, await readiness.waitForImport() == false {
+        let access = try await admittedAccess()
+        if storeStorage.usesCloudKit, await adapters.imports.waitForImport() == false {
             throw CloudKitImportReadiness.Timeout()
         }
-        return try await store.recordingDevices()
+        return try await access.store.recordingDevices()
     }
 
-    private func prepareStore() async throws -> SwiftDataStore {
-        if let preparedStore { return preparedStore }
+    private func admittedAccess() async throws -> DataCompatibilityAccess {
+        let coordinator = try prepareCoordinator()
+        if let access = coordinator.access, !access.isRevoked { return access }
+        return try await coordinator.refresh()
+    }
+
+    public func prepareDataCompatibility() throws -> DataCompatibilityCoordinator? {
+        try prepareCoordinator()
+    }
+
+    private func prepareCoordinator() throws -> DataCompatibilityCoordinator {
+        // Admission can open the mirror before discovery runs. Observe its first import now,
+        // retaining the result until discovery asks for it.
+        if storeStorage.usesCloudKit { adapters.imports.start() }
+        if let dataCompatibility { return dataCompatibility }
+        let hasExistingHistory: Bool
+        switch storeStorage {
+            case .inMemory: hasExistingHistory = false
+            case let .localOnly(appGroupIdentifier), let .cloudKit(appGroupIdentifier):
+                guard let group = FileManager.default.containerURL(
+                    forSecurityApplicationGroupIdentifier: appGroupIdentifier,
+                ) else { throw WidgetSnapshotStore.AppGroupUnavailableError() }
+                do {
+                    hasExistingHistory = try SwiftDataStore
+                        .inspectorStoreURL(groupContainerURL: group).checkResourceIsReachable()
+                } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+                    hasExistingHistory = false
+                }
+        }
         let storeStorage = storeStorage
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make(storage: storeStorage)
-        }.value
-        preparedStore = store
-        return store
+        let preparation = DataCompatibilityStorePreparation(
+            hasExistingHistory: hasExistingHistory,
+            makeStore: {
+                try await Task.detached(priority: .userInitiated) {
+                    try SwiftDataStore.make(storage: storeStorage)
+                }.value
+            },
+        )
+        let source: DataCompatibilityCoordinator.Source
+        switch dataset {
+            case let .local(storeID): source = .local(storeID: storeID)
+            case let .cloudKit(storeID, containerIdentifier):
+                let directory = try FileManager.default.url(
+                    for: .applicationSupportDirectory,
+                    in: .userDomainMask,
+                    appropriateFor: nil,
+                    create: false,
+                ).appending(path: "WhereDataCompatibility", directoryHint: .isDirectory)
+                source = .cloudKit(
+                    storeID: storeID,
+                    transport: CloudKitDataCompatibilityTransport(
+                        containerIdentifier: containerIdentifier,
+                    ),
+                    cache: FileDataCompatibilityCache(fileURL: directory
+                        .appending(path: "account.json")),
+                )
+        }
+        let coordinator = DataCompatibilityCoordinator(
+            storePreparation: preparation,
+            source: source,
+            policy: .foundation,
+            activationReadiness: .pendingValidation,
+        )
+        coordinator.startObserving()
+        dataCompatibility = coordinator
+        return coordinator
+    }
+
+    public func withdrawHistoryOutputs() async {
+        if let outputWithdrawal { await outputWithdrawal.value; return }
+        let services = currentServices
+        let widgets = widgetRefresher
+        let preparedSource = locationSource
+        locationSource = nil
+        let adapters = adapters
+        let task = Task {
+            // Monitoring survives process termination. Stop and discard a prepared source even
+            // when cold admission fails before services exist; only the durable outbox survives.
+            await preparedSource?.stop()
+            if let services {
+                await services.retireCompatibilityScope()
+            } else {
+                await DataCompatibilityOutputs.withdraw(
+                    reminders: adapters.reminders,
+                    summary: adapters.summary,
+                    issues: adapters.issues,
+                    widgets: widgets,
+                )
+            }
+        }
+        outputWithdrawal = task
+        await task.value
+        outputWithdrawal = nil
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this

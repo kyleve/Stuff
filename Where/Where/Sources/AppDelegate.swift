@@ -142,4 +142,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         return runtime.didFinishLaunching(application: application, options: options)
     }
+
+    func application(
+        _: UIApplication,
+        didReceiveRemoteNotification _: [AnyHashable: Any],
+    ) async -> UIBackgroundFetchResult {
+        await runtime.refreshDataCompatibility()
+        return .noData
+    }
 }

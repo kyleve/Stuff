@@ -147,13 +147,18 @@ Demo mode hides this surface and performs no update checks.
   the launch's cost breaks down per step instead of arriving as one slow
   splash. (The onboarding gate is the one unmeasured node: it parks on the
   user.)
+- **Compatibility** — `WhereDataCompatibilityModel` presents the dataset coordinator before services exist.
+  The launch gate applies in every mode. Foreground activation and silent notifications refresh shared requirements.
+  `WhereCompatibilityLifecycle` observes changes without a scene, retires old sessions, and restarts through the gate.
+  Root content masks a revoked or superseded permit immediately. Retry creates fresh scoped services after output retirement.
+  Identity, recording consent, and accepted pending observations survive this suspension.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
   which scope is active. `WhereSession` is built from one, so a logged-in
   surface can't read one world's store against another's preferences. Two
-  kinds, both reached through `WhereModel`: the real one opens the app's single
-  on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
+  kinds, both reached through `WhereModel`: the real one uses the dataset retained by `WhereBootstrap`,
+  and `makeDemoScope()` builds a seeded in-memory world that
   leaves nothing behind. Its log sink is registered on an **injected**
   `Periscope` — and only while `WhereModel` says the scope is active — with
   routing modelled as one state (`pending` / `routing` / `idle` / `failed`), so

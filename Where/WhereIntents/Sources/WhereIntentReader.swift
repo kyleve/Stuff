@@ -18,7 +18,9 @@ struct WhereIntentReader {
     /// Day count for `region` in `year` — the `YearReport.totals` entry, or 0
     /// when the region logged nothing.
     func dayCount(in region: Region, year: Int) async throws -> Int {
-        try await services.reports.yearReport(for: year).totals[region] ?? 0
+        let count = try await services.reports.yearReport(for: year).totals[region] ?? 0
+        try services.validateDataAccess()
+        return count
     }
 
     /// The regions a calendar day counts for, matched by start-of-day in the
@@ -26,6 +28,7 @@ struct WhereIntentReader {
     func regions(on date: Date) async throws -> Set<Region> {
         let day = CalendarDay(from: date, in: calendar)
         let report = try await services.reports.yearReport(for: day.year)
+        try services.validateDataAccess()
         return report.days
             .first { $0.day == day }?
             .regions ?? []
@@ -35,8 +38,10 @@ struct WhereIntentReader {
     /// read) when it still describes today, and falling back to the year
     /// report's today row otherwise.
     func todayRegions() async throws -> Set<Region> {
+        try services.validateDataAccess()
         let today = calendar.startOfDay(for: now())
         if let snapshot = todaySnapshot(), calendar.startOfDay(for: snapshot.day) == today {
+            try services.validateDataAccess()
             return snapshot.dayRegions
         }
         return try await regions(on: today)

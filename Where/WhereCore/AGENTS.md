@@ -57,7 +57,9 @@ That document also owns the implementation plan.
   A completed read does not authorize later output publication; retain a separate publication guard.
   Guard: `SwiftDataStoreTests.revokedScopeCannotCommitASuspendedTransaction`.
 - Compatibility-scoped services serialize asynchronous history output through `DataCompatibilityOutputs`.
+  Construct production services with `WhereServices.make(access:...)`; raw-store assembly is preview/demo SPI.
   Await its retirement before replacement services publish. Cancellation does not abandon submitted system calls.
+  Join scope-owned physical starts and one-shot requests during retirement. Reject their late results.
   Scope retirement preserves recording consent and the accepted outbox; only a new scope can resume capture.
   Guards: `DataCompatibilityOutputsTests`, `DataCompatibilityOutputQueueTests`, `DeviceRecordingControllerTests`.
 - Admit version-envelope headers before payloads. Preserve observed major requirements even
@@ -79,7 +81,7 @@ That document also owns the implementation plan.
   generation
   (`WhereDataGenerationTests.resetBarrierRejectsEarlierRegistrationAndAcceptsLaterRegistration`).
 - **Each process opens its on-disk store once and injects it.** The app's
-  launch opens it. The App Intents stack shares it via
+  retained bootstrap opens it after admission for setup or launch. The App Intents stack shares it via
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).

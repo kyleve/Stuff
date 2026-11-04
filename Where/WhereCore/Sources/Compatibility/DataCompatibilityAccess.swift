@@ -2,6 +2,12 @@ import Foundation
 
 /// One admitted store lifetime. A replacement access value never revives the previous permit.
 public final class DataCompatibilityAccess: Sendable {
+    /// A caller must acquire a new scope after revocation; an old permit cannot be revived.
+    public enum AccessError: Error, Equatable {
+        case revoked
+        case differentScope
+    }
+
     public struct ID: Hashable, Sendable {
         let rawValue: UUID
     }

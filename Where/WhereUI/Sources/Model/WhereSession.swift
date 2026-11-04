@@ -217,6 +217,16 @@ public final class WhereSession {
         regionStyleTask?.cancel()
     }
 
+    /// A runner or view may retain this session after its permit is revoked.
+    func stopObserving() {
+        authorizationTask?.cancel()
+        authorizationTask = nil
+        recordingConfigurationTask?.cancel()
+        recordingConfigurationTask = nil
+        regionStyleTask?.cancel()
+        regionStyleTask = nil
+    }
+
     /// Sync authorization, resume tracking if appropriate, apply the reminder /
     /// summary schedules, and republish the widget snapshot. Safe to call
     /// repeatedly; the authorization observer is only set up once.

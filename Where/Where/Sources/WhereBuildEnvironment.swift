@@ -14,11 +14,25 @@ struct WhereBuildEnvironment: Equatable {
 
     let audience: Audience
     let appGroupIdentifier: String
+    let cloudKitContainerIdentifier: String
     let primaryAppIconName: String
     let isRunningTests: Bool
 
     var storage: SwiftDataStore.Storage {
         storage(forCloudKitValidationBuild: false)
+    }
+
+    func dataset(forCloudKitValidationBuild validatesCloudKit: Bool) -> DataCompatibilityDataset {
+        let storeID = DataCompatibilityDataset.StoreID(rawValue: appGroupIdentifier)
+        if isRunningTests { return .local(storeID) }
+        switch audience {
+            case .development:
+                return validatesCloudKit
+                    ? .cloudKit(storeID, containerIdentifier: cloudKitContainerIdentifier)
+                    : .local(storeID)
+            case .beta, .appStore:
+                return .cloudKit(storeID, containerIdentifier: cloudKitContainerIdentifier)
+        }
     }
 
     func storage(
@@ -59,6 +73,10 @@ struct WhereBuildEnvironment: Equatable {
             audience: audience,
             appGroupIdentifier: requireString(
                 "WhereAppGroupIdentifier",
+                in: infoDictionary,
+            ),
+            cloudKitContainerIdentifier: requireString(
+                "WhereCloudKitContainerIdentifier",
                 in: infoDictionary,
             ),
             primaryAppIconName: requireString(

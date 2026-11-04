@@ -36,6 +36,11 @@ Layering, localization, preview, and testing conventions live in the feature
 - The app injects its configured primary icon name at `RootView`; icon-picker
   code treats every manifest entry as an asset and derives primary versus
   alternate status from that injected name.
+- Retain the production `WhereBootstrap` across disposable scopes. It owns one physical store open and compatibility-cache writer per dataset.
+  Coalesce scope assembly. Gate launch and onboarding reads before constructing services.
+  Observe compatibility without a view tree. Mask retired sessions immediately, then drain their capture and output before reopening.
+  Keep compatibility suspension separate from reset: preserve identity, consent, and accepted pending observations.
+  Guards: `WhereCompatibilityLifecycleTests`, `DataCompatibilityLocationSourceTests`.
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.

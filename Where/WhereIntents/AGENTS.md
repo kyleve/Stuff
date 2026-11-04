@@ -41,6 +41,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.
+- Block and fail parked intents when compatibility withdraws history access.
+  Reject retired services at installation and handoff. Validate access again before returning history results, including the widget-file fast path.
+  Guards: `IntentServicesTests`, `WhereIntentReaderTests`.
 - **Every `perform()` wraps its work in `measureIntent(_:)`.** Each
   `WhereIntentsLog.IntentName` carries the budget for its own kind of work.
   Then the span history reads per intent (`perform(days-in-region)`). A slow

@@ -199,6 +199,7 @@ let whereAppGroupEntitlements: Entitlements = .dictionary([
 /// SwiftData store. Extensions deliberately keep the App Group-only
 /// entitlement above: they write the shared local store and let the app's
 /// CloudKit-backed container publish those changes when it next opens.
+let whereCloudKitContainerIdentifier = "iCloud.com.stuff.where"
 let whereAppEntitlements: Entitlements = .dictionary([
     // Xcode replaces this development placeholder with the environment from
     // the selected provisioning profile. Keeping the entitlement in the
@@ -208,7 +209,7 @@ let whereAppEntitlements: Entitlements = .dictionary([
         .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
     ]),
     "com.apple.developer.icloud-container-identifiers": .array([
-        .string("iCloud.com.stuff.where"),
+        .string(whereCloudKitContainerIdentifier),
     ]),
     "com.apple.developer.icloud-services": .array([.string("CloudKit")]),
     "com.apple.developer.ubiquity-kvstore-identifier": .string(
@@ -385,6 +386,7 @@ let project = Project(
                 "CFBundleVersion": .string("1"),
                 "WhereAudience": .string("$(WHERE_AUDIENCE)"),
                 "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
+                "WhereCloudKitContainerIdentifier": .string(whereCloudKitContainerIdentifier),
                 "WherePrimaryAppIconName": .string("$(WHERE_PRIMARY_APP_ICON_NAME)"),
                 "NSLocationWhenInUseUsageDescription": .string(
                     "Where uses your location to figure out which region you're in.",
@@ -440,6 +442,7 @@ let project = Project(
                 "CFBundleDisplayName": .string("$(WHERE_DISPLAY_NAME)"),
                 "WhereAudience": .string("$(WHERE_AUDIENCE)"),
                 "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
+                "WhereCloudKitContainerIdentifier": .string(whereCloudKitContainerIdentifier),
                 "NSExtension": .dictionary([
                     "NSExtensionPointIdentifier": .string("com.apple.widgetkit-extension"),
                 ]),
@@ -465,6 +468,7 @@ let project = Project(
                 "CFBundleDisplayName": .string("$(WHERE_DISPLAY_NAME)"),
                 "WhereAudience": .string("$(WHERE_AUDIENCE)"),
                 "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
+                "WhereCloudKitContainerIdentifier": .string(whereCloudKitContainerIdentifier),
                 "NSExtension": .dictionary([
                     "NSExtensionPointIdentifier": .string("com.apple.share-services"),
                     "NSExtensionPrincipalClass": .string(

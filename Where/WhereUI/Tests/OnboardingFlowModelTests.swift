@@ -1,11 +1,122 @@
 import Foundation
-import LifecycleKit
+@testable import LifecycleKit
 import Testing
 @_spi(Testing) import WhereCore
 @_spi(Testing) @testable import WhereUI
 
 @MainActor
 struct OnboardingFlowModelTests {
+    @Test func compatibilityRevocationDuringSetupKeepsTheGateAndDraftRetryable() async throws {
+        let fixture = try CompatibilityLaunchFixture()
+        let hold = CompatibilityLaunchSuspension()
+        fixture.makeLocationSource = { BootstrapHeldAuthorizationSource(hold: hold) }
+        let model = fixture.makeModel()
+        let gate = LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground)
+        let flow = try OnboardingFlowModel(
+            gate: gate,
+            installationContext: fixture.installation.resolve(),
+            startsAtRecordingChoice: true,
+            initialTheme: .alternate,
+            preferences: model.preferences,
+        )
+        flow.reminders.issueAlertsEnabled = false
+        let finishing = Task { await flow.finish(using: model) }
+        defer { hold.resume() }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered }
+        fixture.coordinator.invalidateAccount()
+        await model.suspendForCompatibility()
+        hold.resume()
+        await finishing.value
+        #expect(!flow.isFinishing)
+        #expect(flow.phase == .location)
+        #expect(flow.theme == .alternate)
+        #expect(!flow.reminders.issueAlertsEnabled)
+        await model.compatibility.refresh()
+        await flow.finish(using: model)
+        try await gate.waitForResolution()
+        #expect(model.isDataCompatible)
+        #expect(fixture.assemblyCount == 2)
+    }
+
+    @Test func newerAdmissionRetriesObsoleteAssemblyBeforeOnboardingHasAScope() async throws {
+        let fixture = try CompatibilityLaunchFixture()
+        let hold = CompatibilityLaunchSuspension()
+        fixture.beforeAssembly = { await hold.suspend() }
+        let model = fixture.makeModel()
+        let gate = LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground)
+        let flow = try OnboardingFlowModel(
+            gate: gate,
+            installationContext: fixture.installation.resolve(),
+            startsAtRecordingChoice: true,
+            initialTheme: .alternate,
+            preferences: model.preferences,
+        )
+        let finishing = Task { await flow.finish(using: model) }
+        defer { hold.resume() }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered }
+        #expect(model.activeScope == nil)
+        let previous = try #require(fixture.coordinator.access)
+        fixture.coordinator.invalidateAccount()
+        await model.compatibility.refresh()
+        #expect(model.isDataCompatible)
+        #expect(fixture.coordinator.access?.id != previous.id)
+        hold.resume()
+        await finishing.value
+        try await gate.waitForResolution()
+        #expect(model.isDataCompatible)
+        #expect(fixture.assemblyCount == 1)
+        #expect(!flow.isFinishing)
+    }
+
+    @Test func aDurableImportReceiptPreventsRepeatingARetainedRestoreDraft() async throws {
+        let fixture = try CompatibilityLaunchFixture()
+        let model = fixture.makeModel()
+        let gate = LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground)
+        let flow = try OnboardingFlowModel(
+            gate: gate,
+            installationContext: fixture.installation.resolve(),
+            startsAtRecordingChoice: true,
+            initialTheme: .standard,
+            preferences: model.preferences,
+        )
+        // The previous save committed, but revocation hid its successful return from the UI.
+        // Its archive is deliberately unavailable: retry must rely on the receipt, never read it.
+        flow.restoreSelection.select(
+            url: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString),
+            hasScopedAccess: false,
+        )
+        flow.restoreSelection.choose(.replace)
+        let details = try BackupCoordinator.ImportRecoveryDetails(
+            transactionID: UUID(),
+            installationID: fixture.installation.resolve().currentDevice.id,
+            strategy: .replace,
+            summary: .init(
+                sampleCount: 0,
+                evidenceCount: 0,
+                manualDayCount: 0,
+                dismissedIssueCount: 0,
+                trackedRegionCount: 0,
+                recordingDeviceCount: 0,
+                recordingDeviceRemovalCount: 0,
+            ),
+        )
+        try fixture.installation.setBackupImportRecovery(.prepared(details))
+        try await fixture.store.perform {
+            try await fixture.store.addBackupImportReceipt(
+                id: details.transactionID,
+                installationID: details.installationID,
+            )
+        }
+        let generation = try await fixture.store.dataGeneration().id
+        await flow.finish(using: model)
+        try await gate.waitForResolution()
+        #expect(flow.restoreSelection.committedSummary == details.summary)
+        #expect(flow.restoreSelection.readyImport == nil)
+        #expect(fixture.installation.backupImportRecovery == nil)
+        #expect(try await fixture.store.dataGeneration().id == generation)
+        #expect(model.isDataCompatible)
+    }
+
     @Test func failedSetupDoesNotLetARestoredOnboardingFlagSkipTheNextGate() async throws {
         let preferences = makePreferences()
         preferences.hasOnboarded = true

@@ -118,17 +118,17 @@ public struct RootView: View {
         let installationContextStore = InMemoryInstallationRecordingContextStore(
             context: .testing,
         )
+        let bootstrap = WhereBootstrap(
+            installationContextStore: installationContextStore,
+            storeStorage: .inMemory,
+            dataset: .local(.init(rawValue: "preview")),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            locationOutbox: NoOpLocationOutbox(),
+        )
         let model = WhereModel(
             preferences: WherePreferences(store: UserDefaults.standard),
             installationContextStore: installationContextStore,
-            makeBootstrap: {
-                WhereBootstrap(
-                    installationContextStore: $0,
-                    storeStorage: .inMemory,
-                    widgetRefresher: NoopWidgetTimelineRefresher(),
-                    locationOutbox: NoOpLocationOutbox(),
-                )
-            },
+            makeBootstrap: { _ in bootstrap },
             logSystem: .shared,
         )
         _model = State(initialValue: model)
@@ -185,6 +185,9 @@ public struct RootView: View {
                             )
                         }
                     }
+                    GateView(for: DataCompatibilityGate.self) { _, _ in
+                        compatibilityContent
+                    }
                 },
             ) { session in
                 // `.ready` carries the session the launch produced — the app
@@ -194,7 +197,9 @@ public struct RootView: View {
                 // monotonic `id` (never reused within the process) rather than
                 // its address, so a rebuilt session can't collide with a freed
                 // one and skip the rebuild.
-                if session.isCurrentDeviceRemoved {
+                if !model.isDataCompatible || session.services.isDataAccessRevoked {
+                    compatibilityContent
+                } else if session.isCurrentDeviceRemoved {
                     RemovedDeviceView(model: model, session: session)
                 } else {
                     MainTabs(
@@ -281,17 +286,31 @@ public struct RootView: View {
             // entire (possibly slow) headless drive instead of the splash.
             .task {
                 if scenePhase == .active {
-                    await launcher.enterForeground()
+                    await WhereCompatibilityLifecycle.enterForeground(
+                        runner: launcher,
+                        model: model,
+                    )
                 }
                 await launcher.run()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task {
-                    await launcher.enterForeground()
-                    await model.session?.appBecameActive()
+                    await WhereCompatibilityLifecycle.enterForeground(
+                        runner: launcher,
+                        model: model,
+                    )
+                    if model.isDataCompatible { await model.session?.appBecameActive() }
                 }
             }
+    }
+
+    private var compatibilityContent: some View {
+        DataCompatibilityView(
+            state: model.compatibility.state,
+            isChecking: model.compatibility.isChecking,
+            retry: { await model.compatibility.refresh() },
+        )
     }
 
     private var isLifecyclePresentationVisible: Bool {

@@ -47,9 +47,7 @@ public final class WhereModel {
     /// app is logged in to is one fact, and the states it can legally be in
     /// are few enough to enumerate.
     enum ScopeState {
-        /// No scope active, carrying what it takes to build one. Logging in
-        /// consumes the bootstrap, so a spent one — its location source handed
-        /// over, its store opened — never lingers behind a live scope.
+        /// No scope active, carrying the owner from which the next scope is assembled.
         case loggedOut(bootstrap: any WhereScopeAssembling)
         /// Logged in to the user's real, persisted world.
         case real(WhereScope)
@@ -86,6 +84,18 @@ public final class WhereModel {
     /// `.ready` carries it to the UI. Nil until that step runs; dropped by
     /// `endSession()` on reset and rebuilt when the launch re-drives.
     public private(set) var session: WhereSession?
+
+    /// Dataset admission outlives each disposable service scope.
+    public private(set) var compatibility: WhereDataCompatibilityModel
+
+    public var isDataCompatible: Bool {
+        if isInDemoMode { return true }
+        guard compatibility.isAvailable else { return false }
+        guard let services = activeScope?.services else { return true }
+        return !services.isDataAccessRevoked && services.dataAccessID == compatibility.accessID
+    }
+
+    @ObservationIgnored private var scopeResolution: Task<WhereScope, any Error>?
 
     private enum LaunchDemoState {
         case inactive
@@ -143,10 +153,8 @@ public final class WhereModel {
     private let installationContextStore: any InstallationRecordingContextStoring
     private let onboardingImportRecovery: OnboardingImportRecoveryModel
 
-    /// Makes the bootstrap a logged-out state carries. A factory rather than
-    /// a stored instance, because a bootstrap is spent by the login it serves:
-    /// logging out needs a fresh one for the next login, and holding the used
-    /// one would keep a consumed location source alive beside the live scope.
+    /// Returns the bootstrap for a logged-out state. Production returns its retained dataset
+    /// owner; isolated fixtures can replace their whole in-memory world after reset.
     private let makeBootstrap:
         @MainActor (any InstallationRecordingContextStoring) -> any WhereScopeAssembling
 
@@ -159,6 +167,9 @@ public final class WhereModel {
     /// opens a second container over the same file. Set once, at the app's
     /// composition root; the default no-op covers previews and tests.
     public var onLoggedOut: @MainActor () async -> Void = {}
+
+    /// Fails parked intents when history is unavailable instead of leaving them waiting.
+    public var onDataCompatibilityBlocked: @MainActor (any Error) async -> Void = { _ in }
 
     /// Keeps widgets and App Intents synchronized with Appearance Settings.
     public var onThemeChanged: @MainActor (WhereTheme) async -> Void = { _ in }
@@ -220,6 +231,7 @@ public final class WhereModel {
                 devices: devices.map(\.device),
             )
         }
+        try await compatibility.requireAdmission()
         return try await RecordingOnboardingRecommendation(
             for: context,
             devices: bootstrap.discoverRecordingDevices(),
@@ -379,7 +391,9 @@ public final class WhereModel {
         self.makeBootstrap = makeBootstrap
         self.logSystem = logSystem
         self.now = now
-        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
+        let bootstrap = makeBootstrap(installationContextStore)
+        scopeState = .loggedOut(bootstrap: bootstrap)
+        compatibility = WhereDataCompatibilityModel(bootstrap: bootstrap)
         initialSelectedYear = WhereModel.currentYear
         initialYearDetails = nil
     }
@@ -414,6 +428,7 @@ public final class WhereModel {
             logSystem: logSystem,
         )
         scopeState = .real(scope)
+        compatibility = .isolated()
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
@@ -480,27 +495,76 @@ public final class WhereModel {
     /// Throws if the store can't be opened, leaving the model logged out so a
     /// later attempt can try again.
     public func resolveScope() async throws -> WhereScope {
+        if let scopeResolution { return try await scopeResolution.value }
         switch scopeState {
             case let .real(scope), let .demo(scope):
+                try scope.services.validateDataAccess()
                 return scope
             case let .loggedOut(bootstrap):
-                let scope = try await WhereScope.real(
-                    bootstrap: bootstrap,
-                    preferences: preferences,
-                    logSystem: logSystem,
-                    onLogStoreStateChange: { [weak self] scope, state in
-                        guard self?.activeScope === scope else { return }
-                        self?.logStoreState = state
-                    },
-                )
-                // Replacing the state releases the bootstrap: it has handed
-                // over its location source and opened its store, and the next
-                // login gets a fresh one.
-                scopeState = .real(scope)
-                logStoreState = scope.logStoreState
-                Self.logger.openedRealScope()
-                return scope
+                let task = Task { @MainActor in
+                    while true {
+                        try await self.compatibility.requireAdmission()
+                        try Task.checkCancellation()
+                        let accessID = self.compatibility.accessID
+                        do {
+                            let scope = try await WhereScope.real(
+                                bootstrap: bootstrap,
+                                preferences: preferences,
+                                logSystem: logSystem,
+                                onLogStoreStateChange: { [weak self] scope, state in
+                                    guard self?.activeScope === scope else { return }
+                                    self?.logStoreState = state
+                                },
+                            )
+                            do {
+                                try Task.checkCancellation()
+                                try scope.services.validateDataAccess()
+                            } catch {
+                                await scope.services.retireCompatibilityScope()
+                                await scope.stopLogRouting()
+                                throw error
+                            }
+                            self.scopeState = .real(scope)
+                            self.logStoreState = scope.logStoreState
+                            Self.logger.openedRealScope()
+                            return scope
+                        } catch DataCompatibilityAccess.AccessError.revoked {
+                            // A concurrent check can replace admission while services are still
+                            // assembling. Retry only this obsolete lifetime, never a store failure.
+                            try Task.checkCancellation()
+                            guard self.compatibility.isAvailable,
+                                  self.compatibility.accessID != accessID
+                            else { throw DataCompatibilityAccess.AccessError.revoked }
+                        }
+                    }
+                }
+                scopeResolution = task
+                defer { scopeResolution = nil }
+                return try await task.value
         }
+    }
+
+    /// Recheck only a dataset the user has already opened or requested during setup.
+    public func refreshDataCompatibilityIfNeeded() async {
+        guard !isInDemoMode, compatibility.hasChecked else { return }
+        await compatibility.refresh()
+    }
+
+    /// Retire an admitted world without erasing identity, consent, pending fixes, or history.
+    func suspendForCompatibility() async {
+        await onDataCompatibilityBlocked(compatibility.blockingError)
+        session?.stopObserving()
+        scopeResolution?.cancel()
+        if let scopeResolution {
+            // The task owns cleanup on a cancelled assembly; its error is already observable
+            // through compatibility or the launch that awaited it.
+            _ = await scopeResolution.result
+        }
+        await compatibility.withdrawHistoryOutputs()
+        await activeScope?.stopLogRouting()
+        session = nil
+        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
+        logStoreState = .unavailable
     }
 
     /// Install the location manager before anything async runs, so a
@@ -606,10 +670,8 @@ public final class WhereModel {
         return session
     }
 
-    /// Drop the logged-in session and release the scope. Run by the reset
-    /// teardown after `eraseAllData()` and when onboarding abandons a failed
-    /// restore attempt: the next login builds a fresh scope over a newly-opened
-    /// store and the installation context current at that attempt.
+    /// Drop the session after reset or an abandoned restore. Production retains its physical
+    /// dataset while the next login builds fresh services with the current installation context.
     public func endSession() async {
         await logOut()
         Self.logger.endedSession()
@@ -624,15 +686,16 @@ public final class WhereModel {
     /// Release whatever scope is active and return to logged out, ready to
     /// build a new one.
     ///
-    /// Releasing rather than parking the scope is what keeps the store open
-    /// once: the next login opens a fresh container, and the onboarding gate
-    /// always sits between the two — every path here leaves `hasOnboarded`
-    /// false or unset, so the relaunch parks for the user before anything
-    /// re-opens. The old container is long gone by the time they answer.
+    /// Production's bootstrap keeps the physical dataset and coordinator. All scope-owned
+    /// capture, reconciliation, and output must retire before another scope uses that dataset.
     private func logOut() async {
+        session?.stopObserving()
+        await activeScope?.services.retireCompatibilityScope()
         await activeScope?.stopLogRouting()
         session = nil
-        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
+        let bootstrap = makeBootstrap(installationContextStore)
+        scopeState = .loggedOut(bootstrap: bootstrap)
+        compatibility = WhereDataCompatibilityModel(bootstrap: bootstrap)
         logStoreState = .unavailable
         await onLoggedOut()
     }
@@ -678,6 +741,12 @@ public final class WhereModel {
 /// quietly open the user's on-disk SwiftData and Periscope stores from inside
 /// a test host.
 private struct InjectedServicesAssembler: WhereScopeAssembling {
+    func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
+        nil
+    }
+
+    func withdrawHistoryOutputs() async {}
+
     let services: WhereServices
 
     func prepareLocation() {}

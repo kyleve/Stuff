@@ -61,6 +61,7 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
                 theme: context.theme,
             )
         }
+        try services.validateDataAccess()
         return .result(view: snippet)
     }
 }

@@ -34,7 +34,13 @@ public actor IntentServices {
         let theme: WhereTheme
     }
 
-    private var installed: Context?
+    private enum State {
+        case waiting
+        case installed(Context)
+        case blocked(any Error)
+    }
+
+    private var state = State.waiting
 
     /// Intents parked in `current()` awaiting installation, keyed so a
     /// cancelled waiter can remove exactly itself.
@@ -53,8 +59,14 @@ public actor IntentServices {
     /// stack; a later install (a fresh session after reset) replaces the
     /// cached one.
     public func install(_ services: WhereServices, theme: WhereTheme) {
+        do {
+            try services.validateDataAccess()
+        } catch {
+            block(error: error)
+            return
+        }
         let context = Context(services: services, theme: theme)
-        installed = context
+        state = .installed(context)
         let parked = waiters
         waiters = [:]
         for continuation in parked.values {
@@ -65,8 +77,8 @@ public actor IntentServices {
     /// Replace only the presentation identity while retaining the current
     /// store-sharing service stack.
     public func updateTheme(_ theme: WhereTheme) {
-        guard let installed else { return }
-        self.installed = Context(services: installed.services, theme: theme)
+        guard case let .installed(installed) = state else { return }
+        state = .installed(Context(services: installed.services, theme: theme))
     }
 
     /// Release the installed stack, so nothing here keeps the app's store alive
@@ -77,7 +89,18 @@ public actor IntentServices {
     /// first install — the alternative is answering from a store the app has
     /// abandoned, which is worse than waiting for the one it opens next.
     public func clear() {
-        installed = nil
+        state = .waiting
+    }
+
+    /// Compatibility failures end both existing and future waits. A later admitted install
+    /// reopens the handoff; clearing a session does not itself grant access.
+    public func block(error: any Error) {
+        state = .blocked(error)
+        let parked = waiters
+        waiters = [:]
+        for continuation in parked.values {
+            continuation.resume(throwing: error)
+        }
     }
 
     /// The installed stack, suspending until the launch installs one. Throws
@@ -94,12 +117,18 @@ public actor IntentServices {
 
     /// Resolve services and theme atomically for snippet presentation.
     func currentContext() async throws -> Context {
-        if let installed {
-            return installed
+        switch state {
+            case let .installed(context):
+                try context.services.validateDataAccess()
+                return context
+            case let .blocked(error): throw error
+            case .waiting: break
         }
-        return try await WhereIntentsLog.logger.measure(.awaitServices) {
+        let context = try await WhereIntentsLog.logger.measure(.awaitServices) {
             try await park()
         }
+        try context.services.validateDataAccess()
+        return context
     }
 
     /// Suspend until `install(_:)` resumes us, keyed so a cancelled waiter can

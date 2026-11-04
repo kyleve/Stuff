@@ -26,6 +26,28 @@ struct IntentServicesTests {
         #expect(resolved.journal === stack.journal)
     }
 
+    @Test func blockFailsParkedAndFutureIntentsUntilAdmittedInstallation() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let parked = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+        let failure = DataCompatibilityError.updateRequired(requiredMajor: 2)
+        await handoff.block(error: failure)
+        await #expect(throws: failure) { try await parked.value }
+        await #expect(throws: failure) { try await handoff.current() }
+        #expect(await handoff.waiterCount == 0)
+        let replacement = try await CompatibilityIntentFixture()
+        await handoff.install(replacement.services, theme: .standard)
+        #expect(try await handoff.current().dataAccessID == replacement.access.id)
+    }
+
+    @Test func lateInstallationCannotInstallARetiredPermit() async throws {
+        let fixture = try await CompatibilityIntentFixture()
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        fixture.access.revoke()
+        await handoff.install(fixture.services, theme: .standard)
+        await #expect(throws: (any Error).self) { try await handoff.current() }
+    }
+
     @Test func currentParksUntilAStackIsInstalled() async throws {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let parked = Task { try await handoff.current() }

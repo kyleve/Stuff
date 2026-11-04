@@ -217,6 +217,27 @@ struct DataCompatibilityCoordinatorTests {
         #expect(relaunched.access == nil)
     }
 
+    @Test func retiredScopeCanBeReplacedUsingItsVerifiedOfflineBinding() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .legacyAccount)
+        let coordinator = DataCompatibilityTestSupport.coordinator(
+            store: store,
+            transport: transport,
+            cache: InMemoryDataCompatibilityCache(value: nil),
+        )
+        let previous = try await coordinator.refresh()
+        previous.revoke()
+        await transport.failVerification(CKError(.networkUnavailable))
+        let replacement = try await coordinator.refresh()
+        #expect(replacement.id != previous.id)
+        try replacement.validate()
+        #expect(throws: DataAccessPermit.AccessError.revoked) { try previous.validate() }
+        guard case .available(_, .uncertain) = coordinator.state else {
+            Issue.record("An offline replacement must preserve synchronization uncertainty")
+            return
+        }
+    }
+
     @Test func interruptedVerificationRequiresACompletedCheckAfterRelaunch() async throws {
         let store = try SwiftDataStore.inMemory()
         let transport = ScriptedSharedDataCompatibilityTransport(history: .legacyAccount)

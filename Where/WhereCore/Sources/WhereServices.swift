@@ -102,6 +102,16 @@ public struct WhereServices: Sendable {
     let installationContext: InstallationRecordingContext
     /// Owns the remote-import observation task for this service lifetime.
     private let remoteDataChangeReconciler: RemoteDataChangeReconciler
+    /// Set once by the admitted production factory, before the assembled value is handed out.
+    /// Unscoped test and demo assemblies have no external compatibility lifetime.
+    private var compatibilityLifetime: CompatibilityLifetime?
+
+    private struct CompatibilityLifetime {
+        let access: DataCompatibilityAccess
+        let outputs: DataCompatibilityOutputs
+        let location: DataCompatibilityLocationSource
+    }
+
     /// Synchronous assembly with an explicitly-provided `attributor` (default:
     /// the historical four via `RegionAttributor.shared`). For **tests and
     /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without
@@ -325,6 +335,80 @@ public struct WhereServices: Sendable {
     /// rows resolve to the default four, matching `RegionAttributor.shared`),
     /// while production wiring — the app launch and the App Intents process —
     /// goes through here so both attribute against the *same* stored set.
+    public static func make(
+        access: DataCompatibilityAccess,
+        locationSource: any LocationSource,
+        installationContext: InstallationRecordingContext,
+        aggregator: DayAggregator,
+        reminderScheduler: any LoggingReminderScheduling,
+        summaryScheduler: any DailySummaryScheduling,
+        issueAlertScheduler: any DataIssueAlertScheduling,
+        widgetRefresher: any WidgetTimelineRefreshing,
+        locationOutbox: any LocationOutbox,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting,
+        now: @escaping @Sendable () -> Date,
+    ) async throws -> WhereServices {
+        try access.validate()
+        let outputs = DataCompatibilityOutputs(
+            access: access,
+            reminders: reminderScheduler,
+            summary: summaryScheduler,
+            issues: issueAlertScheduler,
+            widgets: widgetRefresher,
+        )
+        let location = DataCompatibilityLocationSource(base: locationSource, access: access)
+        var services = try await make(
+            store: access.store,
+            locationSource: location,
+            installationContext: installationContext,
+            aggregator: aggregator,
+            reminderScheduler: outputs.reminders,
+            summaryScheduler: outputs.summary,
+            issueAlertScheduler: outputs.issues,
+            widgetRefresher: outputs.widgets,
+            locationOutbox: locationOutbox,
+            importRecoveryPersistence: importRecoveryPersistence,
+            now: now,
+        )
+        services.compatibilityLifetime = CompatibilityLifetime(
+            access: access,
+            outputs: outputs,
+            location: location,
+        )
+        do {
+            try access.validate()
+        } catch {
+            await services.retireCompatibilityScope()
+            throw error
+        }
+        return services
+    }
+
+    public var dataAccessID: DataCompatibilityAccess.ID? {
+        compatibilityLifetime?.access.id
+    }
+
+    /// Validate again at a consumer's final result/publication boundary after any suspension.
+    public func validateDataAccess() throws {
+        try compatibilityLifetime?.access.validate()
+    }
+
+    public var isDataAccessRevoked: Bool {
+        compatibilityLifetime?.access.isRevoked ?? false
+    }
+
+    /// Close all work owned by this admitted lifetime before constructing replacement services.
+    public func retireCompatibilityScope() async {
+        guard let compatibilityLifetime else { return }
+        compatibilityLifetime.access.revoke()
+        async let outputRetirement: Void = compatibilityLifetime.outputs.retire()
+        async let locationRetirement: Void = compatibilityLifetime.location.retire()
+        async let reconciliationRetirement: Void = remoteDataChangeReconciler.stop()
+        await recording.retireScope()
+        _ = await (outputRetirement, locationRetirement, reconciliationRetirement)
+    }
+
+    @_spi(Demo) @_spi(Testing)
     public static func make(
         store: any WhereStore,
         locationSource: any LocationSource,

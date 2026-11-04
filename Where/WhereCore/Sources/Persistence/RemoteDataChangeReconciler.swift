@@ -23,4 +23,9 @@ final class RemoteDataChangeReconciler: @unchecked Sendable {
     deinit {
         task.cancel()
     }
+
+    func stop() async {
+        task.cancel()
+        await task.value
+    }
 }

@@ -97,10 +97,27 @@ public struct OnboardingView: View {
             .ignoresSafeArea(),
         )
         .animation(stylesheet.motion.reducedReveal, value: flow.phase)
+        .allowsHitTesting(!compatibilityBlocksSetup)
+        .accessibilityHidden(compatibilityBlocksSetup)
+        .overlay {
+            if compatibilityBlocksSetup {
+                DataCompatibilityView(
+                    state: model.compatibility.state,
+                    isChecking: model.compatibility.isChecking,
+                    retry: { await model.compatibility.refresh() },
+                )
+            }
+        }
         .onDisappear { flow.discardPendingRestore() }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
         .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
+    }
+
+    /// Keep the flow mounted through initial verification and retries. Its draft owns any
+    /// selected archive and region edits; replacing the view would discard those inputs.
+    private var compatibilityBlocksSetup: Bool {
+        model.compatibility.hasChecked && !model.isDataCompatible
     }
 
     // MARK: - Intro

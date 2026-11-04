@@ -161,6 +161,7 @@ struct WhereLaunchTests {
         #expect(ids == [
             .activateDemo,
             .resolveInstallation,
+            .compatibility,
             .onboarding,
             .resolveScope,
             .startSession,

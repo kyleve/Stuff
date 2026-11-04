@@ -63,6 +63,12 @@ struct OnboardingSetupFixture {
 
 @MainActor
 private struct OnboardingSetupBootstrap: WhereScopeAssembling {
+    func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
+        nil
+    }
+
+    func withdrawHistoryOutputs() async {}
+
     let store: SwiftDataStore
     let source: ScriptedLocationSource
     let installationStore: any InstallationRecordingContextStoring

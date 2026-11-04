@@ -15,4 +15,7 @@ protocol WhereApplicationRuntime: AnyObject {
     ) -> Bool
 
     func makeRootView() -> AnyView
+
+    /// Refresh the regular dataset when a silent CloudKit notification wakes the process.
+    func refreshDataCompatibility() async
 }

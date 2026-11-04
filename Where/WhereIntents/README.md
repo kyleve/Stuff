@@ -23,6 +23,10 @@ The host injects its audience-specific App Group through `IntentServices`.
 `TodayRegionsIntent` uses that group for the optional widget-snapshot fast path
 and logs an App Group-open failure before falling back to the store report.
 
+Compatibility withdrawal blocks the handoff and fails parked intents.
+Installation and handoff reject retired permits. History queries validate again before returning, including the cached widget path.
+A fresh admitted installation reopens the handoff. Reset still parks new requests until the next session arrives.
+
 ## Intents
 
 ### Query (read)

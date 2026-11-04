@@ -2472,6 +2472,94 @@
         }
       }
     },
+    "compatibility.account.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This history belongs to a different iCloud account. Sign in to its original account, then try again. Where will keep your history and pending recordings separate from the new account."
+          }
+        }
+      }
+    },
+    "compatibility.checking.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where is checking that this device can safely read and record your history."
+          }
+        }
+      }
+    },
+    "compatibility.checking.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking Your History"
+          }
+        }
+      }
+    },
+    "compatibility.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Again"
+          }
+        }
+      }
+    },
+    "compatibility.update.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your history uses a newer version of Where. Update this device to continue. If you use the beta, install it on every device that shares this history. Your recording choice and saved data are preserved."
+          }
+        }
+      }
+    },
+    "compatibility.update.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Where"
+          }
+        }
+      }
+    },
+    "compatibility.verify.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where needs a successful online check before it can open this history. Connect to the internet and try again. Recording is paused until the check succeeds."
+          }
+        }
+      }
+    },
+    "compatibility.verify.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Your History"
+          }
+        }
+      }
+    },
     "demo.building.subtitle" : {
       "comment" : "Interstitial subtitle shown while demo mode's sample year is generated.",
       "extractionState" : "manual",

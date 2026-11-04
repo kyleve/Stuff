@@ -42,6 +42,12 @@ It registers the App Intents dependency, starts logging, and builds a [`Lifecycl
 The runner drives the background-safe launch steps immediately and builds no view tree.
 When a scene actually activates, `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
+The runtime retains one `WhereBootstrap` across reset, demo, and compatibility suspension.
+Its dataset identity comes from the audience descriptor, independently of the storage adapter.
+The bootstrap verifies shared compatibility before opening a CloudKit mirror and retains that physical store across service scopes.
+Silent notifications refresh compatibility through the runtime protocol. Inspector performs no regular dataset verification.
+Blocked history fails parked App Intents. A later admitted session installs fresh services.
+
 Before either the regular or Inspector runtime receives that callback, the app
 captures diagnostic preferences. It starts Bitdrift only if crash reports,
 session replay, or remote logs require it. Fatal reporting and replay stay at

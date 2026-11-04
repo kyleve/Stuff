@@ -1149,8 +1149,8 @@ Record platform assumptions separately from tested app behavior. Manual device c
 The physical SwiftData save and revocation share one mutex.
 A held-transaction regression verifies that retirement discards staged changes before save.
 The [write-lifetime model](Specifications/CompatibilityWrites/README.md) checks this boundary and recovery with a fresh permit.
-These guards are not yet wired into production scope creation.
-The remaining work includes a scripted shared-account integration fixture over the production conditional-update adapter boundary.
+Production scope creation now receives admitted services through the retained dataset owner.
+The conditional-update fixture exercises the shared-account protocol through its production adapter boundary.
 
 **Implemented protocol foundation:** account verification, conditional creation and activation, account-bound cache persistence, and record-header admission have executable fixtures.
 The transport fixture runs the production algorithm with a controlled conditional database.
@@ -1164,7 +1164,13 @@ The production scope and output integrations below remain required before activa
 The [output model](Specifications/CompatibilityOutputs/README.md) checks this ordering and replacement publication.
 Terminal recording retirement preserves accepted retry data, joins delayed physical starts, and rejects stale cleanup or resume calls.
 Fresh scopes replay retained observations with their original device provenance.
-These primitives still require production lifecycle wiring below.
+Production launch and foreground/background refresh now use these primitives.
+The compatibility gate precedes interrupted-import recovery for existing installations.
+A new installation requests admission only after choosing discovery or setup of its real history.
+Onboarding retains its draft through blocked checks. A retired scope cannot complete a pending setup or repeat an already committed import.
+App Intents reject retired handoffs and validate history results, including their cached widget path.
+Cold rejection stops and discards the prepared location source, even before services exist.
+Shared-item drafts, independent update alerts, and the full automated installation fixture remain required below.
 
 Selectively reuse compatibility guards, scope retirement, and stale-output withdrawal from the previous stack.
 Remove ownership dependencies from these components.
@@ -1182,6 +1188,10 @@ Implement cached offline access without time-based expiry for a verified compati
 Revoke access on identity changes or known incompatibility, including incompatible records received before their metadata.
 Pause capture at the known-incompatible gate while preserving consent and accepted durable retry data.
 Keep update notification scheduling and routing available after scope retirement.
+The share extension saves attachments and metadata as pending drafts without opening the history store.
+The next verified app session imports them through its guarded services.
+Retain each draft until its import is durable. Repeated delivery or a crash after commit must not duplicate evidence.
+Preserve pending drafts while compatibility blocks the app.
 Define and verify shared major activation, version admission, and initial rollout before incompatible data writes.
 Adapt the compatibility and scope-retirement models to that protocol and its actual atomicity boundaries.
 Cover empty local stores, delayed imports, legacy accounts, concurrent setup, stale responses, old backups, and failed verification.

@@ -453,8 +453,9 @@ public final class DataCompatibilityCoordinator {
                 state = .available(access, synchronization)
                 return access
             } catch {
-                // A verified refresh can replace a retired permit. A failed refresh cannot.
-                if case .uncertain = synchronization { throw error }
+                // Disposable scope retirement does not erase same-binding offline proof.
+                // The refresh path admitted current headers before reaching this boundary.
+                if case .uncertain = synchronization, !hasValidOfflineProof { throw error }
             }
         }
         access?.revoke()

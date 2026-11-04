@@ -89,7 +89,11 @@ It joins a pending physical start before the final stop and preserves accepted r
 Stale rollback and destructive cleanup calls cannot resume capture or clear that data.
 A fresh compatible scope restores its generation-matching outbox before accepting new samples.
 
-Production scope creation and output integration remain in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
+Production assembles `WhereServices.make(access:...)` with an admitted store, guarded output, and a scope-owned location source.
+`retireCompatibilityScope()` drains output, stops reconciliation, and joins capture retirement before a replacement starts.
+It also rejects late one-shot location results. Preview and demo assembly remain separate SPI entry points.
+The app retains one dataset coordinator across service scopes. Its launch gate works without a foreground scene.
+The remaining rollout requirements stay in [implementation slice 3](../MULTI_DEVICE_RECORDING.md#3-compatibility-gate).
 The foundation does not activate new history selection or write incompatible user data.
 
 ## What you get
@@ -117,8 +121,8 @@ one it belongs to rather than to a god-object:
   default. `SwiftDataStore.inMemory()` is the convenience used by tests and
   previews. Each
   process opens its on-disk store **once** and injects it where it's needed —
-  in the app, the launch's `resolve-scope` step opens it and the App Intents
-  stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
+  in the app, the retained bootstrap opens it after compatibility admission and the App Intents
+  stack shares its admitted services via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
   holds the user's **tracked / primary regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`

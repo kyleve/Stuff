@@ -46,6 +46,18 @@ struct WhereAppTests {
         #expect(events == ["first-reporter", "second-reporter", "runtime"])
     }
 
+    @Test func silentNotificationUsesTheSelectedRuntimeWithoutLaunchingAnother() async {
+        let runtime = RuntimeSpy()
+        let delegate = AppDelegate(runtime: runtime)
+        let result = await delegate.application(
+            UIApplication.shared,
+            didReceiveRemoteNotification: [:],
+        )
+        #expect(result == .noData)
+        #expect(runtime.compatibilityRefreshCount == 1)
+        #expect(runtime.launchCount == 0)
+    }
+
     #if DEBUG
         @Test func regularRuntimeUsesTheProcessReportingPreferencesForItsModel() {
             let preferences = WherePreferences(store: InMemoryKeyValueStore())
@@ -54,6 +66,7 @@ struct WhereAppTests {
                 buildEnvironment: WhereBuildEnvironment(
                     audience: .development,
                     appGroupIdentifier: "group.com.stuff.where.tests",
+                    cloudKitContainerIdentifier: "iCloud.com.stuff.where",
                     primaryAppIconName: "AppIcon",
                     isRunningTests: true,
                 ),
@@ -128,6 +141,7 @@ struct WhereAppTests {
                 buildEnvironment: WhereBuildEnvironment(
                     audience: .development,
                     appGroupIdentifier: "group.com.stuff.where.tests",
+                    cloudKitContainerIdentifier: "iCloud.com.stuff.where",
                     primaryAppIconName: "AppIcon",
                     isRunningTests: true,
                 ),
@@ -322,6 +336,11 @@ struct WhereAppTests {
 
 @MainActor
 private final class RuntimeSpy: WhereApplicationRuntime {
+    private(set) var compatibilityRefreshCount = 0
+    func refreshDataCompatibility() async {
+        compatibilityRefreshCount += 1
+    }
+
     private(set) var launchCount = 0
     private(set) var rootCount = 0
     var onLaunch: () -> Void = {}

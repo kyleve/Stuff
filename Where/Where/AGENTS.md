@@ -72,10 +72,14 @@ layering, and the domain rules this target merely starts up.
   `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher. Create them here and inject down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
-  launch's `resolve-scope` step is the process's only store open. It runs
-  *behind* the onboarding gate. This target opens nothing at startup. The
+  retained bootstrap owns the process's only physical history store. Open it only
+  after admission during requested setup/discovery or an existing installation's launch. The
   intents stack derives from whatever scope the launch resolves, in the
   `onServicesReady` hook.
+- Retain one `WhereBootstrap` through reset, demo, and compatibility suspension.
+  Inject its dataset identity independently of the local storage adapter.
+  Pass silent remote notifications to compatibility refresh through the runtime protocol.
+  Inspector must not start that verification or open regular app data.
 - **Only the app owns the CloudKit capability.** Keep its App Group, CloudKit
   container (`iCloud.com.stuff.where`), Push Notifications entitlement, and
   remote-notification background mode together in `Project.swift`; widgets and

@@ -5,6 +5,12 @@
     /// Supplies known devices through setup's production discovery seam without disk or CloudKit.
     @MainActor
     struct OnboardingPreviewBootstrap: WhereScopeAssembling {
+        func prepareDataCompatibility() -> DataCompatibilityCoordinator? {
+            nil
+        }
+
+        func withdrawHistoryOutputs() async {}
+
         let contextStore: any InstallationRecordingContextStoring
         let devices: [RecordingDevice]
 
