@@ -107,9 +107,24 @@ The existing permanent **Remove device** action remains available for lost, stol
 
 ## Region agreement and movement
 
-Different coordinates in the same effective region do not create a region-history conflict.
+History assessment uses specific region identities from the full catalog, independently of the selected primary regions.
+Derived history retains that geographic specificity before reporting groups the results.
+Different coordinates in the same known region do not create a region-history conflict.
 Those observations remain distinct records with their original coordinates.
 Region agreement does not justify joining different devices into one physical trajectory.
+
+**Other** is a reporting group for non-primary regions or unresolved geography.
+It is not a geographic identity that establishes agreement between devices.
+For example, simultaneous Nevada and Oregon tracks remain distinct even when neither region is primary.
+Selection resolves their competing evidence or exposes a conflict before reports group the results.
+Elsewhere consumes the same selected history and uncertainty before it counts named visits.
+For unchanged evidence and decisions, changing primary regions changes reporting groups without changing geographic agreement or source selection.
+
+Coordinates outside the catalog remain geographically unresolved.
+Equal unresolved values provide no evidence of geographic agreement.
+Unresolved geography alone also does not establish a device conflict.
+Materially divergent, overlapping tracks use the same evidence assessment and review rules.
+Nearby points or isolated GPS noise do not establish a conflict.
 
 A region conflict requires competing evidence for the same period.
 Different regions at different times can describe ordinary travel.
@@ -242,10 +257,12 @@ They take precedence over automatic selection and remain reversible.
 Device selection applies to automatic GPS evidence.
 It does not override manual entries, authoritative day overlays, or evidence-derived assertions.
 It composes with existing per-sample region corrections.
+Geographic attribution retains specific catalog regions where available, before primary-region reporting groups them under Other.
+Explicit assertions of unknown presence retain their meaning. Catalog lookup does not replace them with inferred named regions.
 Legacy samples without a device identity remain available without an invented identity.
 
 Every consumer uses the same effective history contract.
-Reports, widgets, reminders, issue scans, exports, and relevant App Intents use the same policy version on a device.
+Reports, Elsewhere, widgets, reminders, issue scans, exports, and relevant App Intents use the same policy version on a device.
 They agree for identical evidence, decisions, and query context after local writes, remote imports, user choices, and policy updates.
 Different compatible policy versions can produce different automatic history, totals, and issues across devices.
 They preserve the same shared meaning of durable user choices and controls.
@@ -409,7 +426,11 @@ A sync-completion event alone cannot provide that guarantee.
 
 | Evidence or action | Expected behavior |
 | --- | --- |
-| Both phones report different coordinates within the same region | No device conflict. Preserve both sets of observations. |
+| Both phones report different coordinates within the same known catalog region | No region-history conflict, including outside the primary set. Preserve both sets of observations. |
+| Simultaneous tracks occupy Nevada and Oregon while neither region is primary | Retain both geographic identities. Select from strong evidence or expose a conflict before reporting Other or counting Elsewhere visits. |
+| Both phones report coordinates outside the catalog | Keep geography unresolved. Infer neither agreement nor conflict from fallback values alone. Assess the tracks for independently supported divergence. |
+| The user changes primary regions without changing evidence or decisions | Regroup reports without changing geographic agreement or source selection. |
+| A manual assertion or sample correction explicitly specifies unknown presence | Preserve that asserted meaning. Do not replace it with a named region through catalog lookup. |
 | One phone travels while another repeatedly reports from home | Select the moving phone where evidence is strong. Explain the selection. |
 | Several phones remain at home while one accompanies the user | Assess evidence without a device-count vote. |
 | The user changes phones during the day | Permit different selected devices in different periods. |
@@ -483,6 +504,10 @@ Local transaction guarantees do not imply a server-accepted decision or knowledg
 The models allow delayed earlier-version decisions after major activation.
 Unsafe interpretation cannot produce an effective choice or erase the retained decision.
 
+The history-selection model keeps geographic agreement independent of reporting groups.
+Grouping distinct regions under Other cannot turn conflicting tracks into agreement.
+Unresolved geography alone establishes neither agreement nor a device conflict.
+
 The compatibility model includes unknown, verified-existing, and verified-new account states.
 Only verified-new state can authorize account initialization.
 Unknown state cannot authorize initialization or a major upgrade.
@@ -527,6 +552,7 @@ It does not require a wholesale import of the previous stack.
 | [LocationIngestor](WhereCore/Sources/Location/LocationIngestor.swift) and [LocationOutbox](WhereCore/Sources/Location/LocationOutbox.swift) | Capture stamps provenance and retains accepted writes across persistence failures. |
 | [LocationHistoryReader](WhereCore/Sources/Devices/LocationHistoryReader.swift) | The shared read boundary already applies device removals and region corrections. |
 | [LocationHistoryReaderTests](WhereCore/Tests/LocationHistoryReaderTests.swift) | Existing guards preserve raw observations while applying corrections and removal cutoffs. |
+| [ElsewhereResolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) and its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) | Existing catalog lookup expands ordinary Other observations for presentation. Reuse that lookup in shared geographic assessment before selection and report grouping. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
 | [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
@@ -536,6 +562,7 @@ It does not yet use the proposed Keychain identity.
 Its reset and rejoin operations already create new identities and require recording confirmation again.
 The [recording-context regression tests](WhereUI/Tests/InstallationRecordingContextStoreTests.swift) establish those existing behaviors.
 The current reader has no device-selection policy or unresolved-conflict result.
+Its attribution uses the tracked region set. Full-catalog assessment remains an integration change.
 It provides an integration boundary, not a completed multi-device resolver.
 The existing correction guards do not prove the new acceptance scenarios.
 
@@ -567,6 +594,8 @@ Define bounded periods, accuracy-aware movement evidence, stationary evidence, a
 Model regular homes and temporary bases as optional evidence with historical validity.
 Use the required scenarios as executable fixtures.
 Preserve same-region agreement and separate device trajectories.
+Assess agreement with full-catalog region identities, independently of primary-region reporting groups.
+Represent unresolved geography without inferring agreement or conflict from equal fallback values.
 Define causal replacement, concurrent overlap, reversal, and agreement without production writes.
 Give the resolver a full policy version and fixtures for deterministic results from identical inputs.
 Add the initial decision-merging specification and its TLC control cases.
@@ -621,10 +650,15 @@ Prevent backup import and recovery from reusing decision operation identities.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.
 Apply selection before region aggregation and preserve device boundaries through movement and flight inference.
-Cover reports, issue scans, widgets, reminders, exports, and relevant App Intents.
+Separate full-catalog geographic assessment from primary-region reporting groups.
+Retain specific region identities and unresolved geography through history selection.
+Make Elsewhere consume the shared selection and uncertainty before it counts named visits.
+Preserve explicit assertions of unknown presence during catalog lookup.
+Cover reports, Elsewhere, issue scans, widgets, reminders, exports, and relevant App Intents.
 Carry the full policy version through derived results and caches.
 Invalidate affected caches and reassess automatic history after policy updates.
 Exercise compatible policy differences while preserving raw observations and the shared meaning of user choices.
+Exercise simultaneous untracked-region conflicts, catalog gaps, and primary-region changes without changing selection from reporting groups alone.
 Exercise local writes, delayed sync, user overrides, reset, and device removal.
 Preserve raw review, lossless backups, and manual assertions.
 Complete the history-selection model and add Swift regressions for its important counterexamples.
@@ -664,7 +698,7 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-R5–R7 remain the prioritized review findings, followed by E1–E5.
+R5 and R7 remain the prioritized review findings, followed by E1–E5.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
@@ -678,20 +712,6 @@ See the [current issue-alert reconciler](WhereCore/Sources/Reminders/DataIssueAl
 Proposal: preserve historical year context in issue discovery, notification queues, and review lookup.
 Add a year-boundary acceptance scenario.
 
-### R6. P2 — Distinguish Other from geographic agreement
-
-The region-agreement rule does not distinguish a named region from the `Other` fallback.
-Current attribution maps coordinates outside the tracked set to `Other`.
-Two phones in Nevada and Oregon can therefore agree on `Other` during the same period.
-The [Elsewhere resolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) expands those observations into separate named visits and counts both.
-Its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) establish this expansion without changing the main report's `Other` total.
-
-If selection treats equal `Other` values as sufficient agreement, Elsewhere can show incompatible tracks as confirmed visits.
-Proposal: distinguish agreement about a known region from shared fallback attribution.
-Define the conflict policy for untracked regions and coordinates outside the catalog.
-Apply the resulting selection or uncertainty to Elsewhere before it counts named visits.
-Add simultaneous untracked-region and tracked-set-change acceptance scenarios.
-
 ### R7. P2 — Define source selection for unattributed GPS
 
 Legacy GPS observations have no recording-device identity, but the plan does not define their eligibility during source selection.
@@ -702,9 +722,13 @@ Example: an older backup adds unattributed New York GPS inside a gap in an expli
 Passing those observations through device selection adds unwanted presence inside an exclusive period.
 Discarding all unattributed GPS instead removes legacy-only history from reports.
 
-Proposal: define eligibility for unattributed GPS in automatic periods and explicit selections without assigning an invented device identity.
-Preserve raw evidence and legacy-only history.
-Specify how unattributed GPS overlaps a selected device's gaps.
+Proposal for v1: preserve unattributed observations in automatic history and lossless backups.
+A named-device selection admits only that device's GPS within its period, including during gaps.
+Unattributed GPS never bypasses that explicit selection.
+In automatic periods, geographic agreement follows the same region rules.
+Competing unattributed observations retain unknown provenance and require review when the evidence cannot resolve them safely.
+No rule assumes that all unattributed observations came from one physical device.
+
 Add mixed-provenance, legacy-only, and late-backup-import acceptance scenarios.
 
 ### E1. Ignore intervals versus explicit source choices
