@@ -209,6 +209,8 @@ Keep the review history in the PR and link the rule to its guard or source.
 
 ## Targets
 
+- `DisplayProbe` is a standalone device display diagnostic. Its app-hosted
+  `DisplayProbeTests` run in `Stuff-iOS-Tests`; see [its contract](DisplayProbe/AGENTS.md).
 - For the current list of library products, apps, extensions, and test
   bundles, read [`Package.swift`](Package.swift) and
   [`Project.swift`](Project.swift). Each module's own `README.md` /
