@@ -662,9 +662,9 @@ Activation follows durable choices, consistent consumer integration, compatibili
 
 ## Pending review discussion
 
-This temporary section preserves unresolved points from the review of `2658e4d4`.
+This temporary section preserves unresolved points from the reviews of `2658e4d4` and `bf1456f0`.
 The proposals in this section are not agreed decisions.
-R5 remains the prioritized review finding, followed by E1–E5.
+R5–R7 remain the prioritized review findings, followed by E1–E5.
 D1 and D2 retain the broader open decisions. D2 tracks the remaining offline-access and activation rules.
 After agreement, update the relevant contract, acceptance scenarios, and implementation steps.
 Then remove the resolved entry from this section.
@@ -677,6 +677,35 @@ A December conflict can disappear from reminders in January if the new flow reta
 See the [current issue-alert reconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift).
 Proposal: preserve historical year context in issue discovery, notification queues, and review lookup.
 Add a year-boundary acceptance scenario.
+
+### R6. P2 — Distinguish Other from geographic agreement
+
+The region-agreement rule does not distinguish a named region from the `Other` fallback.
+Current attribution maps coordinates outside the tracked set to `Other`.
+Two phones in Nevada and Oregon can therefore agree on `Other` during the same period.
+The [Elsewhere resolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) expands those observations into separate named visits and counts both.
+Its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) establish this expansion without changing the main report's `Other` total.
+
+If selection treats equal `Other` values as sufficient agreement, Elsewhere can show incompatible tracks as confirmed visits.
+Proposal: distinguish agreement about a known region from shared fallback attribution.
+Define the conflict policy for untracked regions and coordinates outside the catalog.
+Apply the resulting selection or uncertainty to Elsewhere before it counts named visits.
+Add simultaneous untracked-region and tracked-set-change acceptance scenarios.
+
+### R7. P2 — Define source selection for unattributed GPS
+
+Legacy GPS observations have no recording-device identity, but the plan does not define their eligibility during source selection.
+The [current removal filter](WhereCore/Sources/Devices/RecordingDeviceRemovalFilter.swift) preserves these observations.
+Its [regression test](WhereCore/Tests/RecordingDeviceRemovalFilterTests.swift) explicitly requires unattributed GPS to remain visible.
+
+Example: an older backup adds unattributed New York GPS inside a gap in an explicit Duo selection for a California trip.
+Passing those observations through device selection adds unwanted presence inside an exclusive period.
+Discarding all unattributed GPS instead removes legacy-only history from reports.
+
+Proposal: define eligibility for unattributed GPS in automatic periods and explicit selections without assigning an invented device identity.
+Preserve raw evidence and legacy-only history.
+Specify how unattributed GPS overlaps a selected device's gaps.
+Add mixed-provenance, legacy-only, and late-backup-import acceptance scenarios.
 
 ### E1. Ignore intervals versus explicit source choices
 
