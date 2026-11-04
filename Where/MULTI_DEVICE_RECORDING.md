@@ -125,8 +125,16 @@ Sharing a UTC calendar date alone does not establish overlap.
 Two devices can label the same instant with different recording days.
 Their observations still compete when they cover the same absolute period.
 
-Whole-day source choices use the selected device's recorded calendar context to determine their coverage.
+Whole-day source choices identify the selected device and logical `CalendarDay`.
+Their coverage follows that device's recorded calendar context and can contain separate intervals in absolute time.
+Every portion labeled with the chosen day belongs to the choice. Intervening portions labeled with another day remain outside it.
+For example, a December 8 choice includes both December 8 portions in a December 8 → December 9 → December 8 journey.
 Other devices cannot bypass that choice by assigning another date label to overlapping observations.
+
+A GPS gap remains within a whole-day choice when the recorded calendar context establishes its coverage.
+The selected device remains exclusive through that gap.
+If missing recorded calendar context leaves coverage ambiguous, require clarification before saving a whole-day choice.
+The existing fixed time-range option remains available. It does not resolve missing recording-day assignments or permit guessed dates.
 
 Delayed callbacks use the observation time, never the callback, upload, or import date.
 The device's current time zone cannot establish its earlier time zone after an unobserved change.
@@ -253,6 +261,7 @@ Choices for other periods remain intact.
 A save retains the reviewed period, relevant evidence and decisions, causal context, full policy version, query context, and data generation.
 Reassessment and the decision write occur inside the same guarded transaction.
 The transaction checks the expected data generation, relevant read state, and current compatibility permit.
+Whole-day saves also require unambiguous coverage from the recorded calendar context used in the preview.
 If relevant inputs changed, reject the proposal and return the refreshed issue without applying the choice.
 Known incompatibility follows the update gate instead of permitting the write.
 
@@ -716,6 +725,10 @@ The formal models must check both delivery orders and the actual store boundarie
 | Overlapping observations agree on the region but disagree on the day, without strong source evidence | Keep both candidate days incomplete and exclude the disputed contribution. Show both dates in the existing review flow. Preserve both raw assignments. |
 | Observations share a UTC calendar date but cover separate periods | Do not infer overlap or a conflict from the shared UTC date alone. |
 | A whole recording day spans daylight-saving or date-line changes | Use the selected device's recorded calendar context. Do not assume a fixed 24-hour window. |
+| A device's recorded date progresses from December 8 to December 9 and back to December 8 | A December 8 source choice covers both December 8 portions. Keep the intervening December 9 portion outside that choice. |
+| A selected whole day has a GPS gap but its recorded calendar context is known | Keep the choice exclusive through the covered gap. Missing GPS alone does not prevent the whole-day choice. |
+| Missing recorded calendar context makes a proposed whole-day choice's coverage ambiguous | Require clarification before save. Offer the existing fixed time-range choice without inventing whole-day boundaries. |
+| The user chooses a fixed time range while some recording-day assignments remain unresolved | Save under the ordinary guarded-write rules. Keep those assignments unresolved and apply the existing completeness and export rules. |
 | A historical archive lacks recording-day context | Resolve it through offline conversion with supported metadata or explicit mappings. Preserve existing assignments and original timestamps. |
 | The app updates or relaunches normally | Preserve the installation's identity and local recording consent. |
 | The user imports a backup through merge or replace | Preserve local identity and consent. Retained historical records keep their original provenance. |
@@ -848,6 +861,8 @@ Matching UTC dates alone never establish overlap.
 Overlapping region agreement with conflicting day labels requires source selection for both region and day.
 Unresolved recording-day conflicts preserve both raw assignments, exclude disputed contributions, and mark each candidate day incomplete.
 Whole-day coverage and overlap with fixed time ranges must follow the selected device's recorded calendar context.
+The model includes disjoint whole-day coverage after a date repeats and preserves intervening periods with other date labels.
+Whole-day saves require unambiguous calendar coverage. GPS gaps alone do not invalidate coverage established by recorded calendar context.
 Swift tests cover delayed callbacks, unresolved day assignments, daylight-saving changes, date-line travel, and day/year query boundaries.
 
 The decision-merging model includes identity preservation after recovery and identity rotation after reset or rejoin.
@@ -973,6 +988,8 @@ Each slice receives its own tests and PR.
 Define bounded periods, accuracy-aware movement evidence, stationary evidence, and uncertainty around sparse observations.
 Model recording-day assignments with their observation-time zone context, including an explicit unresolved state.
 Define whole-day coverage from the selected device's recorded context and compare conflicting evidence by absolute time.
+Support disjoint coverage when a logical date repeats, without including intervening periods assigned to another day.
+Distinguish missing GPS from missing calendar context that prevents a whole-day save.
 Establish overlap from full timestamps and bounded track coverage, independently of UTC calendar-date equality.
 Require recording-device identity in the automatic GPS inputs to the new resolver.
 Model regular homes and temporary bases as optional evidence with historical validity.
@@ -1085,6 +1102,7 @@ Verify unresolved contributions, report completeness, and export gating before a
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
+Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.
 When users resolve a recording-day conflict through source selection, show both candidate dates.
 Show incomplete totals and guide affected history-report exports into review before producing the report.
 Add the local update alert, duplicate suppression, permission fallback, and current-state routing to the appropriate update destination.
@@ -1113,7 +1131,7 @@ Activate selection after compatibility, durable decisions, shared consumers, and
 ## Decisions to resolve by implementation slice
 
 Each open decision has an owning slice, a deadline, and required evidence.
-The two product discussions precede slice 1. Technical investigations can proceed early without activating production behavior.
+The remaining product discussion precedes slice 1. Technical investigations can proceed early without activating production behavior.
 The remaining technical decisions belong in their owning implementation PRs.
 
 If an implementation result requires different user-visible behavior, discuss that change before adopting it.
@@ -1125,7 +1143,6 @@ Record the supporting evidence in the owning PR. The evidence listed below is re
 
 | Decision | Owning slice | Resolve before | Required evidence |
 | --- | --- | --- | --- |
-| Whole-day coverage across recorded calendar changes, gaps, and overlap with fixed time ranges | 1: assessment, with persistence in 4 and consumer integration in 5 | Starting slice 1 | Worked timelines for travel, repeated or skipped dates, missing calendar context, gaps, and adjacent source choices. |
 | Remaining precedence between source choices, ignore intervals, per-sample corrections, manual overlays, and device removals | 4: durable choices, with consumer integration in 5 | Starting slice 1 | Overlap examples that preserve the agreed contracts, including removal of a selected device and return to automatic. |
 
 ### Investigate early
@@ -1135,7 +1152,7 @@ Their results must precede the dependent decisions listed here.
 
 | Decision | Owning slice | Resolve before | Required evidence |
 | --- | --- | --- | --- |
-| Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion | 4: persistence, with early investigation during 1 | Finalizing capture and persisted observation shapes in 4 | Platform experiments for delayed callbacks, time-zone changes, and relaunch. Conversion fixtures and a recovery path for unresolved assignments. |
+| Acquisition and recovery of observation-time zone context, including delayed callbacks and historical conversion | 4: persistence, with early investigation during 1 | Finalizing capture and persisted observation shapes in 4 | Platform experiments for delayed callbacks, time-zone changes, and relaunch. Conversion fixtures and a recovery path for unresolved assignments. Measure missing-context frequency on representative phone journeys. |
 | Shared-account verification evidence and guarded initialization, including legacy-data bootstrap | 3: compatibility | Finalizing shared compatibility persistence in 3 | Concrete shared evidence and a prototype of the guarded operation. Compatibility-model cases for concurrent setup, legacy data, and failed verification. |
 | Guarded server confirmation for shared major activation, record-level version admission, and rollout | 3: compatibility | Finalizing incompatible record formats and writes in 4 | A prototype against the actual store boundaries and passing compatibility-model cases for both delivery orders. A rollout procedure for pre-foundation clients. |
 
@@ -1143,7 +1160,7 @@ Their results must precede the dependent decisions listed here.
 
 | Decision | Owning slice | Resolve before | Required evidence |
 | --- | --- | --- | --- |
-| Interval segmentation, exact boundary inclusivity, and context outside a queried day | 1: assessment | Merging the period-assessment rules in 1 | Fixtures for adjacent intervals, sparse tracks, day/year boundaries, and relevant evidence outside the requested period. |
+| Interval segmentation, exact boundary inclusivity, and context outside a queried day | 1: assessment | Merging the period-assessment rules in 1 | Fixtures for adjacent intervals, disjoint whole-day coverage, fixed time ranges, sparse tracks, day/year boundaries, and evidence outside the requested period. |
 | Accuracy-aware movement and stationary thresholds, place radii, evidence freshness, and sparse-track behavior | 1: assessment | Merging the initial assessment policy in 1 | Named units and representative tracks, including noisy points, useful stationary evidence, competing movement, and insufficient evidence. |
 | Device status eligibility, evidence requirements, freshness thresholds, and recovery conditions | 6: reminders | Activating device status issues or their notifications | Scenarios for quiet devices, receiver sync failures, delayed check-ins, recent selected periods, and recovery without complete observation delivery. |
 | Causal context, incomplete dependencies, and counter allocation and recovery | 1: causal model, with durable decisions in 4 | Merging the causal model in 1 and new decision persistence in 4 | Model controls for reordered and missing dependencies. Persistence tests for crashes, reinstall, restore, and prevention of operation-identity reuse. |
