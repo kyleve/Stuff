@@ -59,6 +59,19 @@ struct SettingsSearchTests {
         #expect(destinations.contains(.appearance))
     }
 
+    @Test func temporaryIgnoreSearchTargetsTheDeviceControlOnlyWhenEnabled() throws {
+        let results = SettingsCatalog.results(matching: "resume")
+        let result = try #require(results.first {
+            $0.destination == .devices && $0.title == String(localized: .recordingIgnoreUntil)
+        })
+        #expect(!result.isAvailable(recordingControlsEnabled: false))
+        #expect(result.isAvailable(recordingControlsEnabled: true))
+        let otherDeviceControls = DevicesSettingsView.searchResults.filter {
+            $0.focus != SettingsFocus(DevicesSettingsView.Item.ignoreUntil)
+        }
+        #expect(otherDeviceControls.allSatisfy { $0.isAvailable(recordingControlsEnabled: false) })
+    }
+
     @Test func matchesLocationForecastVisibilityOnEstimateKeyword() {
         let results = SettingsCatalog.results(matching: "estimate")
 

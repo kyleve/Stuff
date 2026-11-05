@@ -62,6 +62,12 @@ public struct RecordingControlEditCoordinator: Sendable {
         try await review([edit])
     }
 
+    /// Whether this scope's policy enables these controls. Every read and save must still
+    /// validate the admitted store; this presentation capability does not grant data access.
+    public var supportsRecordingControls: Bool {
+        policy.current == RecordingEvidencePolicy.version
+    }
+
     public func ignoreHistory(for deviceID: RecordingDeviceID) async throws
         -> RecordingIgnoreHistory
     {

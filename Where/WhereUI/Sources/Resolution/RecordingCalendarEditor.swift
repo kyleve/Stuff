@@ -48,7 +48,12 @@ struct RecordingCalendarEditor: View {
                     Text(String(localized: .recordingScopeUtcDetail))
                         .foregroundStyle(.secondary)
                 }
-                status
+                RecordingControlStatus(
+                    model: model.controls,
+                    context: .calendar,
+                    canRetry: model.canRetry,
+                    retry: { Task { await model.retry() } },
+                )
                 if let recovery = model.reviewedRecovery {
                     Section {
                         ForEach(recovery.segments, id: \.self) { segment in
@@ -104,45 +109,6 @@ struct RecordingCalendarEditor: View {
                         .accessibilityIdentifier("where_recording_calendar_close")
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var status: some View {
-        switch model.controls.state {
-            case .idle, .retired: EmptyView()
-            case .reviewing:
-                Section { ProgressView(String(localized: .recordingReviewLoading)) }
-            case let .ready(review) where review.refreshed:
-                Section {
-                    Label(
-                        String(localized: .recordingCalendarRefreshed),
-                        systemSymbol: .arrowClockwise,
-                    )
-                    .accessibilityIdentifier("where_recording_calendar_refreshed")
-                }
-            case .ready: EmptyView()
-            case .saving:
-                Section { SavingStatusRow(text: String(localized: .manualSavingStatus)) }
-            case .applied:
-                Section {
-                    Label(
-                        String(localized: .recordingCalendarSaved),
-                        systemSymbol: .checkmarkCircle,
-                    )
-                    .accessibilityIdentifier("where_recording_calendar_saved")
-                }
-            case let .failed(error, _):
-                Section {
-                    Label(
-                        WhereFormat.recordingCalendarFailure(error),
-                        systemSymbol: .exclamationmarkTriangle,
-                    )
-                    if model.canRetry {
-                        Button(String(localized: .commonRetry)) { Task { await model.retry() } }
-                            .accessibilityIdentifier("where_recording_calendar_retry")
-                    }
-                }
         }
     }
 }

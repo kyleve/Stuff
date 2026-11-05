@@ -123,6 +123,7 @@ extension DevicesSettingsView: SettingsSection {
     enum Item: SettingsItem {
         case automaticRecording
         case deviceName
+        case ignoreUntil
 
         var title: String {
             switch self {
@@ -130,6 +131,8 @@ extension DevicesSettingsView: SettingsSection {
                     String(localized: .settingsDevicesAutomaticRecording)
                 case .deviceName:
                     String(localized: .settingsDevicesName)
+                case .ignoreUntil:
+                    String(localized: .recordingIgnoreUntil)
             }
         }
 
@@ -139,6 +142,8 @@ extension DevicesSettingsView: SettingsSection {
                     splitKeywords(String(localized: .settingsDevicesKeywordsRecording))
                 case .deviceName:
                     splitKeywords(String(localized: .settingsDevicesKeywordsName))
+                case .ignoreUntil:
+                    splitKeywords(String(localized: .recordingIgnoreKeywords))
             }
         }
     }
@@ -149,6 +154,12 @@ extension DevicesSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             let session = PreviewSupport.loadedSession()
             let permissionRequiredSession = PreviewSupport.whenInUseSession()
+            let recording = RecordingIgnorePreviewFixture()
+            whereSnapshot(
+                name: "MultiDevice",
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations,
+                onReadyToMeasure: recording.prepare,
+            ) { RecordingIgnorePreview(fixture: recording) }
             whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenRepresentative,

@@ -3,6 +3,19 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct RecordingControlEditCoordinatorTests {
+    @Test func presentationCapabilityFollowsTheScopePolicyWithoutAdmittingHistory() throws {
+        let store = try SwiftDataStore.inMemory()
+        let foundation = RecordingControlEditCoordinator(
+            store: store,
+            policy: .foundation,
+            author: RecordingControlsTestSupport.device,
+            onCommitted: {},
+        )
+        let recording = RecordingControlEditTestSupport.coordinator(store: store)
+        #expect(!foundation.supportsRecordingControls)
+        #expect(recording.supportsRecordingControls)
+    }
+
     @Test func historyReadRequiresAnActiveRecordingContractAndCurrentAccess() async throws {
         let legacy = try SwiftDataStore.inMemory()
         let inactive = RecordingControlEditTestSupport.coordinator(store: legacy)

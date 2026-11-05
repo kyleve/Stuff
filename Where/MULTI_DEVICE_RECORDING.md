@@ -1393,10 +1393,12 @@ The guided flow keeps the editor available through save failures and refreshes t
 Failed source intents retain their original scope or save identity for Retry.
 The ignore-history and editor models now retain original date drafts separately from refreshed proposals, including expanded causal scopes.
 Committed changes refresh history without replacing an open editor or failed save receipt. Resume and elapsed Undo remain separate reviewed intents.
-An unchanged saved end retains its original zone, offset, and boundary. The temporary-ignore settings screen remains to be connected.
-Device controls, reminder integration, and activation remain in progress.
+An unchanged saved end retains its original zone, offset, and boundary.
+The temporary-ignore Settings screen now exposes these controls for each device under the enabled recording contract.
+It shows effective eligibility, saved decisions, conflicts, and expired intervals. Each edit requires review of its exact eligibility effects.
+Place controls, reminder integration, and activation remain in progress.
 
-Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
+Complete place controls and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.

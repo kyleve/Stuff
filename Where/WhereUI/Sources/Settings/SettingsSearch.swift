@@ -237,6 +237,10 @@ struct SettingsSearchResult: Identifiable {
         focus
     }
 
+    func isAvailable(recordingControlsEnabled: Bool) -> Bool {
+        recordingControlsEnabled || focus != SettingsFocus(DevicesSettingsView.Item.ignoreUntil)
+    }
+
     /// Case-insensitive match on the title or any keyword.
     func matches(_ query: String) -> Bool {
         if title.localizedStandardContains(query) { return true }

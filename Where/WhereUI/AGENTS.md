@@ -174,6 +174,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep the requested control draft separate from Core's expanded proposal. A stale scope may expand only in the displayed review; changed drafts require a new review.
   Retire control editors permanently when their owner ends. Ignore queued intents and late reads after retirement.
   Refresh device ignore history from committed changes without replacing its editor or failed save receipt.
+  Pause ignore-history reads when its navigation destination disappears. A retained tab destination must reload on return; release or explicit retirement ends its editor.
+  Hide recording controls and their search entries when the scope policy does not enable them.
   Keep an unchanged ignore end's saved zone, offset, and boundary. Resume and elapsed undo remain separate reviewed intents.
   Guards: `RecordingIgnoreEditorModelTests`, `RecordingIgnoreModelTests`, and `RecordingControlModelTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.

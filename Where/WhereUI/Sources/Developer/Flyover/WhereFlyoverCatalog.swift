@@ -97,6 +97,8 @@
                 LoggedDaysView.flyoverData,
                 RegionsSettingsView.flyoverData,
                 DevicesSettingsView.flyoverData,
+                RecordingIgnoreView.flyoverData,
+                RecordingIgnoreEditor.flyoverData,
                 AlertsSettingsView.flyoverData,
                 AppearanceSettingsView.flyoverData,
                 CardDesignerStudioView.flyoverData,

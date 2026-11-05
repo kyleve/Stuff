@@ -269,8 +269,13 @@ Confirmed context preserves known raw dates and unconfirmed gaps. It does not se
 `RecordingIgnoreModel` reads one device's durable ignore history and retains its editor through committed-change refreshes.
 `RecordingIgnoreEditorModel` prepares a new end date, a changed end, Resume, or elapsed Undo through the same control coordinator.
 Requested drafts stay separate from expanded proposals. An unchanged saved end keeps its original zone, offset, and boundary.
-Retired editors reject queued work. These models are groundwork for the device-settings controls.
-Device controls, reminders, and activation remain under implementation.
+`RecordingIgnoreView` exposes these controls from each device in Settings when the recording contract is enabled.
+The screen shows effective selection periods and saved decisions, including conflicts and expired intervals.
+`RecordingIgnoreEditor` previews the exact eligibility change before Save. Explicit source choices retain precedence for their selected periods.
+Resume restores future eligibility. A separate action restores the reviewed elapsed interval. Both retain raw recordings and local recording consent.
+The preview describes eligibility rather than complete GPS totals. Saved changes can affect the selected history and its totals.
+Retired editors reject queued work. Retained tab destinations pause history reads and reload when they return.
+Place controls, reminders, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.

@@ -70,12 +70,17 @@ public final class RecordingIgnoreModel {
         self.now = now
     }
 
+    isolated deinit {
+        editor?.deactivate()
+    }
+
     var isShowingError: Bool {
         get { actionError != nil }
         set { if !newValue { actionError = nil } }
     }
 
     func run() async {
+        guard !Task.isCancelled else { return }
         if case .retired = state { return }
         let observation = RequestID()
         observationID = observation
@@ -85,7 +90,19 @@ public final class RecordingIgnoreModel {
             guard !Task.isCancelled, observationID == observation else { break }
             await refresh()
         }
-        if observationID == observation { deactivate() }
+    }
+
+    func canResume(_ decision: RecordingIgnoreDecision) -> Bool {
+        guard case let .ignore(until) = decision.change, until.end > now(),
+              let history = state.history else { return false }
+        return history.segments.contains {
+            $0.period.end > now() && $0.effectiveDecisions.contains(decision.id)
+                && $0.resolution != .eligible
+        }
+    }
+
+    func canRestoreElapsed(_ segment: RecordingIgnoreResolver.Segment) -> Bool {
+        segment.period.start < now() && segment.resolution != .eligible
     }
 
     func refresh() async {
@@ -145,6 +162,15 @@ public final class RecordingIgnoreModel {
         state = .retired
         editor = nil
         actionError = nil
+    }
+
+    /// A retained navigation destination can disappear when another tab is selected.
+    /// Stop its reads, but keep the owner and reviewed editor valid for the next appearance.
+    func pause() {
+        if case .retired = state { return }
+        requestID = RequestID()
+        observationID = RequestID()
+        state = state.settled
     }
 
     private func open(_ intent: RecordingIgnoreEditorModel.Intent) {

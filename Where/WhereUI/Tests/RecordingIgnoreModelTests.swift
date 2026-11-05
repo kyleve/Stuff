@@ -5,6 +5,49 @@ import Testing
 
 @MainActor
 struct RecordingIgnoreModelTests {
+    @Test func foregroundReentryRefreshesHistoryWithoutRetiringAnOpenEditor() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = RecordingIgnoreTestSupport.model(fixture)
+        let firstObservation = Task { await model.run() }
+        try await CompatibilityLaunchFixture.waitUntil { model.state.history != nil }
+        model.start(timeZone: .gmt)
+        let editor = try #require(model.editor)
+        await editor.review()
+        model.pause()
+        firstObservation.cancel()
+        await firstObservation.value
+        #expect(model.editor === editor)
+        #expect(editor.canApply)
+        _ = try await RecordingIgnoreTestSupport.ignore(
+            fixture: fixture,
+            deviceID: RecordingReviewTestSupport.first,
+            day: RecordingReviewTestSupport.day,
+        )
+        let nextObservation = Task { await model.run() }
+        try await CompatibilityLaunchFixture.waitUntil { model.state.history?.decisions.count == 1 }
+        #expect(model.editor === editor)
+        model.deactivate()
+        nextObservation.cancel()
+        await nextObservation.value
+        #expect(!editor.canApply)
+        #expect(model.state.history == nil)
+    }
+
+    @Test func releasingTheOwnerPermanentlyRetiresItsEditor() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        var model: RecordingIgnoreModel? = RecordingIgnoreTestSupport.model(fixture)
+        await model?.refresh()
+        model?.start(timeZone: .gmt)
+        let editor = try #require(model?.editor)
+        await editor.review()
+        #expect(editor.canApply)
+        weak var owner = model
+        model = nil
+        try await CompatibilityLaunchFixture.waitUntil { owner == nil && !editor.canApply }
+        await editor.review()
+        #expect(editor.controls.state.review == nil)
+    }
+
     @Test func anIntentDetectingRevokedAccessRetiresRetainedHistoryAndEditor() async throws {
         let fixture = try await RecordingReviewTestSupport.fixture()
         let model = RecordingIgnoreTestSupport.model(fixture)
@@ -47,6 +90,7 @@ struct RecordingIgnoreModelTests {
         model.editor = nil
         await editor.review()
         #expect(editor.controls.state.review == nil)
+        model.deactivate()
         observation.cancel()
         await observation.value
         #expect(model.state.history == nil)
@@ -71,7 +115,7 @@ struct RecordingIgnoreModelTests {
         else { Issue.record("Retry should restore the read state"); return }
     }
 
-    enum Interruption: CaseIterable { case cancellation, deactivation, revocation }
+    enum Interruption: CaseIterable { case cancellation, disappearance, deactivation, revocation }
 
     @Test(arguments: Interruption.allCases)
     func lateHistoryCannotSurviveCancellationRetirementOrRevocation(
@@ -85,6 +129,7 @@ struct RecordingIgnoreModelTests {
         try await CompatibilityLaunchFixture.waitUntil { hold.entered }
         switch interruption {
             case .cancellation: read.cancel()
+            case .disappearance: model.pause()
             case .deactivation: model.deactivate()
             case .revocation: await fixture.services.retireCompatibilityScope()
         }

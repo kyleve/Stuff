@@ -116,6 +116,8 @@ let result = try await services.recordingControlEdits.apply(proposal)
 
 `WhereServices` supplies both coordinators from its admitted store and awaits reconciliation after each successful save.
 These APIs require the activated recording contract. The current foundation policy blocks them. Slice 6 owns their user-facing controls.
+`RecordingControlEditCoordinator.supportsRecordingControls` lets presentation hide controls that the scope's policy cannot use.
+This capability does not authorize history access. Every read and save still validates the admitted store.
 
 `RecordingControlSelection` combines source choices, historical ignores, and device removals for each period.
 Explicit sources bypass ignores. Removal leaves the selected source exclusive and marks its affected portion unresolved.

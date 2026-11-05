@@ -54,6 +54,17 @@ struct DeviceSettingsSection: View {
                 .foregroundStyle(.secondary)
             }
 
+            if session.services.recordingControlEdits.supportsRecordingControls {
+                NavigationLink {
+                    RecordingIgnoreView(session: session, deviceID: row.id, name: row.displayName)
+                } label: {
+                    Text(String(localized: .recordingIgnoreUntil))
+                }
+                .settingsRow(DevicesSettingsView.Item.ignoreUntil, when: row.isCurrent)
+                .accessibilityIdentifier("where_recording_ignore_device_" + row.id.rawValue
+                    .uuidString)
+            }
+
             if row.isCurrent {
                 Toggle(
                     String(localized: .settingsDevicesAutomaticRecording),

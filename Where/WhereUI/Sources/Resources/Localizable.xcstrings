@@ -6687,6 +6687,424 @@
         }
       }
     },
+    "recording.ignore.after" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After: %@"
+          }
+        }
+      }
+    },
+    "recording.ignore.before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before: %@"
+          }
+        }
+      }
+    },
+    "recording.ignore.changeEnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change end date"
+          }
+        }
+      }
+    },
+    "recording.ignore.choices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved changes"
+          }
+        }
+      }
+    },
+    "recording.ignore.choicesDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved changes can overlap. The periods above show their current result. Changing an older end date can revise history in the reviewed interval."
+          }
+        }
+      }
+    },
+    "recording.ignore.conflict" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conflicting ignore choices"
+          }
+        }
+      }
+    },
+    "recording.ignore.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This applies across your account. It keeps raw recordings and leaves this device’s recording permission unchanged. Other devices receive the choice after sync."
+          }
+        }
+      }
+    },
+    "recording.ignore.eligible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eligible for automatic selection"
+          }
+        }
+      }
+    },
+    "recording.ignore.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No ignore periods have been saved for this device."
+          }
+        }
+      }
+    },
+    "recording.ignore.endDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includes the selected day in the time zone shown. Later travel does not move the saved boundary."
+          }
+        }
+      }
+    },
+    "recording.ignore.ended" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ignore period has ended. Its history is still available."
+          }
+        }
+      }
+    },
+    "recording.ignore.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load or update these device controls. Try again."
+          }
+        }
+      }
+    },
+    "recording.ignore.ignored" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignored by automatic selection"
+          }
+        }
+      }
+    },
+    "recording.ignore.incomplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for related changes"
+          }
+        }
+      }
+    },
+    "recording.ignore.invalidEnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an end date after the start of the ignore."
+          }
+        }
+      }
+    },
+    "recording.ignore.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ignore,until,resume,temporary,recording,device,history"
+          }
+        }
+      }
+    },
+    "recording.ignore.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading device selection history…"
+          }
+        }
+      }
+    },
+    "recording.ignore.noElapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This period has no elapsed time to restore."
+          }
+        }
+      }
+    },
+    "recording.ignore.otherSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explicitly using another device"
+          }
+        }
+      }
+    },
+    "recording.ignore.periods" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selection periods"
+          }
+        }
+      }
+    },
+    "recording.ignore.precedence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explicit device choices still take precedence for their selected periods. These controls change automatic eligibility. Saved changes can affect history and totals. Raw recordings remain available."
+          }
+        }
+      }
+    },
+    "recording.ignore.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reviewed automatic eligibility"
+          }
+        }
+      }
+    },
+    "recording.ignore.removed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device removed"
+          }
+        }
+      }
+    },
+    "recording.ignore.restored" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eligibility restored"
+          }
+        }
+      }
+    },
+    "recording.ignore.resume" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume now"
+          }
+        }
+      }
+    },
+    "recording.ignore.resumeDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore eligibility from the captured time forward. Keep the elapsed ignored history."
+          }
+        }
+      }
+    },
+    "recording.ignore.review" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review change"
+          }
+        }
+      }
+    },
+    "recording.ignore.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save change"
+          }
+        }
+      }
+    },
+    "recording.ignore.saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device selection change saved. Any remaining history issues still need review."
+          }
+        }
+      }
+    },
+    "recording.ignore.selected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explicitly using this device"
+          }
+        }
+      }
+    },
+    "recording.ignore.selectedRemoved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The explicitly selected device was removed. This period still needs review."
+          }
+        }
+      }
+    },
+    "recording.ignore.through" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignore through %@"
+          }
+        }
+      }
+    },
+    "recording.ignore.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device history selection"
+          }
+        }
+      }
+    },
+    "recording.ignore.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This recording session has ended. Reopen Where before changing history."
+          }
+        }
+      }
+    },
+    "recording.ignore.undo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore elapsed history"
+          }
+        }
+      }
+    },
+    "recording.ignore.undoDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore eligibility only for the elapsed part of this period. Future ignored time remains unchanged."
+          }
+        }
+      }
+    },
+    "recording.ignore.undoPeriod" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore elapsed history for %@"
+          }
+        }
+      }
+    },
+    "recording.ignore.until" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignore this device until"
+          }
+        }
+      }
+    },
     "recording.review.absentDay" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9126,7 +9544,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This device applies changes immediately. Always location access is required for background recording."
+            "value" : "Automatic Recording changes on this device immediately. Always location access is required for background recording."
           }
         }
       }
@@ -9214,7 +9632,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording choices are local to each device. Remove this device to stop it when it next syncs and hide later automatic locations."
+            "value" : "Automatic Recording is a local setting. Remove this device to stop it when it next syncs and hide later automatic locations."
           }
         }
       }

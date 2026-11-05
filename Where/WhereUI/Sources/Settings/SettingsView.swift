@@ -60,7 +60,12 @@ struct SettingsView: View {
 
     private var searchResults: [SettingsSearchResult] {
         SettingsCatalog.results(matching: searchQuery)
-            .filter { isAvailable($0.destination) }
+            .filter {
+                isAvailable($0.destination) && $0.isAvailable(
+                    recordingControlsEnabled: session.services.recordingControlEdits
+                        .supportsRecordingControls,
+                )
+            }
     }
 
     /// Whether a group is offered right now. Everything is, except the few
@@ -181,6 +186,7 @@ struct SettingsView: View {
                 .tint(.primary)
         } else {
             NavigationLink(value: SettingsRoute(destination)) { groupRow(destination) }
+                .accessibilityIdentifier("where_settings_group_\(destination)")
         }
     }
 
