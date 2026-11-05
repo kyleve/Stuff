@@ -95,10 +95,8 @@ enum CompatibilityOutputTestSupport {
             access: access,
             reminders: UserNotificationReminderScheduler(
                 notificationCenter: center,
-                calendar: WhereCoreTestSupport.calendar(),
             ),
             summary: UserNotificationDailySummaryScheduler(notificationCenter: center),
-            issues: UserNotificationDataIssueAlertScheduler(notificationCenter: center),
             widgets: widgets,
         )
     }

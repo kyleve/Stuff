@@ -12,7 +12,7 @@ struct EvidenceDetailModelTests {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )

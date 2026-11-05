@@ -251,9 +251,8 @@ public final class WhereScope {
             // controls rather than a "denied, open Settings" dead end. They
             // still schedule nothing — the demo asks the system for nothing and
             // posts nothing.
-            reminderScheduler: NoopLoggingReminderScheduler(authorized: true),
+            reminderScheduler: NoopEveningReminderScheduler(authorized: true),
             summaryScheduler: NoopDailySummaryScheduler(authorized: true),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: NoOpLocationOutbox(),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),

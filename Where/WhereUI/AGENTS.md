@@ -63,6 +63,7 @@ Layering, localization, preview, and testing conventions live in the feature
   Let a removed surviving identity finish into the existing rejoin screen without a permission request.
   Keep replacement-device removal explicit and independently confirmed (`OnboardingFlowModelTests`).
 - Keep setup reminder categories separate from recording consent. Preserve existing local schedule values and enabled defaults.
+  Show one shared evening time while either logging or issues is enabled. Disabling a category or editing the time must not request permission.
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
   Attach export sheets and error alerts to `DataSettingsView` outside its `Form` sections.

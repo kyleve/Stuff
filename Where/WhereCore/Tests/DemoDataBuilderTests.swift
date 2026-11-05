@@ -21,9 +21,8 @@ struct DemoDataBuilderTests {
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { instant },
         )

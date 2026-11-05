@@ -546,14 +546,16 @@ one it belongs to rather than to a god-object:
   Reset to GPS clears the day's manual override and writes newer tombstones in
   one transaction. Revisions can arrive before their samples; device-removal
   filtering takes precedence.
-- **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
-  badge), `DailySummaryReconciler` (year-to-date recap),
-  `DataIssueAlertReconciler` ("issues to resolve").
-  Reminder badges and issue alerts use the shared historical scan, including recording concerns once across year boundaries.
-  Failed scans retain prior output. Disabling logging cancels its owned requests without changing an unreadable issue badge.
-  Configuration revisions remain independent of assessment requests, so an intervening refresh cannot suppress a successful permission prompt.
-  Enabled issue badges reassess committed same-day GPS changes; having recorded today does not rule out a new conflict.
-  The logging and issue notifications still use separate schedules until the combined-reminder integration lands.
+- **Reconcilers** — `ReminderReconciler` combines evening logging and issue reminders with the app-icon badge.
+  `DailySummaryReconciler` owns the independent year-to-date recap.
+  `EveningReminderScheduling` receives typed per-day work and maintains one request per day at the shared evening time.
+  Logging and issue categories remain separate device-local preferences. Earlier missing days and historical issues can keep today's request after today's history is recorded.
+  Issue counts use the shared historical scan, including recording concerns once across year boundaries.
+  Failed scans retain prior output. Category disablement or time changes first cancel stale requests without guessing an unreadable badge count.
+  Configuration revisions remain independent of assessment requests. Permission completion reconciles the latest settings, even after an intervening refresh.
+  Callers explicitly choose whether configuration may request permission; disabling a category or editing the time does not request permission.
+  Committed same-day GPS changes invalidate the shared scan before reassessment.
+  The scheduler removes the obsolete standalone issue request while preserving summary and update alerts.
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy for the independently aggregated data.
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`

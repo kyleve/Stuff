@@ -3,12 +3,87 @@ import Testing
 import UserNotifications
 @testable import WhereCore
 
-struct LoggingReminderSchedulerTests {
+struct EveningReminderSchedulerTests {
+    @Test func oneDailyRequestCombinesCountsAndReplacesChangedContent() async throws {
+        let center = FakeNotificationReminderCenter()
+        let scheduler = UserNotificationReminderScheduler(notificationCenter: center)
+        let day = CalendarDay(year: 2026, month: 1, day: 5)
+        let combined = EveningReminder(
+            day: day,
+            remindsToLogDay: true,
+            missingDayCount: 2,
+            issueCount: 3,
+        )
+        await scheduler.reconcile(
+            badgeCount: 5,
+            scheduleDays: [combined, combined],
+            reminderTime: .defaultEvening,
+            enabled: true,
+        )
+        let first = try #require(center.pendingRequests.first)
+        #expect(center.pendingRequests.count == 1)
+        #expect(first.content.body.contains("2 earlier days"))
+        #expect(first.content.body.contains("3 issues"))
+        let remaining = EveningReminder(
+            day: day,
+            remindsToLogDay: false,
+            missingDayCount: 0,
+            issueCount: 1,
+        )
+        await scheduler.reconcile(
+            badgeCount: 1,
+            scheduleDays: [remaining],
+            reminderTime: .defaultEvening,
+            enabled: true,
+        )
+        let updated = try #require(center.pendingRequests.first)
+        #expect(updated.identifier == first.identifier)
+        #expect(updated.content.body == "1 issue to resolve")
+        #expect(center.addedRequests.count == 2)
+        await scheduler.reconcile(
+            badgeCount: 1,
+            scheduleDays: [remaining],
+            reminderTime: .defaultEvening,
+            enabled: true,
+        )
+        #expect(center.addedRequests.count == 2)
+    }
+
+    @Test func obsoleteIssueAlertIsRemovedWhileTheDailySummaryRemains() async throws {
+        let center = FakeNotificationReminderCenter()
+        let scheduler = UserNotificationReminderScheduler(notificationCenter: center)
+        let oldID = "com.stuff.where.data-issues"
+        let summaryID = "com.stuff.where.daily-summary"
+        for notificationID in [oldID, summaryID] {
+            try await center.add(UNNotificationRequest(
+                identifier: notificationID,
+                content: UNMutableNotificationContent(),
+                trigger: nil,
+            ))
+        }
+        center.deliveredIdentifiers = [oldID, summaryID]
+        let remaining = EveningReminder(
+            day: CalendarDay(year: 2026, month: 1, day: 5),
+            remindsToLogDay: false,
+            missingDayCount: 0,
+            issueCount: 2,
+        )
+        await scheduler.reconcile(
+            badgeCount: 2,
+            scheduleDays: [remaining],
+            reminderTime: .defaultEvening,
+            enabled: true,
+        )
+        #expect(center.pendingRequests.count == 2)
+        #expect(center.pendingRequests.contains { $0.identifier == oldID } == false)
+        #expect(center.pendingRequests.contains { $0.identifier == summaryID })
+        #expect(center.deliveredIdentifiers == [summaryID])
+    }
+
     @Test func cancellingLoggingPreservesTheIndependentBadgeAndOtherNotifications() async throws {
         let center = FakeNotificationReminderCenter()
         let scheduler = UserNotificationReminderScheduler(
             notificationCenter: center,
-            calendar: Self.calendar,
         )
         let day = try #require(Self.calendar.date(from: DateComponents(
             year: 2026,
@@ -17,7 +92,7 @@ struct LoggingReminderSchedulerTests {
         )))
         await scheduler.reconcile(
             badgeCount: 7,
-            scheduleDays: [day],
+            scheduleDays: [Self.reminder(day)],
             reminderTime: .defaultEvening,
             enabled: true,
         )
@@ -32,6 +107,15 @@ struct LoggingReminderSchedulerTests {
         #expect(center.badgeCounts == [7])
     }
 
+    private static func reminder(_ day: Date) -> EveningReminder {
+        EveningReminder(
+            day: CalendarDay(from: day, in: calendar),
+            remindsToLogDay: true,
+            missingDayCount: 0,
+            issueCount: 0,
+        )
+    }
+
     private static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
@@ -42,7 +126,6 @@ struct LoggingReminderSchedulerTests {
         let center = FakeNotificationReminderCenter()
         let scheduler = UserNotificationReminderScheduler(
             notificationCenter: center,
-            calendar: Self.calendar,
         )
         let day = try #require(Self.calendar.date(from: DateComponents(
             year: 2026,
@@ -52,7 +135,7 @@ struct LoggingReminderSchedulerTests {
 
         await scheduler.reconcile(
             badgeCount: 1,
-            scheduleDays: [day],
+            scheduleDays: [Self.reminder(day)],
             reminderTime: .defaultEvening,
             enabled: true,
         )
@@ -62,7 +145,7 @@ struct LoggingReminderSchedulerTests {
 
         await scheduler.reconcile(
             badgeCount: 1,
-            scheduleDays: [day],
+            scheduleDays: [Self.reminder(day)],
             reminderTime: ReminderTime(hour: 7, minute: 30),
             enabled: true,
         )
@@ -79,7 +162,6 @@ struct LoggingReminderSchedulerTests {
         let center = FakeNotificationReminderCenter()
         let scheduler = UserNotificationReminderScheduler(
             notificationCenter: center,
-            calendar: Self.calendar,
         )
         let day = try #require(Self.calendar.date(from: DateComponents(
             year: 2026,
@@ -89,7 +171,7 @@ struct LoggingReminderSchedulerTests {
 
         await scheduler.reconcile(
             badgeCount: 1,
-            scheduleDays: [day],
+            scheduleDays: [Self.reminder(day)],
             reminderTime: .defaultEvening,
             enabled: true,
         )
@@ -99,7 +181,7 @@ struct LoggingReminderSchedulerTests {
         center.status = .denied
         await scheduler.reconcile(
             badgeCount: 1,
-            scheduleDays: [day],
+            scheduleDays: [Self.reminder(day)],
             reminderTime: .defaultEvening,
             enabled: true,
         )
@@ -127,7 +209,7 @@ private final class FakeNotificationReminderCenter: NotificationReminderCenter,
     private(set) var addedRequests: [UNNotificationRequest] = []
     private(set) var removedPendingIdentifiers: [String] = []
     private(set) var badgeCounts: [Int] = []
-    private var deliveredIdentifiers: [String] = []
+    var deliveredIdentifiers: [String] = []
 
     func requestAuthorization(options _: UNAuthorizationOptions) async throws -> Bool {
         switch status {

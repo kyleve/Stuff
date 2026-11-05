@@ -123,8 +123,7 @@
         }
 
         /// In-memory, no-op-backed services shared by every preview fixture.
-        /// Every scheduler seam is a no-op — the issue-alert one included, so the
-        /// launch sequence's `issue-alerts` step can't suspend on a real
+        /// Every scheduler seam is a no-op, so preview launch cannot suspend on a real
         /// `UNUserNotificationCenter` permission prompt in previews/tests.
         @MainActor
         public static func previewServices() -> WhereServices {
@@ -165,13 +164,15 @@
         private static func previewServices(
             locationSource: any LocationSource,
             now: @escaping @Sendable () -> Date,
+            notificationsAuthorized: Bool = false,
         ) -> WhereServices {
             WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: locationSource,
-                reminderScheduler: NoopLoggingReminderScheduler(),
-                summaryScheduler: NoopDailySummaryScheduler(),
-                issueAlertScheduler: NoopDataIssueAlertScheduler(),
+                reminderScheduler: NoopEveningReminderScheduler(
+                    authorized: notificationsAuthorized,
+                ),
+                summaryScheduler: NoopDailySummaryScheduler(authorized: notificationsAuthorized),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
                 // Pinned for the reason `referenceNow` exists: without it every
                 // collaborator built here — the data-issue scanner above all —
@@ -286,6 +287,26 @@
             RemindersSettingsModel(
                 services: previewServices(),
                 preferences: previewPreferences(),
+            )
+        }
+
+        @MainActor
+        static func remindersSettingsModel(
+            logging: Bool,
+            issues: Bool,
+            authorized: Bool,
+        ) -> RemindersSettingsModel {
+            let preferences = previewPreferences()
+            preferences.remindersEnabled = logging
+            preferences.issueAlertsEnabled = issues
+            return RemindersSettingsModel(
+                services: previewServices(
+                    locationSource: ScriptedLocationSource(),
+                    now: { referenceNow },
+                    notificationsAuthorized: authorized,
+                ),
+                preferences: preferences,
+                now: { referenceNow },
             )
         }
 
@@ -927,9 +948,8 @@
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
                 installationContext: context,
-                reminderScheduler: NoopLoggingReminderScheduler(),
+                reminderScheduler: NoopEveningReminderScheduler(),
                 summaryScheduler: NoopDailySummaryScheduler(),
-                issueAlertScheduler: NoopDataIssueAlertScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
                 now: { referenceNow },
             )

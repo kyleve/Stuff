@@ -149,7 +149,7 @@ struct YearReportModelTests {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
@@ -242,7 +242,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
 
@@ -290,7 +290,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let report = YearReportModel(
@@ -317,7 +317,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let report = YearReportModel(
@@ -343,7 +343,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let report = YearReportModel(
@@ -411,7 +411,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
@@ -438,7 +438,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = makePreferences()
@@ -493,7 +493,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = makePreferences()
@@ -519,7 +519,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let report = YearReportModel(
@@ -876,7 +876,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
@@ -916,7 +916,7 @@ struct YearReportModelTests {
             let services = WhereServices(
                 store: store,
                 locationSource: ScriptedLocationSource(),
-                reminderScheduler: NoopLoggingReminderScheduler(),
+                reminderScheduler: NoopEveningReminderScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             let report = YearReportModel(
@@ -941,7 +941,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
@@ -980,7 +980,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
@@ -1023,7 +1023,7 @@ struct YearReportModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )

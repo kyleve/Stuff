@@ -82,10 +82,14 @@ struct DayJournalTests {
         }
     }
 
-    private actor SpyReminderScheduler: LoggingReminderScheduling {
+    private actor SpyReminderScheduler: EveningReminderScheduling {
         private(set) var reconcileCount = 0
         private(set) var lastBadgeCount: Int?
         private(set) var lastEnabled: Bool?
+
+        func resetCount() {
+            reconcileCount = 0
+        }
 
         func requestAuthorization() async -> Bool {
             true
@@ -99,7 +103,7 @@ struct DayJournalTests {
 
         func reconcile(
             badgeCount: Int,
-            scheduleDays _: [Date],
+            scheduleDays _: [EveningReminder],
             reminderTime _: ReminderTime,
             enabled: Bool,
         ) async {
@@ -109,7 +113,7 @@ struct DayJournalTests {
         }
     }
 
-    private static func makeHarness(now: @escaping @Sendable () -> Date = { Date() }) throws
+    private static func makeHarness(now: @escaping @Sendable () -> Date = { Date() }) async throws
         -> Harness
     {
         let store = try SwiftDataStore.inMemory()
@@ -141,10 +145,14 @@ struct DayJournalTests {
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
-        let issueAlerts = DataIssueAlertReconciler(
-            scheduler: NoopDataIssueAlertScheduler(),
-            scanner: scanner,
+        await reminders.configure(
+            enabled: false,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: 1000,
+            requestAuthorization: false,
         )
+        await reminderSpy.resetCount()
         let refresher = SpyRefresher()
         let widgets = WidgetSnapshotPublisher(
             widgetReader: WidgetDataReader(
@@ -166,7 +174,6 @@ struct DayJournalTests {
             store: store,
             aggregator: aggregator,
             reminders: reminders,
-            issueAlerts: issueAlerts,
             issueScanner: scanner,
             widgets: widgets,
             currentDeviceID: CurrentRecordingDevice.preview.id,
@@ -182,7 +189,8 @@ struct DayJournalTests {
     }
 
     @Test func ingestPersistsAndFansOutOnce() async throws {
-        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00") })
+        let h = try await Self
+            .makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00") })
         try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -192,7 +200,7 @@ struct DayJournalTests {
     }
 
     @Test func bulkIngestPersistsEverySampleAndFansOutOnce() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         try await h.journal.ingest([
             sample(at: "2026-01-10T12:00:00-08:00"),
             sample(at: "2026-01-11T12:00:00-08:00"),
@@ -212,7 +220,7 @@ struct DayJournalTests {
     }
 
     @Test func emptyBulkIngestIsANoOp() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         try await h.journal.ingest([LocationSample]())
 
         #expect(try await h.reader.yearReport(for: 2026).days.isEmpty)
@@ -220,7 +228,8 @@ struct DayJournalTests {
     }
 
     @Test func addManualDayReconcilesAndPublishes() async throws {
-        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
+        let h = try await Self
+            .makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
         try await h.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
             regions: [.newYork],
@@ -234,7 +243,7 @@ struct DayJournalTests {
     }
 
     @Test func overrideDayReplacesGPSButKeepsRawSamples() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         let stray = sample(at: "2026-07-04T10:00:00-07:00")
         try await h.journal.ingest(stray)
         try await h.journal.overrideDay(
@@ -250,7 +259,7 @@ struct DayJournalTests {
     }
 
     @Test func clearManualDayRestoresGPSAttribution() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         try await h.journal.ingest(sample(at: "2026-07-04T10:00:00-07:00"))
         try await h.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
@@ -265,7 +274,7 @@ struct DayJournalTests {
     }
 
     @Test func clearManualDaysRemovesEveryGivenDay() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         let d1 = WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00")
         let d2 = WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00")
         let d3 = WhereCoreTestSupport.iso("2026-02-03T00:00:00-08:00")
@@ -280,7 +289,7 @@ struct DayJournalTests {
     }
 
     @Test func clearManualDaysIsANoOpWhenEmpty() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         try await h.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
             regions: [.newYork],
@@ -296,7 +305,7 @@ struct DayJournalTests {
     }
 
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         try await h.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-14T20:00:00-08:00"),
@@ -310,7 +319,7 @@ struct DayJournalTests {
     }
 
     @Test func addManualDaysWithStartAfterEndWritesNothing() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         try await h.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-02-14T00:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-10T00:00:00-08:00"),
@@ -323,7 +332,8 @@ struct DayJournalTests {
     }
 
     @Test func clearYearWipesAndReconciles() async throws {
-        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
+        let h = try await Self
+            .makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
         try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
         try await h.journal.clearYear(2026)
 
@@ -332,7 +342,8 @@ struct DayJournalTests {
     }
 
     @Test func eraseAllDataWipesEveryYearAndReconciles() async throws {
-        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
+        let h = try await Self
+            .makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
         for year in [2024, 2025, 2026] {
             try await h.journal.ingest(sample(at: "\(year)-03-15T12:00:00-07:00"))
         }
@@ -345,7 +356,7 @@ struct DayJournalTests {
     }
 
     @Test func evidenceRoundTrips() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         let evidence = Evidence(
             kind: .planeTicket,
             capturedAt: WhereCoreTestSupport.iso("2026-04-10T08:00:00-07:00"),
@@ -361,7 +372,7 @@ struct DayJournalTests {
     }
 
     @Test func addManualDayStampsAudit() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         let audit = Self.sampleAudit
         try await h.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
@@ -374,7 +385,7 @@ struct DayJournalTests {
     }
 
     @Test func overrideDayStampsAudit() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         let audit = Self.sampleAudit
         try await h.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
@@ -388,7 +399,7 @@ struct DayJournalTests {
     }
 
     @Test func addManualDaysStampsTheSameAuditOnEveryDayInRange() async throws {
-        let h = try Self.makeHarness()
+        let h = try await Self.makeHarness()
         let audit = Self.sampleAudit
         try await h.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),

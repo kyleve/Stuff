@@ -44,7 +44,7 @@ enum FlightReviewTestSupport {
         WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )

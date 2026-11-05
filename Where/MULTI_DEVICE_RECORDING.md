@@ -1058,9 +1058,9 @@ It does not require a wholesale import of the previous stack.
 | [ElsewhereResolver](WhereCore/Sources/Reporting/ElsewhereResolver.swift) and its [regression tests](WhereCore/Tests/ElsewhereResolverTests.swift) | Existing catalog lookup expands ordinary Other observations for presentation. Reuse that lookup in shared geographic assessment before selection and report grouping. |
 | [Backup upgrader](Tools/upgrade-backup.rb) and its [regression tests](Tools/Tests/upgrade_backup_test.rb) | Existing offline conversion preserves archives but currently adds nil device attribution when absent. Required attribution needs a new conversion step and guards. |
 | [HomeRegionRecord](WhereCore/Sources/Forecasting/HomeRegionRecord.swift) | The forecast home identifies a region. It does not supply a precise home or temporary base. |
-| [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) and [DataIssueAlertReconciler](WhereCore/Sources/Reminders/DataIssueAlertReconciler.swift) | Missing-history and issue reminders currently use separate notifications. Issue counts currently use the current year. The replacement must include historical years. |
+| [ReminderReconciler](WhereCore/Sources/Reminders/ReminderReconciler.swift) | One evening schedule now combines missing history and all-history issue counts. Notification-entry routing remains pending. |
 | [WherePreferences](WhereCore/Sources/Preferences/WherePreferences.swift) | Reminder enablement and schedules already use local preferences. When setup exposes these settings, preserve enabled defaults and independent recording consent. |
-| [LoggingReminderScheduler](WhereCore/Sources/Reminders/LoggingReminderScheduler.swift) | The injected notification-center adapter supports local requests and owned cleanup. Reuse it for the update alert without relying on the retired history scope. |
+| [EveningReminderScheduler](WhereCore/Sources/Reminders/EveningReminderScheduler.swift) | The injected notification-center adapter supports local requests and owned cleanup. Reuse it for the update alert without relying on the retired history scope. |
 | [RecordingDeviceCheckIn](WhereCore/Sources/Devices/RecordingDeviceCheckIn.swift) and [DeviceRecordingController](WhereCore/Sources/Devices/DeviceRecordingController.swift) | Device activity and recording status are advisory. They provide no guarantee of periodic delivery or complete observation uploads. |
 | [StoreRemoteChangeSource](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift) | Imported history refreshes readers. It does not establish knowledge of all devices. |
 
@@ -1427,13 +1427,15 @@ The protected, backup-excluded file store keeps each notification context immuta
 Focused fixtures cover relaunch, splits, merges, account changes, reset, partial assessment, and storage failure.
 These are routing primitives. The system scheduler and notification-entry flow do not use them yet.
 
-**Historical reminder assessment implemented:** existing reminder badges and issue alerts use the all-history scan, including recording concerns across year boundaries.
-Failed scans retain prior output. Known disabled logging intent still cancels its schedule without inventing an issue count.
-Permission completion survives intervening refreshes; superseded assessments cannot restore older settings.
-Committed same-day GPS ingestion invalidates the shared scan before refreshing enabled issue badges.
-The logging and issue notifications remain separate until the combined scheduling integration below.
+**Combined evening scheduling implemented:** one daily request combines the enabled logging and issue categories at the existing evening time.
+Settings keeps both device-local toggles and shows the shared time while either category is enabled. Daily summaries remain independent.
+The rolling seven-day schedule retains known earlier missing days and all-history issues, including recording concerns across year boundaries.
+Recording today removes today's logging prompt while retaining unresolved earlier work. Future requests carry the last assessed backlog.
+Failed scans retain prior output. Known category disablement or time changes withdraw stale requests without inventing a badge count.
+Permission completion reconciles current settings; superseded assessments cannot restore older settings. Disabling a category does not request permission.
+Committed same-day GPS ingestion invalidates the shared scan before reassessment. Legacy standalone issue requests are removed.
 
-Combine evening reminders and add notification routing into the bounded resolution flow.
+Add notification routing into the bounded resolution flow.
 Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
 Deduplicate overlapping work without expanding choices across gaps or unreviewed periods.
 Require an updated preview for an explicit scope expansion and preserve pending work after failed reassessment.

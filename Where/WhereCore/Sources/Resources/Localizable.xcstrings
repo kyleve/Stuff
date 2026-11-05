@@ -299,13 +299,36 @@
         }
       }
     },
+    "reminder.notification.missingDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld earlier day needs history."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld earlier days need history."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "reminder.notification.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Log today's location"
+            "value" : "Where reminder"
           }
         }
       }

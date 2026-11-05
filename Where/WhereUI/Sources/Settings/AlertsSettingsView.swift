@@ -27,7 +27,6 @@ struct AlertsSettingsView: View {
             Form {
                 remindersSection
                 summarySection
-                issueAlertsSection
                 dataResolutionSection
                 findIssuesSection
             }
@@ -48,7 +47,15 @@ struct AlertsSettingsView: View {
             }
             .settingsRow(Item.dailyReminder)
 
-            if reminders.remindersEnabled {
+            Toggle(isOn: $reminders.issueAlertsEnabled) {
+                Label(
+                    String(localized: .settingsIssueAlertsToggle),
+                    systemSymbol: .checklistChecked,
+                )
+            }
+            .settingsRow(Item.issueAlerts)
+
+            if reminders.remindersEnabled || reminders.issueAlertsEnabled {
                 WhereDatePicker(
                     String(localized: .settingsRemindersTime),
                     selection: $reminders.reminderTimeOfDay,
@@ -74,7 +81,9 @@ struct AlertsSettingsView: View {
     }
 
     private var remindersFooter: String {
-        if reminders.remindersEnabled, !reminders.notificationsAuthorized {
+        if reminders.remindersEnabled || reminders.issueAlertsEnabled,
+           !reminders.notificationsAuthorized
+        {
             return String(localized: .settingsRemindersDeniedFooter)
         }
         return String(localized: .settingsRemindersFooter)
@@ -121,41 +130,6 @@ struct AlertsSettingsView: View {
             return String(localized: .settingsSummaryDeniedFooter)
         }
         return String(localized: .settingsSummaryFooter)
-    }
-
-    private var issueAlertsSection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.issueAlertsEnabled) {
-                Label(
-                    String(localized: .settingsIssueAlertsToggle),
-                    systemSymbol: .checklistChecked,
-                )
-            }
-            .settingsRow(Item.issueAlerts)
-
-            if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-                Button {
-                    openSystemSettings(openURL)
-                } label: {
-                    Label(
-                        String(localized: .settingsRemindersOpenSettings),
-                        systemSymbol: .bellSlash,
-                    )
-                }
-            }
-        } header: {
-            Text(String(localized: .settingsIssueAlertsHeader))
-        } footer: {
-            Text(issueAlertsFooter)
-        }
-    }
-
-    private var issueAlertsFooter: String {
-        if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-            return String(localized: .settingsIssueAlertsDeniedFooter)
-        }
-        return String(localized: .settingsIssueAlertsFooter)
     }
 
     private var dataResolutionSection: some View {
@@ -263,6 +237,40 @@ extension AlertsSettingsView: SettingsSection {
                     AlertsSettingsView(
                         report: PreviewSupport.loadedYearReportModel(),
                         reminders: PreviewSupport.remindersSettingsModel(),
+                    )
+                }
+            }
+            let issuesOnly = PreviewSupport.remindersSettingsModel(
+                logging: false,
+                issues: true,
+                authorized: true,
+            )
+            whereSnapshot(
+                name: "IssuesOnly",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: issuesOnly.refreshNotificationAuthorization,
+            ) {
+                NavigationStack {
+                    AlertsSettingsView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        reminders: issuesOnly,
+                    )
+                }
+            }
+            let disabled = PreviewSupport.remindersSettingsModel(
+                logging: false,
+                issues: false,
+                authorized: true,
+            )
+            whereSnapshot(
+                name: "EveningDisabled",
+                configurations: [.init(device: .iPhoneFullContent)],
+                onReadyToMeasure: disabled.refreshNotificationAuthorization,
+            ) {
+                NavigationStack {
+                    AlertsSettingsView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        reminders: disabled,
                     )
                 }
             }

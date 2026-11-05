@@ -7,7 +7,6 @@ private struct DerivedDataReconciler {
     let resolution: DataIssueScanner
     let reminders: ReminderReconciler
     let summary: DailySummaryReconciler
-    let issueAlerts: DataIssueAlertReconciler
     let widgets: WidgetSnapshotPublisher
 
     func reconcile() async {
@@ -17,7 +16,6 @@ private struct DerivedDataReconciler {
         await resolution.invalidate()
         await reminders.reconcile()
         await summary.reconcile()
-        await issueAlerts.reconcile()
         await widgets.publish()
     }
 }
@@ -48,10 +46,6 @@ public struct WhereServices: Sendable {
     public let reminders: ReminderReconciler
     /// Daily summary recap intent + reconciliation.
     public let summary: DailySummaryReconciler
-    /// "Issues to resolve" notification intent + reconciliation. The
-    /// unresolved-issue count it tracks also feeds the app-icon badge via
-    /// `reminders`.
-    public let issueAlerts: DataIssueAlertReconciler
     /// Live GPS ingestion: monitoring, retry queue, authorization.
     public let ingestor: LocationIngestor
     /// Synced per-device recording intent and the current installation's
@@ -90,9 +84,8 @@ public struct WhereServices: Sendable {
     /// *same* ones. Re-minting real ones would let a stack derived from a demo
     /// world — assembled entirely out of no-ops — post a real notification or
     /// reload the user's widgets.
-    let reminderScheduler: any LoggingReminderScheduling
+    let reminderScheduler: any EveningReminderScheduling
     let summaryScheduler: any DailySummaryScheduling
-    let issueAlertScheduler: any DataIssueAlertScheduling
     let widgetRefresher: any WidgetTimelineRefreshing
     /// The aggregation policy (calendar + time zone) the stack was built with,
     /// retained so a derived stack buckets days identically.
@@ -136,9 +129,8 @@ public struct WhereServices: Sendable {
         installationContext: InstallationRecordingContext = .testing,
         attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
-        reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
+        reminderScheduler: any EveningReminderScheduling = NoopEveningReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = NoopDailySummaryScheduler(),
-        issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
@@ -159,12 +151,9 @@ public struct WhereServices: Sendable {
             history: history,
         )
         let evidence = EvidenceReader(store: store, aggregator: aggregator)
-        // Built before the reconcilers that consume it: the reminder reconciler
-        // folds its unresolved-issue count into the app-icon badge, and the
-        // issue-alert reconciler drives the "issues to resolve" notification off
-        // it. Subscribes to `store.changes()` and drops its cache on every commit,
-        // so a `force: false` read stays honest even when no session is alive to
-        // force a rescan (e.g. a headless background GPS ingest).
+        // Share historical assessment with the evening schedule and main issue list.
+        // Committed writes invalidate inline before reconciliation; the stream also covers
+        // other observers and remote changes.
         let resolution = DataIssueScanner(
             reportReader: reports,
             attributor: attributor,
@@ -184,10 +173,6 @@ public struct WhereServices: Sendable {
             reportReader: reports,
             calendar: aggregator.calendar,
             now: now,
-        )
-        let issueAlerts = DataIssueAlertReconciler(
-            scheduler: issueAlertScheduler,
-            scanner: resolution,
         )
         // The reader runs in *this* (app) process and shares the store, calendar,
         // and attributor so the published snapshot's day/year line up with
@@ -210,7 +195,6 @@ public struct WhereServices: Sendable {
             resolution: resolution,
             reminders: reminders,
             summary: summary,
-            issueAlerts: issueAlerts,
             widgets: widgets,
         )
         // After each committed GPS persist, reconcile the badge/reminders and
@@ -226,11 +210,9 @@ public struct WhereServices: Sendable {
             outbox: locationOutbox,
             onPersisted: { outcome in
                 if let sample = outcome.liveSample {
-                    // Hot live-sample path: the reminder reconcile carries the
-                    // badge, invalidates the issue cache, and skips covered-day report reads
-                    // only when issue alerts are disabled. The issue-alert notification is less
-                    // latency-sensitive and refreshes on the drain/write paths
-                    // and every foreground, so it stays off this per-sample path.
+                    // Refresh both enabled categories after committed GPS, including new
+                    // conflicts on an already recorded day. Issue-disabled logging can skip
+                    // a covered-day report read.
                     await reminders.reconcileAfterIngest(changedDays: outcome.changedDays)
                     if outcome.needsFullWidgetRebuild {
                         await widgets.publish()
@@ -239,7 +221,6 @@ public struct WhereServices: Sendable {
                     }
                 } else if !outcome.changedDays.isEmpty {
                     await reminders.reconcile()
-                    await issueAlerts.reconcile()
                     if outcome.needsFullWidgetRebuild {
                         await widgets.publish()
                     }
@@ -261,7 +242,6 @@ public struct WhereServices: Sendable {
             store: store,
             aggregator: aggregator,
             reminders: reminders,
-            issueAlerts: issueAlerts,
             issueScanner: resolution,
             widgets: widgets,
             currentDeviceID: currentDevice.id,
@@ -316,7 +296,6 @@ public struct WhereServices: Sendable {
         )
         self.reminders = reminders
         self.summary = summary
-        self.issueAlerts = issueAlerts
         self.widgets = widgets
         self.ingestor = ingestor
         self.recording = recording
@@ -351,7 +330,6 @@ public struct WhereServices: Sendable {
         self.aggregator = aggregator
         self.reminderScheduler = reminderScheduler
         self.summaryScheduler = summaryScheduler
-        self.issueAlertScheduler = issueAlertScheduler
         self.widgetRefresher = widgetRefresher
         self.now = now
         self.installationContext = installationContext
@@ -373,9 +351,8 @@ public struct WhereServices: Sendable {
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext,
         aggregator: DayAggregator,
-        reminderScheduler: any LoggingReminderScheduling,
+        reminderScheduler: any EveningReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
-        issueAlertScheduler: any DataIssueAlertScheduling,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox,
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
@@ -386,7 +363,6 @@ public struct WhereServices: Sendable {
             access: access,
             reminders: reminderScheduler,
             summary: summaryScheduler,
-            issues: issueAlertScheduler,
             widgets: widgetRefresher,
         )
         let location = DataCompatibilityLocationSource(base: locationSource, access: access)
@@ -398,7 +374,6 @@ public struct WhereServices: Sendable {
             aggregator: aggregator,
             reminderScheduler: outputs.reminders,
             summaryScheduler: outputs.summary,
-            issueAlertScheduler: outputs.issues,
             widgetRefresher: outputs.widgets,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
@@ -455,9 +430,8 @@ public struct WhereServices: Sendable {
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext,
         aggregator: DayAggregator = DayAggregator(),
-        reminderScheduler: any LoggingReminderScheduling,
+        reminderScheduler: any EveningReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
-        issueAlertScheduler: any DataIssueAlertScheduling,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
@@ -481,7 +455,6 @@ public struct WhereServices: Sendable {
             aggregator: aggregator,
             reminderScheduler: reminderScheduler,
             summaryScheduler: summaryScheduler,
-            issueAlertScheduler: issueAlertScheduler,
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,

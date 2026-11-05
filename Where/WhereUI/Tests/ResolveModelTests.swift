@@ -20,7 +20,7 @@ struct ResolveModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
@@ -46,7 +46,7 @@ struct ResolveModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
@@ -183,7 +183,7 @@ struct ResolveModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )

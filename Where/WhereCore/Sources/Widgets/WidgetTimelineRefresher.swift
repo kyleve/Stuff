@@ -5,7 +5,7 @@ import WidgetKit
 /// to render, then pokes WidgetKit to reload. Called by `WidgetSnapshotPublisher`
 /// after each committed store mutation that can change what a widget shows.
 /// Behind a protocol so the publisher can be driven deterministically from
-/// tests (same pattern as `LoggingReminderScheduling`).
+/// tests (same pattern as `EveningReminderScheduling`).
 public protocol WidgetTimelineRefreshing: Sendable {
     /// Persist `snapshot` where the widget process can read it, then ask
     /// WidgetKit to rebuild every timeline.

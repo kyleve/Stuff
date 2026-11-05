@@ -27,9 +27,8 @@ struct WhereServicesTests {
             locationSource: ScriptedLocationSource(),
             installationContext: .testing,
             aggregator: Self.makeAggregator(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: widgets,
             locationOutbox: NoOpLocationOutbox(),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
@@ -104,9 +103,8 @@ struct WhereServicesTests {
             locationSource: ScriptedLocationSource(),
             installationContext: .testing,
             aggregator: Self.makeAggregator(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
@@ -166,7 +164,7 @@ struct WhereServicesTests {
             store: store,
             locationSource: source,
             aggregator: makeAggregator(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: scheduler,
             now: { now },
         )
@@ -623,6 +621,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
         await services.summary.configure(enabled: true, time: .defaultMorning)
         let reminderCount = await reminder.reconcileCount
@@ -1152,6 +1151,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
         let emptyBadge = await spy.lastBadgeCount
         let reconcilesBeforeImport = await spy.reconcileCount
@@ -1267,6 +1267,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         #expect(await spy.authorizationRequests == 1)
@@ -1291,6 +1292,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         #expect(await spy.authorizationRequests == 0)
@@ -1299,20 +1301,30 @@ struct WhereServicesTests {
         #expect(await spy.lastScheduleDays.isEmpty)
     }
 
-    @Test func loggingTodayViaGPSCancelsItsScheduledReminder() async throws {
+    @Test(arguments: [false, true])
+    func loggingTodayViaGPSRetainsOnlyUnresolvedEarlierWork(hasBacklog: Bool) async throws {
         let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
+        if !hasBacklog {
+            try await services.journal.addManualDays(
+                from: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
+                through: WhereCoreTestSupport.iso("2026-01-04T12:00:00-08:00"),
+                regions: [.california],
+                audit: nil,
+            )
+        }
         await services.reminders.configure(
             enabled: true,
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         let today = Self.pacificCalendar.startOfDay(for: now)
         // Today is a forward nudge, not part of the backlog (Jan 1–4 = 4 days).
-        #expect(await spy.lastBadgeCount == 4)
+        #expect(await spy.lastBadgeCount == (hasBacklog ? 4 : 0))
         #expect(await spy.lastScheduleDays.contains(today))
 
         _ = try await services.recording.register(authorization: .always)
@@ -1324,9 +1336,14 @@ struct WhereServicesTests {
             recordingDay: nil,
         ))
 
-        // Logging today removes today's reminder; the past backlog is unchanged.
-        try await waitUntil { await !spy.lastScheduleDays.contains(today) }
-        #expect(await spy.lastBadgeCount == 4)
+        try await waitUntil {
+            let reminders = await spy.lastReminders
+            return await spy.reconcileCount >= 2 && reminders.allSatisfy {
+                $0.day != CalendarDay(from: today, in: Self.pacificCalendar) || !$0.remindsToLogDay
+            }
+        }
+        #expect(await spy.lastScheduleDays.contains(today) == hasBacklog)
+        #expect(await spy.lastBadgeCount == (hasBacklog ? 4 : 0))
 
         await services.ingestor.stop()
     }
@@ -1340,6 +1357,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         _ = try await services.recording.register(authorization: .always)
@@ -1377,6 +1395,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         // Backlog is Jan 1 – Mar 9 (today, Mar 10, is excluded): 68 days of 2026.
@@ -1400,6 +1419,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         try await services.journal.addManualDay(
@@ -1425,6 +1445,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         try await services.journal.addManualDay(
@@ -1452,12 +1473,14 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
         await services.reminders.configure(
             enabled: true,
             time: ReminderTime(hour: 7, minute: 30),
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
 
         #expect(await spy.authorizationRequests == 2)
@@ -1476,6 +1499,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
         #expect(await spy.lastBadgeCount == 4)
 
@@ -1484,6 +1508,7 @@ struct WhereServicesTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+            requestAuthorization: true,
         )
         #expect(await spy.lastEnabled == false)
         #expect(await spy.lastBadgeCount == 0)
@@ -1566,7 +1591,7 @@ struct WhereServicesTests {
             store: store ?? SwiftDataStore.inMemory(),
             locationSource: source,
             aggregator: makeAggregator(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: refresher,
             now: { now },
         )
@@ -1702,7 +1727,7 @@ struct WhereServicesTests {
             store: store,
             locationSource: source,
             aggregator: Self.makeAggregator(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: refresher,
             now: { clock.now },
         )
@@ -1754,11 +1779,12 @@ private actor PingRecorder {
 /// Records the calls the reminder reconciler makes to its scheduler so tests
 /// can assert the badge count, scheduled days, and enabled state without
 /// touching `UNUserNotificationCenter`.
-private actor SpyReminderScheduler: LoggingReminderScheduling {
+private actor SpyReminderScheduler: EveningReminderScheduling {
     private(set) var authorizationRequests = 0
     private(set) var reconcileCount = 0
     private(set) var lastBadgeCount: Int?
     private(set) var lastScheduleDays: [Date] = []
+    private(set) var lastReminders: [EveningReminder] = []
     private(set) var lastReminderTime: ReminderTime?
     private(set) var lastEnabled: Bool?
     private let authorized: Bool
@@ -1783,13 +1809,15 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
 
     func reconcile(
         badgeCount: Int,
-        scheduleDays: [Date],
+        scheduleDays: [EveningReminder],
         reminderTime: ReminderTime,
         enabled: Bool,
     ) async {
         reconcileCount += 1
         lastBadgeCount = badgeCount
+        lastReminders = scheduleDays
         lastScheduleDays = scheduleDays
+            .map { $0.day.startOfDay(in: WhereCoreTestSupport.calendar()) }
         lastReminderTime = reminderTime
         lastEnabled = enabled
     }

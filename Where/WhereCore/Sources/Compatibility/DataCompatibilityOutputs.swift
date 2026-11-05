@@ -3,9 +3,8 @@ import Foundation
 /// Binds all history-derived system output to one access lifetime. Await retirement before
 /// creating replacement services, so an old withdrawal cannot erase a new scope's publication.
 public struct DataCompatibilityOutputs: Sendable {
-    public let reminders: any LoggingReminderScheduling
+    public let reminders: any EveningReminderScheduling
     public let summary: any DailySummaryScheduling
-    public let issues: any DataIssueAlertScheduling
     public let widgets: any WidgetTimelineRefreshing
     private let access: DataCompatibilityAccess
     private let queue: DataCompatibilityOutputQueue
@@ -13,9 +12,8 @@ public struct DataCompatibilityOutputs: Sendable {
 
     public init(
         access: DataCompatibilityAccess,
-        reminders: any LoggingReminderScheduling,
+        reminders: any EveningReminderScheduling,
         summary: any DailySummaryScheduling,
-        issues: any DataIssueAlertScheduling,
         widgets: any WidgetTimelineRefreshing,
     ) {
         self.access = access
@@ -23,13 +21,11 @@ public struct DataCompatibilityOutputs: Sendable {
         self.queue = queue
         self.reminders = Reminders(base: reminders, queue: queue)
         self.summary = Summary(base: summary, queue: queue)
-        self.issues = Issues(base: issues, queue: queue)
         self.widgets = Widgets(base: widgets, queue: queue, access: access)
         withdraw = {
             await Self.withdraw(
                 reminders: reminders,
                 summary: summary,
-                issues: issues,
                 widgets: widgets,
             )
         }
@@ -38,9 +34,8 @@ public struct DataCompatibilityOutputs: Sendable {
     /// Cold-start cleanup when no scope has submitted work in this process. Active scopes must
     /// use `retire()` so pending publications drain before removal.
     public static func withdraw(
-        reminders: any LoggingReminderScheduling,
+        reminders: any EveningReminderScheduling,
         summary: any DailySummaryScheduling,
-        issues: any DataIssueAlertScheduling,
         widgets: any WidgetTimelineRefreshing,
     ) async {
         await reminders.reconcile(
@@ -50,7 +45,6 @@ public struct DataCompatibilityOutputs: Sendable {
             enabled: false,
         )
         await summary.reconcile(enabled: false, time: .defaultMorning, body: "")
-        await issues.reconcile(enabled: false, time: .defaultEvening, body: "")
         await widgets.withdraw()
     }
 
@@ -59,8 +53,8 @@ public struct DataCompatibilityOutputs: Sendable {
         await queue.retire(withdraw: withdraw)
     }
 
-    private struct Reminders: LoggingReminderScheduling {
-        let base: any LoggingReminderScheduling
+    private struct Reminders: EveningReminderScheduling {
+        let base: any EveningReminderScheduling
         let queue: DataCompatibilityOutputQueue
         func requestAuthorization() async -> Bool {
             await base.requestAuthorization()
@@ -76,7 +70,7 @@ public struct DataCompatibilityOutputs: Sendable {
 
         func reconcile(
             badgeCount: Int,
-            scheduleDays: [Date],
+            scheduleDays: [EveningReminder],
             reminderTime: ReminderTime,
             enabled: Bool,
         ) async {
@@ -93,23 +87,6 @@ public struct DataCompatibilityOutputs: Sendable {
 
     private struct Summary: DailySummaryScheduling {
         let base: any DailySummaryScheduling
-        let queue: DataCompatibilityOutputQueue
-        func requestAuthorization() async -> Bool {
-            await base.requestAuthorization()
-        }
-
-        func isAuthorized() async -> Bool {
-            await base.isAuthorized()
-        }
-
-        func reconcile(enabled: Bool, time: ReminderTime, body: String) async {
-            _ = await queue
-                .publish { await base.reconcile(enabled: enabled, time: time, body: body) }
-        }
-    }
-
-    private struct Issues: DataIssueAlertScheduling {
-        let base: any DataIssueAlertScheduling
         let queue: DataCompatibilityOutputQueue
         func requestAuthorization() async -> Bool {
             await base.requestAuthorization()

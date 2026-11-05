@@ -90,9 +90,8 @@ struct DevicesSettingsModelTests {
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
             installationContext: context,
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         _ = try await services.recording.register(authorization: .always)

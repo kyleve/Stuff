@@ -14,7 +14,6 @@ struct WhereSessionLogTests {
             WhereSessionLog.RecordingReconcileFailed.eventName,
             WhereSessionLog.RemindersUnauthorized.eventName,
             WhereSessionLog.SummaryUnauthorized.eventName,
-            WhereSessionLog.IssueAlertsUnauthorized.eventName,
             WhereSessionLog.RegionStylesLoadFailed.eventName,
             WhereSessionLog.ErasedSession.eventName,
         ]

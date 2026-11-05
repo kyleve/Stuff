@@ -134,9 +134,8 @@ struct WidgetSnapshotPublisherTests {
         let refresher = SpyRefresher()
         let outputs = DataCompatibilityOutputs(
             access: access,
-            reminders: NoopLoggingReminderScheduler(),
+            reminders: NoopEveningReminderScheduler(),
             summary: NoopDailySummaryScheduler(),
-            issues: NoopDataIssueAlertScheduler(),
             widgets: refresher,
         )
         let publisher = WidgetSnapshotPublisher(

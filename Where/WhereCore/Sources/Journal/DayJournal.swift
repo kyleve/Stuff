@@ -14,7 +14,7 @@ public actor DayJournal {
     private let store: any WhereStore
     private let aggregator: DayAggregator
     private let reminders: ReminderReconciler
-    private let issueAlerts: DataIssueAlertReconciler
+
     /// Shared scanner behind the badge/notification issue count. Dropped inline
     /// after each committed write so the reconciles below recount from fresh
     /// data rather than racing the scanner's async store-change invalidation.
@@ -29,7 +29,6 @@ public actor DayJournal {
         store: any WhereStore,
         aggregator: DayAggregator,
         reminders: ReminderReconciler,
-        issueAlerts: DataIssueAlertReconciler,
         issueScanner: DataIssueScanner,
         widgets: WidgetSnapshotPublisher,
         currentDeviceID: RecordingDeviceID,
@@ -38,7 +37,6 @@ public actor DayJournal {
         self.store = store
         self.aggregator = aggregator
         self.reminders = reminders
-        self.issueAlerts = issueAlerts
         self.issueScanner = issueScanner
         self.widgets = widgets
         self.currentDeviceID = currentDeviceID
@@ -59,7 +57,6 @@ public actor DayJournal {
         await Self.logger.measure(.reconcileIssueState, budget: .seconds(3)) {
             await issueScanner.invalidate()
             await reminders.reconcile()
-            await issueAlerts.reconcile()
         }
     }
 

@@ -51,7 +51,7 @@ enum IntentTestSupport {
             store: store,
             locationSource: IdleLocationSource(),
             aggregator: DayAggregator(calendar: calendar(), timeZone: pacific),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: now,

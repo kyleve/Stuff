@@ -24,9 +24,8 @@ struct WhereSessionTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: scheduler,
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return WhereSession(services: services, preferences: preferences)
@@ -109,9 +108,8 @@ struct WhereSessionTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: refresher,
             now: { now },
         )

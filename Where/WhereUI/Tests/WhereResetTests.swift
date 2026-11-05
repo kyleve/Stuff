@@ -34,9 +34,8 @@ struct WhereResetTests {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(authorizationStatus: status),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
@@ -65,9 +64,8 @@ struct WhereResetTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return (
@@ -374,9 +372,8 @@ struct WhereResetTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: outbox,
         )

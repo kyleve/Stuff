@@ -52,7 +52,7 @@ enum WhereSessionLog {
     @LogEvent(
         "reminders-unauthorized",
         level: .warning,
-        message: "Logging reminders enabled but notifications not authorized",
+        message: "Evening reminders enabled but notifications not authorized",
     )
     struct RemindersUnauthorized {}
 
@@ -62,13 +62,6 @@ enum WhereSessionLog {
         message: "Daily summary enabled but notifications not authorized",
     )
     struct SummaryUnauthorized {}
-
-    @LogEvent(
-        "issue-alerts-unauthorized",
-        level: .warning,
-        message: "Issue alerts enabled but notifications not authorized",
-    )
-    struct IssueAlertsUnauthorized {}
 
     @LogEvent("region-styles-load-failed", level: .warning, version: 2)
     struct RegionStylesLoadFailed {

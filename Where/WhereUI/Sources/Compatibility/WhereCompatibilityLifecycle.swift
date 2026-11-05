@@ -100,7 +100,7 @@ final class WhereCompatibilityLifecycle {
         guard let step = stepID.base as? LaunchStepID else { return false }
         return switch step {
             case .resolveScope, .startSession, .syncAuth, .reconcileTracking,
-                 .captureToday, .reminders, .summary, .issueAlerts, .widgetSnapshot: true
+                 .captureToday, .reminders, .summary, .widgetSnapshot: true
             case .activateDemo, .resolveInstallation, .onboarding, .compatibility,
                  .suspendCompatibility, .eraseData, .resetPreferences, .exitDemo,
                  .rejoinDevice: false

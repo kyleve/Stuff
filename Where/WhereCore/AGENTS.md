@@ -212,9 +212,10 @@ That document also owns the implementation plan.
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
 - Count reminder issues through the all-history scanner, including recording concerns once across year boundaries.
-  Failed assessment must retain prior output while applying independently known disabled intent.
+  Publish one combined evening request per day, with separate local logging and issue preferences and one shared time.
+  Failed assessment must retain prior output while withdrawing stale requests after a known disablement or time change.
   Keep configuration and assessment revisions separate across permission prompts. Invalidate committed-ingest reads inline before reassessment.
-  Guards: `ReminderReconcilerTests`, `DataIssueAlertReconcilerTests`, and `LoggingReminderSchedulerTests`.
+  Guards: `ReminderReconcilerTests`, `EveningReminderTests`, and `EveningReminderSchedulerTests`.
 - **Observe remote history through Where's `ModelContainer` and exclude this
   store instance's transaction author.** Never let Periscope or Where's own
   local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.

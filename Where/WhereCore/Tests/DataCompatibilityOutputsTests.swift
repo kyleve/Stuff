@@ -23,7 +23,6 @@ struct DataCompatibilityOutputsTests {
             trigger: nil,
         ))
         await outputs.summary.reconcile(enabled: true, time: .defaultMorning, body: "Summary")
-        await outputs.issues.reconcile(enabled: true, time: .defaultEvening, body: "Issues")
         try await outputs.widgets.publish(WidgetSnapshot(
             day: .init(year: 2026, month: 3, day: 15),
             version: DataCompatibilityPolicy.foundation.current,
@@ -36,7 +35,12 @@ struct DataCompatibilityOutputsTests {
         let pending = Task {
             await outputs.reminders.reconcile(
                 badgeCount: 3,
-                scheduleDays: [Date()],
+                scheduleDays: [EveningReminder(
+                    day: CalendarDay(from: Date(), in: WhereCoreTestSupport.calendar()),
+                    remindsToLogDay: true,
+                    missingDayCount: 0,
+                    issueCount: 2,
+                )],
                 reminderTime: .defaultEvening,
                 enabled: true,
             )

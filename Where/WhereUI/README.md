@@ -301,7 +301,9 @@ Closing review does not export; the user must explicitly try again. Lossless bac
 `HistoryReportExportModel` rejects cancelled and superseded reads and stale system callbacks.
 `HistoryReportDocument` checks admitted access when the system requests bytes. Ending the export session retires all copies of that document.
 Data already supplied to the system cannot be retracted. Native file-save gestures remain separate from model and rendering validation.
-Reminders and activation remain under implementation.
+Evening reminder settings retain separate logging and issue toggles under one shared time.
+Disabling one category preserves the other and does not request notification permission.
+Notification tap routing, device-status alerts, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.

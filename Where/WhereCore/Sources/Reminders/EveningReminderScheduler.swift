@@ -22,10 +22,9 @@ public struct ReminderTime: Hashable, Sendable {
     public static let defaultMorning = ReminderTime(hour: 8, minute: 0)
 }
 
-/// Schedules the per-day local notifications and app-icon badge that nudge the
-/// user to log a day before it ends. Behind a protocol so `ReminderReconciler`
-/// can drive it deterministically from tests.
-public protocol LoggingReminderScheduling: Sendable {
+/// Schedules combined evening work and the app-icon badge. The protocol lets
+/// `ReminderReconciler` drive the same publication boundary in production and tests.
+public protocol EveningReminderScheduling: Sendable {
     /// Ask the system for permission to post alerts/sounds/badges. Returns
     /// whether the app is authorized afterward. Safe to call repeatedly.
     func requestAuthorization() async -> Bool
@@ -35,35 +34,23 @@ public protocol LoggingReminderScheduling: Sendable {
     /// reminders but denied the system permission.
     func isAuthorized() async -> Bool
 
-    /// Cancel owned logging requests without changing an independently assessed issue badge.
+    /// Cancel owned evening requests without changing the last assessed badge.
     /// This applies known disabled intent when history is temporarily unreadable.
     func cancelScheduledReminders() async
 
-    /// Reconcile scheduled reminders and the app-icon badge against the current
-    /// picture.
-    ///
-    /// - Parameters:
-    ///   - badgeCount: the app-icon badge value the caller computed (unlogged-day
-    ///     backlog plus any decoupled data-issue count). Set verbatim whether or
-    ///     not `enabled`, so a caller that turns reminders off can still surface
-    ///     an issue count; pass 0 to clear.
-    ///   - scheduleDays: upcoming days (today + a small buffer) that are still
-    ///     unlogged and should each get a reminder at `reminderTime`. A day that
-    ///     drops out of this set (because it got logged) has its pending and
-    ///     delivered reminder removed — this is the "recorded successfully,
-    ///     remove the notification" path.
-    ///   - reminderTime: time of day each reminder fires.
-    ///   - enabled: master switch. When `false`, every reminder this app
-    ///     scheduled is cancelled and the badge cleared.
+    /// Publish one combined request per requested calendar day and the assessed badge.
+    /// Empty work is omitted. Refresh existing requests when their time or content changes.
+    /// Disabled schedules remove owned requests, including the superseded issue-alert ID.
+    /// Badge count is explicit; cancellation without a fresh count uses `cancelScheduledReminders`.
     func reconcile(
         badgeCount: Int,
-        scheduleDays: [Date],
+        scheduleDays: [EveningReminder],
         reminderTime: ReminderTime,
         enabled: Bool,
     ) async
 }
 
-/// A `LoggingReminderScheduling` that does nothing. For SwiftUI previews,
+/// An `EveningReminderScheduling` that does nothing. For SwiftUI previews,
 /// view-model tests, and demo mode — anything that needs a reconciler without
 /// touching `UNUserNotificationCenter`.
 ///
@@ -72,7 +59,7 @@ public protocol LoggingReminderScheduling: Sendable {
 ///   mode passes `true`: it presents a fully-granted user (as its location
 ///   source does), and a scheduler claiming denial there would both log a
 ///   spurious warning and offer a dead-end trip to the Settings app.
-public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
+public struct NoopEveningReminderScheduler: EveningReminderScheduling {
     private let authorized: Bool
 
     public init(authorized: Bool = false) {
@@ -91,42 +78,29 @@ public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
 
     public func reconcile(
         badgeCount _: Int,
-        scheduleDays _: [Date],
+        scheduleDays _: [EveningReminder],
         reminderTime _: ReminderTime,
         enabled _: Bool,
     ) async {}
 }
 
-/// Production `LoggingReminderScheduling` backed by `UNUserNotificationCenter`.
+/// Production `EveningReminderScheduling` backed by `UNUserNotificationCenter`.
 /// Only touches notification requests it owns (matched by identifier prefix) so
 /// it never disturbs notifications from elsewhere in the app.
-public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
+public final class UserNotificationReminderScheduler: EveningReminderScheduling,
     @unchecked Sendable
 {
     private let center: any NotificationReminderCenter
-    private let calendar: Calendar
 
     private static let identifierPrefix = "com.stuff.where.logging-reminder"
     private static let logger = WhereLog.reminders(LoggingReminderSchedulerLog.self)
 
-    public init(
-        center: UNUserNotificationCenter = .current(),
-        calendar: Calendar = {
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = .current
-            return cal
-        }(),
-    ) {
+    public init(center: UNUserNotificationCenter = .current()) {
         self.center = UNUserNotificationCenterAdapter(center: center)
-        self.calendar = calendar
     }
 
-    init(
-        notificationCenter: any NotificationReminderCenter,
-        calendar: Calendar,
-    ) {
+    init(notificationCenter: any NotificationReminderCenter) {
         center = notificationCenter
-        self.calendar = calendar
     }
 
     public func requestAuthorization() async -> Bool {
@@ -157,7 +131,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
 
     public func reconcile(
         badgeCount: Int,
-        scheduleDays: [Date],
+        scheduleDays: [EveningReminder],
         reminderTime: ReminderTime,
         enabled: Bool,
     ) async {
@@ -176,7 +150,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     /// it owns.
     private func performReconcile(
         badgeCount: Int,
-        scheduleDays: [Date],
+        scheduleDays: [EveningReminder],
         reminderTime: ReminderTime,
         enabled: Bool,
     ) async {
@@ -205,7 +179,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
 
         let desiredIDs = Dictionary(
-            scheduleDays.map { (identifier(for: $0), $0) },
+            scheduleDays.filter(\.hasWork).map { (identifier(for: $0.day), $0) },
             uniquingKeysWith: { first, _ in first },
         )
 
@@ -221,6 +195,8 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         let pendingWithWrongTime = desiredIDs.keys.filter { id in
             guard let request = pendingByID[id] else { return false }
             return !matchesReminderTime(request, reminderTime)
+                || request.content.body != desiredIDs[id]?.body
+                || request.content.title != String(localized: .reminderNotificationTitle)
         }
         let pendingToRemove = Set(stalePending).union(pendingWithWrongTime)
         if !pendingToRemove.isEmpty {
@@ -234,12 +210,12 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
 
         // Schedule new reminders, and replace existing requests whose trigger
-        // time no longer matches the user's setting.
+        // time or content no longer matches the current assessment.
         let toSchedule = desiredIDs.filter { id, _ in
             !pendingIDs.contains(id) || pendingToRemove.contains(id)
         }
-        for (id, day) in toSchedule {
-            await scheduleReminder(identifier: id, day: day, time: reminderTime)
+        for (id, reminder) in toSchedule {
+            await scheduleReminder(identifier: id, reminder: reminder, time: reminderTime)
         }
 
         await setBadge(badgeCount)
@@ -255,14 +231,22 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
     }
 
-    private func scheduleReminder(identifier: String, day: Date, time: ReminderTime) async {
-        var components = calendar.dateComponents([.year, .month, .day], from: day)
-        components.hour = time.hour
-        components.minute = time.minute
+    private func scheduleReminder(
+        identifier: String,
+        reminder: EveningReminder,
+        time: ReminderTime,
+    ) async {
+        let components = DateComponents(
+            year: reminder.day.year,
+            month: reminder.day.month,
+            day: reminder.day.day,
+            hour: time.hour,
+            minute: time.minute,
+        )
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: .reminderNotificationTitle)
-        content.body = String(localized: .reminderNotificationBody)
+        content.body = reminder.body
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
@@ -315,16 +299,12 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
     }
 
-    private func identifier(for day: Date) -> String {
-        let components = calendar.dateComponents([.year, .month, .day], from: day)
-        let year = components.year ?? 0
-        let month = components.month ?? 0
-        let dayOfMonth = components.day ?? 0
-        return "\(Self.identifierPrefix).\(year)-\(month)-\(dayOfMonth)"
+    private func identifier(for day: CalendarDay) -> String {
+        "\(Self.identifierPrefix).\(day.iso8601)"
     }
 
     private func isOwned(_ identifier: String) -> Bool {
-        identifier.hasPrefix(Self.identifierPrefix)
+        identifier.hasPrefix(Self.identifierPrefix) || identifier == "com.stuff.where.data-issues"
     }
 }
 

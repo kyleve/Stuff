@@ -72,9 +72,8 @@ struct WhereLaunchTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(authorizationStatus: status),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return WhereModel(services: services, preferences: preferences, logSystem: .isolated())
@@ -91,9 +90,8 @@ struct WhereLaunchTests {
         let services = WhereServices(
             store: store,
             locationSource: source,
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return (
@@ -111,9 +109,8 @@ struct WhereLaunchTests {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(authorizationStatus: status),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
@@ -171,7 +168,6 @@ struct WhereLaunchTests {
             .captureToday,
             .reminders,
             .summary,
-            .issueAlerts,
             .widgetSnapshot,
         ])
     }
@@ -579,9 +575,8 @@ struct WhereLaunchTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = makePreferences()
@@ -618,9 +613,8 @@ struct WhereLaunchTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = makePreferences()

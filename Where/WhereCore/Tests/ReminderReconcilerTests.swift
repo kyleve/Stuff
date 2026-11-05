@@ -54,6 +54,38 @@ struct ReminderReconcilerTests {
 
     private static let noIssues = Double(DriftThreshold.default.rawValue)
 
+    @Test func permissionCompletionAppliesAChangedTimeWithoutRestoringOldSettings() async throws {
+        let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let h = try Self.makeReconciler(now: { now })
+        let gate = CompatibilityTestGate()
+        await h.spy.holdAuthorization(at: gate)
+        let pending = Task {
+            await h.reconciler.configure(
+                enabled: true,
+                time: .defaultEvening,
+                issueAlertsEnabled: true,
+                driftThresholdMeters: Self.noIssues,
+                requestAuthorization: true,
+            )
+        }
+        await gate.waitUntilEntered()
+        let changedTime = ReminderTime(hour: 19, minute: 30)
+        await h.reconciler.configure(
+            enabled: false,
+            time: changedTime,
+            issueAlertsEnabled: true,
+            driftThresholdMeters: Self.noIssues,
+            requestAuthorization: false,
+        )
+        #expect(await h.spy.reconcileCount == 1)
+        await gate.resume()
+        await pending.value
+        #expect(await h.spy.reconcileCount == 2)
+        #expect(await h.spy.lastTime == changedTime)
+        #expect(await h.spy.lastReminders
+            .allSatisfy { !$0.remindsToLogDay && $0.missingDayCount == 0 })
+    }
+
     @Test func permissionCompletionStillReconcilesAfterAnInterveningRefresh() async throws {
         let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
         let h = try Self.makeReconciler(now: { now })
@@ -65,6 +97,7 @@ struct ReminderReconcilerTests {
                 time: .defaultEvening,
                 issueAlertsEnabled: false,
                 driftThresholdMeters: Self.noIssues,
+                requestAuthorization: true,
             )
         }
         await gate.waitUntilEntered()
@@ -92,6 +125,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         let previousBadge = try #require(await h.spy.lastBadgeCount)
         #expect(previousBadge > 0)
@@ -103,6 +137,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: false,
         )
         #expect(await h.spy.lastScheduleDays.isEmpty)
         #expect(await h.spy.lastEnabled == false)
@@ -133,6 +168,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         #expect(await h.spy.lastBadgeCount == scan.issues.count + 1)
     }
@@ -152,9 +188,10 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         #expect(await h.spy.lastBadgeCount == 2)
-        #expect(await h.spy.authorizationRequests == 0)
+        #expect(await h.spy.authorizationRequests == 1)
     }
 
     @Test func disablingWhileHistoricalReadIsHeldCannotRestoreOldBadge() async throws {
@@ -168,6 +205,7 @@ struct ReminderReconcilerTests {
                 time: .defaultEvening,
                 issueAlertsEnabled: true,
                 driftThresholdMeters: Self.noIssues,
+                requestAuthorization: true,
             )
         }
         await gate.waitUntilEntered()
@@ -176,6 +214,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         await gate.resume()
         await pending.value
@@ -192,6 +231,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         let previous = await h.spy.lastBadgeCount
         let gate = CompatibilityTestGate()
@@ -221,6 +261,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         let before = try await h.scanner.historicalScan(
             driftThresholdMeters: Self.noIssues,
@@ -245,6 +286,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
 
         #expect(await h.spy.authorizationRequests == 1)
@@ -262,6 +304,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
 
         #expect(await h.spy.authorizationRequests == 0)
@@ -286,6 +329,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: Self.noIssues,
+            requestAuthorization: true,
         )
         #expect(await h.spy.reconcileCount == 1)
 
@@ -331,6 +375,7 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: false,
             driftThresholdMeters: threshold,
+            requestAuthorization: true,
         )
         let backlogOnly = try #require(await h.spy.lastBadgeCount)
 
@@ -339,14 +384,14 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: threshold,
+            requestAuthorization: true,
         )
         let combined = try #require(await h.spy.lastBadgeCount)
 
         #expect(combined == backlogOnly + issueCount)
     }
 
-    /// With logging reminders off but issue alerts on, the badge still surfaces
-    /// the issue count (and no per-day reminders are scheduled).
+    /// Issue-only reminders retain the evening schedule with no logging content.
     @Test func badgeCarriesIssueCountWhenRemindersOffButAlertsOn() async throws {
         let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
         let h = try Self.makeReconciler(now: { now })
@@ -370,19 +415,24 @@ struct ReminderReconcilerTests {
             time: .defaultEvening,
             issueAlertsEnabled: true,
             driftThresholdMeters: threshold,
+            requestAuthorization: true,
         )
 
-        #expect(await h.spy.lastEnabled == false)
-        #expect(await h.spy.lastScheduleDays.isEmpty)
+        #expect(await h.spy.lastEnabled == true)
+        #expect(await h.spy.lastReminders
+            .allSatisfy { !$0.remindsToLogDay && $0.missingDayCount == 0 })
+        #expect(await h.spy.lastScheduleDays.count == 7)
         #expect(await h.spy.lastBadgeCount == issueCount)
     }
 }
 
-private actor SpyReminderScheduler: LoggingReminderScheduling {
+private actor SpyReminderScheduler: EveningReminderScheduling {
     private(set) var authorizationRequests = 0
     private(set) var reconcileCount = 0
     private(set) var lastBadgeCount: Int?
     private(set) var lastScheduleDays: [Date] = []
+    private(set) var lastReminders: [EveningReminder] = []
+    private(set) var lastTime: ReminderTime?
     private(set) var lastEnabled: Bool?
 
     private var authorizationGate: CompatibilityTestGate?
@@ -408,13 +458,16 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
 
     func reconcile(
         badgeCount: Int,
-        scheduleDays: [Date],
-        reminderTime _: ReminderTime,
+        scheduleDays: [EveningReminder],
+        reminderTime: ReminderTime,
         enabled: Bool,
     ) async {
         reconcileCount += 1
         lastBadgeCount = badgeCount
         lastScheduleDays = scheduleDays
+            .map { $0.day.startOfDay(in: WhereCoreTestSupport.calendar()) }
         lastEnabled = enabled
+        lastReminders = scheduleDays
+        lastTime = reminderTime
     }
 }

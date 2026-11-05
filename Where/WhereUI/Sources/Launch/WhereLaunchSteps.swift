@@ -213,18 +213,6 @@ struct SummaryStep: BudgetedLaunchStep {
     }
 }
 
-/// Push the "issues to resolve" notification intent to its reconciler.
-struct IssueAlertsStep: BudgetedLaunchStep {
-    let id = LaunchStepID.issueAlerts
-    /// The heaviest of the detached fan-out on a cold cache: a full issue scan
-    /// runs every detector over the year's samples.
-    let budget: Duration = .seconds(3)
-
-    func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
-        await session.applyIssueAlertConfiguration()
-    }
-}
-
 /// Republish the widget snapshot from whatever is already on disk, so a cold
 /// launch with no writes this session doesn't leave the widget blank or
 /// showing the previous day's "today".

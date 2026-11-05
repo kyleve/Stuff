@@ -45,8 +45,6 @@ public enum LaunchStepID: String, Sendable {
     case reminders
     /// Push the daily-summary recap to the reconciler.
     case summary
-    /// Push the "issues to resolve" notification intent to its reconciler.
-    case issueAlerts = "issue-alerts"
     /// Republish the widget snapshot from whatever is already on disk.
     case widgetSnapshot = "widget-snapshot"
 
@@ -181,7 +179,6 @@ public enum WhereLaunch {
                 CaptureTodayStep().measured()
                 RemindersStep().measured()
                 SummaryStep().measured()
-                IssueAlertsStep().measured()
                 WidgetSnapshotStep().measured()
             }
     }
@@ -291,9 +288,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private struct PlatformAdapters {
         let makeLocationSource: @MainActor () -> any LocationSource
         let imports: any CloudKitImportReadying
-        let reminders: any LoggingReminderScheduling
+        let reminders: any EveningReminderScheduling
         let summary: any DailySummaryScheduling
-        let issues: any DataIssueAlertScheduling
 
         static var live: Self {
             Self(
@@ -301,7 +297,6 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 imports: CloudKitImportReadiness(),
                 reminders: UserNotificationReminderScheduler(),
                 summary: UserNotificationDailySummaryScheduler(),
-                issues: UserNotificationDataIssueAlertScheduler(),
             )
         }
     }
@@ -343,9 +338,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
         adapters = PlatformAdapters(
             makeLocationSource: makeLocationSource,
             imports: importReadiness,
-            reminders: NoopLoggingReminderScheduler(),
+            reminders: NoopEveningReminderScheduler(),
             summary: NoopDailySummaryScheduler(),
-            issues: NoopDataIssueAlertScheduler(),
         )
     }
 
@@ -395,7 +389,6 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 // default.
                 reminderScheduler: adapters.reminders,
                 summaryScheduler: adapters.summary,
-                issueAlertScheduler: adapters.issues,
                 widgetRefresher: widgetRefresher,
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
@@ -520,7 +513,6 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 await DataCompatibilityOutputs.withdraw(
                     reminders: adapters.reminders,
                     summary: adapters.summary,
-                    issues: adapters.issues,
                     widgets: widgets,
                 )
             }

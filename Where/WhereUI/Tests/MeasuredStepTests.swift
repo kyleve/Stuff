@@ -117,9 +117,6 @@ struct MeasuredStepTests {
     @Test func namesSpansAfterTheStepIDNotTheSwiftCase() {
         #expect(String(describing: WhereLaunchLog.SpanName.step(.resolveScope)) ==
             "step(resolve-scope)")
-        #expect(
-            String(describing: WhereLaunchLog.SpanName.step(.issueAlerts)) == "step(issue-alerts)",
-        )
         #expect(String(describing: WhereLaunchLog.SpanName.openLogStore) == "openLogStore")
         #expect(String(describing: WhereLaunchLog.SpanName.pruneHistory) == "pruneHistory")
     }

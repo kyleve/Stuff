@@ -47,7 +47,7 @@ struct RegionCardLocationsTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let report = YearReportModel(

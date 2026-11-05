@@ -33,9 +33,8 @@ struct WhereSessionTrackingTests {
             store: store,
             locationSource: source,
             installationContext: resolvedContext,
-            reminderScheduler: NoopLoggingReminderScheduler(),
+            reminderScheduler: NoopEveningReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let contextStore = installationContextStore

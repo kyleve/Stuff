@@ -13380,7 +13380,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If a day hasn't been logged, we'll nudge you before it ends and badge the app. The reminder clears itself once the day is recorded."
+            "value" : "One reminder combines the enabled categories at your chosen time. Older unresolved issues remain included. These choices apply only to this device."
           }
         }
       }
@@ -13391,7 +13391,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reminders"
+            "value" : "Evening reminders"
           }
         }
       }
