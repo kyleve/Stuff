@@ -178,6 +178,11 @@ Layering, localization, preview, and testing conventions live in the feature
   Hide recording controls and their search entries when the scope policy does not enable them.
   Keep an unchanged ignore end's saved zone, offset, and boundary. Resume and elapsed undo remain separate reviewed intents.
   Guards: `RecordingIgnoreEditorModelTests`, `RecordingIgnoreModelTests`, and `RecordingControlModelTests`.
+- Keep place drafts separate from exact reviewed proposals and preserve their place identity across edits.
+  Require explicit coordinates and temporary-base ends. Never prefill one conflicting or incomplete definition as the winner.
+  Shortening a definition must review removal of its previous tail in the same batch. Preserve earlier validity.
+  Pause place-history reads on disappearance; retire editors only when their owner ends or access is revoked.
+  Guards: `RecordingPlaceEditorModelTests` and `RecordingPlaceModelTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
   Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
 - Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.

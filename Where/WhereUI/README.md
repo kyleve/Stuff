@@ -275,7 +275,12 @@ The screen shows effective selection periods and saved decisions, including conf
 Resume restores future eligibility. A separate action restores the reviewed elapsed interval. Both retain raw recordings and local recording consent.
 The preview describes eligibility rather than complete GPS totals. Saved changes can affect the selected history and its totals.
 Retired editors reject queued work. Retained tab destinations pause history reads and reload when they return.
-Place controls, reminders, and activation remain under implementation.
+`RecordingPlaceModel` reads admitted place history and retains its editor during committed-change refreshes.
+`RecordingPlaceEditorModel` requires explicit coordinates and an end for temporary bases.
+Regular homes can remain ongoing. Changing a definition retains its place identity and earlier validity.
+Shortening an existing definition previews removal of its old tail in the same guarded batch.
+Conflicting or incomplete history does not prefill an arbitrary coordinate. The user supplies the new definition.
+Place screens, reminders, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.
