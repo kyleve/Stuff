@@ -171,6 +171,11 @@ Layering, localization, preview, and testing conventions live in the feature
   Preserve a failed source intent's requested scope or exact save proposal for Retry after calendar dismissal.
   Retire the editor with its source-review owner, including after a lost save receipt.
   Guards: `RecordingCalendarEditorModelTests`, `RecordingControlModelTests`, and `RecordingReviewFlowModelTests`.
+- Keep the requested control draft separate from Core's expanded proposal. A stale scope may expand only in the displayed review; changed drafts require a new review.
+  Retire control editors permanently when their owner ends. Ignore queued intents and late reads after retirement.
+  Refresh device ignore history from committed changes without replacing its editor or failed save receipt.
+  Keep an unchanged ignore end's saved zone, offset, and boundary. Resume and elapsed undo remain separate reviewed intents.
+  Guards: `RecordingIgnoreEditorModelTests`, `RecordingIgnoreModelTests`, and `RecordingControlModelTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
   Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
 - Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.

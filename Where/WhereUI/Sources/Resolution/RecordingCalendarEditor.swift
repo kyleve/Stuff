@@ -110,7 +110,7 @@ struct RecordingCalendarEditor: View {
     @ViewBuilder
     private var status: some View {
         switch model.controls.state {
-            case .idle: EmptyView()
+            case .idle, .retired: EmptyView()
             case .reviewing:
                 Section { ProgressView(String(localized: .recordingReviewLoading)) }
             case let .ready(review) where review.refreshed:

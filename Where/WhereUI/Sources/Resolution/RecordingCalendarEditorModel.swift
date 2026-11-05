@@ -63,9 +63,9 @@ final class RecordingCalendarEditorModel: Identifiable {
     }
 
     var reviewedRecovery: RecordingCalendarRecovery? {
-        guard let proposal = controls.state.review?.proposal,
+        guard let review = controls.state.review,
               case let .success(recovery) = draft,
-              proposal.edits.map(\.edit) == recovery.edits else { return nil }
+              review.requestedEdits == recovery.edits else { return nil }
         return recovery
     }
 
@@ -78,7 +78,7 @@ final class RecordingCalendarEditorModel: Identifiable {
               case let .success(draft) = draft else { return false }
         let edits = switch recovery {
             case let .review(edits, _): edits
-            case let .save(review): review.proposal.edits.map(\.edit)
+            case let .save(review): review.requestedEdits
         }
         return edits == draft.edits
     }

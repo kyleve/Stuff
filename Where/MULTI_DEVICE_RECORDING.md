@@ -1391,6 +1391,9 @@ Calendar recovery now requests an explicit historical zone and previews its fixe
 Changed drafts require another review. Known raw assignments and gaps between confirmed periods remain intact.
 The guided flow keeps the editor available through save failures and refreshes the source inspection after dismissal.
 Failed source intents retain their original scope or save identity for Retry.
+The ignore-history and editor models now retain original date drafts separately from refreshed proposals, including expanded causal scopes.
+Committed changes refresh history without replacing an open editor or failed save receipt. Resume and elapsed Undo remain separate reviewed intents.
+An unchanged saved end retains its original zone, offset, and boundary. The temporary-ignore settings screen remains to be connected.
 Device controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.

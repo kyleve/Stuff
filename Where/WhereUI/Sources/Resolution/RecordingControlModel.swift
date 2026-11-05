@@ -9,6 +9,7 @@ import WhereCore
 @Observable
 public final class RecordingControlModel {
     struct Review {
+        let requestedEdits: [RecordingControlEdit]
         let proposal: RecordingControlEditCoordinator.Proposal
         let refreshed: Bool
     }
@@ -27,6 +28,7 @@ public final class RecordingControlModel {
 
     enum State {
         case idle
+        case retired
         indirect case reviewing(State)
         case ready(Review)
         case saving(Review)
@@ -35,7 +37,7 @@ public final class RecordingControlModel {
 
         var review: Review? {
             switch self {
-                case .idle: nil
+                case .idle, .retired: nil
                 case let .reviewing(previous): previous.review
                 case let .ready(review), let .saving(review), let .applied(review): review
                 case let .failed(_, recovery): recovery.previous
@@ -76,7 +78,7 @@ public final class RecordingControlModel {
     var isBusy: Bool {
         switch state {
             case .reviewing, .saving: true
-            case .idle, .ready, .applied, .failed: false
+            case .idle, .retired, .ready, .applied, .failed: false
         }
     }
 
@@ -87,6 +89,7 @@ public final class RecordingControlModel {
 
     func review(_ edits: [RecordingControlEdit]) async {
         guard !Task.isCancelled else { return }
+        if case .retired = state { return }
         if case .saving = state { return }
         let previous = state.settled
         let pending = RequestID()
@@ -95,7 +98,7 @@ public final class RecordingControlModel {
         do {
             let proposal = try await services.recordingControlEdits.review(edits)
             try await validatePublication(pending)
-            state = .ready(.init(proposal: proposal, refreshed: false))
+            state = .ready(.init(requestedEdits: edits, proposal: proposal, refreshed: false))
         } catch {
             fail(
                 error,
@@ -123,7 +126,11 @@ public final class RecordingControlModel {
                     state = .applied(review)
                 case let .stale(proposal):
                     try await validatePublication(pending)
-                    state = .ready(.init(proposal: proposal, refreshed: true))
+                    state = .ready(.init(
+                        requestedEdits: review.requestedEdits,
+                        proposal: proposal,
+                        refreshed: true,
+                    ))
             }
         } catch {
             fail(error, pending: pending, previous: previous, recovery: .save(review))
@@ -140,7 +147,7 @@ public final class RecordingControlModel {
 
     func deactivate() {
         requestID = RequestID()
-        state = .idle
+        state = .retired
     }
 
     private func validatePublication(_ pending: RequestID) async throws {
@@ -162,7 +169,7 @@ public final class RecordingControlModel {
         if services.isDataAccessRevoked {
             let edits: [RecordingControlEdit] = switch recovery {
                 case let .review(edits, _): edits
-                case let .save(review): review.proposal.edits.map(\.edit)
+                case let .save(review): review.requestedEdits
             }
             state = .failed(error, .review(edits, previous: nil))
         } else if error is CancellationError || Task.isCancelled {

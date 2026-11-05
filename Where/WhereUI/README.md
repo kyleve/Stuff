@@ -266,6 +266,10 @@ Changed drafts require another review. Stale evidence replaces the proposal; fai
 Guided reassessment waits while the editor is open. After dismissal, the source screen refreshes its inspection before a new source save.
 A failed source intent retains its requested scope or exact save proposal for Retry, including after calendar recovery.
 Confirmed context preserves known raw dates and unconfirmed gaps. It does not select a recording device for history.
+`RecordingIgnoreModel` reads one device's durable ignore history and retains its editor through committed-change refreshes.
+`RecordingIgnoreEditorModel` prepares a new end date, a changed end, Resume, or elapsed Undo through the same control coordinator.
+Requested drafts stay separate from expanded proposals. An unchanged saved end keeps its original zone, offset, and boundary.
+Retired editors reject queued work. These models are groundwork for the device-settings controls.
 Device controls, reminders, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
