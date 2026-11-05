@@ -1233,6 +1233,9 @@ Shortening an ignore restores its old tail within the same immutable operation a
 If a concurrent edit extends that interval, the refreshed preview includes its tail and requires another Apply before saving.
 Calendar recovery resolves unknown assignments while preserving known recording days and UTC offsets.
 A late conflicting observation rejects a pending calendar edit before save.
+`RecordingCalendarRecovery` splits an explicitly confirmed historical zone at each offset transition, without filling unconfirmed gaps.
+The edit coordinator reviews these segments together and saves them in one local transaction.
+Each envelope retains its own remote-delivery scope. A partial delivery requires another review before a retry can finish the batch.
 The admitted services expose these coordinators and await the existing reconciliation after save.
 Capture-time context, shared history selection, and the controls UI below remain required. The foundation policy still blocks these writes.
 Observation imports now use transaction-scoped envelope indexes and an indexed lookup for legacy sample identities.

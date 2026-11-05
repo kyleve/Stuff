@@ -57,7 +57,9 @@ struct RecordingControlEditCoordinatorTests {
             kind,
             removes: true,
         ))
-        #expect(removed.control.predecessorRecordIDs == [original.control.recordID])
+        #expect(try (RecordingControlEditTestSupport.control(removed))
+            .predecessorRecordIDs ==
+            [(RecordingControlEditTestSupport.control(original)).recordID])
         #expect(try await coordinator.apply(removed) == .applied)
         #expect(try await coordinator.apply(removed) == .applied)
         let snapshot = try await RecordingControlStore(
@@ -86,11 +88,16 @@ struct RecordingControlEditCoordinatorTests {
             Issue.record("A concurrent edit must not become an unreviewed predecessor.")
             return
         }
-        #expect(fresh.control.recordID != proposal.control.recordID)
-        #expect(fresh.control.predecessorRecordIDs == [other.control.recordID])
+        #expect(try (RecordingControlEditTestSupport.control(fresh))
+            .recordID != (RecordingControlEditTestSupport.control(proposal)).recordID)
+        #expect(try (RecordingControlEditTestSupport.control(fresh))
+            .predecessorRecordIDs ==
+            [(RecordingControlEditTestSupport.control(other)).recordID])
         let records = try await store
             .versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
-        #expect(!records.contains { $0.id == proposal.control.recordID })
+        let proposalRecordID = try RecordingControlEditTestSupport.control(proposal).recordID
+        #expect(!records
+            .contains { $0.id == proposalRecordID })
     }
 
     @Test func resumeAndUndoPreserveTheirSeparateHistoricalScopes() async throws {
@@ -185,7 +192,7 @@ struct RecordingControlEditCoordinatorTests {
         #expect(controls.records.isEmpty)
         #expect(try await store.allSamples() == [sample])
         #expect(proposal.evidence.samples.isEmpty)
-        #expect(proposal.edit == edit)
+        #expect(proposal.edits.map(\.edit) == [edit])
     }
 
     @Test func changingAnIgnoreEndRestoresItsOldTailInOneDurableOperation() async throws {
@@ -201,7 +208,9 @@ struct RecordingControlEditCoordinatorTests {
             change: .ignore(longEnd),
         ))
         #expect(try await coordinator.apply(original) == .applied)
-        guard case let .ignore(originalDecision) = original.control else {
+        guard case let .ignore(originalDecision) = try (RecordingControlEditTestSupport
+            .control(original))
+        else {
             Issue.record("Expected the reviewed ignore.")
             return
         }
@@ -213,7 +222,9 @@ struct RecordingControlEditCoordinatorTests {
             of: originalDecision,
             until: shortEnd,
         ))
-        #expect(shortened.control.predecessorRecordIDs == [original.control.recordID])
+        #expect(try (RecordingControlEditTestSupport.control(shortened))
+            .predecessorRecordIDs ==
+            [(RecordingControlEditTestSupport.control(original)).recordID])
         #expect(try await coordinator.apply(shortened) == .applied)
         #expect(try await coordinator.apply(shortened) == .applied)
         let snapshot = try await RecordingControlStore(
@@ -263,7 +274,8 @@ struct RecordingControlEditCoordinatorTests {
             change: .ignore(originalEnd),
         ))
         #expect(try await coordinator.apply(original) == .applied)
-        guard case let .ignore(decision) = original.control else {
+        guard case let .ignore(decision) = try (RecordingControlEditTestSupport.control(original))
+        else {
             Issue.record("Expected an ignore decision.")
             return
         }
@@ -296,13 +308,18 @@ struct RecordingControlEditCoordinatorTests {
             0,
             5 * 86400,
         )])
-        #expect(fresh.control.predecessorRecordIDs.contains(extensionEdit.control.recordID))
+        #expect(try (RecordingControlEditTestSupport.control(fresh)).predecessorRecordIDs
+            .contains((RecordingControlEditTestSupport.control(extensionEdit)).recordID))
         let before = try await RecordingControlStore(
             store: store,
             policy: RecordingChoiceTestSupport.policy,
         ).snapshot()
+        let shorteningRecordID = try RecordingControlEditTestSupport.control(shortening).recordID
+        let freshRecordID = try RecordingControlEditTestSupport.control(fresh).recordID
         #expect(!before.records
-            .contains { $0.id == shortening.control.recordID || $0.id == fresh.control.recordID })
+            .contains {
+                $0.id == shorteningRecordID || $0.id == freshRecordID
+            })
         #expect(try await coordinator.apply(fresh) == .applied)
         let after = try await RecordingControlStore(
             store: store,
@@ -316,5 +333,195 @@ struct RecordingControlEditCoordinatorTests {
         )
         #expect(segments.first?.resolution == .ignored)
         #expect(segments.dropFirst().allSatisfy { $0.resolution == .eligible })
+    }
+
+    @Test func disjointCalendarEditsCommitAndRetryAsOneReviewedBatch() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let edits: [RecordingControlEdit] = try [
+            .calendar(
+                deviceID: RecordingChoiceTestSupport.author,
+                periods: [RecordingAssessmentTestSupport.period(0, 100)],
+                action: .establish(.init(timeZone: .gmt, secondsFromGMT: 0)),
+            ),
+            .calendar(
+                deviceID: RecordingChoiceTestSupport.author,
+                periods: [RecordingAssessmentTestSupport.period(200, 300)],
+                action: .establish(.init(timeZone: .gmt, secondsFromGMT: 0)),
+            ),
+        ]
+        let proposal = try await coordinator.review(edits)
+        #expect(proposal.edits.map(\.edit) == edits)
+        #expect(try proposal.evidence.query.periods == [
+            RecordingAssessmentTestSupport.period(0, 100),
+            RecordingAssessmentTestSupport.period(200, 300),
+        ])
+        #expect(try await coordinator.apply(proposal) == .applied)
+        let records = try await store
+            .versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+        #expect(Set(records.map(\.id)) == Set(proposal.edits.map(\.control.recordID)))
+        #expect(records.count == 2)
+        #expect(try await coordinator.apply(proposal) == .applied)
+        #expect(try await Set(store
+                .versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)) ==
+            Set(records))
+        let controls = try await RecordingControlStore(
+            store: store,
+            policy: RecordingChoiceTestSupport.policy,
+        ).snapshot()
+        let segments = try RecordingCalendarResolver.resolve(
+            controls.calendarContexts,
+            for: RecordingChoiceTestSupport.author,
+            within: RecordingAssessmentTestSupport.period(0, 300),
+            version: RecordingEvidencePolicy.version,
+        )
+        #expect(try segments.map(\.period) == [
+            RecordingAssessmentTestSupport.period(0, 100),
+            RecordingAssessmentTestSupport.period(100, 200),
+            RecordingAssessmentTestSupport.period(200, 300),
+        ])
+        #expect(segments[1].resolution == .unknown)
+    }
+
+    @Test func overlappingBatchScopesAreRejectedBeforeAdmittedReads() async throws {
+        let base = try await RecordingChoiceTestSupport.store()
+        let access = DataCompatibilityAccess(
+            base: base,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: access.store)
+        let edit = try RecordingControlEditTestSupport.edit(.calendar, removes: false)
+        await #expect(throws: RecordingControlEditCoordinator.ValidationError.overlappingEdits) {
+            try await coordinator.review([edit, edit])
+        }
+        await #expect(throws: DataCompatibilityError.incompleteRecord) {
+            try await coordinator.review([])
+        }
+        #expect(access.isRevoked == false)
+        #expect(try await base.versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+            .isEmpty)
+        let independent = try await coordinator.review([
+            edit,
+            RecordingControlEditTestSupport.edit(.place, removes: false),
+        ])
+        #expect(independent.edits.count == 2)
+        #expect(try await coordinator.apply(independent) == .applied)
+    }
+
+    @Test func aLateKnownOffsetRejectsTheEntireCalendarBatch() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let proposal = try await coordinator.review([
+            .calendar(
+                deviceID: RecordingChoiceTestSupport.author,
+                periods: [RecordingAssessmentTestSupport.period(0, 100)],
+                action: .establish(.init(timeZone: .gmt, secondsFromGMT: 0)),
+            ),
+            .calendar(
+                deviceID: RecordingChoiceTestSupport.author,
+                periods: [RecordingAssessmentTestSupport.period(100, 200)],
+                action: .establish(.init(timeZone: .gmt, secondsFromGMT: 3600)),
+            ),
+        ])
+        let sample = try RecordingChoiceTestSupport.sample(seconds: 150)
+        try await store.perform { try await store.add(sample: sample) }
+        await #expect(throws: RecordingCalendarContext.ValidationError.conflictingRecordedContext) {
+            try await coordinator.apply(proposal)
+        }
+        let snapshot = try await RecordingControlStore(
+            store: store,
+            policy: RecordingChoiceTestSupport.policy,
+        ).snapshot()
+        #expect(snapshot.calendarContexts.isEmpty)
+        #expect(try await store.allSamples() == [sample])
+    }
+
+    @Test func partialRemoteDeliveryRequiresAReviewBeforeWritingRemainingSegments() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let recovery = try RecordingCalendarRecovery(
+            deviceID: RecordingChoiceTestSupport.author,
+            periods: [
+                RecordingAssessmentTestSupport.period(0, 100),
+                RecordingAssessmentTestSupport.period(200, 300),
+            ],
+            timeZone: .gmt,
+        )
+        let proposal = try await coordinator.review(recovery.edits)
+        let delivered = try #require(proposal.edits.first?.control)
+        try await RecordingChoiceTestSupport.append(delivered, store: store)
+        guard case let .stale(fresh) = try await coordinator.apply(proposal) else {
+            Issue.record("A partial remote batch must not finish without fresh review.")
+            return
+        }
+        let records = try await store
+            .versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+        #expect(records.map(\.id) == [delivered.recordID])
+        #expect(fresh.edits.map(\.edit) == recovery.edits)
+        #expect(fresh.edits.first?.control.predecessorRecordIDs == [delivered.recordID])
+        #expect(try await coordinator.apply(fresh) == .applied)
+        #expect(try await store.versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+            .count == 3)
+    }
+
+    @Test func aBatchIdentityCollisionCannotSaveItsEarlierEntries() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let recovery = try RecordingControlEditTestSupport.calendarRecovery()
+        let proposal = try await coordinator.review(recovery.edits)
+        guard case let .calendar(original) = try #require(proposal.edits.last?.control) else {
+            Issue.record("Expected the calendar batch.")
+            return
+        }
+        let conflicting = try RecordingCalendarDecision(
+            id: original.id,
+            author: original.author,
+            deviceID: original.deviceID,
+            periods: original.periods,
+            action: .withdraw,
+            predecessors: original.predecessors,
+            version: original.version,
+        )
+        try await RecordingChoiceTestSupport.append(.calendar(conflicting), store: store)
+        await #expect(throws: DataCompatibilityError.conflictingRecord) {
+            try await coordinator.apply(proposal)
+        }
+        let snapshot = try await RecordingControlStore(
+            store: store,
+            policy: RecordingChoiceTestSupport.policy,
+        ).snapshot()
+        #expect(snapshot.calendarContexts == [conflicting])
+    }
+
+    @Test func resetAndServiceReplacementRetireTheWholeBatch() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let proposal = try await coordinator
+            .review(RecordingControlEditTestSupport.calendarRecovery().edits)
+        let replacement = RecordingControlEditTestSupport.coordinator(store: store)
+        guard case let .stale(rebound) = try await replacement.apply(proposal) else {
+            Issue.record("Another service requires its own review.")
+            return
+        }
+        #expect(Set(rebound.edits.map(\.control.recordID))
+            .isDisjoint(with: proposal.edits.map(\.control.recordID)))
+        try await store.perform {
+            _ = try await store.rotateDataGeneration(
+                reason: .accountReset,
+                changedBy: RecordingChoiceTestSupport.author,
+                at: RecordingAssessmentTestSupport.time(400),
+            )
+        }
+        guard case let .stale(fresh) = try await coordinator.apply(proposal) else {
+            Issue.record("Reset requires a new review without saving any old operation.")
+            return
+        }
+        #expect(fresh.evidence.generationID != proposal.evidence.generationID)
+        #expect(Set(fresh.edits.map(\.control.recordID))
+            .isDisjoint(with: proposal.edits.map(\.control.recordID)))
+        #expect(try await store.versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+            .isEmpty)
     }
 }

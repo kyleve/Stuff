@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 @testable import WhereCore
 
 enum RecordingControlEditTestSupport {
@@ -43,6 +44,24 @@ enum RecordingControlEditTestSupport {
             policy: RecordingChoiceTestSupport.policy,
             author: RecordingChoiceTestSupport.author,
             onCommitted: {},
+        )
+    }
+
+    static func control(_ proposal: RecordingControlEditCoordinator
+        .Proposal) throws -> RecordingControl
+    {
+        try #require(proposal.edits.count == 1)
+        return try #require(proposal.edits.first).control
+    }
+
+    static func calendarRecovery() throws -> RecordingCalendarRecovery {
+        try RecordingCalendarRecovery(
+            deviceID: RecordingChoiceTestSupport.author,
+            periods: [
+                RecordingAssessmentTestSupport.period(0, 100),
+                RecordingAssessmentTestSupport.period(200, 300),
+            ],
+            timeZone: .gmt,
         )
     }
 }

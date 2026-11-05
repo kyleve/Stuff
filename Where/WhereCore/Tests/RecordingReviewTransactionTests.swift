@@ -4,6 +4,39 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct RecordingReviewTransactionTests {
+    @Test func revocationDuringSaveRejectsEveryRecordInTheBatch() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: access.store)
+        let proposal = try await coordinator
+            .review(RecordingControlEditTestSupport.calendarRecovery().edits)
+        let records = try proposal.edits.map {
+            try RecordingControlCodec.encode(
+                $0.control,
+                generationID: proposal.evidence.generationID,
+            )
+        }
+        let gate = CompatibilityTestGate()
+        var configured = RecordingReviewTransaction(
+            store: access.store,
+            policy: RecordingChoiceTestSupport.policy,
+        )
+        configured.beforeWrite = { await gate.suspend() }
+        let transaction = configured
+        let operation = Task { try await transaction.apply(records, reviewed: proposal.evidence) }
+        await gate.waitUntilEntered()
+        access.revoke()
+        await gate.resume()
+        await #expect(throws: DataAccessPermit.AccessError.revoked) { try await operation.value }
+        #expect(try await store.versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+            .isEmpty)
+    }
+
     @Test func repeatedUnrelatedImportsStopAfterTheBoundAndRetainTheOriginalProposal() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)

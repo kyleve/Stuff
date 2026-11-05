@@ -89,11 +89,13 @@ That document also owns the implementation plan.
 - Bind reviewed source and control writes to their admitted service, generation, relevant evidence, query, and full policy version.
   Validate caller request scopes before entering admitted reads; invalid input must not revoke history access.
   Preserve operation identity and reviewed predecessors on retry. Require complete calendar coverage for a whole-day choice.
+  Review control batches against combined evidence and commit them in one local transaction. Partial remote delivery requires another review.
   Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests` and `RecordingReviewTransactionTests`.
 - Shortened ignore edits restore their old tail within the same immutable operation. Preserve the selected end day, zone, and offset.
   Include observed causal extensions in a refreshed end-date preview. Never expand an existing proposal during Apply.
   Calendar recovery must preserve known raw assignments. Reject an edit that conflicts with a known offset, including observations received after preview.
-  Guards: `RecordingControlEditCoordinatorTests` and `RecordingIgnoreResolverTests`.
+  Split explicitly confirmed historical zones at every offset transition. Preserve unconfirmed gaps between periods.
+  Guards: `RecordingControlEditCoordinatorTests`, `RecordingCalendarRecoveryTests`, and `RecordingIgnoreResolverTests`.
 - Resolve source choices and automatic eligibility through `RecordingControlSelection`.
   Preserve exclusive gaps and removal-affected review periods. An explicit source bypasses ignores, including conflicting or incomplete ignore operations.
   Automatic eligibility uncertainty must remain unresolved when that device's evidence can affect the period.

@@ -79,8 +79,26 @@ Whole-day proposals require complete calendar context; missing GPS alone does no
 The [reviewed-choice model](../Specifications/ReviewedRecordingChoices/README.md) documents the bounded verification and external-writer limitations.
 `RecordingControlEditCoordinator` uses the same guarded transaction for ignore, place, and calendar edits.
 It also validates caller scopes before entering admitted history reads.
+Its array overload reviews disjoint edits against one combined snapshot. A proposal pairs each edit with its immutable control.
+One local transaction saves the complete batch. A retry retains all operation identities and rejects conflicting reused identities.
+Remote delivery remains independent for each envelope. A partial batch requires another review before a retry can save its remaining edits.
 Calendar recovery can resolve unknown assignments, but cannot override a recorded day or UTC offset.
 A conflicting observation received after preview rejects the edit before save and requires the user to revise it.
+`RecordingCalendarRecovery` splits explicitly confirmed historical zones into fixed-offset segments, including daylight-saving and political offset changes.
+Its `edits` retain the requested periods without filling gaps. Each segment preserves its original zone and established offset.
+The resolver applies these controls separately from raw observations. A missing segment remains unresolved until its control arrives.
+
+```swift
+// The user confirms this device, exact periods, and historical zone.
+let recovery = try RecordingCalendarRecovery(
+    deviceID: deviceID, periods: periods, timeZone: confirmedZone
+)
+let proposal = try await services.recordingControlEdits.review(recovery.edits)
+// Present proposal.edits and its evidence before the user chooses Save.
+let result = try await services.recordingControlEdits.apply(proposal)
+// A stale result requires another review before applying its new proposal.
+```
+
 `WhereServices` supplies both coordinators from its admitted store and awaits reconciliation after each successful save.
 These APIs require the activated recording contract. The current foundation policy blocks them, and their UI remains unimplemented.
 
