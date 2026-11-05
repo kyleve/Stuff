@@ -312,7 +312,11 @@ one it belongs to rather than to a god-object:
 
 ### Reads & aggregation
 
-- **`ReportReader`** — the pure read path: `yearReport(for:)`, the one-read
+- **`ReportReader`** — `historyYears()` discovers stored GPS, manual, evidence, and relevant control years from one snapshot.
+  Resolved GPS uses its recording year. Unknown assignments contribute possible search years without acquiring a date.
+  Date recovery can narrow that inventory. Source choices and opaque controls remain discoverable without GPS; ordinary hints alone add no empty history years.
+  Callers add the current year when they also need today's missing-history work.
+  The pure read path includes `yearReport(for:)`, the one-read
   `yearReportDetails(for:)` bundle used by the scene, the
   year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.

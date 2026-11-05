@@ -20,6 +20,8 @@ enum ReportReaderLog {
         case dataIssueReads
         /// Current recording concerns across the original absolute review periods.
         case recordingReview
+        /// Logical years requiring historical issue discovery.
+        case historyYears
         /// A year of coordinates inside one region, grouped by day.
         case regionLocations
         /// One day's coordinates, grouped by the region they attribute to.

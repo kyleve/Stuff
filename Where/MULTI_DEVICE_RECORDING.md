@@ -1371,7 +1371,8 @@ The in-memory `RecordingReviewQueue` retains original periods, year/query contex
 It follows splits, merges, and new device evidence without filling gaps or widening choices. Complete reassessment is required before it reports no remaining work.
 `DataIssueScanner` reassesses those periods through the shared history reader in one store snapshot, including current rival devices and bounded adjacent context.
 Recovered logical dates cannot hide remaining work by moving it outside the original year. Invalidated completions retry, and failed reads leave work pending.
-Historical discovery, review screens, controls, reminder integration, and activation remain in progress.
+`ReportReader.historyYears()` inventories stored history independently of the selected year, including unresolved possible dates and relevant controls without GPS.
+Historical scan integration, review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.

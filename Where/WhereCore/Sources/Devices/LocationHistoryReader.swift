@@ -4,8 +4,8 @@ import RegionKit
 /// The shared history read path. One store snapshot supplies raw observations, corrections,
 /// calendar context, and device controls before any consumer groups the selected geography.
 public struct LocationHistoryReader: Sendable {
-    private let store: any WhereStore
-    private let policy: DataCompatibilityPolicy
+    let store: any WhereStore
+    let policy: DataCompatibilityPolicy
     private let geography: HistoryRegionAttribution
 
     public init(
@@ -26,8 +26,7 @@ public struct LocationHistoryReader: Sendable {
         try await store.readSnapshot {
             // Foundation stores already enforce their admitted major at the physical read.
             // Merely shipping the next resolver must not activate an existing dataset.
-            let major = policy.supportedMajors == [0] ? 0 : try await store.dataContractMajor()
-            try policy.validate(requiredMajor: major)
+            let major = try await admittedMajor()
             if major == 0 {
                 return try await foundationProjection(
                     within: query.viewingPeriod(in: calendar),
@@ -43,6 +42,12 @@ public struct LocationHistoryReader: Sendable {
                 attributor: attributor,
             )
         }
+    }
+
+    func admittedMajor() async throws -> UInt {
+        let major = policy.supportedMajors == [0] ? 0 : try await store.dataContractMajor()
+        try policy.validate(requiredMajor: major)
+        return major
     }
 
     /// Exact instant reads do not depend on a viewing calendar. Logical-date callers use the

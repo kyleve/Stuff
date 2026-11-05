@@ -4,6 +4,9 @@ import Foundation
 /// Unknown intervals prevent a whole-day save. The supplied search period must bound every
 /// occurrence of the requested date; completeness is an explicit caller obligation.
 public enum RecordingDayCoverage {
+    /// Supported fixed offsets reach eighteen hours on either side of UTC.
+    static let maximumOffset: TimeInterval = 18 * 60 * 60
+
     public struct Context: Hashable, Codable, Sendable {
         public let period: RecordingPeriod
         public let calendarContext: RecordingCalendarContext
@@ -70,7 +73,6 @@ public enum RecordingDayCoverage {
         )), let bounds = calendar.dateInterval(of: .day, for: instant) else {
             throw ValidationError.unavailableCalendarBoundary
         }
-        let maximumOffset: TimeInterval = 18 * 60 * 60
         return try RecordingPeriod(
             start: bounds.start.addingTimeInterval(-maximumOffset),
             end: bounds.end.addingTimeInterval(maximumOffset),
