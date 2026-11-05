@@ -173,3 +173,25 @@ func scrollResolutionList(in root: UIView, toBottom: Bool) throws {
     )
     scroll.layoutIfNeeded()
 }
+
+/// Advances through a lazy Form/List until the requested production row is available.
+/// This also reaches middle rows when neither the top nor bottom viewport contains them.
+@MainActor
+func revealResolutionElement(_ identifier: String, in root: UIView) async throws {
+    try scrollResolutionList(in: root, toBottom: false)
+    try await waitForResolutionView(identifier) {
+        if resolutionElement(identifier, in: root) != nil { return true }
+        let scroll = try #require(resolutionAccessibilityObjects(in: root)
+            .compactMap { $0 as? UIScrollView }.first {
+                $0 is UICollectionView || $0 is UITableView
+            })
+        let bottom = max(
+            -scroll.adjustedContentInset.top,
+            scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom,
+        )
+        let next = min(bottom, scroll.contentOffset.y + scroll.bounds.height / 2)
+        scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: next), animated: false)
+        scroll.layoutIfNeeded()
+        return false
+    }
+}

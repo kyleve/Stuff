@@ -53,6 +53,17 @@ struct RecordingChoiceView: View {
                             .disabled(model.isBusy)
                         }
                 }
+                if !model.didApply {
+                    Section {
+                        Button(String(localized: .recordingCalendarTitle)) {
+                            model.openCalendarRecovery()
+                        }
+                        .disabled(model.isBusy)
+                        .accessibilityIdentifier("where_recording_calendar")
+                    } footer: {
+                        Text(String(localized: .recordingCalendarEntryDetail))
+                    }
+                }
                 if model.selectedAction != nil, !model.didApply {
                     Section {
                         Button(String(localized: completion == .save ? .recordingReviewSave :
@@ -70,18 +81,23 @@ struct RecordingChoiceView: View {
         }
         .navigationTitle(String(localized: .recordingReviewTitle))
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.loadIfNeeded() }
+        .task(id: model.calendarEditor?.id) {
+            if model.calendarEditor == nil { await model.loadIfNeeded() }
+        }
         .sheet(item: $scopeEditor) { editor in
             RecordingScopeEditor(model: editor) { request in
                 Task { await model.review(request) }
             }
+        }
+        .sheet(item: $model.calendarEditor) { editor in
+            RecordingCalendarEditor(model: editor)
         }
     }
 
     @ViewBuilder
     private var status: some View {
         switch model.state {
-            case .idle, .loading:
+            case .idle, .awaitingCalendarRefresh, .loading:
                 Section { ProgressView(String(localized: .recordingReviewLoading)) }
             case let .ready(.reviewed(_, _, refreshed)) where refreshed:
                 Section {
@@ -198,7 +214,10 @@ struct RecordingChoiceView: View {
         static let flyoverData = WhereFlyoverData.snapshots(
             RecordingChoiceView.self,
             title: "Recording review",
-            routes: [.modal(to: RecordingScopeEditor.flyoverID)],
+            routes: [
+                .modal(to: RecordingScopeEditor.flyoverID),
+                .modal(to: RecordingCalendarEditor.flyoverID),
+            ],
         )
     }
 #endif

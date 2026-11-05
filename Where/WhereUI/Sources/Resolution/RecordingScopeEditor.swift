@@ -24,7 +24,11 @@ struct RecordingScopeEditor: View {
                 switch model.draft {
                     case let .periods(intervals):
                         ForEach(intervals) { interval in
-                            RecordingIntervalFields(interval: interval)
+                            Section {
+                                RecordingIntervalFields(interval: interval)
+                            } footer: {
+                                Text(String(localized: .recordingScopeExclusiveEnd))
+                            }
                         }
                         Section {
                             Text(String(localized: .recordingScopeUtcDetail))
@@ -69,11 +73,11 @@ struct RecordingScopeEditor: View {
     }
 }
 
-private struct RecordingIntervalFields: View {
+struct RecordingIntervalFields: View {
     @Bindable var interval: RecordingScopeEditorModel.Interval
 
     var body: some View {
-        Section {
+        Group {
             WhereDatePicker(
                 String(localized: .recordingScopeStart),
                 selection: $interval.start,
@@ -84,8 +88,6 @@ private struct RecordingIntervalFields: View {
                 selection: $interval.end,
                 displayedComponents: [.date, .hourAndMinute],
             )
-        } footer: {
-            Text(String(localized: .recordingScopeExclusiveEnd))
         }
     }
 }

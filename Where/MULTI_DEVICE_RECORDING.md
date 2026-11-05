@@ -1387,7 +1387,11 @@ The historical issue list and badge now include recording concerns. One concern 
 The source screen supports explicit device and automatic choices, scope editing, changed-input review, skip, close, and re-entry.
 Scope drafts retain separate UTC intervals or an explicit device and logical date. Core checks whole-day calendar coverage before enabling Save.
 Committed-change observation reassesses the queue after the active choice finishes. Failed reads retain pending work and expose retry.
-Calendar-context recovery controls, device controls, reminder integration, and activation remain in progress.
+Calendar recovery now requests an explicit historical zone and previews its fixed-offset periods before a guarded batch save.
+Changed drafts require another review. Known raw assignments and gaps between confirmed periods remain intact.
+The guided flow keeps the editor available through save failures and refreshes the source inspection after dismissal.
+Failed source intents retain their original scope or save identity for Retry.
+Device controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.

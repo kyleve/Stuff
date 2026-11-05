@@ -80,6 +80,8 @@
                 RecordingChoiceView.flyoverData,
                 RecordingReviewFlowView.flyoverData,
                 RecordingScopeEditor.flyoverData,
+                RecordingCalendarEditor.flyoverData,
+                RecordingTimeZonePicker.flyoverData,
                 YearView.flyoverData,
                 CalendarContentView.yearFlyoverData,
                 PresenceTimelineList.flyoverData,

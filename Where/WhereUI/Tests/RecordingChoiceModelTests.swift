@@ -5,6 +5,101 @@ import Testing
 
 @MainActor
 struct RecordingChoiceModelTests {
+    @Test func calendarDismissalPreservesTheFailedRequestedSourceScope() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        await model.load()
+        await model.choose(.select(RecordingReviewTestSupport.first))
+        let request = RecordingChoiceRequest(
+            scope: .periods(fixture.periods),
+            action: .select(RecordingReviewTestSupport.second),
+        )
+        model.setBeforePublicationForTesting {
+            throw RecordingReviewTestSupport.TestFailure.interruptedSaveReceipt
+        }
+        await model.review(request)
+        model.openCalendarRecovery()
+        #expect(model.calendarEditor != nil)
+        model.calendarEditor = nil
+        await model.loadIfNeeded()
+        guard case let .failed(_, .review(retained, _)) = model.state else {
+            Issue.record("Calendar dismissal must retain the failed review request"); return
+        }
+        #expect(retained == request)
+        model.setBeforePublicationForTesting {}
+        await model.retry()
+        #expect(try RecordingReviewTestSupport.preview(model).proposal.request == request)
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+    }
+
+    @Test(arguments: [false, true])
+    func closingCalendarRecoveryPreservesAFailedSourceSave(saveCalendar: Bool) async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        await model.load()
+        await model.choose(.select(RecordingReviewTestSupport.first))
+        let original = try RecordingReviewTestSupport.preview(model).proposal
+        model.setBeforePublicationForTesting {
+            throw RecordingReviewTestSupport.TestFailure.interruptedSaveReceipt
+        }
+        await model.apply()
+        model.openCalendarRecovery()
+        let editor = try #require(model.calendarEditor)
+        if saveCalendar {
+            editor.timeZone = .gmt
+            await editor.review()
+            await editor.apply()
+            #expect(editor.controls.didApply)
+        }
+        model.calendarEditor = nil
+        await model.loadIfNeeded()
+        guard case let .failed(error, .save(content)) = model.state,
+              case let .ready(preview) = content.inspection
+        else {
+            Issue.record("Calendar dismissal must retain the failed source save"); return
+        }
+        #expect(error as? RecordingReviewTestSupport.TestFailure == .interruptedSaveReceipt)
+        #expect(preview.proposal == original)
+        model.setBeforePublicationForTesting {}
+        await model.retry()
+        #expect(model.didApply)
+        let controls = try await fixture.controls()
+        #expect(controls.sourceChoices.map(\.id) == [original.decision.id])
+    }
+
+    @Test func calendarRecoveryRefreshesTheSameWholeDayRequestBeforeEnablingSave() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        let request = RecordingChoiceRequest(
+            scope: .recordingDay(
+                deviceID: RecordingReviewTestSupport.first,
+                day: RecordingReviewTestSupport.day,
+            ),
+            action: .select(RecordingReviewTestSupport.first),
+        )
+        await model.review(request)
+        guard case let .needsCalendarContext(clarification) = model.inspection else {
+            Issue.record("Whole-day coverage needs confirmed context"); return
+        }
+        model.openCalendarRecovery()
+        let editor = try #require(model.calendarEditor)
+        #expect(editor.deviceID == RecordingReviewTestSupport.first)
+        #expect(editor.timeZone == nil)
+        editor.timeZone = .gmt
+        #expect(try editor.draft.get().segments.map(\.period) == clarification.missingPeriods)
+        await editor.review()
+        await editor.apply()
+        #expect(editor.controls.didApply)
+        model.calendarEditor = nil
+        #expect(!model.canApply)
+        #expect(model.isBusy)
+        await model.loadIfNeeded()
+        let preview = try RecordingReviewTestSupport.preview(model)
+        #expect(preview.proposal.request == request)
+        #expect(model.canApply)
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+    }
+
     @Test func changingTheSourceOfAWholeDayRequiresItsOwnCalendarCoverage() async throws {
         let fixture = try await RecordingReviewTestSupport.fixture()
         let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)

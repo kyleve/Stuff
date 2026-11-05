@@ -66,6 +66,14 @@ final class RecordingReviewFlowModel: Identifiable {
 
     var canReview: Bool {
         if case .pending = state { return true }
+        if case let .refreshing(previous) = state,
+           case .pending = previous.settled,
+           page?.choice.calendarEditor != nil
+        {
+            // Reassessment waits for the presented editor. Keep that editor interactive so
+            // the user can finish or close it; its own coordinator validates every save.
+            return true
+        }
         return false
     }
 

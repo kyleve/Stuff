@@ -4,6 +4,79 @@ import Testing
 
 @MainActor
 struct RecordingReviewFlowModelTests {
+    @Test func aCalendarEditorStaysInteractiveUntilItClosesAndRefreshesItsSourceReview(
+    ) async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        let observer = Task { await model.observeChanges() }
+        defer { observer.cancel(); model.deactivate() }
+        try await CompatibilityLaunchFixture.waitUntil { model.page != nil && model.canReview }
+        let page = try #require(model.page)
+        await page.choice.loadIfNeeded()
+        page.choice.openCalendarRecovery()
+        let editor = try #require(page.choice.calendarEditor)
+        editor.deviceID = RecordingReviewTestSupport.first
+        editor.timeZone = .gmt
+        await editor.review()
+        editor.controls.setBeforePublicationForTesting {
+            throw RecordingReviewTestSupport.TestFailure.interruptedSaveReceipt
+        }
+        await editor.apply()
+        try await CompatibilityLaunchFixture.waitUntil { model.isRefreshing }
+        #expect(model.canReview)
+        #expect(model.page?.id == page.id)
+        #expect(editor.canRetry)
+        editor.controls.setBeforePublicationForTesting {}
+        await editor.retry()
+        #expect(editor.controls.didApply)
+        #expect(model.page?.choice.calendarEditor === editor)
+        page.choice.calendarEditor = nil
+        #expect(page.choice.isBusy)
+        await page.choice.loadIfNeeded()
+        try await CompatibilityLaunchFixture.waitUntil { !model.isRefreshing && model.canReview }
+        let current = try #require(model.page)
+        await current.choice.loadIfNeeded()
+        let preview = try RecordingReviewTestSupport.preview(current.choice)
+        let track = try #require(preview.tracks
+            .first { $0.deviceID == RecordingReviewTestSupport.first })
+        #expect(track.observations.allSatisfy {
+            if case .resolved = $0.recordingDay { return true }
+            return false
+        })
+        #expect(!preview.before.issues.isEmpty)
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+    }
+
+    @Test func closingTheFlowRetiresAnOwnedCalendarSave() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        await model.refresh()
+        let page = try #require(model.page)
+        await page.choice.loadIfNeeded()
+        page.choice.openCalendarRecovery()
+        let editor = try #require(page.choice.calendarEditor)
+        editor.deviceID = RecordingReviewTestSupport.first
+        editor.timeZone = .gmt
+        await editor.review()
+        let hold = ResolutionScanSuspension()
+        editor.controls.setBeforePublicationForTesting { await hold.suspendFirst() }
+        let save = Task { await editor.apply() }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered }
+        model.deactivate()
+        hold.resume()
+        await save.value
+        #expect(model.page == nil)
+        #expect(page.choice.calendarEditor == nil)
+        #expect(!editor.controls.didApply)
+        #expect(try await fixture.controls().calendarContexts.count == 1)
+    }
+
     @Test(arguments: [false, true])
     func cancellationDuringRetryPreservesTheFailureAndSkippedWork(
         reviewRemaining: Bool,

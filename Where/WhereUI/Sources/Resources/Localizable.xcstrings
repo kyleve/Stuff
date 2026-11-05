@@ -6345,6 +6345,237 @@
         }
       }
     },
+    "recording.calendar.choosePeriods" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include at least one period to review."
+          }
+        }
+      }
+    },
+    "recording.calendar.chooseZone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a Time Zone"
+          }
+        }
+      }
+    },
+    "recording.calendar.conflictingContext" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This zone conflicts with dates already recorded by the device. Narrow the period or choose another zone, then review again."
+          }
+        }
+      }
+    },
+    "recording.calendar.entryDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If a device’s recording dates are unknown, confirm the time zone it used during that period."
+          }
+        }
+      }
+    },
+    "recording.calendar.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recording-date change could not be completed. Your observations remain saved. Try again or change the period and time zone."
+          }
+        }
+      }
+    },
+    "recording.calendar.includeNamedPeriod" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include the period from %1$@ to %2$@ UTC"
+          }
+        }
+      }
+    },
+    "recording.calendar.includePeriod" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include This Period"
+          }
+        }
+      }
+    },
+    "recording.calendar.localPeriod" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local time: %1$@ to %2$@"
+          }
+        }
+      }
+    },
+    "recording.calendar.offset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · UTC%2$@"
+          }
+        }
+      }
+    },
+    "recording.calendar.preserveDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Included periods use this calendar context. Dates already recorded by the device stay unchanged. Other periods keep their existing context."
+          }
+        }
+      }
+    },
+    "recording.calendar.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording Dates to Save"
+          }
+        }
+      }
+    },
+    "recording.calendar.refreshed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your recording data changed. Review these dates again before saving."
+          }
+        }
+      }
+    },
+    "recording.calendar.review" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review recording dates"
+          }
+        }
+      }
+    },
+    "recording.calendar.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save recording dates"
+          }
+        }
+      }
+    },
+    "recording.calendar.saveDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm the recording dates for this device. You can then choose which device represents your history."
+          }
+        }
+      }
+    },
+    "recording.calendar.saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording dates saved. Remaining history issues still need review."
+          }
+        }
+      }
+    },
+    "recording.calendar.searchZone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search city or time zone"
+          }
+        }
+      }
+    },
+    "recording.calendar.selectedZone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected time zone"
+          }
+        }
+      }
+    },
+    "recording.calendar.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Recording Dates"
+          }
+        }
+      }
+    },
+    "recording.calendar.zone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time Zone"
+          }
+        }
+      }
+    },
+    "recording.calendar.zoneDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the zone this device used at the time. Include only periods that used this zone. Review other periods separately."
+          }
+        }
+      }
+    },
     "recording.flow.failedDetail" : {
       "extractionState" : "manual",
       "localizations" : {

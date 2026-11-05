@@ -144,7 +144,10 @@ private struct RecordingFlowStatus: View {
             RecordingReviewFlowView.self,
             title: "Guided recording review",
             navigationContainer: .none,
-            routes: [.modal(to: RecordingScopeEditor.flyoverID)],
+            routes: [
+                .modal(to: RecordingScopeEditor.flyoverID),
+                .modal(to: RecordingCalendarEditor.flyoverID),
+            ],
         )
     }
 #endif

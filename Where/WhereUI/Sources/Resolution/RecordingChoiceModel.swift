@@ -46,6 +46,7 @@ public final class RecordingChoiceModel {
 
     enum State {
         case idle
+        case awaitingCalendarRefresh(Content?)
         case loading(Content?)
         case ready(Content)
         case saving(Content)
@@ -55,7 +56,7 @@ public final class RecordingChoiceModel {
         var content: Content? {
             switch self {
                 case .idle: nil
-                case let .loading(previous): previous
+                case let .loading(previous), let .awaitingCalendarRefresh(previous): previous
                 case let .ready(content), let .saving(content), let .applied(content): content
                 case let .failed(_, recovery): recovery.previous
             }
@@ -65,6 +66,20 @@ public final class RecordingChoiceModel {
     private struct RequestID: Hashable { let value = UUID() }
     private var requestID = RequestID()
     private(set) var state = State.idle
+    var calendarEditor: RecordingCalendarEditorModel? {
+        didSet {
+            guard oldValue !== calendarEditor else { return }
+            oldValue?.deactivate()
+            if oldValue != nil, calendarEditor == nil {
+                // Calendar work does not replace a failed source intent. Retry needs its
+                // requested scope or exact save identity, whether that save committed.
+                if case .failed = state { return }
+                // Hold the guided page until its view task refreshes the source inspection.
+                state = .awaitingCalendarRefresh(state.content)
+            }
+        }
+    }
+
     let originalPeriods: [RecordingPeriod]
     private let services: WhereServices
     private static let logger = WhereLog.session(RecordingReviewModelLog.self)
@@ -103,8 +118,9 @@ public final class RecordingChoiceModel {
     }
 
     var isBusy: Bool {
-        switch state {
-            case .loading, .saving: true
+        if calendarEditor != nil { return true }
+        return switch state {
+            case .awaitingCalendarRefresh, .loading, .saving: true
             case .idle, .ready, .applied, .failed: false
         }
     }
@@ -121,8 +137,41 @@ public final class RecordingChoiceModel {
     }
 
     func loadIfNeeded() async {
-        guard case .idle = state else { return }
-        await load()
+        switch state {
+            case .idle: await load()
+            case let .awaitingCalendarRefresh(previous):
+                if let previous, case .reviewed = previous {
+                    await review(previous.presentation.request)
+                } else {
+                    await load()
+                }
+            case .loading, .ready, .saving, .applied, .failed: break
+        }
+    }
+
+    func openCalendarRecovery() {
+        guard !isBusy, !didApply, let presentation else { return }
+        let selected: RecordingDeviceID? = switch presentation.request.scope {
+            case let .recordingDay(deviceID, _): deviceID
+            case .periods:
+                if case let .select(deviceID) = selectedAction { deviceID } else { nil }
+        }
+        var devices = Set(presentation.names.keys)
+        if case let .comparison(comparison) = presentation.result {
+            devices.formUnion(comparison.tracks.map(\.id))
+        }
+        let periods: [RecordingPeriod] = switch presentation.result {
+            case let .needsCalendarContext(missing): missing
+            case .comparison, .absentRecordingDay:
+                presentation.periods.isEmpty ? originalPeriods : presentation.periods
+        }
+        calendarEditor = RecordingCalendarEditorModel(
+            services: services,
+            periods: periods,
+            devices: devices,
+            names: presentation.names,
+            selectedDevice: selected,
+        )
     }
 
     func choose(_ action: HistoryDecision.Action) async {
@@ -230,6 +279,7 @@ public final class RecordingChoiceModel {
 
     func deactivate() {
         requestID = RequestID()
+        calendarEditor = nil
         state = .idle
     }
 

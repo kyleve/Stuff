@@ -165,6 +165,12 @@ Layering, localization, preview, and testing conventions live in the feature
   Keep scope drafts separate from saved choices. Preserve disjoint intervals and use a neutral Gregorian date-picker projection for logical days.
   A draft date never supplies missing observation context. Retain device choices when their profile names have not arrived.
   Guards: `RecordingChoiceModelTests`, `RecordingReviewFlowModelTests`, `RecordingScopeEditorModelTests`, and `RecordingReviewFlowViewTests`.
+- Require an explicit historical zone for calendar recovery. Save only the reviewed draft through the shared control coordinator.
+  Show fixed-offset segments and preserve gaps between confirmed periods. A changed draft cannot apply or retry the previous proposal.
+  Keep a presented calendar editor interactive while guided reassessment waits. Refresh the source inspection after dismissal before enabling a new save.
+  Preserve a failed source intent's requested scope or exact save proposal for Retry after calendar dismissal.
+  Retire the editor with its source-review owner, including after a lost save receipt.
+  Guards: `RecordingCalendarEditorModelTests`, `RecordingControlModelTests`, and `RecordingReviewFlowModelTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
   Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
 - Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.

@@ -258,7 +258,15 @@ The badge includes these concerns across stored years. Closing or skipping prese
 Each scope change requires a new Core preview. Unknown calendar coverage retains the original fixed-range option without assigning observations from the picker date.
 The guided model observes committed changes separately from saves. It waits for an active choice to finish before replacing its page.
 Failed reassessment retains pending work and blocks review actions until retry succeeds.
-Calendar-context recovery controls, device controls, reminders, and activation remain under implementation.
+`RecordingCalendarEditor` confirms a device, historical zone, and separate absolute periods.
+Users can include a subset of periods to confirm different historical zones separately.
+Its preview shows local times, UTC bounds, and each saved offset. The zone has no current-device default.
+`RecordingControlModel` reviews and saves the resulting batch through `WhereServices.recordingControlEdits`.
+Changed drafts require another review. Stale evidence replaces the proposal; failed save receipts retain its exact identities for retry.
+Guided reassessment waits while the editor is open. After dismissal, the source screen refreshes its inspection before a new source save.
+A failed source intent retains its requested scope or exact save proposal for Retry, including after calendar recovery.
+Confirmed context preserves known raw dates and unconfirmed gaps. It does not select a recording device for history.
+Device controls, reminders, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.
