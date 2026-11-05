@@ -91,6 +91,9 @@ That document also owns the implementation plan.
   Preserve operation identity and reviewed predecessors on retry. Require complete calendar coverage for a whole-day choice.
   Review control batches against combined evidence and commit them in one local transaction. Partial remote delivery requires another review.
   Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests` and `RecordingReviewTransactionTests`.
+- Build source-choice inspection from the exact reviewed proposal, using the shared observation preparation and history selector.
+  Retain raw tracks and removal-aware coverage. Bound contribution previews to the reviewed periods; keep manual overlays separate from those GPS contributions.
+  Reuse a stale Apply's returned proposal when preparing its new preview. Guard: `RecordingChoiceInspectionTests`.
 - Shortened ignore edits restore their old tail within the same immutable operation. Preserve the selected end day, zone, and offset.
   Include observed causal extensions in refreshed end-date and resume previews. Keep a resume's original cutoff and elapsed history.
   Bound resumes by ignored portions, excluding a shortened operation's restored tail.

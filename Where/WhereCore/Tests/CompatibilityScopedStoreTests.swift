@@ -35,6 +35,7 @@ struct CompatibilityScopedStoreTests {
             store: scoped,
             policy: RecordingChoiceTestSupport.policy,
             author: RecordingChoiceTestSupport.author,
+            geography: HistoryRegionAttribution(),
             onCommitted: {},
         )
         let controls = RecordingControlEditCoordinator(

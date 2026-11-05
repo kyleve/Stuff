@@ -1374,6 +1374,9 @@ Recovered logical dates cannot hide remaining work by moving it outside the orig
 `ReportReader.historyYears()` inventories stored history independently of the selected year, including unresolved possible dates and relevant controls without GPS.
 `DataIssueScanner.historicalScan` reads that inventory and the current year under one snapshot. It shares annual assessment, groups concerns across year boundaries, and retains original review contexts.
 Its cache rejects cancelled or invalidated completions, including reset during a refresh.
+`RecordingChoiceCoordinator.inspect` compares the exact proposal against current selection without writing history.
+It retains device tracks, physical gaps, selection reasons, unknown dates, and GPS contributions within the reviewed periods.
+Those contributions do not replace whole-day totals or manual overlays. A stale Apply supplies a new proposal for another explicit review.
 Review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.

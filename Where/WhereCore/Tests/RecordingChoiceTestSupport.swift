@@ -47,6 +47,8 @@ enum RecordingChoiceTestSupport {
             store: store,
             policy: policy,
             author: author,
+            geography: HistoryRegionAttribution(catalog: LocationHistoryReaderTestSupport
+                .Geography()),
             onCommitted: { await commits.record() },
         )
     }

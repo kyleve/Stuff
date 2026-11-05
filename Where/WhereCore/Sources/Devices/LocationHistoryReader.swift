@@ -105,24 +105,14 @@ public struct LocationHistoryReader: Sendable {
         let removals = try await store.recordingDeviceRemovals()
         let revisions = try await store.sampleAttributionRevisions(for: Set(samples.map(\.id)))
             .sorted { $0.id < $1.id }
-        let winners = Self.winners(revisions)
         let catalog = await geography.snapshot()
-        let observations = try samples.filter(\.source.isGPS).map { sample in
-            let regions = winners[sample.id]?
-                .replacementRegions ?? [catalog.region(at: sample.coordinate)]
-            return try RecordingObservation(
-                sample: sample,
-                recordingDay: RecordingCalendarResolver.assignment(
-                    for: sample,
-                    decisions: controls.calendarContexts,
-                    version: policy.current,
-                ),
-                geography: RecordingGeography(
-                    knownRegions: regions.subtracting([.other]),
-                    includesUnknownPresence: regions.contains(.other),
-                ),
-            )
-        }
+        let observations = try RecordingObservation.history(
+            samples: samples,
+            corrections: revisions,
+            controls: controls,
+            catalog: catalog,
+            version: policy.current,
+        )
         let selected = try RecordingHistorySelection.resolve(
             observations: observations,
             controls: controls,

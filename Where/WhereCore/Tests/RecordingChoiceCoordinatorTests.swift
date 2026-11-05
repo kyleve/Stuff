@@ -40,6 +40,7 @@ struct RecordingChoiceCoordinatorTests {
             store: store,
             policy: .foundation,
             author: RecordingChoiceTestSupport.author,
+            geography: HistoryRegionAttribution(),
             onCommitted: {},
         )
         await #expect(throws: DataCompatibilityError.activationNotReady) {

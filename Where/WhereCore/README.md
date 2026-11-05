@@ -72,6 +72,10 @@ Capture-time context and the controls UI remain in the implementation plan.
 
 `RecordingChoiceCoordinator.review(_:)` prepares a source choice against one relevant history snapshot.
 It validates the requested scope before entering that snapshot, so invalid caller input cannot revoke admitted history access.
+`inspect(_:)` also prepares a read-only comparison with the proposed selection. It uses the same corrected geographic observations and recorded dates as saved history.
+The preview retains raw device tracks, removal-aware coverage, gaps, selection reasons, and GPS day contributions within the reviewed periods.
+These contributions are not whole-day or annual totals. Other observations and manual overlays can still contribute outside this preview.
+`inspection(of:)` renders an existing review, including a stale Apply result, without replacing its operation identity or causal predecessors.
 The proposal keeps the query, evidence, policy version, and original causal predecessors until save completes.
 `apply(_:)` reassesses inside the guarded transaction, then appends that immutable operation.
 Relevant changes return a refreshed review. Unrelated imports can retry the same proposal without another confirmation.

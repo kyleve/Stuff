@@ -5,6 +5,7 @@ import PeriscopeCore
 enum RecordingChoiceCoordinatorLog {
     enum SpanName: Hashable {
         case review
+        case preview
         case save
     }
 }

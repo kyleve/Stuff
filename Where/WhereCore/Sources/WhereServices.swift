@@ -326,6 +326,7 @@ public struct WhereServices: Sendable {
             store: store,
             policy: compatibilityPolicy,
             author: currentDevice.id,
+            geography: historyGeography,
             onCommitted: { await derivedData.reconcile() },
         )
         recordingControlEdits = RecordingControlEditCoordinator(

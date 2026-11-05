@@ -16,6 +16,7 @@ public struct RecordingChoiceCoordinator: Sendable {
     private let store: any WhereStore
     private let policy: DataCompatibilityPolicy
     private let author: RecordingDeviceID
+    private let geography: HistoryRegionAttribution
     private let onCommitted: @Sendable () async -> Void
     private let scopeID = ScopeID(rawValue: UUID())
 
@@ -33,11 +34,13 @@ public struct RecordingChoiceCoordinator: Sendable {
         store: any WhereStore,
         policy: DataCompatibilityPolicy,
         author: RecordingDeviceID,
+        geography: HistoryRegionAttribution,
         onCommitted: @escaping @Sendable () async -> Void,
     ) {
         self.store = store
         self.policy = policy
         self.author = author
+        self.geography = geography
         self.onCommitted = onCommitted
     }
 
@@ -57,6 +60,36 @@ public struct RecordingChoiceCoordinator: Sendable {
                 let evidence = try await RecordingReviewReader(store: store, policy: policy)
                     .evidence(for: query)
                 return try makeReview(request, evidence: evidence)
+            }
+        }
+    }
+
+    public func inspect(_ request: RecordingChoiceRequest) async throws
+        -> RecordingChoiceInspection
+    {
+        try await inspection(of: review(request))
+    }
+
+    /// A stale Apply returns a new review. Build its preview without creating another proposal
+    /// or adopting decisions that arrived after that guarded refresh.
+    public func inspection(of review: RecordingChoiceReview) async throws
+        -> RecordingChoiceInspection
+    {
+        try await Self.logger.measure(.preview, budget: .seconds(2)) {
+            switch review {
+                case let .ready(proposal):
+                    guard proposal.ownerID == scopeID else {
+                        throw DataCompatibilityError.concurrentChange
+                    }
+                    return try await RecordingChoiceInspection(
+                        proposal: proposal,
+                        catalog: geography.snapshot(),
+                        policy: policy,
+                    )
+                case let .needsCalendarContext(clarification):
+                    return .needsCalendarContext(clarification)
+                case let .absentRecordingDay(request):
+                    return .absentRecordingDay(request)
             }
         }
     }

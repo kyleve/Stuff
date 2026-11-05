@@ -172,7 +172,7 @@ public enum MultiDeviceAssessment {
         return result
     }
 
-    private static func coverage(_ observations: [RecordingObservation]) throws
+    static func coverage(_ observations: [RecordingObservation]) throws
         -> [RecordingPeriod]
     {
         var periods = try observations.map { observation in
