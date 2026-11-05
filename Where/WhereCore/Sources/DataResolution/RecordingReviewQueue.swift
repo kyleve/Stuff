@@ -54,7 +54,7 @@ public struct RecordingReviewQueue: Hashable, Sendable {
     /// Failure leaves the immutable original work available for retry. Skipping is a presentation
     /// action; callers must not remove its reference or treat it as resolved.
     public func remaining(in snapshot: RecordingReviewSnapshot) throws -> [Item] {
-        guard snapshot.scopeID == scopeID else { throw ValidationError.differentServiceScope }
+        try requireScope(snapshot.scopeID)
         guard snapshot.generationID == generationID else {
             throw ValidationError.dataGenerationChanged
         }
@@ -72,5 +72,9 @@ public struct RecordingReviewQueue: Hashable, Sendable {
             }
             return Item(issue: issue, periods: periods, references: relevant)
         }
+    }
+
+    func requireScope(_ current: RecordingReviewSnapshot.ScopeID) throws {
+        guard current == scopeID else { throw ValidationError.differentServiceScope }
     }
 }

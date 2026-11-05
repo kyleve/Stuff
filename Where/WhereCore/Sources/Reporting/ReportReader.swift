@@ -9,7 +9,7 @@ import RegionKit
 /// so it's a cheap `Sendable` value that each collaborator that needs reads can
 /// keep its own copy of, rather than routing every read back through one actor.
 public struct ReportReader: Sendable {
-    private static let logger = WhereLog.reporting(ReportReaderLog.self)
+    static let logger = WhereLog.reporting(ReportReaderLog.self)
 
     let store: any WhereStore
     let aggregator: DayAggregator

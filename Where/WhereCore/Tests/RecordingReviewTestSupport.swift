@@ -1,11 +1,30 @@
 import Foundation
+import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 enum RecordingReviewTestSupport {
     static let scopeID = RecordingReviewSnapshot.ScopeID(rawValue: UUID(
         uuidString: "00000000-0000-0000-0000-000000000901",
     )!)
+
+    static func scanner(_ store: any WhereStore) -> DataIssueScanner {
+        DataIssueScanner(
+            reportReader: LocationHistoryReaderTestSupport.reports(store),
+            attributor: RegionAttributor(for: []),
+            calendar: LocationHistoryReaderTestSupport.calendar,
+        )
+    }
+
+    static func queue(_ scanner: DataIssueScanner) async throws -> RecordingReviewQueue {
+        let period = try RecordingAssessmentTestSupport.period(0, 1201)
+        let snapshot = try await scanner.recordingReview(periods: [period])
+        return try RecordingReviewQueue(references: [reference(
+            snapshot,
+            periods: [period],
+            query: .instants(period),
+        )])
+    }
 
     static func snapshot(
         _ issues: [RecordingHistorySelection.Issue],

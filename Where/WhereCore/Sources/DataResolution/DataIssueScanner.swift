@@ -13,6 +13,17 @@ public actor DataIssueScanner {
     private let now: @Sendable () -> Date
     private let scanInterval: TimeInterval
     private let detectors: [any DataIssueDetecting]
+    private let recordingReviewScopeID = RecordingReviewSnapshot.ScopeID(rawValue: UUID())
+
+    #if DEBUG
+        private var beforeRecordingReviewPublication: (@Sendable () async -> Void)?
+
+        @_spi(Testing) public func setBeforeRecordingReviewPublicationForTesting(
+            _ operation: @escaping @Sendable () async -> Void,
+        ) {
+            beforeRecordingReviewPublication = operation
+        }
+    #endif
 
     private struct CachedScan {
         let year: Int
@@ -72,6 +83,36 @@ public actor DataIssueScanner {
 
     deinit {
         invalidationTask?.cancel()
+    }
+
+    /// Fresh absolute-period assessment, with bounded adjacent context for review. The queue's
+    /// original logical query remains navigation context, never a filter on new rival evidence.
+    public func recordingReview(periods: [RecordingPeriod]) async throws
+        -> RecordingReviewSnapshot
+    {
+        while true {
+            try Task.checkCancellation()
+            let revision = invalidationRevision
+            let result = try await reportReader.recordingReview(
+                periods: periods,
+                scopeID: recordingReviewScopeID,
+            )
+            #if DEBUG
+                await beforeRecordingReviewPublication?()
+            #endif
+            try Task.checkCancellation()
+            guard revision == invalidationRevision else { continue }
+            return result
+        }
+    }
+
+    /// Failure leaves the queue intact. Its owner keeps failed or skipped work pending and uses
+    /// the guarded choice coordinator to save only the periods in the returned review item.
+    public func reassess(_ queue: RecordingReviewQueue) async throws
+        -> [RecordingReviewQueue.Item]
+    {
+        try queue.requireScope(recordingReviewScopeID)
+        return try await queue.remaining(in: recordingReview(periods: queue.originalPeriods))
     }
 
     public func issues(

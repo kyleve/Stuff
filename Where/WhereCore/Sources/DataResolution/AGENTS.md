@@ -37,3 +37,4 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   A derived issue ID does not replace the original review scope when boundaries change. Guard: `RecordingIssueTests`.
 - Reassess every original absolute period before completing queued recording work. Include current device evidence regardless of original device IDs or logical-year labels.
   Preserve bounded choice periods separately from merged issue context. Reject different service scopes, generations, majors, or incomplete coverage. Guard: `RecordingReviewQueueTests`.
+  Read those periods through the shared history reader in one store snapshot. Reject cancelled completions and retry invalidated results. Guard: `DataIssueScannerTests`.

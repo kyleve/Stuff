@@ -420,6 +420,9 @@ one it belongs to rather than to a god-object:
   A merged issue supplies context, while each queue item retains the exact periods available for a choice. Overlapping references share work without filling gaps.
   `RecordingReviewSnapshot` must cover every original period before an empty result can establish resolution. A different service, generation, or major fails reassessment.
   These values support in-memory review. They do not authorize writes or provide a persistent notification format.
+  `DataIssueScanner.recordingReview(periods:)` supplies fresh snapshots through the shared `ReportReader` and `LocationHistoryReader`.
+  It assesses all requested absolute periods in one store snapshot, with bounded adjacent context. It never filters rival evidence by the original logical year.
+  `reassess(_:)` reads a queue's original periods and rejects references from another scanner lifetime. Invalidated completions retry; cancelled and failed reads throw.
   Missing-history and travel suggestions wait on dates that require recording review, while unrelated issues remain available.
   `HistoryCompleteness.daysRequiringReview` includes possible dates for unknown assignments without adding them to the known affected-day count.
   Detectors throw when they cannot assess the supplied scope; the scanner propagates that failure.

@@ -4,6 +4,204 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DataIssueScannerTests {
+    @Test func recordingQueueIncludesNewDevicesAndReassessesAfterResolution() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let original = try LocationHistoryReaderTestSupport.competingTracks()
+        try await LocationHistoryReaderTestSupport.add(original, to: store)
+        let scanner = RecordingReviewTestSupport.scanner(store)
+        let queue = try await RecordingReviewTestSupport.queue(scanner)
+        let newDevice = RecordingDeviceID(rawValue: UUID())
+        let imported = try [0.0, 600, 1200].map {
+            try LocationHistoryReaderTestSupport.sample(
+                seconds: $0,
+                deviceID: newDevice,
+                longitude: -60 + $0 / 30000,
+            )
+        }
+        try await LocationHistoryReaderTestSupport.add(imported, to: store)
+        let remaining = try await scanner.reassess(queue)
+        #expect(remaining.count == 1)
+        #expect(remaining.first?.periods == queue.originalPeriods)
+        let sampleIDs = Set(remaining.flatMap(\.issue.sampleIDs))
+        #expect(Set(imported.map(\.id)).isSubset(of: sampleIDs))
+
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(1701, end: 1201)),
+            store: store,
+        )
+        #expect(try await scanner.reassess(queue).isEmpty)
+        #expect(try await Set(store.allSamples()) == Set(original + imported))
+    }
+
+    @Test func recordingQueueKeepsConflictWhenCalendarRecoveryMovesItOutOfTheOriginalYear(
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let firstDevice = RecordingAssessmentTestSupport.first
+        let secondDevice = RecordingAssessmentTestSupport.second
+        let samples = try [0.0, 600, 1200].flatMap { seconds in
+            try [
+                LocationHistoryReaderTestSupport.sample(seconds: seconds, assignment: .unresolved),
+                LocationHistoryReaderTestSupport.sample(
+                    seconds: seconds,
+                    deviceID: secondDevice,
+                    longitude: -74,
+                    assignment: .unresolved,
+                ),
+            ]
+        }
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        let oldZone = try #require(TimeZone(secondsFromGMT: -3600))
+        let oldFirst = try RecordingControlsTestSupport.calendar(
+            1711,
+            end: 1201,
+            action: .establish(.init(timeZone: oldZone, secondsFromGMT: -3600)),
+            deviceID: firstDevice,
+        )
+        let oldSecond = try RecordingControlsTestSupport.calendar(
+            1712,
+            end: 1201,
+            action: .establish(.init(timeZone: oldZone, secondsFromGMT: -3600)),
+            deviceID: secondDevice,
+        )
+        try await RecordingChoiceTestSupport.append(.calendar(oldFirst), store: store)
+        try await RecordingChoiceTestSupport.append(.calendar(oldSecond), store: store)
+        let scanner = RecordingReviewTestSupport.scanner(store)
+        let period = try RecordingAssessmentTestSupport.period(0, 1201)
+        let snapshot = try await scanner.recordingReview(periods: [period])
+        let reference = try RecordingReviewTestSupport.reference(
+            snapshot,
+            periods: [period],
+            historicalYear: 2000,
+            query: .days(CalendarDay.yearRange(2000)),
+        )
+        let queue = try RecordingReviewQueue(references: [reference])
+        let before = try await LocationHistoryReaderTestSupport.reports(store).yearReport(for: 2000)
+        #expect(before.completeness.isComplete == false)
+        for context in [oldFirst, oldSecond] {
+            let updated = try RecordingCalendarDecision(
+                id: .init(rawValue: UUID()),
+                author: firstDevice,
+                deviceID: context.deviceID,
+                periods: [period],
+                action: .establish(.init(timeZone: .gmt, secondsFromGMT: 0)),
+                predecessors: [context.id],
+                version: RecordingEvidencePolicy.version,
+            )
+            try await RecordingChoiceTestSupport.append(.calendar(updated), store: store)
+        }
+        let oldYear = try await LocationHistoryReaderTestSupport.reports(store)
+            .yearReport(for: 2000)
+        #expect(oldYear.completeness.isComplete)
+        let remaining = try await scanner.reassess(queue)
+        #expect(remaining.count == 1)
+        #expect(remaining.first?.issue.days == .known([CalendarDay(year: 2001, month: 1, day: 1)]))
+        #expect(remaining.first?.periods == [period])
+        #expect(remaining.first?.references == [reference])
+        #expect(try await Set(store.allSamples()) == Set(samples))
+    }
+
+    @Test func recordingReassessmentRejectsAReplacedServiceAndAResetGeneration() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(
+            LocationHistoryReaderTestSupport.competingTracks(),
+            to: store,
+        )
+        let scanner = RecordingReviewTestSupport.scanner(store)
+        let queue = try await RecordingReviewTestSupport.queue(scanner)
+        let replacement = RecordingReviewTestSupport.scanner(store)
+        await #expect(throws: RecordingReviewQueue.ValidationError.differentServiceScope) {
+            try await replacement.reassess(queue)
+        }
+        try await store.perform {
+            _ = try await store.rotateDataGeneration(
+                reason: .accountReset,
+                changedBy: RecordingAssessmentTestSupport.first,
+                at: RecordingAssessmentTestSupport.time(2000),
+            )
+        }
+        await #expect(throws: RecordingReviewQueue.ValidationError.dataGenerationChanged) {
+            try await scanner.reassess(queue)
+        }
+    }
+
+    @Test func failedRecordingReadLeavesOriginalWorkAvailableForRetry() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(
+            LocationHistoryReaderTestSupport.competingTracks(),
+            to: store,
+        )
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let scanner = RecordingReviewTestSupport.scanner(access.store)
+        let queue = try await RecordingReviewTestSupport.queue(scanner)
+        let originalPeriods = queue.originalPeriods
+        access.revoke()
+        await #expect(throws: DataAccessPermit.AccessError.revoked) {
+            try await scanner.reassess(queue)
+        }
+        #expect(queue.originalPeriods == originalPeriods)
+        #expect(queue.references.isEmpty == false)
+    }
+
+    @Test func invalidatedRecordingCompletionCannotFalselyFinishTheQueue() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(
+            LocationHistoryReaderTestSupport.competingTracks(),
+            to: store,
+        )
+        let scanner = RecordingReviewTestSupport.scanner(store)
+        let queue = try await RecordingReviewTestSupport.queue(scanner)
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(1721, end: 1201)),
+            store: store,
+        )
+        let gate = CompatibilityTestGate()
+        await scanner.setBeforeRecordingReviewPublicationForTesting { await gate.suspend() }
+        let pending = Task { try await scanner.reassess(queue) }
+        await gate.waitUntilEntered()
+        do {
+            try await RecordingChoiceTestSupport.append(
+                .source(RecordingAssessmentTestSupport.decision(
+                    1722,
+                    end: 1201,
+                    action: .select(RecordingAssessmentTestSupport.second),
+                )),
+                store: store,
+            )
+        } catch {
+            await gate.resume()
+            _ = await pending.result
+            throw error
+        }
+        await scanner.invalidate()
+        await gate.resume()
+        let remaining = try await pending.value
+        #expect(remaining.isEmpty == false)
+        #expect(remaining.flatMap(\.periods) == queue.originalPeriods)
+    }
+
+    @Test func cancelledRecordingCompletionDoesNotReturnAReviewResult() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(
+            LocationHistoryReaderTestSupport.competingTracks(),
+            to: store,
+        )
+        let scanner = RecordingReviewTestSupport.scanner(store)
+        let queue = try await RecordingReviewTestSupport.queue(scanner)
+        let gate = CompatibilityTestGate()
+        await scanner.setBeforeRecordingReviewPublicationForTesting { await gate.suspend() }
+        let pending = Task { try await scanner.reassess(queue) }
+        await gate.waitUntilEntered()
+        pending.cancel()
+        await gate.resume()
+        await #expect(throws: CancellationError.self) { try await pending.value }
+        #expect(try await scanner.reassess(queue).isEmpty == false)
+    }
+
     @Test func recordingScanRetainsCompletenessAndRefreshesAfterAnExclusiveChoice() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let samples = try LocationHistoryReaderTestSupport.competingTracks()

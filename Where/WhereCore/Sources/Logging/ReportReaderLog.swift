@@ -18,6 +18,8 @@ enum ReportReaderLog {
         case yearReportDetails
         /// The single-read bundle a data-issue scan needs.
         case dataIssueReads
+        /// Current recording concerns across the original absolute review periods.
+        case recordingReview
         /// A year of coordinates inside one region, grouped by day.
         case regionLocations
         /// One day's coordinates, grouped by the region they attribute to.

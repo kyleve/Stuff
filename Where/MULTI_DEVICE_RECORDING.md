@@ -1369,7 +1369,9 @@ Verify unresolved contributions, report completeness, and export gating before a
 It preserves underlying problems, candidate dates, unknown assignments, and policy identity. Gaps remain separate, including gaps on the same logical day.
 The in-memory `RecordingReviewQueue` retains original periods, year/query context, generation, and policy independently of derived issue identifiers.
 It follows splits, merges, and new device evidence without filling gaps or widening choices. Complete reassessment is required before it reports no remaining work.
-Historical discovery, queue read integration, controls, reminder integration, and activation remain in progress.
+`DataIssueScanner` reassesses those periods through the shared history reader in one store snapshot, including current rival devices and bounded adjacent context.
+Recovered logical dates cannot hide remaining work by moving it outside the original year. Invalidated completions retry, and failed reads leave work pending.
+Historical discovery, review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
