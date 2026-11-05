@@ -22,6 +22,8 @@ enum ReportReaderLog {
         case recordingReview
         /// Logical years requiring historical issue discovery.
         case historyYears
+        /// Inputs for all stored years and the current year, admitted as one snapshot.
+        case historicalDataIssueReads
         /// A year of coordinates inside one region, grouped by day.
         case regionLocations
         /// One day's coordinates, grouped by the region they attribute to.

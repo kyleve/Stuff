@@ -1372,7 +1372,9 @@ It follows splits, merges, and new device evidence without filling gaps or widen
 `DataIssueScanner` reassesses those periods through the shared history reader in one store snapshot, including current rival devices and bounded adjacent context.
 Recovered logical dates cannot hide remaining work by moving it outside the original year. Invalidated completions retry, and failed reads leave work pending.
 `ReportReader.historyYears()` inventories stored history independently of the selected year, including unresolved possible dates and relevant controls without GPS.
-Historical scan integration, review screens, controls, reminder integration, and activation remain in progress.
+`DataIssueScanner.historicalScan` reads that inventory and the current year under one snapshot. It shares annual assessment, groups concerns across year boundaries, and retains original review contexts.
+Its cache rejects cancelled or invalidated completions, including reset during a refresh.
+Review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.

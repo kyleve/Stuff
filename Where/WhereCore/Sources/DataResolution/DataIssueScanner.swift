@@ -5,18 +5,19 @@ import RegionKit
 /// Cache invalidation has its own epoch so a suspended scan cannot republish
 /// evidence that was invalidated while its reads were in flight.
 public actor DataIssueScanner {
-    private static let logger = WhereLog.reporting(DataIssueScannerLog.self)
+    static let logger = WhereLog.reporting(DataIssueScannerLog.self)
 
-    private let reportReader: ReportReader
-    private let attributor: any RegionAttributing
-    private let calendar: Calendar
-    private let now: @Sendable () -> Date
-    private let scanInterval: TimeInterval
-    private let detectors: [any DataIssueDetecting]
-    private let recordingReviewScopeID = RecordingReviewSnapshot.ScopeID(rawValue: UUID())
+    let reportReader: ReportReader
+    let attributor: any RegionAttributing
+    let calendar: Calendar
+    let now: @Sendable () -> Date
+    let scanInterval: TimeInterval
+    let detectors: [any DataIssueDetecting]
+    let recordingReviewScopeID = RecordingReviewSnapshot.ScopeID(rawValue: UUID())
 
     #if DEBUG
         private var beforeRecordingReviewPublication: (@Sendable () async -> Void)?
+        var beforeHistoricalPublication: (@Sendable () async -> Void)?
 
         @_spi(Testing) public func setBeforeRecordingReviewPublicationForTesting(
             _ operation: @escaping @Sendable () async -> Void,
@@ -38,9 +39,10 @@ public actor DataIssueScanner {
     }
 
     private var cache: CachedScan?
+    var historicalCache: CachedHistoricalScan?
     /// Zero identifies the initial epoch; scans compare only equality. Change
     /// it even when the cache is empty so suspended scans detect invalidation.
-    private var invalidationRevision: UInt64
+    var invalidationRevision: UInt64
 
     /// Drops the cache whenever the store reports a committed change. Lets the
     /// cache stay honest for `force: false` readers even when no session is
@@ -156,76 +158,13 @@ public actor DataIssueScanner {
             let revision = invalidationRevision
             let result = try await Self.logger.measure(.scan, budget: .seconds(3)) {
                 let reads = try await reportReader.dataIssueReads(for: year)
-                let input = DataIssueInput(
-                    year: year,
-                    report: reads.report,
-                    otherDayCoordinates: reads.otherDayCoordinates,
-                    daySamples: reads.daySamples,
-                    primaryRegions: reads.primaryRegions,
-                    attributor: reads.attribution,
+                return try DataIssueAssessment(calendar: calendar, detectors: detectors).scan(
+                    reads: reads,
                     driftThresholdMeters: driftThresholdMeters,
-                    calendar: calendar,
                     now: currentDate,
                 )
-                let assessment = try Self.logger.measure(.assessGPS) {
-                    try SampleCorrectionAssessment(
-                        attributor: reads.correctionAttribution,
-                        calendar: calendar,
-                    )
-                    .assess(
-                        reads: reads,
-                        driftThresholdMeters: driftThresholdMeters,
-                        now: currentDate,
-                    )
-                }
-                let assessedReviews = assessment.reviews
-                let otherIssues = try detectors.flatMap { detector in
-                    try Self.logger.measure(.detect(detector.detects)) {
-                        try detector.detectAnyIssues(in: input)
-                    }
-                }
-                let flightDays = Set(assessedReviews.filter { !$0.flights.isEmpty }.map(\.day.day))
-                let unexplainedIssues = otherIssues.filter { issue in
-                    // Flight reviews own these transitions before and after
-                    // arrival, including their exact-sample correction. Do not
-                    // also offer a whole-day travel correction for that flight.
-                    guard case let .markTravelDay(earlier, later, _) = issue.resolution else {
-                        return true
-                    }
-                    return !flightDays.contains(earlier.day) && !flightDays.contains(later.day)
-                }
-                // Dismissal hides the proposal, retaining any unfinished flights
-                // in that same review. Use all assessed flights above
-                // so dismissal cannot revive an overlapping whole-day rewrite.
-                let reviews = assessedReviews.compactMap {
-                    reads.dismissedIssueIDs.contains($0.id) ? $0.dismissingProposal() : $0
-                }
-                let gpsIssues: [any DataIssue] = reviews.compactMap { review in
-                    review.proposal.map { SampleCorrectionIssue(proposal: $0) }
-                }
-                let issues = Self.sortIssues((unexplainedIssues + gpsIssues).filter {
-                    !reads.dismissedIssueIDs.contains($0.id)
-                })
-                let deadlines = reviews.flatMap(\.flights).flatMap { flight in
-                    [
-                        flight.reassessment.scheduledDate,
-                        flight.lastObservationAt.addingTimeInterval(
-                            GPSCorrectionPolicy.Presentation.liveNoticeRetentionInterval,
-                        ),
-                    ]
-                    .compactMap(\.self).filter { $0 > currentDate }
-                }
-                return DataIssueScanResult(
-                    revision: UUID(),
-                    completeness: reads.report.completeness,
-                    issues: issues,
-                    reviews: reviews,
-                    completedFlights: assessment.flights.filter {
-                        $0.completedDays(in: calendar).contains { $0.year == year }
-                    },
-                    nextReassessmentAt: deadlines.min(),
-                )
             }
+            try Task.checkCancellation()
             guard revision == invalidationRevision,
                   trackedRegions == attributor.loadedRegions
             else {
@@ -273,14 +212,6 @@ public actor DataIssueScanner {
     public func invalidate() {
         invalidationRevision &+= 1
         cache = nil
-    }
-
-    private static func sortIssues(_ issues: [any DataIssue]) -> [any DataIssue] {
-        issues.sorted { lhs, rhs in
-            let lhsOrder = DataIssueCategory.allCases.firstIndex(of: lhs.category) ?? 0
-            let rhsOrder = DataIssueCategory.allCases.firstIndex(of: rhs.category) ?? 0
-            if lhsOrder != rhsOrder { return lhsOrder < rhsOrder }
-            return lhs.sortKey < rhs.sortKey
-        }
+        historicalCache = nil
     }
 }

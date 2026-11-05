@@ -108,8 +108,7 @@ public struct ReportReader: Sendable {
     public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
         try await Self.logger.measure(.dataIssueReads, budget: .seconds(2)) {
             try await store.readSnapshot {
-                let contextDays = CalendarDay(year: year - 1, month: 12, day: 31)
-                    ... CalendarDay(year: year + 1, month: 1, day: 1)
+                let contextDays = try Self.dataIssueContextDays(for: year)
                 let attribution = try await history.attributionSnapshot(attributor)
                 let projection = try await history.projection(
                     for: .days(contextDays),
@@ -154,6 +153,18 @@ public struct ReportReader: Sendable {
                 )
             }
         }
+    }
+
+    /// Adjacent physical context must stay inside the supported logical-date domain.
+    static func dataIssueContextDays(for year: Int) throws -> ClosedRange<CalendarDay> {
+        guard (1 ... 9999).contains(year) else {
+            throw HistoryYearInventory.ValidationError.unsupportedDate
+        }
+        let first = year == 1 ? CalendarDay(year: 1, month: 1, day: 1)
+            : CalendarDay(year: year - 1, month: 12, day: 31)
+        let last = year == 9999 ? CalendarDay(year: 9999, month: 12, day: 31)
+            : CalendarDay(year: year + 1, month: 1, day: 1)
+        return first ... last
     }
 
     /// The manual-day records (backfills and authoritative overrides) the user

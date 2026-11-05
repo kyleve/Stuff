@@ -401,7 +401,11 @@ one it belongs to rather than to a god-object:
 
 - **`DataIssueScanner`** — publishes a coherent revision of actionable issues,
   recording completeness, informational GPS reviews, and the next reassessment deadline. Committed raw
-  evidence invalidates its cache even when day/region totals remain equal.
+  evidence invalidates its annual and historical caches even when day/region totals remain equal.
+  `historicalScan(driftThresholdMeters:force:)` covers stored years plus the current year from one admitted snapshot.
+  It reuses annual detector assessment and groups continuous recording concerns across year boundaries.
+  `HistoricalDataIssueScanResult.references(for:)` retains original year/query contexts for bounded review.
+  A failed year fails the whole refresh. Reset invalidation retries held completions; cancellation cannot populate the cache.
   Missing-day and abrupt-change detection share the same snapshot; flight and
   boundary cleanup use one sample assessment. Supported flight transitions stay
   in that review instead of producing a separate whole-day abrupt-change suggestion.
