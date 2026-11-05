@@ -79,6 +79,10 @@ Whole-day proposals require complete calendar context; missing GPS alone does no
 The [reviewed-choice model](../Specifications/ReviewedRecordingChoices/README.md) documents the bounded verification and external-writer limitations.
 `RecordingControlEditCoordinator` uses the same guarded transaction for ignore, place, and calendar edits.
 It also validates caller scopes before entering admitted history reads.
+`ignoreHistory(for:)` reads one device's durable ignore graph, including elapsed and unresolved intervals.
+Its segments describe automatic eligibility. Explicit source choices can still select that device, and unknown controls remain separately visible.
+`inspectIgnore(_:)` compares the exact proposal with its reviewed controls through `RecordingControlSelection`.
+The preview preserves source choices, removal cutoffs, unknown controls, and gaps between reviewed periods. It does not read newer evidence or authorize saving.
 Its array overload reviews disjoint edits against one combined snapshot. A proposal pairs each edit with its immutable control.
 One local transaction saves the complete batch. A retry retains all operation identities and rejects conflicting reused identities.
 Remote delivery remains independent for each envelope. A partial batch requires another review before a retry can save its remaining edits.
@@ -100,7 +104,7 @@ let result = try await services.recordingControlEdits.apply(proposal)
 ```
 
 `WhereServices` supplies both coordinators from its admitted store and awaits reconciliation after each successful save.
-These APIs require the activated recording contract. The current foundation policy blocks them, and their UI remains unimplemented.
+These APIs require the activated recording contract. The current foundation policy blocks them. Slice 6 owns their user-facing controls.
 
 `RecordingControlSelection` combines source choices, historical ignores, and device removals for each period.
 Explicit sources bypass ignores. Removal leaves the selected source exclusive and marks its affected portion unresolved.

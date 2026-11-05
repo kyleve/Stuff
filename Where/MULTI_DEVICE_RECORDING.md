@@ -1231,6 +1231,8 @@ Whole-day proposals require complete calendar context and retain separate repeat
 Ignore, place, and calendar edits now use the same guarded transaction as source choices.
 Shortening an ignore restores its old tail within the same immutable operation and retains the new end day and zone.
 If a concurrent edit extends that interval, the refreshed preview includes its tail and requires another Apply before saving.
+The coordinator now reads durable ignore history and previews exact ignore proposals through the shared control selector.
+These values retain elapsed periods, gaps, causal uncertainty, source-choice precedence, removal cutoffs, and unknown controls for the controls UI.
 Calendar recovery resolves unknown assignments while preserving known recording days and UTC offsets.
 A late conflicting observation rejects a pending calendar edit before save.
 `RecordingCalendarRecovery` splits an explicitly confirmed historical zone at each offset transition, without filling unconfirmed gaps.

@@ -3,6 +3,29 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct RecordingControlEditCoordinatorTests {
+    @Test func historyReadRequiresAnActiveRecordingContractAndCurrentAccess() async throws {
+        let legacy = try SwiftDataStore.inMemory()
+        let inactive = RecordingControlEditTestSupport.coordinator(store: legacy)
+        await #expect(throws: DataCompatibilityError.activationNotReady) {
+            try await inactive.ignoreHistory(for: RecordingControlsTestSupport.device)
+        }
+        let store = try await RecordingChoiceTestSupport.store()
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: access.store)
+        let initial = try await coordinator.ignoreHistory(for: RecordingControlsTestSupport.device)
+        #expect(initial.decisions.isEmpty)
+        #expect(try await initial.generationID == (store.dataGeneration().id))
+        access.revoke()
+        await #expect(throws: (any Error).self) {
+            try await coordinator.ignoreHistory(for: RecordingControlsTestSupport.device)
+        }
+    }
+
     @Test(arguments: RecordingControlEditTestSupport.Kind.allCases)
     func invalidRequestDoesNotRevokeAdmittedHistory(
         kind: RecordingControlEditTestSupport.Kind,

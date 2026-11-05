@@ -61,6 +61,28 @@ public struct RecordingControlEditCoordinator: Sendable {
         try await review([edit])
     }
 
+    public func ignoreHistory(for deviceID: RecordingDeviceID) async throws
+        -> RecordingIgnoreHistory
+    {
+        try await Self.logger.measure(.history, budget: .seconds(2)) {
+            try await store.readSnapshot {
+                try await validateContract()
+                return try await RecordingIgnoreHistory(
+                    controls: RecordingControlStore(store: store, policy: policy).snapshot(),
+                    deviceID: deviceID,
+                    version: policy.current,
+                )
+            }
+        }
+    }
+
+    /// Uses the exact displayed proposal; it neither reads new evidence nor creates a write permit.
+    public func inspectIgnore(_ proposal: Proposal) throws -> RecordingIgnoreInspection {
+        try Self.logger.measure(.previewIgnore, budget: .seconds(2)) {
+            try RecordingIgnoreInspection(proposal: proposal, policy: policy)
+        }
+    }
+
     /// Review disjoint edits together, for example the offset segments of calendar recovery.
     /// The local commit is atomic; each envelope still retains its own remote-delivery scope.
     public func review(_ edits: [RecordingControlEdit]) async throws -> Proposal {
@@ -68,13 +90,7 @@ public struct RecordingControlEditCoordinator: Sendable {
             // Invalid caller scope is not evidence of incompatible stored history.
             let query = try Self.query(for: edits)
             return try await store.readSnapshot {
-                let state = try await store.dataCompatibilityState()
-                try state.validate(policy: policy)
-                guard try await store.dataContractMajor() == RecordingEvidencePolicy.version.major,
-                      policy.current == RecordingEvidencePolicy.version
-                else {
-                    throw DataCompatibilityError.activationNotReady
-                }
+                try await validateContract()
                 let reader = RecordingReviewReader(store: store, policy: policy)
                 var edits = edits
                 var query = query
@@ -89,6 +105,14 @@ public struct RecordingControlEditCoordinator: Sendable {
                 }
             }
         }
+    }
+
+    private func validateContract() async throws {
+        let state = try await store.dataCompatibilityState()
+        try state.validate(policy: policy)
+        guard try await store.dataContractMajor() == RecordingEvidencePolicy.version.major,
+              policy.current == RecordingEvidencePolicy.version
+        else { throw DataCompatibilityError.activationNotReady }
     }
 
     private func prepare(
