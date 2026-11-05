@@ -1,0 +1,133 @@
+{
+  "source": "pluscal",
+  "module": "RecordingHistorySelection.tla",
+  "cases": [
+    {
+      "name": "current-replicas",
+      "config": "CurrentReplicas.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-logical-days",
+      "config": "CurrentLogicalDays.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-unknown",
+      "config": "CurrentUnknown.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-export",
+      "config": "CurrentExport.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "prune-raw",
+      "config": "PruneRaw.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RawObservationsSurvive is violated."
+    },
+    {
+      "name": "fill-gap",
+      "config": "FillGap.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExclusiveChoicesNeverFillGaps is violated."
+    },
+    {
+      "name": "viewer-day",
+      "config": "ViewerDay.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LogicalDaysSurvive is violated."
+    },
+    {
+      "name": "major-cache",
+      "config": "MajorCache.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant FullPolicyMatches is violated."
+    },
+    {
+      "name": "query-cache",
+      "config": "QueryCache.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant QueryMatches is violated."
+    },
+    {
+      "name": "group-other",
+      "config": "GroupOther.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant SpecificGeographyBeforeGrouping is violated."
+    },
+    {
+      "name": "continuous-day",
+      "config": "ContinuousDay.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant WholeDayLeavesInterveningDate is violated."
+    },
+    {
+      "name": "drop-candidate",
+      "config": "DropCandidate.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CandidateDaysRemain is violated."
+    },
+    {
+      "name": "split-export",
+      "config": "SplitExport.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoUnresolvedExport is violated."
+    },
+    {
+      "name": "late-selected-observation",
+      "config": "LateSelectedObservation.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LateSelectedObservationNotReached is violated."
+    },
+    {
+      "name": "compatible-automatic-difference",
+      "config": "CompatibleAutomaticDifference.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CompatibleAutomaticDifferenceNotReached is violated."
+    },
+    {
+      "name": "complete-export-then-conflict",
+      "config": "CompleteExportThenConflict.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CompleteExportThenConflictNotReached is violated."
+    },
+    {
+      "name": "partial-day",
+      "config": "PartialDay.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PartialDayNotReached is violated."
+    },
+    {
+      "name": "current-historical-ignore",
+      "config": "CurrentHistoricalIgnore.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "drop-issue",
+      "config": "DropIssue.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant GeographicConflictStaysIncomplete is violated."
+    },
+    {
+      "name": "ignore-explicit",
+      "config": "IgnoreExplicit.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExplicitChoicesKeepTheirAvailableEvidence is violated."
+    },
+    {
+      "name": "policy-choice",
+      "config": "PolicyChoice.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExplicitChoicesKeepTheirAvailableEvidence is violated."
+    },
+    {
+      "name": "late-ignored-observation",
+      "config": "LateIgnoredObservation.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LateIgnoredObservationNotReached is violated."
+    }
+  ]
+}

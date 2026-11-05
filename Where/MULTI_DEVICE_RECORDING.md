@@ -936,6 +936,9 @@ This model covers permit revocation and local saves only. It does not validate s
 The [verification model](Specifications/CompatibilityVerification/README.md) covers shared and local initialization, stale responses, and record-first delivery.
 The [activation model](Specifications/CompatibilityActivation/README.md) covers durable grant invalidation and uncertain server responses.
 Their twelve and four configurations respectively meet all expected-result checks. Output withdrawal still requires integration coverage.
+The [history-selection model](Specifications/RecordingHistorySelection/README.md) adds five passing configurations and seventeen negative or reachability controls.
+It checks raw retention, exclusive gaps, historical ignores, logical dates, full-policy/query identity, candidate completeness, and exact export snapshots.
+The two-replica configuration exhausts 51,984 states. All twenty-two cases meet their expected results within the documented bounds.
 
 | Model family | Required properties | Owning implementation slices |
 | --- | --- | --- |
@@ -1327,7 +1330,9 @@ Month grids retain logical cell identities, planned-day lookups, and badges thro
 Calendar, manual-history, Elsewhere, and review labels format the logical date directly.
 Issue scans retain the shared recording completeness and full policy version.
 Missing-history and travel suggestions wait on unresolved dates, including possible dates for unknown assignments, while unrelated work remains available.
-Review screens and the selection model remain in progress.
+The history-selection model now checks repeated-day scope, retained evidence, incomplete history, and export snapshot consistency.
+Its compatible-policy case is hypothetical; the Swift selector currently implements one full policy version.
+Review and reminder surfaces follow in slice 6.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

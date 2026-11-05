@@ -410,6 +410,33 @@ struct ReportReaderTests {
         }
     }
 
+    @Test func checkedExportSnapshotSurvivesAConflictReceivedBeforeDocumentGeneration(
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let samples = try LocationHistoryReaderTestSupport.competingTracks()
+        try await LocationHistoryReaderTestSupport.add(samples.filter {
+            $0.recordingDeviceID == LocationHistoryReaderTestSupport.first
+        }, to: store)
+        let reader = LocationHistoryReaderTestSupport.reports(store)
+        let checked = try await reader.exportableYearReport(for: 2001)
+        #expect(checked.totals == [.california: 1])
+        #expect(checked.completeness.isComplete)
+
+        // A document generator retains this checked value while later imports update the store.
+        try await LocationHistoryReaderTestSupport.add(samples.filter {
+            $0.recordingDeviceID == LocationHistoryReaderTestSupport.second
+        }, to: store)
+        let current = try await reader.yearReport(for: 2001)
+        #expect(current.totals.isEmpty)
+        #expect(!current.completeness.isComplete)
+        await #expect(throws: UnresolvedHistoryError.self) {
+            try await reader.exportableYearReport(for: 2001)
+        }
+        #expect(checked.totals == [.california: 1])
+        #expect(checked.completeness.isComplete)
+        #expect(try await store.allSamples().count == samples.count)
+    }
+
     @Test func conflictsExcludeOnlyDisputedPresenceAndBlockTheAffectedExport() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let samples = try LocationHistoryReaderTestSupport.competingTracks()

@@ -4,6 +4,129 @@ import Testing
 @testable import WhereCore
 
 struct RecordingHistorySelectionTests {
+    @Test func lateIgnoredEvidenceStaysRawAndExplicitChoiceCanRestoreOnlyItsPeriod() throws {
+        let ignore = try RecordingControlsTestSupport.ignore(70)
+        let rival = try RecordingAssessmentTestSupport.observation(
+            deviceID: RecordingAssessmentTestSupport.second,
+            seconds: 0,
+            region: .newYork,
+        )
+        let late = try RecordingAssessmentTestSupport.observation(seconds: 600)
+        let afterExpiry = try RecordingAssessmentTestSupport.observation(seconds: 90000)
+        let before = try RecordingHistorySelectionTestSupport.resolve(
+            [rival, afterExpiry],
+            controls: [.ignore(ignore)],
+            end: 90001,
+        )
+        let after = try RecordingHistorySelectionTestSupport.resolve(
+            [rival, late, afterExpiry],
+            controls: [.ignore(ignore)],
+            end: 90001,
+        )
+        #expect(after.contributions == before.contributions)
+        #expect(Set(after.contributions) == [rival, afterExpiry])
+        #expect(after.evidence.observations.contains(late))
+        #expect(after.issues.isEmpty)
+
+        let choice = try RecordingAssessmentTestSupport.decision(71, end: 1201)
+        let selected = try RecordingHistorySelectionTestSupport.resolve(
+            [rival, late, afterExpiry],
+            controls: [.ignore(ignore), .source(choice)],
+            end: 90001,
+        )
+        #expect(Set(selected.contributions) == [late, afterExpiry])
+        #expect(selected.issues.isEmpty)
+        let automatic = try RecordingAssessmentTestSupport.decision(
+            72,
+            end: 1201,
+            action: .automatic,
+            predecessors: [choice.id],
+        )
+        let restored = try RecordingHistorySelectionTestSupport.resolve(
+            [rival, late, afterExpiry],
+            controls: [.source(automatic), .ignore(ignore), .source(choice)],
+            end: 90001,
+        )
+        #expect(restored.contributions == after.contributions)
+        #expect(Set(restored.evidence.observations) == [rival, late, afterExpiry])
+    }
+
+    @Test func repeatedWholeDayChoicePreservesInterveningEvidenceAndBoundsFixedOverlap() throws {
+        let first = try RecordingAssessmentTestSupport.observation(seconds: 12 * 3600)
+        let rival = try RecordingAssessmentTestSupport.observation(
+            deviceID: RecordingAssessmentTestSupport.second,
+            seconds: 12 * 3600,
+            region: .newYork,
+            timeZone: #require(TimeZone(secondsFromGMT: 14 * 3600)),
+        )
+        let intervening = try RecordingAssessmentTestSupport.observation(seconds: 26 * 3600)
+        let interveningRival = try RecordingAssessmentTestSupport.observation(
+            deviceID: RecordingAssessmentTestSupport.second,
+            seconds: 26 * 3600,
+        )
+        let repeatedZone = try #require(TimeZone(secondsFromGMT: -12 * 3600))
+        let repeated = try RecordingAssessmentTestSupport.observation(
+            seconds: 31 * 3600,
+            timeZone: repeatedZone,
+        )
+        let repeatedRival = try RecordingAssessmentTestSupport.observation(
+            deviceID: RecordingAssessmentTestSupport.second,
+            seconds: 31 * 3600,
+            region: .newYork,
+            timeZone: repeatedZone,
+        )
+        let observations = [first, rival, intervening, interveningRival, repeated, repeatedRival]
+        let day = CalendarDay(year: 2001, month: 1, day: 1)
+        let choice = try HistoryDecision(
+            id: RecordingAssessmentTestSupport.decisionID(60),
+            author: RecordingAssessmentTestSupport.first,
+            periods: [
+                RecordingAssessmentTestSupport.period(0, 24 * 3600),
+                RecordingAssessmentTestSupport.period(30 * 3600, 36 * 3600),
+            ],
+            scope: .recordingDay(deviceID: RecordingAssessmentTestSupport.first, day: day),
+            action: .select(RecordingAssessmentTestSupport.first),
+            predecessors: [],
+            version: RecordingEvidencePolicy.version,
+        )
+        let selected = try RecordingHistorySelectionTestSupport.resolve(
+            observations,
+            controls: [.source(choice)],
+            end: 36 * 3600,
+        )
+        #expect(Set(selected.contributions) == [first, intervening, interveningRival, repeated])
+        #expect(selected.issues.isEmpty)
+        #expect(first.recordingDay.day == day)
+        #expect(repeated.recordingDay.day == day)
+        #expect(intervening.recordingDay.day == CalendarDay(year: 2001, month: 1, day: 2))
+
+        let overlap = try RecordingAssessmentTestSupport.decision(
+            61,
+            start: 31 * 3600,
+            end: 32 * 3600,
+            action: .select(RecordingAssessmentTestSupport.second),
+        )
+        let conflicted = try RecordingHistorySelectionTestSupport.resolve(
+            observations,
+            controls: [.source(choice), .source(overlap)],
+            end: 36 * 3600,
+        )
+        #expect(Set(conflicted.contributions) == [first, intervening, interveningRival])
+        #expect(!conflicted.issues.isEmpty)
+        for issue in conflicted.issues {
+            #expect(issue.period.start >= overlap.periods[0].start)
+            #expect(issue.period.end <= overlap.periods[0].end)
+            if issue.sampleIDs.isEmpty {
+                // The whole-day choice retains its date. The concurrent fixed range cannot
+                // establish every possible date across the trailing observation gap.
+                #expect(issue.days == .unassigned(known: [day]))
+            } else {
+                #expect(issue.days == .known([day]))
+            }
+        }
+        #expect(Set(conflicted.evidence.observations) == Set(observations))
+    }
+
     @Test(.timeLimit(.minutes(1)), arguments: [1000, 4000])
     func annualTwoDeviceHistoryRetainsEveryAgreedObservation(count: Int) throws {
         let observations = try RecordingHistorySelectionTestSupport.annualObservations(count: count)
