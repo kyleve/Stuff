@@ -152,6 +152,11 @@ Layering, localization, preview, and testing conventions live in the feature
   Show each flight's own progress when a daily review mixes completed and pending flights.
   Retain pending information through Core's `dismissingProposal()` when dismissing completed-flight edits.
 - Resolve historical device labels through `DeviceRecordingController.displayNames()`, not the active device list.
+- Keep opening a recording review separate from selecting a source action. Save only the exact displayed proposal through Core's guarded coordinator.
+  Show a stale Apply's returned inspection before another explicit Apply. Reject cancelled, superseded, deactivated, or revoked publication.
+  Check cancellation before retry changes presentation. Validate retained save access before enabling Apply again.
+  Keep guided review bound to its original references. Skips stay pending; only complete successful reassessment can report resolution.
+  Guards: `RecordingChoiceModelTests` and `RecordingReviewFlowModelTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
   Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
 - Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.

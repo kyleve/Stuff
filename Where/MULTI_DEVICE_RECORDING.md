@@ -1379,6 +1379,8 @@ It retains device tracks, physical gaps, selection reasons, unknown dates, and G
 Those contributions do not replace whole-day totals or manual overlays. A stale Apply supplies a new proposal for another explicit review.
 The scene now shares historical correction issues and flight reviews with its badge and issue list.
 Selected-year calendar indicators derive from the same publication. Year changes retain outstanding historical work; failed scans retain the last admitted result and original error.
+`RecordingChoiceModel` keeps browsing separate from an explicit action and retains the exact proposal until Save.
+Changed inputs return to review before another Apply. `RecordingReviewFlowModel` retains skipped work and requires complete reassessment before reporting resolution.
 Recording-specific review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.

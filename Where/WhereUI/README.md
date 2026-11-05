@@ -243,6 +243,14 @@ through the same protocol. Product models have no preview-mode refresh branches.
 Settings uses `IssueSearchModel` for an explicit all-history scan. It reports a failed refresh instead of presenting the retained count as success.
 Historical missing-day ranges include the year on each endpoint.
 
+`RecordingChoiceModel` presents Core's immutable source-choice inspection. Opening a review does not select an action.
+An explicit action enables Save only when Core supplies a complete proposal. A stale save shows the returned proposal for another review.
+Unknown calendar coverage can prevent a whole-day choice while preserving the fixed-period option.
+`RecordingReviewFlowModel` reassesses the original queue and retains skips as unresolved work.
+New issues outside that scope remain in the main list. Failed or interrupted reads cannot report that the queue is resolved.
+Both models preserve original errors and check the admitted service before publishing asynchronous results.
+Their screens remain under implementation; [the recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
+
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.
 It also prepares unique point rows, individual point maps, inference explanations, and point correction actions.
 The map preserves corrected GPS observations and separates device tracks.
