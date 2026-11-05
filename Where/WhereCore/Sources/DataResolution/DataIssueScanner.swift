@@ -120,7 +120,7 @@ public actor DataIssueScanner {
                     report: reads.report,
                     otherDayCoordinates: reads.otherDayCoordinates,
                     daySamples: reads.daySamples,
-                    primaryRegions: primaryRegions,
+                    primaryRegions: reads.primaryRegions,
                     attributor: reads.attribution,
                     driftThresholdMeters: driftThresholdMeters,
                     calendar: calendar,
@@ -138,9 +138,9 @@ public actor DataIssueScanner {
                     )
                 }
                 let assessedReviews = assessment.reviews
-                let otherIssues = detectors.flatMap { detector in
-                    Self.logger.measure(.detect(detector.detects)) {
-                        detector.detectAnyIssues(in: input)
+                let otherIssues = try detectors.flatMap { detector in
+                    try Self.logger.measure(.detect(detector.detects)) {
+                        try detector.detectAnyIssues(in: input)
                     }
                 }
                 let flightDays = Set(assessedReviews.filter { !$0.flights.isEmpty }.map(\.day.day))
@@ -176,6 +176,7 @@ public actor DataIssueScanner {
                 }
                 return DataIssueScanResult(
                     revision: UUID(),
+                    completeness: reads.report.completeness,
                     issues: issues,
                     reviews: reviews,
                     completedFlights: assessment.flights.filter {

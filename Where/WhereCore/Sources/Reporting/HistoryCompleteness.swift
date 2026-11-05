@@ -47,6 +47,33 @@ public enum HistoryCompleteness: Hashable, Sendable {
         }
     }
 
+    /// Dates on which an inference must wait for recording review. For unknown assignments,
+    /// this includes every possible date in the assessed scope, without assigning that date
+    /// or adding it to `affectedDays`' count of known candidates.
+    public var daysRequiringReview: Set<CalendarDay> {
+        get throws {
+            guard case let .recording(_, scope, issues) = self else { return [] }
+            let unassigned = issues.filter {
+                switch $0.days {
+                    case .known: false
+                    case .unassigned: true
+                }
+            }
+            var days = affectedDays
+            guard !unassigned.isEmpty else { return days }
+            // Reuse the same offset-complete query as report/export eligibility. In particular,
+            // a timestamp near midnight cannot be assigned to the viewing calendar's date.
+            _ = try LocationHistoryQuery.days(scope).recordingPeriod()
+            for day in scope.lowerBound.days(through: scope.upperBound) where !days.contains(day) {
+                let period = try LocationHistoryQuery.days(day ... day).recordingPeriod()
+                if unassigned.contains(where: { $0.period.overlaps(period) }) {
+                    days.insert(day)
+                }
+            }
+            return days
+        }
+    }
+
     public init(selection: RecordingHistorySelection, days: ClosedRange<CalendarDay>) throws {
         let requested = try LocationHistoryQuery.days(days).recordingPeriod()
         guard RecordingPeriod.union(selection.controls.map(\.period)).contains(where: {

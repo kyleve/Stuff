@@ -22,7 +22,9 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Preserve bare UUID encoding and use `SampleAttributionRevision.nextUpdatedAt` for correction and reset writes.
   Clear manual overrides and write newer reset tombstones in one transaction.
   Guards: `DayJournalTests` and `LocationHistoryReaderTests`.
-- Publish issues, informational reviews, completed flight history, and deadlines as one scan result.
+- Publish issues, recording completeness, informational reviews, completed flight history, and deadlines as one scan result.
+  Keep unresolved recording dates out of missing-history and whole-day travel inference; retain unrelated issues.
+  Unknown assignments block inference only on possible dates within the assessed scope. Never count those dates as assigned candidates.
   Derive historical flights before dismissal filtering. Reuse the same trajectory assessment.
   Determine correction readiness per flight, including flights on the same day.
   Keep pending-flight samples out of proposals and pending flights out of actionable counts.

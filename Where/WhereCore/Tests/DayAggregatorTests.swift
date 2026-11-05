@@ -34,7 +34,7 @@ struct DayAggregatorTests {
         #expect(entry.sample.timestamp == sample.timestamp)
     }
 
-    @Test func whollyExcludedObservedDayDoesNotBecomeAMissingBackfill() {
+    @Test func whollyExcludedObservedDayDoesNotBecomeAMissingBackfill() throws {
         let sample = LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37, longitude: -140),
@@ -51,7 +51,7 @@ struct DayAggregatorTests {
         #expect(report.days == [DayPresence(day: day, regions: [])])
         #expect(report.totals.isEmpty)
 
-        let issues = MissingDaysDetector().detectIssues(in: DataIssueInput(
+        let issues = try MissingDaysDetector().detectIssues(in: DataIssueInput(
             year: day.year,
             report: report,
             otherDayCoordinates: [:],

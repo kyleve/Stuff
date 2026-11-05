@@ -216,6 +216,7 @@ struct FlightReviewModelTests {
         let informational = try #require(review.dismissingProposal())
         model.receive(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [informational],
             completedFlights: [],
@@ -321,6 +322,7 @@ struct FlightReviewModelTests {
 
         model.receive(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [ready],
             completedFlights: [],
@@ -331,6 +333,7 @@ struct FlightReviewModelTests {
 
         model.receive(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [],
             completedFlights: [],

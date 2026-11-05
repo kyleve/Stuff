@@ -161,6 +161,7 @@ struct YearReportModelTests {
         let flight = try #require(PreviewSupport.flightReview(state: .completed).flight)
         report.setDataIssueScan(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [],
             completedFlights: [flight],
@@ -173,6 +174,7 @@ struct YearReportModelTests {
         #expect(report.report == original)
         report.setDataIssueScan(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [],
             completedFlights: [],
@@ -684,6 +686,7 @@ struct YearReportModelTests {
         )
         report.setDataIssueScan(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [remote],
             completedFlights: [],
@@ -702,6 +705,7 @@ struct YearReportModelTests {
         )
         report.setDataIssueScan(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [shared],
             completedFlights: [],
@@ -712,6 +716,7 @@ struct YearReportModelTests {
 
         report.setDataIssueScan(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [current],
             completedFlights: [],
@@ -743,6 +748,7 @@ struct YearReportModelTests {
         )
         report.setDataIssueScan(DataIssueScanResult(
             revision: UUID(),
+            completeness: .foundation,
             issues: [],
             reviews: [expired],
             completedFlights: [],

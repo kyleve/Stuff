@@ -1,6 +1,6 @@
 import Foundation
 import RegionKit
-import WhereCore
+@testable import WhereCore
 
 /// Shared fixtures for the per-detector test files (`MissingDaysDetectorTests`,
 /// `AbruptLocationChangeDetectorTests`, and the
@@ -48,11 +48,12 @@ enum DataIssueDetectorFixtures {
         primaryRegions: [Region] = [.california, .newYork],
         driftThresholdMeters: Double = 10000,
         now: Date? = nil,
+        completeness: HistoryCompleteness = .foundation,
     ) -> DataIssueInput {
         let totals = Dictionary(grouping: days.flatMap(\.regions), by: { $0 }).mapValues(\.count)
         return DataIssueInput(
             year: year,
-            report: YearReport(year: year, days: days, totals: totals),
+            report: YearReport(year: year, days: days, totals: totals, completeness: completeness),
             otherDayCoordinates: otherDayCoordinates,
             // Flatten to exercise the real `DaySamples` grouping (GPS-only,
             // re-bucketed by the fixtures calendar the sample timestamps use).
@@ -63,5 +64,28 @@ enum DataIssueDetectorFixtures {
             calendar: calendar,
             now: now ?? day(year, 6, 15),
         )
+    }
+
+    static func recordingCompleteness(unassigned: Bool) throws -> HistoryCompleteness {
+        let observations = if unassigned {
+            try [RecordingAssessmentTestSupport.observation(
+                seconds: 12 * 3600,
+                assignment: .unresolved,
+            )]
+        } else {
+            try RecordingAssessmentTestSupport.track(moving: true)
+                + RecordingAssessmentTestSupport.track(
+                    deviceID: RecordingAssessmentTestSupport.second,
+                    longitude: -74,
+                    moving: true,
+                    region: .newYork,
+                )
+        }
+        let selection = try RecordingHistorySelectionTestSupport.years(
+            observations,
+            from: 2001,
+            through: 2001,
+        )
+        return try HistoryCompleteness(selection: selection, days: CalendarDay.yearRange(2001))
     }
 }

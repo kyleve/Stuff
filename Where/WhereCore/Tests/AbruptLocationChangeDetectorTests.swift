@@ -5,7 +5,27 @@ import WhereCore
 private typealias Fixtures = DataIssueDetectorFixtures
 
 struct AbruptLocationChangeDetectorTests {
-    @Test func flagsAdjacentDisjointDays() {
+    @Test(arguments: [false, true])
+    func uncertainDatesDoNotCreateTravelSuggestionsOrSuppressUnrelatedWork(unassigned: Bool) throws {
+        let completeness = try Fixtures.recordingCompleteness(unassigned: unassigned)
+        let days = (1 ... 4).map { day in
+            DayPresence(
+                day: Fixtures.calendarDay(2001, 1, day),
+                regions: day.isMultiple(of: 2) ? [.newYork] : [.california],
+            )
+        }
+        let issues = try AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(
+            year: 2001,
+            days: days,
+            completeness: completeness,
+        ))
+        #expect(issues.map(\.earlierDay.day) == (unassigned ? [days[2].day] : [
+            days[1].day,
+            days[2].day,
+        ]))
+    }
+
+    @Test func flagsAdjacentDisjointDays() throws {
         let earlier = DayPresence(
             date: Fixtures.day(2026, 4, 10),
             in: Fixtures.calendar,
@@ -16,7 +36,7 @@ struct AbruptLocationChangeDetectorTests {
             in: Fixtures.calendar,
             regions: [.newYork],
         )
-        let issues = AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
+        let issues = try AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
             earlier,
             later,
         ]))
@@ -32,7 +52,7 @@ struct AbruptLocationChangeDetectorTests {
         }
     }
 
-    @Test func skipsOverlappingRegions() {
+    @Test func skipsOverlappingRegions() throws {
         let earlier = DayPresence(
             date: Fixtures.day(2026, 4, 10),
             in: Fixtures.calendar,
@@ -43,14 +63,14 @@ struct AbruptLocationChangeDetectorTests {
             in: Fixtures.calendar,
             regions: [.newYork],
         )
-        let issues = AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
+        let issues = try AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
             earlier,
             later,
         ]))
         #expect(issues.isEmpty)
     }
 
-    @Test func skipsGapInCalendar() {
+    @Test func skipsGapInCalendar() throws {
         let earlier = DayPresence(
             date: Fixtures.day(2026, 4, 10),
             in: Fixtures.calendar,
@@ -61,7 +81,7 @@ struct AbruptLocationChangeDetectorTests {
             in: Fixtures.calendar,
             regions: [.newYork],
         )
-        let issues = AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
+        let issues = try AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
             earlier,
             later,
         ]))

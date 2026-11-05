@@ -3,6 +3,39 @@ import Testing
 @testable import WhereCore
 
 struct HistoryCompletenessTests {
+    @Test(arguments: [false, true])
+    func inferenceDatesAgreeWithScopedEligibilityWithoutInventingAssignments(
+        unassigned: Bool,
+    ) throws {
+        let completeness = try DataIssueDetectorFixtures
+            .recordingCompleteness(unassigned: unassigned)
+        let days = try completeness.daysRequiringReview
+        let january1 = CalendarDay(year: 2001, month: 1, day: 1)
+        #expect(days == (unassigned ? [january1, january1.adding(days: 1)] : [january1]))
+        #expect(completeness.affectedDays == (unassigned ? [] : [january1]))
+        for day in january1.days(through: january1.adding(days: 4)) {
+            #expect(try completeness.restricted(to: day ... day).isComplete == !days.contains(day))
+        }
+    }
+
+    @Test func unassignedInferenceDatesRespectHalfOpenOffsetBoundaries() throws {
+        let completeness = try HistoryCompleteness.recording(
+            version: RecordingEvidencePolicy.version,
+            days: CalendarDay.yearRange(2001),
+            issues: [.init(
+                period: RecordingAssessmentTestSupport.period(42 * 3600, 42 * 3600 + 1),
+                problem: .recordingDay([RecordingAssessmentTestSupport.first]),
+                days: .unassigned(known: []),
+                sampleIDs: [],
+            )],
+        )
+        #expect(try completeness.daysRequiringReview == [
+            CalendarDay(year: 2001, month: 1, day: 2),
+            CalendarDay(year: 2001, month: 1, day: 3),
+        ])
+        #expect(completeness.affectedDays.isEmpty)
+    }
+
     @Test func countsDistinctCandidateDatesAndRetainsTheFullPolicy() throws {
         let observations = try RecordingHistorySelectionTestSupport.midnightObservations()
         let selection = try RecordingHistorySelectionTestSupport.years(

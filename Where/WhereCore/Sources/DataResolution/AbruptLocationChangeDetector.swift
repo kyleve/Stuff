@@ -14,15 +14,18 @@ public struct AbruptLocationChangeDetector: DataIssueDetector {
 
     public init() {}
 
-    public func detectIssues(in input: DataIssueInput) -> [AbruptChangeIssue] {
+    public func detectIssues(in input: DataIssueInput) throws -> [AbruptChangeIssue] {
         let sortedDays = input.report.days.sorted { $0.day < $1.day }
         guard sortedDays.count >= 2 else { return [] }
+        let unresolvedDays = try input.report.completeness.daysRequiringReview
 
         var issues: [AbruptChangeIssue] = []
         for index in sortedDays.indices.dropLast() {
             let earlier = sortedDays[index]
             let later = sortedDays[index + 1]
             guard
+                !unresolvedDays.contains(earlier.day),
+                !unresolvedDays.contains(later.day),
                 !earlier.regions.isEmpty,
                 !later.regions.isEmpty,
                 earlier.regions.isDisjoint(with: later.regions),

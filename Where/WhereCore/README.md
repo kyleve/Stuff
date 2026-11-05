@@ -390,7 +390,7 @@ one it belongs to rather than to a god-object:
 ### Detection, notifications & the rest
 
 - **`DataIssueScanner`** — publishes a coherent revision of actionable issues,
-  informational GPS reviews, and the next reassessment deadline. Committed raw
+  recording completeness, informational GPS reviews, and the next reassessment deadline. Committed raw
   evidence invalidates its cache even when day/region totals remain equal.
   Missing-day and abrupt-change detection share the same snapshot; flight and
   boundary cleanup use one sample assessment. Supported flight transitions stay
@@ -405,6 +405,10 @@ one it belongs to rather than to a god-object:
   Unsupported gaps and later ground observations do not add flight days.
   Calendar builders accept these days through their explicit `flightDays` argument.
   Pending and completed informational reviews remain accessible.
+  `DataIssueScanResult.completeness` preserves recording conflicts and their full policy version.
+  Missing-history and travel suggestions wait on dates that require recording review, while unrelated issues remain available.
+  `HistoryCompleteness.daysRequiringReview` includes possible dates for unknown assignments without adding them to the known affected-day count.
+  Detectors throw when they cannot assess the supplied scope; the scanner propagates that failure.
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
   bucketing, with 24 hours of report-boundary context. It uses independent fixes
   at least 60 seconds apart, positional uncertainty, sustained jet-speed progress,

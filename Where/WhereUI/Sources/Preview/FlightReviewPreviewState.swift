@@ -72,6 +72,7 @@
             model.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: nil))
             model.setDataIssueScan(DataIssueScanResult(
                 revision: UUID(uuidString: "00000000-0000-0000-0000-000000000803")!,
+                completeness: .foundation,
                 issues: [],
                 reviews: [],
                 completedFlights: [flight],
@@ -117,6 +118,7 @@
             )
             report.setDataIssueScan(DataIssueScanResult(
                 revision: UUID(),
+                completeness: .foundation,
                 issues: [],
                 reviews: [],
                 completedFlights: [earlier, original],
@@ -133,6 +135,7 @@
             }
             return DataIssueScanResult(
                 revision: UUID(uuidString: "00000000-0000-0000-0000-000000000303")!,
+                completeness: .foundation,
                 issues: issues,
                 reviews: [review],
                 completedFlights: review.flights.filter { !$0.isPending },

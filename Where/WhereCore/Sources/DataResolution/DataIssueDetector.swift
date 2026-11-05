@@ -9,17 +9,17 @@ public protocol DataIssueDetecting: Sendable {
     /// detector for the same category would pool its timings with the first.
     var detects: DataIssueCategory { get }
 
-    func detectAnyIssues(in input: DataIssueInput) -> [any DataIssue]
+    func detectAnyIssues(in input: DataIssueInput) throws -> [any DataIssue]
 }
 
 public protocol DataIssueDetector<Issue>: DataIssueDetecting where Issue: DataIssue {
     associatedtype Issue: DataIssue
-    func detectIssues(in input: DataIssueInput) -> [Issue]
+    func detectIssues(in input: DataIssueInput) throws -> [Issue]
 }
 
 extension DataIssueDetector {
-    public func detectAnyIssues(in input: DataIssueInput) -> [any DataIssue] {
-        detectIssues(in: input).map(\.self)
+    public func detectAnyIssues(in input: DataIssueInput) throws -> [any DataIssue] {
+        try detectIssues(in: input).map(\.self)
     }
 }
 

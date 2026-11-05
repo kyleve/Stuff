@@ -15,14 +15,16 @@ public struct MissingDaysDetector: DataIssueDetector {
 
     public init() {}
 
-    public func detectIssues(in input: DataIssueInput) -> [MissingDaysIssue] {
+    public func detectIssues(in input: DataIssueInput) throws -> [MissingDaysIssue] {
         let currentYear = input.calendar.component(.year, from: input.now)
         // A future year hasn't begun, so nothing is "missing" yet. Guarding here
         // keeps the past-year branch (which runs through Dec 31) from flagging an
         // entire unstarted year as a gap.
         guard input.year <= currentYear else { return [] }
 
-        let present = Set(input.report.days.map(\.day))
+        // Unresolved recording evidence needs its own review; it is not an unobserved gap.
+        let present = try Set(input.report.days.map(\.day))
+            .union(input.report.completeness.daysRequiringReview)
         let through: CalendarDay = if input.year == currentYear {
             MissingDays.backlogCutoff(asOf: input.now, calendar: input.calendar)
         } else {

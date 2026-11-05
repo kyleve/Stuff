@@ -5,7 +5,21 @@ import WhereCore
 private typealias Fixtures = DataIssueDetectorFixtures
 
 struct MissingDaysDetectorTests {
-    @Test func currentYearUsesBacklogCutoff() {
+    @Test(arguments: [false, true])
+    func disputedHistoryNeedsRecordingReviewInsteadOfBackfill(unassigned: Bool) throws {
+        let completeness = try Fixtures.recordingCompleteness(unassigned: unassigned)
+        let issues = try MissingDaysDetector().detectIssues(in: Fixtures.input(
+            year: 2001,
+            now: Fixtures.day(2001, 1, 5),
+            completeness: completeness,
+        ))
+        let issue = try #require(issues.first)
+        #expect(issues.count == 1)
+        #expect(issue.range.start == Fixtures.calendarDay(2001, 1, unassigned ? 3 : 2))
+        #expect(issue.range.end == Fixtures.calendarDay(2001, 1, 4))
+    }
+
+    @Test func currentYearUsesBacklogCutoff() throws {
         let present: [DayPresence] = [
             DayPresence(
                 date: Fixtures.day(2026, 1, 1),
@@ -14,7 +28,7 @@ struct MissingDaysDetectorTests {
             ),
         ]
         let now = Fixtures.day(2026, 1, 5)
-        let issues = MissingDaysDetector().detectIssues(in: Fixtures.input(
+        let issues = try MissingDaysDetector().detectIssues(in: Fixtures.input(
             year: 2026,
             days: present,
             now: now,
@@ -26,9 +40,9 @@ struct MissingDaysDetectorTests {
         #expect(issues[0].isDismissible == false)
     }
 
-    @Test func futureYearReturnsEmpty() {
+    @Test func futureYearReturnsEmpty() throws {
         // A year that hasn't started yet must not report every day as missing.
-        let issues = MissingDaysDetector().detectIssues(in: Fixtures.input(
+        let issues = try MissingDaysDetector().detectIssues(in: Fixtures.input(
             year: 2027,
             days: [],
             now: Fixtures.day(2026, 6, 15),
@@ -36,7 +50,7 @@ struct MissingDaysDetectorTests {
         #expect(issues.isEmpty)
     }
 
-    @Test func pastYearThroughDec31() {
+    @Test func pastYearThroughDec31() throws {
         let present: [DayPresence] = [
             DayPresence(
                 date: Fixtures.day(2025, 12, 30),
@@ -44,7 +58,7 @@ struct MissingDaysDetectorTests {
                 regions: [.california],
             ),
         ]
-        let issues = MissingDaysDetector().detectIssues(in: Fixtures.input(
+        let issues = try MissingDaysDetector().detectIssues(in: Fixtures.input(
             year: 2025,
             days: present,
             now: Fixtures.day(2026, 6, 15),

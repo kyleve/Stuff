@@ -7,9 +7,9 @@ private typealias Fixtures = DataIssueDetectorFixtures
 /// Covers the `DataIssueDetecting`/`DataIssueDetector` protocols themselves; the
 /// concrete detectors are exercised in their own `*DetectorTests` files.
 struct DataIssueDetectorTests {
-    @Test func detectAnyIssues_erasesToExistential() {
+    @Test func detectAnyIssues_erasesToExistential() throws {
         let detector: any DataIssueDetecting = MissingDaysDetector()
-        let issues = detector.detectAnyIssues(in: Fixtures.input())
+        let issues = try detector.detectAnyIssues(in: Fixtures.input())
         #expect(!issues.isEmpty)
         #expect(issues.allSatisfy { $0.category == .missingDays })
     }

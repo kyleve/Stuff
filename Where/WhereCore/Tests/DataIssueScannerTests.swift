@@ -4,6 +4,57 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DataIssueScannerTests {
+    @Test func recordingScanRetainsCompletenessAndRefreshesAfterAnExclusiveChoice() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let samples = try LocationHistoryReaderTestSupport.competingTracks()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        let reader = LocationHistoryReaderTestSupport.reports(store)
+        let now = Date(timeIntervalSinceReferenceDate: 4 * 86400)
+        let scanner = DataIssueScanner(
+            reportReader: reader,
+            attributor: RegionAttributor(for: []),
+            calendar: LocationHistoryReaderTestSupport.calendar,
+            now: { now },
+        )
+        let first = try await scanner.scan(
+            year: 2001,
+            primaryRegions: [.other],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let report = try await reader.yearReport(for: 2001)
+        #expect(first.completeness == report.completeness)
+        #expect(first.completeness.policyVersion == RecordingEvidencePolicy.version)
+        #expect(!first.completeness.isComplete)
+        #expect(first.completeness.affectedDays == [CalendarDay(year: 2001, month: 1, day: 1)])
+        let missing = first.issues.compactMap { $0 as? MissingDaysIssue }
+        #expect(missing.map(\.range.start) == [CalendarDay(year: 2001, month: 1, day: 2)])
+        let cached = try await scanner.scan(
+            year: 2001,
+            primaryRegions: [.other],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(cached.revision == first.revision)
+        #expect(cached.completeness == first.completeness)
+
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(991, end: 1201)),
+            store: store,
+        )
+        await scanner.invalidate()
+        let resolved = try await scanner.scan(
+            year: 2001,
+            primaryRegions: [.other],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(resolved.revision != first.revision)
+        #expect(resolved.completeness.isComplete)
+        #expect(resolved.completeness.policyVersion == first.completeness.policyVersion)
+        #expect(try await Set(store.allSamples()) == Set(samples))
+    }
+
     @Test func sparseFlightPublishesHistoryWithoutChangingPresenceOrOfferingAutomaticExclusions(
     ) async throws {
         let store = try SwiftDataStore.inMemory()
@@ -477,7 +528,7 @@ struct DataIssueScannerTests {
             ),
         )
         let report = try await reader.yearReport(for: 2026)
-        let abruptChanges = AbruptLocationChangeDetector().detectIssues(
+        let abruptChanges = try AbruptLocationChangeDetector().detectIssues(
             in: DataIssueDetectorFixtures.input(days: report.days),
         )
         #expect(Set(abruptChanges.map(\.id)) == [unrelatedID, flightTransitionID])

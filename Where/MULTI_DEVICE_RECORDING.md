@@ -1323,7 +1323,9 @@ Unresolved scopes withhold counts. Unavailable output and stale-policy caches re
 Logical dates remain stable in home-screen and lock-screen widgets. Failed publication withdraws stale output and remains retryable.
 Timeline stays retain logical dates and stable identities across viewing zones. Recording-contract flights sort and display their selected dates without filling skipped dates.
 The timeline's year ribbon preserves each logical date, including dates skipped by a viewing zone.
-Review integration and the selection model remain in progress.
+Issue scans retain the shared recording completeness and full policy version.
+Missing-history and travel suggestions wait on unresolved dates, including possible dates for unknown assignments, while unrelated work remains available.
+Review screens and the selection model remain in progress.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

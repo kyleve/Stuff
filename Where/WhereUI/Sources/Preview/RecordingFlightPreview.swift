@@ -51,6 +51,11 @@
                 model.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: nil))
                 model.setDataIssueScan(DataIssueScanResult(
                     revision: UUID(uuidString: "00000000-0000-0000-0000-000000000902")!,
+                    completeness: .recording(
+                        version: RecordingEvidencePolicy.version,
+                        days: CalendarDay.yearRange(year),
+                        issues: [],
+                    ),
                     issues: [],
                     reviews: [],
                     completedFlights: [flight],

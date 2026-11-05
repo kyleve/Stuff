@@ -86,6 +86,7 @@ struct ResolveModelTests {
             services: PreviewSupport.previewServices(),
             source: FixtureResolutionSource(scan: DataIssueScanResult(
                 revision: UUID(),
+                completeness: .foundation,
                 issues: [issue],
                 reviews: [review],
                 completedFlights: [],
