@@ -45,9 +45,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             self.buildEnvironment = buildEnvironment
             updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             self.developerLaunchController = developerLaunchController
-            intentServices = IntentServices(
-                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
-            )
+            intentServices = IntentServices()
             widgetPresentationPublisher = WidgetPresentationPublisher(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             )
@@ -76,9 +74,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         ) {
             self.buildEnvironment = buildEnvironment
             updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
-            intentServices = IntentServices(
-                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
-            )
+            intentServices = IntentServices()
             widgetPresentationPublisher = WidgetPresentationPublisher(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             )

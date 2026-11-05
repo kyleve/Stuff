@@ -13,6 +13,10 @@ import WhereCore
 /// them through its own extraction. Region names always come from
 /// `Region.localizedName`.
 enum IntentStrings {
+    static var historyNeedsReview: String {
+        String(localized: .dialogHistoryNeedsReview)
+    }
+
     // MARK: Days in region
 
     static func daysInRegion(region: Region, days: Int, year: Int) -> String {

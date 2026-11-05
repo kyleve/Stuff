@@ -47,7 +47,7 @@ layering, and the domain rules this target merely starts up.
   Inspector's latched store-family recovery before constructing that runtime.
 - **Resolve `WhereBuildEnvironment.current` once in `AppDelegate.init`.** Its
   audience condition must match the generated Info.plist, and the selected App
-  Group, storage policy, widget refresher, App Intents handoff, and primary icon
+  Group, storage policy, widget refresher, and primary icon
   must be injected from that one value.
 - **A one-shot demo still selects the regular runtime.** Activate its in-memory
   scope before the onboarding gate can resolve a real store.

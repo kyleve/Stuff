@@ -51,15 +51,6 @@ enum WhereIntentsLog {
             "Failed to index regions for Spotlight: \(error.description)"
         }
     }
-
-    @LogEvent("widget-snapshot-read-failed", level: .warning, version: 2)
-    struct WidgetSnapshotReadFailed {
-        @LogField(exposure: .restricted, kind: .errorDetails)
-        var error: LogError
-        var message: String {
-            "Failed to read the widget snapshot: \(error.description)"
-        }
-    }
 }
 
 extension WhereIntentsLog {

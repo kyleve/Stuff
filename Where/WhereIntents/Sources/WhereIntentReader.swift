@@ -2,48 +2,49 @@ import Foundation
 import RegionKit
 import WhereCore
 
-/// The read half of the App Intents layer: turns a `WhereServices` into the
-/// answers the query intents speak. Pure orchestration over the existing
-/// reports and published widget snapshot — no aggregation of its own — so it
-/// stays a thin, testable value the intents delegate to.
+/// Answers query intents from one assessed report, with eligibility narrowed to the requested
+/// dates.
+/// Widgets are published independently and cannot establish current history or completeness here.
 struct WhereIntentReader {
     let services: WhereServices
     var calendar = Calendar.whereIntents
     var now: @Sendable () -> Date = { Date() }
-    /// The published widget snapshot to use for the `todayRegions()` fast path.
-    /// The host injects the audience-specific App Group read; other callers
-    /// fall back to the report unless they provide one explicitly.
-    var todaySnapshot: @Sendable () -> WidgetSnapshot? = { nil }
 
-    /// Day count for `region` in `year` — the `YearReport.totals` entry, or 0
-    /// when the region logged nothing.
+    /// A year count is answerable only when every potentially contributing date is resolved.
     func dayCount(in region: Region, year: Int) async throws -> Int {
-        let count = try await services.reports.yearReport(for: year).totals[region] ?? 0
+        let report = try await services.reports.yearReport(for: year)
         try services.validateDataAccess()
-        return count
+        try requireComplete(report.completeness)
+        return report.totals[region] ?? 0
     }
 
-    /// The regions a calendar day counts for, matched by start-of-day in the
-    /// reader's calendar (the same calendar the report was aggregated in).
+    /// Unresolved history outside this logical date cannot suppress an otherwise complete answer.
     func regions(on date: Date) async throws -> Set<Region> {
         let day = CalendarDay(from: date, in: calendar)
         let report = try await services.reports.yearReport(for: day.year)
         try services.validateDataAccess()
-        return report.days
-            .first { $0.day == day }?
-            .regions ?? []
+        try requireComplete(report.completeness.restricted(to: day ... day))
+        return report.days.first { $0.day == day }?.regions ?? []
     }
 
-    /// Today's regions, preferring the app-published widget snapshot (no store
-    /// read) when it still describes today, and falling back to the year
-    /// report's today row otherwise.
     func todayRegions() async throws -> Set<Region> {
-        try services.validateDataAccess()
-        let today = calendar.startOfDay(for: now())
-        if let snapshot = todaySnapshot(), calendar.startOfDay(for: snapshot.day) == today {
-            try services.validateDataAccess()
-            return snapshot.dayRegions
+        try await regions(on: now())
+    }
+
+    private func requireComplete(_ completeness: HistoryCompleteness) throws {
+        do {
+            try completeness.requireComplete()
+        } catch let error as UnresolvedHistoryError {
+            throw IntentHistoryReviewError(underlyingError: error)
         }
-        return try await regions(on: today)
+    }
+}
+
+/// A spoken recovery action that retains Core's unresolved scope for diagnostics and callers.
+struct IntentHistoryReviewError: LocalizedError {
+    let underlyingError: UnresolvedHistoryError
+
+    var errorDescription: String? {
+        IntentStrings.historyNeedsReview
     }
 }

@@ -19,12 +19,14 @@ lines up). They render with [`WhereUI`](../WhereUI/) snippet views. The
 app target (`WhereShortcuts`), not here, so App Intents metadata extraction
 always discovers it.
 
-The host injects its audience-specific App Group through `IntentServices`.
-`TodayRegionsIntent` uses that group for the optional widget-snapshot fast path
-and logs an App Group-open failure before falling back to the store report.
+Query intents read the current assessed report. Year counts require complete history for that year.
+Date queries require completeness only for the requested logical day.
+Unresolved history returns a localized request to open Where for review.
+The error retains Core's unresolved scope. An unrelated unresolved date does not block a clear date.
+Today queries use the same reader; a separately published widget file cannot establish current eligibility.
 
 Compatibility withdrawal blocks the handoff and fails parked intents.
-Installation and handoff reject retired permits. History queries validate again before returning, including the cached widget path.
+Installation and handoff reject retired permits. History queries validate access again before returning.
 A fresh admitted installation reopens the handoff. Reset still parks new requests until the next session arrives.
 
 ## Intents
@@ -35,7 +37,7 @@ A fresh admitted installation reopens the handoff. Reset still parks new request
 |--------|---------|-------|
 | `DaysInRegionIntent` | "How many days in California this year?" | `ReportReader.yearReport` → `totals[region]` |
 | `RegionOnDateIntent` | "What region was I in on June 3?" | `yearReport.days` for that day |
-| `TodayRegionsIntent` | "Where am I today?" | `WidgetSnapshotStore` fast path, `yearReport` fallback |
+| `TodayRegionsIntent` | "Where am I today?" | `yearReport` → assessed today row |
 
 ### Action (write)
 

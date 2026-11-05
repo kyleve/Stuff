@@ -36,14 +36,14 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `current()` (cancellation-aware). There is deliberately no self-open
   fallback. A `LogDayIntent` write therefore pings the same `changes()`
   signal the running UI refreshes from.
-- **Inject the host App Group into `IntentServices`.** The Today intent's
-  optional widget-snapshot fast path uses it; no package target owns an
-  audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.
 - Block and fail parked intents when compatibility withdraws history access.
-  Reject retired services at installation and handoff. Validate access again before returning history results, including the widget-file fast path.
+  Reject retired services at installation and handoff. Validate access again before returning history results.
   Guards: `IntentServicesTests`, `WhereIntentReaderTests`.
+- Read query answers from the current assessed report, not a separately published widget file.
+  Require completeness for the requested year or logical day. Preserve the unresolved scope in the localized review error.
+  Guard: `WhereIntentReaderTests`.
 - **Every `perform()` wraps its work in `measureIntent(_:)`.** Each
   `WhereIntentsLog.IntentName` carries the budget for its own kind of work.
   Then the span history reads per intent (`perform(days-in-region)`). A slow

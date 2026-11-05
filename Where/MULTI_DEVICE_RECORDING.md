@@ -1180,7 +1180,7 @@ Production launch and foreground/background refresh now use these primitives.
 The compatibility gate precedes interrupted-import recovery for existing installations.
 A new installation requests admission only after choosing discovery or setup of its real history.
 Onboarding retains its draft through blocked checks. A retired scope cannot complete a pending setup or repeat an already committed import.
-App Intents reject retired handoffs and validate history results, including their cached widget path.
+App Intents reject retired handoffs and validate history results before returning.
 Cold rejection stops and discards the prepared location source, even before services exist.
 Shared-item drafts now remain outside history until an admitted app session imports them.
 Atomic delivery receipts make retries safe after commit, deletion, Reset, or Replace.
@@ -1314,7 +1314,10 @@ Flight and boundary inference respect selection exclusions even when the exclude
 Completed flights retain selected recording dates. Losing source eligibility ends live presentation without establishing arrival.
 Correction reviews retain relevant selection context and logical dates; restoration previews use specific geography before reporting groups.
 Previews read current primary regions and reassess competing devices when the proposed geographic correction can change automatic selection.
-Widget and intent integration, review presentation, and the selection model remain in progress.
+App Intents read current assessed reports and withhold answers for unresolved requested dates.
+Year counts require a complete year; unrelated unresolved dates do not block a clear day.
+The localized recovery error retains the unresolved scope. Today queries no longer use independently published widget files.
+Widget integration, review presentation, and the selection model remain in progress.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

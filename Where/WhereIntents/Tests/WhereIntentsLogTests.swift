@@ -52,8 +52,8 @@ struct WhereIntentsLogTests {
 
     // MARK: - Events
 
-    @Test func widgetSnapshotReadFailureKeepsErrorDetailsRestricted() {
-        let event = WhereIntentsLog.WidgetSnapshotReadFailed(
+    @Test func spotlightIndexFailureKeepsErrorDetailsRestricted() {
+        let event = WhereIntentsLog.SpotlightIndexFailed(
             error: .restricted(
                 .errorDetails,
                 NSError(
@@ -65,8 +65,8 @@ struct WhereIntentsLogTests {
         )
 
         #expect(
-            WhereIntentsLog.WidgetSnapshotReadFailed.eventName
-                == "WhereIntents.widget-snapshot-read-failed",
+            WhereIntentsLog.SpotlightIndexFailed.eventName
+                == "WhereIntents.spotlight-index-failed",
         )
         #expect(event.level == .warning)
         #expect(event.classifiedFields == [

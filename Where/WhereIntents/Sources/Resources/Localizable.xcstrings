@@ -123,6 +123,17 @@
         }
       }
     },
+    "dialog.historyNeedsReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some recordings need review. Open Where to resolve them before requesting this history."
+          }
+        }
+      }
+    },
     "dialog.logged.chooseRegions" : {
       "extractionState" : "manual",
       "localizations" : {

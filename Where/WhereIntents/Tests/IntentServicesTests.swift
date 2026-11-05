@@ -10,14 +10,12 @@ import Testing
 /// own `IntentServices` — the app-registered instance (see `AppDelegate` /
 /// `AppDependencyManager`) is never touched.
 struct IntentServicesTests {
-    private let appGroupIdentifier = "group.com.stuff.where.tests"
-
     private func makeStack() throws -> WhereServices {
         try IntentTestSupport.services(store: SwiftDataStore.inMemory())
     }
 
     @Test func currentReturnsTheInstalledStack() async throws {
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let stack = try makeStack()
         await handoff.install(stack, theme: .standard)
 
@@ -27,7 +25,7 @@ struct IntentServicesTests {
     }
 
     @Test func blockFailsParkedAndFutureIntentsUntilAdmittedInstallation() async throws {
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let parked = Task { try await handoff.current() }
         try await waitUntil { await handoff.waiterCount == 1 }
         let failure = DataCompatibilityError.updateRequired(requiredMajor: 2)
@@ -42,14 +40,14 @@ struct IntentServicesTests {
 
     @Test func lateInstallationCannotInstallARetiredPermit() async throws {
         let fixture = try await CompatibilityIntentFixture()
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         fixture.access.revoke()
         await handoff.install(fixture.services, theme: .standard)
         await #expect(throws: (any Error).self) { try await handoff.current() }
     }
 
     @Test func currentParksUntilAStackIsInstalled() async throws {
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let parked = Task { try await handoff.current() }
         // Condition, not timing: the waiter is provably parked before the
         // install that must resume it.
@@ -64,7 +62,7 @@ struct IntentServicesTests {
     }
 
     @Test func cancellingAParkedIntentThrowsAndUnparksIt() async throws {
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let parked = Task { try await handoff.current() }
         try await waitUntil { await handoff.waiterCount == 1 }
 
@@ -77,7 +75,7 @@ struct IntentServicesTests {
     @Test func aLaterInstallReplacesTheCachedStack() async throws {
         // A reset relaunch installs a fresh session's stack; later intents must
         // ride it, not the stale one.
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let first = try makeStack()
         let second = try makeStack()
         await handoff.install(first, theme: .standard)
@@ -91,7 +89,7 @@ struct IntentServicesTests {
     /// TLC property `AfterClearMustPark`: after `clear()`, a parked intent must
     /// resume on the next `install(_:)` rather than observing a cleared stack.
     @Test func clearWhileParkedResumesOnTheNextInstall() async throws {
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let parked = Task { try await handoff.current() }
         try await waitUntil { await handoff.waiterCount == 1 }
 
@@ -105,7 +103,7 @@ struct IntentServicesTests {
     }
 
     @Test func themeUpdatesAtomicallyWithoutReplacingTheStack() async throws {
-        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let handoff = IntentServices()
         let stack = try makeStack()
         await handoff.install(stack, theme: .standard)
 

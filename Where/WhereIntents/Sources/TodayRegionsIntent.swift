@@ -4,9 +4,7 @@ import SwiftUI
 import WhereCore
 import WhereUI
 
-/// "Where am I today?" — the regions today already counts for. Prefers the
-/// app-published widget snapshot (no store read) and falls back to the year
-/// report's today row.
+/// "Where am I today?" — the regions today counts for in the current assessed history.
 public struct TodayRegionsIntent: AppIntent {
     public static let title: LocalizedStringResource = "Show Today's Regions"
 
@@ -25,25 +23,7 @@ public struct TodayRegionsIntent: AppIntent {
         let context = try await intentServices.currentContext()
         let services = context.services
         let regions = try await measureIntent(.todayRegions) {
-            try await WhereIntentReader(
-                services: services,
-                todaySnapshot: { [appGroupIdentifier = intentServices.appGroupIdentifier] in
-                    do {
-                        return try WidgetSnapshotStore.shared(
-                            appGroupIdentifier: appGroupIdentifier,
-                        ).read()
-                    } catch {
-                        WhereIntentsLog.logger.widgetSnapshotReadFailed(
-                            error: .restricted(
-                                .errorDetails,
-                                error,
-                            ),
-                            attachments: [.error(error, name: "snapshot-read-error")],
-                        )
-                        return nil
-                    }
-                },
-            ).todayRegions()
+            try await WhereIntentReader(services: services).todayRegions()
         }
         let ordered = orderedRegions(regions)
         try services.validateDataAccess()
