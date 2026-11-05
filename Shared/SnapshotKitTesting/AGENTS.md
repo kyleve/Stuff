@@ -32,6 +32,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
+- **Keep the accessibility source's owning controller stable through tiled rendering, then parse its restored hierarchy.** Keep the live source hosted during readiness hooks. Guard: `AccessibilitySnapshotViewControllerTests`.
 - **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.

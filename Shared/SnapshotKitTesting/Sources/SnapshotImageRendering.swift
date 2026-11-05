@@ -372,8 +372,8 @@ private func renderSnapshotImageLocked(
         // annotation reflects the loaded/revealed state (not a placeholder).
         // A raised settle floor opts accessibility rendering into a preparation
         // pass. That first pass starts one-time native material work caused by
-        // temporarily inserting the content into AccessibilitySnapshot's
-        // renderer. The annotated output is static during this bounded wait; the
+        // accessibility image rendering. The annotated output is static during
+        // this bounded wait; the
         // wait gives the content's persistent native state time to finish. The
         // ordinary settle policies stay single-pass because another insertion can
         // change scrolling content.

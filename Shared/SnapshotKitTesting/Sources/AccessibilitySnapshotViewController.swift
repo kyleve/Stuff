@@ -1,5 +1,7 @@
 import AccessibilitySnapshotCore
+import AccessibilitySnapshotParser
 import AccessibilitySnapshotPreviews
+import SwiftUI
 import UIKit
 
 /// Wraps a content view controller in AccessibilitySnapshot's SwiftUI renderer
@@ -8,22 +10,26 @@ import UIKit
 /// all-element view's region border isn't clipped, and the wrapper is sized to
 /// fit the annotations.
 final class AccessibilitySnapshotViewController: UIViewController {
-    private let content: UIViewController
-
-    private var snapshotView: SwiftUIAccessibilitySnapshotContainerView {
-        guard let snapshotView = view as? SwiftUIAccessibilitySnapshotContainerView else {
-            preconditionFailure(
-                "AccessibilitySnapshotViewController.view must be a SwiftUIAccessibilitySnapshotContainerView.",
-            )
-        }
-        return snapshotView
+    private let source: UIViewController
+    private var insetView: UIView {
+        source.view
     }
 
+    private var annotations: UIHostingController<PreParsedAccessibilitySnapshotView>?
+    private let configuration = AccessibilitySnapshotConfiguration(
+        viewRenderingMode: .drawHierarchyInRect,
+        colorRenderingMode: .monochrome,
+    )
+
     init(wrapping content: UIViewController) {
-        self.content = content
+        // Give the inset a stable owning controller. The tiled image renderer can then
+        // preserve its safe area without temporarily adopting and detaching the source.
+        let source = UIViewController()
+        source.addChild(content)
+        source.view = InsetView(content: content.view)
+        content.didMove(toParent: source)
+        self.source = source
         super.init(nibName: nil, bundle: nil)
-        addChild(content)
-        content.didMove(toParent: self)
     }
 
     @available(*, unavailable)
@@ -32,30 +38,58 @@ final class AccessibilitySnapshotViewController: UIViewController {
     }
 
     override func loadView() {
-        view = SwiftUIAccessibilitySnapshotContainerView(
-            containedView: InsetView(content: content.view),
-            snapshotConfiguration: AccessibilitySnapshotConfiguration(
-                viewRenderingMode: .drawHierarchyInRect,
-                colorRenderingMode: .monochrome,
-            ),
-        )
+        view = UIView(frame: insetView.bounds)
+        view.backgroundColor = UIColor(white: 0.9, alpha: 1)
+        addChild(source)
+        insetView.frame.origin = .zero
+        view.addSubview(insetView)
+        source.didMove(toParent: self)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        annotations?.view.frame = view.bounds
     }
 
     /// Parses the content's accessibility and sizes the view to fit the resulting
     /// annotations. Must be called while the view is in the hierarchy. Rendering
     /// failures surface loudly rather than producing a blank image.
     func parseAccessibility() {
-        // AccessibilitySnapshot temporarily moves the contained view into its
-        // renderer. Suspend controller containment around that move, then
-        // restore it before the annotated wrapper is captured.
-        content.willMove(toParent: nil)
-        content.removeFromParent()
-        defer {
-            addChild(content)
-            content.didMove(toParent: self)
-        }
+        annotations?.willMove(toParent: nil)
+        annotations?.view.removeFromSuperview()
+        annotations?.removeFromParent()
+        annotations = nil
+        view.frame.size = insetView.bounds.size
+        view.layoutIfNeeded()
+        insetView.layoutIfNeeded()
+
         do {
-            try snapshotView.parseAccessibility()
+            let image = try insetView.renderToImage(configuration: configuration.rendering)
+            // The source keeps its controller and window after image rendering.
+            // Parse the same final hierarchy that supplied the captured pixels.
+            let markers = AccessibilityHierarchyParser().parseAccessibilityHierarchy(
+                in: insetView,
+                rotorResultLimit: configuration.rotors.resultLimit,
+            ).flattenToElements()
+            let rendered = UIHostingController(rootView: PreParsedAccessibilitySnapshotView(
+                snapshotImage: image,
+                markers: markers,
+                configuration: configuration,
+                palette: .modern,
+                renderSize: insetView.bounds.size,
+            ))
+            rendered.safeAreaRegions = []
+            rendered.view.backgroundColor = UIColor(white: 0.9, alpha: 1)
+            let size = rendered.sizeThatFits(in: CGSize(
+                width: insetView.bounds.width,
+                height: UIView.layoutFittingExpandedSize.height,
+            ))
+            addChild(rendered)
+            rendered.view.frame = CGRect(origin: .zero, size: size)
+            view.addSubview(rendered.view)
+            rendered.didMove(toParent: self)
+            annotations = rendered
+            view.frame.size = size
         } catch let ImageRenderingError.containedViewExceedsMaximumSize(viewSize, maximumSize) {
             preconditionFailure(
                 "Accessibility snapshot content \(viewSize) exceeds the maximum renderable size \(maximumSize); "
@@ -72,7 +106,6 @@ final class AccessibilitySnapshotViewController: UIViewController {
         } catch {
             preconditionFailure("Failed to render accessibility snapshot image: \(error)")
         }
-        snapshotView.sizeToFit()
     }
 }
 

@@ -81,7 +81,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped in AccessibilitySnapshot's SwiftUI renderer so the image is annotated
   with the VoiceOver reading order, labels, traits, and activation points.
-  AccessibilitySnapshot temporarily moves the content while it renders. A case
+  The live source stays hosted during settling and readiness hooks.
+  Its owning controller stays attached while tiled rendering temporarily moves the content.
+  The adapter then parses the restored hierarchy and passes the image and markers to `PreParsedAccessibilitySnapshotView`.
+  Stable ownership preserves SwiftUI element frames and native layout during capture. A case
   that uses `.settledAtLeast` discards the first accessibility render, applies
   its settle policy, and parses again. This prevents a transient native-material
   frame from becoming the reference image. Other settle policies parse once.
