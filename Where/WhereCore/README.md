@@ -227,6 +227,8 @@ Import errors preserve the queued bytes and remain visible to the caller.
 
 ## What you get
 
+`WhereServices.now` exposes the injected service clock for presentation intents such as ending a current home. Historical review bounds never supply this clock.
+
 `WhereServices` is a small struct of focused collaborators — add behavior to the
 one it belongs to rather than to a god-object:
 

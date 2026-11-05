@@ -5,6 +5,63 @@ import Testing
 
 @MainActor
 struct RecordingChoiceModelTests {
+    @Test func placeReviewBlocksSourceSaveAndRefreshesOnDismissal() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        await model.load()
+        await model.choose(.select(RecordingReviewTestSupport.first))
+        model.openPlaces()
+        guard case let .places(places) = model.editor else {
+            Issue.record("Expected place history"); return
+        }
+        #expect(model.isBusy)
+        #expect(!model.canApply)
+        await model.apply()
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+        await places.refresh()
+        places.start()
+        let editor = try #require(places.editor)
+        #expect(editor.bounds.start == fixture.services.now())
+        // Applying a place to this earlier review requires an explicit historical boundary.
+        editor.bounds.start = try #require(fixture.periods.first).start
+        guard case let .definition(definition) = editor.draft else {
+            Issue.record("Expected place definition"); return
+        }
+        definition.coordinate = RecordingPlaceTestSupport.coordinate
+        await editor.review()
+        await editor.apply()
+        model.editor = nil
+        #expect(!model.canApply)
+        #expect(places.state.history == nil)
+        #expect(editor.controls.state.review == nil)
+        await model.loadIfNeeded()
+        #expect(model.canApply)
+        #expect(try RecordingReviewTestSupport.preview(model).proposal.evidence.controls.places
+            .count == 1)
+    }
+
+    @Test func placeDismissalPreservesAFailedSourceSaveReceipt() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        await model.load()
+        await model.choose(.select(RecordingReviewTestSupport.first))
+        let proposal = try RecordingReviewTestSupport.preview(model).proposal
+        model
+            .setBeforePublicationForTesting {
+                throw RecordingReviewTestSupport.TestFailure.interruptedSaveReceipt
+            }
+        await model.apply()
+        model.openPlaces()
+        guard case .places = model.editor else { Issue.record("Expected places"); return }
+        model.editor = nil
+        await model.loadIfNeeded()
+        #expect(try RecordingReviewTestSupport.preview(model).proposal == proposal)
+        model.setBeforePublicationForTesting {}
+        await model.retry()
+        #expect(model.didApply)
+        #expect(try await fixture.controls().sourceChoices.map(\.id) == [proposal.decision.id])
+    }
+
     @Test func calendarDismissalPreservesTheFailedRequestedSourceScope() async throws {
         let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
         let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)

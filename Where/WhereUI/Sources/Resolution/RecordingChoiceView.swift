@@ -64,6 +64,13 @@ struct RecordingChoiceView: View {
                         Text(String(localized: .recordingCalendarEntryDetail))
                     }
                 }
+                if !model.didApply {
+                    Section {
+                        Button(String(localized: .recordingPlaceTitle)) { model.openPlaces() }
+                            .disabled(model.isBusy)
+                            .accessibilityIdentifier("where_recording_places")
+                    } footer: { Text(String(localized: .recordingPlaceDetail)) }
+                }
                 if model.selectedAction != nil, !model.didApply {
                     Section {
                         Button(String(localized: completion == .save ? .recordingReviewSave :
@@ -81,23 +88,37 @@ struct RecordingChoiceView: View {
         }
         .navigationTitle(String(localized: .recordingReviewTitle))
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: model.calendarEditor?.id) {
-            if model.calendarEditor == nil { await model.loadIfNeeded() }
+        .task(id: model.editor?.id) {
+            if model.editor == nil { await model.loadIfNeeded() }
         }
         .sheet(item: $scopeEditor) { editor in
             RecordingScopeEditor(model: editor) { request in
                 Task { await model.review(request) }
             }
         }
-        .sheet(item: $model.calendarEditor) { editor in
-            RecordingCalendarEditor(model: editor)
+        .sheet(item: $model.editor) { editor in
+            switch editor {
+                case let .calendar(model): RecordingCalendarEditor(model: model)
+                case let .places(model):
+                    NavigationStack {
+                        RecordingPlaceView(model: model)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button(String(localized: .commonDone)) {
+                                        self.model.editor = nil
+                                    }
+                                    .accessibilityIdentifier("where_recording_places_close")
+                                }
+                            }
+                    }
+            }
         }
     }
 
     @ViewBuilder
     private var status: some View {
         switch model.state {
-            case .idle, .awaitingCalendarRefresh, .loading:
+            case .idle, .awaitingControlRefresh, .loading:
                 Section { ProgressView(String(localized: .recordingReviewLoading)) }
             case let .ready(.reviewed(_, _, refreshed)) where refreshed:
                 Section {
@@ -217,6 +238,7 @@ struct RecordingChoiceView: View {
             routes: [
                 .modal(to: RecordingScopeEditor.flyoverID),
                 .modal(to: RecordingCalendarEditor.flyoverID),
+                .modal(to: RecordingPlaceView.flyoverID),
             ],
         )
     }

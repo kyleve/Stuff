@@ -72,6 +72,15 @@ struct SettingsSearchTests {
         #expect(otherDeviceControls.allSatisfy { $0.isAvailable(recordingControlsEnabled: false) })
     }
 
+    @Test func placeSearchRequiresTheRecordingContract() throws {
+        let result = try #require(SettingsCatalog.results(matching: "hotel").first {
+            $0.destination == .recordingPlaces
+        })
+        #expect(!result.isAvailable(recordingControlsEnabled: false))
+        #expect(result.isAvailable(recordingControlsEnabled: true))
+        #expect(SettingsListSection.tracking.destinations.contains(.recordingPlaces))
+    }
+
     @Test func matchesLocationForecastVisibilityOnEstimateKeyword() {
         let results = SettingsCatalog.results(matching: "estimate")
 

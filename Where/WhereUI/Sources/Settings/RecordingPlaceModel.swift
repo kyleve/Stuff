@@ -8,6 +8,8 @@ import WhereCore
 @MainActor
 @Observable
 public final class RecordingPlaceModel {
+    struct ID: Hashable { let value = UUID() }
+    let id = ID()
     enum State {
         case idle
         indirect case loading(State)
@@ -145,6 +147,40 @@ public final class RecordingPlaceModel {
         }
     }
 
+    enum CurrentAction { case change, end }
+
+    func isCurrent(_ segment: RecordingPlaceResolver.Segment) -> Bool {
+        guard case .place = segment.resolution else { return false }
+        return segment.period.contains(now())
+    }
+
+    /// Capture one current instant for the intent. Later definitions remain outside this scope.
+    func current(
+        _ action: CurrentAction,
+        placeID: RecordingPlace.ID,
+        segment: RecordingPlaceResolver.Segment,
+    ) {
+        let instant = now()
+        guard state.history?.entries.contains(where: {
+            $0.placeID == placeID && $0.segments.contains(segment)
+        }) == true, segment.period.contains(instant),
+            case let .place(place) = segment.resolution else { return }
+        do {
+            let validity = try RecordingInterval(start: instant, end: segment.period.end)
+            switch action {
+                case .change:
+                    open(.definition(
+                        placeID: placeID,
+                        kind: place.kind,
+                        coordinate: place.coordinate,
+                        validity: validity,
+                    ))
+                case .end:
+                    open(.remove(placeID: placeID, validity: validity))
+            }
+        } catch { failAction(error) }
+    }
+
     /// Removal has an explicit scope. Editing the start can end a home without rewriting its past.
     func remove(placeID: RecordingPlace.ID, segment: RecordingPlaceResolver.Segment) {
         guard state.history?.entries.contains(where: {
@@ -176,13 +212,15 @@ public final class RecordingPlaceModel {
             try services.validateDataAccess()
             editor = .init(services: services, intent: intent)
             actionError = nil
-        } catch {
-            actionError = error
-            if services.isDataAccessRevoked {
-                editor = nil
-                state = .failed(error, previous: nil)
-            }
-            Self.logger.operationFailed(error: .restricted(.errorDetails, error))
+        } catch { failAction(error) }
+    }
+
+    private func failAction(_ error: any Error) {
+        actionError = error
+        if services.isDataAccessRevoked {
+            editor = nil
+            state = .failed(error, previous: nil)
         }
+        Self.logger.operationFailed(error: .restricted(.errorDetails, error))
     }
 }

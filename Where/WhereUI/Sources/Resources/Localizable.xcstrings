@@ -7105,6 +7105,523 @@
         }
       }
     },
+    "recording.place.absent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No place evidence"
+          }
+        }
+      }
+    },
+    "recording.place.action.context" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, %@"
+          }
+        }
+      }
+    },
+    "recording.place.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a Place"
+          }
+        }
+      }
+    },
+    "recording.place.after" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After: %@"
+          }
+        }
+      }
+    },
+    "recording.place.base" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporary Base"
+          }
+        }
+      }
+    },
+    "recording.place.before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before: %@"
+          }
+        }
+      }
+    },
+    "recording.place.bounds.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These boundaries are exact times in UTC. A regular home can remain valid until changed or ended. A temporary base requires an end."
+          }
+        }
+      }
+    },
+    "recording.place.change.now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change From Now"
+          }
+        }
+      }
+    },
+    "recording.place.choose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Location"
+          }
+        }
+      }
+    },
+    "recording.place.conflict" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conflicting place definitions"
+          }
+        }
+      }
+    },
+    "recording.place.coordinate.invalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a latitude from −90 to 90 and a longitude from −180 to 180."
+          }
+        }
+      }
+    },
+    "recording.place.coordinate.required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a precise location before reviewing."
+          }
+        }
+      }
+    },
+    "recording.place.decisions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved Decisions"
+          }
+        }
+      }
+    },
+    "recording.place.decisions.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These are saved edits, not a ranking. Effective historical periods above include concurrent and incomplete decisions."
+          }
+        }
+      }
+    },
+    "recording.place.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose precise places to help interpret stationary recordings and GPS noise. Places do not create recorded presence or override your source choices. Forecast Home and planned stays are separate."
+          }
+        }
+      }
+    },
+    "recording.place.edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correct This Historical Period"
+          }
+        }
+      }
+    },
+    "recording.place.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No homes or temporary bases saved."
+          }
+        }
+      }
+    },
+    "recording.place.end.now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End Now"
+          }
+        }
+      }
+    },
+    "recording.place.end.required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A temporary base needs an end date."
+          }
+        }
+      }
+    },
+    "recording.place.entire.history" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entire history"
+          }
+        }
+      }
+    },
+    "recording.place.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place Unavailable"
+          }
+        }
+      }
+    },
+    "recording.place.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load or save this place. Please retry."
+          }
+        }
+      }
+    },
+    "recording.place.has.end" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set an End"
+          }
+        }
+      }
+    },
+    "recording.place.history" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historical Validity"
+          }
+        }
+      }
+    },
+    "recording.place.home" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regular Home"
+          }
+        }
+      }
+    },
+    "recording.place.incomplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing earlier place decisions"
+          }
+        }
+      }
+    },
+    "recording.place.interval.invalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The end must be after the start."
+          }
+        }
+      }
+    },
+    "recording.place.kind" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place Type"
+          }
+        }
+      }
+    },
+    "recording.place.latitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latitude"
+          }
+        }
+      }
+    },
+    "recording.place.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading place history…"
+          }
+        }
+      }
+    },
+    "recording.place.location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place Location"
+          }
+        }
+      }
+    },
+    "recording.place.location.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the map to select a precise location, or enter its coordinates. Your location is not selected automatically."
+          }
+        }
+      }
+    },
+    "recording.place.location.use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use This Location"
+          }
+        }
+      }
+    },
+    "recording.place.longitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longitude"
+          }
+        }
+      }
+    },
+    "recording.place.ongoing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From %@ UTC · ongoing"
+          }
+        }
+      }
+    },
+    "recording.place.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place Evidence Preview"
+          }
+        }
+      }
+    },
+    "recording.place.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Place Evidence for This Period"
+          }
+        }
+      }
+    },
+    "recording.place.remove.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review the period to remove. To end a home while preserving its past, set the start to when it stopped being your home."
+          }
+        }
+      }
+    },
+    "recording.place.review" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Place Changes"
+          }
+        }
+      }
+    },
+    "recording.place.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Reviewed Place Changes"
+          }
+        }
+      }
+    },
+    "recording.place.saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place changes saved. Earlier definitions remain in history."
+          }
+        }
+      }
+    },
+    "recording.place.search.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "home, hotel, temporary base, place, stationary, location, validity"
+          }
+        }
+      }
+    },
+    "recording.place.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homes and Temporary Bases"
+          }
+        }
+      }
+    },
+    "recording.place.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place history is unavailable. Open Where after compatibility verification completes."
+          }
+        }
+      }
+    },
+    "recording.place.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some shared controls are not understood. Their scopes remain unresolved after a place edit."
+          }
+        }
+      }
+    },
+    "recording.place.valid.end" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End (UTC, Exclusive)"
+          }
+        }
+      }
+    },
+    "recording.place.valid.from" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid From (UTC)"
+          }
+        }
+      }
+    },
     "recording.review.absentDay" : {
       "extractionState" : "manual",
       "localizations" : {

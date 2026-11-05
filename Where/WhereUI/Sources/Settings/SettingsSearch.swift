@@ -9,6 +9,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     case attachments
     case loggedDays
     case devices
+    case recordingPlaces
     case regions
     case alerts
     case appearance
@@ -34,6 +35,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .attachments: String(localized: .settingsAttachmentsRow)
             case .loggedDays: String(localized: .settingsLoggedDaysRow)
             case .devices: String(localized: .settingsDevicesTitle)
+            case .recordingPlaces: String(localized: .recordingPlaceTitle)
             case .regions: String(localized: .settingsRegionsSection)
             case .alerts: String(localized: .settingsAlertsGroup)
             case .appearance: String(localized: .settingsAppearanceGroup)
@@ -60,6 +62,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .attachments: .paperclip
             case .loggedDays: .calendarBadgePlus
             case .devices: .iphoneAndArrowForward
+            case .recordingPlaces: .houseFill
             case .regions: .mapFill
             case .alerts: .bellBadge
             case .appearance: .paintbrushFill
@@ -88,6 +91,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .attachments: .indigo
             case .loggedDays: .mint
             case .devices: .blue
+            case .recordingPlaces: .green
             case .regions: .green
             case .alerts: .red
             case .appearance: .purple
@@ -117,7 +121,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isAvailableInDemoMode: Bool {
         switch self {
             case .data, .appearance, .privacyDiagnostics, .updates: false
-            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+            case .recordingPlaces, .placesYear, .recording, .privacyBackups, .attachments,
+                 .loggedDays, .devices,
                  .regions, .alerts, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .about:
                 true
@@ -134,7 +139,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+            case .recordingPlaces, .placesYear, .recording, .privacyBackups, .attachments,
+                 .loggedDays, .devices,
                  .alerts, .appearance, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
                  .privacyDiagnostics, .updates, .about:
@@ -162,7 +168,7 @@ enum SettingsListSection: CaseIterable {
     var destinations: [SettingsDestination] {
         switch self {
             case .userData: [.attachments, .loggedDays, .regions]
-            case .tracking: [.devices]
+            case .tracking: [.devices, .recordingPlaces]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
             case .exploreFeatures:
@@ -238,7 +244,9 @@ struct SettingsSearchResult: Identifiable {
     }
 
     func isAvailable(recordingControlsEnabled: Bool) -> Bool {
-        recordingControlsEnabled || focus != SettingsFocus(DevicesSettingsView.Item.ignoreUntil)
+        recordingControlsEnabled ||
+            (destination != .recordingPlaces && focus !=
+                SettingsFocus(DevicesSettingsView.Item.ignoreUntil))
     }
 
     /// Case-insensitive match on the title or any keyword.
@@ -291,6 +299,7 @@ enum SettingsCatalog {
         EvidenceListView.searchResults
             + LoggedDaysView.searchResults
             + DevicesSettingsView.searchResults
+            + RecordingPlaceView.searchResults
             + RegionsSettingsView.searchResults
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults

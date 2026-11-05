@@ -27,6 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var timeline = TimelineStyle.standard
     var regionMap = RegionMapStyle.standard
     var regionPicker = RegionPickerStyle.standard
+    var recordingPlaceMap = RecordingPlaceMapStyle()
     var evidence = EvidenceStyle.standard
     var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard

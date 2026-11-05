@@ -280,7 +280,12 @@ Retired editors reject queued work. Retained tab destinations pause history read
 Regular homes can remain ongoing. Changing a definition retains its place identity and earlier validity.
 Shortening an existing definition previews removal of its old tail in the same guarded batch.
 Conflicting or incomplete history does not prefill an arbitrary coordinate. The user supplies the new definition.
-Place screens, reminders, and activation remain under implementation.
+`RecordingPlaceView` exposes place history from Settings and source review when the recording contract is enabled.
+Current definitions offer Change From Now and End Now. These actions preserve earlier and later segments and retain the place identity.
+Historical corrections remain separate. `RecordingPlaceLocationPicker` accepts an explicit map tap or coordinates.
+`RecordingPlaceEditor` shows UTC validity, exact before/after definitions, and unresolved opaque scopes before Save.
+Source review retains one calendar or place editor and waits for dismissal before refreshing its inspection.
+Reminders, automatic-selection inspection outside issues, incomplete-report UI, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.

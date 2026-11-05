@@ -33,6 +33,16 @@ final class RecordingPlaceEditorModel: Identifiable {
             self.end = end
         }
 
+        var hasEnd: Bool {
+            get { end != nil }
+            set { end = newValue ? (end ?? start) : nil }
+        }
+
+        var endDate: Date {
+            get { end ?? start }
+            set { end = newValue }
+        }
+
         func interval() throws -> RecordingInterval {
             try .init(start: start, end: end)
         }

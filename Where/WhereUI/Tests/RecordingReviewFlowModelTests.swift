@@ -4,6 +4,48 @@ import Testing
 
 @MainActor
 struct RecordingReviewFlowModelTests {
+    @Test func placeHistoryKeepsItsFailedEditorDuringGuidedReassessment() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        let observer = Task { await model.observeChanges() }
+        defer { observer.cancel(); model.deactivate() }
+        try await CompatibilityLaunchFixture.waitUntil { model.page != nil && model.canReview }
+        let page = try #require(model.page)
+        await page.choice.loadIfNeeded()
+        page.choice.openPlaces()
+        guard case let .places(places) = page.choice.editor
+        else { Issue.record("Expected places"); return }
+        await places.refresh()
+        places.start()
+        let editor = try #require(places.editor)
+        guard case let .definition(definition) = editor.draft
+        else { Issue.record("Expected definition"); return }
+        definition.coordinate = RecordingPlaceTestSupport.coordinate
+        await editor.review()
+        editor.controls
+            .setBeforePublicationForTesting {
+                throw RecordingReviewTestSupport.TestFailure.interruptedSaveReceipt
+            }
+        await editor.apply()
+        try await CompatibilityLaunchFixture.waitUntil { model.isRefreshing }
+        #expect(model.canReview)
+        #expect(model.page?.id == page.id)
+        #expect(editor.canRetry)
+        editor.controls.setBeforePublicationForTesting {}
+        await editor.retry()
+        #expect(editor.controls.didApply)
+        #expect(places.editor === editor)
+        page.choice.editor = nil
+        #expect(page.choice.isBusy)
+        await page.choice.loadIfNeeded()
+        try await CompatibilityLaunchFixture.waitUntil { !model.isRefreshing && model.canReview }
+        #expect(try await fixture.controls().places.count == 1)
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+    }
+
     @Test func aCalendarEditorStaysInteractiveUntilItClosesAndRefreshesItsSourceReview(
     ) async throws {
         let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)

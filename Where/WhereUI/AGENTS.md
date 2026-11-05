@@ -181,6 +181,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep place drafts separate from exact reviewed proposals and preserve their place identity across edits.
   Require explicit coordinates and temporary-base ends. Never prefill one conflicting or incomplete definition as the winner.
   Shortening a definition must review removal of its previous tail in the same batch. Preserve earlier validity.
+  Current-place actions capture the service clock once and stop at the current segment's end. Keep historical corrections separate.
+  Never use a historical review boundary as the clock for an action labeled Now.
   Pause place-history reads on disappearance; retire editors only when their owner ends or access is revoked.
   Guards: `RecordingPlaceEditorModelTests` and `RecordingPlaceModelTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.

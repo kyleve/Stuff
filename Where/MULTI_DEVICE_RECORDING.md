@@ -1396,9 +1396,13 @@ Committed changes refresh history without replacing an open editor or failed sav
 An unchanged saved end retains its original zone, offset, and boundary.
 The temporary-ignore Settings screen now exposes these controls for each device under the enabled recording contract.
 It shows effective eligibility, saved decisions, conflicts, and expired intervals. Each edit requires review of its exact eligibility effects.
-Place controls, reminder integration, and activation remain in progress.
+Place history now exposes ongoing homes, dated temporary bases, conflicts, and missing history from Settings and source review.
+Coordinates require explicit input. Each change previews its exact place evidence before a guarded save.
+Change From Now and End Now preserve earlier definitions. Historical corrections remain separate actions with explicit validity periods.
+The source review retains its active calendar or place editor during reassessment and refreshes after dismissal.
+Automatic-selection inspection outside issues, incomplete-report UI, reminder integration, and activation remain in progress.
 
-Complete place controls and inspection of automatic-selection reasons.
+Complete inspection of automatic-selection reasons outside unresolved issues.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.

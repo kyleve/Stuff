@@ -46,7 +46,7 @@ public final class RecordingChoiceModel {
 
     enum State {
         case idle
-        case awaitingCalendarRefresh(Content?)
+        case awaitingControlRefresh(Content?)
         case loading(Content?)
         case ready(Content)
         case saving(Content)
@@ -56,7 +56,7 @@ public final class RecordingChoiceModel {
         var content: Content? {
             switch self {
                 case .idle: nil
-                case let .loading(previous), let .awaitingCalendarRefresh(previous): previous
+                case let .loading(previous), let .awaitingControlRefresh(previous): previous
                 case let .ready(content), let .saving(content), let .applied(content): content
                 case let .failed(_, recovery): recovery.previous
             }
@@ -66,18 +66,49 @@ public final class RecordingChoiceModel {
     private struct RequestID: Hashable { let value = UUID() }
     private var requestID = RequestID()
     private(set) var state = State.idle
-    var calendarEditor: RecordingCalendarEditorModel? {
-        didSet {
-            guard oldValue !== calendarEditor else { return }
-            oldValue?.deactivate()
-            if oldValue != nil, calendarEditor == nil {
-                // Calendar work does not replace a failed source intent. Retry needs its
-                // requested scope or exact save identity, whether that save committed.
-                if case .failed = state { return }
-                // Hold the guided page until its view task refreshes the source inspection.
-                state = .awaitingCalendarRefresh(state.content)
+    enum Editor: Identifiable {
+        enum ID: Hashable {
+            case calendar(RecordingCalendarEditorModel.ID)
+            case places(RecordingPlaceModel.ID)
+        }
+
+        case calendar(RecordingCalendarEditorModel)
+        case places(RecordingPlaceModel)
+        var id: ID {
+            switch self {
+                case let .calendar(model): .calendar(model.id)
+                case let .places(model): .places(model.id)
             }
         }
+
+        @MainActor func deactivate() {
+            switch self {
+                case let .calendar(model): model.deactivate()
+                case let .places(model): model.deactivate()
+            }
+        }
+    }
+
+    var editor: Editor? {
+        didSet {
+            guard oldValue?.id != editor?.id else { return }
+            oldValue?.deactivate()
+            if oldValue != nil, editor == nil {
+                // Control edits cannot replace a failed source intent or its save identity.
+                if case .failed = state { return }
+                state = .awaitingControlRefresh(state.content)
+            }
+        }
+    }
+
+    var calendarEditor: RecordingCalendarEditorModel? {
+        get { if case let .calendar(model) = editor { model } else { nil } }
+        set { editor = newValue.map(Editor.calendar) }
+    }
+
+    func openPlaces() {
+        guard !isBusy, !didApply, presentation != nil else { return }
+        editor = .places(.init(services: services, now: services.now))
     }
 
     let originalPeriods: [RecordingPeriod]
@@ -112,15 +143,15 @@ public final class RecordingChoiceModel {
     }
 
     var canApply: Bool {
-        guard case let .ready(.reviewed(inspection, _, _)) = state,
+        guard editor == nil, case let .ready(.reviewed(inspection, _, _)) = state,
               case .ready = inspection else { return false }
         return true
     }
 
     var isBusy: Bool {
-        if calendarEditor != nil { return true }
+        if editor != nil { return true }
         return switch state {
-            case .awaitingCalendarRefresh, .loading, .saving: true
+            case .awaitingControlRefresh, .loading, .saving: true
             case .idle, .ready, .applied, .failed: false
         }
     }
@@ -139,7 +170,7 @@ public final class RecordingChoiceModel {
     func loadIfNeeded() async {
         switch state {
             case .idle: await load()
-            case let .awaitingCalendarRefresh(previous):
+            case let .awaitingControlRefresh(previous):
                 if let previous, case .reviewed = previous {
                     await review(previous.presentation.request)
                 } else {
@@ -279,7 +310,7 @@ public final class RecordingChoiceModel {
 
     func deactivate() {
         requestID = RequestID()
-        calendarEditor = nil
+        editor = nil
         state = .idle
     }
 

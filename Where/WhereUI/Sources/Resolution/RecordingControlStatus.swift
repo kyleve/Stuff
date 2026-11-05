@@ -4,12 +4,12 @@ import SwiftUI
 /// Shared feedback for reviewed control edits, including refreshed scope and uncertain receipts.
 struct RecordingControlStatus: View {
     enum Context {
-        case calendar, ignore
+        case calendar, ignore, place
 
         var refreshed: String {
             switch self {
                 case .calendar: String(localized: .recordingCalendarRefreshed)
-                case .ignore: String(localized: .recordingReviewRefreshed)
+                case .ignore, .place: String(localized: .recordingReviewRefreshed)
             }
         }
 
@@ -17,6 +17,7 @@ struct RecordingControlStatus: View {
             switch self {
                 case .calendar: String(localized: .recordingCalendarSaved)
                 case .ignore: String(localized: .recordingIgnoreSaved)
+                case .place: String(localized: .recordingPlaceSaved)
             }
         }
 
@@ -24,6 +25,7 @@ struct RecordingControlStatus: View {
             switch self {
                 case .calendar: "where_recording_calendar"
                 case .ignore: "where_recording_ignore"
+                case .place: "where_recording_place"
             }
         }
 
@@ -31,6 +33,7 @@ struct RecordingControlStatus: View {
             switch self {
                 case .calendar: WhereFormat.recordingCalendarFailure(error)
                 case .ignore: WhereFormat.recordingIgnoreFailure(error)
+                case .place: WhereFormat.recordingPlaceFailure(error)
             }
         }
     }

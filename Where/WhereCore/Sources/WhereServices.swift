@@ -97,9 +97,9 @@ public struct WhereServices: Sendable {
     /// The aggregation policy (calendar + time zone) the stack was built with,
     /// retained so a derived stack buckets days identically.
     let aggregator: DayAggregator
-    /// The clock the stack was built with, retained so a derived stack can't
-    /// diverge from an injected test/preview clock.
-    let now: @Sendable () -> Date
+    /// The clock shared by services and presentation intents. Derived scopes and controls
+    /// must use this clock rather than reinterpret a historical review boundary as now.
+    public let now: @Sendable () -> Date
     /// Device-local installation identity and its explicitly confirmed first policy.
     /// Retained as one composition value so registration, sample attribution, and a derived
     /// App Intents stack cannot accidentally describe different installations.

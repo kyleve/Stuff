@@ -5,6 +5,55 @@ import Testing
 
 @MainActor
 struct RecordingPlaceModelTests {
+    @Test(arguments: [RecordingPlaceModel.CurrentAction.change, .end])
+    func currentActionsPreserveEarlierAndLaterDefinitions(action: RecordingPlaceModel
+        .CurrentAction) async throws
+    {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let original = try await RecordingPlaceTestSupport.save(fixture)
+        let later = try await fixture.services.recordingControlEdits.review(.place(
+            placeID: original.placeID,
+            validity: [.init(start: RecordingReviewTestSupport.date(1200), end: nil)],
+            action: .set(kind: .regularHome, coordinate: .init(latitude: 51.5, longitude: 0)),
+        ))
+        #expect(try await fixture.services.recordingControlEdits.apply(later) == .applied)
+        let model = RecordingPlaceTestSupport.model(fixture)
+        await model.refresh()
+        let entry = try #require(model.state.history?.entries.first)
+        let segment = try #require(entry.segments.first)
+        #expect(model.isCurrent(segment))
+        #expect(try !model.isCurrent(#require(entry.segments.last)))
+        model.current(action, placeID: entry.placeID, segment: segment)
+        let editor = try #require(model.editor)
+        #expect(editor.placeID == original.placeID)
+        #expect(editor.bounds.start == RecordingReviewTestSupport.date(600))
+        #expect(editor.bounds.end == RecordingReviewTestSupport.date(1200))
+        if case let .definition(definition) = editor.draft {
+            definition.coordinate = .init(latitude: 40.75, longitude: -74)
+        }
+        await editor.review()
+        await editor.apply()
+        await model.refresh()
+        let segments = try #require(model.state.history?.entries.first).segments
+        #expect(segments.count == 3)
+        guard case let .place(earlier) = segments[0].resolution,
+              case let .place(future) = segments[2].resolution
+        else {
+            Issue.record("Neighboring definitions must remain intact"); return
+        }
+        #expect(earlier.coordinate == RecordingPlaceTestSupport.coordinate)
+        #expect(future.coordinate.latitude == 51.5)
+        #expect(segments[1].period.start == RecordingReviewTestSupport.date(600))
+        #expect(segments[1].period.end == RecordingReviewTestSupport.date(1200))
+        switch action {
+            case .change:
+                guard case let .place(changed) = segments[1].resolution
+                else { Issue.record("Expected changed place"); return }
+                #expect(changed.coordinate.latitude == 40.75)
+            case .end: #expect(segments[1].resolution == .absent)
+        }
+    }
+
     @Test func foregroundReentryRefreshesHistoryWithoutRetiringAnOpenEditor() async throws {
         let fixture = try await RecordingReviewTestSupport.fixture()
         let model = RecordingPlaceTestSupport.model(fixture)

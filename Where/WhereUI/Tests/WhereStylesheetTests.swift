@@ -31,6 +31,12 @@ struct WhereStylesheetTests {
 
     private let style = WhereStylesheet.default
 
+    @Test func placeMapKeepsAUsableViewportAndSemanticPin() {
+        #expect(style.recordingPlaceMap.height == 280)
+        #expect(style.recordingPlaceMap.initialSpanMeters == 2000)
+        #expect(style.recordingPlaceMap.capturePinFont == .largeTitle)
+    }
+
     @Test func yearModePickerDefaultsToInline() {
         #expect(style.yearModePicker.layout == .inline)
     }

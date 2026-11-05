@@ -75,6 +75,9 @@ struct SettingsView: View {
     /// exists.
     private func isAvailable(_ destination: SettingsDestination) -> Bool {
         destination.isAvailable(isInDemoMode: isInDemoMode, updatesEnabled: updates != nil)
+            &&
+            (destination != .recordingPlaces || session.services.recordingControlEdits
+                .supportsRecordingControls)
     }
 
     var body: some View {
@@ -207,7 +210,8 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+            case .recordingPlaces, .placesYear, .recording, .privacyBackups, .attachments,
+                 .loggedDays, .devices,
                  .alerts, .appearance, .year, .siri,
                  .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
                  .data, .privacyDiagnostics, .updates, .about:
@@ -245,7 +249,8 @@ struct SettingsView: View {
                 updates?.attentionTitle
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .regions,
+            case .recordingPlaces, .placesYear, .recording, .privacyBackups, .attachments,
+                 .loggedDays, .regions,
                  .alerts, .appearance, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
                  .privacyDiagnostics, .about:
@@ -280,6 +285,8 @@ struct SettingsView: View {
                 LoggedDaysView(report: report)
             case .devices:
                 DevicesSettingsView(session: session, focus: route.focus)
+            case .recordingPlaces:
+                RecordingPlaceView(session: session)
             case .regions:
                 // Regions is presented as a sheet (`isSheet`), so it's never
                 // routed here; this arm only keeps the switch exhaustive.
