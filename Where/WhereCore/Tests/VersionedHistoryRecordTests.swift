@@ -18,6 +18,7 @@ struct VersionedHistoryRecordTests {
             id: .init(rawValue: UUID()),
             dataGenerationID: .initial,
             semantics: .init(major: 1, minor: 2, patch: 3),
+            scope: .entireHistory,
             kind: "test",
             payload: Data([0, 255, 100]),
         )

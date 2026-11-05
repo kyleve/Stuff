@@ -48,7 +48,12 @@ Concurrent ignores agree where both exclude a device, even when their end dates 
 Coverage splits at offset changes, including daylight-saving transitions.
 Synthesized `Codable` preserves the strict wire shape. Admission and resolver boundaries validate decoded dates, periods, coordinates, and offsets before use.
 
-These values remain groundwork. Store integration, backup conversion, capture recovery, and the review controls belong to the remaining implementation slices.
+`RecordingControlStore` reads these values through admitted version envelopes in a pinned store snapshot.
+The envelope retains the affected scope separately from its payload. Unknown meaning remains available for review, with its original bytes intact.
+Canonical predecessor order makes restored retries byte-identical. Reusing an identity for different content fails the transaction.
+Reset and Replace erase outgoing control payloads while retaining the highest observed compatibility requirement.
+
+This boundary remains groundwork. Backup conversion, capture recovery, guarded review proposals, and production controls remain in the implementation plan.
 
 ## Compatibility protocol foundation
 

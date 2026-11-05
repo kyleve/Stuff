@@ -1273,6 +1273,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         in context: ModelContext,
         belongingTo generationID: WhereDataGenerationID,
     ) throws {
+        try deleteVersionedHistoryRecords(in: context, belongingTo: generationID)
         for record in try context.fetch(GenerationScopedFetch.sampleAttributions(
             belongingTo: generationID,
         )) {

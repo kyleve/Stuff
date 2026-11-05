@@ -16,6 +16,7 @@ struct SwiftDataStoreCompatibilityTests {
             id: .init(rawValue: UUID()),
             dataGenerationID: .initial,
             semantics: .init(major: 1, minor: 0, patch: 0),
+            scope: .entireHistory,
             kind: "fixture",
             payload: Data(),
         )

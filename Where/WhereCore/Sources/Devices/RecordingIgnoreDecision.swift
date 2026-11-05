@@ -90,7 +90,11 @@ public struct RecordingIgnoreDecision: Hashable, Codable, Sendable {
     public let deviceID: RecordingDeviceID
     public let periods: [RecordingPeriod]
     public let change: Change
-    public let predecessors: Set<ID>
+    let predecessorIDs: [ID]
+    public var predecessors: Set<ID> {
+        Set(predecessorIDs)
+    }
+
     public let version: DataSemanticsVersion
 
     public init(
@@ -111,7 +115,7 @@ public struct RecordingIgnoreDecision: Hashable, Codable, Sendable {
         self.deviceID = deviceID
         self.periods = periods
         self.change = change
-        self.predecessors = predecessors
+        predecessorIDs = predecessors.sorted()
         self.version = version
         try validate()
     }

@@ -42,7 +42,12 @@ public struct HistoryDecision: Hashable, Codable, Sendable {
     public let periods: [RecordingPeriod]
     public let scope: Scope
     public let action: Action
-    public let predecessors: Set<ID>
+    // Canonical wire order keeps retries byte-identical across process hash seeds.
+    let predecessorIDs: [ID]
+    public var predecessors: Set<ID> {
+        Set(predecessorIDs)
+    }
+
     public let version: DataSemanticsVersion
 
     public init(
@@ -62,7 +67,7 @@ public struct HistoryDecision: Hashable, Codable, Sendable {
         self.periods = RecordingPeriod.union(periods)
         self.scope = scope
         self.action = action
-        self.predecessors = predecessors
+        predecessorIDs = predecessors.sorted()
         self.version = version
     }
 }

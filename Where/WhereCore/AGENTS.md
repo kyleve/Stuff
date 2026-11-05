@@ -75,6 +75,9 @@ That document also owns the implementation plan.
   Guards: `DataCompatibilityCoordinatorTests`, `CloudKitDataCompatibilityTransportTests`.
 - Keep admitted dataset identity immutable on each access. Never relabel an existing scope after an account change or missing sidecar.
   Treat identity as routing metadata, not a write grant. Guard: `DataCompatibilityCoordinatorTests`.
+- Keep versioned control scope outside its opaque payload. Validate envelope identity, semantics, scope, and causal family before application.
+  Reset and Replace erase outgoing control payloads while preserving their observed major floor.
+  Guards: `RecordingControlSnapshotTests`, `RecordingControlCodecTests`, and `RecordingControlStoreTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

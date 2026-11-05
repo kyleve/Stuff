@@ -2,6 +2,26 @@ import Foundation
 import SwiftData
 
 extension SwiftDataStore {
+    /// Reset and Replace erase the outgoing generation's user payloads. Decode only the stable
+    /// generation header; an unknown control body is not necessary to identify its storage scope.
+    static func deleteVersionedHistoryRecords(
+        in context: ModelContext,
+        belongingTo generationID: WhereDataGenerationID,
+    ) throws {
+        let rows = try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>())
+        // A record may arrive before its shared floor. Retain that observed requirement before
+        // deleting the only payload that currently establishes it.
+        if !rows.isEmpty { try persistCompatibilityFloor(0, in: context) }
+        for row in rows {
+            guard let data = row.envelope else { throw DataCompatibilityError.incompleteRecord }
+            let header = try JSONDecoder().decode(
+                VersionedHistoryRecord.GenerationHeader.self,
+                from: data,
+            )
+            if header.dataGenerationID == generationID { context.delete(row) }
+        }
+    }
+
     public func dataCompatibilityState() async throws -> DataCompatibilityStoreState {
         let state = try Self.compatibilityState(in: readContext())
         #if DEBUG
@@ -49,7 +69,10 @@ extension SwiftDataStore {
     }
 
     public func raiseRequiredDataMajor(_ major: UInt) async throws {
-        let context = mutationContext()
+        try Self.persistCompatibilityFloor(major, in: mutationContext())
+    }
+
+    private static func persistCompatibilityFloor(_ major: UInt, in context: ModelContext) throws {
         let state = try Self.compatibilityState(in: context)
         let nextMajor = max(major, state.requiredMajor)
         if let persisted = state.persistedRequiredMajor, persisted >= nextMajor { return }
@@ -80,6 +103,7 @@ extension SwiftDataStore {
     }
 
     public func addVersionedHistoryRecord(_ record: VersionedHistoryRecord) async throws {
+        try record.scope.validate()
         let context = mutationContext()
         guard record.dataGenerationID == mutationGenerationID() else {
             throw RecordingPersistenceError.dataGenerationChanged

@@ -22,6 +22,7 @@ public enum HistoryDecisionResolver {
         case emptyScope(HistoryDecision.ID)
         case inconsistentScope(HistoryDecision.ID)
         case cycle(HistoryDecision.ID)
+        case invalidPredecessors(HistoryDecision.ID)
     }
 
     public static func resolve(
@@ -63,6 +64,8 @@ public enum HistoryDecisionResolver {
                 .conflictingIdentity(identity)
                 case let .emptyScope(identity): throw ValidationError.emptyScope(identity)
                 case let .cycle(identity): throw ValidationError.cycle(identity)
+                case let .invalidPredecessors(identity): throw ValidationError
+                .invalidPredecessors(identity)
             }
         }
     }

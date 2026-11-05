@@ -38,7 +38,11 @@ public struct RecordingCalendarDecision: Hashable, Codable, Sendable {
     public let deviceID: RecordingDeviceID
     public let periods: [RecordingPeriod]
     public let action: Action
-    public let predecessors: Set<ID>
+    let predecessorIDs: [ID]
+    public var predecessors: Set<ID> {
+        Set(predecessorIDs)
+    }
+
     public let version: DataSemanticsVersion
 
     public init(
@@ -58,7 +62,7 @@ public struct RecordingCalendarDecision: Hashable, Codable, Sendable {
         self.deviceID = deviceID
         self.periods = RecordingPeriod.union(periods)
         self.action = action
-        self.predecessors = predecessors
+        predecessorIDs = predecessors.sorted()
         self.version = version
         try validate()
     }

@@ -8,6 +8,7 @@ protocol CausalPeriodOperation: Hashable, Sendable {
     var id: ID { get }
     var periods: [RecordingPeriod] { get }
     var action: Action { get }
+    var predecessorIDs: [ID] { get }
     var predecessors: Set<ID> { get }
 }
 
@@ -29,6 +30,7 @@ enum CausalPeriodResolver<Operation: CausalPeriodOperation> {
         case conflictingIdentity(Operation.ID)
         case emptyScope(Operation.ID)
         case cycle(Operation.ID)
+        case invalidPredecessors(Operation.ID)
     }
 
     private struct Knowledge {
@@ -47,6 +49,9 @@ enum CausalPeriodResolver<Operation: CausalPeriodOperation> {
                 throw ValidationError.conflictingIdentity(operation.id)
             }
             guard !operation.periods.isEmpty else { throw ValidationError.emptyScope(operation.id) }
+            guard operation.predecessorIDs == operation.predecessors.sorted() else {
+                throw ValidationError.invalidPredecessors(operation.id)
+            }
             for period in operation.periods {
                 try period.validate()
             }

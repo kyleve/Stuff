@@ -20,6 +20,7 @@ public enum RecordingIgnoreResolver {
         case unsupportedMajor(RecordingIgnoreDecision.ID)
         case emptyScope(RecordingIgnoreDecision.ID)
         case cycle(RecordingIgnoreDecision.ID)
+        case invalidPredecessors(RecordingIgnoreDecision.ID)
     }
 
     public static func resolve(
@@ -66,6 +67,8 @@ public enum RecordingIgnoreResolver {
                 .conflictingIdentity(identity)
                 case let .emptyScope(identity): throw ValidationError.emptyScope(identity)
                 case let .cycle(identity): throw ValidationError.cycle(identity)
+                case let .invalidPredecessors(identity): throw ValidationError
+                .invalidPredecessors(identity)
             }
         }
     }

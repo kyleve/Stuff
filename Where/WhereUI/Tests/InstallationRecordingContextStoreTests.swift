@@ -747,6 +747,7 @@ extension InstallationRecordingContextStoreTests {
                 id: .init(rawValue: UUID()),
                 dataGenerationID: receiver.store.dataGeneration().id,
                 semantics: .init(major: 1, minor: 0, patch: 0),
+                scope: .entireHistory,
                 kind: "future-fixture-record",
                 payload: Data([0xFF]),
             )
