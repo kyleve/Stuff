@@ -161,6 +161,11 @@ public final class DataCompatibilityCoordinator {
                     }
                     let accountID = try await transport.accountID()
                     try requireCurrent(request)
+                    // The current process's admitted account remains authoritative if its
+                    // sidecar disappears. Never relabel an existing access with a new account.
+                    if let identifiedAccount, identifiedAccount != accountID {
+                        throw DataCompatibilityError.accountChanged
+                    }
                     if let cached, cached.storeID == storeID, cached.accountID != accountID {
                         throw DataCompatibilityError.accountChanged
                     }
@@ -447,7 +452,16 @@ public final class DataCompatibilityCoordinator {
             throw DataCompatibilityError.verificationRequired
         }
         try policy.validate(requiredMajor: knownRequiredMajor)
-        if let access, access.requiredMajor == knownRequiredMajor {
+        let identity: DataCompatibilityAccess.Identity
+        switch source {
+            case let .local(storeID):
+                identity = .local(storeID: storeID)
+            case let .cloudKit(storeID, _, _):
+                guard let identifiedAccount
+                else { throw DataCompatibilityError.verificationRequired }
+                identity = .cloudKit(storeID: storeID, accountID: identifiedAccount)
+        }
+        if let access, access.requiredMajor == knownRequiredMajor, access.identity == identity {
             do {
                 try access.validate()
                 state = .available(access, synchronization)
@@ -461,6 +475,7 @@ public final class DataCompatibilityCoordinator {
         access?.revoke()
         let next = DataCompatibilityAccess(
             base: store,
+            identity: identity,
             requiredMajor: knownRequiredMajor,
             policy: policy,
         ) { [weak self] error, accessID in

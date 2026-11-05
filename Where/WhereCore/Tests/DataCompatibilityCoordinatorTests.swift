@@ -5,6 +5,60 @@ import Testing
 
 @MainActor
 struct DataCompatibilityCoordinatorTests {
+    @Test func admittedIdentitySurvivesOfflineRefreshAndRevocationWithoutRelabeling() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .newAccount)
+        let coordinator = DataCompatibilityTestSupport.coordinator(
+            store: store,
+            transport: transport,
+            cache: InMemoryDataCompatibilityCache(value: nil),
+        )
+        let access = try await coordinator.refresh()
+        let expected = DataCompatibilityAccess.Identity.cloudKit(
+            storeID: DataCompatibilityTestSupport.storeID,
+            accountID: ScriptedSharedDataCompatibilityTransport.account,
+        )
+        #expect(access.identity == expected)
+        await transport.failVerification(CKError(.networkUnavailable))
+        let offline = try await coordinator.refresh()
+        #expect(offline.id == access.id)
+        #expect(offline.identity == expected)
+        coordinator.invalidateAccount()
+        #expect(access.identity == expected)
+        #expect(throws: DataCompatibilityAccess.AccessError.revoked) { try access.validate() }
+        #expect(coordinator.access == nil)
+    }
+
+    @Test func missingCacheCannotRebindExistingAccessToAnotherAccount() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = ScriptedSharedDataCompatibilityTransport(history: .newAccount)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        defer {
+            do { try FileManager.default.removeItem(at: directory) }
+            catch { Issue.record(error) }
+        }
+        let file = directory.appendingPathComponent("compatibility.json")
+        let cache = FileDataCompatibilityCache(fileURL: file)
+        let coordinator = DataCompatibilityTestSupport.coordinator(
+            store: store,
+            transport: transport,
+            cache: cache,
+        )
+        let access = try await coordinator.refresh()
+        try FileManager.default.removeItem(at: file)
+        await transport.changeAccount()
+        await #expect(throws: DataCompatibilityError.accountChanged) {
+            try await coordinator.refresh()
+        }
+        #expect(access.identity == .cloudKit(
+            storeID: DataCompatibilityTestSupport.storeID,
+            accountID: ScriptedSharedDataCompatibilityTransport.account,
+        ))
+        #expect(access.isRevoked)
+        #expect(coordinator.access == nil)
+    }
+
     @Test func obsoleteOfflineHeaderCompletionCannotRevokeANewerVerifiedScope() async throws {
         let store = try SwiftDataStore.inMemory()
         let transport = ScriptedSharedDataCompatibilityTransport(history: .legacyAccount)
@@ -315,6 +369,7 @@ struct DataCompatibilityCoordinatorTests {
         )
         let access = try await coordinator.refresh()
         #expect(access.requiredMajor == 1)
+        #expect(access.identity == .local(storeID: DataCompatibilityTestSupport.storeID))
         try access.validate()
     }
 

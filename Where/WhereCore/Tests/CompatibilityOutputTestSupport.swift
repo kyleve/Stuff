@@ -79,6 +79,7 @@ enum CompatibilityOutputTestSupport {
     static func access() throws -> DataCompatibilityAccess {
         try DataCompatibilityAccess(
             base: SwiftDataStore.inMemory(),
+            identity: .local(storeID: .init(rawValue: "output-fixture")),
             requiredMajor: 0,
             policy: .foundation,
             onFailure: { _, _ in },

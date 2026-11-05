@@ -49,6 +49,10 @@ Returned values and external outputs still need publication guards in their owni
 The [bounded write model](../Specifications/CompatibilityWrites/README.md) documents these limits and the Swift regression guards.
 
 `DataCompatibilityCoordinator` separates local datasets from shared accounts.
+Each `DataCompatibilityAccess.identity` captures its admitted store and, for shared data, account identity.
+This immutable metadata does not grant access. Validate the current permit before using it for publication or notification routing.
+The composition root adds its configured CloudKit container when binding a local sidecar.
+An account change revokes existing access even if its verification cache disappeared during the process.
 Local initialization uses a guarded store transaction. Shared initialization verifies the account and private zone inventory, then conditionally creates one control head.
 Any existing non-control custom zone is conservatively legacy, even if empty.
 `CloudKitDataCompatibilityTransport` uses a separate control zone and conditional change-tag saves.

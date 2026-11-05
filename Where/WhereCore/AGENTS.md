@@ -69,6 +69,8 @@ That document also owns the implementation plan.
   Invalidate durable grants before fetching shared requirements. Re-enable them only after
   pending reads drain; a failed high-floor save must not expose an older grant after relaunch.
   Guards: `DataCompatibilityCoordinatorTests`, `CloudKitDataCompatibilityTransportTests`.
+- Keep admitted dataset identity immutable on each access. Never relabel an existing scope after an account change or missing sidecar.
+  Treat identity as routing metadata, not a write grant. Guard: `DataCompatibilityCoordinatorTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.
