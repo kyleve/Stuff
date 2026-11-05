@@ -237,6 +237,7 @@ That document also owns the implementation plan.
   Encode CSV from that immutable result. Preserve logical dates and specific region identities; do not apply display grouping.
   Guards: `HistoryCompletenessTests` and `ReportReaderTests`.
 - Discover historical years from resolved recording dates, manual/evidence history, and source or opaque control scopes. Unknown context contributes possible search years, never assigned dates.
+  Ongoing opaque intervals contribute their start years and apply to other discovered history; do not invent an expiration or future history years.
   Preserve missing-predecessor uncertainty and removal cutoffs. Ordinary hints alone do not create history. Guards: `LocationHistoryReaderInventoryTests` and `HistoryYearInventoryTests`.
 - Publish widget dates as `CalendarDay`. Carry the full assessment policy and independent day/year eligibility.
   Withhold unresolved counts. Reject cached assessments from another policy version; keep stale-day retention separate.

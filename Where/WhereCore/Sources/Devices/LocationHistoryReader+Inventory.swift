@@ -72,6 +72,20 @@ extension LocationHistoryReader {
                         for period in periods {
                             try inventory.includePossibleYears(in: period)
                         }
+                    case let .intervals(intervals):
+                        for interval in intervals {
+                            if let end = interval.end {
+                                try inventory.includePossibleYears(in: .init(
+                                    start: interval.start,
+                                    end: end,
+                                ))
+                            } else {
+                                // Keep a dated entry point for the unknown control. Like an
+                                // entire-history scope, its ongoing tail applies to other
+                                // discovered years without inventing years of future history.
+                                try inventory.includePossibleYears(at: interval.start)
+                            }
+                        }
                 }
             }
             return inventory.years

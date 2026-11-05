@@ -3,6 +3,51 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct LocationHistoryReaderInventoryTests {
+    @Test func ongoingOpaqueScopeKeepsItsStartAndKnownHistoryWithoutInventingFutureYears(
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let sample = try LocationHistoryReaderTestSupport.sample(
+            seconds: WhereCoreTestSupport.iso("2005-06-01T12:00:00Z")
+                .timeIntervalSinceReferenceDate,
+        )
+        try await LocationHistoryReaderTestSupport.add([sample], to: store)
+        let opaque = try VersionedHistoryRecord(
+            id: .init(rawValue: UUID()),
+            dataGenerationID: .initial,
+            semantics: .init(major: 1, minor: 1, patch: 0),
+            scope: .intervals([
+                .init(
+                    start: WhereCoreTestSupport
+                        .iso("1998-06-01T12:00:00Z"),
+                    end: WhereCoreTestSupport
+                        .iso("1999-06-01T12:00:00Z"),
+                ),
+                .init(
+                    start: WhereCoreTestSupport
+                        .iso("2001-06-01T12:00:00Z"),
+                    end: nil,
+                ),
+            ]),
+            kind: "fixture.future-place",
+            payload: Data(),
+        )
+        try await store.perform { try await store.addVersionedHistoryRecord(opaque) }
+        let reader = LocationHistoryReaderTestSupport.reader(store)
+        #expect(try await reader
+            .historyYears(calendar: LocationHistoryReaderTestSupport.calendar) ==
+            [1998, 1999, 2001, 2005])
+        let projection = try await reader.projection(
+            in: DateInterval(start: sample.timestamp, duration: 1),
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        guard case let .recording(selection) = projection.contract
+        else { Issue.record("Expected recording selection"); return }
+        #expect(selection.issues
+            .contains { $0.problem == .controls(.unknownControls([opaque.id])) })
+        #expect(projection.samples.isEmpty)
+        #expect(try await store.allSamples() == [sample])
+    }
+
     @Test func recordedLogicalYearSurvivesAChangedViewingZone() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let zone = try #require(TimeZone(secondsFromGMT: -3600))
@@ -120,7 +165,7 @@ struct LocationHistoryReaderInventoryTests {
             store: store,
         )
         try await RecordingChoiceTestSupport.append(
-            .place(RecordingControlsTestSupport.place(1812)),
+            .place(RecordingControlsTestSupport.place(1812, end: nil)),
             store: store,
         )
         try await RecordingChoiceTestSupport.append(.calendar(RecordingControlsTestSupport.calendar(
