@@ -1,7 +1,7 @@
 /// Retains the work the user entered, independently of later derived issue identifiers.
 /// This is an in-memory reference, not a notification payload or permission to write history.
 public struct RecordingReviewReference: Hashable, Sendable {
-    public struct Context: Hashable, Sendable {
+    public struct Context: Hashable, Codable, Sendable {
         public let historicalYear: Int
         public let query: LocationHistoryQuery
 
@@ -24,6 +24,22 @@ public struct RecordingReviewReference: Hashable, Sendable {
     public let scopeID: RecordingReviewSnapshot.ScopeID
     public let generationID: WhereDataGenerationID
     public let policyVersion: DataSemanticsVersion
+
+    /// Only the validated durable notification boundary may bind saved work to a new scope.
+    /// The original derived identity can be absent after a split, merge, or resolution.
+    init(
+        saved: RecordingReviewNotification.Reference,
+        scopeID: RecordingReviewSnapshot.ScopeID,
+        generationID: WhereDataGenerationID,
+        policyVersion: DataSemanticsVersion,
+    ) {
+        issueID = saved.issueID
+        originalPeriods = saved.originalPeriods
+        context = saved.context
+        self.scopeID = scopeID
+        self.generationID = generationID
+        self.policyVersion = policyVersion
+    }
 
     public init(
         issue: RecordingIssue,

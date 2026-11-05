@@ -2,7 +2,7 @@ import Foundation
 
 /// A logical date range is independent of the viewing zone. Store reads cover every supported
 /// recording offset; callers filter selected contributions by logical day after assessment.
-public enum LocationHistoryQuery: Hashable, Sendable {
+public enum LocationHistoryQuery: Hashable, Codable, Sendable {
     case instants(RecordingPeriod)
     case days(ClosedRange<CalendarDay>)
 

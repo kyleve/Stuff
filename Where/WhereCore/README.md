@@ -436,7 +436,11 @@ one it belongs to rather than to a god-object:
   `RecordingReviewQueue.remaining(in:)` matches current issues by absolute overlap, including new device evidence and changed logical dates.
   A merged issue supplies context, while each queue item retains the exact periods available for a choice. Overlapping references share work without filling gaps.
   `RecordingReviewSnapshot` must cover every original period before an empty result can establish resolution. A different service, generation, or major fails reassessment.
-  These values support in-memory review. They do not authorize writes or provide a persistent notification format.
+  These values support in-memory review and do not authorize writes.
+  `RecordingReviewNotification` saves original issue identities, periods, and year/query contexts with an account/container/store binding and generation.
+  Restore requires the current binding, compatible major, and a fresh snapshot covering every original period. Only then does it bind references to the new scanner lifetime.
+  `FileRecordingReviewNotificationStore` stores immutable contexts atomically in protected, backup-excluded files. System requests can carry their opaque IDs.
+  Missing files return absence; unreadable, corrupt, mismatched, or conflicting files throw. Scheduling and notification-entry integration remain pending.
   `DataIssueScanner.recordingReview(periods:)` supplies fresh snapshots through the shared `ReportReader` and `LocationHistoryReader`.
   It assesses all requested absolute periods in one store snapshot, with bounded adjacent context. It never filters rival evidence by the original logical year.
   `reassess(_:)` reads a queue's original periods and rejects references from another scanner lifetime. Invalidated completions retry; cancelled and failed reads throw.

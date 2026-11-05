@@ -5,7 +5,7 @@ import Foundation
 public struct RecordingIssue: Hashable, Sendable, Identifiable {
     /// A derived presentation identity. A review queue must retain its original scope separately,
     /// because reassessment can split, merge, or move this boundary.
-    public struct ID: Hashable, Sendable {
+    public struct ID: Hashable, Codable, Sendable {
         public let period: RecordingPeriod
     }
 

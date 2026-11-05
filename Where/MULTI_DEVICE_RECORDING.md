@@ -1420,6 +1420,13 @@ Guide affected history-report exports into review before producing the report.
 Add the local update alert, duplicate suppression, permission fallback, and current-state routing to the appropriate update destination.
 Explain beta use across devices and the compatibility requirement for return to the App Store build during setup and updates.
 Handle stale save proposals with a refreshed review before another confirmation.
+**Durable recording-review context implemented:** `RecordingReviewNotification` retains original identities, periods, years, and queries across launches.
+Restore requires the same account/container/store and data generation, a compatible major, and fresh assessment of every original period.
+It rebinds to the current scanner lifetime without adding intervening gaps or unrelated work.
+The protected, backup-excluded file store keeps each notification context immutable. Malformed or unreadable context remains an error.
+Focused fixtures cover relaunch, splits, merges, account changes, reset, partial assessment, and storage failure.
+These are routing primitives. The system scheduler and notification-entry flow do not use them yet.
+
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
 Deduplicate overlapping work without expanding choices across gaps or unreviewed periods.
