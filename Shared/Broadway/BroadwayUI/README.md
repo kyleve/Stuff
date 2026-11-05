@@ -5,7 +5,7 @@ UIKit + SwiftUI components that carry a `BContext` (from BroadwayCore) through t
 ## Public API
 
 - **`BRootViewController`** — a container view controller that owns the root `BContext`, observes system trait changes via `BTraitsObserver`, and republishes the context to descendants through `traitOverrides`. The designated initializer wraps any `UIViewController`. A convenience initializer hosts SwiftUI content directly.
-- **`BRootView` / `.broadwayRoot(themes:)`** — the SwiftUI-native root. Seeds a root `BContext` from the live system traits (`@Environment(\.colorScheme)`, `\.dynamicTypeSize`, and `BAccessibility.changes()`) plus the given `themes`, and injects it so descendants read `@Environment(\.bContext)`. Unlike the UIKit root it takes `themes`, letting an app seed palette/typography at the root.
+- **`BRootView` / `.broadwayRoot(themes:)`** — the SwiftUI-native root. Seeds a root `BContext` from the live system traits (`@Environment(\.colorScheme)`, `\.dynamicTypeSize`, both size classes, and `BAccessibility.changes()`) plus the given `themes`, and injects it so descendants read `@Environment(\.bContext)`. Unlike the UIKit root it takes `themes`, letting an app seed palette/typography at the root.
 - **`BTraitOverridesViewController`** — scopes trait overrides to a subtree while preserving inherited base traits and themes.
 - **SwiftUI bridges** — `BContext+SwiftUI` resolves `@Environment(\.bContext)`, preferring a synchronous pure-SwiftUI value (set by `BRootView` / `broadwayRoot` / `bTraitOverrides`, and mirrored into UIKit traits so it also reaches nested UIKit) and falling back to the UIKit trait-bridged value when none is set. Plus `BTraitOverrides+SwiftUI` and the `BMode` / `BContentSizeCategory` initializers from `ColorScheme` / `DynamicTypeSize` (`BTraitValues+SwiftUI`).
 
@@ -29,6 +29,10 @@ WindowGroup {
         .broadwayRoot(themes: appThemes)
 }
 ```
+
+The root observes horizontal and vertical size classes through SwiftUI.
+`bHorizontalSizeClass(_:)` and `bVerticalSizeClass(_:)` scope Broadway layout policies to a subtree.
+These overrides affect stylesheets; native container traits remain under system control.
 
 ## Install
 
