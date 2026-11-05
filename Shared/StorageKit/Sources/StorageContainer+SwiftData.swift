@@ -37,7 +37,25 @@ public struct SwiftDataStorage: Sendable {
         named name: StorageKey = "store",
         cloudKit: CloudKitOption = .none,
     ) async throws -> ModelContainer {
-        try await container.makeModelContainer(for: types, named: name, cloudKit: cloudKit)
+        try await container.makeModelContainer(
+            for: types,
+            named: name,
+            cloudKit: cloudKit,
+        )
+    }
+
+    /// Create an independent, disk-free container for synchronous previews and tests.
+    /// CloudKit is always disabled. No StorageSystem or temporary directory is needed.
+    public static func inMemoryModelContainer(
+        for types: [any PersistentModel.Type],
+    ) throws -> ModelContainer {
+        let schema = Schema(types)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none,
+        )
+        return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
 
@@ -55,6 +73,9 @@ extension StorageContainer {
         if let cached = modelContainerCache[name] {
             guard cached.typeIDs == typeIDs else {
                 throw StorageError.modelStoreSchemaMismatch(name)
+            }
+            guard cached.cloudKit == cloudKit else {
+                throw StorageError.modelStoreConfigurationMismatch(name)
             }
             return cached.container
         }
@@ -81,7 +102,11 @@ extension StorageContainer {
                 )
         }
         let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
-        modelContainerCache[name] = CachedModelStore(container: modelContainer, typeIDs: typeIDs)
+        modelContainerCache[name] = CachedModelStore(
+            container: modelContainer,
+            typeIDs: typeIDs,
+            cloudKit: cloudKit,
+        )
         return modelContainer
     }
 }

@@ -119,3 +119,6 @@ Before shipping a schema change:
 On a fresh install, onboarding recommends automatic recording On for an iPhone only when no other device recently reported recording, and Off for an iPad/other device or explicit rejoin, then requires the user to confirm.
 Existing installations created before that choice was introduced revisit only the final recording page once.
 Enabling is the only path that asks for location access.
+
+The Inspector runtime awaits the StorageKit-backed Where factory with CloudKit disabled.
+Its recovery configuration points to the same StorageKit store inside the App Group as regular launch.

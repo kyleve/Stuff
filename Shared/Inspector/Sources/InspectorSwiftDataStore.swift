@@ -12,10 +12,12 @@ import SwiftData
 /// the latest committed state; reads and confirmed mutations serialize here.
 actor InspectorSwiftDataStore {
     private var container: ModelContainer?
+    /// File protection outlives the live handle, including failed or suspended reopen.
+    private let configuredStoreURLs: [URL]
     private let modelTypes: [any PersistentModel.Type]?
     private let rowLimit: Int?
     private let valueFormatter: (@Sendable (Any) -> String?)?
-    private let makeContainer: (@Sendable () throws -> ModelContainer)?
+    private let makeContainer: (@Sendable () async throws -> ModelContainer)?
     private let recoveryStorage: InspectorSwiftDataStoreFamily.RecoveryStorage?
     private let fileManager = FileManager()
 
@@ -24,10 +26,11 @@ actor InspectorSwiftDataStore {
         modelTypes: [any PersistentModel.Type]?,
         rowLimit: Int?,
         valueFormatter: (@Sendable (Any) -> String?)?,
-        makeContainer: (@Sendable () throws -> ModelContainer)?,
+        makeContainer: (@Sendable () async throws -> ModelContainer)?,
         recoveryStorage: InspectorSwiftDataStoreFamily.RecoveryStorage?,
     ) {
         self.container = container
+        configuredStoreURLs = container.configurations.map(\.url)
         self.modelTypes = modelTypes
         self.rowLimit = rowLimit
         self.valueFormatter = valueFormatter
@@ -35,8 +38,10 @@ actor InspectorSwiftDataStore {
         self.recoveryStorage = recoveryStorage
     }
 
-    init(source: InspectorConfiguration.SwiftDataSource) throws {
-        container = try source.makeContainer()
+    init(source: InspectorConfiguration.SwiftDataSource) async throws {
+        let opened = try await source.makeContainer()
+        container = opened
+        configuredStoreURLs = opened.configurations.map(\.url)
         modelTypes = source.modelTypes
         rowLimit = source.rowLimit
         valueFormatter = source.valueFormatter
@@ -48,7 +53,7 @@ actor InspectorSwiftDataStore {
     }
 
     var storeURLs: [URL] {
-        container?.configurations.map(\.url) ?? []
+        configuredStoreURLs
     }
 
     /// Enumerate the store's entities with live counts and column headers, sorted
@@ -203,12 +208,12 @@ actor InspectorSwiftDataStore {
 
     /// Erase the complete store using SwiftData's supported API, then replace
     /// this actor's only container reference with a newly opened empty one.
-    func eraseAndReopen() throws -> [URL] {
+    func eraseAndReopen() async throws -> [URL] {
         guard let makeContainer else {
             throw InspectorSwiftDataStoreError.erasureUnavailable
         }
         var erasedContainer: ModelContainer? = try openContainer()
-        let reopened = try Self.performEraseAndReopen(
+        let reopened = try await Self.performEraseAndReopen(
             erase: {
                 try erasedContainer?.erase()
                 try recoveryStorage?.erase(using: fileManager)
@@ -225,15 +230,17 @@ actor InspectorSwiftDataStore {
 
     /// Honor cancellation before destructive work, then always finish
     /// discarding and reopening once erasure has begun.
-    static func performEraseAndReopen<Reopened>(
+    nonisolated(nonsending) static func performEraseAndReopen<Reopened: Sendable>(
         erase: () throws -> Void,
         discard: () -> Void,
-        reopen: () throws -> Reopened,
-    ) throws -> Reopened {
+        reopen: @escaping @Sendable () async throws -> Reopened,
+    ) async throws -> Reopened {
         try Task.checkCancellation()
         try erase()
         discard()
-        return try reopen()
+        // The irreversible erase already committed. A cancelled UI task must
+        // not cancel the replacement factory at its next suspension point.
+        return try await Task.detached(priority: Task.currentPriority, operation: reopen).value
     }
 
     private func openContainer() throws -> ModelContainer {
@@ -377,7 +384,7 @@ actor InspectorSwiftDataStore {
     }
 }
 
-private enum InspectorSwiftDataStoreError: LocalizedError {
+enum InspectorSwiftDataStoreError: LocalizedError, Equatable {
     case containerUnavailable
     case erasureUnavailable
 

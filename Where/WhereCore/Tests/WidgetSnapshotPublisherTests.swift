@@ -54,7 +54,7 @@ struct WidgetSnapshotPublisherTests {
     @Test func incompleteDestructiveGenerationReplacesSensitiveSnapshotWithEmptyState(
     ) async throws {
         let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let aggregator = DayAggregator(
             calendar: WhereCoreTestSupport.calendar(),
