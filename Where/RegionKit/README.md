@@ -106,7 +106,8 @@ An ordered array of entries, one per available region:
 
 One FeatureCollection per region (a single `Polygon`/`MultiPolygon` feature,
 exterior rings only). `RegionAttributor` loads only the files for the regions
-it's asked to attribute, so we never parse the whole US at launch.
+it's asked to attribute. Where loads its full historical catalog lazily through
+`HistoryRegionAttribution`; live attribution continues to load only tracked regions.
 
 ### Regenerating
 

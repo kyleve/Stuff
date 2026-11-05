@@ -402,7 +402,7 @@ public actor LocationIngestor {
         }
         let interval = DateInterval(start: startOfDay, end: endOfDay)
         do {
-            let existing = try await LocationHistoryReader(store: store).samples(in: interval)
+            let existing = try await store.samples(in: interval)
             if existing.contains(where: {
                 $0.source.isGPS
                     && ($0.recordingDeviceID == recordingDeviceID

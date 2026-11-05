@@ -31,6 +31,11 @@ struct WidgetSnapshotPublisherTests {
         )
         let reader = WidgetDataReader(
             store: store,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
             aggregator: aggregator,
             attributor: RegionAttributor.shared,
         )
@@ -64,6 +69,11 @@ struct WidgetSnapshotPublisherTests {
         )
         let reader = WidgetDataReader(
             store: store,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
             aggregator: aggregator,
             attributor: RegionAttributor.shared,
         )

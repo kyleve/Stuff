@@ -67,16 +67,16 @@ public struct WidgetDataReader: Sendable {
     private let store: any WhereStore
     private let aggregator: DayAggregator
     private let attributor: any RegionAttributing
-    private var history: LocationHistoryReader {
-        LocationHistoryReader(store: store)
-    }
+    let history: LocationHistoryReader
 
     public init(
         store: any WhereStore,
+        history: LocationHistoryReader,
         aggregator: DayAggregator = DayAggregator(),
         attributor: any RegionAttributing = RegionAttributor.shared,
     ) {
         self.store = store
+        self.history = history
         self.aggregator = aggregator
         self.attributor = attributor
     }

@@ -36,7 +36,11 @@ struct SampleAttributionResetTests {
             ))
         }
 
-        let projection = try await LocationHistoryReader(store: h.store).projection(
+        let projection = try await LocationHistoryReader(
+            store: h.store,
+            policy: .foundation,
+            geography: HistoryRegionAttribution(),
+        ).projection(
             in: h.interval,
             attributor: SampleCorrectionTestSupport.attribution,
         )

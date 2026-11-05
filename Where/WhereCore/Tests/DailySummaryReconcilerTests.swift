@@ -18,6 +18,11 @@ struct DailySummaryReconcilerTests {
             store: store,
             aggregator: aggregator,
             attributor: RegionAttributor.shared,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         let spy = SpyDailySummaryScheduler()
         let reconciler = DailySummaryReconciler(

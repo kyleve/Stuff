@@ -69,6 +69,11 @@ struct DataIssueScannerTests {
             store: store,
             aggregator: DayAggregator(calendar: Self.calendar, timeZone: Self.calendar.timeZone),
             attributor: RegionAttributor.shared,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         return DataIssueScanner(
             reportReader: reader,
@@ -91,6 +96,11 @@ struct DataIssueScannerTests {
                 store: store,
                 aggregator: SampleCorrectionTestSupport.aggregator,
                 attributor: attributor,
+                history: LocationHistoryReader(
+                    store: store,
+                    policy: .foundation,
+                    geography: HistoryRegionAttribution(),
+                ),
             ),
             attributor: attributor,
             calendar: SampleCorrectionTestSupport.calendar,
@@ -460,6 +470,11 @@ struct DataIssueScannerTests {
             store: store,
             aggregator: SampleCorrectionTestSupport.aggregator,
             attributor: SampleCorrectionTestSupport.attribution,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         let report = try await reader.yearReport(for: 2026)
         let abruptChanges = AbruptLocationChangeDetector().detectIssues(
@@ -609,6 +624,11 @@ struct DataIssueScannerTests {
             store: store,
             aggregator: SampleCorrectionTestSupport.aggregator,
             attributor: SampleCorrectionTestSupport.attribution,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         let beforeReport = try await reader.yearReport(for: 2026)
         let first = try await scanner.scan(

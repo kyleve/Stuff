@@ -16,6 +16,11 @@ struct ReportReaderTests {
             store: store,
             aggregator: aggregator,
             attributor: RegionAttributor.shared,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         return (reader, store)
     }
@@ -286,7 +291,8 @@ struct ReportReaderTests {
             ))
         }
         let details = try await reader.yearReportDetails(for: 2026)
-        let resolved = try await ElsewhereResolver().resolve(details.elsewhereInput)
+        let resolved = try await ElsewhereResolver(geography: HistoryRegionAttribution())
+            .resolve(details.elsewhereInput)
         #expect(try resolved.regions.map(\.region) == [#require(Region(rawValue: "us-NV"))])
         #expect(resolved.regions.first?.days.count == 1)
         #expect(resolved.regions.first?.locations.flatMap(\.points).count == 1)
@@ -304,7 +310,8 @@ struct ReportReaderTests {
         let after = try await reader.yearReportDetails(for: 2026)
         #expect(before.report == after.report)
         #expect(before.elsewhereInput != after.elsewhereInput)
-        #expect(try await ElsewhereResolver().resolve(after.elsewhereInput).regions.count == 2)
+        #expect(try await ElsewhereResolver(geography: HistoryRegionAttribution())
+            .resolve(after.elsewhereInput).regions.count == 2)
         #expect(try await reader.yearReport(for: 2026) == before.report)
 
         try await store.perform {
@@ -316,7 +323,8 @@ struct ReportReaderTests {
             ))
         }
         let corrected = try await reader.yearReportDetails(for: 2026)
-        let resolved = try await ElsewhereResolver().resolve(corrected.elsewhereInput)
+        let resolved = try await ElsewhereResolver(geography: HistoryRegionAttribution())
+            .resolve(corrected.elsewhereInput)
         #expect(try resolved.regions.map(\.region) == [#require(Region(rawValue: "us-OR"))])
     }
 

@@ -1304,7 +1304,11 @@ It preserves raw observations, returns selected contributions, and exposes unres
 Multiple-region corrections and explicit unknown or excluded presence remain distinct before reporting groups are applied.
 Attributed contributions now carry a separate selected logical day. Aggregation preserves that day across viewing zones.
 Logical date queries provide offset-complete search bounds before filtering selected contributions.
-The consumers below still require integration. Production remains on the foundation contract.
+`LocationHistoryReader` now performs that join in one store snapshot, with bounded adjacent evidence.
+One lazy historical catalog serves both selection and Elsewhere. Internal capture deduplication still reads raw observations.
+Elsewhere preserves selected dates, specific GPS geography, explicit unknown presence, and non-GPS enrichment.
+Report query integration, completeness, export gates, and flight boundaries below remain in progress.
+Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.
 Group selected observations by resolved recording day consistently across consumers.

@@ -146,7 +146,18 @@ public struct WhereServices: Sendable {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
-        let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
+        let historyGeography = HistoryRegionAttribution()
+        let history = LocationHistoryReader(
+            store: store,
+            policy: compatibilityPolicy,
+            geography: historyGeography,
+        )
+        let reports = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: attributor,
+            history: history,
+        )
         let evidence = EvidenceReader(store: store, aggregator: aggregator)
         // Built before the reconcilers that consume it: the reminder reconciler
         // folds its unresolved-issue count into the app-icon badge, and the
@@ -185,6 +196,7 @@ public struct WhereServices: Sendable {
         // everything else reported.
         let widgetReader = WidgetDataReader(
             store: store,
+            history: history,
             aggregator: aggregator,
             attributor: attributor,
         )
@@ -298,7 +310,7 @@ public struct WhereServices: Sendable {
         )
         let currentRegion = CurrentRegionResolver(ingestor: ingestor, attributor: attributor)
         self.reports = reports
-        elsewhere = ElsewhereResolver()
+        elsewhere = ElsewhereResolver(geography: historyGeography)
         self.evidence = evidence
         sharedEvidence = SharedEvidenceImporter(
             store: store,

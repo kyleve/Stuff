@@ -103,6 +103,11 @@ enum SampleCorrectionTestSupport {
             services: services,
             widgets: WidgetDataReader(
                 store: store,
+                history: LocationHistoryReader(
+                    store: store,
+                    policy: .foundation,
+                    geography: HistoryRegionAttribution(),
+                ),
                 aggregator: aggregator,
                 attributor: attribution,
             ),

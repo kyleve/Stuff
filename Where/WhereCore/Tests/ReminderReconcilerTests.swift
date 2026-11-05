@@ -25,6 +25,11 @@ struct ReminderReconcilerTests {
             store: store,
             aggregator: aggregator,
             attributor: RegionAttributor.shared,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         let scanner = DataIssueScanner(
             reportReader: reader,

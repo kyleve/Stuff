@@ -4,6 +4,5 @@ import PeriscopeCore
 enum ElsewhereResolverLog {
     enum SpanName: Hashable {
         case resolve
-        case loadCatalog
     }
 }

@@ -314,9 +314,11 @@ one it belongs to rather than to a god-object:
   `YearReportDetails` keeps the aggregate report, configured primary set, effective
   locations, and `ElsewhereInput` on one store snapshot. Its identity includes
   location-only changes that do not alter day totals.
-- **`ElsewhereResolver`** — an injected actor that lazily resolves ordinary Other
-  coordinates against the existing catalog. Its `ElsewhereReport` keeps distinct
-  days and map points together. Explicit corrections and manual assertions win.
+- **`ElsewhereResolver`** — an injected actor that enriches foundation and non-GPS
+  Other coordinates. Recording-contract GPS retains the shared selection's specific geography,
+  unknown presence, and logical days. Its `ElsewhereReport` keeps days and map points together.
+  Explicit corrections and manual assertions win. `HistoryRegionAttribution` supplies one
+  lazy full-catalog lookup shared with history selection.
   The projection does not change stored data, annual reports, or widget totals.
 - **`YearReport` / `YearReportDetails` / `DayPresence` /
   `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
@@ -368,10 +370,13 @@ one it belongs to rather than to a god-object:
   installation can rename or remove a device identity, but cannot change its recording consent.
   `devices()` supplies active device configurations. `displayNames()` supplies the latest saved names,
   including removed devices, for historical labels.
-- **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
-  and foreground capture checks. It hides a removed identity's GPS samples at
-  and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
-  without provenance, and user-asserted samples lossless.
+- **`LocationHistoryReader`** — the shared history boundary for reports and widgets.
+  Foundation reads apply removal cutoffs and corrections. Admitted recording reads join controls,
+  calendar context, corrections, and full-catalog geography in one store snapshot.
+  They return selected logical-day contributions plus unresolved periods and their candidate dates.
+  `LocationHistoryQuery` distinguishes logical dates from exact instant windows.
+  Selection keeps adjacent evidence before clipping and never activates a dataset by reading it.
+  Internal capture deduplication and backups read raw storage.
 
 ### Detection, notifications & the rest
 

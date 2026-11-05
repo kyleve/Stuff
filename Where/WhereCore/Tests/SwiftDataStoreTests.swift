@@ -329,7 +329,11 @@ struct SwiftDataStoreTests {
             ))
         }
 
-        let projection = try await LocationHistoryReader(store: store).projection(
+        let projection = try await LocationHistoryReader(
+            store: store,
+            policy: .foundation,
+            geography: HistoryRegionAttribution(),
+        ).projection(
             in: interval,
             attributor: SampleCorrectionTestSupport.attribution,
         )

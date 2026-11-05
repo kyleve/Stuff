@@ -1,64 +1,167 @@
 import Foundation
 import RegionKit
 
-/// Shared policy-aware read path for every user-facing projection of location
-/// history. The store remains a raw, lossless persistence boundary; this reader
-/// applies the effective device cutoffs before data reaches reports or widgets.
+/// The shared history read path. One store snapshot supplies raw observations, corrections,
+/// calendar context, and device controls before any consumer groups the selected geography.
 public struct LocationHistoryReader: Sendable {
     private let store: any WhereStore
+    private let policy: DataCompatibilityPolicy
+    private let geography: HistoryRegionAttribution
 
-    public init(store: any WhereStore) {
+    public init(
+        store: any WhereStore,
+        policy: DataCompatibilityPolicy,
+        geography: HistoryRegionAttribution,
+    ) {
         self.store = store
+        self.policy = policy
+        self.geography = geography
     }
 
-    public func samples(in interval: DateInterval) async throws -> [LocationSample] {
+    public func projection(
+        for query: LocationHistoryQuery,
+        calendar: Calendar,
+        attributor: any RegionAttributing,
+    ) async throws -> LocationHistoryProjection {
         try await store.readSnapshot {
-            async let samples = store.samples(in: interval)
-            async let removals = store.recordingDeviceRemovals()
-            let (resolvedSamples, resolvedRemovals) = try await (
-                samples,
-                removals,
-            )
-            return RecordingDeviceRemovalFilter.visibleSamples(
-                resolvedSamples,
-                removals: resolvedRemovals,
+            // Foundation stores already enforce their admitted major at the physical read.
+            // Merely shipping the next resolver must not activate an existing dataset.
+            let major = policy.supportedMajors == [0] ? 0 : try await store.dataContractMajor()
+            try policy.validate(requiredMajor: major)
+            if major == 0 {
+                return try await foundationProjection(
+                    within: query.viewingPeriod(in: calendar),
+                    attributor: attributor,
+                )
+            }
+            guard major == RecordingEvidencePolicy.version.major else {
+                throw RecordingHistorySelection.ValidationError.unsupportedPolicy
+            }
+            return try await recordingProjection(
+                for: query,
+                calendar: calendar,
+                attributor: attributor,
             )
         }
     }
 
-    /// Join corrections after applying device cutoffs. Store and trajectory reads
-    /// remain lossless; only the region attribution changes.
+    /// Exact instant reads do not depend on a viewing calendar. Logical-date callers use the
+    /// explicit query overload so a year or day boundary cannot truncate recording evidence.
     public func projection(
         in interval: DateInterval,
         attributor: any RegionAttributing,
     ) async throws -> LocationHistoryProjection {
-        try await store.readSnapshot {
-            let attribution = try await attributionSnapshot(attributor)
-            let visible = try await samples(in: interval)
-                .sorted { lhs, rhs in
-                    if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
-                    return lhs.id.uuidString < rhs.id.uuidString
-                }
-            let revisions = try await store.sampleAttributionRevisions(for: Set(visible.map(\.id)))
-                .sorted { $0.id < $1.id }
-            var winners: [UUID: SampleAttributionRevision] = [:]
-            for revision in revisions {
-                if let current = winners[revision.sampleID],
-                   !SampleAttributionRevision.newer(revision, than: current) { continue }
-                winners[revision.sampleID] = revision
-            }
-            return LocationHistoryProjection(
-                samples: visible.map { sample in
-                    let replacement = sample.source.isGPS
-                        ? winners[sample.id]?.replacementRegions : nil
-                    return AttributedLocationSample(
-                        sample: sample,
-                        regions: replacement ?? [attribution.region(at: sample.coordinate)],
-                    )
-                },
-                revisions: revisions,
+        try await projection(
+            for: .instants(RecordingPeriod(start: interval.start, end: interval.end)),
+            calendar: Calendar(identifier: .gregorian),
+            attributor: attributor,
+        )
+    }
+
+    private func foundationProjection(
+        within period: RecordingPeriod,
+        attributor: any RegionAttributing,
+    ) async throws -> LocationHistoryProjection {
+        let attribution = try await attributionSnapshot(attributor)
+        let samples = try await store.samples(in: DateInterval(
+            start: period.start,
+            end: period.end,
+        ))
+        let removals = try await store.recordingDeviceRemovals()
+        let visible = RecordingDeviceRemovalFilter.visibleSamples(samples, removals: removals)
+            .sorted(by: Self.ordered)
+        let revisions = try await store.sampleAttributionRevisions(for: Set(visible.map(\.id)))
+            .sorted { $0.id < $1.id }
+        let winners = Self.winners(revisions)
+        return LocationHistoryProjection(
+            samples: visible.map { sample in
+                let replacement = sample.source.isGPS ? winners[sample.id]?.replacementRegions : nil
+                return AttributedLocationSample(
+                    sample: sample,
+                    regions: replacement ?? [attribution.region(at: sample.coordinate)],
+                )
+            },
+            revisions: revisions,
+        )
+    }
+
+    private func recordingProjection(
+        for query: LocationHistoryQuery,
+        calendar: Calendar,
+        attributor: any RegionAttributing,
+    ) async throws -> LocationHistoryProjection {
+        let period = try query.recordingPeriod()
+        let padding = RecordingEvidencePolicy.evidencePadding
+        let samples = try await store.samples(in: DateInterval(
+            start: period.start.addingTimeInterval(-padding),
+            end: period.end.addingTimeInterval(padding),
+        )).sorted(by: Self.ordered)
+        let controls = try await RecordingControlStore(store: store, policy: policy).snapshot()
+        let removals = try await store.recordingDeviceRemovals()
+        let revisions = try await store.sampleAttributionRevisions(for: Set(samples.map(\.id)))
+            .sorted { $0.id < $1.id }
+        let winners = Self.winners(revisions)
+        let catalog = await geography.snapshot()
+        let observations = try samples.filter(\.source.isGPS).map { sample in
+            let regions = winners[sample.id]?
+                .replacementRegions ?? [catalog.region(at: sample.coordinate)]
+            return try RecordingObservation(
+                sample: sample,
+                recordingDay: RecordingCalendarResolver.assignment(
+                    for: sample,
+                    decisions: controls.calendarContexts,
+                    version: policy.current,
+                ),
+                geography: RecordingGeography(
+                    knownRegions: regions.subtracting([.other]),
+                    includesUnknownPresence: regions.contains(.other),
+                ),
             )
         }
+        let selected = try RecordingHistorySelection.resolve(
+            observations: observations,
+            controls: controls,
+            removals: removals,
+            within: period,
+            version: policy.current,
+        )
+        var entries = try selected.contributions.map { observation in
+            guard let day = observation.recordingDay.day else {
+                throw DataCompatibilityError.incompleteRecord
+            }
+            return AttributedLocationSample(
+                sample: observation.sample,
+                regions: observation.geography.presence,
+                day: .recording(day),
+            )
+        }
+        let attribution = try await attributionSnapshot(attributor)
+        entries.append(contentsOf: samples.filter { !$0.source.isGPS }.map {
+            AttributedLocationSample(sample: $0, regions: [attribution.region(at: $0.coordinate)])
+        })
+        return LocationHistoryProjection(
+            samples: entries.filter { query.contains($0, viewingCalendar: calendar) }
+                .sorted { Self.ordered($0.sample, $1.sample) },
+            revisions: revisions,
+            contract: .recording(selected),
+        )
+    }
+
+    private static func ordered(_ lhs: LocationSample, _ rhs: LocationSample) -> Bool {
+        if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
+        return lhs.id.uuidString < rhs.id.uuidString
+    }
+
+    private static func winners(_ revisions: [SampleAttributionRevision])
+        -> [UUID: SampleAttributionRevision]
+    {
+        var winners: [UUID: SampleAttributionRevision] = [:]
+        for revision in revisions {
+            if let current = winners[revision.sampleID],
+               !SampleAttributionRevision.newer(revision, than: current) { continue }
+            winners[revision.sampleID] = revision
+        }
+        return winners
     }
 
     func attributionSnapshot(_ attributor: any RegionAttributing) async throws

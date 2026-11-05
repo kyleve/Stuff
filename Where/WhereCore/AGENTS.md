@@ -136,7 +136,7 @@ That document also owns the implementation plan.
   development default.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
-  `trackedRegions()`. Picking scopes GPS attribution *and* carries each
+  `trackedRegions()`. Picking scopes live GPS attribution and foundation reports. It also carries each
   region's `RegionAppearance` + pick order. `RegionAppearance` carries the
   persisted `RegionSymbol`. Its mapping to SFSafeSymbols and `Color` is
   presentation (WhereUI).
@@ -220,12 +220,16 @@ That document also owns the implementation plan.
   Apply removal cutoffs before correction revisions. Reports, maps, artwork,
   widgets, summaries, reminders, and intents use effective attribution; trajectory
   assessment and review retain raw observations. Pin live attribution to the
-  tracked set in the same store snapshot.
+  tracked set in the same store snapshot. For an admitted recording contract, join controls,
+  corrections, and calendar context before selection. Load adjacent evidence before clipping.
+  Share one lazy `HistoryRegionAttribution` between selection and Elsewhere.
+  Guard: `LocationHistoryReaderTests`.
 - **Read related year projections from one samples snapshot.** Use
   `ReportReader.yearReportDetails(for:)` for the scene's report, configured
   primary set, primary-region locations, and Elsewhere evidence.
 - **Elsewhere is a read-only projection.** `ElsewhereResolver` expands ordinary
-  Other coordinates against the catalog on its actor. Preserve explicit sample
+  Other coordinates through the injected historical catalog. Recording-contract GPS already
+  carries full-catalog geography; never reinterpret its unknown presence. Preserve explicit sample
   corrections and manual assertions. Never write inferred names back to reports,
   calendars, or widget totals. Load full-catalog geometry only on demand.
 - **`LocationSource` abstracts GPS.** `CoreLocationSource` runs in production.

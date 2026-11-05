@@ -52,7 +52,11 @@ struct DayJournalTests {
         }
         #expect(try await h.reader.yearReport(for: h.day.year).days.first?
             .regions == originalRegions)
-        let projection = try await LocationHistoryReader(store: h.store).projection(
+        let projection = try await LocationHistoryReader(
+            store: h.store,
+            policy: .foundation,
+            geography: HistoryRegionAttribution(),
+        ).projection(
             in: h.interval,
             attributor: SampleCorrectionTestSupport.attribution,
         )
@@ -115,6 +119,11 @@ struct DayJournalTests {
             store: store,
             aggregator: aggregator,
             attributor: RegionAttributor.shared,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
         let scanner = DataIssueScanner(
             reportReader: reader,
@@ -140,6 +149,11 @@ struct DayJournalTests {
         let widgets = WidgetSnapshotPublisher(
             widgetReader: WidgetDataReader(
                 store: store,
+                history: LocationHistoryReader(
+                    store: store,
+                    policy: .foundation,
+                    geography: HistoryRegionAttribution(),
+                ),
                 aggregator: aggregator,
                 attributor: RegionAttributor.shared,
             ),

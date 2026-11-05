@@ -65,8 +65,7 @@ public struct RecordingReviewQuery: Hashable, Sendable {
     }
 
     func evidencePeriods() throws -> [RecordingPeriod] {
-        let padding = RecordingEvidencePolicy.maximumObservationGap
-            + RecordingEvidencePolicy.contextPadding + RecordingEvidencePolicy.pointSupport
+        let padding = RecordingEvidencePolicy.evidencePadding
         return try RecordingPeriod.union(periods.map {
             try RecordingPeriod(
                 start: $0.start.addingTimeInterval(-padding),

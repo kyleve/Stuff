@@ -8,6 +8,11 @@ struct WidgetDataReaderTests {
         let store = try SwiftDataStore.inMemory()
         let reader = WidgetDataReader(
             store: store,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
             aggregator: DayAggregator(
                 calendar: WhereCoreTestSupport.calendar(),
                 timeZone: WhereCoreTestSupport.pacific,

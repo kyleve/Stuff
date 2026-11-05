@@ -23,6 +23,11 @@ struct TimeZoneIndependenceTests {
             store: store,
             aggregator: DayAggregator(timeZone: timeZone),
             attributor: RegionAttributor.shared,
+            history: LocationHistoryReader(
+                store: store,
+                policy: .foundation,
+                geography: HistoryRegionAttribution(),
+            ),
         )
     }
 

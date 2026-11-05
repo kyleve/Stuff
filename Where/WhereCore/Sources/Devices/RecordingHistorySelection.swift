@@ -42,6 +42,7 @@ public struct RecordingHistorySelection: Hashable, Sendable {
     public enum ValidationError: Error { case unsupportedPolicy }
 
     public let contributions: [RecordingObservation]
+    public let controls: [RecordingControlSelection.Segment]
     public let segments: [Segment]
     public let issues: [Issue]
     public let policyVersion: DataSemanticsVersion
@@ -134,6 +135,7 @@ public struct RecordingHistorySelection: Hashable, Sendable {
         }
         return Self(
             contributions: ordered.filter { builder.contributingIDs.contains($0.sample.id) },
+            controls: controlSegments,
             segments: builder.segments,
             issues: builder.issues,
             policyVersion: version,

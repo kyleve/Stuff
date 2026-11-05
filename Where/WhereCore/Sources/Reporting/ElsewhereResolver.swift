@@ -9,23 +9,20 @@ public protocol ElsewhereResolving: Sendable {
 /// Resolves only automatically attributed Other observations. Geometry is loaded
 /// lazily on this actor, outside the ingestion path and the main actor.
 public actor ElsewhereResolver: ElsewhereResolving {
-    private var catalog: (any RegionAttributing)?
+    private let geography: HistoryRegionAttribution
     private static let logger = WhereLog.reporting(ElsewhereResolverLog.self)
 
-    public init() {}
-
-    @_spi(Testing)
-    public init(catalog: any RegionAttributing) {
-        self.catalog = catalog
+    public init(geography: HistoryRegionAttribution) {
+        self.geography = geography
     }
 
     public func resolve(_ input: ElsewhereInput) async throws -> ElsewhereReport {
-        try Self.logger.measure(.resolve, budget: .seconds(1)) {
-            try resolveSnapshot(input)
+        try await Self.logger.measure(.resolve, budget: .seconds(1)) {
+            try await resolveSnapshot(input)
         }
     }
 
-    private func resolveSnapshot(_ input: ElsewhereInput) throws -> ElsewhereReport {
+    private func resolveSnapshot(_ input: ElsewhereInput) async throws -> ElsewhereReport {
         try Task.checkCancellation()
         let originalDays = Dictionary(uniqueKeysWithValues: input.report.days.map { ($0.day, $0) })
         let authoritative = Dictionary(
@@ -43,17 +40,28 @@ public actor ElsewhereResolver: ElsewhereResolving {
         var resolvedHistory: [AttributedLocationSample] = []
         for entry in input.history.samples {
             try Task.checkCancellation()
-            let day = CalendarDay(from: entry.sample.timestamp, in: input.calendar)
+            let day = entry.calendarDay(in: input.calendar)
             guard originalDays[day] != nil else { continue }
             var regions = entry.regions
+            let hasSpecificGPSGeography: Bool = switch input.history.contract {
+                case .foundation: false
+                case .recording: entry.sample.source.isGPS
+            }
             if let asserted = authoritative[day] {
-                // Whole-day assertions win; GPS can illustrate only their exact regions.
+                // An explicit unknown overlay keeps non-primary points as illustrations of
+                // Other. The full catalog must not rename that user assertion.
+                if hasSpecificGPSGeography, asserted.contains(.other),
+                   revisions[entry.sample.id]?.replacementRegions == nil,
+                   !regions.subtracting(input.primaryRegions).isEmpty
+                {
+                    regions.insert(.other)
+                }
                 regions.formIntersection(asserted)
-            } else if regions.contains(.other),
+            } else if !hasSpecificGPSGeography, regions.contains(.other),
                       !(entry.sample.source.isGPS && revisions[entry.sample.id]?
                           .replacementRegions != nil)
             {
-                let named = catalogRegion(at: entry.sample.coordinate)
+                let named = await geography.snapshot().region(at: entry.sample.coordinate)
                 // Never turn enrichment into a new primary credit.
                 if !input.primaryRegions.contains(named) {
                     regions.remove(.other)
@@ -65,10 +73,7 @@ public actor ElsewhereResolver: ElsewhereResolving {
                 daysByRegion[region, default: []].insert(day)
             }
             if !regions.isEmpty {
-                resolvedHistory.append(AttributedLocationSample(
-                    sample: entry.sample,
-                    regions: regions,
-                ))
+                resolvedHistory.append(entry.replacingRegions(regions))
             }
         }
 
@@ -95,14 +100,5 @@ public actor ElsewhereResolver: ElsewhereResolving {
         }
         try Task.checkCancellation()
         return ElsewhereReport(year: input.report.year, regions: regions)
-    }
-
-    private func catalogRegion(at coordinate: Coordinate) -> Region {
-        if let catalog { return catalog.region(at: coordinate) }
-        let loaded = Self.logger.measure(.loadCatalog, budget: .seconds(1)) {
-            RegionAttributor(for: RegionCatalog.shared.all)
-        }
-        catalog = loaded
-        return loaded.region(at: coordinate)
     }
 }

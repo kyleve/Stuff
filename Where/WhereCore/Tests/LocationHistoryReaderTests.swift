@@ -29,14 +29,17 @@ struct LocationHistoryReaderTests {
             try await h.store.addSampleAttributionRevision(override)
             try await h.store.addSampleAttributionRevision(exclusion)
         }
-        let reader = LocationHistoryReader(store: h.store)
+        let reader = LocationHistoryReader(
+            store: h.store,
+            policy: .foundation,
+            geography: HistoryRegionAttribution(),
+        )
         let corrected = try await reader.projection(
             in: h.interval,
             attributor: SampleCorrectionTestSupport.attribution,
         )
         #expect(corrected.samples.map(\.regions) == [[.newYork], []])
         #expect(corrected.rawSamples == samples)
-        #expect(try await reader.samples(in: h.interval) == samples)
         #expect(try await h.store.allSamples().sorted { $0.timestamp < $1.timestamp } == samples)
 
         try await h.coordinator.reset(sampleIDs: Set(samples.map(\.id)))
@@ -90,7 +93,11 @@ struct LocationHistoryReaderTests {
                 removedByDeviceID: FlightTrajectoryFixtures.device,
             ))
         }
-        let projection = try await LocationHistoryReader(store: h.store).projection(
+        let projection = try await LocationHistoryReader(
+            store: h.store,
+            policy: .foundation,
+            geography: HistoryRegionAttribution(),
+        ).projection(
             in: h.interval,
             attributor: SampleCorrectionTestSupport.attribution,
         )
@@ -102,5 +109,213 @@ struct LocationHistoryReaderTests {
             .newYork,
             .california,
         ])
+    }
+
+    @Test func recordingSelectionUsesSpecificGeographyBeforePrimaryGrouping() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let first = try [0.0, 600, 1200].map {
+            try LocationHistoryReaderTestSupport.sample(seconds: $0, longitude: -122 + $0 / 30000)
+        }
+        let second = try [0.0, 600, 1200].map {
+            try LocationHistoryReaderTestSupport.sample(
+                seconds: $0,
+                deviceID: LocationHistoryReaderTestSupport.second,
+                longitude: -74 + $0 / 30000,
+            )
+        }
+        let later = try LocationHistoryReaderTestSupport.sample(seconds: 7200)
+        try await LocationHistoryReaderTestSupport.add(first + second + [later], to: store)
+        let reader = LocationHistoryReaderTestSupport.reader(store)
+        let original = try await LocationHistoryReaderTestSupport.projection(reader, end: 7201)
+        #expect(original.rawSamples == [later])
+        #expect(original.samples.map(\.regions) == [[.california]])
+        guard case let .recording(selection) = original.contract else {
+            Issue.record("Expected recording selection")
+            return
+        }
+        #expect(!selection.issues.isEmpty)
+        #expect(selection.policyVersion == RecordingEvidencePolicy.version)
+        #expect(original.reportingSamples(primaryRegions: []).map(\.regions) == [[.other]])
+        #expect(original.reportingSamples(primaryRegions: [.california])
+            .map(\.regions) == [[.california]])
+        let changedPrimary = try await reader.projection(
+            for: .instants(RecordingAssessmentTestSupport.period(0, 7201)),
+            calendar: LocationHistoryReaderTestSupport.calendar,
+            attributor: RegionAttributor(for: [.newYork]),
+        )
+        #expect(changedPrimary == original)
+        #expect(try await store.allSamples().count == 7)
+    }
+
+    @Test func logicalDateQueryRetainsUTCAdjacentYearAndTheRawAssignment() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let zone = try #require(TimeZone(secondsFromGMT: -3600))
+        let sample = try LocationHistoryReaderTestSupport.sample(seconds: 1800, zone: zone)
+        try await LocationHistoryReaderTestSupport.add([sample], to: store)
+        let day = CalendarDay(year: 2000, month: 12, day: 31)
+        let reader = LocationHistoryReaderTestSupport.reader(store)
+        for hours in [-12, 0, 14] {
+            var calendar = LocationHistoryReaderTestSupport.calendar
+            calendar.timeZone = try #require(TimeZone(secondsFromGMT: hours * 3600))
+            let projection = try await reader.projection(
+                for: .days(CalendarDay.yearRange(2000)),
+                calendar: calendar,
+                attributor: RegionAttributor(for: []),
+            )
+            #expect(projection.rawSamples == [sample])
+            #expect(projection.samples.first?.day == .recording(day))
+            #expect(projection.samples.first?.calendarDay(in: calendar) == day)
+            let nextYear = try await reader.projection(
+                for: .days(CalendarDay.yearRange(2001)),
+                calendar: calendar,
+                attributor: RegionAttributor(for: []),
+            )
+            #expect(nextYear.samples.isEmpty)
+        }
+    }
+
+    @Test func explicitUnknownAndExcludedCorrectionsNeverUseCatalogFallback() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let first = try LocationHistoryReaderTestSupport.sample(seconds: 0)
+        let second = try LocationHistoryReaderTestSupport.sample(seconds: 600)
+        try await LocationHistoryReaderTestSupport.add([first, second], to: store)
+        try await store.perform {
+            for sample in [first, second] {
+                let regions: Set<Region> = sample.id == first.id ? [.other] : []
+                try await store.addSampleAttributionRevision(.init(
+                    id: .init(rawValue: UUID()),
+                    sampleID: sample.id,
+                    updatedAt: RecordingAssessmentTestSupport.time(2000),
+                    replacementRegions: regions,
+                ))
+            }
+        }
+        let projection = try await LocationHistoryReaderTestSupport.projection(
+            LocationHistoryReaderTestSupport.reader(store),
+        )
+        #expect(projection.rawSamples == [first, second])
+        #expect(projection.samples.map(\.regions) == [[.other], []])
+        guard case let .recording(selected) = projection.contract else {
+            Issue.record("Expected recording selection")
+            return
+        }
+        #expect(selected.contributions.map(\.geography.knownRegions) == [[], []])
+        #expect(selected.issues.isEmpty)
+    }
+
+    @Test func calendarRecoveryUpdatesEffectiveDayWithoutRewritingRawUnknown() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let sample = try LocationHistoryReaderTestSupport.sample(
+            seconds: 10,
+            assignment: .unresolved,
+        )
+        try await LocationHistoryReaderTestSupport.add([sample], to: store)
+        let reader = LocationHistoryReaderTestSupport.reader(store)
+        let before = try await LocationHistoryReaderTestSupport.projection(reader)
+        #expect(before.samples.isEmpty)
+        guard case let .recording(unresolved) = before.contract else {
+            Issue.record("Expected recording selection")
+            return
+        }
+        #expect(unresolved.issues.first?.days == .unassigned(known: []))
+        let context = try RecordingCalendarContext(timeZone: .gmt, secondsFromGMT: 0)
+        try await RecordingChoiceTestSupport.append(.calendar(RecordingControlsTestSupport.calendar(
+            900,
+            action: .establish(context),
+        )), store: store)
+        let after = try await LocationHistoryReaderTestSupport.projection(reader)
+        #expect(after.rawSamples == [sample])
+        #expect(after.samples.first?.day == .recording(.init(year: 2001, month: 1, day: 1)))
+        #expect(try await store.allSamples() == [sample])
+    }
+
+    @Test func explicitChoiceBypassesIgnoreAndRemovalStillLeavesAnExclusiveGap() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let first = try LocationHistoryReaderTestSupport.sample(seconds: 0)
+        let next = try LocationHistoryReaderTestSupport.sample(seconds: 600)
+        let other = try LocationHistoryReaderTestSupport.sample(
+            seconds: 600,
+            deviceID: LocationHistoryReaderTestSupport.second,
+            longitude: -74,
+        )
+        try await LocationHistoryReaderTestSupport.add([first, next, other], to: store)
+        try await RecordingChoiceTestSupport.append(
+            .ignore(RecordingControlsTestSupport.ignore(910)),
+            store: store,
+        )
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(911, end: 1201)),
+            store: store,
+        )
+        let reader = LocationHistoryReaderTestSupport.reader(store)
+        #expect(try await LocationHistoryReaderTestSupport.projection(reader).rawSamples == [
+            first,
+            next,
+        ])
+        try await store.perform {
+            try await store
+                .addRecordingDeviceRemoval(RecordingControlSelectionTestSupport.removal(at: 600))
+        }
+        let removed = try await LocationHistoryReaderTestSupport.projection(reader)
+        #expect(removed.rawSamples == [first])
+        guard case let .recording(selection) = removed.contract else {
+            Issue.record("Expected recording selection")
+            return
+        }
+        #expect(selection.issues.contains {
+            $0.problem == .controls(.selectedDeviceRemoved(LocationHistoryReaderTestSupport.first))
+        })
+        #expect(try await store.allSamples().count == 3)
+    }
+
+    @Test func narrowQueryUsesAdjacentMovementBeforeClipping() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let moving = try [0.0, 600, 1200].map {
+            try LocationHistoryReaderTestSupport.sample(seconds: $0, longitude: -122 + $0 / 30000)
+        }
+        let stationary = try [0.0, 600, 1200].map {
+            try LocationHistoryReaderTestSupport.sample(
+                seconds: $0,
+                deviceID: LocationHistoryReaderTestSupport.second,
+                longitude: -74,
+            )
+        }
+        try await LocationHistoryReaderTestSupport.add(moving + stationary, to: store)
+        let reader = LocationHistoryReaderTestSupport.reader(store)
+        let full = try await LocationHistoryReaderTestSupport.projection(reader)
+        let narrow = try await LocationHistoryReaderTestSupport.projection(
+            reader,
+            start: 600,
+            end: 601,
+        )
+        #expect(full.rawSamples == moving)
+        #expect(narrow.rawSamples == [moving[1]])
+        guard case let .recording(selection) = narrow.contract else {
+            Issue.record("Expected recording selection")
+            return
+        }
+        #expect(selection.issues.isEmpty)
+        #expect(selection.segments.first?
+            .resolution ==
+            .automatic(.movingOverStationary(LocationHistoryReaderTestSupport.first)))
+    }
+
+    @Test func supportingMajorOneDoesNotActivateAnExistingFoundationDataset() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = FlightTrajectoryFixtures.sample(990, minutes: 1, east: 0)
+        try await store.perform { try await store.add(sample: sample) }
+        let reader = LocationHistoryReader(
+            store: store,
+            policy: .init(current: RecordingEvidencePolicy.version, supportedMajors: [0, 1]),
+            geography: HistoryRegionAttribution(),
+        )
+        let projection = try await reader.projection(
+            in: DateInterval(start: sample.timestamp, duration: 1),
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(projection.contract == .foundation)
+        #expect(projection.rawSamples == [sample])
+        #expect(projection.samples.first?.day == .viewingCalendar)
+        #expect(try await store.dataContractMajor() == 0)
     }
 }

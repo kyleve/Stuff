@@ -15,6 +15,8 @@ public enum RecordingEvidencePolicy {
     public static let contextPadding: TimeInterval = 30 * 60
     /// An isolated point remains assessable without extending its position across a gap.
     public static let pointSupport: TimeInterval = 1
+    /// Read enough adjacent fixes for coverage and movement before clipping the requested window.
+    public static let evidencePadding = maximumObservationGap + contextPadding + pointSupport
     /// Three independent positions and ten minutes are required for movement evidence.
     public static let minimumObservationCount = 3
     public static let minimumMovingDuration: TimeInterval = 10 * 60
