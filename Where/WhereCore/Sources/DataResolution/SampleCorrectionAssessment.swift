@@ -11,13 +11,11 @@ struct SampleCorrectionAssessment {
 
     func reviews(
         reads: DataIssueReads,
-        primaryRegions: [Region],
         driftThresholdMeters: Double,
         now: Date,
-    ) -> [GPSCorrectionReview] {
-        assess(
+    ) throws -> [GPSCorrectionReview] {
+        try assess(
             reads: reads,
-            primaryRegions: primaryRegions,
             driftThresholdMeters: driftThresholdMeters,
             now: now,
         ).reviews
@@ -30,20 +28,19 @@ struct SampleCorrectionAssessment {
 
     func assess(
         reads: DataIssueReads,
-        primaryRegions: [Region],
         driftThresholdMeters: Double,
         now: Date,
-    ) -> Assessment {
+    ) throws -> Assessment {
         // Infer flights from raw observations across midnight. Existing corrections
         // must not erase the evidence that explains why those samples were edited.
         let flights = FlightTrajectoryAnalyzer().analyze(
-            samples: reads.history.rawSamples,
+            history: reads.history,
             now: now,
         )
         // Bucket effective attribution only after trajectory analysis. This keeps
         // flight inference independent of the calendar used to show the review.
         let byDay = Dictionary(grouping: reads.history.samples) {
-            CalendarDay(from: $0.sample.timestamp, in: calendar)
+            $0.calendarDay(in: calendar)
         }
         // Revisions follow a sample identity across days. A conflict anywhere
         // in the reviewed snapshot must prevent correcting that identity.
@@ -51,40 +48,33 @@ struct SampleCorrectionAssessment {
             grouping: reads.history.samples,
             by: \.sample.id,
         ).filter { Set($0.value).count > 1 }.keys)
-        let revisionsBySample = Dictionary(grouping: reads.history.revisions, by: \.sampleID)
         let allAirborne = flights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
         // Produce one review per report day. Adjacent-day observations provide
         // corroborating neighbors without adding edits outside that reviewed day.
-        let reviews: [GPSCorrectionReview] = byDay.keys.filter { $0.year == reads.report.year }
+        let reviews: [GPSCorrectionReview] = try byDay.keys.filter { $0.year == reads.report.year }
             .sorted().compactMap { day in
-                let start = day.startOfDay(in: calendar)
-                guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
-                    assertionFailure("Cannot derive a calendar day's successor")
-                    return nil
+                let query = LocationHistoryQuery.days(day ... day)
+                let dayPeriod: RecordingPeriod = switch reads.history.contract {
+                    case .foundation: try query.viewingPeriod(in: calendar)
+                    case .recording: try query.recordingPeriod()
                 }
-                let contextStart = start
-                    .addingTimeInterval(-GPSCorrectionPolicy.Review.contextPaddingInterval)
-                let contextEnd = end
-                    .addingTimeInterval(GPSCorrectionPolicy.Review.contextPaddingInterval)
-                let contextDays = CalendarDay(from: contextStart, in: calendar)
-                    .days(through: CalendarDay(from: contextEnd, in: calendar))
-                let context = contextDays.flatMap { byDay[$0] ?? [] }.filter {
-                    $0.sample.timestamp >= contextStart && $0.sample.timestamp < contextEnd
-                }.sorted { $0.sample.timestamp < $1.sample.timestamp }
-                return review(
+                let contextPeriod = try RecordingPeriod(
+                    start: dayPeriod.start
+                        .addingTimeInterval(-GPSCorrectionPolicy.Review.contextPaddingInterval),
+                    end: dayPeriod.end
+                        .addingTimeInterval(GPSCorrectionPolicy.Review.contextPaddingInterval),
+                )
+                return try review(
                     day: day,
+                    dayPeriod: dayPeriod,
                     entries: byDay[day] ?? [],
                     conflictingSampleIDs: conflictingSampleIDs,
                     allAirborne: allAirborne,
                     flights: flights,
                     reads: reads,
-                    primaryRegions: primaryRegions,
+                    primaryRegions: reads.primaryRegions,
                     driftThresholdMeters: driftThresholdMeters,
-                    context: LocationHistoryProjection(
-                        samples: context,
-                        revisions: context.flatMap { revisionsBySample[$0.sample.id] ?? [] }
-                            .sorted { $0.id < $1.id },
-                    ),
+                    context: reads.history.clipped(to: contextPeriod),
                 )
             }
         return Assessment(flights: flights, reviews: reviews)
@@ -92,6 +82,7 @@ struct SampleCorrectionAssessment {
 
     private func review(
         day: CalendarDay,
+        dayPeriod: RecordingPeriod,
         entries: [AttributedLocationSample],
         conflictingSampleIDs: Set<UUID>,
         allAirborne: Set<UUID>,
@@ -100,12 +91,7 @@ struct SampleCorrectionAssessment {
         primaryRegions: [Region],
         driftThresholdMeters: Double,
         context: LocationHistoryProjection,
-    ) -> GPSCorrectionReview? {
-        let start = day.startOfDay(in: calendar)
-        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
-            assertionFailure("Cannot derive the end of a Gregorian day")
-            return nil
-        }
+    ) throws -> GPSCorrectionReview? {
         // Keep supported travel and pending observations on their own days.
         // An existing exclusion in an arrival gap also needs a review so it can
         // be withdrawn. This does not extend the flight's supported intervals.
@@ -113,7 +99,7 @@ struct SampleCorrectionAssessment {
         let dayFlights = flights.filter { flight in
             switch flight.progress {
                 case .completed:
-                    flight.supportedIntervals.contains { $0.start < end && $0.end >= start }
+                    flight.completedDays(in: calendar).contains(day)
                         || (canRestore && entries.contains {
                             $0.regions.isEmpty && !conflictingSampleIDs.contains($0.sample.id)
                                 && FlightPointCorrectionAssessment.contains(
@@ -123,7 +109,19 @@ struct SampleCorrectionAssessment {
                                 )
                         })
                 case .flightLikely, .awaitingArrival:
-                    flight.startedAt < end && flight.lastObservationAt >= start
+                    switch reads.history.contract {
+                        case .foundation:
+                            flight.startedAt < dayPeriod.end && flight
+                                .lastObservationAt >= dayPeriod.start
+                        case .recording:
+                            entries.contains {
+                                $0.sample.recordingDeviceID
+                                    .map(FlightAssessment.RecordingSource.device) == flight.id
+                                    .recordingSource
+                                    && $0.sample.timestamp >= flight.startedAt && $0.sample
+                                    .timestamp <= flight.lastObservationAt
+                            }
+                    }
             }
         }
         let presence = reads.report.days.first { $0.day == day }
@@ -139,24 +137,31 @@ struct SampleCorrectionAssessment {
             history: context,
             manualDays: reads.manualDays.filter { $0.day == day },
             primaryRegions: primaryRegions,
-            trackedRegions: attributor.loadedRegions,
+            trackedRegions: reads.attribution.loadedRegions,
             driftThresholdMeters: driftThresholdMeters,
             calendar: calendar,
             flights: dayFlights,
         )
-        let pointCorrections = FlightPointCorrectionAssessment(attributor: attributor).corrections(
-            day: day,
-            entries: entries,
-            conflictingSampleIDs: conflictingSampleIDs,
-            dataGenerationID: reads.dataGenerationID,
-            evidence: evidence,
-        )
+        let pointCorrections = try FlightPointCorrectionAssessment(attributor: attributor)
+            .corrections(
+                day: day,
+                entries: entries,
+                conflictingSampleIDs: conflictingSampleIDs,
+                dataGenerationID: reads.dataGenerationID,
+                evidence: evidence,
+            )
 
         // Boundary corroboration stays on one recording device. Samples from a
         // second device cannot establish where this device was before or after.
         let boundaryEvidence = Dictionary(grouping: context.samples.filter {
             $0.sample.source.isGPS && usable($0.sample)
         }, by: \.sample.recordingDeviceID)
+        var exclusions: [RecordingDeviceID: [RecordingPeriod]] = [:]
+        if case let .recording(selection) = context.contract {
+            for deviceID in boundaryEvidence.keys.compactMap(\.self) {
+                exclusions[deviceID] = selection.trajectoryExclusions(for: deviceID)
+            }
+        }
         // Edit only airborne samples from this day's completed flights. Exclude
         // all flights from boundary corroboration, including flights on nearby days.
         let airborne = completedFlights.reduce(into: Set<UUID>()) {
@@ -189,6 +194,7 @@ struct SampleCorrectionAssessment {
                     for: entry,
                     neighbors: boundaryEvidence[entry.sample.recordingDeviceID] ?? [],
                     airborne: allAirborne,
+                    exclusions: entry.sample.recordingDeviceID.flatMap { exclusions[$0] } ?? [],
                     primaryRegions: primaryRegions,
                     threshold: driftThresholdMeters,
                 ), entry.regions != [region] {
@@ -211,15 +217,13 @@ struct SampleCorrectionAssessment {
         ) })
         // Compute the displayed result through the ordinary day aggregator so
         // manual assertions retain the same precedence as the eventual Apply.
-        let corrected = entries.map {
-            AttributedLocationSample(
-                sample: $0.sample,
-                regions: replacement[$0.sample.id] ?? $0.regions,
-            )
-        }
-        let resulting = DayAggregator(calendar: calendar, timeZone: calendar.timeZone)
-            .report(for: day.year, history: corrected, manualDays: manuals)
-            .days.first { $0.day == day }?.regions ?? []
+        let resulting = try context.previewRegions(
+            on: day,
+            applying: replacement,
+            primaryRegions: Set(primaryRegions),
+            manualDays: manuals,
+            calendar: calendar,
+        )
 
         // Capture all decision inputs with the proposal. Apply must reassess them
         // inside its store transaction before writing these exact sample edits.
@@ -270,6 +274,7 @@ struct SampleCorrectionAssessment {
         for entry: AttributedLocationSample,
         neighbors: [AttributedLocationSample],
         airborne: Set<UUID>,
+        exclusions: [RecordingPeriod],
         primaryRegions: [Region],
         threshold: Double,
     ) -> Region? {
@@ -295,6 +300,9 @@ struct SampleCorrectionAssessment {
         guard beforeIndex >= 0, afterIndex < neighbors.count else { return nil }
         let before = neighbors[beforeIndex]
         let after = neighbors[afterIndex]
+        guard !exclusions.contains(where: {
+            $0.start <= after.sample.timestamp && before.sample.timestamp < $0.end
+        }) else { return nil }
         // Ten minutes bounds each side of the visit. Longer gaps or fast motion
         // can hide genuine travel, so those samples must remain uncorrected.
         guard sample.timestamp.timeIntervalSince(before.sample.timestamp)

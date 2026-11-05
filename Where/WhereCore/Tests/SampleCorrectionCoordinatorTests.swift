@@ -4,6 +4,236 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SampleCorrectionCoordinatorTests {
+    @Test(arguments: [false, true])
+    func recordingCorrectionPreviewReassessesCompetingDeviceGeography(
+        pointDecision: Bool,
+    ) async throws {
+        let moving = (0 ... 8).map { index in
+            FlightTrajectoryFixtures.sample(
+                index + 1,
+                minutes: Double(index * 5),
+                east: Double(index * 75),
+            )
+        } + (9 ... 11).map { index in
+            FlightTrajectoryFixtures.sample(index + 1, minutes: Double(index * 5), east: 600)
+        }
+        let stationary = (0 ... 8).map { index in
+            FlightTrajectoryFixtures.sample(
+                index + 101,
+                minutes: Double(index * 5),
+                east: 2000,
+                deviceID: RecordingAssessmentTestSupport.second,
+            )
+        }
+        let samples = try RecordingFlightTestSupport.samples(moving + stationary)
+        let targetID = FlightTrajectoryFixtures.sampleID(5)
+        let store = try await RecordingChoiceTestSupport.store()
+        try await store.perform {
+            try await store.setPrimaryRegions([.init(region: .newYork, appearance: nil, order: 0)])
+            for sample in samples {
+                try await store.add(sample: sample)
+                guard sample.recordingDeviceID == FlightTrajectoryFixtures.device else { continue }
+                let isEndpoint = sample.timestamp == moving[0].timestamp || sample
+                    .timestamp >= moving[8].timestamp
+                if isEndpoint || (pointDecision && sample.id != targetID) {
+                    try await store.addSampleAttributionRevision(.init(
+                        id: .init(rawValue: UUID()),
+                        sampleID: sample.id,
+                        updatedAt: FlightTrajectoryFixtures.date(minutes: 60),
+                        replacementRegions: [],
+                    ))
+                }
+            }
+        }
+        let calendar = SampleCorrectionTestSupport.calendar
+        let reports = RecordingFlightTestSupport.reports(
+            store,
+            catalog: RecordingFlightTestSupport.Geography(),
+            calendar: calendar,
+        )
+        let coordinator = RecordingFlightTestSupport.coordinator(
+            store,
+            reports: reports,
+            calendar: calendar,
+            now: FlightTrajectoryFixtures.date(minutes: 60),
+        )
+        let day = CalendarDay(year: 2026, month: 1, day: 1)
+        let review = try #require(await coordinator.review(
+            id: .flightDay(day: day),
+            year: day.year,
+            driftThresholdMeters: 1000,
+        ))
+        #expect(review.day.regions == [.newYork])
+        let preview: Set<Region>
+        let result: SampleCorrectionApplyResult
+        if pointDecision {
+            let correction = try #require(review.pointCorrections.first { $0.sampleID == targetID })
+            #expect(correction.action == .includeInFlight)
+            preview = correction.resultingRegions
+            result = try await coordinator.apply(correction)
+        } else {
+            let proposal = try #require(review.proposal)
+            preview = proposal.resultingRegions
+            result = try await coordinator.apply(proposal)
+        }
+        guard case .applied = result else {
+            Issue.record("An unchanged recording correction must apply")
+            return
+        }
+        let reported = try await reports.yearReport(for: day.year).days.first { $0.day == day }?
+            .regions ?? []
+        #expect(reported.isEmpty)
+        #expect(preview == reported)
+        #expect(try await Set(store.allSamples()) == Set(samples))
+    }
+
+    @Test(arguments: [-12, 0, 14], RecordingFlightTestSupport.RestorationScenario.allCases)
+    func recordingRestorePreviewAndApplyUseSpecificGeographyAndLogicalDay(
+        viewingOffset: Int,
+        configuration: RecordingFlightTestSupport.RestorationScenario,
+    ) async throws {
+        let isPrimary = configuration.isPrimary
+        let trace = FlightTrajectoryFixtures.turningFlight()
+        let samples = try RecordingFlightTestSupport.samples(
+            trace.samples,
+            zone: #require(TimeZone(secondsFromGMT: -4 * 3600)),
+        )
+        let day = CalendarDay(year: 2025, month: 12, day: 31)
+        let store = try await RecordingChoiceTestSupport.store()
+        let primary: Region = isPrimary ? .newYork : .california
+        try await store.perform {
+            try await store.setPrimaryRegions([.init(region: primary, appearance: nil, order: 0)])
+            try await store.setManualDay(.init(day: day, regions: [.canada]))
+            for sample in samples {
+                try await store.add(sample: sample)
+                try await store.addSampleAttributionRevision(.init(
+                    id: .init(rawValue: UUID()),
+                    sampleID: sample.id,
+                    updatedAt: trace.readyAt,
+                    replacementRegions: [],
+                ))
+            }
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: viewingOffset * 3600))
+        let reports = RecordingFlightTestSupport.reports(
+            store,
+            catalog: RecordingFlightTestSupport.Geography(),
+            calendar: calendar,
+        )
+        let coordinator = RecordingFlightTestSupport.coordinator(
+            store,
+            reports: reports,
+            calendar: calendar,
+            now: trace.readyAt,
+        )
+        let review = try await coordinator.review(
+            id: .flightDay(day: day),
+            year: day.year,
+            driftThresholdMeters: 1000,
+        )
+        var restore = try #require(review?.pointCorrections.first {
+            $0.sampleID == FlightTrajectoryFixtures.sampleID(8)
+        })
+        #expect(restore.action == .restoreGPS)
+        #expect(restore.day == day)
+        #expect(restore.resultingRegions == [isPrimary ? .newYork : .other, .canada])
+        if configuration.changesPrimary {
+            try await store.perform {
+                try await store.setPrimaryRegions([.init(
+                    region: isPrimary ? .california : .newYork,
+                    appearance: nil,
+                    order: 0,
+                )])
+            }
+            guard case let .stale(refreshed) = try await coordinator.apply(restore) else {
+                Issue.record("A primary-region edit must invalidate the old restoration preview")
+                return
+            }
+            let refreshedRestore = try #require(refreshed?.pointCorrections.first {
+                $0.sampleID == restore.sampleID
+            })
+            #expect(refreshedRestore.resultingRegions == [isPrimary ? .other : .newYork, .canada])
+            restore = refreshedRestore
+        }
+        guard case .applied = try await coordinator.apply(restore) else {
+            Issue.record("The reviewed recording-day restoration must apply")
+            return
+        }
+        let updated = try await reports.yearReport(for: day.year)
+        #expect(updated.days.first { $0.day == day }?.regions == restore.resultingRegions)
+        let history = try await reports.dataIssueReads(for: day.year).history
+        let entry = try #require(history.samples.first { $0.sample.id == restore.sampleID })
+        #expect(entry.regions == [.newYork])
+        #expect(entry.day == .recording(day))
+        #expect(entry.sample == samples.first { $0.id == restore.sampleID })
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func recordingReviewEqualityIncludesOnlyRelevantSelectionContext(
+        relevant: Bool,
+        isIgnore: Bool,
+    ) async throws {
+        let samples = try RecordingFlightTestSupport.samples([
+            SampleCorrectionAssessmentFixtures.point(101, minutes: 0, longitude: -0.001),
+            SampleCorrectionAssessmentFixtures.point(102, minutes: 5, longitude: 0.0005),
+            SampleCorrectionAssessmentFixtures.point(103, minutes: 10, longitude: -0.001),
+        ])
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        let calendar = SampleCorrectionTestSupport.calendar
+        let reports = RecordingFlightTestSupport.reports(
+            store,
+            catalog: SampleCorrectionAssessmentFixtures.Boundary(),
+            calendar: calendar,
+        )
+        let coordinator = RecordingFlightTestSupport.coordinator(
+            store,
+            reports: reports,
+            calendar: calendar,
+            now: FlightTrajectoryFixtures.date(minutes: 15),
+        )
+        let day = CalendarDay(from: samples[0].timestamp, in: calendar)
+        let review = try await coordinator.review(
+            id: .borderDrift(day: day),
+            year: day.year,
+            driftThresholdMeters: 1000,
+        )
+        let proposal = try #require(review?.proposal)
+        let start: Double = relevant ? 1 : 10 * 24 * 60
+        let controls: [RecordingControl] = if isIgnore {
+            try RecordingFlightTestSupport.control(
+                .ignore,
+                within: RecordingFlightTestSupport.period(start, start + 1),
+            )
+        } else {
+            try [.source(.init(
+                id: RecordingAssessmentTestSupport.decisionID(953),
+                author: FlightTrajectoryFixtures.device,
+                periods: [RecordingFlightTestSupport.period(start, start + 1)],
+                scope: .fixedPeriods,
+                action: .select(FlightTrajectoryFixtures.device),
+                predecessors: [],
+                version: RecordingEvidencePolicy.version,
+            ))]
+        }
+        for control in controls {
+            try await RecordingChoiceTestSupport.append(control, store: store)
+        }
+        switch try await coordinator.apply(proposal) {
+            case let .stale(refreshed):
+                #expect(relevant)
+                if isIgnore {
+                    #expect(refreshed == nil)
+                } else {
+                    #expect(refreshed?.proposal?.edits == proposal.edits)
+                    #expect(refreshed?.proposal?.resultingRegions == proposal.resultingRegions)
+                }
+            case .applied:
+                #expect(!relevant)
+        }
+    }
+
     @Test(arguments: [30.0, 1440.0])
     func uncertainArrivalRetainsRestorationInUnsupportedGaps(excludedMinute: Double) async throws {
         typealias F = FlightTrajectoryFixtures
@@ -37,7 +267,6 @@ struct SampleCorrectionCoordinatorTests {
         let review = try #require(await h.coordinator.review(
             id: reviewID,
             year: day.year,
-            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
             driftThresholdMeters: 1000,
         ))
         let flight = try #require(review.flights.first)
@@ -65,7 +294,6 @@ struct SampleCorrectionCoordinatorTests {
         let refreshed = try await h.coordinator.review(
             id: reviewID,
             year: day.year,
-            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
             driftThresholdMeters: 1000,
         )
         #expect(refreshed?.pointCorrections.contains { $0.sampleID == excluded.id } != true)
@@ -282,7 +510,6 @@ struct SampleCorrectionCoordinatorTests {
         let refreshed = try await h.coordinator.review(
             id: proposal.reviewID,
             year: h.day.year,
-            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
             driftThresholdMeters: 1000,
         )
         let review = try #require(refreshed)
@@ -314,7 +541,6 @@ struct SampleCorrectionCoordinatorTests {
         let review = try await services.corrections.review(
             id: .flightDay(day: day),
             year: day.year,
-            primaryRegions: attributor.loadedRegions,
             driftThresholdMeters: 1000,
         )
         let proposal = try #require(review?.proposal)
@@ -369,7 +595,6 @@ struct SampleCorrectionCoordinatorTests {
         let review = try await services.corrections.review(
             id: .flightDay(day: F.day),
             year: F.day.year,
-            primaryRegions: regions.loadedRegions,
             driftThresholdMeters: 1000,
         )
         let proposal = try #require(review?.proposal)
@@ -412,7 +637,6 @@ struct SampleCorrectionCoordinatorTests {
         let fresh = try await services.corrections.review(
             id: .flightDay(day: F.day),
             year: F.day.year,
-            primaryRegions: regions.loadedRegions,
             driftThresholdMeters: 1000,
         )
         #expect(fresh?.proposal == nil)
@@ -451,7 +675,6 @@ struct SampleCorrectionCoordinatorTests {
         let review = try await services.corrections.review(
             id: .flightDay(day: day),
             year: day.year,
-            primaryRegions: [.california],
             driftThresholdMeters: 1000,
         )
         let proposal = try #require(review?.proposal)
@@ -496,7 +719,6 @@ struct SampleCorrectionCoordinatorTests {
         let fresh = try await h.coordinator.review(
             id: proposal.reviewID,
             year: h.day.year,
-            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
             driftThresholdMeters: 1000,
         )
         #expect(fresh?.proposal == nil)

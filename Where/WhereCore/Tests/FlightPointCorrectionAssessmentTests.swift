@@ -15,7 +15,10 @@ struct FlightPointCorrectionAssessmentTests {
             F.sample(5, minutes: 4325, east: 4000),
             F.sample(6, minutes: 4330, east: 4000),
         ]
-        let reviews = SampleCorrectionAssessmentFixtures.reviews(samples, now: samples[5].timestamp)
+        let reviews = try SampleCorrectionAssessmentFixtures.reviews(
+            samples,
+            now: samples[5].timestamp,
+        )
         let review = try #require(reviews.first { $0.proposal != nil })
         #expect(review.flights.first?.progress.arrival?.isTimingUncertain == true)
         #expect(review.proposal?.edits.map(\.sampleID) == [samples[1].id])
@@ -130,7 +133,7 @@ struct FlightPointCorrectionAssessmentTests {
             isAuthoritative: false,
             audit: nil,
         )] : []
-        let corrections = FlightPointCorrectionAssessment(attributor: attributor).corrections(
+        let corrections = try FlightPointCorrectionAssessment(attributor: attributor).corrections(
             day: day,
             entries: entries,
             conflictingSampleIDs: [],

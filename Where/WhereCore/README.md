@@ -414,6 +414,12 @@ one it belongs to rather than to a god-object:
   `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
   `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
 
+  Recording-contract callers use `analyze(history:now:)` with the shared selection projection.
+  Source choices, ignores, removals, and unresolved periods break tracks, including gaps without observations.
+  Ordinary recording silence can still support corroborated displacement.
+  Each track retains its original device identity. Losing eligibility ends live presentation without establishing arrival.
+  Selected recording-day labels within supported travel intervals determine flight dates, independently of the viewing zone.
+
   `FlightAssessment.Progress.completed` carries typed `Arrival` evidence, including its confirmation time.
   Ground first observed over 30 minutes after supported travel produces `uncertainTiming`.
   That flight remains in history. Only independently supported airborne points remain eligible for exclusion.
@@ -464,6 +470,11 @@ one it belongs to rather than to a god-object:
   leave longer gaps uncorrected because they can hide real travel.
   Proposals carry a GPS-only `Kind` and order edits by timestamp, then sample identity.
   Each reviewed day produces at most one actionable issue.
+  Recording reviews retain logical dates and selection metadata within their observation context.
+  Boundary corroboration cannot cross excluded or unresolved periods.
+  Restoration uses specific geographic attribution. Previews apply reporting groups afterward and preserve manual assertions.
+  Reviews read current primary regions from the same store snapshot.
+  Geographic corrections can change automatic device selection. Previews reassess all competing observations through the shared resolver before counting regions.
 - **`SampleCorrectionCoordinator`** — reviews exact GPS edits and reassesses them
   in the guarded store transaction before Apply. Any changed evidence refreshes
   the review instead of expanding the reviewed sample set. Supported airborne

@@ -73,6 +73,48 @@ public struct FlightTrajectoryAnalyzer: Sendable {
 
     public init() {}
 
+    public func analyze(history: LocationHistoryProjection, now: Date) -> [FlightAssessment] {
+        switch history.contract {
+            case .foundation: return analyze(samples: history.rawSamples, now: now)
+            case let .recording(selection):
+                // Calendar queries filter the presentation rows after selection. Date-line
+                // travel can skip a logical day, so infer physical tracks before that filter.
+                let tracks = Dictionary(grouping: selection.contributions, by: \.deviceID)
+                return tracks.flatMap { deviceID, observations -> [FlightAssessment] in
+                    let exclusions = selection.trajectoryExclusions(for: deviceID)
+                    let ordered = observations.map(\.sample).sorted {
+                        if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
+                        return $0.id.uuidString < $1.id.uuidString
+                    }
+                    var runs: [[LocationSample]] = []
+                    var current: [LocationSample] = []
+                    for sample in ordered {
+                        if let previous = current.last, exclusions.contains(where: {
+                            $0.start <= sample.timestamp && previous.timestamp < $0.end
+                        }) {
+                            runs.append(current)
+                            current = []
+                        }
+                        current.append(sample)
+                    }
+                    if !current.isEmpty { runs.append(current) }
+                    return runs.flatMap { analyzeTrack($0, deviceID: deviceID, now: now) }
+                        .map { flight in
+                            let dated = flight.assigningRecordingDays(from: observations)
+                            if exclusions.contains(where: {
+                                $0.start > flight.lastObservationAt && $0.start <= now
+                            }) {
+                                return dated.endingLivePresentation()
+                            }
+                            return dated
+                        }
+                }.sorted {
+                    if $0.startedAt != $1.startedAt { return $0.startedAt < $1.startedAt }
+                    return $0.id.departureSampleID.uuidString < $1.id.departureSampleID.uuidString
+                }
+        }
+    }
+
     public func analyze(samples: [LocationSample], now: Date) -> [FlightAssessment] {
         // A device change cannot manufacture travel or land another device's flight.
         // Legacy observations form a separate track; asserted locations are not motion evidence.

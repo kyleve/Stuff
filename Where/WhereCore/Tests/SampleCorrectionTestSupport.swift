@@ -80,7 +80,6 @@ enum SampleCorrectionTestSupport {
             let review = try await coordinator.review(
                 id: .flightDay(day: day),
                 year: day.year,
-                primaryRegions: attribution.loadedRegions,
                 driftThresholdMeters: 1000,
             )
             return try #require(review)

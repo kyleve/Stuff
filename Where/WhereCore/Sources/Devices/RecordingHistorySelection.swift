@@ -42,10 +42,14 @@ public struct RecordingHistorySelection: Hashable, Sendable {
     public enum ValidationError: Error { case unsupportedPolicy }
 
     public let contributions: [RecordingObservation]
-    public let controls: [RecordingControlSelection.Segment]
+    public var controls: [RecordingControlSelection.Segment] {
+        evidence.controls.map(\.selection)
+    }
+
     public let segments: [Segment]
     public let issues: [Issue]
     public let policyVersion: DataSemanticsVersion
+    let evidence: Evidence
 
     public static func resolve(
         observations: [RecordingObservation],
@@ -86,8 +90,23 @@ public struct RecordingHistorySelection: Hashable, Sendable {
             query: query,
             version: version,
         )
+        return try resolve(evidence: Evidence(
+            observations: ordered,
+            visibleSampleIDs: retainedIDs,
+            controls: controlSegments.map { .init(
+                selection: $0,
+                declaredDays: declaredDays(for: $0, controls: controls),
+            ) },
+            places: places,
+        ), version: version)
+    }
+
+    static func resolve(evidence: Evidence, version: DataSemanticsVersion) throws -> Self {
+        let ordered = evidence.observations
+        let retained = ordered.filter { evidence.visibleSampleIDs.contains($0.sample.id) }
         var builder = Builder()
-        for control in controlSegments {
+        for context in evidence.controls {
+            let control = context.selection
             switch control.resolution {
                 case let .unresolved(problem):
                     // Keep the same bounded adjacent evidence as automatic conflicts. Clipping
@@ -95,13 +114,13 @@ public struct RecordingHistorySelection: Hashable, Sendable {
                     for assessment in try MultiDeviceAssessment.assess(
                         observations: ordered,
                         within: control.period,
-                        places: places,
+                        places: evidence.places,
                     ) {
                         builder.unresolved(
                             .controls(problem),
                             within: assessment.period,
                             observations: assessment.tracks.flatMap(\.bracketingObservations),
-                            declaredDays: declaredDays(for: control, controls: controls),
+                            declaredDays: context.declaredDays,
                         )
                     }
                 case let .selected(deviceID):
@@ -123,7 +142,7 @@ public struct RecordingHistorySelection: Hashable, Sendable {
                     for assessment in try MultiDeviceAssessment.assess(
                         observations: eligible,
                         within: control.period,
-                        places: places,
+                        places: evidence.places,
                     ) {
                         try builder.include(
                             assessment,
@@ -135,10 +154,10 @@ public struct RecordingHistorySelection: Hashable, Sendable {
         }
         return Self(
             contributions: ordered.filter { builder.contributingIDs.contains($0.sample.id) },
-            controls: controlSegments,
             segments: builder.segments,
             issues: builder.issues,
             policyVersion: version,
+            evidence: evidence,
         )
     }
 

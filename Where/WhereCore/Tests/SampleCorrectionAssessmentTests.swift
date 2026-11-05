@@ -17,7 +17,7 @@ struct SampleCorrectionAssessmentTests {
             F.point(104, minutes: 20, longitude: -0.001),
         ]
         for order in [samples, Array(samples.reversed())] {
-            let reviews = F.reviews(order)
+            let reviews = try F.reviews(order)
             #expect(reviews.count == 1)
             let proposal = try #require(reviews.first?.proposal)
             #expect(proposal.kind == .borderDrift)
@@ -52,7 +52,6 @@ struct SampleCorrectionAssessmentTests {
         let review = try await services.corrections.review(
             id: .flightDay(day: day),
             year: day.year,
-            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
             driftThresholdMeters: 1000,
         )
         let proposal = try #require(review?.proposal)
@@ -87,9 +86,9 @@ struct SampleCorrectionAssessmentTests {
         }
         let attributor: any RegionAttributing = isFlight
             ? SampleCorrectionTestSupport.attribution : F.Boundary()
-        let original = try #require(F.reviews(samples, attributor: attributor).first?.proposal)
+        let original = try #require(try F.reviews(samples, attributor: attributor).first?.proposal)
         for duplicated in [samples + samples, Array((samples + samples).reversed())] {
-            let review = try #require(F.reviews(duplicated, attributor: attributor).first)
+            let review = try #require(try F.reviews(duplicated, attributor: attributor).first)
             let proposal = try #require(review.proposal)
             #expect(proposal.edits == original.edits)
             #expect(proposal.resultingRegions == original.resultingRegions)
@@ -106,12 +105,12 @@ struct SampleCorrectionAssessmentTests {
             F.point(102, minutes: 5, longitude: 0.0005),
             F.point(103, minutes: 10, longitude: -0.001),
         ]
-        let original = try #require(F.reviews(samples).first?.proposal)
+        let original = try #require(try F.reviews(samples).first?.proposal)
         #expect(original.edits.map(\.sampleID) == [samples[1].id])
         let conflict = F.point(102, minutes: conflictMinutes, longitude: 1)
         let now = conflict.timestamp.addingTimeInterval(60)
-        #expect(F.reviews(samples + [conflict], now: now).isEmpty)
-        #expect(F.reviews([conflict] + samples, now: now).isEmpty)
+        #expect(try F.reviews(samples + [conflict], now: now).isEmpty)
+        #expect(try F.reviews([conflict] + samples, now: now).isEmpty)
     }
 
     @Test func boundaryCleanupNamesOnlyTheSupportedSampleAndRetainsDistantEvidence() throws {
@@ -121,7 +120,7 @@ struct SampleCorrectionAssessmentTests {
             F.point(103, minutes: 10, longitude: -0.001),
             F.point(104, minutes: 120, longitude: 1),
         ]
-        let proposal = try #require(F.reviews(samples).first?.proposal)
+        let proposal = try #require(try F.reviews(samples).first?.proposal)
         #expect(proposal.edits == [.init(
             sampleID: samples[1].id,
             replacementRegions: [.california],
@@ -130,38 +129,38 @@ struct SampleCorrectionAssessmentTests {
     }
 
     @Test(arguments: [false, true])
-    func boundaryNeedsIndependentBracketsOnBothSides(missingBefore: Bool) {
+    func boundaryNeedsIndependentBracketsOnBothSides(missingBefore: Bool) throws {
         let bracket = F.point(101, minutes: missingBefore ? 10 : 0, longitude: -0.001)
         let noise = F.point(102, minutes: 5, longitude: 0.0005)
-        #expect(F.reviews([bracket, noise]).isEmpty)
+        #expect(try F.reviews([bracket, noise]).isEmpty)
     }
 
     @Test(arguments: [0.0, 11.0])
-    func simultaneousOrDistantBracketsDoNotSupportDrift(minutes: Double) {
+    func simultaneousOrDistantBracketsDoNotSupportDrift(minutes: Double) throws {
         let samples = [
             F.point(101, minutes: 20 - minutes, longitude: -0.001),
             F.point(102, minutes: 20, longitude: 0.0005),
             F.point(103, minutes: 20 + minutes, longitude: -0.001),
         ]
-        #expect(F.reviews(samples).isEmpty)
+        #expect(try F.reviews(samples).isEmpty)
     }
 
-    @Test func differentDevicesCannotBracketBoundaryNoise() {
+    @Test func differentDevicesCannotBracketBoundaryNoise() throws {
         let samples = [
             F.point(101, minutes: 0, longitude: -0.001, deviceID: nil),
             F.point(102, minutes: 5, longitude: 0.0005),
             F.point(103, minutes: 10, longitude: -0.001, deviceID: nil),
         ]
-        #expect(F.reviews(samples).isEmpty)
+        #expect(try F.reviews(samples).isEmpty)
     }
 
-    @Test func fastTravelAndPoorPositionsDoNotBecomeBoundaryCleanup() {
+    @Test func fastTravelAndPoorPositionsDoNotBecomeBoundaryCleanup() throws {
         let before = F.point(101, minutes: 0, longitude: -1)
         let noise = F.point(102, minutes: 5, longitude: 0.0005)
         let after = F.point(103, minutes: 10, longitude: -1)
-        #expect(F.reviews([before, noise, after]).isEmpty)
+        #expect(try F.reviews([before, noise, after]).isEmpty)
         let poor = F.point(104, minutes: 5, longitude: 0.0005, accuracy: 251)
-        #expect(F.reviews([
+        #expect(try F.reviews([
             F.point(105, minutes: 0, longitude: -0.001),
             poor,
             F.point(106, minutes: 10, longitude: -0.001),
@@ -177,10 +176,10 @@ struct SampleCorrectionAssessmentTests {
         ]
         let day = CalendarDay(from: samples[0].timestamp, in: SampleCorrectionTestSupport.calendar)
         let manual = DayPresence(day: day, regions: [.newYork])
-        let proposal = try #require(F.reviews(samples, manuals: [manual]).first?.proposal)
+        let proposal = try #require(try F.reviews(samples, manuals: [manual]).first?.proposal)
         #expect(proposal.edits.map(\.sampleID) == [samples[1].id])
         #expect(proposal.resultingRegions == [.california, .newYork, .other])
-        #expect(F.reviews(
+        #expect(try F.reviews(
             samples,
             manuals: [DayPresence(day: day, regions: [.newYork], isAuthoritative: true)],
         ).isEmpty)
@@ -189,7 +188,7 @@ struct SampleCorrectionAssessmentTests {
     @Test func pendingFlightHoldsAllAutomaticCleanupUntilArrival() throws {
         let trace = FlightTrajectoryFixtures.turningFlight()
         for now in [trace.lastCruiseAt, trace.firstGroundAt] {
-            let review = try #require(F.reviews(
+            let review = try #require(try F.reviews(
                 trace.samples.filter { $0.timestamp <= now },
                 attributor: SampleCorrectionTestSupport.attribution,
                 now: now,
@@ -197,7 +196,7 @@ struct SampleCorrectionAssessmentTests {
             #expect(review.isPending)
             #expect(review.proposal == nil)
         }
-        let ready = try #require(F.reviews(
+        let ready = try #require(try F.reviews(
             trace.samples,
             attributor: SampleCorrectionTestSupport.attribution,
         ).first?.proposal)
@@ -212,7 +211,7 @@ struct SampleCorrectionAssessmentTests {
         let trace = FlightTrajectoryFixtures.separatedFlights(
             laterStartsWithTransition: laterStartsWithTransition,
         )
-        let reviews = F.reviews(
+        let reviews = try F.reviews(
             trace.samples,
             attributor: SampleCorrectionTestSupport.attribution,
             now: trace.readyAt,
@@ -240,7 +239,7 @@ struct SampleCorrectionAssessmentTests {
             pendingFirst: pendingFirst,
             separateDevices: separateDevices,
         )
-        let reviews = F.reviews(
+        let reviews = try F.reviews(
             trace.samples,
             attributor: SampleCorrectionTestSupport.attribution,
             now: trace.readyAt,
@@ -258,7 +257,7 @@ struct SampleCorrectionAssessmentTests {
 
     @Test func historicalSilenceStaysPendingWithoutAnActionableProposal() throws {
         let trace = FlightTrajectoryFixtures.turningFlight()
-        let review = try #require(F.reviews(
+        let review = try #require(try F.reviews(
             trace.samples.filter { $0.timestamp <= trace.lastCruiseAt },
             attributor: SampleCorrectionTestSupport.attribution,
             now: trace.readyAt.addingTimeInterval(90 * 24 * 60 * 60),
@@ -274,7 +273,7 @@ struct SampleCorrectionAssessmentTests {
             from: trace.samples[0].timestamp,
             in: SampleCorrectionTestSupport.calendar,
         )
-        let review = try #require(F.reviews(
+        let review = try #require(try F.reviews(
             trace.samples,
             manuals: [DayPresence(day: day, regions: [.canada], isAuthoritative: true)],
             attributor: SampleCorrectionTestSupport.attribution,
@@ -283,5 +282,51 @@ struct SampleCorrectionAssessmentTests {
         #expect(review.day.regions == [.canada])
         guard case .completed = review.state
         else { Issue.record("Expected completed informational flight"); return }
+    }
+
+    @Test(arguments: RecordingFlightTestSupport.Exclusion.allCases)
+    func boundaryEvidenceCannotBridgeARecordingExclusion(
+        exclusion: RecordingFlightTestSupport.Exclusion,
+    ) async throws {
+        let samples = try RecordingFlightTestSupport.samples([
+            F.point(101, minutes: 0, longitude: -0.001),
+            F.point(102, minutes: 5, longitude: 0.0005),
+            F.point(103, minutes: 10, longitude: -0.001),
+        ])
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        let calendar = SampleCorrectionTestSupport.calendar
+        let reports = RecordingFlightTestSupport.reports(
+            store,
+            catalog: F.Boundary(),
+            calendar: calendar,
+        )
+        let coordinator = RecordingFlightTestSupport.coordinator(
+            store,
+            reports: reports,
+            calendar: calendar,
+            now: FlightTrajectoryFixtures.date(minutes: 15),
+        )
+        let day = CalendarDay(from: samples[0].timestamp, in: calendar)
+        let original = try await coordinator.review(
+            id: .borderDrift(day: day),
+            year: day.year,
+            driftThresholdMeters: 1000,
+        )
+        #expect(original?.proposal?.edits.map(\.sampleID) == [samples[1].id])
+        for control in try RecordingFlightTestSupport.control(
+            exclusion,
+            within: RecordingFlightTestSupport.period(2, 3),
+        ) {
+            try await RecordingChoiceTestSupport.append(control, store: store)
+        }
+        let reads = try await reports.dataIssueReads(for: day.year)
+        #expect(reads.history.rawSamples == samples)
+        let excluded = try await coordinator.review(
+            id: .borderDrift(day: day),
+            year: day.year,
+            driftThresholdMeters: 1000,
+        )
+        #expect(excluded == nil)
     }
 }

@@ -126,14 +126,16 @@ public actor DataIssueScanner {
                     calendar: calendar,
                     now: currentDate,
                 )
-                let assessment = Self.logger.measure(.assessGPS) {
-                    SampleCorrectionAssessment(attributor: reads.attribution, calendar: calendar)
-                        .assess(
-                            reads: reads,
-                            primaryRegions: primaryRegions,
-                            driftThresholdMeters: driftThresholdMeters,
-                            now: currentDate,
-                        )
+                let assessment = try Self.logger.measure(.assessGPS) {
+                    try SampleCorrectionAssessment(
+                        attributor: reads.correctionAttribution,
+                        calendar: calendar,
+                    )
+                    .assess(
+                        reads: reads,
+                        driftThresholdMeters: driftThresholdMeters,
+                        now: currentDate,
+                    )
                 }
                 let assessedReviews = assessment.reviews
                 let otherIssues = detectors.flatMap { detector in

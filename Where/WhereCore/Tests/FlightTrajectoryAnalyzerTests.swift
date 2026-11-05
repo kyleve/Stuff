@@ -1232,4 +1232,114 @@ struct FlightTrajectoryAnalyzerTests {
         ]
         #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
     }
+
+    @Test(arguments: RecordingFlightTestSupport.Exclusion.allCases)
+    func recordingControlsBreakAFlightEvenWithoutPointsInsideTheExcludedPeriod(
+        exclusion: RecordingFlightTestSupport.Exclusion,
+    ) async throws {
+        let samples = try RecordingFlightTestSupport.samples(Fixtures.sparseFlight())
+        let now = Fixtures.date(minutes: 290)
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        for control in try RecordingFlightTestSupport.control(
+            exclusion,
+            within: RecordingFlightTestSupport.period(60, 61),
+        ) {
+            try await RecordingChoiceTestSupport.append(control, store: store)
+        }
+        let history = try await LocationHistoryReaderTestSupport.reader(store).projection(
+            in: DateInterval(start: Fixtures.start, end: now),
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(history.rawSamples == samples)
+        #expect(analyzer.analyze(samples: history.rawSamples, now: now).count == 1)
+        #expect(analyzer.analyze(history: history, now: now).isEmpty)
+        #expect(try await store.allSamples().sorted { $0.timestamp < $1.timestamp } == samples)
+    }
+
+    @Test func automaticSilenceStillAllowsIndependentlyCorroboratedDisplacement() throws {
+        let samples = try RecordingFlightTestSupport.samples(Fixtures.sparseFlight())
+        let history = try RecordingFlightTestSupport.projection(
+            samples,
+            period: RecordingFlightTestSupport.period(0, 290),
+        )
+        let flights = analyzer.analyze(history: history, now: Fixtures.date(minutes: 290))
+        #expect(flights.count == 1)
+        #expect(flights.first?.isPending == false)
+        #expect(flights.first?.id.recordingSource == .device(Fixtures.device))
+        #expect(flights.first?.airborneSampleIDs.isEmpty == true)
+    }
+
+    @Test func flightDatesFollowSelectedRecordingLabelsAcrossViewingZones() throws {
+        let samples = try RecordingFlightTestSupport.samples(
+            Fixtures.shortSparseFlight(),
+            zone: #require(TimeZone(secondsFromGMT: -3600)),
+        )
+        let history = try RecordingFlightTestSupport.projection(
+            samples,
+            period: RecordingFlightTestSupport.period(0, 40),
+        )
+        let flight = try #require(analyzer
+            .analyze(history: history, now: Fixtures.date(minutes: 40)).first)
+        #expect(!flight.isPending)
+        for hours in [-12, 0, 14] {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = try #require(TimeZone(secondsFromGMT: hours * 3600))
+            #expect(flight.completedDays(in: calendar) == [.init(year: 2025, month: 12, day: 31)])
+        }
+    }
+
+    @Test func dateLineFlightKeepsAdjacentPhysicalEvidenceAcrossTwoLogicalDates() async throws {
+        let raw = Fixtures.sparseFlight().map {
+            Fixtures.replacing($0, timestamp: $0.timestamp.addingTimeInterval(-15 * 3600))
+        }
+        let samples = try RecordingFlightTestSupport.samples(
+            Array(raw.prefix(2)),
+            zone: #require(TimeZone(secondsFromGMT: -12 * 3600)),
+        ) + RecordingFlightTestSupport.samples(
+            Array(raw.dropFirst(2)),
+            zone: #require(TimeZone(secondsFromGMT: 14 * 3600)),
+        )
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        let reads = try await LocationHistoryReaderTestSupport.reports(store)
+            .dataIssueReads(for: 2026)
+        // The report includes one adjacent logical day. Date-line travel can skip that label,
+        // so physical inference must retain the selected observations before day filtering.
+        #expect(reads.history.rawSamples == Array(samples.dropFirst(2)))
+        let now = try #require(raw.last?.timestamp)
+        let flight = try #require(analyzer.analyze(
+            history: reads.history,
+            now: now,
+        ).first)
+        #expect(flight.isPending == false)
+        #expect(flight.completedDays(in: SampleCorrectionTestSupport.calendar) == [
+            .init(year: 2025, month: 12, day: 30),
+            .init(year: 2026, month: 1, day: 1),
+        ])
+    }
+
+    @Test func losingSourceEligibilityEndsLivePresentationWithoutInventingArrival() throws {
+        let samples = try RecordingFlightTestSupport
+            .samples(Fixtures.turningFlight().samples.filter {
+                $0.timestamp <= Fixtures.date(minutes: 30)
+            })
+        let now = Fixtures.date(minutes: 40)
+        let controls = try RecordingFlightTestSupport.control(
+            .sourceChoice,
+            within: RecordingFlightTestSupport.period(35, 50),
+        )
+        let history = try RecordingFlightTestSupport.projection(
+            samples,
+            controls: controls,
+            period: RecordingFlightTestSupport.period(0, 50),
+        )
+        let raw = try #require(analyzer.analyze(samples: samples, now: now).first)
+        let selected = try #require(analyzer.analyze(history: history, now: now).first)
+        #expect(raw.progress == .flightLikely)
+        #expect(selected.progress == .awaitingArrival)
+        #expect(selected.id == raw.id)
+        #expect(selected.supportedIntervals == raw.supportedIntervals)
+        #expect(selected.groundSampleIDs == raw.groundSampleIDs)
+    }
 }

@@ -12,21 +12,22 @@ struct FlightPointCorrectionAssessment {
         conflictingSampleIDs: Set<LocationSample.ID>,
         dataGenerationID: WhereDataGenerationID,
         evidence: SampleCorrectionProposal.Evidence,
-    ) -> [FlightPointCorrection] {
+    ) throws -> [FlightPointCorrection] {
         guard !evidence.manualDays.contains(where: \.isAuthoritative) else { return [] }
         let completed = evidence.flights.filter { !$0.isPending }
         guard !completed.isEmpty else { return [] }
         let pending = evidence.flights.filter(\.isPending)
         // Entries already belong to this calendar day. Build their shared support
         // once rather than reaggregating the whole day for every possible edit.
+        let primaryRegions = Set(evidence.primaryRegions)
         let contributions = RegionContributions(
-            entries: entries,
+            entries: entries.map { $0.reporting(primaryRegions: primaryRegions) },
             manualRegions: evidence.manualDays.reduce(into: Set<Region>()) {
                 $0.formUnion($1.regions)
             },
         )
         var seen: Set<LocationSample.ID> = []
-        return entries.sorted {
+        return try entries.sorted {
             if $0.sample.timestamp != $1.sample.timestamp {
                 return $0.sample.timestamp < $1.sample.timestamp
             }
@@ -42,11 +43,23 @@ struct FlightPointCorrectionAssessment {
             else { return nil }
             let replacement: Set<Region> = action == .restoreGPS
                 ? [attributor.region(at: sample.coordinate)] : []
+            let resultingRegions: Set<Region> = switch evidence.history.contract {
+                case .foundation:
+                    contributions.replacing(sampleID: sample.id, with: replacement)
+                case .recording:
+                    try evidence.history.previewRegions(
+                        on: day,
+                        applying: [sample.id: replacement],
+                        primaryRegions: primaryRegions,
+                        manualDays: evidence.manualDays,
+                        calendar: evidence.calendar,
+                    )
+            }
             return FlightPointCorrection(
                 sampleID: sample.id,
                 action: action,
                 day: day,
-                resultingRegions: contributions.replacing(sampleID: sample.id, with: replacement),
+                resultingRegions: resultingRegions,
                 dataGenerationID: dataGenerationID,
                 evidence: evidence,
             )

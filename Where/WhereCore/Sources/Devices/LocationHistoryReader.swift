@@ -125,16 +125,7 @@ public struct LocationHistoryReader: Sendable {
             within: period,
             version: policy.current,
         )
-        var entries = try selected.contributions.map { observation in
-            guard let day = observation.recordingDay.day else {
-                throw DataCompatibilityError.incompleteRecord
-            }
-            return AttributedLocationSample(
-                sample: observation.sample,
-                regions: observation.geography.presence,
-                day: .recording(day),
-            )
-        }
+        var entries = try selected.attributedSamples()
         let attribution = try await attributionSnapshot(attributor)
         entries.append(contentsOf: samples.filter { !$0.source.isGPS }.map {
             AttributedLocationSample(sample: $0, regions: [attribution.region(at: $0.coordinate)])
@@ -171,5 +162,15 @@ public struct LocationHistoryReader: Sendable {
             return try await live.snapshot(for: store.trackedRegions())
         }
         return attributor
+    }
+
+    func correctionAttribution(
+        for projection: LocationHistoryProjection,
+        attributor: any RegionAttributing,
+    ) async throws -> any RegionAttributing {
+        switch projection.contract {
+            case .foundation: try await attributionSnapshot(attributor)
+            case .recording: await geography.snapshot()
+        }
     }
 }

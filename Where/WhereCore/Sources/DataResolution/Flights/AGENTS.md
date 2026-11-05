@@ -6,6 +6,11 @@ and [repository rules](../../../../../AGENTS.md) also apply.
 
 - Assess each recording device separately before calendar bucketing.
   Keep legacy samples in a separate track.
+- Use the selected history projection for recording-contract inference. Break tracks at source exclusions and unresolved periods, even when they contain no observations.
+  Keep ordinary recording gaps eligible for corroborated displacement. Never fabricate device identities to split a track.
+  Guard: `FlightTrajectoryAnalyzerTests`.
+- Derive recording-contract flight dates from selected day labels within supported travel intervals.
+  A lost source ends live presentation without establishing arrival. Guard: `FlightTrajectoryAnalyzerTests`.
 - Preserve unknown observations. Never infer arrival from silence, midnight, or restart.
 - Keep later flight observations out of older pending assessments.
 - Keep ground confirmation separate from arrival timing. Derive flight days from supported intervals, never an unsupported arrival gap.

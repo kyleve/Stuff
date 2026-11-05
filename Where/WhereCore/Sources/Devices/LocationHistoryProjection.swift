@@ -38,12 +38,7 @@ public struct LocationHistoryProjection: Hashable, Sendable {
         switch contract {
             case .foundation: samples
             case .recording:
-                samples.map { entry in
-                    guard entry.sample.source.isGPS else { return entry }
-                    return entry.replacingRegions(Set(entry.regions.map {
-                        primaryRegions.contains($0) ? $0 : .other
-                    }))
-                }
+                samples.map { $0.reporting(primaryRegions: primaryRegions) }
         }
     }
 
@@ -55,5 +50,56 @@ public struct LocationHistoryProjection: Hashable, Sendable {
                     days: days,
                 )
         }
+    }
+
+    func clipped(to period: RecordingPeriod) throws -> Self {
+        // Review context is physical. Preserve selected adjacent GPS even when a date-line
+        // jump put its logical label outside the report's display-date query.
+        let contextSamples: [AttributedLocationSample] = switch contract {
+            case .foundation: samples
+            case let .recording(selection): try selection.attributedSamples()
+            + samples.filter { !$0.sample.source.isGPS }
+        }
+        let retained = contextSamples.filter { period.contains($0.sample.timestamp) }
+            .sorted {
+                if $0.sample.timestamp != $1.sample
+                    .timestamp { return $0.sample.timestamp < $1.sample.timestamp }
+                return $0.sample.id.uuidString < $1.sample.id.uuidString
+            }
+        var sampleIDs = Set(retained.map(\.sample.id))
+        let clippedContract: Contract = switch contract {
+            case .foundation: .foundation
+            case let .recording(selection): try .recording(selection.clipped(to: period))
+        }
+        if case let .recording(selection) = clippedContract {
+            sampleIDs.formUnion(selection.evidence.observations.map(\.sample.id))
+        }
+        return Self(
+            samples: retained,
+            revisions: revisions.filter { sampleIDs.contains($0.sampleID) },
+            contract: clippedContract,
+        )
+    }
+
+    /// Preview the same regional inputs and source selection that a saved correction will use.
+    /// Keep rival tracks, manual assertions, and selected calendar labels in that calculation.
+    func previewRegions(
+        on day: CalendarDay,
+        applying replacements: [LocationSample.ID: Set<Region>],
+        primaryRegions: Set<Region>,
+        manualDays: [DayPresence],
+        calendar: Calendar,
+    ) throws -> Set<Region> {
+        let corrected: [AttributedLocationSample] = switch contract {
+            case .foundation:
+                samples.map { $0.replacingRegions(replacements[$0.sample.id] ?? $0.regions) }
+            case let .recording(selection):
+                try selection.replacingGeography(replacements).attributedSamples()
+                    .map { $0.reporting(primaryRegions: primaryRegions) }
+                    + samples.filter { !$0.sample.source.isGPS }
+        }
+        return DayAggregator(calendar: calendar, timeZone: calendar.timeZone)
+            .report(for: day.year, history: corrected, manualDays: manualDays)
+            .days.first { $0.day == day }?.regions ?? []
     }
 }

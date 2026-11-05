@@ -28,17 +28,18 @@ public struct SampleCorrectionCoordinator: Sendable {
     public func review(
         id: DataIssueID,
         year: Int,
-        primaryRegions: [Region],
         driftThresholdMeters: Double,
     ) async throws -> GPSCorrectionReview? {
         let reads = try await reports.dataIssueReads(for: year)
-        return SampleCorrectionAssessment(attributor: reads.attribution, calendar: calendar)
-            .reviews(
-                reads: reads,
-                primaryRegions: primaryRegions,
-                driftThresholdMeters: driftThresholdMeters,
-                now: now(),
-            ).first { $0.id == id }
+        return try SampleCorrectionAssessment(
+            attributor: reads.correctionAttribution,
+            calendar: calendar,
+        )
+        .reviews(
+            reads: reads,
+            driftThresholdMeters: driftThresholdMeters,
+            now: now(),
+        ).first { $0.id == id }
     }
 
     public func apply(_ proposal: SampleCorrectionProposal) async throws
@@ -50,7 +51,6 @@ public struct SampleCorrectionCoordinator: Sendable {
                 let fresh = try await review(
                     id: proposal.reviewID,
                     year: proposal.day.day.year,
-                    primaryRegions: proposal.evidence.primaryRegions,
                     driftThresholdMeters: proposal.evidence.driftThresholdMeters,
                 )
                 guard let current = fresh?.proposal, current == proposal else {
@@ -93,7 +93,6 @@ public struct SampleCorrectionCoordinator: Sendable {
         try await .stale(review(
             id: proposal.reviewID,
             year: proposal.day.day.year,
-            primaryRegions: proposal.evidence.primaryRegions,
             driftThresholdMeters: proposal.evidence.driftThresholdMeters,
         ))
     }
@@ -142,7 +141,6 @@ public struct SampleCorrectionCoordinator: Sendable {
         try await review(
             id: .flightDay(day: correction.day),
             year: correction.day.year,
-            primaryRegions: correction.evidence.primaryRegions,
             driftThresholdMeters: correction.evidence.driftThresholdMeters,
         )
     }

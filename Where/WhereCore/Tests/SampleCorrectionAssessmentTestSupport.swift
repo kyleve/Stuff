@@ -39,7 +39,7 @@ enum SampleCorrectionAssessmentFixtures {
         manuals: [DayPresence] = [],
         attributor: any RegionAttributing = Boundary(),
         now: Date = FlightTrajectoryFixtures.date(minutes: 300),
-    ) -> [GPSCorrectionReview] {
+    ) throws -> [GPSCorrectionReview] {
         let calendar = SampleCorrectionTestSupport.calendar
         let projection = LocationHistoryProjection(
             samples: AttributedLocationSample.raw(samples, attributor: attributor)
@@ -51,18 +51,19 @@ enum SampleCorrectionAssessmentFixtures {
             history: projection.samples,
             manualDays: manuals,
         )
-        return SampleCorrectionAssessment(attributor: attributor, calendar: calendar).reviews(
+        return try SampleCorrectionAssessment(attributor: attributor, calendar: calendar).reviews(
             reads: DataIssueReads(
                 report: report,
                 otherDayCoordinates: [:],
                 daySamples: DaySamples(samples: samples, calendar: calendar),
                 history: projection,
                 manualDays: manuals,
+                primaryRegions: attributor.loadedRegions,
                 dataGenerationID: .initial,
                 dismissedIssueIDs: [],
                 attribution: attributor,
+                correctionAttribution: attributor,
             ),
-            primaryRegions: attributor.loadedRegions,
             driftThresholdMeters: 1000,
             now: now,
         )

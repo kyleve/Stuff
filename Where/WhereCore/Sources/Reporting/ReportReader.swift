@@ -137,9 +137,14 @@ public struct ReportReader: Sendable {
                     ),
                     history: projection,
                     manualDays: manuals,
+                    primaryRegions: store.primaryRegions().map(\.region),
                     dataGenerationID: generation.id,
                     dismissedIssueIDs: store.dismissedIssueIDs(),
                     attribution: attribution,
+                    correctionAttribution: history.correctionAttribution(
+                        for: projection,
+                        attributor: attribution,
+                    ),
                 )
             }
         }
@@ -250,9 +255,11 @@ public struct DataIssueReads: Sendable {
     public let daySamples: DaySamples
     public let history: LocationHistoryProjection
     public let manualDays: [DayPresence]
+    public let primaryRegions: [Region]
     public let dataGenerationID: WhereDataGenerationID
     public let dismissedIssueIDs: Set<DataIssueID>
     public let attribution: any RegionAttributing
+    public let correctionAttribution: any RegionAttributing
 
     public init(
         report: YearReport,
@@ -260,17 +267,21 @@ public struct DataIssueReads: Sendable {
         daySamples: DaySamples,
         history: LocationHistoryProjection,
         manualDays: [DayPresence],
+        primaryRegions: [Region],
         dataGenerationID: WhereDataGenerationID,
         dismissedIssueIDs: Set<DataIssueID>,
         attribution: any RegionAttributing,
+        correctionAttribution: any RegionAttributing,
     ) {
         self.report = report
         self.otherDayCoordinates = otherDayCoordinates
         self.daySamples = daySamples
         self.history = history
         self.manualDays = manualDays
+        self.primaryRegions = primaryRegions
         self.dataGenerationID = dataGenerationID
         self.dismissedIssueIDs = dismissedIssueIDs
         self.attribution = attribution
+        self.correctionAttribution = correctionAttribution
     }
 }

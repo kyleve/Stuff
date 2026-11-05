@@ -1310,7 +1310,11 @@ Elsewhere preserves selected dates, specific GPS geography, explicit unknown pre
 Report and map queries now use logical dates. Reports, Elsewhere, and issue inputs retain completeness and exclude disputed contributions.
 `exportableYearReport` checks the exact returned snapshot. It does not implement a report file format or export screen.
 The daily recap withholds counts while its year is unresolved or assessment fails.
-Widget and intent integration, review presentation, flight boundaries, and the selection model remain in progress.
+Flight and boundary inference respect selection exclusions even when the excluded interval contains no observations.
+Completed flights retain selected recording dates. Losing source eligibility ends live presentation without establishing arrival.
+Correction reviews retain relevant selection context and logical dates; restoration previews use specific geography before reporting groups.
+Previews read current primary regions and reassess competing devices when the proposed geographic correction can change automatic selection.
+Widget and intent integration, review presentation, and the selection model remain in progress.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

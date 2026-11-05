@@ -114,7 +114,10 @@ public enum RecordingControlSelection {
                         for (deviceID, cutoff) in cutoffs where cutoff <= start {
                             devices[deviceID] = .removed
                         }
-                        resolution = .automatic(Automatic(devices: devices))
+                        // Eligibility is the default. An ignore elsewhere must not change the
+                        // meaning or review identity of this unchanged automatic period.
+                        resolution =
+                            .automatic(Automatic(devices: devices.filter { $0.value != .eligible }))
                 }
             }
             return Segment(

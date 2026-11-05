@@ -8,6 +8,10 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Reassess inside `perform(expectedDataGenerationID:)` and return changed evidence for a new review.
   Preserve manual assertions and conflicting duplicate samples.
   Guards: `SampleCorrectionCoordinatorTests` and `SampleCorrectionAssessmentTests`.
+- Keep selection exclusions in boundary corroboration and relevant selection metadata in review equality.
+  Preserve selected logical days through review and Apply. Restore specific GPS geography before applying reporting groups to previews.
+  Read current primary regions in the same snapshot. Reassess proposed geography with all competing observations before showing the resulting regions.
+  Guards: `SampleCorrectionAssessmentTests` and `SampleCorrectionCoordinatorTests`.
 - Offer explicit point corrections only within completed flights on the same recording device.
   Recheck the full review before inclusion or restoration. Write a newer reset revision to restore GPS attribution.
   With uncertain arrival timing, offer exclusions only for independently supported airborne identities.

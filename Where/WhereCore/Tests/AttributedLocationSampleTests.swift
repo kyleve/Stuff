@@ -29,4 +29,22 @@ struct AttributedLocationSampleTests {
             in: calendar,
         ))
     }
+
+    @Test func reportingGroupsOnlySelectedGPSAndPreservesManualAssertions() throws {
+        let day = CalendarDay(year: 2025, month: 12, day: 31)
+        let gps = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        let entry = AttributedLocationSample(sample: gps, regions: [.newYork], day: .recording(day))
+        let grouped = entry.reporting(primaryRegions: [.california])
+        #expect(grouped.regions == [.other])
+        #expect(grouped.day == .recording(day))
+        #expect(grouped.sample == gps)
+        #expect(entry.regions == [.newYork])
+        #expect(entry.replacingRegions([]).reporting(primaryRegions: []).regions.isEmpty)
+
+        let manual = FlightTrajectoryFixtures.sample(999, minutes: 0, east: 0, source: .manual)
+        let assertion = AttributedLocationSample(sample: manual, regions: [.newYork])
+        #expect(assertion.reporting(primaryRegions: []) == assertion)
+        let foundation = AttributedLocationSample(sample: gps, regions: [.newYork])
+        #expect(foundation.reporting(primaryRegions: []) == foundation)
+    }
 }

@@ -36,6 +36,13 @@ public struct AttributedLocationSample: Hashable, Sendable {
         Self(sample: sample, regions: regions, day: day)
     }
 
+    /// Apply the current reporting group without changing geography, day assignment, or
+    /// non-GPS assertions at the storage and selection boundaries.
+    public func reporting(primaryRegions: Set<Region>) -> Self {
+        guard sample.source.isGPS, case .recording = day else { return self }
+        return replacingRegions(Set(regions.map { primaryRegions.contains($0) ? $0 : .other }))
+    }
+
     static func raw(_ samples: [LocationSample], attributor: any RegionAttributing) -> [Self] {
         samples.map { Self(sample: $0, regions: [attributor.region(at: $0.coordinate)]) }
     }

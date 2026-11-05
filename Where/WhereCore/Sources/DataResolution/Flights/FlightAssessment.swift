@@ -3,6 +3,11 @@ import Foundation
 /// A derived flight on one recording installation's trajectory. Missing arrival
 /// evidence remains unresolved; neither silence nor a calendar rollover lands it.
 public struct FlightAssessment: Identifiable, Hashable, Sendable {
+    public enum DayBasis: Hashable, Sendable {
+        case viewingCalendar
+        case recording(Set<CalendarDay>)
+    }
+
     /// Samples recorded before installation identities existed have their own track.
     public enum RecordingSource: Hashable, Sendable {
         case device(RecordingDeviceID)
@@ -96,9 +101,10 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
     public let airborneSampleIDs: Set<UUID>
     public let groundSampleIDs: Set<UUID>
     public let peakSpeedKMH: Double
-    public let progress: Progress
+    public private(set) var progress: Progress
     public let inferredEndpoints: [FlightEndpointInference]
     public let supportedIntervals: [TravelInterval]
+    public private(set) var dayBasis: DayBasis = .viewingCalendar
 
     public var lastSupportedTravelAt: Date {
         supportedIntervals.reduce(startedAt) { max($0, $1.end) }
@@ -156,10 +162,41 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
     /// Later ground evidence cannot fill an unsupported gap with flight days.
     public func completedDays(in calendar: Calendar) -> Set<CalendarDay> {
         guard !isPending else { return [] }
+        if case let .recording(days) = dayBasis { return days }
         return supportedIntervals.reduce(into: Set<CalendarDay>()) { days, interval in
             days.formUnion(CalendarDay(from: interval.start, in: calendar)
                 .days(through: CalendarDay(from: interval.end, in: calendar)))
         }
+    }
+
+    /// Positive selected observations establish the experienced dates. Do not interpolate a
+    /// local date through an unknown time-zone transition or a gap with no recorded day label.
+    func assigningRecordingDays(from observations: [RecordingObservation]) -> Self {
+        let days = observations.compactMap { observation -> CalendarDay? in
+            guard RecordingSource.device(observation.deviceID) == id.recordingSource,
+                  supportedIntervals.contains(where: {
+                      $0.start <= observation.sample.timestamp && observation.sample.timestamp <= $0
+                          .end
+                  })
+            else { return nil }
+            guard let day = observation.recordingDay.day else {
+                assertionFailure("Selected recording history must retain its logical dates.")
+                return nil
+            }
+            return day
+        }
+        var result = self
+        result.dayBasis = .recording(Set(days))
+        return result
+    }
+
+    /// Losing eligibility cannot establish arrival. It does end a live-flight claim about the
+    /// user's current recording source until eligible observations support another assessment.
+    func endingLivePresentation() -> Self {
+        guard case .flightLikely = progress else { return self }
+        var result = self
+        result.progress = .awaitingArrival
+        return result
     }
 
     /// The live-flight presentation expires after the latest cruise evidence becomes
