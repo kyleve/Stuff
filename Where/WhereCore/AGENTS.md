@@ -55,6 +55,10 @@ That document also owns the implementation plan.
   through `WhereServices`. The separate DEBUG Inspector runtime uses
   `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
   `inspectorStoreURL` as its schema/storage adapter.
+- Keep envelope indexes within the owning task's transaction or read snapshot. Pin persistent history before the first cached read.
+  Invalidate cached compatibility metadata after ordinary mutations. Keep legacy sample identities current after writes, clears, and generation rotation.
+  Recheck compatibility from fresh headers at the physical save. Resolve identity collisions only within the requested generation; admit major headers globally.
+  Guards: `VersionedHistoryIndexTests` and `SwiftDataStoreLocationSamplesTests`.
 - Keep the compatibility permit around the outermost store transaction.
   Domain collaborators must receive the scoped wrapper, not its raw base.
   Keep physical saves and permit revocation under the same mutex.

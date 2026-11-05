@@ -1225,8 +1225,9 @@ Backup format 8 retains controls, affected scopes, and original payload bytes ac
 The offline converter accepts reusable sample mappings for historical devices and calendar context, including explicitly unresolved context.
 A shared Ruby/Swift fixture validates the converted wire shape through the production decoder.
 Reviewed writes, capture recovery, and production integration below remain required.
-Before activation, bound observation import work with transaction-scoped indexes and verify large imports.
-Retain fresh compatibility and persistent-history checks before commit; an index must not conceal concurrent changes.
+Observation imports now use transaction-scoped envelope indexes and an indexed lookup for legacy sample identities.
+Fresh compatibility and persistent-history checks remain adjacent to physical save; indexes do not replace those checks.
+Scaling fixtures exercise large SQLite imports and retries. Late identity conflicts in erased generations remain inert.
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Persist observation timestamps, recording-day assignments, and their time-zone context without recalculation during sync or import.

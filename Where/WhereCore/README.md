@@ -156,6 +156,11 @@ one it belongs to rather than to a god-object:
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
   generations. A persistent-history boundary invalidates any external commit
   crossing a snapshot even when its history observer reports the change later.
+  Versioned envelopes share an index within that task's transaction or read snapshot.
+  Bulk observation imports decode each existing envelope once instead of scanning history for every insertion.
+  Each operation also indexes legacy sample identities and caches compatibility metadata until an ordinary mutation changes it.
+  Cached reads pin persistent history, and physical saves still inspect fresh compatibility headers.
+  Late conflicting identities in an erased generation remain inert; their major requirements remain global.
   `changes()` emits once per local commit and external import for the Where model
   container, excluding other stores such as Periscope. `remoteChanges()` uses
   SwiftData's `HistoryObserver` and persistent-history transaction authors to

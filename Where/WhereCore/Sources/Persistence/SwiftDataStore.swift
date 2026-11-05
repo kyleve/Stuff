@@ -726,23 +726,91 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         remoteChangeBroadcaster.finishAll()
     }
 
+    private struct OperationCache {
+        var envelopes: VersionedHistoryIndex?
+        var compatibility: CompatibilityMetadata?
+        var legacySamples: [UUID: [SDLocationSample]]?
+    }
+
     private struct ActiveTransaction {
         let context: ModelContext
         var generation: WhereDataGeneration.Resolution
         /// The earliest snapshot read in this transaction determines which
         /// external commits may invalidate the pending evidence-based writes.
         var snapshotHistoryTransactionID: Int64?
+        var cache = OperationCache()
     }
 
     private struct ActiveSnapshot {
         let context: ModelContext
         let generation: WhereDataGeneration
+        var cache = OperationCache()
     }
 
     /// The context and logical generation are installed and cleared as one value, so neither an
     /// active transaction nor a multi-table snapshot can expose only half of its authority state.
     private var activeTransaction: ActiveTransaction?
     private var activeSnapshot: ActiveSnapshot?
+
+    #if DEBUG
+        @_spi(Testing) public private(set) var versionedHistoryIndexBuildCount = 0
+    #endif
+
+    /// Cache only within a history-guarded operation. Unscoped reads get a new index, and a
+    /// transaction pins durable history before its first cached read, even without readSnapshot.
+    func versionedHistoryIndex() throws -> VersionedHistoryIndex {
+        let storeID = ObjectIdentifier(self)
+        let inTransaction = Self.activeTransactionStores.contains(storeID)
+        let inSnapshot = Self.activeSnapshotStores.contains(storeID)
+        if inTransaction, let index = activeTransaction?.cache.envelopes { return index }
+        if inSnapshot, let index = activeSnapshot?.cache.envelopes { return index }
+        let context = readContext()
+        if inTransaction, activeTransaction?.snapshotHistoryTransactionID == nil {
+            activeTransaction?.snapshotHistoryTransactionID = try Self
+                .latestHistoryTransactionID(in: context)
+        }
+        let envelopes = try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>()).map { row in
+            guard let data = row.envelope else { throw DataCompatibilityError.incompleteRecord }
+            return data
+        }
+        let index = try VersionedHistoryIndex(envelopes: envelopes)
+        #if DEBUG
+            versionedHistoryIndexBuildCount += 1
+        #endif
+        if inTransaction { activeTransaction?.cache.envelopes = index }
+        if inSnapshot { activeSnapshot?.cache.envelopes = index }
+        return index
+    }
+
+    private func discardRecordingIndexes() {
+        activeTransaction?.cache = OperationCache()
+    }
+
+    func operationCompatibilityMetadata() throws -> CompatibilityMetadata {
+        let storeID = ObjectIdentifier(self)
+        let inTransaction = Self.activeTransactionStores.contains(storeID)
+        let inSnapshot = Self.activeSnapshotStores.contains(storeID)
+        if inTransaction, let metadata = activeTransaction?.cache.compatibility { return metadata }
+        if inSnapshot, let metadata = activeSnapshot?.cache.compatibility { return metadata }
+        let metadata = try Self.compatibilityMetadata(in: readContext())
+        if inTransaction { activeTransaction?.cache.compatibility = metadata }
+        if inSnapshot { activeSnapshot?.cache.compatibility = metadata }
+        return metadata
+    }
+
+    private func existingSamples(with sampleID: UUID) throws -> [SDLocationSample] {
+        if activeTransaction?.cache.legacySamples == nil {
+            let rows = try versionedMutationContext().fetch(GenerationScopedFetch.samples(
+                belongingTo: mutationGenerationID(),
+            ))
+            var indexed: [UUID: [SDLocationSample]] = [:]
+            for row in rows {
+                if let sampleID = row.id { indexed[sampleID, default: []].append(row) }
+            }
+            activeTransaction?.cache.legacySamples = indexed
+        }
+        return activeTransaction?.cache.legacySamples?[sampleID] ?? []
+    }
 
     /// The store identities that currently have an outermost `perform`
     /// transaction open *on the current task's* call stack. A `perform` whose
@@ -984,12 +1052,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 // needs its evidence protected from same-generation CloudKit
                 // or sibling-process commits. Keep this check and save adjacent
                 // with no suspension so a conflicting read discards every write.
-                if let startingHistoryTransactionID = activeTransaction?
-                    .snapshotHistoryTransactionID,
-                    try Self.latestHistoryTransactionID(in: peer) != startingHistoryTransactionID
-                {
-                    throw WhereStoreReadConflictError.changedDuringTransaction
-                }
                 if let permit = DataAccessPermit.current {
                     try permit.commitWhileValid {
                         do {
@@ -999,10 +1061,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                                 throw DataCompatibilityError.verificationRequired
                             }
                         } catch { throw DataCompatibilityAdmissionError(underlyingError: error) }
-                        try peer.save()
+                        try saveTransaction(peer)
                     }
                 } else {
-                    try peer.save()
+                    try saveTransaction(peer)
                 }
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
@@ -1033,6 +1095,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    private func saveTransaction(_ context: ModelContext) throws {
+        if let startingHistoryTransactionID = activeTransaction?.snapshotHistoryTransactionID,
+           try Self.latestHistoryTransactionID(in: context) != startingHistoryTransactionID
+        {
+            throw WhereStoreReadConflictError.changedDuringTransaction
+        }
+        try context.save()
+    }
+
     #if DEBUG
         @_spi(Testing)
         public var hasExclusiveStoreOperation: Bool {
@@ -1046,6 +1117,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// contract surfaces immediately instead of silently no-op'ing
     /// the save.
     func mutationContext() -> ModelContext {
+        // Ordinary mutations may add or erase legacy rows or change the persisted floor.
+        // Versioned-only appends update the envelope index without invalidating this metadata.
+        activeTransaction?.cache.compatibility = nil
+        return versionedMutationContext()
+    }
+
+    func versionedMutationContext() -> ModelContext {
         guard let context = activeTransaction?.context else {
             preconditionFailure(
                 "SwiftDataStore mutations must be called inside store.perform { ... }",
@@ -1121,6 +1199,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // because CloudKit is eventually consistent; they remain inert, and deleting them is an
         // opportunistic storage cleanup rather than the correctness boundary.
         try Self.deleteRows(in: context, belongingTo: current.id)
+        discardRecordingIndexes()
 
         // One semantic destructive operation causally joins every observed real head. Resolve
         // this single persisted node before any following write asks `mutationGenerationID()` for
@@ -1341,15 +1420,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func add(sample: LocationSample) async throws {
-        let context = mutationContext()
+        let context = versionedMutationContext()
         let generationID = mutationGenerationID()
-        let requiredMajor = try Self.compatibilityState(in: context).requiredMajor
+        let requiredMajor = try indexedCompatibilityState().requiredMajor
         let requiresRecordingContract = requiredMajor >= 1
         if requiresRecordingContract { try sample.validateRecordingContract() }
-        let existing = try context.fetch(GenerationScopedFetch.samples(
-            belongingTo: generationID,
-            sampleID: sample.id,
-        ))
+        let existing = try existingSamples(with: sample.id)
         if requiresRecordingContract {
             for row in existing {
                 let old = try Self.materializeSample(row, requiresRecordingContract: true)
@@ -1360,9 +1436,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 }
             }
         }
-        for old in try Self.versionedSamples(in: context, generationID: generationID)
-            where old.id == sample.id
-        {
+        if let record = try versionedHistoryIndex().record(
+            with: .init(rawValue: sample.id),
+            generationID: generationID,
+            policy: VersionedLocationSample.storagePolicy,
+        ), record.kind == VersionedLocationSample.kind {
+            let old = try VersionedLocationSample.decode(record)
             guard old == sample
             else { throw RecordingPersistenceError.conflictingImmutableRecord(id: sample.id) }
         }
@@ -1378,12 +1457,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             return
         }
         if let canonical = existing.first {
+            activeTransaction?.cache.compatibility = nil
             try canonical.update(from: sample, generationID: generationID)
             for duplicate in existing.dropFirst() {
                 context.delete(duplicate)
             }
+            activeTransaction?.cache.legacySamples?[sample.id] = [canonical]
         } else {
-            try context.insert(SDLocationSample(value: sample, generationID: generationID))
+            let row = try SDLocationSample(value: sample, generationID: generationID)
+            activeTransaction?.cache.compatibility = nil
+            context.insert(row)
+            activeTransaction?.cache.legacySamples?[sample.id] = [row]
         }
     }
 
@@ -1403,7 +1487,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             in: interval,
             sortBy: [SortDescriptor(\.timestamp)],
         )
-        let requiresRecordingContract = try Self.compatibilityState(in: context).requiredMajor >= 1
+        let requiresRecordingContract = try indexedCompatibilityState().requiredMajor >= 1
         // Spanning the fetch *and* the materialization together is deliberate:
         // decoding a year of rows into values is a real share of the cost, and
         // splitting them would only obscure it.
@@ -1415,7 +1499,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 )
             }
             guard requiresRecordingContract else { return legacy }
-            let versioned = try Self.versionedSamples(in: context, generationID: generationID)
+            let versioned = try versionedSamples(generationID: generationID)
                 .filter {
                     $0.timestamp >= interval.start && $0.timestamp < interval.end
                 }
@@ -1430,15 +1514,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.timestamp)],
         )
-        let requiresRecordingContract = try Self.compatibilityState(in: context).requiredMajor >= 1
+        let requiresRecordingContract = try indexedCompatibilityState().requiredMajor >= 1
         let legacy = try context.fetch(descriptor).map { record in
             try Self.materializeSample(record, requiresRecordingContract: requiresRecordingContract)
         }
         guard requiresRecordingContract else { return legacy }
-        return try Self.mergeSampleDeliveries(legacy + Self.versionedSamples(
-            in: context,
-            generationID: generationID,
-        ))
+        return try Self.mergeSampleDeliveries(legacy + versionedSamples(generationID: generationID))
     }
 
     private static func materializeSample(
@@ -1947,11 +2028,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             generationID: generationID,
             interval: interval,
         )
+        discardRecordingIndexes()
         let sampleIDs = Set(samples.compactMap(\.id)).union(versionedSampleIDs)
         try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
         for record in samples {
             context.delete(record)
         }
+        activeTransaction?.cache.legacySamples = nil
         let evidences = try context.fetch(GenerationScopedFetch.evidence(
             belongingTo: generationID,
             in: interval,

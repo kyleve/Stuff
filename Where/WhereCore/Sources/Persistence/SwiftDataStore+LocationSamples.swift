@@ -2,17 +2,11 @@ import Foundation
 import SwiftData
 
 extension SwiftDataStore {
-    static func versionedSamples(
-        in context: ModelContext,
-        generationID: WhereDataGenerationID,
-    ) throws -> [LocationSample] {
+    func versionedSamples(generationID: WhereDataGenerationID) throws -> [LocationSample] {
         var samples: [LocationSample] = []
-        for row in try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>()) {
-            guard let data = row.envelope else { throw DataCompatibilityError.incompleteRecord }
-            let record = try VersionedHistoryRecord.admit(
-                data,
-                policy: VersionedLocationSample.storagePolicy,
-            )
+        for record in try versionedHistoryIndex()
+            .records(in: generationID, policy: VersionedLocationSample.storagePolicy)
+        {
             guard record.dataGenerationID == generationID,
                   record.kind == VersionedLocationSample.kind else { continue }
             try samples.append(VersionedLocationSample.decode(record))

@@ -4,6 +4,24 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SwiftDataStoreCompatibilityTests {
+    @Test func cachedMetadataTracksLegacyWritesAndFloorChangesWithinOneTransaction() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        try await store.perform {
+            #expect(try await !store.dataCompatibilityState().hasLegacyHistory)
+            try await store.add(sample: sample)
+            let legacy = try await store.dataCompatibilityState()
+            #expect(legacy.hasLegacyHistory)
+            #expect(legacy.persistedRequiredMajor == nil)
+            try await store.raiseRequiredDataMajor(1)
+            let activated = try await store.dataCompatibilityState()
+            #expect(activated.persistedRequiredMajor == 1)
+            #expect(activated.requiredMajor == 1)
+            try await store.add(sample: sample)
+            #expect(try await store.allSamples() == [sample])
+        }
+    }
+
     @Test func ordinaryOlderScopeCannotActivateOrAuthorANewerMajor() async throws {
         let store = try SwiftDataStore.inMemory()
         let permit = DataAccessPermit(

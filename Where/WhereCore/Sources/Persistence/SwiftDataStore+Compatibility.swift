@@ -2,6 +2,19 @@ import Foundation
 import SwiftData
 
 extension SwiftDataStore {
+    struct CompatibilityMetadata {
+        let persistedRequiredMajor: UInt?
+        let hasLegacyHistory: Bool
+
+        func state(recordMajors: Set<UInt>) -> DataCompatibilityStoreState {
+            .init(
+                persistedRequiredMajor: persistedRequiredMajor,
+                recordMajors: recordMajors,
+                hasLegacyHistory: hasLegacyHistory,
+            )
+        }
+    }
+
     /// Reset and Replace erase the outgoing generation's user payloads. Decode only the stable
     /// generation header; an unknown control body is not necessary to identify its storage scope.
     static func deleteVersionedHistoryRecords(
@@ -23,7 +36,7 @@ extension SwiftDataStore {
     }
 
     public func dataCompatibilityState() async throws -> DataCompatibilityStoreState {
-        let state = try Self.compatibilityState(in: readContext())
+        let state = try indexedCompatibilityState()
         #if DEBUG
             let completion = compatibilityReadCompletion
             compatibilityReadCompletion = nil
@@ -33,6 +46,23 @@ extension SwiftDataStore {
     }
 
     static func compatibilityState(in context: ModelContext) throws -> DataCompatibilityStoreState {
+        // This fresh scan is deliberately retained for the physical-save admission check and
+        // destructive operations. It must not reuse an earlier transaction's cached headers.
+        var recordMajors: Set<UInt> = []
+        for record in try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>()) {
+            guard let data = record.envelope else { throw DataCompatibilityError.incompleteRecord }
+            let header = try JSONDecoder().decode(VersionedHistoryRecord.Header.self, from: data)
+            recordMajors.insert(header.semantics.major)
+        }
+        return try compatibilityMetadata(in: context).state(recordMajors: recordMajors)
+    }
+
+    func indexedCompatibilityState() throws -> DataCompatibilityStoreState {
+        let majors = try versionedHistoryIndex().recordMajors
+        return try operationCompatibilityMetadata().state(recordMajors: majors)
+    }
+
+    static func compatibilityMetadata(in context: ModelContext) throws -> CompatibilityMetadata {
         let requirements = try context.fetch(FetchDescriptor<SDDataCompatibilityRequirement>())
         var requiredMajor: UInt = 0
         for requirement in requirements {
@@ -41,15 +71,8 @@ extension SwiftDataStore {
             }
             requiredMajor = max(requiredMajor, major)
         }
-        var recordMajors: Set<UInt> = []
-        for record in try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>()) {
-            guard let data = record.envelope else { throw DataCompatibilityError.incompleteRecord }
-            let header = try JSONDecoder().decode(VersionedHistoryRecord.Header.self, from: data)
-            recordMajors.insert(header.semantics.major)
-        }
         return try .init(
             persistedRequiredMajor: requirements.isEmpty ? nil : requiredMajor,
-            recordMajors: recordMajors,
             hasLegacyHistory: hasLegacyHistory(in: context),
         )
     }
@@ -87,38 +110,33 @@ extension SwiftDataStore {
     public func versionedHistoryRecords(policy: DataCompatibilityPolicy) async throws
         -> [VersionedHistoryRecord]
     {
-        let context = readContext()
-        try Self.compatibilityState(in: context).validate(policy: policy)
+        try indexedCompatibilityState().validate(policy: policy)
         let generation = try await dataGeneration().id
-        var records: [VersionedHistoryRecord.ID: VersionedHistoryRecord] = [:]
-        for row in try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>()) {
-            guard let data = row.envelope else { throw DataCompatibilityError.incompleteRecord }
-            let value = try VersionedHistoryRecord.admit(data, policy: policy)
-            guard value.dataGenerationID == generation else { continue }
-            if let old = records[value.id],
-               old != value { throw DataCompatibilityError.conflictingRecord }
-            records[value.id] = value
-        }
-        return records.values.sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }
+        return try versionedHistoryIndex().records(in: generation, policy: policy)
+            .sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }
     }
 
     public func addVersionedHistoryRecord(_ record: VersionedHistoryRecord) async throws {
         try record.scope.validate()
-        let context = mutationContext()
+        let policy = DataAccessPermit.current?.policy ?? VersionedLocationSample.storagePolicy
+        try policy.validate(requiredMajor: record.semantics.major)
+        let context = versionedMutationContext()
         guard record.dataGenerationID == mutationGenerationID() else {
             throw RecordingPersistenceError.dataGenerationChanged
         }
-        for row in try context.fetch(FetchDescriptor<SDVersionedHistoryRecord>()) {
-            guard let data = row.envelope else { throw DataCompatibilityError.incompleteRecord }
-            let existing = try JSONDecoder().decode(VersionedHistoryRecord.self, from: data)
-            guard existing.id == record.id,
-                  existing.dataGenerationID == record.dataGenerationID else { continue }
+        let index = try versionedHistoryIndex()
+        if let existing = try index.record(
+            with: record.id,
+            generationID: record.dataGenerationID,
+            policy: policy,
+        ) {
             guard existing == record else { throw DataCompatibilityError.conflictingRecord }
             return
         }
         let row = SDVersionedHistoryRecord()
         row.envelope = try JSONEncoder().encode(record)
         context.insert(row)
+        index.didInsert(record)
     }
 }
 
