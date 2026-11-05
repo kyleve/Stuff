@@ -437,6 +437,10 @@ one it belongs to rather than to a god-object:
   A merged issue supplies context, while each queue item retains the exact periods available for a choice. Overlapping references share work without filling gaps.
   `RecordingReviewSnapshot` must cover every original period before an empty result can establish resolution. A different service, generation, or major fails reassessment.
   These values support in-memory review and do not authorize writes.
+  `DataIssueReviewQueue` retains ordinary issue categories, logical dates, and original year/query context under the recording contract.
+  Splits and merges keep only overlapping original dates. Each item separates current issue context from its bounded `reviewDays`; gaps remain outside the action scope.
+  Reassessment requires every original context and the same service, generation, and compatible major. A missing year cannot establish resolution.
+  Foundation history is excluded because its GPS dates can still change with the viewing zone. Notification persistence and UI enforcement remain integration work.
   `RecordingReviewNotification` saves original issue identities, periods, and year/query contexts with an account/container/store binding and generation.
   Restore requires the current binding, compatible major, and a fresh snapshot covering every original period. Only then does it bind references to the new scanner lifetime.
   `FileRecordingReviewNotificationStore` stores immutable contexts atomically in protected, backup-excluded files. System requests can carry their opaque IDs.

@@ -42,6 +42,9 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
 - Reassess every original absolute period before completing queued recording work. Include current device evidence regardless of original device IDs or logical-year labels.
   Preserve bounded choice periods separately from merged issue context. Reject different service scopes, generations, majors, or incomplete coverage. Guard: `RecordingReviewQueueTests`.
   Read those periods through the shared history reader in one store snapshot. Reject cancelled completions and retry invalidated results. Guard: `DataIssueScannerTests`.
+- Keep ordinary queued work within its original category and logical dates. Preserve the original year/query after derived identifiers change.
+  Use each item's bounded review dates, not a merged issue's full range. Require all original contexts before completing reassessment.
+  Guard: `DataIssueReviewQueueTests`.
 - Persist notification review context independently of ephemeral scanner scopes. Validate decoded periods and query bounds before use.
   Restore only for the same account/container/store and generation, a compatible major, and complete fresh coverage of the original periods.
   Keep saved contexts immutable and backup-excluded. Propagate storage errors; only missing files mean absence.

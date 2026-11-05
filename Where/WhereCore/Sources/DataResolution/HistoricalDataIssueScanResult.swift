@@ -40,6 +40,8 @@ public struct HistoricalDataIssueScanResult: Sendable {
         @_spi(Testing) public init(
             yearScans: [Int: DataIssueScanResult],
             calendar: Calendar,
+            scopeID: RecordingReviewSnapshot.ScopeID? = nil,
+            generationID: WhereDataGenerationID = .initial,
         ) throws {
             guard let version = yearScans.values.first?.completeness.policyVersion else {
                 throw RecordingReviewSnapshot.ValidationError.emptyAssessment
@@ -57,8 +59,8 @@ public struct HistoricalDataIssueScanResult: Sendable {
                 )
             }
             recording = try RecordingReviewSnapshot(
-                scopeID: .init(rawValue: UUID()),
-                generationID: .initial,
+                scopeID: scopeID ?? .init(rawValue: UUID()),
+                generationID: generationID,
                 policyVersion: version,
                 assessedPeriods: years.map {
                     try version.major == 0

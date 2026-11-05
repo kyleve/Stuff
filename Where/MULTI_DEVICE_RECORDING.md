@@ -1427,6 +1427,11 @@ The protected, backup-excluded file store keeps each notification context immuta
 Focused fixtures cover relaunch, splits, merges, account changes, reset, partial assessment, and storage failure.
 These are routing primitives. The system scheduler and notification-entry flow do not use them yet.
 
+**Ordinary review scope primitive implemented:** `DataIssueReviewQueue` retains original categories, logical dates, and historical query contexts.
+Changed missing-day ranges and travel pairs keep only their original actionable dates. Merged context cannot add intervening gaps or new dates.
+A missing original year, changed generation, different scanner scope, or incompatible major cannot establish resolution.
+This primitive requires recording-contract day semantics. Durable notification integration and UI enforcement of its bounds remain pending.
+
 **Combined evening scheduling implemented:** one daily request combines the enabled logging and issue categories at the existing evening time.
 Settings keeps both device-local toggles and shows the shared time while either category is enabled. Daily summaries remain independent.
 The rolling seven-day schedule retains known earlier missing days and all-history issues, including recording concerns across year boundaries.
