@@ -9,10 +9,10 @@ import WhereCore
 @Observable
 public final class RecordingChoiceModel {
     enum Content {
-        case choosing(RecordingChoiceInspection.Preview, names: [RecordingDeviceID: String])
+        case choosing(RecordingChoiceInspection.Preview, presentation: RecordingChoicePresentation)
         case reviewed(
             RecordingChoiceInspection,
-            names: [RecordingDeviceID: String],
+            presentation: RecordingChoicePresentation,
             refreshed: Bool,
         )
 
@@ -23,9 +23,9 @@ public final class RecordingChoiceModel {
             }
         }
 
-        var names: [RecordingDeviceID: String] {
+        var presentation: RecordingChoicePresentation {
             switch self {
-                case let .choosing(_, names), let .reviewed(_, names, _): names
+                case let .choosing(_, presentation), let .reviewed(_, presentation, _): presentation
             }
         }
     }
@@ -89,7 +89,11 @@ public final class RecordingChoiceModel {
     }
 
     var deviceNames: [RecordingDeviceID: String] {
-        state.content?.names ?? [:]
+        state.content?.presentation.names ?? [:]
+    }
+
+    var presentation: RecordingChoicePresentation? {
+        state.content?.presentation
     }
 
     var canApply: Bool {
@@ -132,11 +136,12 @@ public final class RecordingChoiceModel {
         do {
             let inspection = try await services.recordingChoices.inspect(request)
             let names = try await services.recording.displayNames()
+            let presentation = RecordingChoicePresentation(inspection: inspection, names: names)
             try await validatePublication(pending)
             if choosing, case let .ready(preview) = inspection {
-                state = .ready(.choosing(preview, names: names))
+                state = .ready(.choosing(preview, presentation: presentation))
             } else {
-                state = .ready(.reviewed(inspection, names: names, refreshed: false))
+                state = .ready(.reviewed(inspection, presentation: presentation, refreshed: false))
             }
         } catch is CancellationError {
             if requestID == pending { state = .idle }
@@ -160,8 +165,16 @@ public final class RecordingChoiceModel {
                 case let .stale(review):
                     let inspection = try await services.recordingChoices.inspection(of: review)
                     let names = try await services.recording.displayNames()
+                    let presentation = RecordingChoicePresentation(
+                        inspection: inspection,
+                        names: names,
+                    )
                     try await validatePublication(pending)
-                    state = .ready(.reviewed(inspection, names: names, refreshed: true))
+                    state = .ready(.reviewed(
+                        inspection,
+                        presentation: presentation,
+                        refreshed: true,
+                    ))
             }
         } catch is CancellationError {
             // A commit can finish after the screen closes. The next entry reads current history;

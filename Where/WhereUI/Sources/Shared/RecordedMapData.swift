@@ -10,8 +10,22 @@ struct RecordedMapData {
     }
 
     struct Route: Identifiable {
-        let id: FlightAssessment.RecordingSource
+        enum ID: Hashable {
+            case source(FlightAssessment.RecordingSource)
+            case coverage(deviceID: RecordingDeviceID, period: RecordingPeriod)
+        }
+
+        let id: ID
         let coordinates: [Coordinate]
+
+        init(id: ID, coordinates: [Coordinate]) {
+            self.id = id
+            self.coordinates = coordinates
+        }
+
+        init(id: FlightAssessment.RecordingSource, coordinates: [Coordinate]) {
+            self.init(id: .source(id), coordinates: coordinates)
+        }
     }
 
     static let maximumPins = 250

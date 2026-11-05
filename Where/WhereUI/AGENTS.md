@@ -147,6 +147,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Split longer displayed stays at another visit's interior start day. Keep shared days in each region exactly once.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
+  Recording-choice maps also split routes at physical coverage gaps and reviewed-period boundaries.
+  Keep unknown dates and geography explicit. Label preview contributions as scoped GPS evidence, not whole-day totals.
+  Guard: `RecordingChoicePresentationTests`.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
   stale Apply results open for review and preserve manual editing while arrival is pending.
   Show each flight's own progress when a daily review mixes completed and pending flights.

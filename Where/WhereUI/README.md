@@ -249,6 +249,9 @@ Unknown calendar coverage can prevent a whole-day choice while preserving the fi
 `RecordingReviewFlowModel` reassesses the original queue and retains skips as unresolved work.
 New issues outside that scope remain in the main list. Failed or interrupted reads cannot report that the queue is resolved.
 Both models preserve original errors and check the admitted service before publishing asynchronous results.
+`RecordingChoicePresentation` prepares each track map once per inspection, with separate routes for devices and available periods.
+`RecordingChoiceDetails` renders the shared comparison sections, including raw observations, recording dates, gaps, reasons, and scoped GPS contributions.
+Unknown dates and geography remain explicit. Rendering fixtures exercise these sections; they do not establish navigation or save behavior.
 Their screens remain under implementation; [the recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.

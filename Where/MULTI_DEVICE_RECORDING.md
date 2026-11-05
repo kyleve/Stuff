@@ -1381,6 +1381,8 @@ The scene now shares historical correction issues and flight reviews with its ba
 Selected-year calendar indicators derive from the same publication. Year changes retain outstanding historical work; failed scans retain the last admitted result and original error.
 `RecordingChoiceModel` keeps browsing separate from an explicit action and retains the exact proposal until Save.
 Changed inputs return to review before another Apply. `RecordingReviewFlowModel` retains skipped work and requires complete reassessment before reporting resolution.
+The shared comparison sections show raw tracks, gaps, dates, selection reasons, and GPS contributions within the reviewed periods.
+Track maps preserve physical gaps and disjoint review periods. Their rendering fixtures are separate from the remaining navigation and editor integration.
 Recording-specific review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.

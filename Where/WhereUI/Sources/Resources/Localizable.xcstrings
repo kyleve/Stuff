@@ -6345,6 +6345,391 @@
         }
       }
     },
+    "recording.review.after" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With this choice"
+          }
+        }
+      }
+    },
+    "recording.review.before" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current contributions"
+          }
+        }
+      }
+    },
+    "recording.review.contributions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPS contributions in reviewed periods"
+          }
+        }
+      }
+    },
+    "recording.review.contributionsDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These are contributions from the reviewed periods, not whole-day totals. Other observations and manual entries remain separate."
+          }
+        }
+      }
+    },
+    "recording.review.currentSelection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current selection"
+          }
+        }
+      }
+    },
+    "recording.review.excluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excluded from regional presence"
+          }
+        }
+      }
+    },
+    "recording.review.gaps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording gaps (%lld)"
+          }
+        }
+      }
+    },
+    "recording.review.gapsDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device will not fill gaps when you select this source for a period."
+          }
+        }
+      }
+    },
+    "recording.review.noContributions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No regional contributions"
+          }
+        }
+      }
+    },
+    "recording.review.noDates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No recorded dates"
+          }
+        }
+      }
+    },
+    "recording.review.noGaps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No recording gaps in the reviewed periods"
+          }
+        }
+      }
+    },
+    "recording.review.observationTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ UTC"
+          }
+        }
+      }
+    },
+    "recording.review.period" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ – %@ UTC"
+          }
+        }
+      }
+    },
+    "recording.review.rawDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These raw observations include nearby context. A point does not prove continuous recording."
+          }
+        }
+      }
+    },
+    "recording.review.rawPoints" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw observations (%lld)"
+          }
+        }
+      }
+    },
+    "recording.review.reason.agreement" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The devices agree on the recorded date and regions."
+          }
+        }
+      }
+    },
+    "recording.review.reason.calendar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded dates are missing or disagree. Review the calendar context before using a whole day."
+          }
+        }
+      }
+    },
+    "recording.review.reason.choices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source choices conflict. A new choice can resolve the reviewed period."
+          }
+        }
+      }
+    },
+    "recording.review.reason.chosen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You selected %@ for this period, including gaps in its recording."
+          }
+        }
+      }
+    },
+    "recording.review.reason.conflict" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device tracks disagree. Choose which source represents this period."
+          }
+        }
+      }
+    },
+    "recording.review.reason.eligibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device ignore settings conflict or have not fully arrived."
+          }
+        }
+      }
+    },
+    "recording.review.reason.missing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An earlier source choice has not arrived. This period remains unresolved."
+          }
+        }
+      }
+    },
+    "recording.review.reason.moving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movement supports %@ while the other device remained stationary."
+          }
+        }
+      }
+    },
+    "recording.review.reason.noEvidence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No usable recording covers this period."
+          }
+        }
+      }
+    },
+    "recording.review.reason.only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is the only device with usable evidence for this period."
+          }
+        }
+      }
+    },
+    "recording.review.reason.removed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected device, %@, was removed. Its affected period remains exclusive and needs review."
+          }
+        }
+      }
+    },
+    "recording.review.reason.uncertain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The available evidence does not support a confident automatic choice."
+          }
+        }
+      }
+    },
+    "recording.review.reason.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some controls cannot be interpreted. A source choice alone cannot resolve them."
+          }
+        }
+      }
+    },
+    "recording.review.recordedDates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded dates"
+          }
+        }
+      }
+    },
+    "recording.review.remaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This choice leaves unresolved issues (%lld). Their dates and reasons remain available for review."
+          }
+        }
+      }
+    },
+    "recording.review.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording review"
+          }
+        }
+      }
+    },
+    "recording.review.transitOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transit without regional presence"
+          }
+        }
+      }
+    },
+    "recording.review.unknownDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording date unknown"
+          }
+        }
+      }
+    },
+    "recording.review.unknownRegion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region unknown"
+          }
+        }
+      }
+    },
+    "recording.review.unnamedDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device %@"
+          }
+        }
+      }
+    },
     "regionCustomize.color" : {
       "extractionState" : "manual",
       "localizations" : {

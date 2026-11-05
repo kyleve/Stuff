@@ -9,6 +9,7 @@ struct RecordedMapPoint: Hashable {
     enum Attribution: Hashable {
         case region(Region)
         case excluded
+        case unknown
     }
 
     let coordinate: Coordinate
@@ -158,7 +159,7 @@ struct RecordedPointsMap: View {
     private func tint(for point: RecordedMapPoint) -> Color {
         switch point.attribution {
             case let .region(region): regionStyles.style(for: region).tint
-            case .excluded: .secondary
+            case .excluded, .unknown: .secondary
         }
     }
 
