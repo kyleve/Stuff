@@ -95,6 +95,8 @@ struct DayJournalTests {
             true
         }
 
+        func cancelScheduledReminders() async {}
+
         func reconcile(
             badgeCount: Int,
             scheduleDays _: [Date],
@@ -142,8 +144,6 @@ struct DayJournalTests {
         let issueAlerts = DataIssueAlertReconciler(
             scheduler: NoopDataIssueAlertScheduler(),
             scanner: scanner,
-            calendar: WhereCoreTestSupport.calendar(),
-            now: now,
         )
         let refresher = SpyRefresher()
         let widgets = WidgetSnapshotPublisher(

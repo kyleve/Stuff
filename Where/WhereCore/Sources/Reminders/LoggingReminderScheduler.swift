@@ -35,6 +35,10 @@ public protocol LoggingReminderScheduling: Sendable {
     /// reminders but denied the system permission.
     func isAuthorized() async -> Bool
 
+    /// Cancel owned logging requests without changing an independently assessed issue badge.
+    /// This applies known disabled intent when history is temporarily unreadable.
+    func cancelScheduledReminders() async
+
     /// Reconcile scheduled reminders and the app-icon badge against the current
     /// picture.
     ///
@@ -82,6 +86,8 @@ public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
     public func isAuthorized() async -> Bool {
         authorized
     }
+
+    public func cancelScheduledReminders() async {}
 
     public func reconcile(
         badgeCount _: Int,
@@ -143,6 +149,10 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             @unknown default:
                 false
         }
+    }
+
+    public func cancelScheduledReminders() async {
+        await removeAllOwnedReminders()
     }
 
     public func reconcile(

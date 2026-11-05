@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the issue-alert intent + notification reconciliation: the alert is
 /// scheduled while the current year has unresolved issues (and the user has it
@@ -40,13 +40,71 @@ struct DataIssueAlertReconcilerTests {
         let reconciler = DataIssueAlertReconciler(
             scheduler: spy,
             scanner: scanner,
-            calendar: calendar,
-            now: now,
         )
         return Harness(reconciler: reconciler, store: store, scanner: scanner, spy: spy)
     }
 
     private static let threshold = Double(DriftThreshold.default.rawValue)
+
+    @Test func successfulAuthorizationIsNotSupersededByAnOrdinaryRefresh() async throws {
+        let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let h = try Self.makeReconciler(now: { now })
+        try await Self.seedPrimaryRegionWithGap(h.store)
+        let gate = CompatibilityTestGate()
+        await h.spy.holdAuthorization(at: gate)
+        let pending = Task {
+            await h.reconciler.configure(
+                enabled: true,
+                time: .defaultEvening,
+                driftThresholdMeters: Self.threshold,
+            )
+        }
+        await gate.waitUntilEntered()
+        await h.reconciler.reconcile()
+        #expect(await h.spy.reconcileCount == 1)
+        await gate.resume()
+        await pending.value
+        #expect(await h.spy.reconcileCount == 2)
+        #expect(await h.spy.lastEnabled == true)
+    }
+
+    @Test func historicalIssuesRemainEligibleAtYearRollover() async throws {
+        let now = WhereCoreTestSupport.iso("2027-01-01T12:00:00-08:00")
+        let h = try Self.makeReconciler(now: { now })
+        try await Self.seedPrimaryRegionWithGap(h.store)
+        await h.reconciler.configure(
+            enabled: true,
+            time: .defaultEvening,
+            driftThresholdMeters: Self.threshold,
+        )
+        #expect(await h.spy.lastEnabled == true)
+        #expect(await h.spy.lastBody == String(localized: .dataIssuesNotificationBody(2)))
+    }
+
+    @Test func disablingDuringScanRejectsTheOldEnabledCompletion() async throws {
+        let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let h = try Self.makeReconciler(now: { now })
+        try await Self.seedPrimaryRegionWithGap(h.store)
+        let gate = CompatibilityTestGate()
+        await h.scanner.setBeforeHistoricalPublicationForTesting { await gate.suspend() }
+        let pending = Task {
+            await h.reconciler.configure(
+                enabled: true,
+                time: .defaultEvening,
+                driftThresholdMeters: Self.threshold,
+            )
+        }
+        await gate.waitUntilEntered()
+        await h.reconciler.configure(
+            enabled: false,
+            time: .defaultEvening,
+            driftThresholdMeters: Self.threshold,
+        )
+        await gate.resume()
+        await pending.value
+        #expect(await h.spy.reconcileCount == 1)
+        #expect(await h.spy.lastEnabled == false)
+    }
 
     /// A January California day makes California a primary region, so the rest of
     /// the year reads as missing days — a non-empty issue set the alert fires on.
@@ -152,8 +210,15 @@ private actor SpyDataIssueAlertScheduler: DataIssueAlertScheduling {
     private(set) var lastTime: ReminderTime?
     private(set) var lastBody: String?
 
+    private var authorizationGate: CompatibilityTestGate?
+
+    func holdAuthorization(at gate: CompatibilityTestGate) {
+        authorizationGate = gate
+    }
+
     func requestAuthorization() async -> Bool {
         authorizationRequests += 1
+        await authorizationGate?.suspend()
         return true
     }
 

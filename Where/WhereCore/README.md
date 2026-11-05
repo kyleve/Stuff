@@ -549,6 +549,11 @@ one it belongs to rather than to a god-object:
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
+  Reminder badges and issue alerts use the shared historical scan, including recording concerns once across year boundaries.
+  Failed scans retain prior output. Disabling logging cancels its owned requests without changing an unreadable issue badge.
+  Configuration revisions remain independent of assessment requests, so an intervening refresh cannot suppress a successful permission prompt.
+  Enabled issue badges reassess committed same-day GPS changes; having recorded today does not rule out a new conflict.
+  The logging and issue notifications still use separate schedules until the combined-reminder integration lands.
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy for the independently aggregated data.
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
@@ -728,8 +733,7 @@ rotates to a Reset child generation, and discards the retry queue only after com
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`. Errors are logged via
   `WhereLog`. Most callers propagate failure or retain honest failed state.
-  The reminder badge still logs a failed scan and returns zero; that exception
-  is tracked in [`../TODOs.md`](../TODOs.md).
+  Reminder assessment failures preserve the previous badge rather than reporting zero issues.
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.

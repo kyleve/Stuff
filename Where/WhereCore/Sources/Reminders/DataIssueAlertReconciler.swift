@@ -2,7 +2,7 @@ import Foundation
 import PeriscopeCore
 
 /// Owns the "you have issues to resolve" notification intent and the
-/// reconciliation that keeps that notification in sync with the current year's
+/// reconciliation that keeps that notification in sync with the all-history
 /// unresolved data-issue count. Mirrors `DailySummaryReconciler`: the schedule
 /// re-runs on launch/foreground and after every committed write, so the alert
 /// appears once issues exist and clears the moment the last one is resolved or
@@ -10,10 +10,12 @@ import PeriscopeCore
 public actor DataIssueAlertReconciler {
     private let scheduler: any DataIssueAlertScheduling
     private let scanner: DataIssueScanner
-    private let calendar: Calendar
-    private let now: @Sendable () -> Date
 
     private var config = Configuration()
+    private struct RequestID: Hashable { let value = UUID() }
+    private var requestID = RequestID()
+    private struct ConfigurationID: Hashable { let value = UUID() }
+    private var configurationID = ConfigurationID()
 
     private struct Configuration {
         var enabled = false
@@ -26,13 +28,9 @@ public actor DataIssueAlertReconciler {
     init(
         scheduler: any DataIssueAlertScheduling,
         scanner: DataIssueScanner,
-        calendar: Calendar,
-        now: @escaping @Sendable () -> Date,
     ) {
         self.scheduler = scheduler
         self.scanner = scanner
-        self.calendar = calendar
-        self.now = now
     }
 
     /// Set the user's issue-alert intent (enabled + fire time + the drift
@@ -45,31 +43,40 @@ public actor DataIssueAlertReconciler {
             time: time,
             driftThresholdMeters: driftThresholdMeters,
         )
+        let configuration = ConfigurationID()
+        configurationID = configuration
+        requestID = RequestID()
         if enabled {
             _ = await scheduler.requestAuthorization()
         }
+        guard configurationID == configuration, !Task.isCancelled else { return }
         await reconcile()
     }
 
-    /// Recompute the current-year unresolved-issue count and push it to the
+    /// Recompute the all-history unresolved-issue count and push it to the
     /// scheduler: schedule the alert while issues remain (and the user has it
     /// enabled), clear it otherwise.
     func reconcile() async {
-        await Self.logger.measure(.reconcile, budget: .seconds(3)) {
-            guard config.enabled else {
-                await scheduler.reconcile(enabled: false, time: config.time, body: "")
+        let request = RequestID()
+        requestID = request
+        let configuration = config
+        await Self.logger.measure(.reconcile, budget: .seconds(8)) {
+            guard requestID == request, !Task.isCancelled else { return }
+            guard configuration.enabled else {
+                await scheduler.reconcile(enabled: false, time: configuration.time, body: "")
                 return
             }
 
-            let year = calendar.component(.year, from: now())
             do {
-                let count = try await scanner.currentIssueCount(
-                    year: year,
-                    driftThresholdMeters: config.driftThresholdMeters,
+                let result = try await scanner.historicalScan(
+                    driftThresholdMeters: configuration.driftThresholdMeters,
+                    force: false,
                 )
+                guard requestID == request, !Task.isCancelled else { return }
+                let count = result.issueCount
                 await scheduler.reconcile(
                     enabled: count > 0,
-                    time: config.time,
+                    time: configuration.time,
                     body: Self.body(count: count),
                 )
             } catch {

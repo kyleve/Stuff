@@ -188,8 +188,6 @@ public struct WhereServices: Sendable {
         let issueAlerts = DataIssueAlertReconciler(
             scheduler: issueAlertScheduler,
             scanner: resolution,
-            calendar: aggregator.calendar,
-            now: now,
         )
         // The reader runs in *this* (app) process and shares the store, calendar,
         // and attributor so the published snapshot's day/year line up with
@@ -229,8 +227,8 @@ public struct WhereServices: Sendable {
             onPersisted: { outcome in
                 if let sample = outcome.liveSample {
                     // Hot live-sample path: the reminder reconcile carries the
-                    // badge (including its issue count) and self-throttles once
-                    // today is covered. The issue-alert notification is less
+                    // badge, invalidates the issue cache, and skips covered-day report reads
+                    // only when issue alerts are disabled. The issue-alert notification is less
                     // latency-sensitive and refreshes on the drain/write paths
                     // and every foreground, so it stays off this per-sample path.
                     await reminders.reconcileAfterIngest(changedDays: outcome.changedDays)

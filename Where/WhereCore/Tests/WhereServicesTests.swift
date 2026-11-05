@@ -1776,6 +1776,11 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
         authorized
     }
 
+    func cancelScheduledReminders() async {
+        lastEnabled = false
+        lastScheduleDays = []
+    }
+
     func reconcile(
         badgeCount: Int,
         scheduleDays: [Date],

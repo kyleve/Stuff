@@ -183,17 +183,9 @@ public actor DataIssueScanner {
         }
     }
 
-    /// Count of unresolved issues for `year`, for headless callers (the app-icon
-    /// badge, the issue-alert notification) that don't have the UI's
-    /// `RegionRanking` on hand. Derives `primaryRegions` through the shared
-    /// `Region.primaryRegions` helper — the *same* definition `RegionRanking`
-    /// builds the Primary/Elsewhere split from, so the "primary" rule lives in
-    /// one place and this count can't disagree with what the Resolve tab shows
-    /// (no ranking logic is duplicated here). This reads the report once to rank
-    /// regions and `issues(...)` reads it again on a cache miss, so callers that
-    /// already hold a report (the hot badge path in `ReminderReconciler`) should
-    /// call `issues(...)` with `Region.primaryRegions(...)` directly to avoid the
-    /// second read; this convenience is for the cold notification path.
+    /// Ordinary detector count for one year, using the report's primary-region ranking.
+    /// Reminders and main issue discovery use `historicalScan(...).issueCount` instead,
+    /// which also includes recording concerns and work from other years.
     public func currentIssueCount(
         year: Int,
         driftThresholdMeters: Double,

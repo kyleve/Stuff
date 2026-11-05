@@ -4,6 +4,34 @@ import UserNotifications
 @testable import WhereCore
 
 struct LoggingReminderSchedulerTests {
+    @Test func cancellingLoggingPreservesTheIndependentBadgeAndOtherNotifications() async throws {
+        let center = FakeNotificationReminderCenter()
+        let scheduler = UserNotificationReminderScheduler(
+            notificationCenter: center,
+            calendar: Self.calendar,
+        )
+        let day = try #require(Self.calendar.date(from: DateComponents(
+            year: 2026,
+            month: 1,
+            day: 5,
+        )))
+        await scheduler.reconcile(
+            badgeCount: 7,
+            scheduleDays: [day],
+            reminderTime: .defaultEvening,
+            enabled: true,
+        )
+        let other = UNNotificationRequest(
+            identifier: "separate-summary",
+            content: UNMutableNotificationContent(),
+            trigger: nil,
+        )
+        try await center.add(other)
+        await scheduler.cancelScheduledReminders()
+        #expect(center.pendingRequests.map(\.identifier) == [other.identifier])
+        #expect(center.badgeCounts == [7])
+    }
+
     private static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!

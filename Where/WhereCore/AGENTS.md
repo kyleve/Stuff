@@ -211,6 +211,10 @@ That document also owns the implementation plan.
 - **Writes await their side effects.** `DayJournal` commits. Then it awaits
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
+- Count reminder issues through the all-history scanner, including recording concerns once across year boundaries.
+  Failed assessment must retain prior output while applying independently known disabled intent.
+  Keep configuration and assessment revisions separate across permission prompts. Invalidate committed-ingest reads inline before reassessment.
+  Guards: `ReminderReconcilerTests`, `DataIssueAlertReconcilerTests`, and `LoggingReminderSchedulerTests`.
 - **Observe remote history through Where's `ModelContainer` and exclude this
   store instance's transaction author.** Never let Periscope or Where's own
   local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.

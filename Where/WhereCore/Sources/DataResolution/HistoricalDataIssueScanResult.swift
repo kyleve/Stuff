@@ -21,6 +21,12 @@ public struct HistoricalDataIssueScanResult: Sendable {
         return years.flatMap(\.scan.issues).filter { seen.insert($0.id).inserted }
     }
 
+    /// Actionable ordinary and recording concerns, deduplicated across historical years.
+    /// Confident automatic selections and informational flight reviews do not contribute.
+    public var issueCount: Int {
+        issues.count + recording.issues.count
+    }
+
     public var reviews: [GPSCorrectionReview] {
         years.flatMap(\.scan.reviews)
     }

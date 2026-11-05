@@ -1427,6 +1427,12 @@ The protected, backup-excluded file store keeps each notification context immuta
 Focused fixtures cover relaunch, splits, merges, account changes, reset, partial assessment, and storage failure.
 These are routing primitives. The system scheduler and notification-entry flow do not use them yet.
 
+**Historical reminder assessment implemented:** existing reminder badges and issue alerts use the all-history scan, including recording concerns across year boundaries.
+Failed scans retain prior output. Known disabled logging intent still cancels its schedule without inventing an issue count.
+Permission completion survives intervening refreshes; superseded assessments cannot restore older settings.
+Committed same-day GPS ingestion invalidates the shared scan before refreshing enabled issue badges.
+The logging and issue notifications remain separate until the combined scheduling integration below.
+
 Combine evening reminders and add notification routing into the bounded resolution flow.
 Retain original review scopes independently of derived issue identifiers and reassess them through splits and merges.
 Deduplicate overlapping work without expanding choices across gaps or unreviewed periods.

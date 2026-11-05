@@ -4,7 +4,7 @@ import RegionKit
 
 /// Owns the daily "log before the day ends" reminder intent and the
 /// reconciliation that keeps the scheduled reminders + badge in sync with the
-/// current year's missing-day picture.
+/// current year's missing days and all historical unresolved issues.
 ///
 /// This is the single source of truth for "recorded successfully -> drop
 /// today's reminder and lower the badge": every committed write that can change
@@ -22,10 +22,13 @@ public actor ReminderReconciler {
     private let windowDays: Int
 
     private var config = Configuration()
+    private struct RequestID: Hashable { let value = UUID() }
+    private var requestID = RequestID()
+    private struct ConfigurationID: Hashable { let value = UUID() }
+    private var configurationID = ConfigurationID()
 
     /// The start-of-day we last reconciled while today already had presence.
-    /// Lets the GPS ingest path skip a full re-scan once today is covered
-    /// (significant-change events can fire many times a day).
+    /// Lets the GPS ingest path skip a full report read when issue alerts are disabled.
     private var todayCoveredByReconcile: Date?
 
     private struct Configuration {
@@ -78,9 +81,13 @@ public actor ReminderReconciler {
             issueAlertsEnabled: issueAlertsEnabled,
             driftThresholdMeters: driftThresholdMeters,
         )
+        let configuration = ConfigurationID()
+        configurationID = configuration
+        requestID = RequestID()
         if enabled {
             _ = await scheduler.requestAuthorization()
         }
+        guard configurationID == configuration, !Task.isCancelled else { return }
         await reconcile()
     }
 
@@ -97,17 +104,19 @@ public actor ReminderReconciler {
         await scheduler.isAuthorized()
     }
 
-    /// Cheap reconcile for the GPS ingest path: skips work once today is already
-    /// known to be covered, so a burst of significant-change samples doesn't
-    /// trigger a full-year scan each time. Runs when reminders are on *or* when
-    /// issue alerts are on (the badge's issue count also needs to refresh after a
-    /// background ingest). When reminders are off `todayCoveredByReconcile` stays
-    /// nil, so the coverage shortcut simply doesn't apply.
+    /// Reconcile after committed GPS ingestion. Enabled issues require fresh assessment even
+    /// when today is already covered. With issues disabled, covered same-day writes can skip
+    /// the report read. Invalidate inline instead of racing the store-change listener.
     func reconcileAfterIngest(changedDays: Set<Date>) async {
         guard config.enabled || config.issueAlertsEnabled else { return }
+        // This is a committed-ingest boundary. Do not race the scanner's asynchronous listener.
+        await issueScanner.invalidate()
         let today = calendar.startOfDay(for: now())
         let changedDayNeedsReconcile = changedDays.contains { $0 != today }
-        guard todayCoveredByReconcile != today || changedDayNeedsReconcile else { return }
+        // A new point can create a conflict even on an already recorded day.
+        guard config
+            .issueAlertsEnabled || todayCoveredByReconcile != today || changedDayNeedsReconcile
+        else { return }
         await reconcile()
     }
 
@@ -116,33 +125,42 @@ public actor ReminderReconciler {
     /// the unresolved data-issue count, and a rolling window of upcoming unlogged
     /// days gets per-day reminders.
     func reconcile() async {
-        await Self.logger.measure(.reconcile, budget: .seconds(3)) {
-            await performReconcile()
+        let request = RequestID()
+        requestID = request
+        let configuration = config
+        await Self.logger.measure(.reconcile, budget: .seconds(8)) {
+            await performReconcile(configuration: configuration, request: request)
         }
     }
 
     /// `reconcile()`'s body, split out so the span wraps every path through it —
     /// including the reminders-off branch, which still scans for the badge.
-    private func performReconcile() async {
+    private func performReconcile(configuration: Configuration, request: RequestID) async {
         let today = calendar.startOfDay(for: now())
         let year = calendar.component(.year, from: today)
 
-        guard config.enabled else {
-            // Reminders off: no per-day reminders, but the badge still surfaces
-            // the unresolved-issue count when issue alerts are on. (No report in
-            // hand here, so the scan reads its own.)
-            let issueBadge = await dataIssueBadgeCount(year: year, report: nil)
-            await scheduler.reconcile(
-                badgeCount: issueBadge,
-                scheduleDays: [],
-                reminderTime: config.time,
-                enabled: false,
-            )
-            todayCoveredByReconcile = nil
-            return
-        }
-
         do {
+            if !configuration.enabled {
+                guard requestID == request, !Task.isCancelled else { return }
+                // Apply known disabled intent even if the independent issue count cannot load.
+                await scheduler.cancelScheduledReminders()
+                guard requestID == request, !Task.isCancelled else { return }
+                todayCoveredByReconcile = nil
+            }
+            let issueBadge = try await dataIssueBadgeCount(configuration: configuration)
+            guard requestID == request, !Task.isCancelled else { return }
+            guard configuration.enabled else {
+                await scheduler.reconcile(
+                    badgeCount: issueBadge,
+                    scheduleDays: [],
+                    reminderTime: configuration.time,
+                    enabled: false,
+                )
+                guard requestID == request else { return }
+                todayCoveredByReconcile = nil
+                return
+            }
+
             let report = try await reportReader.yearReport(for: year)
             let present = Set(report.days.map(\.day))
             // The badge backlog is *past* misses only — today is still loggable,
@@ -161,15 +179,14 @@ public actor ReminderReconciler {
             let scheduleDays = today
                 .calendarDays(through: windowEnd, in: calendar)
                 .filter { !present.contains(CalendarDay(from: $0, in: calendar)) }
-            // Reuse the report we already read to derive the ranking the issue
-            // scan needs, avoiding a second store read on this hot path.
-            let issueBadge = await dataIssueBadgeCount(year: year, report: report)
+            guard requestID == request, !Task.isCancelled else { return }
             await scheduler.reconcile(
                 badgeCount: backlog.count + issueBadge,
                 scheduleDays: scheduleDays,
-                reminderTime: config.time,
+                reminderTime: configuration.time,
                 enabled: true,
             )
+            guard requestID == request else { return }
             todayCoveredByReconcile = present.contains(CalendarDay(from: today, in: calendar))
                 ? today
                 : nil
@@ -180,29 +197,14 @@ public actor ReminderReconciler {
         }
     }
 
-    /// The unresolved data-issue count that folds into the badge, or 0 when issue
-    /// alerts are off. Reuses `report` when the caller already has it (the hot
-    /// reminder path) and otherwise lets the scanner read its own. Scan failures
-    /// log and contribute 0 rather than blanking the whole badge.
-    private func dataIssueBadgeCount(year: Int, report: YearReport?) async -> Int {
-        guard config.issueAlertsEnabled else { return 0 }
-        do {
-            if let report {
-                return try await issueScanner.issues(
-                    year: year,
-                    primaryRegions: Region.primaryRegions(in: report.totals),
-                    driftThresholdMeters: config.driftThresholdMeters,
-                ).count
-            }
-            return try await issueScanner.currentIssueCount(
-                year: year,
-                driftThresholdMeters: config.driftThresholdMeters,
-            )
-        } catch {
-            Self.logger.badgeScanFailed(
-                error: .restricted(.errorDetails, error),
-            )
-            return 0
-        }
+    /// One failed historical scan leaves the previous schedule and badge intact.
+    /// Unknown recording dates and cross-year concerns are counted once by the shared scan.
+    private func dataIssueBadgeCount(configuration: Configuration) async throws -> Int {
+        guard configuration.issueAlertsEnabled else { return 0 }
+        let result = try await issueScanner.historicalScan(
+            driftThresholdMeters: configuration.driftThresholdMeters,
+            force: false,
+        )
+        return result.issueCount
     }
 }

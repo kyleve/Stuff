@@ -70,6 +70,10 @@ public struct DataCompatibilityOutputs: Sendable {
             await base.isAuthorized()
         }
 
+        func cancelScheduledReminders() async {
+            _ = await queue.publish { await base.cancelScheduledReminders() }
+        }
+
         func reconcile(
             badgeCount: Int,
             scheduleDays: [Date],
