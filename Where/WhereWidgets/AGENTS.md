@@ -34,6 +34,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Resolve the host App Group from `WhereWidgetBuildEnvironment`.** Inject it
   into providers and both stores; never put an audience default in a package
   target.
+- Treat missing, unreadable, withdrawn, or stale-policy publications as unavailable history, never empty counts.
+  Keep day and year completeness distinct; render through WhereUI's shared status mapping.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes. That is intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`). The

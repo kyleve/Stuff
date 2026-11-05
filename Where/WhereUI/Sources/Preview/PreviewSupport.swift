@@ -942,28 +942,6 @@
             return model
         }
 
-        /// A widget snapshot built from the sample year totals, for widget
-        /// previews and tests.
-        public static func sampleWidgetSnapshot(
-            dayRegions: Set<Region> = [.california],
-            totals: [Region: Int]? = nil,
-            day: Date = PreviewSupport.referenceWidgetDay,
-            year: Int = PreviewSupport.year,
-        ) -> WidgetSnapshot {
-            WidgetSnapshot(
-                day: day,
-                year: year,
-                dayRegions: dayRegions,
-                totals: totals ?? [
-                    .california: 132,
-                    .newYork: 41,
-                    .canada: 9,
-                    .europeanUnion: 4,
-                    .other: 2,
-                ],
-            )
-        }
-
         /// Personalized feature-gallery content over the same pinned report and
         /// clock used by the rest of the WhereUI snapshot catalog.
         @MainActor

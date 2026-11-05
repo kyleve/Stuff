@@ -9,7 +9,7 @@ import WidgetKit
 public protocol WidgetTimelineRefreshing: Sendable {
     /// Persist `snapshot` where the widget process can read it, then ask
     /// WidgetKit to rebuild every timeline.
-    func publish(_ snapshot: WidgetSnapshot, access: DataCompatibilityAccess?) async
+    func publish(_ snapshot: WidgetSnapshot, access: DataCompatibilityAccess?) async throws
 
     /// Remove the published history and reload timelines after pending publications drain.
     func withdraw() async
@@ -18,8 +18,8 @@ public protocol WidgetTimelineRefreshing: Sendable {
 extension WidgetTimelineRefreshing {
     /// Unscoped worlds use this entry point. Production services inject a compatibility wrapper
     /// which supplies its access at the actual file-write boundary.
-    public func publish(_ snapshot: WidgetSnapshot) async {
-        await publish(snapshot, access: nil)
+    public func publish(_ snapshot: WidgetSnapshot) async throws {
+        try await publish(snapshot, access: nil)
     }
 }
 
@@ -46,23 +46,14 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
         self.appGroupIdentifier = appGroupIdentifier
     }
 
-    public func publish(_ snapshot: WidgetSnapshot, access: DataCompatibilityAccess?) async {
-        do {
-            let snapshotStore = try WidgetSnapshotStore
-                .shared(appGroupIdentifier: appGroupIdentifier)
-            if let access {
-                try access.publishWhileValid { try snapshotStore.write(snapshot) }
-            } else {
-                try snapshotStore.write(snapshot)
-            }
-            Self.logger.wroteSnapshot()
-        } catch DataAccessPermit.AccessError.revoked {
-            return
-        } catch {
-            Self.logger.publishFailed(
-                error: .restricted(.errorDetails, error),
-            )
+    public func publish(_ snapshot: WidgetSnapshot, access: DataCompatibilityAccess?) async throws {
+        let snapshotStore = try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier)
+        if let access {
+            try access.publishWhileValid { try snapshotStore.write(snapshot) }
+        } else {
+            try snapshotStore.write(snapshot)
         }
+        Self.logger.wroteSnapshot()
         WidgetCenter.shared.reloadAllTimelines()
     }
 

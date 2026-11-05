@@ -13,10 +13,9 @@ import RegionKit
 ///   freshness gate),
 /// while `publish()` unconditionally rebuilds after a committed mutation.
 ///
-/// `lastPublished` is only `nil` on a cold launch (a fresh instance), which is
-/// exactly when one publish is desirable to recover from any staleness.
+/// A cold launch or failed publication clears `lastPublished`, so the next refresh retries.
 public actor WidgetSnapshotPublisher {
-    private let widgetReader: WidgetDataReader
+    private let widgetReader: any WidgetSnapshotReading
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let attributor: any RegionAttributing
     private let calendar: Calendar
@@ -24,6 +23,8 @@ public actor WidgetSnapshotPublisher {
     private let maxAge: TimeInterval
 
     private var lastPublished: PublishedWidgetSnapshot?
+    private struct PublicationID: Hashable { let rawValue = UUID() }
+    private var latestPublication: PublicationID?
 
     private struct PublishedWidgetSnapshot {
         let snapshot: WidgetSnapshot
@@ -40,7 +41,7 @@ public actor WidgetSnapshotPublisher {
     private static let logger = WhereLog.widgets(WidgetSnapshotPublisherLog.self)
 
     init(
-        widgetReader: WidgetDataReader,
+        widgetReader: any WidgetSnapshotReading,
         widgetRefresher: any WidgetTimelineRefreshing,
         attributor: any RegionAttributing,
         calendar: Calendar,
@@ -62,7 +63,7 @@ public actor WidgetSnapshotPublisher {
     /// to a full rebuild.
     public func refreshIfStale() async {
         if let last = lastPublished {
-            let today = calendar.startOfDay(for: now())
+            let today = CalendarDay(from: now(), in: calendar)
             let isFresh = now().timeIntervalSince(last.publishedAt) < maxAge
             if last.snapshot.day == today, isFresh {
                 return
@@ -71,72 +72,39 @@ public actor WidgetSnapshotPublisher {
         await publish()
     }
 
-    /// Recompute today's `WidgetSnapshot` from the store and hand it to the
-    /// refresher to publish + reload. Called after every committed mutation that
-    /// can change what a widget shows. A failure here is non-fatal: the widget
-    /// keeps showing its last published snapshot.
+    /// Publish the newest assessed result. A failed assessment withdraws stale counts and leaves
+    /// the freshness gate open for recovery. A superseded build cannot erase a newer result.
     func publish() async {
+        let publication = PublicationID()
+        latestPublication = publication
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
-                await widgetRefresher.publish(snapshot)
+                guard latestPublication == publication else { return }
+                try await widgetRefresher.publish(snapshot)
+                guard latestPublication == publication else { return }
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
-                Self.logger.published(
-                    day: .restricted(.dateTime, dayLogLabel(snapshot.day)),
-                    regionCount: .shared(.count, snapshot.dayRegions.count),
-                )
-            } catch let error as RecordingPersistenceError {
-                // Generation/policy gaps mean a destructive CloudKit change may already be known
-                // even
-                // though its complete rows have not arrived. Keeping the last good snapshot would
-                // continue exposing history the user erased, so publish an honest empty value
-                // until a later remote-change reconcile can build the new generation.
-                let date = now()
-                let snapshot = WidgetSnapshot(
-                    day: calendar.startOfDay(for: date),
-                    year: CalendarDay(from: date, in: calendar).year,
-                    dayRegions: [],
-                    totals: [:],
-                )
-                await widgetRefresher.publish(snapshot)
-                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
-                Self.logger.buildFailed(
-                    error: .restricted(.errorDetails, error),
-                )
+                Self.logger.published(day: .restricted(.dateTime, snapshot.day.iso8601))
             } catch {
-                Self.logger.buildFailed(
-                    error: .restricted(.errorDetails, error),
-                )
+                Self.logger.buildFailed(error: .restricted(.errorDetails, error))
+                guard latestPublication == publication else { return }
+                lastPublished = nil
+                await widgetRefresher.withdraw()
             }
         }
     }
 
-    /// Publish after a single ingested sample, skipping the rebuild + WidgetKit
-    /// reload when the sample provably can't change what the widgets show: it
-    /// falls on the same calendar day as the last published snapshot *and*
-    /// resolves to a region that day already counts. Anything else — a new
-    /// region for the day, a sample on a different day, or no prior snapshot —
-    /// does a full rebuild. (A GPS sample is timestamped ~now, so it can only
-    /// add to its own day; a region already present means the day's regions and
-    /// the year totals are both unchanged.)
+    /// Only foundation-contract GPS has the old additive same-day guarantee. Recording evidence
+    /// can change source selection elsewhere, including when this point repeats an existing region.
     func publishAfterIngest(of sample: LocationSample) async {
-        if let last = lastPublished {
-            let day = calendar.startOfDay(for: sample.timestamp)
+        if let last = lastPublished, let assessment = last.snapshot.assessment,
+           assessment.version.major == 0,
+           case let .complete(regions) = assessment.dayRegions
+        {
+            let day = CalendarDay(from: sample.timestamp, in: calendar)
             let region = attributor.region(at: sample.coordinate)
-            if day == last.snapshot.day, last.snapshot.dayRegions.contains(region) {
-                return
-            }
+            if day == last.snapshot.day, regions.contains(region) { return }
         }
         await publish()
-    }
-
-    private func dayLogLabel(_ day: Date) -> String {
-        let parts = calendar.dateComponents([.year, .month, .day], from: day)
-        return String(
-            format: "%04d-%02d-%02d",
-            parts.year ?? 0,
-            parts.month ?? 0,
-            parts.day ?? 0,
-        )
     }
 }

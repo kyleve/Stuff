@@ -20,7 +20,7 @@ public struct TodayWidgetView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
-    private var regions: [Region] {
+    private var regions: WidgetContent<[Region]> {
         snapshot.orderedDayRegions
     }
 
@@ -33,27 +33,37 @@ public struct TodayWidgetView: View {
                     .tracking(1)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text(snapshot.day, format: .dateTime.month(.abbreviated).day())
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.tertiary)
+                Text(WhereFormat.widgetDay(
+                    snapshot.day,
+                    format: .dateTime.month(.abbreviated).day(),
+                ))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.tertiary)
             }
 
             Spacer(minLength: 0)
 
-            if let hero = regions.first, regions.count == 1 {
-                heroRegion(hero)
-            } else if regions.isEmpty {
-                emptyContent
-            } else {
-                regionList
+            switch regions {
+                case let .unavailable(status):
+                    Label(status.title, systemSymbol: status.symbol)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                case let .complete(regions):
+                    if let hero = regions.first, regions.count == 1 {
+                        heroRegion(hero)
+                    } else if regions.isEmpty {
+                        emptyContent
+                    } else {
+                        regionList(regions)
+                    }
             }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
-        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(day: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(content: regions))
     }
 
     /// The common case — one region so far today — gets the full passport
@@ -75,7 +85,7 @@ public struct TodayWidgetView: View {
     }
 
     /// A multi-region day (e.g. a CA→NY flight) lists each region compactly.
-    private var regionList: some View {
+    private func regionList(_ regions: [Region]) -> some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(regions, id: \.self) { region in
                 let style = regionStyles.style(for: region)
@@ -109,6 +119,22 @@ public struct TodayWidgetView: View {
 #if DEBUG
     extension TodayWidgetView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "NeedsReview",
+                configurations: .componentRepresentative,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.widgetSnapshotNeedingReview())
+                    .background(.background)
+            }
+            whereSnapshot(
+                name: "Unavailable",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.unavailableWidgetSnapshot())
+                    .background(.background)
+            }
             whereSnapshot(
                 name: "SingleRegion",
                 configurations: .componentRepresentative,

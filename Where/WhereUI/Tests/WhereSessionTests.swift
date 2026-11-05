@@ -79,7 +79,7 @@ struct WhereSessionTests {
         let (session, refresher) = try await makePublishingSession()
         await session.start()
         #expect(await refresher.publishCount == 1)
-        #expect(await refresher.lastSnapshot?.totals == [.california: 1])
+        #expect(await refresher.lastSnapshot?.assessment?.totals == .complete([.california: 1]))
     }
 
     /// Returning to the foreground (e.g. on a new calendar day) recomputes and
@@ -88,7 +88,7 @@ struct WhereSessionTests {
         let (session, refresher) = try await makePublishingSession()
         await session.appBecameActive()
         #expect(await refresher.publishCount == 1)
-        #expect(await refresher.lastSnapshot?.totals == [.california: 1])
+        #expect(await refresher.lastSnapshot?.assessment?.totals == .complete([.california: 1]))
     }
 
     /// A session whose services already hold one California day (seeded

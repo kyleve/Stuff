@@ -50,8 +50,8 @@ struct WhereWidgetProvider: TimelineProvider {
     }
 
     /// Read the latest published snapshot. When none exists yet (fresh
-    /// install, unreadable file) we render an empty snapshot rather than
-    /// failing. We deliberately do *not* invalidate a snapshot whose `day`
+    /// install, unreadable file) we render unavailable history. We deliberately do *not* invalidate
+    /// a snapshot whose `day`
     /// has rolled past today — slightly stale data beats showing nothing.
     private func loadEntry() -> WhereWidgetEntry {
         let now = Date()
@@ -74,7 +74,7 @@ struct WhereWidgetProvider: TimelineProvider {
         }
         return WhereWidgetEntry(
             date: now,
-            snapshot: WidgetSnapshotFixtures.emptySnapshot(referenceDate: now),
+            snapshot: WidgetSnapshotFixtures.unavailableSnapshot(referenceDate: now),
             theme: theme,
         )
     }

@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@testable import WhereCore
 @testable import WhereUI
 
 struct FeatureDiscoveryPresentationTests {
@@ -22,8 +22,8 @@ struct FeatureDiscoveryPresentationTests {
         )
 
         #expect(presentation.usesUserData == false)
-        #expect(presentation.widgetSnapshot.totals.isEmpty)
-        #expect(presentation.widgetSnapshot.dayRegions.isEmpty)
+        #expect(presentation.widgetSnapshot.assessment?.totals == .complete([:]))
+        #expect(presentation.widgetSnapshot.assessment?.dayRegions == .complete([]))
         #expect(presentation.siriExample(for: .daysInRegion) == nil)
         #expect(presentation.spotlightExample.query == Region.california.localizedName)
     }
@@ -48,8 +48,10 @@ struct FeatureDiscoveryPresentationTests {
 
         #expect(presentation.usesUserData)
         #expect(presentation.widgetSnapshot.year == 2026)
-        #expect(presentation.widgetSnapshot.dayRegions == Set([Region.california]))
-        #expect(presentation.widgetSnapshot.totals == [Region.california: 14])
+        #expect(presentation.widgetSnapshot.assessment?
+            .dayRegions == .complete(Set([Region.california])))
+        #expect(presentation.widgetSnapshot.assessment?
+            .totals == .complete([Region.california: 14]))
         #expect(daysExample.response.contains(Region.california.localizedName))
         #expect(daysExample.response.contains("14"))
         #expect(todayExample.response.contains(Region.california.localizedName))
@@ -76,6 +78,49 @@ struct FeatureDiscoveryPresentationTests {
         #expect(presentation.usesUserData == false)
     }
 
+    @Test func unresolvedHistoryDoesNotPersonalizeExamplesWithPartialTotals() throws {
+        let calendar = calendar()
+        let referenceDate = try referenceDate(in: calendar)
+        let report = report(
+            year: 2026,
+            starting: CalendarDay(year: 2026, month: 7, day: 26),
+            dayCount: FeatureDiscoveryPresentation.minimumLoggedDayCount,
+        )
+        let issue = try RecordingHistorySelection.Issue(
+            period: RecordingPeriod(
+                start: referenceDate,
+                end: referenceDate.addingTimeInterval(60),
+            ),
+            problem: .recordingDay([RecordingDeviceID(rawValue: UUID())]),
+            days: .unassigned(known: []),
+            sampleIDs: [UUID()],
+        )
+        let incomplete = YearReport(
+            year: report.year,
+            days: report.days,
+            totals: report.totals,
+            completeness: .recording(
+                version: RecordingEvidencePolicy.version,
+                days: CalendarDay.yearRange(report.year),
+                issues: [issue],
+            ),
+        )
+        let presentation = FeatureDiscoveryPresentation(
+            report: incomplete,
+            selectedYear: report.year,
+            referenceDate: referenceDate,
+            calendar: calendar,
+        )
+
+        #expect(!presentation.usesUserData)
+        #expect(presentation.widgetSnapshot.assessment?.totals == .complete([:]))
+        #expect(presentation.widgetSnapshot.assessment?.dayRegions == .complete([]))
+        #expect(presentation.siriExample(for: .daysInRegion) == nil)
+        #expect(presentation.siriExample(for: .todayRegions) == nil)
+        #expect(presentation.spotlightExample
+            .resultSubtitle == String(localized: .settingsExploreSpotlightResultGeneric))
+    }
+
     @Test func historicalReportKeepsWidgetAndLockScreenOnTheReportDay() throws {
         let calendar = calendar()
         let referenceDate = try referenceDate(in: calendar)
@@ -91,7 +136,7 @@ struct FeatureDiscoveryPresentationTests {
             referenceDate: referenceDate,
             calendar: calendar,
         )
-        let snapshotDay = CalendarDay(from: presentation.widgetSnapshot.day, in: calendar)
+        let snapshotDay = presentation.widgetSnapshot.day
         let lockScreenComponents = calendar.dateComponents(
             [.year, .month, .day, .hour, .minute],
             from: presentation.lockScreenDate,

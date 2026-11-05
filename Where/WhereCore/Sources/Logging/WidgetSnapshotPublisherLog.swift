@@ -7,16 +7,13 @@ enum WidgetSnapshotPublisherLog {
         case publish
     }
 
-    @LogEvent("published", level: .info)
+    @LogEvent("published", level: .info, version: 2)
     struct Published {
         @LogField(exposure: .restricted, kind: .dateTime)
         var day: String
 
-        @LogField(exposure: .shareable, kind: .count)
-        var regionCount: Int
-
         var message: String {
-            "Published widget snapshot for \(day) (\(regionCount) region(s))"
+            "Published widget snapshot for \(day)"
         }
 
         var externalID: String? {

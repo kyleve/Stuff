@@ -12,16 +12,15 @@ enum WidgetSnapshotFixtures {
         totals: [Region: Int],
         referenceDate: Date = .now,
     ) -> WidgetSnapshot {
-        let day = calendar.startOfDay(for: referenceDate)
-        return WidgetSnapshot(
-            day: day,
-            year: calendar.component(.year, from: day),
-            dayRegions: dayRegions,
-            totals: totals,
+        WidgetSnapshot(
+            day: CalendarDay(from: referenceDate, in: calendar),
+            version: DataCompatibilityPolicy.foundation.current,
+            dayRegions: .complete(dayRegions),
+            totals: .complete(totals),
         )
     }
 
-    static func emptySnapshot(referenceDate: Date = .now) -> WidgetSnapshot {
-        snapshot(dayRegions: [], totals: [:], referenceDate: referenceDate)
+    static func unavailableSnapshot(referenceDate: Date = .now) -> WidgetSnapshot {
+        WidgetSnapshot(day: CalendarDay(from: referenceDate, in: calendar), history: .unavailable)
     }
 }

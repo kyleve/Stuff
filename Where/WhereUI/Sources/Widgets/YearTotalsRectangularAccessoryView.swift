@@ -19,48 +19,73 @@ public struct YearTotalsRectangularAccessoryView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
-    private var ranked: [RegionDays] {
+    private var ranked: WidgetContent<[RegionDays]> {
         snapshot.rankedTotals(maxRows: Self.maxRows)
     }
 
     public var body: some View {
         Group {
-            if ranked.isEmpty {
-                Label(
-                    String(localized: .widgetYearEmpty),
-                    systemSymbol: .calendarBadgeExclamationmark,
-                )
-                .font(.caption)
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(ranked) { entry in
-                        HStack(spacing: stylesheet.spacing.xSmall) {
-                            Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
-                                .font(.caption2)
-                                .accessibilityHidden(true)
-                            Text(entry.region.localizedName)
-                                .font(.caption2)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                            Spacer(minLength: stylesheet.spacing.xSmall)
-                            Text(entry.days, format: .number)
-                                .font(.caption.weight(.bold))
-                                .monospacedDigit()
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            switch ranked {
+                case let .unavailable(status):
+                    Label(status.title, systemSymbol: status.symbol).font(.caption)
+                case let .complete(ranked):
+                    content(ranked)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
-        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
+        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(content: ranked))
+    }
+
+    @ViewBuilder private func content(_ ranked: [RegionDays]) -> some View {
+        if ranked.isEmpty {
+            Label(
+                String(localized: .widgetYearEmpty),
+                systemSymbol: .calendarBadgeExclamationmark,
+            )
+            .font(.caption)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(ranked) { entry in
+                    HStack(spacing: stylesheet.spacing.xSmall) {
+                        Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
+                            .font(.caption2)
+                            .accessibilityHidden(true)
+                        Text(entry.region.localizedName)
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Spacer(minLength: stylesheet.spacing.xSmall)
+                        Text(entry.days, format: .number)
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
 #if DEBUG
     extension YearTotalsRectangularAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "NeedsReview",
+                configurations: .componentLightDarkWithAnnotations,
+                settle: .immediate,
+            ) {
+                YearTotalsRectangularAccessoryView(snapshot: PreviewSupport
+                    .widgetSnapshotNeedingReview())
+            }
+            whereSnapshot(
+                name: "Unavailable",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                YearTotalsRectangularAccessoryView(snapshot: PreviewSupport
+                    .unavailableWidgetSnapshot())
+            }
             whereSnapshot(
                 name: "Ranked",
                 configurations: .componentLightDarkWithAnnotations,

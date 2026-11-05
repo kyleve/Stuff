@@ -230,6 +230,10 @@ That document also owns the implementation plan.
   Clip review-context issues to the reported period and candidate dates. Export only the immutable
   result returned by `exportableYearReport`; never assess eligibility with a separate read.
   Guards: `HistoryCompletenessTests` and `ReportReaderTests`.
+- Publish widget dates as `CalendarDay`. Carry the full assessment policy and independent day/year eligibility.
+  Withhold unresolved counts. Reject cached assessments from another policy version; keep stale-day retention separate.
+  Propagate file publication failures through the compatibility queue. Withdraw failed output and leave refresh retryable.
+  Reject superseded reads before publication or withdrawal. Guards: `WidgetDataReaderTests`, `WidgetSnapshotStoreTests`, and `WidgetSnapshotPublisherTests`.
 - **Elsewhere is a read-only projection.** `ElsewhereResolver` expands ordinary
   Other coordinates through the injected historical catalog. Recording-contract GPS already
   carries full-catalog geography; never reinterpret its unknown presence. Preserve explicit sample

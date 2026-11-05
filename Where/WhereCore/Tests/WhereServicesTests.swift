@@ -644,7 +644,7 @@ struct WhereServicesTests {
             let didPublishWidget = await widget.publishCount == 1
             return didReconcileReminder && didReconcileSummary && didPublishWidget
         }
-        #expect(await widget.lastSnapshot?.dayRegions == [.california])
+        #expect(await widget.lastSnapshot?.assessment?.dayRegions == .complete([.california]))
     }
 
     @Test func performThrow_rollsBackEntireTransaction() async throws {
@@ -1208,8 +1208,8 @@ struct WhereServicesTests {
         _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         #expect(attribution.region(at: austin.coordinate) == texas)
-        #expect(await widget.lastSnapshot?.dayRegions == [texas])
-        #expect(await widget.lastSnapshot?.totals == [texas: 1])
+        #expect(await widget.lastSnapshot?.assessment?.dayRegions == .complete([texas]))
+        #expect(await widget.lastSnapshot?.assessment?.totals == .complete([texas: 1]))
     }
 
     @Test func rotatingDataGenerationClearsSyncedStateButPreservesDeviceProfiles() async throws {
@@ -1586,8 +1586,8 @@ struct WhereServicesTests {
         // The published snapshot reflects the committed write: SF lands in CA,
         // both for today and in the year totals.
         let first = await refresher.lastSnapshot
-        #expect(first?.dayRegions == [.california])
-        #expect(first?.totals == [.california: 1])
+        #expect(first?.assessment?.dayRegions == .complete([.california]))
+        #expect(first?.assessment?.totals == .complete([.california: 1]))
 
         let day = WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00")
         try await services.journal.addManualDay(date: day, regions: [.newYork], audit: nil)
@@ -1596,7 +1596,7 @@ struct WhereServicesTests {
         try await services.journal.clearYear(2026)
         #expect(await refresher.publishCount == 5)
         // After clearing the year, the latest snapshot is empty again.
-        #expect(await refresher.lastSnapshot?.totals.isEmpty == true)
+        #expect(await refresher.lastSnapshot?.assessment?.totals == .complete([:]))
     }
 
     @Test func refreshWidgetSnapshotPublishesFromExistingStoreWithoutAMutation() async throws {
@@ -1622,8 +1622,8 @@ struct WhereServicesTests {
 
         #expect(await refresher.publishCount == 1)
         let snapshot = await refresher.lastSnapshot
-        #expect(snapshot?.dayRegions == [.california])
-        #expect(snapshot?.totals == [.california: 1])
+        #expect(snapshot?.assessment?.dayRegions == .complete([.california]))
+        #expect(snapshot?.assessment?.totals == .complete([.california: 1]))
     }
 
     @Test func gpsIngestPublishesWidgetSnapshot() async throws {
@@ -1685,7 +1685,10 @@ struct WhereServicesTests {
             recordingDay: nil,
         ))
         #expect(await refresher.publishCount == 2)
-        #expect(await refresher.lastSnapshot?.dayRegions == [.california, .newYork])
+        #expect(await refresher.lastSnapshot?.assessment?.dayRegions == .complete([
+            .california,
+            .newYork,
+        ]))
     }
 
     @Test func refreshWidgetSnapshotThrottlesUntilStaleOrNewDay() async throws {

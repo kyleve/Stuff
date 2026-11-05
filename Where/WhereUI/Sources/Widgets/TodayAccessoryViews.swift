@@ -17,24 +17,29 @@ public struct TodayInlineAccessoryView: View {
 
     @Environment(\.regionStyles) private var regionStyles
 
-    private var regions: [Region] {
+    private var regions: WidgetContent<[Region]> {
         snapshot.orderedDayRegions
     }
 
     public var body: some View {
         Group {
-            if let first = regions.first {
-                Label(
-                    regions.map(\.localizedName).joined(separator: " · "),
-                    systemSymbol: regionStyles.style(for: first).symbol,
-                )
-            } else {
-                Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
+            switch regions {
+                case let .unavailable(status):
+                    Label(status.title, systemSymbol: status.symbol)
+                case let .complete(regions):
+                    if let first = regions.first {
+                        Label(
+                            regions.map(\.localizedName).joined(separator: " · "),
+                            systemSymbol: regionStyles.style(for: first).symbol,
+                        )
+                    } else {
+                        Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
+                    }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
-        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(day: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(content: regions))
     }
 }
 
@@ -50,32 +55,53 @@ public struct TodayCircularAccessoryView: View {
 
     @Environment(\.regionStyles) private var regionStyles
 
-    private var regions: [Region] {
+    private var regions: WidgetContent<[Region]> {
         snapshot.orderedDayRegions
     }
 
     public var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            VStack(spacing: 0) {
-                Image(systemSymbol: regions.first
-                    .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
-                    .font(.title3)
-                if regions.count > 1 {
-                    Text(verbatim: "+\(regions.count - 1)")
-                        .font(.caption2.weight(.semibold))
-                }
+            switch regions {
+                case let .unavailable(status):
+                    Image(systemSymbol: status.symbol).font(.title3)
+                case let .complete(regions):
+                    VStack(spacing: 0) {
+                        Image(systemSymbol: regions.first
+                            .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
+                            .font(.title3)
+                        if regions.count > 1 {
+                            Text(verbatim: "+\(regions.count - 1)")
+                                .font(.caption2.weight(.semibold))
+                        }
+                    }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
-        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(day: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(content: regions))
     }
 }
 
 #if DEBUG
     extension TodayInlineAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "NeedsReview",
+                configurations: .componentLightDarkWithAnnotations,
+                settle: .immediate,
+            ) {
+                TodayInlineAccessoryView(snapshot: PreviewSupport.widgetSnapshotNeedingReview())
+                    .background(.background)
+            }
+            whereSnapshot(
+                name: "Unavailable",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayInlineAccessoryView(snapshot: PreviewSupport.unavailableWidgetSnapshot())
+                    .background(.background)
+            }
             whereSnapshot(
                 name: "Regions",
                 configurations: .componentLightDarkWithAnnotations,
@@ -97,6 +123,22 @@ public struct TodayCircularAccessoryView: View {
 
     extension TodayCircularAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "NeedsReview",
+                configurations: .componentLightDarkWithAnnotations,
+                settle: .immediate,
+            ) {
+                TodayCircularAccessoryView(snapshot: PreviewSupport.widgetSnapshotNeedingReview())
+                    .background(.background)
+            }
+            whereSnapshot(
+                name: "Unavailable",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayCircularAccessoryView(snapshot: PreviewSupport.unavailableWidgetSnapshot())
+                    .background(.background)
+            }
             whereSnapshot(
                 name: "Regions",
                 configurations: .componentLightDarkWithAnnotations,

@@ -51,14 +51,15 @@ struct FeatureDiscoveryPresentation {
         guard
             let report,
             report.year == selectedYear,
+            report.completeness.isComplete,
             relevantDays.count >= Self.minimumLoggedDayCount
         else {
             usesUserData = false
             widgetSnapshot = WidgetSnapshot(
-                day: fallbackDay.startOfDay(in: calendar),
-                year: selectedYear,
-                dayRegions: [],
-                totals: [:],
+                day: fallbackDay,
+                version: DataCompatibilityPolicy.foundation.current,
+                dayRegions: .complete([]),
+                totals: .complete([:]),
             )
             lockScreenDate = fallbackDate
             spotlightExample = SpotlightExample(
@@ -78,10 +79,10 @@ struct FeatureDiscoveryPresentation {
             : relevantDays[relevantDays.index(before: relevantDays.endIndex)].day
         let dayRegions = relevantDays.first { $0.day == snapshotDay }?.regions ?? []
         widgetSnapshot = WidgetSnapshot(
-            day: snapshotDay.startOfDay(in: calendar),
-            year: report.year,
-            dayRegions: dayRegions,
-            totals: report.totals,
+            day: snapshotDay,
+            version: report.completeness.policyVersion,
+            dayRegions: .complete(dayRegions),
+            totals: .complete(report.totals),
         )
         lockScreenDate = Self.date(
             for: snapshotDay,

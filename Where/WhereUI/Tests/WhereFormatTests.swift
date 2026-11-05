@@ -10,6 +10,16 @@ import WhereCore
 /// catalog value. A removed/renamed key is caught by the compiler, so these
 /// tests focus on the runtime logic, not that every simple symbol exists.
 struct WhereFormatTests {
+    @Test func widgetLogicalDateIgnoresViewingZoneAndNonGregorianFormattingCalendar() {
+        var format = Date.FormatStyle.dateTime.month(.wide).day().year()
+        format.calendar = Calendar(identifier: .islamic)
+        format.timeZone = TimeZone(secondsFromGMT: 14 * 3600)!
+        format.locale = Locale(identifier: "en_US")
+        #expect(WhereFormat
+            .widgetDay(.init(year: 2025, month: 12, day: 31), format: format) ==
+            "December 31, 2025")
+    }
+
     @Test func forecastBoundsPreserveExactPluralizationAndBothRangeEndpoints() {
         #expect(WhereFormat.dayCount(DayBounds(exact: 1)) == "1 day")
         #expect(WhereFormat.dayCount(DayBounds(lower: 94, upper: 105)) == "94–105 days")
@@ -321,7 +331,10 @@ struct WhereFormatTests {
             hour: 12,
         )))
 
-        #expect(WhereFormat.widgetTodayAccessibilityLabel(date: date) == "Today, July 15")
+        #expect(WhereFormat.widgetTodayAccessibilityLabel(day: CalendarDay(
+            from: date,
+            in: DayAggregator().calendar,
+        )) == "Today, July 15")
         #expect(
             WhereFormat.widgetTodayAccessibilityValue(regions: [.california, .newYork])
                 == "California and New York",

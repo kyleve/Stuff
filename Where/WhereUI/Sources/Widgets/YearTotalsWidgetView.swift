@@ -22,7 +22,7 @@ public struct YearTotalsWidgetView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
-    private var ranked: [RegionDays] {
+    private var ranked: WidgetContent<[RegionDays]> {
         snapshot.rankedTotals(maxRows: maxRows)
     }
 
@@ -36,10 +36,13 @@ public struct YearTotalsWidgetView: View {
 
             Spacer(minLength: 0)
 
-            if ranked.isEmpty {
-                emptyContent
-            } else {
-                rows
+            switch ranked {
+                case let .unavailable(status):
+                    Label(status.title, systemSymbol: status.symbol)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                case let .complete(ranked):
+                    if ranked.isEmpty { emptyContent } else { rows(ranked) }
             }
 
             Spacer(minLength: 0)
@@ -47,10 +50,10 @@ public struct YearTotalsWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
-        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
+        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(content: ranked))
     }
 
-    private var rows: some View {
+    private func rows(_ ranked: [RegionDays]) -> some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(ranked) { entry in
                 HStack(spacing: stylesheet.spacing.small) {
@@ -87,6 +90,22 @@ public struct YearTotalsWidgetView: View {
 #if DEBUG
     extension YearTotalsWidgetView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "NeedsReview",
+                configurations: .componentRepresentative,
+                settle: .immediate,
+            ) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.widgetSnapshotNeedingReview())
+                    .background(.background)
+            }
+            whereSnapshot(
+                name: "Unavailable",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.unavailableWidgetSnapshot())
+                    .background(.background)
+            }
             whereSnapshot(
                 name: "Ranked",
                 configurations: .componentRepresentative,

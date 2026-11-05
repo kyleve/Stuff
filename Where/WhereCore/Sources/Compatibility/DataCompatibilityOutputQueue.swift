@@ -13,18 +13,22 @@ actor DataCompatibilityOutputQueue {
         self.access = access
     }
 
-    func publish(_ operation: @escaping @Sendable () async -> Void) async {
-        guard case let .active(previous) = state else { return }
+    @discardableResult
+    func publish<Output: Sendable>(
+        _ operation: @escaping @Sendable () async -> Output,
+    ) async -> Output? {
+        guard case let .active(previous) = state else { return nil }
         let access = access
         // Own this task until it completes even if its caller is cancelled. The system may
         // already have accepted the operation, so cancellation is not a withdrawal barrier.
-        let task = Task {
+        let task = Task<Output?, Never> {
             await previous?.value
-            guard !access.isRevoked else { return }
-            await operation()
+            guard !access.isRevoked else { return nil }
+            return await operation()
         }
-        state = .active(tail: task)
-        await task.value
+        let completion = Task { _ = await task.value }
+        state = .active(tail: completion)
+        return await task.value
     }
 
     func retire(withdraw: @escaping @Sendable () async -> Void) async {

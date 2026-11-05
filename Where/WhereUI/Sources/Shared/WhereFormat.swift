@@ -457,9 +457,33 @@ enum WhereFormat {
         String(localized: .calendarSpanBadgeAccessibility(badge, dates))
     }
 
-    static func widgetTodayAccessibilityLabel(date: Date) -> String {
+    /// Format the logical label without the viewer's zone or preferred calendar changing its day.
+    static func widgetDay(_ day: CalendarDay, format: Date.FormatStyle) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        var format = format
+        format.calendar = calendar
+        format.timeZone = .gmt
+        return day.startOfDay(in: calendar).formatted(format)
+    }
+
+    static func widgetTodayAccessibilityValue(content: WidgetContent<[Region]>) -> String {
+        switch content {
+            case let .complete(regions): widgetTodayAccessibilityValue(regions: regions)
+            case let .unavailable(status): status.accessibilityValue
+        }
+    }
+
+    static func widgetYearAccessibilityValue(content: WidgetContent<[RegionDays]>) -> String {
+        switch content {
+            case let .complete(entries): widgetYearAccessibilityValue(entries: entries)
+            case let .unavailable(status): status.accessibilityValue
+        }
+    }
+
+    static func widgetTodayAccessibilityLabel(day: CalendarDay) -> String {
         String(localized: .widgetTodayAccessibilityLabel(
-            date.formatted(.dateTime.month(.wide).day()),
+            widgetDay(day, format: .dateTime.month(.wide).day()),
         ))
     }
 

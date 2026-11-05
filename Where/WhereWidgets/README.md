@@ -4,7 +4,7 @@ The **Where** widget extension.
 It provides home-screen and lock-screen widgets that show today's region presence and year-to-date day counts per region.
 
 Widgets never open the SwiftData store. The app publishes an aggregated
-[`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetDataReader.swift) JSON file
+[`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetSnapshot.swift) JSON file
 into its audience's shared App Group; this extension reads it via
 [`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
 The device-local theme is independently published through `WidgetPresentationStore`.
@@ -36,6 +36,12 @@ The app refreshes the snapshot after each committed store write and calls
 after the next local midnight so the timeline `date` stays current even if the
 app never wakes. Missing or unknown presentation values resolve to Standard.
 Appearance changes publish only that small value before reloading timelines.
+
+Snapshots keep a logical `CalendarDay`, the full assessment policy, and separate eligibility for today and the year.
+Unresolved scopes show **Needs review** and withhold counts. A resolved day can remain visible while its year needs review.
+Missing, unreadable, or withdrawn publications show **Unavailable**. A different cached policy version also requires a new publication.
+File-write failures reach the publisher, which withdraws prior output and retries on the next refresh.
+These states also apply to lock-screen accessories and their accessibility values.
 
 ## Localization
 

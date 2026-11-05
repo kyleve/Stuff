@@ -12,6 +12,13 @@ public enum HistoryCompleteness: Hashable, Sendable {
         issues: [RecordingHistorySelection.Issue],
     )
 
+    public var policyVersion: DataSemanticsVersion {
+        switch self {
+            case .foundation: DataCompatibilityPolicy.foundation.current
+            case let .recording(version, _, _): version
+        }
+    }
+
     public var issues: [RecordingHistorySelection.Issue] {
         switch self {
             case .foundation: []

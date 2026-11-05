@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@testable import WhereCore
 
 struct WidgetDataReaderTests {
     private static func makeReader() throws -> (WidgetDataReader, SwiftDataStore) {
@@ -33,6 +33,57 @@ struct WidgetDataReaderTests {
         )
     }
 
+    @Test func incompleteYearCanPublishAClearDayAndResolvesAfterASourceChoice() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let samples = try LocationHistoryReaderTestSupport.competingTracks()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        let calendar = LocationHistoryReaderTestSupport.calendar
+        let reader = WidgetDataReader(
+            store: store,
+            history: LocationHistoryReaderTestSupport.reader(store),
+            aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
+        )
+        let date = Date(timeIntervalSinceReferenceDate: 7200)
+        let disputed = try await reader.snapshot(asOf: date)
+        #expect(disputed.assessment?.version == RecordingEvidencePolicy.version)
+        #expect(disputed.assessment?.dayRegions == .needsReview)
+        #expect(disputed.assessment?.totals == .needsReview)
+        let clear = try await reader.snapshot(asOf: date.addingTimeInterval(2 * 86400))
+        #expect(clear.assessment?.dayRegions == .complete([]))
+        #expect(clear.assessment?.totals == .needsReview)
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(990, end: 1201)),
+            store: store,
+        )
+        let resolved = try await reader.snapshot(asOf: date)
+        #expect(resolved.assessment?.dayRegions == .complete([.california]))
+        #expect(resolved.assessment?.totals == .complete([.california: 1]))
+    }
+
+    @Test func recordedDatesDriveWidgetYearAcrossViewingZones() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let sample = try LocationHistoryReaderTestSupport.sample(
+            seconds: 1800,
+            zone: #require(TimeZone(secondsFromGMT: -3600)),
+        )
+        try await LocationHistoryReaderTestSupport.add([sample], to: store)
+        for hours in [-12, 0, 14] {
+            var calendar = LocationHistoryReaderTestSupport.calendar
+            calendar.timeZone = try #require(TimeZone(secondsFromGMT: hours * 3600))
+            let day = CalendarDay(year: 2000, month: 12, day: 31)
+            let reader = WidgetDataReader(
+                store: store,
+                history: LocationHistoryReaderTestSupport.reader(store),
+                aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
+            )
+            let snapshot = try await reader.snapshot(asOf: day.startOfDay(in: calendar))
+            #expect(snapshot.day == day)
+            #expect(snapshot.year == 2000)
+            #expect(snapshot.assessment?.dayRegions == .complete([.california]))
+            #expect(snapshot.assessment?.totals == .complete([.california: 1]))
+        }
+    }
+
     @Test func emptyStoreYieldsEmptySnapshot() async throws {
         let (reader, _) = try Self.makeReader()
 
@@ -40,8 +91,8 @@ struct WidgetDataReaderTests {
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"))
 
         #expect(snapshot.year == 2026)
-        #expect(snapshot.dayRegions.isEmpty)
-        #expect(snapshot.totals.isEmpty)
+        #expect(snapshot.assessment?.dayRegions == .complete([]))
+        #expect(snapshot.assessment?.totals == .complete([:]))
         #expect(snapshot.appearances.isEmpty)
     }
 
@@ -60,21 +111,6 @@ struct WidgetDataReaderTests {
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"))
 
         #expect(snapshot.appearances == [.california: caLook])
-    }
-
-    @Test func snapshotAppearancesSurviveCodableRoundTrip() throws {
-        let look = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill)
-        let snapshot = WidgetSnapshot(
-            day: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
-            year: 2026,
-            dayRegions: [.newYork],
-            totals: [.newYork: 3],
-            appearances: [.newYork: look],
-        )
-        let data = try JSONEncoder().encode(snapshot)
-        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
-        #expect(decoded == snapshot)
-        #expect(decoded.appearances == [.newYork: look])
     }
 
     @Test func samplesAndManualDaysRollUpLikeTheYearReport() async throws {
@@ -108,8 +144,8 @@ struct WidgetDataReaderTests {
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"))
 
         #expect(snapshot.year == 2026)
-        #expect(snapshot.dayRegions == [.california])
-        #expect(snapshot.totals == [.california: 1, .newYork: 1, .canada: 1])
+        #expect(snapshot.assessment?.dayRegions == .complete([.california]))
+        #expect(snapshot.assessment?.totals == .complete([.california: 1, .newYork: 1, .canada: 1]))
     }
 
     @Test func dayRegionsAreEmptyWhenTodayHasNoData() async throws {
@@ -125,8 +161,8 @@ struct WidgetDataReaderTests {
         let snapshot = try await reader
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-20T08:00:00-07:00"))
 
-        #expect(snapshot.dayRegions.isEmpty)
-        #expect(snapshot.totals == [.california: 1])
+        #expect(snapshot.assessment?.dayRegions == .complete([]))
+        #expect(snapshot.assessment?.totals == .complete([.california: 1]))
     }
 
     @Test func totalsOnlyCoverTheSnapshotsYear() async throws {
@@ -146,13 +182,13 @@ struct WidgetDataReaderTests {
 
         let in2026 = try await reader
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-01-01T20:00:00-08:00"))
-        #expect(in2026.totals == [.newYork: 1])
-        #expect(in2026.dayRegions == [.newYork])
+        #expect(in2026.assessment?.totals == .complete([.newYork: 1]))
+        #expect(in2026.assessment?.dayRegions == .complete([.newYork]))
 
         let in2025 = try await reader
             .snapshot(asOf: WhereCoreTestSupport.iso("2025-12-31T20:00:00-08:00"))
-        #expect(in2025.totals == [.california: 1])
-        #expect(in2025.dayRegions == [.california])
+        #expect(in2025.assessment?.totals == .complete([.california: 1]))
+        #expect(in2025.assessment?.dayRegions == .complete([.california]))
     }
 
     @Test func authoritativeManualDayReplacesGPSInDayRegions() async throws {
@@ -174,7 +210,7 @@ struct WidgetDataReaderTests {
         let snapshot = try await reader
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"))
 
-        #expect(snapshot.dayRegions == [.newYork])
-        #expect(snapshot.totals == [.newYork: 1])
+        #expect(snapshot.assessment?.dayRegions == .complete([.newYork]))
+        #expect(snapshot.assessment?.totals == .complete([.newYork: 1]))
     }
 }

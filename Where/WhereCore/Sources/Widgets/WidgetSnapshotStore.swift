@@ -20,6 +20,14 @@ public struct WidgetSnapshotStore: Sendable {
         public init() {}
     }
 
+    private enum ValidationError: Error { case stalePolicy(DataSemanticsVersion) }
+    /// The cache is disposable. Minor/patch changes invalidate output without gating account
+    /// access.
+    private static let currentPolicyVersions: Set<DataSemanticsVersion> = [
+        DataCompatibilityPolicy.foundation.current,
+        RecordingEvidencePolicy.version,
+    ]
+
     private static let fileName = "widget-snapshot.json"
 
     /// Directory the snapshot file lives in. Exposed via `init` so tests can
@@ -53,7 +61,7 @@ public struct WidgetSnapshotStore: Sendable {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    /// Absence is the widget's empty state. Treat an already absent publication as withdrawn.
+    /// Absence is the widget's unavailable state. Treat an already absent publication as withdrawn.
     public func withdraw() throws {
         do {
             try FileManager.default.removeItem(at: fileURL)
@@ -64,19 +72,27 @@ public struct WidgetSnapshotStore: Sendable {
 
     /// The last published snapshot, or `nil` if nothing has been written yet
     /// or the file can't be read/decoded. A `nil` result is the widget's cue
-    /// to render its placeholder/empty state.
+    /// to render unavailable history.
     ///
     /// The two ways of answering `nil` are told apart in the log rather than in
     /// the return type: "nothing published yet" is the normal fresh-install path
     /// and stays quiet, while a file that exists but won't decode is a real
-    /// failure and warns (see ``WidgetSnapshotStoreLog``). The empty state is
-    /// still the honest thing to render either way — the next publish replaces
+    /// failure and warns (see ``WidgetSnapshotStoreLog``). Unavailable history is
+    /// the honest state to render either way — the next publish replaces
     /// the bad file — so the signature stays non-throwing for the widget's
     /// timeline provider.
     public func read() -> WidgetSnapshot? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
         do {
-            return try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+            let data = try Data(contentsOf: fileURL)
+            let snapshot = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+            if let assessment = snapshot.assessment,
+               !Self.currentPolicyVersions.contains(assessment.version)
+            {
+                throw ValidationError.stalePolicy(assessment.version)
+            }
+            return snapshot
+        } catch CocoaError.fileReadNoSuchFile {
+            return nil
         } catch {
             Self.logger.unreadableSnapshot(
                 error: .restricted(.errorDetails, error),

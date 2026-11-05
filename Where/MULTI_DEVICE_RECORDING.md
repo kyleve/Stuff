@@ -1317,7 +1317,10 @@ Previews read current primary regions and reassess competing devices when the pr
 App Intents read current assessed reports and withhold answers for unresolved requested dates.
 Year counts require a complete year; unrelated unresolved dates do not block a clear day.
 The localized recovery error retains the unresolved scope. Today queries no longer use independently published widget files.
-Widget integration, review presentation, and the selection model remain in progress.
+Widgets reuse the shared report snapshot and publish separate day/year eligibility with the full policy version.
+Unresolved scopes withhold counts. Unavailable output and stale-policy caches remain distinct from empty complete history.
+Logical dates remain stable in home-screen and lock-screen widgets. Failed publication withdraws stale output and remains retryable.
+Review presentation and the selection model remain in progress.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

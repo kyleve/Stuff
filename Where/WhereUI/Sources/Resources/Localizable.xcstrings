@@ -11761,6 +11761,50 @@
         }
       }
     },
+    "widget.history.needsReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs review"
+          }
+        }
+      }
+    },
+    "widget.history.needsReview.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This history needs review. Open Where to resolve the recordings."
+          }
+        }
+      }
+    },
+    "widget.history.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        }
+      }
+    },
+    "widget.history.unavailable.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History is unavailable. Open Where to check your history."
+          }
+        }
+      }
+    },
     "widget.today.accessibility.label" : {
       "comment" : "Accessibility label for a Today widget, including its localized month and day.",
       "extractionState" : "manual",

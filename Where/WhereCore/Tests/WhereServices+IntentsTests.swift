@@ -61,8 +61,8 @@ struct WhereServicesForIntentsSharingTests {
         let widget = try await h.widgets.snapshot(asOf: later.timestamp)
         #expect(report.days.first?.regions == expected)
         #expect(intentReport.days == report.days)
-        #expect(widget.dayRegions == expected)
-        #expect(widget.totals == report.totals)
+        #expect(widget.assessment?.dayRegions == .complete(expected))
+        #expect(widget.assessment?.totals == .complete(report.totals))
         #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
         #expect(try await h.store.sampleAttributionRevisions(for: [later.id]).isEmpty)
 

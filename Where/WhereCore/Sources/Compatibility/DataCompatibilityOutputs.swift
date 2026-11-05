@@ -76,7 +76,7 @@ public struct DataCompatibilityOutputs: Sendable {
             reminderTime: ReminderTime,
             enabled: Bool,
         ) async {
-            await queue.publish {
+            _ = await queue.publish {
                 await base.reconcile(
                     badgeCount: badgeCount,
                     scheduleDays: scheduleDays,
@@ -99,7 +99,8 @@ public struct DataCompatibilityOutputs: Sendable {
         }
 
         func reconcile(enabled: Bool, time: ReminderTime, body: String) async {
-            await queue.publish { await base.reconcile(enabled: enabled, time: time, body: body) }
+            _ = await queue
+                .publish { await base.reconcile(enabled: enabled, time: time, body: body) }
         }
     }
 
@@ -115,7 +116,8 @@ public struct DataCompatibilityOutputs: Sendable {
         }
 
         func reconcile(enabled: Bool, time: ReminderTime, body: String) async {
-            await queue.publish { await base.reconcile(enabled: enabled, time: time, body: body) }
+            _ = await queue
+                .publish { await base.reconcile(enabled: enabled, time: time, body: body) }
         }
     }
 
@@ -123,12 +125,21 @@ public struct DataCompatibilityOutputs: Sendable {
         let base: any WidgetTimelineRefreshing
         let queue: DataCompatibilityOutputQueue
         let access: DataCompatibilityAccess
-        func publish(_ snapshot: WidgetSnapshot, access _: DataCompatibilityAccess?) async {
-            await queue.publish { await base.publish(snapshot, access: access) }
+        func publish(_ snapshot: WidgetSnapshot, access _: DataCompatibilityAccess?) async throws {
+            let result: Result<Void, any Error>? = await queue.publish {
+                do {
+                    try await base.publish(snapshot, access: access)
+                    return .success(())
+                } catch {
+                    return .failure(error)
+                }
+            }
+            guard let result else { throw DataAccessPermit.AccessError.revoked }
+            try result.get()
         }
 
         func withdraw() async {
-            await queue.publish { await base.withdraw() }
+            _ = await queue.publish { await base.withdraw() }
         }
     }
 }

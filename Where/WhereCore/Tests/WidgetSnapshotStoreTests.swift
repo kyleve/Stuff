@@ -27,11 +27,40 @@ struct WidgetSnapshotStoreTests {
         totals: [Region: Int] = [.california: 132, .newYork: 41],
     ) -> WidgetSnapshot {
         WidgetSnapshot(
-            day: Date(timeIntervalSince1970: 1_700_000_000),
-            year: 2026,
-            dayRegions: dayRegions,
-            totals: totals,
+            day: .init(year: 2026, month: 3, day: 15),
+            version: DataCompatibilityPolicy.foundation.current,
+            dayRegions: .complete(dayRegions),
+            totals: .complete(totals),
         )
+    }
+
+    @Test(arguments: [
+        DataSemanticsVersion(major: 1, minor: 0, patch: 1),
+        DataSemanticsVersion(major: 1, minor: 1, patch: 0),
+        DataSemanticsVersion(major: 2, minor: 0, patch: 0),
+    ]) func stalePolicyCannotPresentOldCounts(version: DataSemanticsVersion) throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WidgetSnapshotStore(directory: directory)
+        try store.write(WidgetSnapshot(
+            day: .init(year: 2026, month: 3, day: 15),
+            version: version,
+            dayRegions: .complete([.california]),
+            totals: .complete([.california: 8]),
+        ))
+        #expect(store.read() == nil)
+    }
+
+    @Test func currentRecordingPolicyCanRetainAnOlderLogicalDay() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WidgetSnapshotStore(directory: directory)
+        let snapshot = WidgetSnapshot(
+            day: .init(year: 2025, month: 12, day: 31),
+            version: RecordingEvidencePolicy.version,
+            dayRegions: .complete([.california]),
+            totals: .needsReview,
+        )
+        try store.write(snapshot)
+        #expect(store.read() == snapshot)
     }
 
     @Test func writeThenReadRoundTrips() throws {

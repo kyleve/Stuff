@@ -101,6 +101,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Place it outside the selected-tool `NavigationStack`.
 - Register leaf screens against Flyover's default navigation container. Use
   `.none` only for views that own their root stack and for widgets/snippets.
+- Keep complete, needs-review, and unavailable widget content distinct in every widget family and accessibility value.
+  Format the published `CalendarDay` with a Gregorian calendar without rebucketing it through the viewing zone.
+  Use complete reports for personalized discovery examples. Guards: `WidgetSnapshotRankingTests` and `WhereFormatTests`.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI.
   They must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).

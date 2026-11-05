@@ -24,11 +24,11 @@ struct DataCompatibilityOutputsTests {
         ))
         await outputs.summary.reconcile(enabled: true, time: .defaultMorning, body: "Summary")
         await outputs.issues.reconcile(enabled: true, time: .defaultEvening, body: "Issues")
-        await outputs.widgets.publish(WidgetSnapshot(
-            day: Date(),
-            year: 2026,
-            dayRegions: [],
-            totals: [:],
+        try await outputs.widgets.publish(WidgetSnapshot(
+            day: .init(year: 2026, month: 3, day: 15),
+            version: DataCompatibilityPolicy.foundation.current,
+            dayRegions: .complete([]),
+            totals: .complete([:]),
         ))
         #expect(await widgets.receivedAccess == access.id)
         let gate = CompatibilityTestGate()

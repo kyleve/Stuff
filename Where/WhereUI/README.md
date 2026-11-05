@@ -99,7 +99,7 @@ Demo mode hides this surface and performs no update checks.
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
   and widget examples use its real regions, counts, and dates. Evidence uses
   the latest available attachment, or a labeled example when none is available.
-  Sparse reports keep the illustrative Siri copy and empty widget state.
+  Sparse or incomplete reports keep the illustrative Siri copy and empty widget example.
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
   redacted session replay, remote-log threshold, and a Debug-only personal-data switch.
@@ -374,6 +374,10 @@ runtime supplies an entirely separate root. `RootView` applies
 `whereBroadwayRoot()` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
 model and a foreground launch runner.
+
+Widget renderers distinguish complete, needs-review, and unavailable history in every family and in accessibility output.
+A complete current day can remain visible while year totals require review.
+The date label uses the published logical day, independently of the viewing time zone or preferred calendar.
 
 ## Design system
 

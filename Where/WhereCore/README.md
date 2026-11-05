@@ -187,6 +187,11 @@ Retirement drains submitted calls, removes owned output, and clears the history 
 Caller cancellation does not abandon a submitted system call.
 Replacement services must await retirement before publishing. Repeated retirement cannot remove replacement output.
 Widget file writes also validate access under the permit's physical-write lock.
+Write failures return through the same output queue. The widget publisher withdraws stale output and keeps refresh eligible after failure.
+Superseded reads cannot publish or withdraw a newer result.
+`WidgetDataReader` uses the shared report snapshot, including region appearances.
+`WidgetSnapshot` carries a logical date, the full policy version, and independent day/year completeness.
+Unresolved scopes omit counts. The cache reader rejects other policy versions without changing account compatibility rules.
 The [output model](../Specifications/CompatibilityOutputs/README.md) checks the bounded withdrawal ordering.
 
 Recording retirement is permanent for the old controller and ingestor.
