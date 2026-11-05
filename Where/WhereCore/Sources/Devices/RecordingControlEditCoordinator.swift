@@ -148,21 +148,20 @@ public struct RecordingControlEditCoordinator: Sendable {
     }
 
     private static func query(for edits: [RecordingControlEdit]) throws -> RecordingReviewQuery {
-        var scopes: [Target: [RecordingPeriod]] = [:]
-        var periods: [RecordingPeriod] = []
-        var deviceIDs: Set<RecordingDeviceID> = []
+        var scopes: [Target: [RecordingInterval]] = [:]
+        var queries: [RecordingReviewQuery] = []
         for edit in edits {
             let query = try edit.query()
+            let intervals = try query.intervals
             let target = Target(edit)
             let previous = scopes[target, default: []]
             guard !previous.contains(where: { existing in
-                query.periods.contains { existing.overlaps($0) }
+                intervals.contains { existing.overlaps($0) }
             }) else { throw ValidationError.overlappingEdits }
-            scopes[target] = previous + query.periods
-            periods += query.periods
-            deviceIDs.formUnion(query.deviceIDs)
+            scopes[target] = previous + intervals
+            queries.append(query)
         }
-        return try RecordingReviewQuery(periods: periods, deviceIDs: deviceIDs)
+        return try RecordingReviewQuery.combining(queries)
     }
 
     public func apply(_ proposal: Proposal) async throws -> ApplyResult {

@@ -11,7 +11,7 @@ enum RecordingBackupTestSupport {
         supportedMajors: [1],
     )
 
-    enum Archive: String { case converted, historical, epochBoundary = "epoch-boundary" }
+    enum Archive: String { case converted, historical, places, epochBoundary = "epoch-boundary" }
 
     static func convertedArchive(_ archive: Archive = .converted) throws -> BackupArchive {
         let url = try #require(Bundle(for: BundleAnchor.self).url(
@@ -27,7 +27,7 @@ enum RecordingBackupTestSupport {
         let controls: [RecordingControl] = try [
             .source(RecordingAssessmentTestSupport.decision(11)),
             .ignore(RecordingControlsTestSupport.ignore(12)),
-            .place(RecordingControlsTestSupport.place(13)),
+            .place(RecordingControlsTestSupport.place(13, end: nil)),
             .calendar(RecordingControlsTestSupport.calendar(14, action: .establish(context))),
         ]
         return try controls.map { try RecordingControlCodec.encode($0, generationID: .initial) }

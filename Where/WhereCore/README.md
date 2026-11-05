@@ -66,7 +66,7 @@ Major-one GPS uses the existing atomic version envelope. Its required major rema
 Control snapshots validate observation identities and causal references, then expose only controls.
 Identical observation deliveries coalesce. Conflicting raw payloads cannot replace provenance through Merge.
 
-Backup format 8 preserves controls and recording-day context. Its required major is admitted before decoding history.
+Backup format 9 preserves controls, ongoing place validity, and recording-day context. Its required major is admitted before decoding history.
 The offline converter accepts explicit historical device and calendar mappings; [backup format](BACKUP_FORMAT.md#convert-historical-gps) describes the procedure.
 Capture-time context and the controls UI remain in the implementation plan.
 
@@ -87,6 +87,8 @@ Its segments describe automatic eligibility. Explicit source choices can still s
 The preview preserves source choices, removal cutoffs, unknown controls, and gaps between reviewed periods. It does not read newer evidence or authorize saving.
 `placeHistory()` reads precise place definitions by identity, including their earlier validity periods, removals, and unresolved edits.
 `inspectPlace(_:)` compares the exact reviewed definition before and after a place edit. Disjoint periods retain their gaps.
+Regular homes use `RecordingInterval` with an absent end until changed or ended. Temporary bases require a finite end.
+Place previews retain the complete authored validity, including future definitions. Finite history reads clip validity at their query boundaries.
 These values preserve unknown control scopes separately. Place edits do not resolve those controls or claim changes to GPS presence or report totals.
 Its array overload reviews disjoint edits against one combined snapshot. A proposal pairs each edit with its immutable control.
 One local transaction saves the complete batch. A retry retains all operation identities and rejects conflicting reused identities.
@@ -485,7 +487,7 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v8** retains independent stays, date windows, Home choices, optional motion,
+  Backup format **v9** retains independent stays, date windows, Home choices, optional motion,
   recording-day context, versioned controls, and every sample-attribution revision. Merge preserves revision IDs and timestamps.
   Replace restores revisions into its new generation.
   The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.

@@ -3,6 +3,39 @@ import Testing
 @testable import WhereCore
 
 struct RecordingControlSelectionTests {
+    @Test func opaqueOngoingScopeExcludesOnlyItsQueryIntersection() throws {
+        let source = try RecordingAssessmentTestSupport.decision(1, end: 300)
+        let unknown = try VersionedHistoryRecord(
+            id: .init(rawValue: UUID()),
+            dataGenerationID: .initial,
+            semantics: .init(major: 1, minor: 1, patch: 0),
+            scope: .intervals([.init(start: RecordingAssessmentTestSupport.time(100), end: nil)]),
+            kind: "recording.future-place",
+            payload: Data([1, 2, 3]),
+        )
+        let controls = try RecordingControlSnapshot(records: [
+            RecordingControlCodec.encode(.source(source), generationID: .initial),
+            unknown,
+        ], generationID: .initial, policy: RecordingChoiceTestSupport.policy)
+        let segments = try RecordingControlSelection.resolve(
+            controls: controls,
+            removals: [],
+            within: RecordingAssessmentTestSupport
+                .period(
+                    0,
+                    300,
+                ),
+            version: RecordingEvidencePolicy
+                .version,
+        )
+        #expect(segments.map(\.resolution) == [
+            .selected(source.author),
+            .unresolved(.unknownControls([unknown.id])),
+        ])
+        #expect(segments.last?.period.end == RecordingAssessmentTestSupport.time(300))
+        #expect(controls.requiresReview == [unknown])
+    }
+
     @Test func explicitSourcesBypassIgnoresRegardlessOfDeliveryOrderOrMissingIgnoreParents() throws {
         let source = try RecordingAssessmentTestSupport.decision(1, end: 86400)
         let ignore = try RecordingControlsTestSupport.ignore(10)

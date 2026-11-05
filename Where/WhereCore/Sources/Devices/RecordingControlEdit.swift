@@ -33,7 +33,7 @@ public enum RecordingControlEdit: Hashable, Sendable {
     case ignoreResume(IgnoreResume)
     case place(
         placeID: RecordingPlace.ID,
-        periods: [RecordingPeriod],
+        validity: [RecordingInterval],
         action: RecordingPlaceDecision.Action,
     )
     case calendar(
@@ -41,6 +41,14 @@ public enum RecordingControlEdit: Hashable, Sendable {
         periods: [RecordingPeriod],
         action: RecordingCalendarDecision.Action,
     )
+
+    public static func place(
+        placeID: RecordingPlace.ID,
+        periods: [RecordingPeriod],
+        action: RecordingPlaceDecision.Action,
+    ) throws -> Self {
+        try .place(placeID: placeID, validity: periods.map(RecordingInterval.init), action: action)
+    }
 
     /// Replace the whole reviewed interval, including eligibility after a shortened end.
     /// The new decision retains its selected day/zone and applies atomically on remote delivery.
@@ -82,8 +90,8 @@ public enum RecordingControlEdit: Hashable, Sendable {
                 try RecordingReviewQuery(periods: [edit.period], deviceIDs: [edit.deviceID])
             case let .ignoreResume(edit):
                 try RecordingReviewQuery(periods: [edit.period], deviceIDs: [edit.deviceID])
-            case let .place(_, periods, _):
-                try RecordingReviewQuery(periods: periods, deviceIDs: [])
+            case let .place(placeID, validity, _):
+                try RecordingReviewQuery(placeID: placeID, validity: validity)
         }
     }
 
@@ -194,15 +202,17 @@ public enum RecordingControlEdit: Hashable, Sendable {
                     }.map(\.id)),
                     version: evidence.policyVersion,
                 ))
-            case let .place(placeID, _, action):
+            case let .place(placeID, validity, action):
                 return try .place(.init(
                     id: .init(rawValue: operationID),
                     author: author,
                     placeID: placeID,
-                    periods: periods,
+                    validity: validity,
                     action: action,
                     predecessors: Set(evidence.controls.places.filter {
-                        $0.placeID == placeID && overlaps($0.periods)
+                        $0.placeID == placeID && $0.periods.contains { old in
+                            validity.contains { old.overlaps($0) }
+                        }
                     }.map(\.id)),
                     version: evidence.policyVersion,
                 ))

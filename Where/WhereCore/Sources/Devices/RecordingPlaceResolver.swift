@@ -1,4 +1,5 @@
-/// Resolves a place's bounded historical definition. Unresolved edits supply no automatic
+/// Resolves a place's historical definition, including ongoing homes. Unresolved edits supply no
+/// automatic
 /// corroboration and remain visible to the caller for review.
 public enum RecordingPlaceResolver {
     public enum Resolution: Hashable, Sendable {
@@ -9,7 +10,7 @@ public enum RecordingPlaceResolver {
     }
 
     public struct Segment: Hashable, Sendable {
-        public let period: RecordingPeriod
+        public let period: RecordingInterval
         public let resolution: Resolution
         public let effectiveDecisions: Set<RecordingPlaceDecision.ID>
     }
@@ -23,7 +24,7 @@ public enum RecordingPlaceResolver {
     public static func resolve(
         _ decisions: [RecordingPlaceDecision],
         for placeID: RecordingPlace.ID,
-        within query: RecordingPeriod,
+        within query: RecordingInterval,
         version: DataSemanticsVersion,
     ) throws -> [Segment] {
         var records: [RecordingPlaceDecision.ID: RecordingPlaceDecision] = [:]
@@ -63,5 +64,14 @@ public enum RecordingPlaceResolver {
                     effectiveDecisions: segment.effectiveOperations,
                 )
             }
+    }
+
+    public static func resolve(
+        _ decisions: [RecordingPlaceDecision],
+        for placeID: RecordingPlace.ID,
+        within query: RecordingPeriod,
+        version: DataSemanticsVersion,
+    ) throws -> [Segment] {
+        try resolve(decisions, for: placeID, within: RecordingInterval(query), version: version)
     }
 }

@@ -1217,7 +1217,7 @@ Exercise foreground and background consumers.
 
 **Implemented control values and store boundary:** source choices, ignore edits, place edits, and calendar-context edits share the pure causal interval resolver.
 All controls retain immutable identities and predecessor sets through serialization.
-Resume preserves elapsed ignored history. Place and calendar edits retain bounded historical validity and expose conflicting or incomplete context.
+Resume preserves elapsed ignored history. Place and calendar edits retain historical validity and expose conflicting or incomplete context.
 Recording-day values retain established UTC offsets, so later time-zone database changes cannot reinterpret their logical dates.
 Versioned envelopes retain affected scope outside opaque payloads. Unknown interpretation remains available for review with its original bytes.
 The store validates identity, causal family, and the complete received graph before admitting controls.
@@ -1226,7 +1226,7 @@ Recording-day assignments now persist with raw samples. Major-one boundaries rej
 Major-one observations use atomic version envelopes, including their required major and complete payload.
 Record-first delivery therefore exposes the requirement before any incompatible observation can reach a foundation reader.
 Merge rejects conflicting raw payloads that reuse an observation identity.
-Backup format 8 retains controls, affected scopes, and original payload bytes across Merge and Replace.
+Backup format 9 retains controls, affected scopes, ongoing home validity, and original payload bytes across Merge and Replace.
 The offline converter accepts reusable sample mappings for historical devices and calendar context, including explicitly unresolved context.
 A shared Ruby/Swift fixture validates the converted wire shape through the production decoder.
 Reviewed source choices now retain their operation identity and observed predecessors across guarded retries.
@@ -1240,7 +1240,10 @@ The coordinator now reads durable ignore history and previews exact ignore propo
 These values retain elapsed periods, gaps, causal uncertainty, source-choice precedence, removal cutoffs, and unknown controls for the controls UI.
 The coordinator also reads historical place definitions by identity and previews the exact reviewed place edit.
 Past definitions, removals, disjoint validity periods, and unresolved control scopes remain visible. These previews describe supporting places, not recorded presence or totals.
-Ongoing regular-home validity remains to be implemented before the place controls activate.
+Regular homes now support explicit ongoing validity. Temporary bases require an end.
+Changes and endings preserve earlier definitions. The shared causal resolver handles finite queries and ongoing place history without invented expiration dates.
+Place proposals bind their complete validity and detect future definitions received before Apply. Their previews describe definitions rather than GPS contributions or totals.
+The offline upgrader preserves finite place payloads and identities while converting their envelope scope. The place controls UI remains to be implemented before activation.
 Calendar recovery resolves unknown assignments while preserving known recording days and UTC offsets.
 A late conflicting observation rejects a pending calendar edit before save.
 `RecordingCalendarRecovery` splits an explicitly confirmed historical zone at each offset transition, without filling unconfirmed gaps.

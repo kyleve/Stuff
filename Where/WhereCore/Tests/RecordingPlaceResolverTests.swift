@@ -2,6 +2,109 @@ import Testing
 @testable import WhereCore
 
 struct RecordingPlaceResolverTests {
+    @Test func changedAndEndedHomesKeepEarlierAddressesAndResolveAnOngoingTail() throws {
+        let original = try RecordingControlsTestSupport.place(1, end: nil)
+        let changed = try RecordingControlsTestSupport.place(
+            2,
+            start: 50,
+            end: nil,
+            action: .set(
+                kind: .regularHome,
+                coordinate: .init(
+                    latitude: 40,
+                    longitude: -74,
+                ),
+            ),
+            predecessors: [original.id],
+        )
+        let ended = try RecordingControlsTestSupport.place(
+            3,
+            start: 100,
+            end: nil,
+            action: .remove,
+            predecessors: [changed.id],
+        )
+        let query = try RecordingInterval(start: RecordingAssessmentTestSupport.time(0), end: nil)
+        let result = try RecordingPlaceResolver.resolve(
+            [ended, changed, original],
+            for: original.placeID,
+            within: query,
+            version: original.version,
+        )
+        #expect(result.count == 3)
+        #expect(result[0].period.end == RecordingAssessmentTestSupport.time(50))
+        #expect(result[1].period.end == RecordingAssessmentTestSupport.time(100))
+        #expect(result[2].period.end == nil)
+        #expect(result[2].resolution == .absent)
+        #expect(result.map { RecordingPlaceInspection.Definition($0.resolution) } == [
+            .place(kind: .regularHome, coordinate: .init(latitude: 37, longitude: -122)),
+            .place(kind: .regularHome, coordinate: .init(latitude: 40, longitude: -74)),
+            .absent,
+        ])
+        let later = try RecordingPlaceResolver.resolve(
+            [changed, original],
+            for: original.placeID,
+            within: RecordingAssessmentTestSupport
+                .period(
+                    1e8,
+                    1e8 + 100,
+                ),
+            version: original.version,
+        )
+        #expect(later.count == 1)
+        #expect(later[0].period.end == RecordingAssessmentTestSupport.time(1e8 + 100))
+        #expect(RecordingPlaceInspection.Definition(later[0].resolution) ==
+            RecordingPlaceInspection.Definition(result[1].resolution))
+    }
+
+    @Test func concurrentAndMissingOngoingDefinitionsNeverChooseByDeliveryOrder() throws {
+        let home = try RecordingControlsTestSupport.place(1, end: nil)
+        let removal = try RecordingControlsTestSupport.place(
+            2,
+            start: 100,
+            end: nil,
+            action: .remove,
+        )
+        let query = try RecordingInterval(start: RecordingAssessmentTestSupport.time(0), end: nil)
+        let conflict = try RecordingPlaceResolver.resolve(
+            [removal, home],
+            for: home.placeID,
+            within: query,
+            version: home.version,
+        )
+        #expect(conflict.last?.resolution == .conflict([home.id, removal.id]))
+        #expect(conflict.last?.period.end == nil)
+        let replacement = try RecordingControlsTestSupport.place(
+            3,
+            start: 100,
+            end: nil,
+            predecessors: [
+                home.id,
+                removal.id,
+            ],
+        )
+        let partial = try RecordingPlaceResolver.resolve(
+            [replacement, home],
+            for: home.placeID,
+            within: query,
+            version: home.version,
+        )
+        #expect(partial.last?.resolution == .incomplete([removal.id]))
+        let complete = try RecordingPlaceResolver.resolve(
+            [replacement, removal, home],
+            for: home.placeID,
+            within: query,
+            version: home.version,
+        )
+        #expect(try complete == RecordingPlaceResolver.resolve(
+            [home, removal, replacement],
+            for: home.placeID,
+            within: query,
+            version: home.version,
+        ))
+        #expect(complete.last?.effectiveDecisions == [replacement.id])
+    }
+
     private func resolve(_ decisions: [RecordingPlaceDecision]) throws
         -> [RecordingPlaceResolver.Segment]
     {

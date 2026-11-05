@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 
-/// A precise user-specified place with bounded historical validity. It supplies corroboration,
+/// A precise user-specified place with historical validity. It supplies corroboration,
 /// never observations or a source choice. Forecast homes and planned stays are separate values.
 public struct RecordingPlace: Hashable, Codable, Sendable {
     public struct ID: RawRepresentable, Hashable, Codable, Sendable, Comparable {
@@ -34,16 +34,17 @@ public struct RecordingPlace: Hashable, Codable, Sendable {
         case temporaryBase
     }
 
-    public enum ValidationError: Error {
+    public enum ValidationError: Error, Equatable {
         case invalidCoordinate
+        case temporaryBaseRequiresEnd
     }
 
     public let id: ID
     public let kind: Kind
     public let coordinate: Coordinate
-    public let validity: RecordingPeriod
+    public let validity: RecordingInterval
 
-    public init(id: ID, kind: Kind, coordinate: Coordinate, validity: RecordingPeriod) throws {
+    public init(id: ID, kind: Kind, coordinate: Coordinate, validity: RecordingInterval) throws {
         self.id = id
         self.kind = kind
         self.coordinate = coordinate
@@ -51,8 +52,20 @@ public struct RecordingPlace: Hashable, Codable, Sendable {
         try validate()
     }
 
+    public init(id: ID, kind: Kind, coordinate: Coordinate, validity: RecordingPeriod) throws {
+        try self.init(
+            id: id,
+            kind: kind,
+            coordinate: coordinate,
+            validity: RecordingInterval(validity),
+        )
+    }
+
     public func validate() throws {
         try validity.validate()
+        if kind == .temporaryBase, validity.end == nil {
+            throw ValidationError.temporaryBaseRequiresEnd
+        }
         guard coordinate.latitude.isFinite, coordinate.longitude.isFinite,
               (-90 ... 90).contains(coordinate.latitude),
               (-180 ... 180).contains(coordinate.longitude)

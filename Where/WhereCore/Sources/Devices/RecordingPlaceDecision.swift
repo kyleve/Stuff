@@ -37,7 +37,7 @@ public struct RecordingPlaceDecision: Hashable, Codable, Sendable {
     public let id: ID
     public let author: RecordingDeviceID
     public let placeID: RecordingPlace.ID
-    public let periods: [RecordingPeriod]
+    public let periods: [RecordingInterval]
     public let action: Action
     let predecessorIDs: [ID]
     public var predecessors: Set<ID> {
@@ -50,22 +50,42 @@ public struct RecordingPlaceDecision: Hashable, Codable, Sendable {
         id: ID,
         author: RecordingDeviceID,
         placeID: RecordingPlace.ID,
-        periods: [RecordingPeriod],
+        validity: [RecordingInterval],
         action: Action,
         predecessors: Set<ID>,
         version: DataSemanticsVersion,
     ) throws {
-        for period in periods {
+        for period in validity {
             try period.validate()
         }
         self.id = id
         self.author = author
         self.placeID = placeID
-        self.periods = RecordingPeriod.union(periods)
+        periods = RecordingInterval.union(validity)
         self.action = action
         predecessorIDs = predecessors.sorted()
         self.version = version
         try validate()
+    }
+
+    public init(
+        id: ID,
+        author: RecordingDeviceID,
+        placeID: RecordingPlace.ID,
+        periods: [RecordingPeriod],
+        action: Action,
+        predecessors: Set<ID>,
+        version: DataSemanticsVersion,
+    ) throws {
+        try self.init(
+            id: id,
+            author: author,
+            placeID: placeID,
+            validity: periods.map(RecordingInterval.init),
+            action: action,
+            predecessors: predecessors,
+            version: version,
+        )
     }
 
     public func validate() throws {

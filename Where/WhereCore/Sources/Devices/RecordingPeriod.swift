@@ -57,7 +57,7 @@ public struct RecordingPeriod: Hashable, Codable, Sendable, Comparable {
         return result
     }
 
-    private init(validStart: Date, end: Date) {
+    init(validStart: Date, end: Date) {
         start = validStart
         self.end = end
     }

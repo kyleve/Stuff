@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes legacy Where backups into the current v8 manifest. The automatic-recording feature
+# Reshapes legacy Where backups into the current v9 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
 # v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
 # v6 preserves optional motion readings and adds per-sample attribution history.
@@ -14,11 +14,12 @@ require "time"
 require "set"
 require "date"
 require "optparse"
+require "base64"
 require_relative "recording_backup_conversion"
 require_relative "../../Tools/file_transaction"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 8
+CURRENT_FORMAT_VERSION = 9
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -229,6 +230,30 @@ def upgrade_planned_stays!(manifest, source_version)
   end
 end
 
+def upgrade_place_scopes!(manifest, source_version)
+  return unless source_version < 9
+
+  Array(manifest["versionedHistoryRecords"]).each do |record|
+    next unless record["kind"] == "recording.place" && record.dig("semantics", "major") == 1
+
+    # Keep the immutable payload and operation identity byte-for-byte. Finite validity still
+    # has the same start/end wire shape; only the envelope's scope discriminator changes.
+    scope = record.fetch("scope")
+    unless scope.is_a?(Hash) && scope.keys == ["periods"]
+      die "cannot upgrade a v8 place without its original period scope"
+    end
+    periods = scope.fetch("periods").fetch("_0")
+    unless periods.is_a?(Array) && !periods.empty? && periods.all? { |period|
+      period.is_a?(Hash) && ["start", "end"].all? { |key| period[key].is_a?(Numeric) && period[key].finite? } && period["start"] < period["end"]
+    }
+      die "v8 place validity must have finite start and end boundaries"
+    end
+    payload = JSON.parse(Base64.strict_decode64(record.fetch("payload")))
+    die "v8 place payload and envelope scopes disagree" unless payload.fetch("periods") == periods
+    record["scope"] = { "intervals" => scope.fetch("periods") }
+  end
+end
+
 def upgrade_manifest(manifest, recording_map: nil)
   manifest = Marshal.load(Marshal.dump(manifest))
   source_version = source_format_version(manifest)
@@ -266,6 +291,7 @@ def upgrade_manifest(manifest, recording_map: nil)
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")
   convert_date_epoch!(manifest) if source_version < 8
+  upgrade_place_scopes!(manifest, source_version)
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   RecordingBackupConversion.apply(manifest, mapping: recording_map) if recording_map
   warnings.uniq.each { |message| warn "warning: #{message}" }

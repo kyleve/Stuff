@@ -18,7 +18,7 @@ enum RecordingControlEditTestSupport {
                     )),
                 )
             case .place:
-                return .place(
+                return try .place(
                     placeID: RecordingControlsTestSupport.placeID,
                     periods: periods,
                     action: removes ? .remove : .set(

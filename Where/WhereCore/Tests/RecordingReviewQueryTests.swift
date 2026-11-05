@@ -2,6 +2,28 @@ import Testing
 @testable import WhereCore
 
 struct RecordingReviewQueryTests {
+    @Test func combinedQueriesRetainSeparateFiniteHistoryAndOngoingPlaceScopes() throws {
+        let period = try RecordingAssessmentTestSupport.period(0, 10)
+        let home = try RecordingInterval(start: RecordingAssessmentTestSupport.time(20), end: nil)
+        let finite = try RecordingReviewQuery(
+            periods: [period],
+            deviceIDs: [RecordingControlsTestSupport.device],
+        )
+        let place = try RecordingReviewQuery(
+            placeID: RecordingControlsTestSupport.placeID,
+            validity: [home],
+        )
+        let combined = try RecordingReviewQuery.combining([place, finite, place])
+        #expect(combined.periods == [period])
+        #expect(combined.deviceIDs == finite.deviceIDs)
+        #expect(combined.places == place.places)
+        #expect(try combined.evidencePeriods() == finite.evidencePeriods())
+        #expect(try combined.intervals == [RecordingInterval(period), home])
+        #expect(throws: DataCompatibilityError.incompleteRecord) {
+            try RecordingReviewQuery(placeID: RecordingControlsTestSupport.placeID, validity: [])
+        }
+    }
+
     @Test func queryIdentityRetainsTargetDevicesAndSeparateReviewedPeriods() throws {
         let periods = try [
             RecordingAssessmentTestSupport.period(0, 1),

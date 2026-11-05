@@ -27,7 +27,7 @@ public struct RecordingPlaceHistory: Hashable, Sendable {
                 }
                 return $0.id < $1.id
             }
-            let periods = RecordingPeriod.union(decisions.flatMap(\.periods))
+            let periods = RecordingInterval.union(decisions.flatMap(\.periods))
             let segments = try periods.flatMap { period in
                 try RecordingPlaceResolver.resolve(
                     controls.places,

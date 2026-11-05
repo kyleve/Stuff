@@ -25,6 +25,7 @@ public struct VersionedHistoryRecord: Hashable, Codable, Sendable {
     public enum Scope: Hashable, Codable, Sendable {
         case entireHistory
         case periods([RecordingPeriod])
+        case intervals([RecordingInterval])
 
         public func validate() throws {
             switch self {
@@ -34,6 +35,38 @@ public struct VersionedHistoryRecord: Hashable, Codable, Sendable {
                     for period in periods {
                         try period.validate()
                     }
+                case let .intervals(intervals):
+                    guard !intervals.isEmpty else { throw DataCompatibilityError.incompleteRecord }
+                    for interval in intervals {
+                        try interval.validate()
+                    }
+            }
+        }
+
+        public func intersections(with query: RecordingPeriod) -> [RecordingPeriod] {
+            switch self {
+                case .entireHistory: [query]
+                case let .periods(periods): periods.compactMap { $0.intersection(query) }
+                case let .intervals(intervals): intervals.compactMap { $0.intersection(query) }
+            }
+        }
+
+        public func contains(_ instant: Date) -> Bool {
+            switch self {
+                case .entireHistory: true
+                case let .periods(periods): periods.contains { $0.contains(instant) }
+                case let .intervals(intervals): intervals.contains { $0.contains(instant) }
+            }
+        }
+
+        public func overlaps(_ interval: RecordingInterval) -> Bool {
+            switch self {
+                case .entireHistory: true
+                case let .periods(periods): periods.contains { period in
+                        interval.start < period
+                            .end && (interval.end.map { period.start < $0 } ?? true)
+                    }
+                case let .intervals(intervals): intervals.contains { $0.overlaps(interval) }
             }
         }
     }

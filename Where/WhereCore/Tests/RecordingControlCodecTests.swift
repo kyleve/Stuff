@@ -3,6 +3,32 @@ import Testing
 @testable import WhereCore
 
 struct RecordingControlCodecTests {
+    @Test func ongoingPlaceEnvelopeMustMatchItsCompleteUnboundedPayloadScope() throws {
+        let place = try RecordingControlsTestSupport.place(1, end: nil)
+        let record = try RecordingControlCodec.encode(.place(place), generationID: .initial)
+        #expect(record.scope == .intervals(place.periods))
+        #expect(try RecordingControlCodec.admit(
+            record,
+            policy: RecordingBackupTestSupport.policy,
+        ) ==
+            .understood(.place(place)))
+        #expect(try RecordingControlCodec.encode(
+            .place(RecordingControlsTestSupport.roundTrip(place)),
+            generationID: .initial,
+        ) == record)
+        let narrowed = try VersionedHistoryRecord(
+            id: record.id,
+            dataGenerationID: record.dataGenerationID,
+            semantics: record.semantics,
+            scope: .intervals([RecordingInterval(RecordingAssessmentTestSupport.period(0, 100))]),
+            kind: record.kind,
+            payload: record.payload,
+        )
+        #expect(throws: DataCompatibilityError.conflictingRecord) {
+            try RecordingControlCodec.admit(narrowed, policy: RecordingBackupTestSupport.policy)
+        }
+    }
+
     @Test func retryEncodingPreservesCanonicalBytesAcrossRestoration() throws {
         let initial = try RecordingAssessmentTestSupport.decision(1, predecessors: [
             RecordingAssessmentTestSupport.decisionID(5),

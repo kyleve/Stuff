@@ -2,6 +2,36 @@ import Testing
 @testable import WhereCore
 
 struct RecordingPlaceDecisionTests {
+    @Test func regularHomesCanBeOngoingButTemporaryBasesRequireAnEnd() throws {
+        let ongoing = try RecordingControlsTestSupport.place(1, end: nil)
+        #expect(ongoing.periods.first?.end == nil)
+        #expect(try RecordingControlsTestSupport.roundTrip(ongoing) == ongoing)
+        #expect(throws: RecordingPlace.ValidationError.temporaryBaseRequiresEnd) {
+            try RecordingControlsTestSupport.place(
+                2,
+                end: nil,
+                action: .set(
+                    kind: .temporaryBase,
+                    coordinate: .init(
+                        latitude: 40,
+                        longitude: -74,
+                    ),
+                ),
+            )
+        }
+        let bounded = try RecordingControlsTestSupport.place(
+            3,
+            action: .set(
+                kind: .temporaryBase,
+                coordinate: .init(
+                    latitude: 40,
+                    longitude: -74,
+                ),
+            ),
+        )
+        #expect(bounded.periods.first?.end != nil)
+    }
+
     @Test func rejectsMalformedPeriodsBeforeNormalization() throws {
         let source = try RecordingControlsTestSupport.place(1)
         #expect(throws: RecordingPeriod.ValidationError.self) {

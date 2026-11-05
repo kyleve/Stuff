@@ -1,0 +1,77 @@
+{
+  "assets": [],
+  "dismissedIssues": [],
+  "evidence": [],
+  "exportedAt": 788992800,
+  "formatVersion": 8,
+  "homeRegionRecords": [],
+  "manualDays": [],
+  "plannedStayRecords": [],
+  "primaryRegions": [
+    {
+      "order": 0,
+      "region": "us-NY"
+    }
+  ],
+  "recordingDeviceMetadataChanges": [],
+  "recordingDeviceProfiles": [],
+  "recordingDeviceRemovals": [],
+  "requiredDataMajor": 1,
+  "sampleAttributionRevisions": [],
+  "samples": [],
+  "trackedRegions": [
+    "us-NY"
+  ],
+  "versionedHistoryRecords": [
+    {
+      "dataGenerationID": {
+        "rawValue": "00000000-0000-0000-0000-0000000000E0"
+      },
+      "id": {
+        "rawValue": "44444444-4444-4444-4444-444444444444"
+      },
+      "kind": "recording.place",
+      "payload": "eyJhY3Rpb24iOnsic2V0Ijp7ImNvb3JkaW5hdGUiOnsibGF0aXR1ZGUiOjM3LCJsb25naXR1ZGUiOi0xMjJ9LCJraW5kIjp7InJlZ3VsYXJIb21lIjp7fX19fSwiYXV0aG9yIjoic3RvcmU6Ly9kZXZpY2VzLzIyMjIyMjIyLTIyMjItMjIyMi0yMjIyLTIyMjIyMjIyMjIyMiIsImlkIjoiNDQ0NDQ0NDQtNDQ0NC00NDQ0LTQ0NDQtNDQ0NDQ0NDQ0NDQ0IiwicGVyaW9kcyI6W3siZW5kIjoxMDAsInN0YXJ0IjowfV0sInBsYWNlSUQiOiIzMzMzMzMzMy0zMzMzLTMzMzMtMzMzMy0zMzMzMzMzMzMzMzMiLCJwcmVkZWNlc3NvcklEcyI6W10sInZlcnNpb24iOnsibWFqb3IiOjEsIm1pbm9yIjowLCJwYXRjaCI6MH19",
+      "scope": {
+        "periods": {
+          "_0": [
+            {
+              "end": 100,
+              "start": 0
+            }
+          ]
+        }
+      },
+      "semantics": {
+        "major": 1,
+        "minor": 0,
+        "patch": 0
+      }
+    },
+    {
+      "dataGenerationID": {
+        "rawValue": "00000000-0000-0000-0000-0000000000E0"
+      },
+      "id": {
+        "rawValue": "55555555-5555-5555-5555-555555555555"
+      },
+      "kind": "recording.future-place",
+      "payload": "AP9k",
+      "scope": {
+        "periods": {
+          "_0": [
+            {
+              "end": 100,
+              "start": 0
+            }
+          ]
+        }
+      },
+      "semantics": {
+        "major": 1,
+        "minor": 0,
+        "patch": 0
+      }
+    }
+  ]
+}

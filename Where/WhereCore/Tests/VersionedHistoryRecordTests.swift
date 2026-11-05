@@ -3,6 +3,26 @@ import Testing
 @testable import WhereCore
 
 struct VersionedHistoryRecordTests {
+    @Test func intervalScopeKeepsAnOngoingBoundaryAndClipsUnknownMeaningToTheQuery() throws {
+        let time = RecordingAssessmentTestSupport.time
+        let interval = try RecordingInterval(start: time(50), end: nil)
+        let scope = VersionedHistoryRecord.Scope.intervals([interval])
+        try scope.validate()
+        #expect(!scope.contains(time(49)))
+        #expect(scope.contains(time(1e8)))
+        #expect(try scope.intersections(with: RecordingAssessmentTestSupport.period(0, 100)) == [
+            RecordingAssessmentTestSupport.period(50, 100),
+        ])
+        let finite = try VersionedHistoryRecord.Scope
+            .periods([RecordingAssessmentTestSupport.period(
+                0,
+                50,
+            )])
+        #expect(!finite.overlaps(interval))
+        #expect(try finite.overlaps(.init(start: time(49), end: nil)))
+        #expect(try RecordingControlsTestSupport.roundTrip(scope) == scope)
+    }
+
     @Test func futurePayloadShapeCannotBeDecodedBeforeItsHeader() throws {
         let wire = Data(
             #"{"semantics":{"major":2,"minor":0,"patch":0},"payload":{"future":"shape"}}"#

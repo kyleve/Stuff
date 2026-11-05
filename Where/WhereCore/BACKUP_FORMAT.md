@@ -1,4 +1,4 @@
-# Where backup format v8
+# Where backup format v9
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -22,6 +22,7 @@ Current imports require the current schema, including its required collections.
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
 | 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 | 8 | Preserves recording-day context and versioned controls, declares the required data major, and uses Foundation's 2001 date epoch. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
+| 9 | Adds ongoing place validity and its explicit interval envelope scope. Finite place payloads retain their original bytes. | [`RecordingInterval.swift`](Sources/Devices/RecordingInterval.swift) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -34,6 +35,11 @@ It normalizes dates, day identities, region keys, and dismissal URLs.
 It supplies missing collections and converts older device payloads.
 It excludes obsolete recording policies and non-restorable check-ins.
 It never restores local recording consent.
+
+Version 9 place envelopes use `intervals` scope. Each interval has a start and an optional exclusive end.
+An absent end means ongoing validity. Regular homes permit this scope; temporary bases require an end.
+The offline upgrader changes known major-one place envelopes from `periods` to `intervals` without changing their payloads or identities.
+Other control scopes and opaque records remain unchanged.
 
 ## Version 6 contents
 

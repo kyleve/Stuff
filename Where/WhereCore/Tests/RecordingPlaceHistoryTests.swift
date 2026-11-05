@@ -40,7 +40,7 @@ struct RecordingPlaceHistoryTests {
             RecordingAssessmentTestSupport.period(40, 60),
             RecordingAssessmentTestSupport.period(60, 100),
             RecordingAssessmentTestSupport.period(200, 300),
-        ])
+        ].map(RecordingInterval.init))
         #expect(entry.segments[1].resolution == .absent)
         guard case let .place(old) = entry.segments[0].resolution,
               case let .place(new) = entry.segments[3].resolution

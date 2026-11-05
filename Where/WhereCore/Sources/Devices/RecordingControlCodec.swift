@@ -48,7 +48,7 @@ public enum RecordingControlCodec {
             id: control.recordID,
             dataGenerationID: generationID,
             semantics: control.version,
-            scope: .periods(control.periods),
+            scope: control.scope,
             kind: kind.rawValue,
             payload: payload,
         )
@@ -72,7 +72,7 @@ public enum RecordingControlCodec {
                 ))
         }
         guard control.recordID == record.id, control.version == record.semantics,
-              record.scope == .periods(control.periods)
+              record.scope == control.scope
         else { throw DataCompatibilityError.conflictingRecord }
         try control.validate()
         return .understood(control)

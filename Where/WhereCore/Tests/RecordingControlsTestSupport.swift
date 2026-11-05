@@ -44,7 +44,7 @@ enum RecordingControlsTestSupport {
     static func place(
         _ identity: Int,
         start: Double = 0,
-        end: Double = 100,
+        end: Double? = 100,
         placeID: RecordingPlace.ID = placeID,
         action: RecordingPlaceDecision.Action = .set(
             kind: .regularHome,
@@ -56,9 +56,9 @@ enum RecordingControlsTestSupport {
             id: .init(rawValue: RecordingAssessmentTestSupport.decisionID(identity).rawValue),
             author: device,
             placeID: placeID,
-            periods: [RecordingAssessmentTestSupport.period(
-                start,
-                end,
+            validity: [RecordingInterval(
+                start: RecordingAssessmentTestSupport.time(start),
+                end: end.map(RecordingAssessmentTestSupport.time),
             )],
             action: action,
             predecessors: predecessors,

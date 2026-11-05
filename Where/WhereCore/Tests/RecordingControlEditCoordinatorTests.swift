@@ -55,7 +55,7 @@ struct RecordingControlEditCoordinatorTests {
                     change: .restoreEligibility,
                 )
             case .place:
-                .place(placeID: RecordingControlsTestSupport.placeID, periods: [], action: .remove)
+                .place(placeID: RecordingControlsTestSupport.placeID, validity: [], action: .remove)
             case .calendar:
                 .calendar(
                     deviceID: RecordingChoiceTestSupport.author,

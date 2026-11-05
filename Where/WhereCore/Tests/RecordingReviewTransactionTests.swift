@@ -4,6 +4,48 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct RecordingReviewTransactionTests {
+    @Test func futurePlaceImportDuringSaveInvalidatesTheEntireOngoingProposal() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let importer = SwiftDataStore(modelContainer: container)
+        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let proposal = try await coordinator.review(.place(
+            placeID: RecordingControlsTestSupport.placeID,
+            validity: [.init(start: RecordingAssessmentTestSupport.time(0), end: nil)],
+            action: .set(kind: .regularHome, coordinate: .init(latitude: 37, longitude: -122)),
+        ))
+        let record = try RecordingControlCodec.encode(
+            RecordingControlEditTestSupport.control(proposal),
+            generationID: proposal.evidence.generationID,
+        )
+        let future = try RecordingControlsTestSupport.place(
+            30,
+            start: 1e8,
+            end: nil,
+            action: .remove,
+        )
+        let gate = CompatibilityTestGate()
+        var configured = RecordingReviewTransaction(
+            store: store,
+            policy: RecordingChoiceTestSupport.policy,
+        )
+        configured.beforeWrite = { await gate.suspend() }
+        let transaction = configured
+        let operation = Task { try await transaction.apply(record, reviewed: proposal.evidence) }
+        await gate.waitUntilEntered()
+        try await RecordingChoiceTestSupport.append(.place(future), store: importer)
+        await gate.resume()
+        guard case let .changed(current) = try await operation.value
+        else { Issue.record("The future import must require a new preview before save"); return }
+        #expect(current.controls.places == [future])
+        #expect(current.query == proposal.evidence.query)
+        let saved = try await store
+            .versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+        #expect(saved.count == 1)
+        #expect(saved.first?.id != record.id)
+    }
+
     @Test func revocationDuringSaveRejectsEveryRecordInTheBatch() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let access = DataCompatibilityAccess(

@@ -45,26 +45,37 @@ public enum RecordingControl: Hashable, Sendable {
         }
     }
 
-    public var periods: [RecordingPeriod] {
+    public var scope: VersionedHistoryRecord.Scope {
         switch self {
-            case let .source(value): value.periods
-            case let .ignore(value): value.periods
-            case let .place(value): value.periods
-            case let .calendar(value): value.periods
+            case let .source(value): .periods(value.periods)
+            case let .ignore(value): .periods(value.periods)
+            case let .place(value): .intervals(value.periods)
+            case let .calendar(value): .periods(value.periods)
         }
     }
 
     public func validate() throws {
-        guard let query = periods.first else { throw DataCompatibilityError.incompleteRecord }
-        guard periods == RecordingPeriod.union(periods)
-        else { throw DataCompatibilityError.incompleteRecord }
+        try scope.validate()
+        switch scope {
+            case .entireHistory: preconditionFailure("A recording control has an explicit scope.")
+            case let .periods(periods):
+                guard periods == RecordingPeriod.union(periods)
+                else { throw DataCompatibilityError.incompleteRecord }
+            case let .intervals(intervals):
+                guard intervals == RecordingInterval.union(intervals)
+                else { throw DataCompatibilityError.incompleteRecord }
+        }
         // Each domain resolver validates all records before resolving the query, including bounds,
         // scope, predecessors, and any immediately visible cycle. Missing predecessors remain
         // valid.
         switch self {
             case let .source(value):
+                guard let query = value.periods.first
+                else { throw DataCompatibilityError.incompleteRecord }
                 _ = try HistoryDecisionResolver.resolve([value], within: query, version: version)
             case let .ignore(value):
+                guard let query = value.periods.first
+                else { throw DataCompatibilityError.incompleteRecord }
                 _ = try RecordingIgnoreResolver.resolve(
                     [value],
                     for: value.deviceID,
@@ -72,6 +83,8 @@ public enum RecordingControl: Hashable, Sendable {
                     version: version,
                 )
             case let .place(value):
+                guard let query = value.periods.first
+                else { throw DataCompatibilityError.incompleteRecord }
                 _ = try RecordingPlaceResolver.resolve(
                     [value],
                     for: value.placeID,
@@ -79,6 +92,8 @@ public enum RecordingControl: Hashable, Sendable {
                     version: version,
                 )
             case let .calendar(value):
+                guard let query = value.periods.first
+                else { throw DataCompatibilityError.incompleteRecord }
                 _ = try RecordingCalendarResolver.resolve(
                     [value],
                     for: value.deviceID,

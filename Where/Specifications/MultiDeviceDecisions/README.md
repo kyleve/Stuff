@@ -38,6 +38,8 @@ The implementation learns edges only from received records and retains missing i
 `HistoryDecisionResolver` validates source-choice semantics, then delegates this topology to `CausalPeriodResolver`.
 Ignore, place, and calendar controls use the same topology through separate typed identities and domain validation.
 Their eligibility, calendar, and place meanings remain outside this model.
+The interval type also permits ongoing place validity. Finite history queries clip it at their own boundary.
+This bounded model checks the shared causal topology. `RecordingPlaceResolverTests` separately covers ongoing tails, changes, endings, and missing predecessors.
 
 ## Controls and regressions
 

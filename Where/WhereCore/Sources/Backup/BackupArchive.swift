@@ -24,11 +24,12 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// measurements and sample-attribution revisions. v7 adds independent stay identities,
     /// arrival/departure windows, and `homeRegionRecords`. v8 retains recording-day context,
     /// versioned controls, and the required data major, and uses the exact Foundation 2001 epoch
-    /// for every Date. There is no in-app
+    /// for every Date. v9 adds ongoing place validity and its stable interval envelope scope.
+    /// There is no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 8
+    public static let currentFormatVersion = 9
 
     public let formatVersion: Int
     public let requiredDataMajor: UInt

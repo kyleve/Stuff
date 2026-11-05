@@ -1,14 +1,78 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "open3"
+require "rbconfig"
 require_relative "../upgrade-backup"
 require_relative "../../../.agents/skills/upgrade-where-backup/scripts/upgrade_and_verify"
 
 class UpgradeBackupTest < Minitest::Test
+  def test_v8_place_scope_upgrades_without_rewriting_immutable_payloads_or_unknown_records
+    directory = File.expand_path("../../WhereCore/Tests/Fixtures/RecordingBackup", __dir__)
+    original = JSON.parse(File.read(File.join(directory, "places-legacy.json")))
+    expected = JSON.parse(File.read(File.join(directory, "places.json")))
+    upgraded = upgrade_manifest(original)
+    assert_equal expected, upgraded
+    before = original.fetch("versionedHistoryRecords").first
+    after = upgraded.fetch("versionedHistoryRecords").first
+    assert_equal before.reject { |key, _| key == "scope" }, after.reject { |key, _| key == "scope" }
+    assert_equal before.dig("scope", "periods"), after.dig("scope", "intervals")
+    assert_equal original.fetch("versionedHistoryRecords").last, upgraded.fetch("versionedHistoryRecords").last
+    assert_equal upgraded, upgrade_manifest(upgraded)
+    assert_equal 8, original.fetch("formatVersion")
+  end
+
+  def test_v8_place_upgrade_requires_its_original_scope
+    record = { "kind" => "recording.place", "semantics" => { "major" => 1 }, "scope" => { "entireHistory" => {} } }
+    manifest = base_manifest(8).merge("versionedHistoryRecords" => [record])
+    assert_raises(SystemExit) { upgrade_manifest(manifest) }
+    assert_equal({ "entireHistory" => {} }, record.fetch("scope"))
+  end
+
+  def test_v8_place_upgrade_cannot_turn_missing_bounds_into_ongoing_validity
+    fixture = File.expand_path("../../WhereCore/Tests/Fixtures/RecordingBackup/places-legacy.json", __dir__)
+    original = JSON.parse(File.read(fixture))
+    missing = Marshal.load(Marshal.dump(original))
+    missing["versionedHistoryRecords"].first["scope"]["periods"]["_0"].first.delete("end")
+    assert_raises(SystemExit) { upgrade_manifest(missing) }
+    mismatched = Marshal.load(Marshal.dump(original))
+    record = mismatched["versionedHistoryRecords"].first
+    payload = JSON.parse(Base64.strict_decode64(record.fetch("payload")))
+    payload["periods"].first.delete("end")
+    record["payload"] = Base64.strict_encode64(JSON.generate(payload))
+    assert_raises(SystemExit) { upgrade_manifest(mismatched) }
+    assert_equal 8, original.fetch("formatVersion")
+  end
+
+  def test_public_command_upgrades_v8_place_zip_and_preserves_assets
+    fixture = File.expand_path("../../WhereCore/Tests/Fixtures/RecordingBackup/places-legacy.json", __dir__)
+    script = File.expand_path("../upgrade-backup.rb", __dir__)
+    Dir.mktmpdir("place-upgrade") do |directory|
+      source = File.join(directory, "source")
+      FileUtils.mkdir_p(source)
+      FileUtils.cp(fixture, File.join(source, "manifest.json"))
+      File.binwrite(File.join(source, "evidence.bin"), "unchanged asset\0")
+      input = File.join(directory, "input.zip")
+      output = File.join(directory, "output.zip")
+      assert system("zip", "-q", "-r", input, ".", chdir: source)
+      original = File.binread(input)
+      stdout, stderr, status = Open3.capture3(RbConfig.ruby, script, input, output)
+      assert status.success?, stderr
+      assert_includes stdout, output
+      decoded, stderr, status = Open3.capture3("unzip", "-p", output, "manifest.json")
+      assert status.success?, stderr
+      assert_equal upgrade_manifest(JSON.parse(File.read(fixture))), JSON.parse(decoded)
+      asset, stderr, status = Open3.capture3("unzip", "-p", output, "evidence.bin")
+      assert status.success?, stderr
+      assert_equal "unchanged asset\0", asset
+      assert_equal original, File.binread(input)
+    end
+  end
+
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 8, upgraded.fetch("formatVersion")
+    assert_equal 9, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
@@ -58,7 +122,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 8, upgraded.fetch("formatVersion")
+    assert_equal 9, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -159,7 +223,7 @@ class UpgradeBackupTest < Minitest::Test
   end
 
   def test_rejects_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(9)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(10)) }
     assert_equal 1, error.status
   end
 

@@ -11,7 +11,7 @@ module RecordingBackupConversion
   MAX_OFFSET_SECONDS = 18 * 60 * 60
 
   def self.apply(manifest, mapping:)
-    raise ArgumentError, "recording conversion requires backup format 8" unless manifest["formatVersion"] == 8
+    raise ArgumentError, "recording conversion requires backup format 9" unless manifest["formatVersion"] == 9
     unless [0, 1].include?(manifest["requiredDataMajor"])
       raise ArgumentError, "unsupported data major; conversion cannot lower the compatibility floor"
     end

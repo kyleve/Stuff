@@ -719,6 +719,26 @@ struct BackupServiceTests {
 }
 
 extension BackupServiceTests {
+    @Test func upgradedPlaceEnvelopePreservesTheOriginalDefinitionAndOpaqueRecord() throws {
+        let archive = try RecordingBackupTestSupport.convertedArchive(.places)
+        let generationID = try #require(archive.versionedHistoryRecords.first).dataGenerationID
+        let controls = try RecordingControlSnapshot(
+            records: archive.versionedHistoryRecords,
+            generationID: generationID,
+            policy: RecordingBackupTestSupport.policy,
+        )
+        let place = try #require(controls.places.first)
+        #expect(place.placeID.rawValue.uuidString == "33333333-3333-3333-3333-333333333333")
+        #expect(place.periods.first?.start.timeIntervalSinceReferenceDate == 0)
+        #expect(place.periods.first?.end?.timeIntervalSinceReferenceDate == 100)
+        #expect(place.action == .set(
+            kind: .regularHome,
+            coordinate: .init(latitude: 37, longitude: -122),
+        ))
+        #expect(controls.requiresReview.count == 1)
+        #expect(controls.requiresReview[0].payload == Data([0, 255, 100]))
+    }
+
     @Test func convertedRecordingContextAndAllControlFamiliesSurviveTheProductionArchive() throws {
         let converted = try RecordingBackupTestSupport.convertedArchive()
         let sample = try #require(converted.samples.first)
@@ -740,7 +760,7 @@ extension BackupServiceTests {
 
     @Test func archiveMajorIsAdmittedBeforeAnyHistoryPayloadIsDecoded() throws {
         let future = Data(
-            #"{"formatVersion":8,"requiredDataMajor":2,"samples":"opaque future shape"}"#
+            #"{"formatVersion":9,"requiredDataMajor":2,"samples":"opaque future shape"}"#
                 .utf8,
         )
         #expect(throws: DataCompatibilityError.updateRequired(requiredMajor: 2)) {

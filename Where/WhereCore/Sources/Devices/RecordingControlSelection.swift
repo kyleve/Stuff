@@ -66,10 +66,7 @@ public enum RecordingControlSelection {
         }
         let cutoffs = try removalCutoffs(removals)
         let opaquePeriods = controls.requiresReview.flatMap { record -> [RecordingPeriod] in
-            switch record.scope {
-                case .entireHistory: [query]
-                case let .periods(periods): periods.compactMap { $0.intersection(query) }
-            }
+            record.scope.intersections(with: query)
         }
         let boundaries = Set(
             [query.start, query.end]
@@ -85,10 +82,7 @@ public enum RecordingControlSelection {
                 preconditionFailure("Source resolution must cover the requested period.")
             }
             let opaque = Set(controls.requiresReview.filter { record in
-                switch record.scope {
-                    case .entireHistory: true
-                    case let .periods(periods): periods.contains { $0.contains(start) }
-                }
+                record.scope.contains(start)
             }.map(\.id))
             let resolution: Resolution
             if !opaque.isEmpty {

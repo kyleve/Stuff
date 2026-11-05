@@ -22,7 +22,7 @@ public struct RecordingReviewReader: Sendable {
         return try await store.readSnapshot {
             let generationID = try await store.dataGeneration().id
             let complete = try await RecordingControlStore(store: store, policy: policy).snapshot()
-            let controls = try relevantControls(complete, periods: periods)
+            let controls = try relevantControls(complete, periods: periods, places: query.places)
             var samples: Set<LocationSample> = []
             var manualDays: Set<DayPresence> = []
             var calendar = Calendar(identifier: .gregorian)
@@ -62,7 +62,7 @@ public struct RecordingReviewReader: Sendable {
                 controls: controls,
                 removals: Set(removals),
                 manualDays: manualDays,
-                primaryRegions: store.primaryRegions(),
+                primaryRegions: periods.isEmpty ? [] : store.primaryRegions(),
             )
         }
     }
@@ -70,14 +70,22 @@ public struct RecordingReviewReader: Sendable {
     private func relevantControls(
         _ complete: RecordingControlSnapshot,
         periods: [RecordingPeriod],
+        places: [RecordingReviewQuery.PlaceScope],
     ) throws -> RecordingControlSnapshot {
         let records = Dictionary(uniqueKeysWithValues: complete.records.map { ($0.id, $0) })
-        var retained = Set(complete.records.filter { record in
-            switch record.scope {
-                case .entireHistory: true
-                case let .periods(scopes):
-                    scopes.contains { scope in periods.contains { scope.overlaps($0) } }
+        let placeIDs = Set(complete.places.filter { decision in
+            places.contains { scope in
+                scope.placeID == decision.placeID && scope.intervals.contains { interval in
+                    decision.periods.contains { $0.overlaps(interval) }
+                }
             }
+        }.map { VersionedHistoryRecord.ID(rawValue: $0.id.rawValue) })
+        let unknownIDs = Set(complete.requiresReview.filter { record in
+            places.contains { $0.intervals.contains { record.scope.overlaps($0) } }
+        }.map(\.id))
+        var retained = Set(complete.records.filter { record in
+            placeIDs.contains(record.id) || unknownIDs.contains(record.id)
+                || periods.contains { !record.scope.intersections(with: $0).isEmpty }
         }.map(\.id))
         var pending = Array(retained)
         while let recordID = pending.popLast() {

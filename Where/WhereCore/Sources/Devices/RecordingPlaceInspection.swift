@@ -21,7 +21,7 @@ public struct RecordingPlaceInspection: Hashable, Sendable {
     }
 
     public struct Change: Hashable, Sendable {
-        public let period: RecordingPeriod
+        public let period: RecordingInterval
         public let before: Definition
         public let after: Definition
     }
@@ -56,7 +56,7 @@ public struct RecordingPlaceInspection: Hashable, Sendable {
             policy: policy,
         )
         var changes: [Change] = []
-        for period in evidence.query.periods {
+        for period in RecordingInterval.union(places.flatMap(\.periods)) {
             let beforeSegments = try RecordingPlaceResolver.resolve(
                 evidence.controls.places,
                 for: first.placeID,
@@ -70,9 +70,10 @@ public struct RecordingPlaceInspection: Hashable, Sendable {
                 version: evidence.policyVersion,
             )
             let boundaries = Set((beforeSegments + afterSegments).flatMap {
-                [$0.period.start, $0.period.end]
+                [$0.period.start] + [$0.period.end].compactMap(\.self)
             }).sorted()
-            for (start, end) in zip(boundaries, boundaries.dropFirst()) {
+            for (index, start) in boundaries.enumerated() where period.contains(start) {
+                let end = index + 1 < boundaries.count ? boundaries[index + 1] : period.end
                 guard let before = beforeSegments.first(where: { $0.period.contains(start) }),
                       let after = afterSegments.first(where: { $0.period.contains(start) })
                 else { preconditionFailure("Place resolution must cover the reviewed period.") }
