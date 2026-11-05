@@ -2,6 +2,9 @@ import { test, expect, type Page } from '@playwright/test';
 import { largeFixture } from './large-fixture.ts';
 
 test.use({ deviceScaleFactor: 3 });
+// Several sequential thumbnail transitions each have a bounded readiness wait below.
+// The whole test must allow those waits plus WebKit command/paint latency under CI load.
+test.describe.configure({ timeout: 90_000 });
 
 // Under CI load, WebKit can take over five seconds to return even a matching
 // decoded-pixel count. Keep exact assertions while allowing bounded browser work.
@@ -16,7 +19,8 @@ async function openFittedAtlas(page: Page) {
     await page.route('**/manifest.json', route => route.fulfill({ json: largeFixture() }));
     await page.goto('./');
     await expect(page.locator('.screen-card')).toHaveCount(57);
-    await expect.poll(() => page.locator('.screen-card img[src]').count()).toBeGreaterThan(0);
+    await expect.poll(() => page.locator('.screen-card img[src]').count(),
+        { timeout: thumbnailLoadTimeout }).toBeGreaterThan(0);
     await page.keyboard.press('f');
     const loadedPixels = () => page.locator('.screen-card img').evaluateAll(images => {
         const captures = images as HTMLImageElement[];
@@ -41,7 +45,8 @@ test('production-sized atlas upgrades and downgrades thumbnails across selection
     const { loadedPixels, fittedPixels, requests, errors } = await openFittedAtlas(page);
     for (let index = 0; index < 8; index++) await page.keyboard.press('+');
     await expect.poll(() => page.locator('.screen-card img[src]').evaluateAll(images =>
-        images.some(image => (image as HTMLImageElement).naturalHeight === 1024))).toBe(true);
+        images.some(image => (image as HTMLImageElement).naturalHeight === 1024)),
+    { timeout: thumbnailLoadTimeout }).toBe(true);
     await page.keyboard.press('f');
     await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
@@ -49,9 +54,11 @@ test('production-sized atlas upgrades and downgrades thumbnails across selection
     await page.locator('.header-profile select').selectOption('phone-dark');
     await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     await expect.poll(() => page.locator('.screen-card img[src]').evaluateAll(images =>
-        images.every(image => image.getAttribute('src')?.includes('phone-dark')))).toBe(true);
+        images.every(image => image.getAttribute('src')?.includes('phone-dark'))),
+    { timeout: thumbnailLoadTimeout }).toBe(true);
     await page.locator('.screen-card select').nth(30).selectOption('alternate');
-    await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/);
+    await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/,
+        { timeout: thumbnailLoadTimeout });
     await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
     expect(errors).toEqual([]);
@@ -61,7 +68,8 @@ test('inspector releases and restores production-sized atlas thumbnails', async 
     const { loadedPixels, fittedPixels, errors } = await openFittedAtlas(page);
     await page.locator('.header-profile select').selectOption('phone-dark');
     await page.locator('.screen-card select').nth(30).selectOption('alternate');
-    await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/);
+    await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/,
+        { timeout: thumbnailLoadTimeout });
     await expect.poll(loadedPixels, { timeout: thumbnailLoadTimeout }).toBe(fittedPixels);
     await page.locator('.card-image-button').nth(30).click();
     await expect(page.locator('.inspector img')).toHaveAttribute('src', /phone-dark\.png$/);
