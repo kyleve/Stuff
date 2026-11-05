@@ -54,6 +54,12 @@ public struct ReportReader: Sendable {
         return report
     }
 
+    /// Encode only the immutable report that passed the export gate. A later import cannot
+    /// substitute unassessed content while the document is prepared.
+    public func exportableYearCSV(for year: Int) async throws -> HistoryReportCSV {
+        try await HistoryReportCSV(report: exportableYearReport(for: year))
+    }
+
     /// Read a year's aggregate report and its primary-region recorded locations
     /// from the same samples snapshot. A new fix can leave `report` equal while
     /// changing `primaryRegionLocations`, so presentation models keep the full

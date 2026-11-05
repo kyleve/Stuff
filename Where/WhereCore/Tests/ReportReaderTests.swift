@@ -419,6 +419,7 @@ struct ReportReaderTests {
         }, to: store)
         let reader = LocationHistoryReaderTestSupport.reports(store)
         let checked = try await reader.exportableYearReport(for: 2001)
+        let checkedCSV = try await reader.exportableYearCSV(for: 2001)
         #expect(checked.totals == [.california: 1])
         #expect(checked.completeness.isComplete)
 
@@ -432,6 +433,10 @@ struct ReportReaderTests {
         await #expect(throws: UnresolvedHistoryError.self) {
             try await reader.exportableYearReport(for: 2001)
         }
+        await #expect(throws: UnresolvedHistoryError.self) {
+            try await reader.exportableYearCSV(for: 2001)
+        }
+        #expect(try HistoryReportCSV(report: checked) == checkedCSV)
         #expect(checked.totals == [.california: 1])
         #expect(checked.completeness.isComplete)
         #expect(try await store.allSamples().count == samples.count)
@@ -452,6 +457,8 @@ struct ReportReaderTests {
             try await reader.exportableYearReport(for: 2001)
         }
         #expect(try await reader.exportableYearReport(for: 2000).totals.isEmpty)
+        #expect(try await reader.exportableYearCSV(for: 2000).data ==
+            Data("calendar_day,region_id,region_name\r\n".utf8))
         let details = try await reader.yearReportDetails(for: 2001)
         let elsewhere = try await ElsewhereResolver(geography: HistoryRegionAttribution())
             .resolve(details.elsewhereInput)

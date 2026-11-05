@@ -231,6 +231,7 @@ That document also owns the implementation plan.
   Carry `HistoryCompleteness` with report counts. Validate its assessed scope before narrowing it.
   Clip review-context issues to the reported period and candidate dates. Export only the immutable
   result returned by `exportableYearReport`; never assess eligibility with a separate read.
+  Encode CSV from that immutable result. Preserve logical dates and specific region identities; do not apply display grouping.
   Guards: `HistoryCompletenessTests` and `ReportReaderTests`.
 - Publish widget dates as `CalendarDay`. Carry the full assessment policy and independent day/year eligibility.
   Withhold unresolved counts. Reject cached assessments from another policy version; keep stale-day retention separate.

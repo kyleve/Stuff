@@ -1311,7 +1311,9 @@ Logical date queries provide offset-complete search bounds before filtering sele
 One lazy historical catalog serves both selection and Elsewhere. Internal capture deduplication still reads raw observations.
 Elsewhere preserves selected dates, specific GPS geography, explicit unknown presence, and non-GPS enrichment.
 Report and map queries now use logical dates. Reports, Elsewhere, and issue inputs retain completeness and exclude disputed contributions.
-`exportableYearReport` checks the exact returned snapshot. It does not implement a report file format or export screen.
+`exportableYearReport` checks the exact returned snapshot. `exportableYearCSV` encodes that value without another history read.
+The CSV contains one logical-date and region pair per row, with stable region IDs and catalog names. It does not regroup regions.
+The export screen remains in slice 6.
 The daily recap withholds counts while its year is unresolved or assessment fails.
 Flight and boundary inference respect selection exclusions even when the excluded interval contains no observations.
 Completed flights retain selected recording dates. Losing source eligibility ends live presentation without establishing arrival.
