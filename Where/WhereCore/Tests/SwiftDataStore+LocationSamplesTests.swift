@@ -91,6 +91,7 @@ struct SwiftDataStoreLocationSamplesTests {
         let store = SwiftDataStore(modelContainer: container)
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 0,
             policy: .foundation,
             onFailure: { _, _ in },
@@ -220,6 +221,7 @@ extension SwiftDataStoreLocationSamplesTests {
         try await store.perform { try await store.raiseRequiredDataMajor(1) }
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: RecordingBackupTestSupport.policy,
             onFailure: { _, _ in },
@@ -340,6 +342,7 @@ extension SwiftDataStoreLocationSamplesTests {
         try await store.perform { try await store.raiseRequiredDataMajor(1) }
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: RecordingBackupTestSupport.policy,
             onFailure: { _, _ in },

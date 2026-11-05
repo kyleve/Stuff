@@ -875,6 +875,7 @@ extension BackupCoordinatorTests {
         let policy = RecordingBackupTestSupport.policy
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: policy,
             onFailure: { _, _ in },

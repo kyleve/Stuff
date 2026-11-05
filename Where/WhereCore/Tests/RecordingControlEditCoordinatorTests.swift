@@ -15,6 +15,7 @@ struct RecordingControlEditCoordinatorTests {
         let store = try await RecordingChoiceTestSupport.store()
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: RecordingChoiceTestSupport.policy,
             onFailure: { _, _ in },
@@ -42,6 +43,7 @@ struct RecordingControlEditCoordinatorTests {
         let store = try await RecordingChoiceTestSupport.store()
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: RecordingChoiceTestSupport.policy,
             onFailure: { _, _ in },
@@ -541,6 +543,7 @@ struct RecordingControlEditCoordinatorTests {
         let base = try await RecordingChoiceTestSupport.store()
         let access = DataCompatibilityAccess(
             base: base,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: RecordingChoiceTestSupport.policy,
             onFailure: { _, _ in },
