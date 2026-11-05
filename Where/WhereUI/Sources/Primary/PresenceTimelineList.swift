@@ -44,7 +44,9 @@ struct PresenceTimelineList: View {
 
         Group {
             if presentation == .excerpt {
-                if yearReport == nil {
+                if yearReport?.completeness.isComplete == false {
+                    Text(.settingsExploreHistoryNeedsReview).font(.subheadline)
+                } else if yearReport == nil {
                     Text(.settingsExploreHistoryUnavailable).font(.subheadline)
                 } else if recordedItems.isEmpty, plannedItems.isEmpty {
                     Text(.settingsExploreHistoryEmpty).font(.subheadline)
@@ -120,6 +122,10 @@ struct PresenceTimelineList: View {
                 .id(report.selectedYear)
             }
         }
+        .historyCompletenessNotice(
+            presentation == .full ? yearReport?.completeness : nil,
+            report: report,
+        )
         .sheet(item: $planningDestination) { destination in
             PlannedStaysDestinationView(destination: destination, report: report)
         }
@@ -215,6 +221,16 @@ struct PresenceTimelineList: View {
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, _ in
+                    NavigationStack { PresenceTimelineList(report: report) }
+                }
+            }
             // WithData and Flights own full layout coverage; uncertainty keeps focused
             // accessibility checks.
             [

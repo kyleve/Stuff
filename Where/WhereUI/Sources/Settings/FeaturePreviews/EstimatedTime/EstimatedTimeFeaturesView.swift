@@ -129,7 +129,9 @@ private struct EstimatedTimeFeaturesContent: View {
 
     @ViewBuilder
     private var preview: some View {
-        if forecasts.isEmpty {
+        if report.report?.completeness.isComplete == false {
+            Text(.settingsExploreHistoryNeedsReview).font(.subheadline)
+        } else if forecasts.isEmpty {
             FeatureEstimatedTimeStatusPreview(state: .unavailable)
         } else {
             LocationForecastPanel(
@@ -196,6 +198,16 @@ extension EstimatedTimeFeaturesView: SettingsSection {
 #if DEBUG
     extension EstimatedTimeFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: [.init(device: .iPhoneFullContent)],
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, _ in
+                    NavigationStack { EstimatedTimeFeaturesView(report: report, focus: nil) }
+                }
+            }
             whereSnapshot(
                 name: "Live",
                 configurations: .fullContentPhoneLightDarkWithAX5,

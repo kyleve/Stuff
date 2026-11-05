@@ -109,6 +109,7 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
+        .historyCompletenessNotice(report.report?.completeness, report: report)
         .sheet(item: $planningDestination) { destination in
             PlannedStaysDestinationView(destination: destination, report: report)
         }
@@ -1027,6 +1028,16 @@ private struct DayCell: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, _ in
+                    NavigationStack { CalendarContentView(report: report) }
+                }
+            }
             whereSnapshot(
                 name: "FlightAndEvidenceBadges",
                 configurations: .componentRepresentative,

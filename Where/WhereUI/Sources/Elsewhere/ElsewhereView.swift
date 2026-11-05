@@ -50,6 +50,10 @@ struct ElsewhereView: View {
     var body: some View {
         NavigationStack {
             screen
+                .historyCompletenessNotice(
+                    model.content(for: report.selectedYear)?.report.completeness,
+                    report: report,
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background {
                     LocationsBackground(regions: backgroundRegions)
@@ -151,6 +155,16 @@ struct ElsewhereView: View {
 #if DEBUG
     extension ElsewhereView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, elsewhere in
+                    ElsewhereView(report: report, model: elsewhere)
+                }
+            }
             snapshot(
                 name: "Loaded",
                 report: PreviewSupport.elsewhereCatalogYearReportModel(),

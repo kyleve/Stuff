@@ -4205,6 +4205,50 @@
         }
       }
     },
+    "history.incomplete.days %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ to review. Totals exclude unresolved recordings."
+          }
+        }
+      }
+    },
+    "history.incomplete.review" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Recordings"
+          }
+        }
+      }
+    },
+    "history.incomplete.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incomplete"
+          }
+        }
+      }
+    },
+    "history.incomplete.unknownDates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some recording dates need confirmation."
+          }
+        }
+      }
+    },
     "launch.accessibilityLabel" : {
       "comment" : "Spoken by VoiceOver while the launch splash is on screen (the icon and radar animation are decorative and hidden from accessibility).",
       "extractionState" : "manual",
@@ -11086,6 +11130,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your recorded days will appear here. The walkthrough is available before you record your first day."
+          }
+        }
+      }
+    },
+    "settings.explore.history.needsReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review incomplete recording history to see your totals here."
           }
         }
       }

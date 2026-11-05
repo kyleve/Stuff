@@ -44,6 +44,10 @@ struct RegionDaysView: View {
 
     var body: some View {
         content
+            .historyCompletenessNotice(
+                model.content(for: report.selectedYear)?.report.completeness,
+                report: report,
+            )
             .navigationTitle(region.localizedName)
             .navigationBarTitleDisplayMode(.inline)
             .task(id: Request(input: report.elsewhereInput, retrySequence: retrySequence)) {
@@ -159,6 +163,20 @@ private struct DayRow: View {
 #if DEBUG
     extension RegionDaysView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, elsewhere in
+                    NavigationStack { RegionDaysView(
+                        region: Region(rawValue: "us-NV")!,
+                        report: report,
+                        model: elsewhere,
+                    ) }
+                }
+            }
             let report = PreviewSupport.elsewhereCatalogYearReportModel()
             let model = ElsewhereModel(
                 resolver: report.services.elsewhere,

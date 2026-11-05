@@ -104,6 +104,10 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep complete, needs-review, and unavailable widget content distinct in every widget family and accessibility value.
   Format the published `CalendarDay` with a Gregorian calendar without rebucketing it through the viewing zone.
   Use complete reports for personalized discovery examples. Guards: `WidgetSnapshotRankingTests` and `WhereFormatTests`.
+- Show incomplete status from the same report snapshot as displayed counts, including retained Elsewhere content.
+  Count distinct known affected days and show unknown date assignments separately, independently of reminder preferences.
+  Keep all-history review presentation alive when the displayed year's incomplete notice disappears.
+  Withhold incomplete live counts in read-only discovery galleries. Guard: `HistoryCompletenessNoticeTests`.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI.
   They must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).

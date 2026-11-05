@@ -13,7 +13,12 @@ struct PlacesYearFeaturesContent: View {
             detail: .settingsExplorePlacesLocationsDetail,
             symbol: .mapFill,
         ) {
-            if let region = report.locationRegions.first {
+            if report.report?.completeness.isComplete == false {
+                Text(.settingsExploreHistoryNeedsReview).font(.subheadline)
+            }
+            if report.report?.completeness.isComplete == true,
+               let region = report.locationRegions.first
+            {
                 RegionSummaryCard(
                     regionDays: region,
                     variant: .compact,
@@ -22,6 +27,7 @@ struct PlacesYearFeaturesContent: View {
                 )
             }
             if let content = report.elsewhere.content(for: report.selectedYear),
+               content.report.completeness.isComplete,
                let region = content.regions.first
             {
                 RegionSummaryCard(
@@ -44,7 +50,9 @@ struct PlacesYearFeaturesContent: View {
             detail: .settingsExplorePlacesCalendarDetail,
             symbol: .calendar,
         ) {
-            if let loaded = report.report {
+            if report.report?.completeness.isComplete == false {
+                Text(.settingsExploreHistoryNeedsReview).font(.subheadline)
+            } else if let loaded = report.report {
                 YearRibbon(
                     days: loaded.days,
                     year: report.selectedYear,

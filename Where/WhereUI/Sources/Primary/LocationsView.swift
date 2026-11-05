@@ -46,6 +46,7 @@ struct LocationsView: View {
     var body: some View {
         NavigationStack {
             screen
+                .historyCompletenessNotice(report.report?.completeness, report: report)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background {
                     LocationsBackground(regions: backgroundRegions)
@@ -170,6 +171,16 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, _ in
+                    LocationsView(report: report)
+                }
+            }
             for theme in WhereTheme.allCases where theme != .standard {
                 artworkSnapshot(
                     name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",

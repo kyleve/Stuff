@@ -232,6 +232,10 @@ For completed flights, the user can include one GPS point in the flight or resto
 Both actions require confirmation and retain the original recording. A changed review requires a new decision.
 
 `YearReportModel` publishes one `HistoricalDataIssueScanResult` for the issue list, badge, and open correction reviews.
+`HistoryCompletenessNotice` labels incomplete counts in Locations, Calendar, Timeline, Elsewhere, and region-day details.
+It uses the displayed report's distinct affected days and separately identifies unknown dates.
+Its review sheet stays open when the displayed year becomes complete, so older unresolved work remains accessible.
+Read-only feature galleries withhold incomplete live counts. Reminder preferences do not change these states.
 It derives calendar flight indicators from the matching annual assessment. Choosing another year does not clear historical work.
 The issue list remains available if the selected year's report fails. A failed scan retains the prior admitted result and its original error.
 Cancelled, superseded, deactivated, or revoked reads cannot replace the current publication. If a publication check detects revocation, it clears retained content.

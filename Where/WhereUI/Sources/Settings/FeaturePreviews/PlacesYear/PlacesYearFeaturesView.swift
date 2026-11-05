@@ -61,6 +61,16 @@ extension PlacesYearFeaturesView: SettingsSection {
 #if DEBUG
     extension PlacesYearFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let incomplete = RecordingReportPreviewFixture(scenario: .mixed)
+            whereSnapshot(
+                name: "Incomplete",
+                configurations: [.init(device: .iPhoneFullContent)],
+                onReadyToMeasure: { await incomplete.prepare() },
+            ) {
+                RecordingReportPreview(fixture: incomplete) { report, _ in
+                    NavigationStack { PlacesYearFeaturesView(report: report, focus: nil) }
+                }
+            }
             let cache = RegionOutlinePathCache()
             let loaded = PreviewSupport.plannedStayYearReportModel()
             let demo = PreviewSupport.loadedYearReportModel()

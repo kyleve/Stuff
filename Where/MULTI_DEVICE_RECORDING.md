@@ -1400,7 +1400,10 @@ Place history now exposes ongoing homes, dated temporary bases, conflicts, and m
 Coordinates require explicit input. Each change previews its exact place evidence before a guarded save.
 Change From Now and End Now preserve earlier definitions. Historical corrections remain separate actions with explicit validity periods.
 The source review retains its active calendar or place editor during reassessment and refreshes after dismissal.
-Automatic-selection inspection outside issues, incomplete-report UI, reminder integration, and activation remain in progress.
+Locations, Calendar, Timeline, Elsewhere, and region-day details now label incomplete totals from their displayed report snapshot.
+The notice counts distinct known affected days and separately identifies unknown date assignments.
+Its all-history review stays open after the displayed year becomes complete. Read-only feature galleries withhold incomplete live counts.
+Automatic-selection inspection outside issues, report-export UI, reminder integration, and activation remain in progress.
 
 Complete inspection of automatic-selection reasons outside unresolved issues.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
@@ -1408,7 +1411,7 @@ Support logical recording-day choices, fixed time ranges, return to automatic, a
 Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.
 When users resolve a recording-day conflict through source selection, show both candidate dates.
 Route choices affected by device removal into review, with actions to select another device or return that portion to automatic.
-Show incomplete totals and guide affected history-report exports into review before producing the report.
+Guide affected history-report exports into review before producing the report.
 Add the local update alert, duplicate suppression, permission fallback, and current-state routing to the appropriate update destination.
 Explain beta use across devices and the compatibility requirement for return to the App Store build during setup and updates.
 Handle stale save proposals with a refreshed review before another confirmation.
