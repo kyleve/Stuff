@@ -1407,7 +1407,10 @@ Settings now opens recording inspection for an explicit UTC interval, including 
 The initial range covers the preceding 24 hours. It does not assign a logical recording date.
 Each open review retains its interval. An explicit source action and guarded Apply are required to change history.
 Dismissed or replaced reviews reject queued work. Saved results stay visible until Done.
-Report-export UI, reminder integration, and activation remain in progress.
+Data Settings now prepares an annual CSV from the exact report snapshot that passed completeness checks.
+Unresolved history opens the existing review flow. Closing review requires another explicit export attempt.
+System byte requests recheck admitted access and the export session lifetime. Lossless backups remain separate.
+Reminder integration and activation remain in progress.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.

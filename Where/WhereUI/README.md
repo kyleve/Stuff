@@ -295,7 +295,13 @@ Users choose an explicit UTC interval. The initial range is the preceding 24 hou
 Dismissal, replacement, or owner release permanently retires the old source model. Queued actions cannot reopen it or save.
 Opening inspection does not select an action. An explicit choice and guarded Apply are required to change history.
 The saved result remains visible until Done. Re-entry starts another read-only inspection.
-Report export, reminders, and activation remain under implementation.
+`HistoryReportExportView` exports the selected report year from Data Settings when the recording contract is enabled.
+Core prepares CSV from the exact assessed snapshot. Unresolved history opens the existing all-history review.
+Closing review does not export; the user must explicitly try again. Lossless backup remains available.
+`HistoryReportExportModel` rejects cancelled and superseded reads and stale system callbacks.
+`HistoryReportDocument` checks admitted access when the system requests bytes. Ending the export session retires all copies of that document.
+Data already supplied to the system cannot be retracted. Native file-save gestures remain separate from model and rendering validation.
+Reminders and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.

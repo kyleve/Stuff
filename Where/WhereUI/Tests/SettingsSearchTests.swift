@@ -81,6 +81,18 @@ struct SettingsSearchTests {
         #expect(SettingsListSection.tracking.destinations.contains(.recordingHistory))
     }
 
+    @Test func reportExportSearchRequiresTheRecordingContractButBackupDoesNot() throws {
+        let result = try #require(SettingsCatalog.results(matching: "CSV").first {
+            $0.focus == SettingsFocus(DataSettingsView.Item.exportHistory)
+        })
+        #expect(!result.isAvailable(recordingControlsEnabled: false))
+        #expect(result.isAvailable(recordingControlsEnabled: true))
+        let backup = try #require(DataSettingsView.searchResults.first {
+            $0.focus == SettingsFocus(DataSettingsView.Item.exportBackup)
+        })
+        #expect(backup.isAvailable(recordingControlsEnabled: false))
+    }
+
     @Test func placeSearchRequiresTheRecordingContract() throws {
         let result = try #require(SettingsCatalog.results(matching: "hotel").first {
             $0.destination == .recordingPlaces

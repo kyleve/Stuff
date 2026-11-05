@@ -66,6 +66,9 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
   Attach export sheets and error alerts to `DataSettingsView` outside its `Form` sections.
+  Bind report bytes to one assessed snapshot, admitted access, and explicit export session. Reject cancelled or retired byte requests.
+  Keep system export presenters outside reusable Form sections. Review dismissal never starts another export.
+  Guards: `HistoryReportDocumentTests`, `HistoryReportExportModelTests`, and `HistoryReportExportViewTests`.
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight

@@ -4193,6 +4193,105 @@
         }
       }
     },
+    "history.export.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export CSV"
+          }
+        }
+      }
+    },
+    "history.export.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export one row for each recorded calendar day and region as a CSV file. Change the report year in Settings before starting another export."
+          }
+        }
+      }
+    },
+    "history.export.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The report could not be prepared or saved. Try exporting again."
+          }
+        }
+      }
+    },
+    "history.export.filename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where History %@"
+          }
+        }
+      }
+    },
+    "history.export.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "export, report, CSV, spreadsheet, history"
+          }
+        }
+      }
+    },
+    "history.export.preparing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking History…"
+          }
+        }
+      }
+    },
+    "history.export.reviewDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolve the affected recordings, then return here and choose Export CSV again. Closing review does not start an export."
+          }
+        }
+      }
+    },
+    "history.export.saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report exported."
+          }
+        }
+      }
+    },
+    "history.export.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export History Report"
+          }
+        }
+      }
+    },
     "history.flight" : {
       "comment" : "Label for a completed flight in the calendar and timeline.",
       "extractionState" : "manual",

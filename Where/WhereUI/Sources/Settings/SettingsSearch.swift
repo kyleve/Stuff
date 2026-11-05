@@ -252,7 +252,8 @@ struct SettingsSearchResult: Identifiable {
     func isAvailable(recordingControlsEnabled: Bool) -> Bool {
         recordingControlsEnabled ||
             (destination != .recordingHistory && destination != .recordingPlaces && focus !=
-                SettingsFocus(DevicesSettingsView.Item.ignoreUntil))
+                SettingsFocus(DevicesSettingsView.Item.ignoreUntil) && focus !=
+                SettingsFocus(DataSettingsView.Item.exportHistory))
     }
 
     /// Case-insensitive match on the title or any keyword.

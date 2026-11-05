@@ -33,6 +33,17 @@ struct DataSettingsView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
                 BackupSettingsSection(backup: backup, onExport: runExport)
+                if report.services.recordingControlEdits.supportsRecordingControls {
+                    Section {
+                        NavigationLink {
+                            HistoryReportExportView(report: report)
+                        } label: {
+                            Text(String(localized: .historyExportTitle))
+                        }
+                        .settingsRow(Item.exportHistory)
+                        .accessibilityIdentifier("where_settings_export_history")
+                    }
+                }
                 dataSection
                 resetSection
             }
@@ -135,12 +146,14 @@ extension DataSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case exportBackup
+        case exportHistory
         case eraseYear
         case resetApp
 
         var title: String {
             switch self {
                 case .exportBackup: String(localized: .settingsBackupExport)
+                case .exportHistory: String(localized: .historyExportTitle)
                 case .eraseYear: String(localized: .settingsEraseYearTitle)
                 case .resetApp: String(localized: .settingsResetErase)
             }
@@ -149,6 +162,7 @@ extension DataSettingsView: SettingsSection {
         var keywords: [String] {
             switch self {
                 case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
+                case .exportHistory: splitKeywords(String(localized: .historyExportKeywords))
                 case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
                 case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }
@@ -159,6 +173,18 @@ extension DataSettingsView: SettingsSection {
 #if DEBUG
     extension DataSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let fixture = HistoryReportExportPreviewFixture(scenario: .idle)
+            whereSnapshot(
+                name: "RecordingContract",
+                configurations: [.init(device: .iPhoneFullContent)],
+                onReadyToMeasure: fixture.prepare,
+            ) {
+                HistoryReportExportPreview(fixture: fixture) { state in
+                    NavigationStack {
+                        DataSettingsView(report: state.report, backup: state.backup)
+                    }
+                }
+            }
             whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenRepresentative,
