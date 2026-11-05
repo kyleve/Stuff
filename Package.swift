@@ -10,6 +10,8 @@ let package = Package(
         .macOS(.v26),
     ],
     products: [
+        .library(name: "ViewDocumentCore", targets: ["ViewDocumentCore"]),
+        .library(name: "ViewDocumentUI", targets: ["ViewDocumentUI"]),
         .library(name: "InstallerKit", targets: ["InstallerKit"]),
         .library(name: "InstallerKitUI", targets: ["InstallerKitUI"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
@@ -47,6 +49,12 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
     ],
     targets: [
+        .target(name: "ViewDocumentCore", path: "Shared/ViewDocument/ViewDocumentCore/Sources"),
+        .target(
+            name: "ViewDocumentUI",
+            dependencies: [.target(name: "ViewDocumentCore")],
+            path: "Shared/ViewDocument/ViewDocumentUI/Sources",
+        ),
         .macro(
             name: "PeriscopeMacros",
             dependencies: [

@@ -179,3 +179,9 @@ directory. Delete or reshape the rule if the repository deliberately adopts a
 different logging vocabulary layout. Bumper's standard
 `singleNominalSpelling` shaper expresses the invariant; no custom syntax rule
 is needed.
+
+## ViewDocument boundaries
+
+ViewDocumentCore uses Foundation only. ViewDocumentUI depends on Core and system UI frameworks.
+Both reject Broadway, Where, and SnapshotKit imports. The `ViewDocument rejects consumer dependencies` mutation test covers these boundaries.
+Asset providers supply prepared images. The import rules do not inspect image contents or enforce resource limits; document validation owns those checks.
