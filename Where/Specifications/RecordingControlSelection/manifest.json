@@ -1,0 +1,52 @@
+{
+  "source": "pluscal",
+  "module": "RecordingControlSelection.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-two-replicas",
+      "config": "CurrentTwoReplicas.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "ignore-explicit",
+      "config": "IgnoreExplicit.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExplicitChoiceBeatsIgnore is violated."
+    },
+    {
+      "name": "expire-by-now",
+      "config": "ExpireByNow.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant HistoricalIgnoreSurvivesExpiry is violated."
+    },
+    {
+      "name": "ignore-removal",
+      "config": "IgnoreRemoval.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RemovalPreservesExclusiveChoice is violated."
+    },
+    {
+      "name": "global-resume",
+      "config": "GlobalResume.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ResumePreservesElapsedIgnore is violated."
+    },
+    {
+      "name": "late-control-reachability",
+      "config": "LateControlReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LateControlScenarioNotReached is violated."
+    },
+    {
+      "name": "partial-delivery-reachability",
+      "config": "PartialDeliveryReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PartialDeliveryScenarioNotReached is violated."
+    }
+  ]
+}

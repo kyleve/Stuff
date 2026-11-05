@@ -46,5 +46,11 @@ It uses production store writers and the scripted remote-change source.
 Tests can deliver duplicate observations, delay profiles, or deliver an unsupported record before the shared control head changes.
 The adapter does not model CloudKit transport or conflict resolution.
 
-Durable source decisions extend this fixture in their owning slice.
-Their recovery tests must preserve existing operation identities and allocate a distinct identity for each new operation.
+The fixture can inject the recording contract for isolated accounts without changing the production activation policy.
+Decision recovery cases preserve operation identities, payload bytes, and original authors across restore, reinstall, transfer, and both archive-import strategies.
+New edits use fresh operation identities, the receiving installation's author, and its current data generation.
+Independent phones retain concurrent decisions until a reviewed replacement explicitly names both predecessors.
+Repeated committed-record delivery does not allocate new operations.
+
+These cases also exercise a verified account before requirement metadata reaches its empty local store.
+Domain behavior must use the admitted account contract while admission continues to inspect actual local headers.

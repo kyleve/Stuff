@@ -1422,7 +1422,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func add(sample: LocationSample) async throws {
         let context = versionedMutationContext()
         let generationID = mutationGenerationID()
-        let requiredMajor = try indexedCompatibilityState().requiredMajor
+        let requiredMajor = try contractMajorForCurrentAccess()
         let requiresRecordingContract = requiredMajor >= 1
         if requiresRecordingContract { try sample.validateRecordingContract() }
         let existing = try existingSamples(with: sample.id)
@@ -1487,7 +1487,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             in: interval,
             sortBy: [SortDescriptor(\.timestamp)],
         )
-        let requiresRecordingContract = try indexedCompatibilityState().requiredMajor >= 1
+        let requiresRecordingContract = try contractMajorForCurrentAccess() >= 1
         // Spanning the fetch *and* the materialization together is deliberate:
         // decoding a year of rows into values is a real share of the cost, and
         // splitting them would only obscure it.
@@ -1514,7 +1514,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.timestamp)],
         )
-        let requiresRecordingContract = try indexedCompatibilityState().requiredMajor >= 1
+        let requiresRecordingContract = try contractMajorForCurrentAccess() >= 1
         let legacy = try context.fetch(descriptor).map { record in
             try Self.materializeSample(record, requiresRecordingContract: requiresRecordingContract)
         }

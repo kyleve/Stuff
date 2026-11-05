@@ -1240,6 +1240,15 @@ Fresh compatibility and persistent-history checks remain adjacent to physical sa
 Scaling fixtures exercise large SQLite imports and retries. Late identity conflicts in erased generations remain inert.
 The [reviewed-choice model](Specifications/ReviewedRecordingChoices/README.md) checks bounded retry identity and causal context.
 It does not claim that a synchronous local history check excludes a CloudKit import or observes another device's unsent changes.
+`RecordingControlSelection` now resolves source choices, historical ignores, and removals before automatic assessment.
+Explicit choices bypass ignores. Removed selected devices leave exclusive gaps that require review.
+Automatic eligibility retains unresolved ignore edits; unknown controls retain their affected scopes.
+The [control-selection model](Specifications/RecordingControlSelection/README.md) covers bounded delivery order and historical expiry.
+Shared consumer integration remains in slice 5.
+The installation fixture now covers decision identity through restore, reinstall, transfer, and both archive-import strategies.
+Concurrent edits from independent phones retain their identities until a reviewed replacement names both predecessors.
+These fixtures exposed the distinction between an admitted account contract and its not-yet-delivered local metadata.
+Source/control writes, GPS storage, and backup boundaries now use the admitted contract without mirroring account-only verification state.
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Persist observation timestamps, recording-day assignments, and their time-zone context without recalculation during sync or import.
@@ -1359,7 +1368,6 @@ Their results must precede the dependent decisions listed here.
 | Decision | Owning slice | Resolve before | Required evidence |
 | --- | --- | --- | --- |
 | Device status eligibility, evidence requirements, freshness thresholds, and recovery conditions | 6: reminders | Activating device status issues or their notifications | Scenarios for quiet devices, receiver sync failures, delayed check-ins, recent selected periods, and recovery without complete observation delivery. |
-| Durable operation identity allocation and recovery | 4: durable decisions | Merging new decision persistence in 4 | The pure model uses explicit predecessor identities. Persistence tests must cover crashes, reinstall, restore, retries, and prevention of operation-identity reuse. |
 | Meaningful-contribution criteria within the agreed 15-day window | 3: compatibility | Implementing automatic shared major upgrades | Fixtures for useful stationary history, redundant or excluded observations, late uploads, and explicit source choices. |
 | Persistence and recovery for the agreed identity lifecycle and stored decisions | 2: identity, with durable decisions in 4 | Persisting the new state in each owning slice. Automated lifecycle validation precedes activation. | Both backup import strategies, reset, removal, rejoin, and counter recovery. Same-phone and new-phone restore or transfer fixtures with separate Keychain and backup resources. |
 

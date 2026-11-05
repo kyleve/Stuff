@@ -10,11 +10,17 @@ import Testing
 /// backup. Each process rebuilds real sidecars, admission, SwiftData, and scoped services.
 @MainActor
 final class InstallationLifecycleFixture {
+    static let recordingPolicy = DataCompatibilityPolicy(
+        current: RecordingEvidencePolicy.version,
+        supportedMajors: [1],
+    )
     struct HistoryNotOpened: Error {}
     struct ConditionTimedOut: Error {}
+    struct ChoiceNotReady: Error {}
     let keychain = ScriptedRecordingIdentityStore()
     let account: InstallationSharedAccount
     let connection: InstallationAccountConnection
+    let policy: DataCompatibilityPolicy
     let storeID = DataCompatibilityDataset.StoreID(rawValue: UUID().uuidString)
     private(set) var root: URL
     private var roots: [URL]
@@ -22,8 +28,9 @@ final class InstallationLifecycleFixture {
     private(set) var allocatedIdentities: [UUID] = []
     var instant = Date(timeIntervalSince1970: 1_780_000_000)
 
-    init(account: InstallationSharedAccount) throws {
+    init(account: InstallationSharedAccount, policy: DataCompatibilityPolicy = .foundation) throws {
         self.account = account
+        self.policy = policy
         connection = InstallationAccountConnection(account: account)
         root = FileManager.default.temporaryDirectory.appending(path: "installation-\(UUID())")
         roots = [root]
@@ -53,6 +60,7 @@ final class InstallationLifecycleFixture {
             account: account,
             connection: connection,
             context: context,
+            policy: policy,
         )
         let model = WhereModel(
             preferences: preferences,
@@ -102,10 +110,11 @@ final class InstallationLifecycleFixture {
 
     static func withInstallations(
         count: Int,
+        policy: DataCompatibilityPolicy = .foundation,
         operation: ([InstallationLifecycleFixture]) async throws -> Void,
     ) async throws {
         let account = InstallationSharedAccount()
-        let phones = try (0 ..< count).map { _ in try Self(account: account) }
+        let phones = try (0 ..< count).map { _ in try Self(account: account, policy: policy) }
         do { try await operation(phones) }
         catch {
             for phone in phones {
@@ -134,6 +143,23 @@ struct InstallationProcessFixture {
     let values: InstallationPreferencesFixture
     let bootstrap: InstallationBootstrapFixture
     let model: WhereModel
+
+    func reviewChoice(action: HistoryDecision.Action) async throws -> RecordingChoiceReview
+        .Proposal
+    {
+        let start = Date(timeIntervalSince1970: 1_780_000_000)
+        let result = try await services.recordingChoices.review(.init(
+            scope: .periods([.init(start: start, end: start.addingTimeInterval(300))]),
+            action: action,
+        ))
+        guard case let .ready(proposal) = result
+        else { throw InstallationLifecycleFixture.ChoiceNotReady() }
+        return proposal
+    }
+
+    func controls() async throws -> RecordingControlSnapshot {
+        try await RecordingControlStore(store: store, policy: bootstrap.policy).snapshot()
+    }
 
     func confirmAndStart(recording: Bool) async throws {
         _ = try context.confirmInitialRecording(isEnabled: recording)
@@ -202,6 +228,7 @@ final class InstallationBootstrapFixture: WhereScopeAssembling {
     let account: InstallationSharedAccount
     let connection: InstallationAccountConnection
     let context: FileInstallationRecordingContextStore
+    let policy: DataCompatibilityPolicy
     private(set) var store: SwiftDataStore?
     let remoteChanges = ScriptedStoreRemoteChangeSource()
     private(set) var locationSource: ScriptedLocationSource?
@@ -214,9 +241,11 @@ final class InstallationBootstrapFixture: WhereScopeAssembling {
         account: InstallationSharedAccount,
         connection: InstallationAccountConnection,
         context: FileInstallationRecordingContextStore,
+        policy: DataCompatibilityPolicy,
     ) {
         self.root = root; self.storeID = storeID; self.account = account; self.context = context
         self.connection = connection
+        self.policy = policy
     }
 
     func prepareLocation() {}
@@ -246,7 +275,7 @@ final class InstallationBootstrapFixture: WhereScopeAssembling {
                 cache: FileDataCompatibilityCache(fileURL: root
                     .appending(path: "Compatibility/cache.json")),
             ),
-            policy: .foundation,
+            policy: policy,
             activationReadiness: .pendingValidation,
         )
         coordinator = created

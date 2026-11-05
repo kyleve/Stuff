@@ -4,6 +4,94 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SwiftDataStoreCompatibilityTests {
+    enum Read: CaseIterable {
+        case allSamples, samples, versionedRecords
+    }
+
+    @Test(arguments: Read.allCases)
+    @MainActor func malformedHeaderArrivingAfterAdmissionRevokesThePermit(read: Read) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let base = SwiftDataStore(modelContainer: container)
+        let permit = DataAccessPermit(
+            policy: .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
+        let scoped = CompatibilityScopedStore(base: base, permit: permit)
+        let gate = CompatibilityTestGate()
+        await base.afterNextCompatibilityRead { await gate.suspend() }
+        let operation = Task {
+            switch read {
+                case .allSamples: _ = try await scoped.allSamples()
+                case .samples: _ = try await scoped.samples(in: DateInterval(
+                        start: Date(),
+                        duration: 1,
+                    ))
+                case .versionedRecords:
+                    _ = try await scoped
+                        .versionedHistoryRecords(policy: RecordingBackupTestSupport.policy)
+            }
+        }
+        await gate.waitUntilEntered()
+        let remote = ModelContext(container)
+        let row = SDVersionedHistoryRecord()
+        row.envelope = Data("malformed".utf8)
+        remote.insert(row)
+        try remote.save()
+        await gate.resume()
+        await #expect(throws: DecodingError.self) { try await operation.value }
+        #expect(permit.isRevoked)
+        await #expect(throws: DecodingError.self) { try await base.allSamples() }
+    }
+
+    @Test(arguments: Read.allCases, [false, true])
+    @MainActor func headerArrivingAfterAdmissionCannotExpandTheReadPermit(
+        read: Read,
+        understandsRecordingContract: Bool,
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let base = SwiftDataStore(modelContainer: container)
+        let permit = DataAccessPermit(
+            policy: understandsRecordingContract ? DataCompatibilityTestSupport
+                .policy : .foundation,
+            requiredMajor: 0,
+            onCompatibilityFailure: { _ in },
+        )
+        let scoped = CompatibilityScopedStore(base: base, permit: permit)
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        let gate = CompatibilityTestGate()
+        await base.afterNextCompatibilityRead { await gate.suspend() }
+        let operation = Task {
+            switch read {
+                case .allSamples: _ = try await scoped.allSamples()
+                case .samples:
+                    _ = try await scoped.samples(in: DateInterval(
+                        start: sample.timestamp,
+                        duration: 1,
+                    ))
+                case .versionedRecords:
+                    // Decoder support is not authorization to use a newly observed contract.
+                    _ = try await scoped
+                        .versionedHistoryRecords(policy: RecordingBackupTestSupport.policy)
+            }
+        }
+        await gate.waitUntilEntered()
+        let remote = ModelContext(container)
+        let row = SDVersionedHistoryRecord()
+        row.envelope = try JSONEncoder().encode(VersionedLocationSample.encode(
+            sample,
+            generationID: .initial,
+        ))
+        remote.insert(row)
+        try remote.save()
+        await gate.resume()
+        let expected: DataCompatibilityError = understandsRecordingContract
+            ? .verificationRequired : .updateRequired(requiredMajor: 1)
+        await #expect(throws: expected) { try await operation.value }
+        #expect(permit.isRevoked)
+        #expect(try await base.allSamples() == [sample])
+    }
+
     @Test func cachedMetadataTracksLegacyWritesAndFloorChangesWithinOneTransaction() async throws {
         let store = try SwiftDataStore.inMemory()
         let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)

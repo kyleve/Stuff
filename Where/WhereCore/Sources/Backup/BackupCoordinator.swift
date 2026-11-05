@@ -160,7 +160,7 @@ public actor BackupCoordinator {
                 // excluded: they are live proofs about a target's local outbox, not restorable
                 // user data.
                 try await ExportTables(
-                    requiredDataMajor: store.dataCompatibilityState().requiredMajor,
+                    requiredDataMajor: store.dataContractMajor(),
                     versionedHistoryRecords: RecordingControlStore(
                         store: store,
                         policy: backupService.policy,
@@ -395,9 +395,9 @@ public actor BackupCoordinator {
 
     private func validateImportMajor(_ major: UInt) async throws {
         try backupService.policy.validate(requiredMajor: major)
-        let state = try await store.dataCompatibilityState()
+        let contractMajor = try await store.dataContractMajor()
         // Import cannot activate a new contract or erase the requirement protecting existing data.
-        guard major == state.requiredMajor else { throw DataCompatibilityError.activationNotReady }
+        guard major == contractMajor else { throw DataCompatibilityError.activationNotReady }
     }
 
     /// `importBackup`'s body, split out for the same reason as

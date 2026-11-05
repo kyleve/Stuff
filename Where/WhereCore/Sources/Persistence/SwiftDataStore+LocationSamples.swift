@@ -3,15 +3,28 @@ import SwiftData
 
 extension SwiftDataStore {
     func versionedSamples(generationID: WhereDataGenerationID) throws -> [LocationSample] {
-        var samples: [LocationSample] = []
-        for record in try versionedHistoryIndex()
-            .records(in: generationID, policy: VersionedLocationSample.storagePolicy)
-        {
-            guard record.dataGenerationID == generationID,
-                  record.kind == VersionedLocationSample.kind else { continue }
-            try samples.append(VersionedLocationSample.decode(record))
+        try admittingCompatibility {
+            var samples: [LocationSample] = []
+            let index = try versionedHistoryIndex()
+            if let permit = DataAccessPermit.current {
+                try permit.validate()
+                for major in index.recordMajors {
+                    try permit.policy.validate(requiredMajor: major)
+                    guard major <= permit.requiredMajor else {
+                        throw DataCompatibilityError.verificationRequired
+                    }
+                }
+            }
+            for record in try index.records(
+                in: generationID,
+                policy: VersionedLocationSample.storagePolicy,
+            ) {
+                guard record.dataGenerationID == generationID,
+                      record.kind == VersionedLocationSample.kind else { continue }
+                try samples.append(VersionedLocationSample.decode(record))
+            }
+            return samples
         }
-        return samples
     }
 
     /// The observation UUID identifies immutable raw evidence across both storage contracts.

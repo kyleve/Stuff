@@ -16,6 +16,10 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
+    /// The contract in force for this access, including a verified account requirement whose
+    /// metadata has not reached the local store. This query never activates or persists a major.
+    func dataContractMajor() async throws -> UInt
+    /// Actual local requirement records and envelope headers, for compatibility admission.
     func dataCompatibilityState() async throws -> DataCompatibilityStoreState
     /// Append a requirement without lowering any observed major. Control-plane writes use the
     /// raw store only at the compatibility coordinator; normal consumers receive its scoped store.
@@ -270,6 +274,10 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    public func dataContractMajor() async throws -> UInt {
+        try await dataCompatibilityState().requiredMajor
+    }
+
     public func dataCompatibilityState() async throws -> DataCompatibilityStoreState {
         throw DataCompatibilityError.unsupportedStore
     }

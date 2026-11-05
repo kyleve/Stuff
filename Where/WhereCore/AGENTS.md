@@ -64,6 +64,10 @@ That document also owns the implementation plan.
   Keep physical saves and permit revocation under the same mutex.
   A completed read does not authorize later output publication; retain a separate publication guard.
   Guard: `SwiftDataStoreTests.revokedScopeCannotCommitASuspendedTransaction`.
+- Use `WhereStore.dataContractMajor()` for active payload and import/export semantics. A verified account requirement can precede all local metadata.
+  Keep `dataCompatibilityState()` limited to actual local headers for admission. Physical GPS reads and writes include the current permit's requirement.
+  Recheck newly arrived headers against the permit before decoding samples or controls; decoder support cannot expand admitted access.
+  Guards: `CompatibilityScopedStoreTests`, `SwiftDataStoreCompatibilityTests`, `SwiftDataStoreLocationSamplesTests`, and `BackupCoordinatorTests`.
 - Compatibility-scoped services serialize asynchronous history output through `DataCompatibilityOutputs`.
   Construct production services with `WhereServices.make(access:...)`; raw-store assembly is preview/demo SPI.
   Await its retirement before replacement services publish. Cancellation does not abandon submitted system calls.
@@ -89,6 +93,10 @@ That document also owns the implementation plan.
   Include observed causal extensions in a refreshed end-date preview. Never expand an existing proposal during Apply.
   Calendar recovery must preserve known raw assignments. Reject an edit that conflicts with a known offset, including observations received after preview.
   Guards: `RecordingControlEditCoordinatorTests` and `RecordingIgnoreResolverTests`.
+- Resolve source choices and automatic eligibility through `RecordingControlSelection`.
+  Preserve exclusive gaps and removal-affected review periods. An explicit source bypasses ignores, including conflicting or incomplete ignore operations.
+  Automatic eligibility uncertainty must remain unresolved when that device's evidence can affect the period.
+  Guard: `RecordingControlSelectionTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

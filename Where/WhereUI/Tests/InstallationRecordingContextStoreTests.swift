@@ -950,6 +950,216 @@ extension InstallationRecordingContextStoreTests {
         }
     }
 
+    @Test(arguments: [false, true])
+    func recoveredRecordingChoicesRetainTheirIdentityAndNewChoicesAllocateAnother(
+        restoreBackup: Bool,
+    ) async throws {
+        try await InstallationLifecycleFixture.withInstallations(
+            count: 1,
+            policy: InstallationLifecycleFixture.recordingPolicy,
+        ) { phones in
+            let phone = phones[0]
+            let original = try phone.launch()
+            try await original.confirmAndStart(recording: false)
+            let deviceID = try original.context.resolve().currentDevice.id
+            let choice = try await original.reviewChoice(action: .select(deviceID))
+            #expect(try await original.services.recordingChoices.apply(choice) == .applied)
+            #expect(try await original.services.recordingChoices.apply(choice) == .applied)
+            let records = try await original.controls().records
+            let profiles = try await original.store.recordingDeviceProfiles()
+            let backup = try await phone.backup()
+            defer { backup.cleanup() }
+            try await phone.replaceFiles(with: restoreBackup ? backup : nil)
+            let recovered = try phone.launch()
+            #expect(try recovered.context.resolve().currentDevice.id == deviceID)
+            #expect(try recovered.context.resolve().automaticRecordingEnabled == nil)
+            try await recovered.confirmAndStart(recording: false)
+            let delivery = InstallationHistoryDelivery(
+                samples: [],
+                profiles: profiles,
+                removals: [],
+                records: records,
+            )
+            // Restored records and a redelivered remote batch coalesce. A reinstall receives
+            // the same bytes through that batch without treating them as a new operation.
+            try await delivery.commit(
+                to: recovered.store,
+                remoteChanges: recovered.bootstrap.remoteChanges,
+            )
+            try await delivery.commit(
+                to: recovered.store,
+                remoteChanges: recovered.bootstrap.remoteChanges,
+            )
+            #expect(try await recovered.controls().records == records)
+            let next = try await recovered.reviewChoice(action: .automatic)
+            #expect(next.decision.id != choice.decision.id)
+            #expect(next.decision.author == deviceID)
+            #expect(next.decision.predecessors == [choice.decision.id])
+            #expect(try await recovered.services.recordingChoices.apply(next) == .applied)
+            #expect(try await recovered.controls().sourceChoices.count == 2)
+            #expect(phone.keychain.creationCount == 1)
+        }
+    }
+
+    @Test func transferredRecordingChoicesKeepTheirAuthorWhileNewEditsUseTheNewPhone() async throws {
+        try await InstallationLifecycleFixture.withInstallations(
+            count: 2,
+            policy: InstallationLifecycleFixture.recordingPolicy,
+        ) { phones in
+            let source = try phones[0].launch()
+            try await source.confirmAndStart(recording: false)
+            let originalDevice = try source.context.resolve().currentDevice.id
+            let choice = try await source.reviewChoice(action: .select(originalDevice))
+            #expect(try await source.services.recordingChoices.apply(choice) == .applied)
+            let records = try await source.controls().records
+            let backup = try await phones[0].backup()
+            defer { backup.cleanup() }
+            try await phones[1].replaceFiles(with: backup)
+            let target = try phones[1].launch()
+            try await target.confirmAndStart(recording: false)
+            let targetDevice = try target.context.resolve().currentDevice.id
+            #expect(targetDevice != originalDevice)
+            #expect(try await target.controls().records == records)
+            #expect(try await target.controls().sourceChoices == [choice.decision])
+            let next = try await target.reviewChoice(action: .automatic)
+            #expect(next.decision.id != choice.decision.id)
+            #expect(next.decision.author == targetDevice)
+            #expect(next.decision.predecessors == [choice.decision.id])
+            #expect(try await target.services.recordingChoices.apply(next) == .applied)
+        }
+    }
+
+    @Test func independentPhonesRetainConcurrentChoicesUntilAReviewedReplacementArrives(
+    ) async throws {
+        try await InstallationLifecycleFixture.withInstallations(
+            count: 2,
+            policy: InstallationLifecycleFixture.recordingPolicy,
+        ) { phones in
+            let first = try phones[0].launch()
+            let second = try phones[1].launch()
+            try await first.confirmAndStart(recording: false)
+            try await second.confirmAndStart(recording: false)
+            let firstDevice = try first.context.resolve().currentDevice.id
+            let secondDevice = try second.context.resolve().currentDevice.id
+            let firstChoice = try await first.reviewChoice(action: .select(firstDevice))
+            let secondChoice = try await second.reviewChoice(action: .select(secondDevice))
+            #expect(firstChoice.decision.predecessors.isEmpty)
+            #expect(secondChoice.decision.predecessors.isEmpty)
+            #expect(try await first.services.recordingChoices.apply(firstChoice) == .applied)
+            #expect(try await second.services.recordingChoices.apply(secondChoice) == .applied)
+            let firstDelivery = try await InstallationHistoryDelivery(
+                samples: [],
+                profiles: first.store.recordingDeviceProfiles(),
+                removals: [],
+                records: first.controls().records,
+            )
+            let secondDelivery = try await InstallationHistoryDelivery(
+                samples: [],
+                profiles: second.store.recordingDeviceProfiles(),
+                removals: [],
+                records: second.controls().records,
+            )
+            try await secondDelivery.commit(
+                to: first.store,
+                remoteChanges: first.bootstrap.remoteChanges,
+            )
+            try await firstDelivery.commit(
+                to: second.store,
+                remoteChanges: second.bootstrap.remoteChanges,
+            )
+            let firstSnapshot = try await first.controls()
+            #expect(try await second.controls() == firstSnapshot)
+            let period = try #require(firstChoice.decision.periods.first)
+            let unresolved = try RecordingControlSelection.resolve(
+                controls: firstSnapshot,
+                removals: [],
+                within: period,
+                version: RecordingEvidencePolicy.version,
+            )
+            #expect(unresolved.allSatisfy {
+                $0.resolution == .unresolved(.sourceConflict([
+                    firstChoice.decision.id,
+                    secondChoice.decision.id,
+                ]))
+            })
+            let resolution = try await first.reviewChoice(action: .select(firstDevice))
+            #expect(resolution.decision.predecessors == [
+                firstChoice.decision.id,
+                secondChoice.decision.id,
+            ])
+            #expect(try await first.services.recordingChoices.apply(resolution) == .applied)
+            let finalDelivery = try await InstallationHistoryDelivery(
+                samples: [],
+                profiles: [],
+                removals: [],
+                records: first.controls().records,
+            )
+            try await finalDelivery.commit(
+                to: second.store,
+                remoteChanges: second.bootstrap.remoteChanges,
+            )
+            try await finalDelivery.commit(
+                to: second.store,
+                remoteChanges: second.bootstrap.remoteChanges,
+            )
+            let finalSnapshot = try await first.controls()
+            #expect(try await second.controls() == finalSnapshot)
+            #expect(finalSnapshot.sourceChoices.count == 3)
+            #expect(try RecordingControlSelection.resolve(
+                controls: finalSnapshot,
+                removals: [],
+                within: period,
+                version: RecordingEvidencePolicy.version,
+            ).allSatisfy { $0.resolution == .selected(firstDevice) })
+        }
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func archiveRecoveryPreservesDecisionIdentityAndNewEditsUseTheReceivingGeneration(
+        strategy: BackupCoordinator.ImportStrategy,
+    ) async throws {
+        try await InstallationLifecycleFixture.withInstallations(
+            count: 2,
+            policy: InstallationLifecycleFixture.recordingPolicy,
+        ) { phones in
+            let source = try phones[0].launch()
+            let target = try phones[1].launch()
+            try await source.confirmAndStart(recording: false)
+            try await target.confirmAndStart(recording: false)
+            let sourceDevice = try source.context.resolve().currentDevice.id
+            let targetContext = try target.context.resolve()
+            let choice = try await source.reviewChoice(action: .select(sourceDevice))
+            #expect(try await source.services.recordingChoices.apply(choice) == .applied)
+            let originalRecords = try await source.controls().records
+            let archive = try await source.services.backup.exportBackup(onProgress: { _ in })
+            defer {
+                do { try FileManager.default.removeItem(at: archive.deletingLastPathComponent()) }
+                catch { Issue.record(error) }
+            }
+            _ = try await target.services.backup.importBackup(
+                from: archive,
+                strategy: strategy,
+                onProgress: { _ in },
+            )
+            try await target.services.backup.acknowledgeOnboardingImport()
+            #expect(try target.context.resolve() == targetContext)
+            try await phones[1].stop()
+            let restarted = try phones[1].launch()
+            try await restarted.start()
+            let restored = try await restarted.controls()
+            #expect(restored.records == originalRecords
+                .map { $0.inGeneration(restored.generationID) })
+            #expect(restored.sourceChoices == [choice.decision])
+            let next = try await restarted.reviewChoice(action: .automatic)
+            #expect(next.evidence.generationID == restored.generationID)
+            #expect(next.decision.id != choice.decision.id)
+            #expect(next.decision.author == targetContext.currentDevice.id)
+            #expect(next.decision.predecessors == [choice.decision.id])
+            #expect(try await restarted.services.recordingChoices.apply(next) == .applied)
+            #expect(try await restarted.controls().sourceChoices.count == 2)
+        }
+    }
+
     @Test func keychainFailureAllocatesNothingAndMissingIdentityCannotAdoptCopiedSidecar(
     ) async throws {
         try await InstallationLifecycleFixture.withInstallations(count: 1) { phones in

@@ -46,7 +46,7 @@ public struct RecordingChoiceCoordinator: Sendable {
             try await store.readSnapshot {
                 let state = try await store.dataCompatibilityState()
                 try state.validate(policy: policy)
-                guard state.requiredMajor == RecordingEvidencePolicy.version.major,
+                guard try await store.dataContractMajor() == RecordingEvidencePolicy.version.major,
                       policy.current == RecordingEvidencePolicy.version
                 else {
                     throw DataCompatibilityError.activationNotReady

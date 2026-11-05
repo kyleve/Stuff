@@ -82,10 +82,22 @@ A conflicting observation received after preview rejects the edit before save an
 `WhereServices` supplies both coordinators from its admitted store and awaits reconciliation after each successful save.
 These APIs require the activated recording contract. The current foundation policy blocks them, and their UI remains unimplemented.
 
+`RecordingControlSelection` combines source choices, historical ignores, and device removals for each period.
+Explicit sources bypass ignores. Removal leaves the selected source exclusive and marks its affected portion unresolved.
+Automatic periods retain each device's eligibility, including conflicting or missing ignore decisions.
+Consumers must preserve that uncertainty when the device's evidence can affect history. They must not fill an explicit source's gaps.
+Unknown controls remain unresolved within their stored scope.
+The [control-selection model](../Specifications/RecordingControlSelection/README.md) documents the bounded delivery-order checks.
+
 ## Compatibility protocol foundation
 
 `CompatibilityScopedStore` binds reads and transactions to one `DataAccessPermit`.
 Revocation is permanent. A fresh scope requires a fresh permit.
+`WhereStore.dataContractMajor()` includes the admitted account requirement, even before its first local history record arrives.
+`dataCompatibilityState()` retains the actual local headers used for admission. Reading the active contract does not create requirement records.
+First GPS writes use atomic version envelopes under the admitted contract; backups use that same contract for export and import validation.
+Payload reads recheck the permit at decoding. Versioned-record reads admit and decode the same envelope index.
+Malformed admission or observation data retires the scope and surfaces the original error.
 `SwiftDataStore` holds the permit's mutex through the physical save, so retirement cannot cross that save's admission check.
 Calls suspended during retirement reject their result or staged transaction.
 A save that wins before retirement remains durable, even if its caller later receives a revoked-access error.

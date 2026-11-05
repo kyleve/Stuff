@@ -45,6 +45,43 @@ extension SwiftDataStore {
         return state
     }
 
+    public func dataContractMajor() async throws -> UInt {
+        try contractMajorForCurrentAccess()
+    }
+
+    /// A verified shared requirement can precede every local record. Use the transaction's
+    /// admitted floor for payload semantics without mirroring that account-bound knowledge.
+    func contractMajorForCurrentAccess() throws -> UInt {
+        try admittingCompatibility {
+            try contractMajorForCurrentAccess(state: indexedCompatibilityState())
+        }
+    }
+
+    private func contractMajorForCurrentAccess(state: DataCompatibilityStoreState) throws -> UInt {
+        guard let permit = DataAccessPermit.current else { return state.requiredMajor }
+        // A header can arrive after the scoped wrapper's asynchronous admission check. Validate
+        // again beside payload decoding; decoder support must not expand the admitted contract.
+        try permit.validate()
+        try state.validate(policy: permit.policy)
+        guard state.requiredMajor <= permit.requiredMajor else {
+            throw DataCompatibilityError.verificationRequired
+        }
+        return permit.requiredMajor
+    }
+
+    /// Preserve the original header/metadata failure while retiring an admitted scope. Raw
+    /// compatibility scans must retain their existing error contract outside a permit.
+    func admittingCompatibility<Value>(_ operation: () throws -> Value) throws -> Value {
+        do {
+            return try operation()
+        } catch let error as DataAccessPermit.AccessError {
+            throw error
+        } catch {
+            guard DataAccessPermit.current != nil else { throw error }
+            throw DataCompatibilityAdmissionError(underlyingError: error)
+        }
+    }
+
     static func compatibilityState(in context: ModelContext) throws -> DataCompatibilityStoreState {
         // This fresh scan is deliberately retained for the physical-save admission check and
         // destructive operations. It must not reuse an earlier transaction's cached headers.
@@ -110,10 +147,17 @@ extension SwiftDataStore {
     public func versionedHistoryRecords(policy: DataCompatibilityPolicy) async throws
         -> [VersionedHistoryRecord]
     {
-        try indexedCompatibilityState().validate(policy: policy)
         let generation = try await dataGeneration().id
-        return try versionedHistoryIndex().records(in: generation, policy: policy)
-            .sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }
+        return try admittingCompatibility {
+            // Direct reads have no operation cache. Admit and decode the same envelope set so
+            // an external commit cannot insert a new major between two independent fetches.
+            let index = try versionedHistoryIndex()
+            let state = try operationCompatibilityMetadata().state(recordMajors: index.recordMajors)
+            _ = try contractMajorForCurrentAccess(state: state)
+            try state.validate(policy: policy)
+            return try index.records(in: generation, policy: policy)
+                .sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }
+        }
     }
 
     public func addVersionedHistoryRecord(_ record: VersionedHistoryRecord) async throws {

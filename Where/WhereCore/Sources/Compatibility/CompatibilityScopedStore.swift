@@ -29,6 +29,10 @@ struct CompatibilityScopedStore: WhereStore {
         try await access { try await base.dataCompatibilityState() }
     }
 
+    func dataContractMajor() async throws -> UInt {
+        try await access { permit.requiredMajor }
+    }
+
     func raiseRequiredDataMajor(_: UInt) async throws {
         throw DataCompatibilityError.activationNotReady
     }

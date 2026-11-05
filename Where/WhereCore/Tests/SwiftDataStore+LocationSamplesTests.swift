@@ -4,6 +4,59 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SwiftDataStoreLocationSamplesTests {
+    @Test @MainActor func unreadableObservationPayloadRevokesTheRecordingPermit() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let base = SwiftDataStore(modelContainer: container)
+        let permit = DataAccessPermit(
+            policy: RecordingBackupTestSupport.policy,
+            requiredMajor: 1,
+            onCompatibilityFailure: { _ in },
+        )
+        let scoped = CompatibilityScopedStore(base: base, permit: permit)
+        let record = VersionedHistoryRecord(
+            id: .init(rawValue: UUID()),
+            dataGenerationID: .initial,
+            semantics: RecordingEvidencePolicy.version,
+            scope: .entireHistory,
+            kind: VersionedLocationSample.kind,
+            payload: Data("malformed".utf8),
+        )
+        let remote = ModelContext(container)
+        let row = SDVersionedHistoryRecord()
+        row.envelope = try JSONEncoder().encode(record)
+        remote.insert(row)
+        try remote.save()
+        await #expect(throws: DecodingError.self) { try await scoped.allSamples() }
+        #expect(permit.isRevoked)
+        await #expect(throws: DecodingError.self) { try await base.allSamples() }
+    }
+
+    @Test @MainActor func firstGPSWriteUsesTheAdmittedAccountContractBeforeMetadataArrives(
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let base = SwiftDataStore(modelContainer: container)
+        let permit = DataAccessPermit(
+            policy: RecordingBackupTestSupport.policy,
+            requiredMajor: 1,
+            onCompatibilityFailure: { _ in },
+        )
+        let store = CompatibilityScopedStore(base: base, permit: permit)
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        #expect(try await base.dataCompatibilityState().requiredMajor == 0)
+        try await store.perform {
+            try await store.add(sample: sample)
+            try await store.add(sample: sample)
+        }
+        let context = ModelContext(container)
+        #expect(try context.fetchCount(FetchDescriptor<SDLocationSample>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<SDVersionedHistoryRecord>()) == 1)
+        #expect(try await base.dataCompatibilityState().persistedRequiredMajor == nil)
+        #expect(try await base.dataCompatibilityState().recordMajors == [1])
+        #expect(try await store.allSamples() == [sample])
+        #expect(try await store
+            .samples(in: DateInterval(start: sample.timestamp, duration: 1)) == [sample])
+    }
+
     @Test func lateObservationPreservesRawEvidenceWhenItRevealsAnInvalidControlDependency(
     ) async throws {
         let store = try SwiftDataStore.inMemory()

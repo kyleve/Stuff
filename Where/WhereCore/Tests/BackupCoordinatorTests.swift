@@ -863,12 +863,15 @@ struct BackupCoordinatorTests {
 }
 
 extension BackupCoordinatorTests {
-    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace], [false, true])
     func controlsAndRecordedDaysRetainIdentityAcrossImportAndRetry(
         strategy: BackupCoordinator.ImportStrategy,
+        localRequirementArrived: Bool,
     ) async throws {
         let store = try SwiftDataStore.inMemory()
-        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        if localRequirementArrived {
+            try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        }
         let policy = RecordingBackupTestSupport.policy
         let access = DataCompatibilityAccess(
             base: store,
@@ -884,6 +887,12 @@ extension BackupCoordinatorTests {
             importLifecycle: .init(prepare: { _ in }, didCommit: { _ in }, didRollBack: { _ in }),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
+        let emptyExport = try await coordinator.exportBackup()
+        let emptyArchive = try BackupService(policy: policy).readArchive(at: emptyExport).archive
+        #expect(emptyArchive.requiredDataMajor == 1)
+        #expect(emptyArchive.samples.isEmpty)
+        #expect(emptyArchive.versionedHistoryRecords.isEmpty)
+        await coordinator.discardExport()
         let samples = try RecordingBackupTestSupport.convertedArchive().samples
         let records = try RecordingBackupTestSupport.controls()
         let url = try RecordingBackupTestSupport.zip(samples: samples, controls: records)
