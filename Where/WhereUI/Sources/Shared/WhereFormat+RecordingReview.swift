@@ -3,6 +3,43 @@ import RegionKit
 import WhereCore
 
 extension WhereFormat {
+    @MainActor
+    static func recordingReviewFailure(_ recovery: RecordingChoiceModel.Recovery) -> String {
+        switch recovery {
+            case .load, .review: String(localized: .recordingReviewLoadFailed)
+            case .save: String(localized: .recordingReviewSaveFailed)
+        }
+    }
+
+    static func recordingAction(
+        _ action: HistoryDecision.Action,
+        names: [RecordingDeviceID: String],
+    ) -> String {
+        switch action {
+            case let .select(deviceID):
+                String(localized: .recordingReviewUseDevice(recordingDevice(
+                    deviceID,
+                    names: names,
+                )))
+            case .automatic: String(localized: .recordingReviewAutomatic)
+        }
+    }
+
+    @MainActor
+    static func recordingScopeError(_ error: any Error) -> String {
+        if let error = error as? RecordingScopeEditorModel.DraftError {
+            switch error {
+                case .missingDevice: return String(localized: .recordingScopeChooseDevice)
+                case .missingDate: return String(localized: .recordingScopeConfirmDate)
+                case .invalidPeriods: return String(localized: .recordingScopeInvalidPeriod)
+                case .mismatchedDevice: return String(localized: .recordingScopeDeviceMismatch)
+            }
+        }
+        if error is RecordingPeriod
+            .ValidationError { return String(localized: .recordingScopeInvalidPeriod) }
+        return error.localizedDescription
+    }
+
     /// Fixed intervals use UTC explicitly. Recorded dates remain CalendarDay values beside them.
     static func recordingInstant(_ date: Date) -> String {
         date.formatted(Date.FormatStyle(

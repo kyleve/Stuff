@@ -145,7 +145,7 @@ public final class YearReportModel {
             if let previewDataIssueCount { return previewDataIssueCount }
         #endif
         guard let scan = resolutionState.scan else { return 0 }
-        return scan.issues.count
+        return scan.issues.count + scan.recording.issues.count
     }
 
     #if DEBUG

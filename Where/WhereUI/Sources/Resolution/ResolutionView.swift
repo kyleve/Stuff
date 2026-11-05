@@ -40,6 +40,9 @@ struct ResolutionView: View {
         // Log View Mode: reveal an inspect badge for data-issue resolution
         // events. A no-op in release.
         .debugLogInspectable(WhereLog.session(ResolveModelLog.self))
+        .sheet(item: $resolve.recordingReview) { flow in
+            RecordingReviewFlowView(model: flow)
+        }
     }
 
     @ViewBuilder
@@ -47,7 +50,7 @@ struct ResolutionView: View {
         if !resolve.hasLoaded {
             AppIconLoadingView(caption: String(localized: .primaryLoading))
         } else if let error = resolve.loadError, resolve.dataIssues.isEmpty,
-                  resolve.reviews.isEmpty
+                  resolve.reviews.isEmpty, resolve.recordingIssues.isEmpty
         {
             ContentUnavailableView {
                 Label(
@@ -61,7 +64,9 @@ struct ResolutionView: View {
                     Task { await report.rescanForIssues() }
                 }
             }
-        } else if resolve.dataIssues.isEmpty, resolve.reviews.isEmpty {
+        } else if resolve.dataIssues.isEmpty, resolve.reviews.isEmpty,
+                  resolve.recordingIssues.isEmpty
+        {
             ContentUnavailableView {
                 Label(
                     String(localized: .resolutionEmptyTitle),
@@ -80,6 +85,29 @@ struct ResolutionView: View {
             if let error = resolve.loadError {
                 Section {
                     Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
+                }
+            }
+            if let error = resolve.recordingReviewError {
+                Section {
+                    Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
+                }
+            }
+            if !resolve.recordingIssues.isEmpty {
+                Section(String(localized: .recordingReviewTitle)) {
+                    Button(String(localized: .recordingFlowReviewRemaining)) {
+                        resolve.reviewRemainingRecordings()
+                    }
+                    .accessibilityIdentifier("where_recording_review_remaining")
+                    ForEach(resolve.recordingIssues) { issue in
+                        Button { resolve.reviewRecording(issue) } label: {
+                            VStack(alignment: .leading) {
+                                Text(WhereFormat.recordingDays(issue.days)).font(.headline)
+                                Text(WhereFormat.recordingPeriod(issue.period))
+                                    .font(.caption)
+                                    .foregroundStyle(Color.secondary)
+                            }
+                        }
+                    }
                 }
             }
             if !resolve.pendingReviews.isEmpty {
@@ -240,6 +268,19 @@ private struct IssueRow: View {
 #if DEBUG
     extension ResolutionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let fixture = RecordingReviewPreviewFixture(scenario: .browsing)
+            whereSnapshot(
+                name: "Recordings",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: fixture.prepareResolution,
+                onReadyToSnapshot: fixture.prepareResolution,
+            ) {
+                RecordingReviewPreview(fixture: fixture) { fixture in
+                    if let report = fixture.report {
+                        ResolutionView(report: report).id(ObjectIdentifier(report))
+                    }
+                }
+            }
             whereSnapshot(name: "WithIssues", configurations: .fullContentScreenRepresentative) {
                 ResolutionView(
                     report: PreviewSupport.loadedYearReportModel(),
@@ -289,6 +330,7 @@ private struct IssueRow: View {
             ResolutionView.self,
             title: "Resolve",
             routes: [
+                .modal(to: RecordingReviewFlowView.flyoverID),
                 .push(to: ManualDayView.flyoverID),
                 .push(to: DayRelabelView.flyoverID),
                 .push(to: AbruptChangeDetailView.flyoverID),

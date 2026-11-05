@@ -131,6 +131,24 @@
             previewServices(locationSource: ScriptedLocationSource(), now: { referenceNow })
         }
 
+        /// A recording-contract store for source-review fixtures. It is never activated.
+        @MainActor
+        static func recordingReviewServices(store: SwiftDataStore) -> WhereServices {
+            WhereServices(
+                compatibilityPolicy: DataCompatibilityPolicy(
+                    current: RecordingEvidencePolicy.version,
+                    supportedMajors: [1],
+                ),
+                store: store,
+                locationSource: ScriptedLocationSource(),
+                aggregator: DayAggregator(
+                    calendar: RecordingScopeEditorModel.pickerCalendar,
+                    timeZone: .gmt,
+                ),
+                now: { referenceNow },
+            )
+        }
+
         @MainActor
         static func onboardingServices(installationContext: InstallationRecordingContext)
             -> WhereServices

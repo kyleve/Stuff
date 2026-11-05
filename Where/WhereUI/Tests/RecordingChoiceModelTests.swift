@@ -5,6 +5,30 @@ import Testing
 
 @MainActor
 struct RecordingChoiceModelTests {
+    @Test func changingTheSourceOfAWholeDayRequiresItsOwnCalendarCoverage() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        await model.review(.init(
+            scope: .recordingDay(
+                deviceID: RecordingReviewTestSupport.first,
+                day: RecordingReviewTestSupport.day,
+            ),
+            action: .select(RecordingReviewTestSupport.first),
+        ))
+        await model.choose(.select(RecordingReviewTestSupport.second))
+        #expect(model.presentation?.request.scope == .recordingDay(
+            deviceID: RecordingReviewTestSupport.second,
+            day: RecordingReviewTestSupport.day,
+        ))
+        #expect(model.selectedAction == .select(RecordingReviewTestSupport.second))
+        #expect(!model.canApply)
+        await model.useOriginalPeriods()
+        #expect(model.presentation?.request.scope == .periods(fixture.periods))
+        #expect(model.selectedAction == .select(RecordingReviewTestSupport.second))
+        #expect(model.canApply)
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+    }
+
     @Test func openingReviewDoesNotSelectOrWriteAndAnExplicitChoicePreservesRawEvidence(
     ) async throws {
         let fixture = try await RecordingReviewTestSupport.fixture()

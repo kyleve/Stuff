@@ -1382,8 +1382,12 @@ Selected-year calendar indicators derive from the same publication. Year changes
 `RecordingChoiceModel` keeps browsing separate from an explicit action and retains the exact proposal until Save.
 Changed inputs return to review before another Apply. `RecordingReviewFlowModel` retains skipped work and requires complete reassessment before reporting resolution.
 The shared comparison sections show raw tracks, gaps, dates, selection reasons, and GPS contributions within the reviewed periods.
-Track maps preserve physical gaps and disjoint review periods. Their rendering fixtures are separate from the remaining navigation and editor integration.
-Recording-specific review screens, controls, reminder integration, and activation remain in progress.
+Track maps preserve physical gaps and disjoint review periods.
+The historical issue list and badge now include recording concerns. One concern or **Review remaining** opens the bounded guided flow.
+The source screen supports explicit device and automatic choices, scope editing, changed-input review, skip, close, and re-entry.
+Scope drafts retain separate UTC intervals or an explicit device and logical date. Core checks whole-day calendar coverage before enabling Save.
+Committed-change observation reassesses the queue after the active choice finishes. Failed reads retain pending work and expose retry.
+Calendar-context recovery controls, device controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.

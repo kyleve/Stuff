@@ -6345,6 +6345,128 @@
         }
       }
     },
+    "recording.flow.failedDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not check the remaining issues. Try again."
+          }
+        }
+      }
+    },
+    "recording.flow.reassessing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking remaining issues…"
+          }
+        }
+      }
+    },
+    "recording.flow.remaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issues remaining: %1$lld · Skipped: %2$lld"
+          }
+        }
+      }
+    },
+    "recording.flow.resolvedDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No issues remain in the periods covered by this review. Other issues are available from the issues button."
+          }
+        }
+      }
+    },
+    "recording.flow.resolvedTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This review is complete"
+          }
+        }
+      }
+    },
+    "recording.flow.reviewRemaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review remaining"
+          }
+        }
+      }
+    },
+    "recording.flow.skip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip for now"
+          }
+        }
+      }
+    },
+    "recording.flow.skippedDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unresolved issue remains in the issue list. You can review it now or return later."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld unresolved issues remain in the issue list. You can review them now or return later."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "recording.flow.skippedTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review paused"
+          }
+        }
+      }
+    },
+    "recording.review.absentDay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recorded calendar context contains no time for this date. Choose another date or use the original time ranges."
+          }
+        }
+      }
+    },
     "recording.review.after" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6356,6 +6478,17 @@
         }
       }
     },
+    "recording.review.automatic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to automatic"
+          }
+        }
+      }
+    },
     "recording.review.before" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6363,6 +6496,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Current contributions"
+          }
+        }
+      }
+    },
+    "recording.review.calendarRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This recorded day needs more calendar context. Review the missing periods or keep the original time ranges."
+          }
+        }
+      }
+    },
+    "recording.review.chooseSource" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a source"
           }
         }
       }
@@ -6411,6 +6566,17 @@
         }
       }
     },
+    "recording.review.exclusiveDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A device choice covers the complete scope, including gaps. Other devices will not fill those gaps. Return to automatic lets Where assess all eligible devices again."
+          }
+        }
+      }
+    },
     "recording.review.gaps" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6429,6 +6595,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Another device will not fill gaps when you select this source for a period."
+          }
+        }
+      }
+    },
+    "recording.review.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load the recording comparison. Try again."
+          }
+        }
+      }
+    },
+    "recording.review.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading recording evidence…"
           }
         }
       }
@@ -6473,6 +6661,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ UTC"
+          }
+        }
+      }
+    },
+    "recording.review.originalPeriods" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use original time ranges"
           }
         }
       }
@@ -6664,6 +6863,17 @@
         }
       }
     },
+    "recording.review.refreshed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The evidence or decisions changed. Review this updated preview before applying your choice again."
+          }
+        }
+      }
+    },
     "recording.review.remaining" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6671,6 +6881,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This choice leaves unresolved issues (%lld). Their dates and reasons remain available for review."
+          }
+        }
+      }
+    },
+    "recording.review.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save choice"
+          }
+        }
+      }
+    },
+    "recording.review.saveAndContinue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save and continue"
+          }
+        }
+      }
+    },
+    "recording.review.saveDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save stores this choice on this phone. Sync sends it to your other devices when available."
+          }
+        }
+      }
+    },
+    "recording.review.saveFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not confirm that your choice was saved. Try again to check and finish the save."
+          }
+        }
+      }
+    },
+    "recording.review.saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choice saved. Any remaining issues still need review."
+          }
+        }
+      }
+    },
+    "recording.review.scope" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reviewed scope"
           }
         }
       }
@@ -6726,6 +7002,204 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Device %@"
+          }
+        }
+      }
+    },
+    "recording.review.useDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use %@ for this scope"
+          }
+        }
+      }
+    },
+    "recording.scope.chooseDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a device"
+          }
+        }
+      }
+    },
+    "recording.scope.confirmDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm this recorded date"
+          }
+        }
+      }
+    },
+    "recording.scope.dayDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the logical date recorded by this device. Where checks its calendar context before preparing the whole-day choice."
+          }
+        }
+      }
+    },
+    "recording.scope.dayDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded on"
+          }
+        }
+      }
+    },
+    "recording.scope.deviceMismatch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the selected source device for this recorded day."
+          }
+        }
+      }
+    },
+    "recording.scope.end" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End (UTC)"
+          }
+        }
+      }
+    },
+    "recording.scope.exclusiveEnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The start is included. The end is excluded."
+          }
+        }
+      }
+    },
+    "recording.scope.invalidPeriod" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each range needs a valid start and a later end."
+          }
+        }
+      }
+    },
+    "recording.scope.kind" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scope"
+          }
+        }
+      }
+    },
+    "recording.scope.periods" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time ranges"
+          }
+        }
+      }
+    },
+    "recording.scope.previewDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This prepares a new preview. It does not save a choice."
+          }
+        }
+      }
+    },
+    "recording.scope.recordedDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded date"
+          }
+        }
+      }
+    },
+    "recording.scope.review" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review this scope"
+          }
+        }
+      }
+    },
+    "recording.scope.start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start (UTC)"
+          }
+        }
+      }
+    },
+    "recording.scope.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit scope"
+          }
+        }
+      }
+    },
+    "recording.scope.utcDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time ranges use UTC. Each range remains separate unless you explicitly change its boundaries to overlap another range."
+          }
+        }
+      }
+    },
+    "recording.scope.wholeDay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded day"
           }
         }
       }

@@ -1,9 +1,152 @@
 import Testing
 @_spi(Testing) import WhereCore
-@testable import WhereUI
+@_spi(Testing) @testable import WhereUI
 
 @MainActor
 struct RecordingReviewFlowModelTests {
+    @Test(arguments: [false, true])
+    func cancellationDuringRetryPreservesTheFailureAndSkippedWork(
+        reviewRemaining: Bool,
+    ) async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        await model.refresh()
+        model.skipCurrent()
+        let skipped = try #require(model.state.progress?.skipped)
+        try await fixture.store.perform {
+            _ = try await fixture.store.rotateDataGeneration(
+                reason: .accountReset,
+                changedBy: RecordingReviewTestSupport.first,
+                at: RecordingReviewTestSupport.date(2000),
+            )
+        }
+        await model.refresh()
+        guard case .failed = model.state
+        else { Issue.record("Expected generation failure"); return }
+        let hold = ResolutionScanSuspension()
+        await fixture.services.resolution
+            .setBeforeRecordingReviewPublicationForTesting { await hold.suspendFirst() }
+        let retry = Task {
+            if reviewRemaining { await model.reviewRemaining() } else { await model.refresh() }
+        }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered }
+        retry.cancel()
+        hold.resume()
+        await retry.value
+        guard case let .failed(error, previous) = model.state
+        else { Issue.record("Cancelled reassessment must preserve the prior failure"); return }
+        #expect(error as? RecordingReviewQueue.ValidationError == .dataGenerationChanged)
+        #expect(previous?.skipped == skipped)
+        #expect(!model.canReview)
+    }
+
+    @Test func aBufferedChangeCannotRestartADeactivatedObserver() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        let observer = Task { await model.observeChanges() }
+        defer { observer.cancel() }
+        try await CompatibilityLaunchFixture.waitUntil { model.page != nil && model.canReview }
+        model.deactivate()
+        try await fixture.add([RecordingReviewTestSupport.sample(
+            deviceID: RecordingReviewTestSupport.second,
+            seconds: 900,
+        )])
+        await observer.value
+        guard case .idle = model.state
+        else { Issue.record("A late change must not restart closed review"); return }
+        #expect(model.page == nil)
+    }
+
+    @Test func committedChangesWaitForSavePublicationBeforeAdvancing() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        let observer = Task { await model.observeChanges() }
+        defer { observer.cancel(); model.deactivate() }
+        try await CompatibilityLaunchFixture.waitUntil { model.page != nil && model.canReview }
+        let page = try #require(model.page)
+        await page.choice.load()
+        await page.choice.choose(.select(RecordingReviewTestSupport.first))
+        let hold = ResolutionScanSuspension()
+        page.choice.setBeforePublicationForTesting { await hold.suspendFirst() }
+        let save = Task { await page.choice.apply() }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered && model.isRefreshing }
+        #expect(model.page?.id == page.id)
+        #expect(model.state.progress?.remaining.isEmpty == false)
+        #expect(try await fixture.controls().sourceChoices.count == 1)
+        hold.resume()
+        await save.value
+        try await CompatibilityLaunchFixture.waitUntil {
+            if case .resolved = model.state { return true }
+            return false
+        }
+        #expect(model.page == nil)
+    }
+
+    @Test func closingDuringCommittedSaveCannotPublishOrAdvanceTheOldPage() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        let observer = Task { await model.observeChanges() }
+        try await CompatibilityLaunchFixture.waitUntil { model.page != nil && model.canReview }
+        let page = try #require(model.page)
+        await page.choice.load()
+        await page.choice.choose(.select(RecordingReviewTestSupport.first))
+        let hold = ResolutionScanSuspension()
+        page.choice.setBeforePublicationForTesting { await hold.suspendFirst() }
+        let save = Task { await page.choice.apply() }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered && model.isRefreshing }
+        observer.cancel()
+        model.deactivate()
+        hold.resume()
+        await save.value
+        await observer.value
+        guard case .idle = model.state
+        else { Issue.record("A closed flow must stay retired"); return }
+        #expect(model.page == nil)
+        #expect(!page.choice.didApply)
+        #expect(try await fixture.controls().sourceChoices.count == 1)
+    }
+
+    @Test func idempotentSaveRetryReassessesRemainingWorkThroughTheCommitSignal() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture(unresolved: true)
+        let model = try await RecordingReviewFlowModel(
+            services: fixture.services,
+            references: fixture.references(),
+        )
+        let observer = Task { await model.observeChanges() }
+        defer { observer.cancel(); model.deactivate() }
+        try await CompatibilityLaunchFixture.waitUntil { model.page != nil && model.canReview }
+        let page = try #require(model.page)
+        await page.choice.load()
+        await page.choice.choose(.select(RecordingReviewTestSupport.first))
+        page.choice
+            .setBeforePublicationForTesting {
+                throw RecordingReviewTestSupport.TestFailure.interruptedSaveReceipt
+            }
+        await page.choice.apply()
+        try await CompatibilityLaunchFixture.waitUntil { model.canReview }
+        guard case .failed = page.choice.state
+        else { Issue.record("The saved operation lost its receipt"); return }
+        #expect(model.page?.id == page.id)
+        page.choice.setBeforePublicationForTesting {}
+        await page.choice.retry()
+        try await CompatibilityLaunchFixture
+            .waitUntil { model.page?.id != page.id && model.canReview }
+        #expect(model.state.progress?.remaining.isEmpty == false)
+        #expect(try await fixture.controls().sourceChoices.count == 1)
+    }
+
     @Test(arguments: [false, true])
     func cancelledReviewRemainingPreservesSkippedWorkAndFailures(failRefresh: Bool) async throws {
         let fixture = try await RecordingReviewTestSupport.fixture()

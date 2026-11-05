@@ -252,7 +252,14 @@ Both models preserve original errors and check the admitted service before publi
 `RecordingChoicePresentation` prepares each track map once per inspection, with separate routes for devices and available periods.
 `RecordingChoiceDetails` renders the shared comparison sections, including raw observations, recording dates, gaps, reasons, and scoped GPS contributions.
 Unknown dates and geography remain explicit. Rendering fixtures exercise these sections; they do not establish navigation or save behavior.
-Their screens remain under implementation; [the recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
+`ResolutionView` includes recording concerns and opens the same guided review for one concern or all remaining recording work.
+The badge includes these concerns across stored years. Closing or skipping preserves unresolved work in the main list.
+`RecordingChoiceView` offers explicit device and automatic actions. `RecordingScopeEditor` edits separate UTC intervals or a device's logical recording day.
+Each scope change requires a new Core preview. Unknown calendar coverage retains the original fixed-range option without assigning observations from the picker date.
+The guided model observes committed changes separately from saves. It waits for an active choice to finish before replacing its page.
+Failed reassessment retains pending work and blocks review actions until retry succeeds.
+Calendar-context recovery controls, device controls, reminders, and activation remain under implementation.
+The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.
 It also prepares unique point rows, individual point maps, inference explanations, and point correction actions.

@@ -114,6 +114,33 @@ public final class RecordingChoiceModel {
         return false
     }
 
+    var selectedAction: HistoryDecision.Action? {
+        guard let content = state.content,
+              case let .reviewed(_, presentation, _) = content else { return nil }
+        return presentation.request.action
+    }
+
+    func loadIfNeeded() async {
+        guard case .idle = state else { return }
+        await load()
+    }
+
+    func choose(_ action: HistoryDecision.Action) async {
+        guard !isBusy, let presentation else { return }
+        let scope: RecordingChoiceRequest.Scope = switch (presentation.request.scope, action) {
+            case let (.recordingDay(_, day), .select(deviceID)):
+                .recordingDay(deviceID: deviceID, day: day)
+            case (.periods, .select), (_, .automatic):
+                presentation.request.scope
+        }
+        await review(RecordingChoiceRequest(scope: scope, action: action))
+    }
+
+    func useOriginalPeriods() async {
+        guard let selectedAction else { return }
+        await review(.init(scope: .periods(originalPeriods), action: selectedAction))
+    }
+
     func load() async {
         await inspect(
             .init(scope: .periods(originalPeriods), action: .automatic),

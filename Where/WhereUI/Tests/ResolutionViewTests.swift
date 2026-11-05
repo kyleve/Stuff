@@ -34,10 +34,9 @@ struct ResolutionViewTests {
             return
         }
         let root = LocationsView(report: report).whereBroadwayRoot()
-        try await show(UIHostingController(rootView: root)) { host in
+        try await showResolution(UIHostingController(rootView: root)) { host in
             let window = try #require(host.view.window)
             let rootController = try #require(window.rootViewController)
-            defer { rootController.dismiss(animated: false) }
             for _ in 0 ..< 2 {
                 try await waitForResolutionView("Historical issues button") {
                     resolutionElement("where_resolution_button", in: window) != nil
@@ -51,12 +50,16 @@ struct ResolutionViewTests {
                 }
                 let sheet = try #require(resolutionPresentedController(in: rootController))
                 let navigation = try #require(resolutionNavigationController(in: sheet))
-                let historicalRow = try #require(resolutionAccessibilityObjects(in: sheet.view)
-                    .first {
+                @MainActor func historicalRow() -> NSObject? {
+                    resolutionAccessibilityObjects(in: sheet.view).first {
                         $0.accessibilityLabel?.hasPrefix(dateLabel) == true
                             && $0.accessibilityTraits.contains(.button)
-                    })
-                try activateResolutionElement(historicalRow)
+                    }
+                }
+                try await waitForResolutionView("Historical flight row") {
+                    historicalRow()?.accessibilityTraits.contains(.notEnabled) == false
+                }
+                try activateResolutionElement(#require(historicalRow()))
                 try await waitForResolutionView("Historical flight detail") {
                     navigation.viewControllers.count == 2 && navigation.transitionCoordinator == nil
                 }

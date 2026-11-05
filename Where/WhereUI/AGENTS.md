@@ -159,7 +159,12 @@ Layering, localization, preview, and testing conventions live in the feature
   Show a stale Apply's returned inspection before another explicit Apply. Reject cancelled, superseded, deactivated, or revoked publication.
   Check cancellation before retry changes presentation. Validate retained save access before enabling Apply again.
   Keep guided review bound to its original references. Skips stay pending; only complete successful reassessment can report resolution.
-  Guards: `RecordingChoiceModelTests` and `RecordingReviewFlowModelTests`.
+  Advance guided pages from committed-change observation, after the current choice finishes. Disable review actions while reassessment is pending or failed.
+  Retire choice models through their flow owner when a page or session ends; child view rehosting must not discard a proposal.
+  Preserve the prior failure when a retry is cancelled. Retain a failed save's exact proposal through issue splits until retry, explicit replacement, skip, or successful resolution.
+  Keep scope drafts separate from saved choices. Preserve disjoint intervals and use a neutral Gregorian date-picker projection for logical days.
+  A draft date never supplies missing observation context. Retain device choices when their profile names have not arrived.
+  Guards: `RecordingChoiceModelTests`, `RecordingReviewFlowModelTests`, `RecordingScopeEditorModelTests`, and `RecordingReviewFlowViewTests`.
 - Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
   Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
 - Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.

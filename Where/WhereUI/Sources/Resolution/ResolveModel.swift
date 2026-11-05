@@ -10,6 +10,10 @@ public final class ResolveModel {
     private var state = ResolutionSourceState.idle
     private var dismissedIssueIDs: Set<DataIssueID> = []
     private var loadRequestID = UUID()
+    var recordingReview: RecordingReviewFlowModel?
+    private(set) var recordingReviewError: (any Error)?
+
+    private enum ReviewError: Error { case unavailableHistory }
 
     public var dataIssues: [any DataIssue] {
         (state.scan?.issues ?? []).filter { !dismissedIssueIDs.contains($0.id) }
@@ -87,6 +91,30 @@ public final class ResolveModel {
 
     func review(for issue: any DataIssue) -> GPSCorrectionReview? {
         reviews.first { $0.id == issue.id }
+    }
+
+    func reviewRecording(_ issue: RecordingIssue) {
+        startRecordingReview(issues: [issue])
+    }
+
+    func reviewRemainingRecordings() {
+        startRecordingReview(issues: recordingIssues)
+    }
+
+    private func startRecordingReview(issues: [RecordingIssue]) {
+        do {
+            try services.validateDataAccess()
+            guard let snapshot else { throw ReviewError.unavailableHistory }
+            let references = try issues.flatMap { try Array(snapshot.references(for: $0)) }
+            recordingReview = try RecordingReviewFlowModel(
+                services: services,
+                references: references,
+            )
+            recordingReviewError = nil
+        } catch {
+            recordingReviewError = error
+            Self.logger.dataIssueScanFailed(error: .restricted(.errorDetails, error))
+        }
     }
 
     public func dismiss(_ issue: any DataIssue) async {
