@@ -72,6 +72,81 @@ class ShardTests(unittest.TestCase):
             self.assertEqual(len(inventory), 3)
             self.assertEqual(len(partition), 2)
 
+    def test_multiline_sources_keep_adjacent_snapshot_bundles_distinct(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            project = repo / "Project.swift"
+            project.write_text(
+                """
+            unitTests(
+                name: "WhereShareExtensionSnapshotTests",
+                productDependency: "WhereUI",
+                sources: [
+                    "Where/WhereShareExtension/SnapshotTests/**/*.swift",
+                    "Where/WhereShareExtension/Sources/ShareEvidenceView.swift",
+                    "Where/WhereShareExtension/Sources/Logging/**",
+                ],
+                extraPackageProducts: ["SnapshotKitTesting", "SFSafeSymbols"],
+            ),
+                """
+                + project.read_text()
+            )
+            source = repo / "Where/WhereShareExtension/SnapshotTests"
+            source.mkdir(parents=True)
+            (source / "ShareEvidenceViewSnapshotTests.swift").write_text(
+                "import Testing\nstruct ShareEvidenceViewSnapshotTests {}\n"
+            )
+
+            self.assertEqual(
+                MODULE.snapshot_source_roots(repo),
+                {
+                    "Where/WhereShareExtension/SnapshotTests": "WhereShareExtensionSnapshotTests",
+                    "Module/SnapshotTests": "ModuleSnapshotTests",
+                },
+            )
+            _, partition = MODULE.execution_partition(self.make_plan(), repo)
+            self.assertEqual(
+                partition[-1],
+                ["WhereShareExtensionSnapshotTests/ShareEvidenceViewSnapshotTests"],
+            )
+
+            plan = repo / "plan.json"
+            plan.write_text(json.dumps(self.make_plan()))
+            result = subprocess.run(
+                [
+                    SCRIPT.parent.parent / "snapshot-shards",
+                    "--plan",
+                    plan,
+                    "check",
+                    "--repo",
+                    repo,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")
+            self.assertIn("4 suites", result.stdout)
+            self.assertEqual(json.loads(plan.read_text()), self.make_plan())
+
+    def test_snapshot_target_without_supported_root_cannot_borrow_the_next_target(self):
+        for sources in ("", 'sources: ["Support/**/*.swift"],'):
+            with (
+                self.subTest(sources=sources),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                repo = self.make_repo(directory)
+                project = repo / "Project.swift"
+                project.write_text(
+                    "            unitTests(\n"
+                    '                name: "MissingSnapshotTests",\n'
+                    f"                {sources}\n"
+                    "            ),\n" + project.read_text()
+                )
+                with self.assertRaisesRegex(ValueError, "MissingSnapshotTests"):
+                    MODULE.snapshot_source_roots(repo)
+
     def test_rejects_a_suite_that_is_missing_from_the_plan(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)

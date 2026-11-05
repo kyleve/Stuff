@@ -120,6 +120,11 @@ The command does not coordinate concurrent builds, checkout restoration, or path
 
 ## Snapshot shard policy
 
+Discovery reads literal `unitTests` declarations in `Project.swift`, with the
+closing `),` at the declaration's indentation. Source arrays can span lines and
+include production support files. Snapshot roots use `SnapshotTests/**` or
+`SnapshotTests/**/*.swift`; a target without a supported root fails validation.
+
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
 places intake first, then stops existing-suite moves at a 5% reduction in the
 slowest worker. If single-suite moves cannot reach that target, it discards them.

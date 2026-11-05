@@ -19,12 +19,12 @@ FORMAT_VERSION = 1
 # Minimum reduction in the slowest worker required to move existing suites.
 MINIMUM_IMPROVEMENT = 0.05
 SNAPSHOT_TARGET_PATTERN = re.compile(
-    r"unitTests\(\s*"
+    r"^(?P<indent>[ \t]*)unitTests\(\s*"
     r'name:\s*"(?P<bundle>[^"]+SnapshotTests)",'
-    r".*?"
-    r'sources:\s*\["(?P<sources>[^"]+/SnapshotTests)/\*\*"\]',
-    re.DOTALL,
+    r"(?P<body>.*?)(?=^(?P=indent)\),)",
+    re.DOTALL | re.MULTILINE,
 )
+SNAPSHOT_SOURCE_PATTERN = re.compile(r'"([^"\n]+/SnapshotTests)/\*\*(?:/\*\.swift)?"')
 
 
 def load_plan(path):
@@ -49,12 +49,23 @@ def snapshot_source_roots(repo):
     roots = {}
     for match in SNAPSHOT_TARGET_PATTERN.finditer(project):
         bundle = match.group("bundle")
-        source = match.group("sources")
-        if source in roots:
+        # Match within this declaration so an unsupported source array cannot
+        # silently relabel the next target's suites. Production support files
+        # may share a multiline sources array with the snapshot root.
+        sources = re.search(r"\bsources:\s*\[([^\]]*)\]", match.group("body"))
+        snapshot_roots = (
+            SNAPSHOT_SOURCE_PATTERN.findall(sources.group(1)) if sources else []
+        )
+        if not snapshot_roots:
             raise ValueError(
-                f"duplicate snapshot source path in Project.swift: {source}"
+                f"{bundle} has no supported SnapshotTests source root in Project.swift"
             )
-        roots[source] = bundle
+        for source in snapshot_roots:
+            if source in roots:
+                raise ValueError(
+                    f"duplicate snapshot source path in Project.swift: {source}"
+                )
+            roots[source] = bundle
     if not roots:
         raise ValueError("Project.swift has no snapshot test targets")
     return roots
