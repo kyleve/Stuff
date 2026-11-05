@@ -3,6 +3,23 @@ import Testing
 @testable import WhereCore
 
 struct RecordingControlEditTests {
+    @Test func resumeKeepsItsCutoffAndRejectsExpiredOrRestoredDecisions() throws {
+        let decision = try RecordingControlsTestSupport.ignore(1)
+        let cutoff = Date(timeIntervalSinceReferenceDate: 600)
+        let resume = try RecordingControlEdit.resumingIgnore(decision, at: cutoff)
+        #expect(try resume.query().periods == [RecordingAssessmentTestSupport.period(600, 86400)])
+        #expect(throws: RecordingControlEdit.ValidationError.ignoreAlreadyEnded) {
+            try RecordingControlEdit.resumingIgnore(
+                decision,
+                at: .init(timeIntervalSinceReferenceDate: 86400),
+            )
+        }
+        let restored = try RecordingControlsTestSupport.ignore(2, change: .restoreEligibility)
+        #expect(throws: RecordingControlEdit.ValidationError.notAnIgnore) {
+            try RecordingControlEdit.resumingIgnore(restored, at: cutoff)
+        }
+    }
+
     @Test func anEditCannotAdoptAnotherDevicesCalendarOrIgnoreHistory() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let other = try RecordingControlsTestSupport.calendar(

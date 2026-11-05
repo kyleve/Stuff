@@ -46,6 +46,8 @@ Concurrent ignores agree where both exclude a device, even when their end dates 
 Changing an ignore's end claims its old and new coverage in one operation.
 After a shortened end, that operation restores eligibility on the old tail. Its saved day and zone remain available for inspection.
 If another edit extends the ignore, the refreshed preview includes that extension. Saving the larger scope requires another confirmation.
+`RecordingControlEdit.resumingIgnore(_:at:)` uses the same refresh rule and retains the explicit resume cutoff.
+It restores only the reviewed future interval. Undoing elapsed history remains a separate bounded eligibility edit.
 
 `RecordingCalendarContext` retains both the original zone name and its established UTC offset.
 `RecordingDayAssignment` and `RecordingDayCoverage` use the saved offset, without reinterpreting history through the current zone database.

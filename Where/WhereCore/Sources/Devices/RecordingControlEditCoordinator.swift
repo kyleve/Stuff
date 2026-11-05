@@ -27,6 +27,7 @@ public struct RecordingControlEditCoordinator: Sendable {
             self = switch edit {
                 case let .ignore(deviceID, _, _): .ignore(deviceID)
                 case let .ignoreEnd(value): .ignore(value.deviceID)
+                case let .ignoreResume(value): .ignore(value.deviceID)
                 case let .place(placeID, _, _): .place(placeID)
                 case let .calendar(deviceID, _, _): .calendar(deviceID)
             }

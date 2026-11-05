@@ -358,6 +358,128 @@ struct RecordingControlEditCoordinatorTests {
         #expect(segments.dropFirst().allSatisfy { $0.resolution == .eligible })
     }
 
+    @Test(arguments: [false, true])
+    func resumeReviewsExtensionsWithoutRestoringElapsedOrUnrelatedHistory(
+        extensionBeforePreview: Bool,
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let decision = try RecordingControlsTestSupport.ignore(61)
+        try await RecordingChoiceTestSupport.append(.ignore(decision), store: store)
+        let until = try RecordingIgnoreDecision.Until(
+            day: .init(year: 2001, month: 1, day: 3),
+            timeZone: .gmt,
+        )
+        let extended = try await coordinator.review(.changingIgnoreEnd(of: decision, until: until))
+        let later = try RecordingControlsTestSupport.ignore(
+            62,
+            start: 5 * 86400,
+            end: 6 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 6), timeZone: .gmt)),
+            predecessors: [decision.id],
+        )
+        try await RecordingChoiceTestSupport.append(.ignore(later), store: store)
+        if extensionBeforePreview { #expect(try await coordinator.apply(extended) == .applied) }
+        let resume = try await coordinator.review(.resumingIgnore(
+            decision,
+            at: .init(timeIntervalSinceReferenceDate: 600),
+        ))
+        let reviewed: RecordingControlEditCoordinator.Proposal
+        if extensionBeforePreview {
+            reviewed = resume
+        } else {
+            #expect(try await coordinator.apply(extended) == .applied)
+            guard case let .stale(fresh) = try await coordinator.apply(resume) else {
+                Issue
+                    .record("Resume must show the extension before changing its additional period.")
+                return
+            }
+            #expect(try resume.evidence.query.periods == [RecordingAssessmentTestSupport.period(
+                600,
+                86400,
+            )])
+            let before = try await coordinator.ignoreHistory(for: decision.deviceID)
+            #expect(!before.decisions.contains { $0.change == .restoreEligibility })
+            reviewed = fresh
+        }
+        #expect(try reviewed.evidence.query.periods == [RecordingAssessmentTestSupport.period(
+            600,
+            3 * 86400,
+        )])
+        #expect(try await coordinator.apply(reviewed) == .applied)
+        #expect(try await coordinator.apply(reviewed) == .applied)
+        let history = try await coordinator.ignoreHistory(for: decision.deviceID)
+        #expect(history.decisions.count == 4)
+        #expect(history.segments.first?.period.end == Date(timeIntervalSinceReferenceDate: 600))
+        #expect(history.segments.first?.resolution == .ignored)
+        #expect(history.segments.last?.period == later.periods.first)
+        #expect(history.segments.last?.resolution == .ignored)
+        #expect(history.segments.dropFirst().dropLast().allSatisfy { $0.resolution == .eligible })
+        let inspection = try coordinator.inspectIgnore(reviewed)
+        #expect(inspection.changes.allSatisfy { $0.after == .automatic(.eligible) })
+    }
+
+    @Test func resumeDoesNotAdoptAShortenedIgnoresRestoredTail() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: store)
+        let original = try RecordingControlsTestSupport.ignore(
+            71,
+            end: 10 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 10), timeZone: .gmt)),
+        )
+        let shortened = try RecordingControlsTestSupport.ignore(
+            72,
+            end: 10 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 5), timeZone: .gmt)),
+            predecessors: [original.id],
+        )
+        let separate = try RecordingControlsTestSupport.ignore(
+            73,
+            start: 8 * 86400,
+            end: 9 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 9), timeZone: .gmt)),
+            predecessors: [shortened.id],
+        )
+        for decision in [original, shortened, separate] {
+            try await RecordingChoiceTestSupport.append(.ignore(decision), store: store)
+        }
+        let intent = try RecordingControlEdit.resumingIgnore(
+            shortened,
+            at: .init(timeIntervalSinceReferenceDate: 2 * 86400),
+        )
+        let preview = try await coordinator.review(intent)
+        #expect(try preview.evidence.query.periods == [RecordingAssessmentTestSupport.period(
+            2 * 86400,
+            5 * 86400,
+        )])
+        let extended = try RecordingControlsTestSupport.ignore(
+            74,
+            end: 10 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 6), timeZone: .gmt)),
+            predecessors: [shortened.id],
+        )
+        try await RecordingChoiceTestSupport.append(.ignore(extended), store: store)
+        guard case let .stale(refreshed) = try await coordinator.apply(preview) else {
+            Issue.record("A changed end requires a fresh resume preview."); return
+        }
+        #expect(try refreshed.evidence.query.periods == [RecordingAssessmentTestSupport.period(
+            2 * 86400,
+            6 * 86400,
+        )])
+        let before = try await coordinator.ignoreHistory(for: original.deviceID)
+        let retained = try #require(before.segments.first {
+            $0.period.contains(.init(timeIntervalSinceReferenceDate: 8.5 * 86400))
+        })
+        // The concurrent extension restores the later tail, while the separate choice ignores
+        // it. Resume must preserve that existing conflict outside its reviewed ignored portion.
+        #expect(retained.resolution == .conflict([separate.id, extended.id]))
+        #expect(try await coordinator.apply(refreshed) == .applied)
+        let history = try await coordinator.ignoreHistory(for: original.deviceID)
+        let later = try #require(history.segments
+            .first { $0.period.contains(.init(timeIntervalSinceReferenceDate: 8.5 * 86400)) })
+        #expect(later == retained)
+    }
+
     @Test func disjointCalendarEditsCommitAndRetryAsOneReviewedBatch() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let coordinator = RecordingControlEditTestSupport.coordinator(store: store)

@@ -92,7 +92,9 @@ That document also owns the implementation plan.
   Review control batches against combined evidence and commit them in one local transaction. Partial remote delivery requires another review.
   Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests` and `RecordingReviewTransactionTests`.
 - Shortened ignore edits restore their old tail within the same immutable operation. Preserve the selected end day, zone, and offset.
-  Include observed causal extensions in a refreshed end-date preview. Never expand an existing proposal during Apply.
+  Include observed causal extensions in refreshed end-date and resume previews. Keep a resume's original cutoff and elapsed history.
+  Bound resumes by ignored portions, excluding a shortened operation's restored tail.
+  Never expand an existing proposal during Apply.
   Read ignore history through the admitted coordinator. Retain elapsed intervals, causal uncertainty, and unknown control scopes.
   Inspect the exact ignore proposal through the shared control selector, including source-choice and removal precedence.
   Calendar recovery must preserve known raw assignments. Reject an edit that conflicts with a known offset, including observations received after preview.

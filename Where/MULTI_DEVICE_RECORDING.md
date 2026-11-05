@@ -1231,6 +1231,7 @@ Whole-day proposals require complete calendar context and retain separate repeat
 Ignore, place, and calendar edits now use the same guarded transaction as source choices.
 Shortening an ignore restores its old tail within the same immutable operation and retains the new end day and zone.
 If a concurrent edit extends that interval, the refreshed preview includes its tail and requires another Apply before saving.
+Resume intents use the same refresh rule while retaining their original cutoff. Elapsed history and separate intervals remain outside that edit.
 The coordinator now reads durable ignore history and previews exact ignore proposals through the shared control selector.
 These values retain elapsed periods, gaps, causal uncertainty, source-choice precedence, removal cutoffs, and unknown controls for the controls UI.
 Calendar recovery resolves unknown assignments while preserving known recording days and UTC offsets.
