@@ -10,11 +10,14 @@ public enum PresenceCalendarError: Error, Equatable {
     case missingDayDate(year: Int, month: Int, day: Int)
 }
 
-/// One cell in a month grid: a real calendar day plus the regions present that
+/// One cell in a month grid: a logical calendar day plus the regions present that
 /// day (sorted by `Region.allCases` so dot order is stable).
 public struct CalendarDayCell: Hashable, Sendable, Identifiable {
-    public let date: Date
-    public let dayOfMonth: Int
+    public let day: CalendarDay
+    public var dayOfMonth: Int {
+        day.day
+    }
+
     public let regions: [Region]
     public let isToday: Bool
     /// Whether this day still needs a location logged (matches the Primary
@@ -26,21 +29,19 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
     public let hasEvidence: Bool
     public let hasFlight: Bool
 
-    public var id: Date {
-        date
+    public var id: CalendarDay {
+        day
     }
 
     public init(
-        date: Date,
-        dayOfMonth: Int,
+        day: CalendarDay,
         regions: [Region],
         isToday: Bool,
         needsAttention: Bool,
         hasEvidence: Bool,
         hasFlight: Bool,
     ) {
-        self.date = date
-        self.dayOfMonth = dayOfMonth
+        self.day = day
         self.regions = regions
         self.isToday = isToday
         self.needsAttention = needsAttention
@@ -91,7 +92,10 @@ public struct RegionCombinationDayTally: Hashable, Sendable, Identifiable {
 public struct CalendarMonth: Hashable, Sendable, Identifiable {
     public let year: Int
     public let month: Int
-    public let startOfMonth: Date
+    public var firstDay: CalendarDay {
+        CalendarDay(year: year, month: month, day: 1)
+    }
+
     public let leadingBlankCount: Int
     public let weekdayCount: Int
     public let weekdaySymbols: [String]
@@ -105,14 +109,13 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
     /// presence before any focused-calendar filtering is applied.
     public let regionCombinationTotals: [RegionCombinationDayTally]
 
-    public var id: String {
-        "\(year)-\(month)"
+    public var id: CalendarDay {
+        firstDay
     }
 
     public init(
         year: Int,
         month: Int,
-        startOfMonth: Date,
         leadingBlankCount: Int,
         weekdayCount: Int,
         weekdaySymbols: [String],
@@ -123,7 +126,6 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
     ) {
         self.year = year
         self.month = month
-        self.startOfMonth = startOfMonth
         self.leadingBlankCount = leadingBlankCount
         self.weekdayCount = weekdayCount
         self.weekdaySymbols = weekdaySymbols
@@ -140,7 +142,8 @@ public enum PresenceCalendar {
     private static let logger = WhereLog.reporting(PresenceCalendarLog.self)
 
     /// Build every month in `report.year`. `missingDates` and `evidenceDays` are
-    /// `CalendarDay`s; the grid resolves each cell's day in `calendar`.
+    /// `CalendarDay`s. Layout preserves Gregorian dates even when the viewing zone skipped one.
+    /// `calendar` supplies the locale, week start, and zone used to identify today's logical date.
     ///
     /// When `focusedRegion` is non-nil, each day's dots are filtered to just
     /// that region (days where it wasn't present show no dots), so the calendar
@@ -156,13 +159,14 @@ public enum PresenceCalendar {
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         try logger.measure(.layoutYear, budget: .milliseconds(500)) {
+            let layoutCalendar = logicalCalendar(from: calendar)
             var regionsByDay: [CalendarDay: Set<Region>] = [:]
             for day in report.days {
                 regionsByDay[day.day] = day.regions
             }
 
             guard
-                let yearStart = calendar.date(from: DateComponents(
+                let yearStart = layoutCalendar.date(from: DateComponents(
                     year: report.year,
                     month: 1,
                     day: 1,
@@ -170,11 +174,10 @@ public enum PresenceCalendar {
             else {
                 throw PresenceCalendarError.missingYearStart(year: report.year)
             }
-            guard let monthRange = calendar.range(of: .month, in: .year, for: yearStart) else {
+            guard let monthRange = layoutCalendar.range(of: .month, in: .year, for: yearStart)
+            else {
                 throw PresenceCalendarError.missingMonthRange(year: report.year)
             }
-
-            let referenceStartOfDay = calendar.startOfDay(for: referenceDate)
 
             return try monthRange.map { monthNumber in
                 try Self.month(
@@ -182,7 +185,7 @@ public enum PresenceCalendar {
                     month: monthNumber,
                     regionsByDay: regionsByDay,
                     calendar: calendar,
-                    referenceDate: referenceStartOfDay,
+                    referenceDate: referenceDate,
                     missingDates: missingDates,
                     evidenceDays: evidenceDays,
                     flightDays: flightDays,
@@ -203,45 +206,36 @@ public enum PresenceCalendar {
         flightDays: Set<CalendarDay>,
         focusedRegion: Region? = nil,
     ) throws -> CalendarMonth {
+        let layoutCalendar = logicalCalendar(from: calendar)
+        var referenceCalendar = layoutCalendar
+        referenceCalendar.timeZone = calendar.timeZone
+        let referenceDay = CalendarDay(from: referenceDate, in: referenceCalendar)
         guard
-            let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1))
+            let firstOfMonth = layoutCalendar.date(from: DateComponents(
+                year: year,
+                month: month,
+                day: 1,
+            ))
         else {
             throw PresenceCalendarError.missingMonthStart(year: year, month: month)
         }
-        let startOfMonth = calendar.startOfDay(for: firstOfMonth)
-        guard let dayRange = calendar.range(of: .day, in: .month, for: firstOfMonth) else {
+        guard let dayRange = layoutCalendar.range(of: .day, in: .month, for: firstOfMonth) else {
             throw PresenceCalendarError.missingDayRange(year: year, month: month)
         }
         let numberOfDays = dayRange.count
-        let weekday = calendar.component(.weekday, from: firstOfMonth)
-        let weekdayCount = try Self.weekdayCount(in: calendar)
-        let leadingBlankCount = (weekday - calendar.firstWeekday + weekdayCount) % weekdayCount
-        let weekdaySymbols = Self.orderedWeekdaySymbols(in: calendar)
-        let isCurrentMonth = calendar.isDate(
-            startOfMonth,
-            equalTo: referenceDate,
-            toGranularity: .month,
-        )
+        let weekday = layoutCalendar.component(.weekday, from: firstOfMonth)
+        let weekdayCount = try Self.weekdayCount(in: layoutCalendar)
+        let leadingBlankCount = (weekday - layoutCalendar.firstWeekday + weekdayCount) %
+            weekdayCount
+        let weekdaySymbols = Self.orderedWeekdaySymbols(in: layoutCalendar)
+        let isCurrentMonth = referenceDay.year == year && referenceDay.month == month
 
         var days: [CalendarDayCell] = []
         days.reserveCapacity(numberOfDays)
         var dayCountsByRegion: [Region: Int] = [:]
         var dayCountsByRegionCombination: [Set<Region>: Int] = [:]
         for dayOfMonth in 1 ... numberOfDays {
-            guard
-                let date = calendar.date(
-                    byAdding: .day,
-                    value: dayOfMonth - 1,
-                    to: startOfMonth,
-                )
-            else {
-                throw PresenceCalendarError.missingDayDate(
-                    year: year,
-                    month: month,
-                    day: dayOfMonth,
-                )
-            }
-            let calendarDay = CalendarDay(from: date, in: calendar)
+            let calendarDay = CalendarDay(year: year, month: month, day: dayOfMonth)
             let presentRegions = regionsByDay[calendarDay] ?? []
             for region in presentRegions {
                 dayCountsByRegion[region, default: 0] += 1
@@ -255,10 +249,9 @@ public enum PresenceCalendar {
                 presentRegions.filter { focusedRegion == nil || $0 == focusedRegion },
             )
             days.append(CalendarDayCell(
-                date: date,
-                dayOfMonth: dayOfMonth,
+                day: calendarDay,
                 regions: regions,
-                isToday: calendar.isDate(date, inSameDayAs: referenceDate),
+                isToday: calendarDay == referenceDay,
                 needsAttention: missingDates.contains(calendarDay),
                 hasEvidence: evidenceDays.contains(calendarDay),
                 hasFlight: flightDays.contains(calendarDay),
@@ -285,7 +278,6 @@ public enum PresenceCalendar {
         return CalendarMonth(
             year: year,
             month: month,
-            startOfMonth: startOfMonth,
             leadingBlankCount: leadingBlankCount,
             weekdayCount: weekdayCount,
             weekdaySymbols: weekdaySymbols,
@@ -294,6 +286,14 @@ public enum PresenceCalendar {
             regionTotals: regionTotals,
             regionCombinationTotals: regionCombinationTotals,
         )
+    }
+
+    private static func logicalCalendar(from calendar: Calendar) -> Calendar {
+        var result = Calendar(identifier: .gregorian)
+        result.timeZone = .gmt
+        result.locale = calendar.locale
+        result.firstWeekday = calendar.firstWeekday
+        return result
     }
 
     private static func weekdayCount(in calendar: Calendar) throws -> Int {

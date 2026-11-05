@@ -532,7 +532,7 @@ private struct MonthGridView: View {
     }
 
     private var monthName: String {
-        month.startOfMonth.formatted(.dateTime.month(.wide))
+        WhereFormat.calendarDay(month.firstDay, format: .dateTime.month(.wide))
     }
 
     private var accessibility: CalendarMonthAccessibility {
@@ -633,7 +633,6 @@ private struct MonthGridView: View {
                             DayCell(
                                 day: month.days[index],
                                 band: bandGeometry(at: index),
-                                dateCalendar: dateCalendar,
                                 compact: compact,
                                 isAvailable: isAvailable,
                             )
@@ -716,8 +715,7 @@ private struct MonthGridView: View {
     }
 
     private func memberships(for day: CalendarDayCell) -> [Region: PlanningDayPresence.Membership] {
-        let key = CalendarDay(from: day.date, in: dateCalendar)
-        guard let presence = plannedPresence(key) else { return [:] }
+        guard let presence = plannedPresence(day.day) else { return [:] }
         var regions = presence.possibleRegions
         if let home = presence.homeAssumption { regions.insert(home.region) }
         if let focusedRegion { regions = regions.intersection([focusedRegion]) }
@@ -825,7 +823,6 @@ private struct DayCell: View {
     let day: CalendarDayCell
     /// The stay-pill slice for this day (computed by the enclosing month).
     let band: DayBandGeometry
-    let dateCalendar: Calendar
     var compact = false
     var isAvailable = true
 
@@ -886,11 +883,9 @@ private struct DayCell: View {
         .frame(minHeight: calendar.day.minHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(day.date.formatted(Date.FormatStyle(
+        .accessibilityLabel(WhereFormat.calendarDay(day.day, format: Date.FormatStyle(
             date: .complete,
             time: .omitted,
-            calendar: dateCalendar,
-            timeZone: dateCalendar.timeZone,
         )))
         .accessibilityValue(accessibilitySummary)
     }
@@ -1041,8 +1036,7 @@ private struct DayCell: View {
                     ForEach([false, true], id: \.self) { isToday in
                         DayCell(
                             day: CalendarDayCell(
-                                date: PreviewSupport.referenceNow,
-                                dayOfMonth: 15,
+                                day: CalendarDay(year: PreviewSupport.year, month: 7, day: 15),
                                 regions: [],
                                 isToday: isToday,
                                 needsAttention: !isToday,
@@ -1050,7 +1044,6 @@ private struct DayCell: View {
                                 hasFlight: true,
                             ),
                             band: .none,
-                            dateCalendar: Calendar(identifier: .gregorian),
                         )
                         .frame(width: 44)
                     }
@@ -1063,6 +1056,25 @@ private struct DayCell: View {
                 let calendar = Calendar(identifier: .gregorian)
                 MonthGridView(
                     month: PreviewSupport.calendarAccessibilityMonth(calendar: calendar),
+                    dateCalendar: calendar,
+                    plannedPresence: { _ in nil },
+                    planningSummary: [],
+                )
+                .padding()
+                .background(Color(.systemBackground))
+            }
+            whereThemeSnapshot(
+                name: "SkippedLogicalDate",
+                configurations: .componentLightDarkWithAnnotations,
+                measurementReadiness: .immediate,
+            ) {
+                let calendar: Calendar = {
+                    var calendar = Calendar(identifier: .gregorian)
+                    calendar.timeZone = TimeZone(identifier: "Pacific/Apia")!
+                    return calendar
+                }()
+                MonthGridView(
+                    month: PreviewSupport.skippedDateCalendarMonth(calendar: calendar),
                     dateCalendar: calendar,
                     plannedPresence: { _ in nil },
                     planningSummary: [],

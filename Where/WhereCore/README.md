@@ -339,14 +339,16 @@ one it belongs to rather than to a god-object:
   A single day can belong to several regions; raw observations remain lossless.
 - **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
   Stored user records and day comparisons key on it so they don't drift onto a
-  different day across a time-zone change. Project to a concrete `Date` (grid
-  layout, display) only via `startOfDay(in:)`.
+  different day across a time-zone change. Resolve an instant only at an API that needs it.
+  Grid identities and logical date labels retain `CalendarDay`.
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
-  carrying the injected `Calendar` (which decides how a `sample.timestamp`
-  buckets into a `CalendarDay`).
+  carrying the injected `Calendar` for legacy timestamp bucketing. Selected recording days retain their logical labels.
 - **`PresenceCalendar` / `CalendarMonth`** — lays a report out into month grids
   and preserves both ranked per-region totals and exact multi-region
   combination totals for accessible month summaries.
+  `CalendarDayCell.day` and its identity are logical dates; `dayOfMonth` is derived.
+  `CalendarMonth.firstDay` replaces its instant-based month start and supplies its identity.
+  Gregorian layout preserves dates skipped by the viewing zone. The injected calendar supplies the locale, week start, and zone for today's highlight.
 
 ### Location
 

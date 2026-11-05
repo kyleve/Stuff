@@ -141,8 +141,11 @@ struct ResolutionView: View {
             FlightDayDetailView(review: review, report: report)
         } label: {
             VStack(alignment: .leading) {
-                Text(review.day.displayDate, format: .dateTime.month(.abbreviated).day().year())
-                    .font(.headline)
+                Text(WhereFormat.calendarDay(
+                    review.day.day,
+                    format: .dateTime.month(.abbreviated).day().year(),
+                ))
+                .font(.headline)
                 FlightStatusBanner(
                     review: review,
                     deviceLabel: review.flight.map(report.flightDeviceLabel),
@@ -232,7 +235,10 @@ private struct IssueRow: View {
                     later: later.regions,
                 )
             case let .correctSamples(proposal):
-                proposal.day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
+                WhereFormat.calendarDay(
+                    proposal.day.day,
+                    format: .dateTime.month(.abbreviated).day().year(),
+                )
         }
     }
 
@@ -241,7 +247,10 @@ private struct IssueRow: View {
             case let .backfill(range):
                 WhereFormat.dayCount(range.dayCount)
             case let .markTravelDay(_, later, _):
-                later.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
+                WhereFormat.calendarDay(
+                    later.day,
+                    format: .dateTime.month(.abbreviated).day().year(),
+                )
             case .correctSamples:
                 String(localized: .flightStatusReadyTitle)
         }

@@ -34,6 +34,8 @@ refreshes retain successful same-year content and offer retry.
 
 Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
 Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
+Month cells, planned-day lookups, badges, and spoken dates retain their logical `CalendarDay`, including dates skipped by the viewing zone.
+Calendar, manual-history, Elsewhere, and review labels use Gregorian date formatting without converting their logical dates into local instants.
 The calendar initially opens at full size. It remembers the last zoom level separately for Your Year and each region through `WherePreferences`.
 `CalendarContentView` accepts an optional `CalendarZoomKey`; `nil` keeps zoom in memory without reading or writing preferences.
 Pinch inward or tap Show Year to see all twelve months in a three-column overview.

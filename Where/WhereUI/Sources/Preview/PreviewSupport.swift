@@ -91,6 +91,28 @@
             )
         }
 
+        /// Recorded logical dates can include a day that the viewing time zone skipped.
+        static func skippedDateCalendarMonth(calendar: Calendar) -> CalendarMonth {
+            let skipped = CalendarDay(year: 2011, month: 12, day: 30)
+            do {
+                return try PresenceCalendar.month(
+                    year: 2011,
+                    month: 12,
+                    regionsByDay: [
+                        skipped.adding(days: -1): [.california],
+                        skipped: [.california, .newYork],
+                        skipped.adding(days: 1): [.newYork],
+                    ],
+                    calendar: calendar,
+                    referenceDate: skipped.adding(days: 1).startOfDay(in: calendar),
+                    evidenceDays: [skipped],
+                    flightDays: [skipped],
+                )
+            } catch {
+                preconditionFailure("Invalid logical-date calendar preview: \(error)")
+            }
+        }
+
         /// Memory-backed preferences shared by every preview fixture, honoring
         /// the no-disk contract: a preview must never read or write the host's
         /// real defaults, or a fixture's state outlives the preview and leaks

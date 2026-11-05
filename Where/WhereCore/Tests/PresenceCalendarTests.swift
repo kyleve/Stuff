@@ -3,6 +3,78 @@ import Testing
 @testable import WhereCore
 
 struct PresenceCalendarTests {
+    @Test(arguments: [Calendar.Identifier.gregorian, .buddhist], [-12, 14])
+    func logicalLayoutPreservesWeekStartAndLocalToday(
+        identifier: Calendar.Identifier,
+        offset: Int,
+    ) throws {
+        var calendar = Calendar(identifier: identifier)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: offset * 3600))
+        calendar.firstWeekday = 2
+        let now = WhereCoreTestSupport.iso("2026-01-01T00:30:00Z")
+        let months = try PresenceCalendar.months(
+            from: report([], year: offset < 0 ? 2025 : 2026),
+            calendar: calendar,
+            referenceDate: now,
+            flightDays: [],
+        )
+        #expect(months.count == 12)
+        let currentMonth = months.first(where: \.isCurrentMonth)
+        let current = try #require(currentMonth)
+        let currentDay = current.days.first(where: \.isToday)
+        let today = try #require(currentDay)
+        #expect(today.day == (offset < 0
+                ? CalendarDay(year: 2025, month: 12, day: 31)
+                : CalendarDay(year: 2026, month: 1, day: 1)))
+        #expect(current.leadingBlankCount == (offset < 0 ? 0 : 3))
+        #expect(current.weekdaySymbols.first == calendar.shortWeekdaySymbols[1])
+    }
+
+    @Test func skippedViewingDateRetainsItsCellPresenceAndBadges() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Pacific/Apia"))
+        let skipped = CalendarDay(year: 2011, month: 12, day: 30)
+        let next = skipped.adding(days: 1)
+        let month = try PresenceCalendar.month(
+            year: 2011,
+            month: 12,
+            regionsByDay: [skipped: [.california], next: [.newYork]],
+            calendar: calendar,
+            referenceDate: next.startOfDay(in: calendar),
+            missingDates: [skipped],
+            evidenceDays: [skipped],
+            flightDays: [next],
+        )
+        #expect(month.days.count == 31)
+        #expect(month.days[29].regions == [.california])
+        #expect(month.days[29].hasEvidence && month.days[29].needsAttention)
+        #expect(month.days[30].regions == [.newYork])
+        #expect(month.days[30].hasFlight && month.days[30].isToday)
+        #expect(month.regionTotals == [
+            RegionDayTally(region: .california, days: 1),
+            RegionDayTally(region: .newYork, days: 1),
+        ])
+    }
+
+    @Test func cellIdentitiesDoNotChangeWithTheViewingZone() throws {
+        let report = report([])
+        let expected = try PresenceCalendar.months(
+            from: report,
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
+        ).flatMap(\.days).map(\.id)
+        var remote = calendar
+        remote.timeZone = try #require(TimeZone(secondsFromGMT: 14 * 3600))
+        let actual = try PresenceCalendar.months(
+            from: report,
+            calendar: remote,
+            referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
+        ).flatMap(\.days).map(\.id)
+        #expect(actual == expected)
+    }
+
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!

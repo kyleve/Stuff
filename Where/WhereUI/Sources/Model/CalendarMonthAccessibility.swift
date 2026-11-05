@@ -21,7 +21,7 @@ struct CalendarMonthAccessibility {
         )
         var spans: [Span] = []
         for cell in month.days {
-            let day = CalendarDay(from: cell.date, in: calendar)
+            let day = cell.day
             let planned = memberships(cell)
             let presence = Presence(
                 regions: Region.inCanonicalOrder(Set(cell.regions).union(planned.keys)),

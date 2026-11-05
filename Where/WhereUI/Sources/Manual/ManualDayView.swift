@@ -156,7 +156,7 @@ struct ManualDayView: View {
         Section {
             LabeledContent(
                 String(localized: .loggedDaysEditDate),
-                value: fixedDateText(edit.day.displayDate),
+                value: fixedDateText(edit.day.day),
             )
         }
 
@@ -324,8 +324,8 @@ struct ManualDayView: View {
         }
     }
 
-    private func fixedDateText(_ date: Date) -> String {
-        date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+    private func fixedDateText(_ day: CalendarDay) -> String {
+        WhereFormat.calendarDay(day, format: .dateTime.weekday(.wide).month(.wide).day().year())
     }
 
     // MARK: - Writes

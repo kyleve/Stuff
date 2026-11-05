@@ -115,13 +115,8 @@ final class CalendarPresentationModel {
         report: YearReportModel,
         focusedRegion: Region?,
     ) -> [CalendarMonth] {
-        guard
-            let currentMonthStart = report.calendar
-            .dateInterval(of: .month, for: report.referenceDate)?
-            .start
-        else {
-            return months
-        }
+        let currentDay = CalendarDay(from: report.referenceDate, in: report.calendar)
+        let currentMonthStart = CalendarDay(year: currentDay.year, month: currentDay.month, day: 1)
         let lastPlannedDay = report.showsEstimatedTimeAndPlanning
             ? report.forecasts.plannedIntervals(intersecting: report.selectedYear)
             .filter { focusedRegion == nil || $0.region == focusedRegion }
@@ -132,14 +127,14 @@ final class CalendarPresentationModel {
             && (focusedRegion == nil || report.forecasts.planning.homeRegion == focusedRegion)
         let finalDay = showsHome ? CalendarDay.lastDay(ofYear: report.selectedYear) : lastPlannedDay
         if finalDay == nil,
-           report.selectedYear > report.calendar.component(.year, from: report.referenceDate)
+           report.selectedYear > currentDay.year
         {
             // The year selector retains this selection after plans are hidden or deleted.
             return months
         }
         let lastShownMonth = finalDay.map {
-            CalendarDay(year: $0.year, month: $0.month, day: 1).startOfDay(in: report.calendar)
+            CalendarDay(year: $0.year, month: $0.month, day: 1)
         }.map { max(currentMonthStart, $0) } ?? currentMonthStart
-        return months.filter { $0.startOfMonth <= lastShownMonth }
+        return months.filter { $0.firstDay <= lastShownMonth }
     }
 }

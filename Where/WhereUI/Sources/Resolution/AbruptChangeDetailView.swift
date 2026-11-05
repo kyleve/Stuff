@@ -1,5 +1,6 @@
 import RegionKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -80,8 +81,11 @@ struct AbruptChangeDetailView: View {
 
     private func daySummary(_ day: DayPresence) -> some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-            Text(day.displayDate.formatted(.dateTime.month(.abbreviated).day().year()))
-                .font(.headline)
+            Text(WhereFormat.calendarDay(
+                day.day,
+                format: .dateTime.month(.abbreviated).day().year(),
+            ))
+            .font(.headline)
             Text(day.regions.map(\.localizedName).sorted().joined(separator: ", "))
                 .foregroundStyle(.secondary)
         }
@@ -89,26 +93,34 @@ struct AbruptChangeDetailView: View {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            AbruptChangeDetailView(
-                issue: AbruptChangeIssue(
-                    earlierDay: DayPresence(
-                        date: .now,
-                        in: .current,
-                        regions: [.california],
-                    ),
-                    laterDay: DayPresence(
-                        date: Date().addingTimeInterval(86400),
-                        in: .current,
-                        regions: [.newYork],
-                    ),
-                ),
-                report: PreviewSupport.loadedYearReportModel(),
-                resolve: PreviewSupport.resolveModel(),
-            )
+    extension AbruptChangeDetailView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            // Logical-date labels are the changed surface; the existing form layout is shared.
+            whereSnapshot(
+                name: "LogicalDates",
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations,
+            ) {
+                NavigationStack {
+                    AbruptChangeDetailView(
+                        issue: AbruptChangeIssue(
+                            earlierDay: DayPresence(
+                                day: CalendarDay(year: 2011, month: 12, day: 29),
+                                regions: [.california],
+                            ),
+                            laterDay: DayPresence(
+                                day: CalendarDay(year: 2011, month: 12, day: 30),
+                                regions: [.newYork],
+                            ),
+                        ),
+                        report: PreviewSupport.loadedYearReportModel(),
+                        resolve: PreviewSupport.resolveModel(),
+                    )
+                }
+            }
         }
     }
+
+    #Preview { AbruptChangeDetailView.snapshotPreviews }
 #endif
 
 #if DEBUG

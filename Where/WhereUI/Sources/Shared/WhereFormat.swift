@@ -419,7 +419,7 @@ enum WhereFormat {
             timeZone: calendar.timeZone,
         ).month(.wide).year()
         return String(localized: .calendarMonthLabelAccessibility(
-            month.startOfMonth.formatted(format),
+            calendarDay(month.firstDay, format: format),
             totals.joined(separator: "; "),
         ))
     }
@@ -434,11 +434,11 @@ enum WhereFormat {
             calendar: calendar,
             timeZone: calendar.timeZone,
         ).month(.wide).day()
-        let start = dates.lowerBound.startOfDay(in: calendar).formatted(format)
+        let start = calendarDay(dates.lowerBound, format: format)
         guard dates.lowerBound != dates.upperBound else { return start }
         return String(localized: .calendarSpanDatesAccessibility(
             start,
-            dates.upperBound.startOfDay(in: calendar).formatted(format),
+            calendarDay(dates.upperBound, format: format),
         ))
     }
 

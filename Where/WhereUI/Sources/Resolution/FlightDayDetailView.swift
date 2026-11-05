@@ -181,8 +181,10 @@ struct FlightDayDetailView: View {
                 Text(String(localized: .resolutionFlightManualFixFooter))
             }
         }
-        .navigationTitle(model.initialDay.displayDate
-            .formatted(.dateTime.month(.abbreviated).day().year()))
+        .navigationTitle(WhereFormat.calendarDay(
+            model.initialDay.day,
+            format: .dateTime.month(.abbreviated).day().year(),
+        ))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             String(localized: .flightReviewPointConfirmTitle),

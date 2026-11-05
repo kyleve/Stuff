@@ -24,19 +24,3 @@ enum DateRangeFormatting {
         return "\(first) – \(WhereFormat.calendarDay(end, format: format))"
     }
 }
-
-extension CalendarDay {
-    /// A `Date` for display formatting, resolved in the current calendar.
-    /// Presentation only — identity and logic use `CalendarDay` directly.
-    var displayDate: Date {
-        startOfDay(in: .current)
-    }
-}
-
-extension DayPresence {
-    /// The presence's day as a `Date` for display formatting (see
-    /// `CalendarDay.displayDate`).
-    var displayDate: Date {
-        day.displayDate
-    }
-}

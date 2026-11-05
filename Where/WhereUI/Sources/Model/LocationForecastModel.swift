@@ -124,9 +124,7 @@ final class LocationForecastModel {
 
     func plannedRegionSummaries(in month: CalendarMonth) -> [PlanningRegionSummary] {
         guard let first = month.days.first, let last = month.days.last else { return [] }
-        let start = CalendarDay(from: first.date, in: calendar)
-        let end = CalendarDay(from: last.date, in: calendar)
-        return planning.regionSummaries(in: start ... end, asOf: today)
+        return planning.regionSummaries(in: first.day ... last.day, asOf: today)
     }
 
     func create(stay: PlannedStay) async throws {

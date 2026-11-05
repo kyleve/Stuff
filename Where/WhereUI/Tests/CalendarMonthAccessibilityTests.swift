@@ -5,6 +5,35 @@ import WhereCore
 @testable import WhereUI
 
 struct CalendarMonthAccessibilityTests {
+    @Test func skippedDateKeepsItsSpokenStayAndBadgeDates() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Pacific/Apia"))
+        let first = CalendarDay(year: 2011, month: 12, day: 29)
+        let last = first.adding(days: 2)
+        let month = try PresenceCalendar.month(
+            year: 2011,
+            month: 12,
+            regionsByDay: Dictionary(uniqueKeysWithValues: first.days(through: last).map { (
+                $0,
+                [.california],
+            ) }),
+            calendar: calendar,
+            referenceDate: last.startOfDay(in: calendar),
+            evidenceDays: [first.adding(days: 1)],
+            flightDays: [last],
+        )
+        let result = CalendarMonthAccessibility(
+            month: month,
+            calendar: calendar,
+            memberships: { _ in [:] },
+            planningSummary: [],
+        )
+        #expect(result.label == "December 2011. California: 3 days")
+        #expect(result
+            .value ==
+            "December 29 through December 31: California, Attachment on December 30, and Flight on December 31")
+    }
+
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 14 * 3600)!

@@ -6,6 +6,44 @@ import Testing
 
 @MainActor
 struct LocationForecastModelTests {
+    @Test func monthSummaryRetainsSkippedLogicalDatesWithoutIncludingTheNextMonth() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Pacific/Apia"))
+        let now = CalendarDay(year: 2011, month: 12, day: 1).startOfDay(in: calendar)
+        let store = try TestStore()
+        let model = LocationForecastModel(
+            services: PlanningModelTestSupport.services(store: store),
+            calendar: calendar,
+            now: { now },
+        )
+        let skipped = CalendarDay(year: 2011, month: 12, day: 30)
+        for region in [Region.california, .newYork] {
+            let arrival = region == .california ? skipped : skipped.adding(days: 2)
+            try await model.create(stay: PlannedStay(
+                id: .init(rawValue: UUID()),
+                region: region,
+                arrival: .init(exact: arrival),
+                departure: .init(exact: region == .california ? arrival.adding(days: 1) : arrival),
+            ))
+        }
+        await model.refresh()
+        let month = try PresenceCalendar.month(
+            year: 2011,
+            month: 12,
+            regionsByDay: [:],
+            calendar: calendar,
+            referenceDate: now,
+            flightDays: [],
+        )
+        #expect(model.plannedRegionSummaries(in: month) == [
+            PlanningRegionSummary(
+                region: .california,
+                plannedDays: .init(exact: 2),
+                homeDays: .init(exact: 0),
+            ),
+        ])
+    }
+
     @Test func omitsHomeWhenExplicitStaysLeaveNoEstimatedHomeDays() async throws {
         let store = try TestStore()
         let model = PlanningModelTestSupport.model(store: store)

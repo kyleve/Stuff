@@ -10,6 +10,16 @@ import WhereCore
 /// catalog value. A removed/renamed key is caught by the compiler, so these
 /// tests focus on the runtime logic, not that every simple symbol exists.
 struct WhereFormatTests {
+    @Test func calendarRangesKeepSkippedDatesAndGregorianYearLabels() throws {
+        let day = CalendarDay(year: 2011, month: 12, day: 30)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Pacific/Apia"))
+        #expect(WhereFormat.calendarDateRange(day ... day, calendar: calendar) == "December 30")
+        calendar = Calendar(identifier: .buddhist)
+        calendar.timeZone = .gmt
+        #expect(WhereFormat.calendarDateRange(day ... day, calendar: calendar) == "December 30")
+    }
+
     @Test func widgetLogicalDateIgnoresViewingZoneAndNonGregorianFormattingCalendar() {
         var format = Date.FormatStyle.dateTime.month(.wide).day().year()
         format.calendar = Calendar(identifier: .islamic)

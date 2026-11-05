@@ -269,7 +269,10 @@ private struct LoggedDayRow: View {
     }
 
     private var dateText: String {
-        day.displayDate.formatted(.dateTime.weekday(.abbreviated).month(.wide).day().year())
+        WhereFormat.calendarDay(
+            day.day,
+            format: .dateTime.weekday(.abbreviated).month(.wide).day().year(),
+        )
     }
 
     private var kindText: String {

@@ -115,6 +115,8 @@ That document also owns the implementation plan.
 - Carry selected logical days in `AttributedLocationSample` through aggregation and region transformations. Do not reconstruct them from the viewing calendar.
   Logical date queries use `LocationHistoryQuery.recordingPeriod()` before filtering by selected day; fixed instant queries retain their exact boundaries.
   Guards: `AttributedLocationSampleTests`, `LocationHistoryQueryTests`, and `DayAggregatorTests`.
+- Keep month-grid cells and identities as `CalendarDay`. Use Gregorian layout independently of viewing-zone skips; use the viewer's zone only to identify today.
+  Preserve locale and first-weekday preferences. Guard: `PresenceCalendarTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

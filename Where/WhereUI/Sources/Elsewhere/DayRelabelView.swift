@@ -217,7 +217,7 @@ struct DayRelabelView: View {
     }
 
     private var dateText: String {
-        day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
+        WhereFormat.calendarDay(day.day, format: .dateTime.month(.abbreviated).day().year())
     }
 
     private func save() {

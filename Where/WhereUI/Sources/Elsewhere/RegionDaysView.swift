@@ -131,8 +131,11 @@ private struct DayRow: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(day.displayDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
-                    .font(.headline)
+                Text(WhereFormat.calendarDay(
+                    day.day,
+                    format: .dateTime.weekday(.wide).month(.wide).day().year(),
+                ))
+                .font(.headline)
                 if let placeName {
                     Label(placeName, systemSymbol: .mappinAndEllipse)
                         .font(.subheadline)
