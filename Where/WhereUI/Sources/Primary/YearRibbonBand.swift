@@ -7,7 +7,6 @@ import WhereCore
 struct YearRibbonBand: View {
     let days: [DayPresence]
     let year: Int
-    let calendar: Calendar
     let isolatedRegion: Region?
 
     @Environment(\.stylesheet) private var stylesheet
@@ -22,20 +21,11 @@ struct YearRibbonBand: View {
                 .fill(ribbon.track)
 
             Canvas { context, size in
-                let daysInYear = calendar.dayCount(ofYear: year)
-                for day in days {
-                    let date = day.startOfDay(in: calendar)
-                    guard let ordinal = calendar.ordinality(
-                        of: .day,
-                        in: .year,
-                        for: date,
-                    ) else { continue }
-
+                for day in days where day.day.year == year {
                     let regions = displayedRegions(for: day)
                     for (lane, region) in regions.enumerated() {
                         let rect = YearRibbonLayout.segmentRect(
-                            ordinal: ordinal,
-                            daysInYear: daysInYear,
+                            day: day.day,
                             size: size,
                             lane: lane,
                             laneCount: regions.count,
@@ -75,7 +65,6 @@ struct YearRibbonBand: View {
         YearRibbonBand(
             days: report.days,
             year: report.year,
-            calendar: Calendar(identifier: .gregorian),
             isolatedRegion: nil,
         )
         .padding()

@@ -133,6 +133,10 @@ Layering, localization, preview, and testing conventions live in the feature
 - Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
+  Keep timeline stays and their identities as logical `CalendarDay` values. Group, split, join, and format them without resolving through a viewing zone.
+  Order recording-contract flights by their first supported logical day in the selected year. Keep skipped dates out of their labels.
+  Place year-ribbon columns and month labels in the logical Gregorian year, independently of the viewing zone.
+  Guards: `PresenceTimelineTests`, `PresenceJourneyItemTests`, `FlightJourneyRowTests`, `DateRangeFormattingTests`, and `YearRibbonLayoutTests`.
   Split timeline stays only for presentation; preserve every region-day exactly once.
   Keep a stay intact when departure falls on its final day. Guard: `PresenceJourneyItemTests`.
   Split longer displayed stays at another visit's interior start day. Keep shared days in each region exactly once.

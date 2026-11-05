@@ -5,10 +5,63 @@ import WhereCore
 @testable import WhereUI
 
 struct PresenceJourneyItemTests {
+    @Test(arguments: [-12, 0, 14])
+    func recordedFlightSortsOnItsLogicalDay(viewingOffset: Int) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: viewingOffset * 3600))
+        let flight = try RecordingFlightPreview.flight(.priorYear)
+        let departure = CalendarDay(year: 2025, month: 12, day: 31)
+        #expect(flight.completedDays(in: calendar) == [departure])
+        let start = departure.adding(days: -3)
+        let stints = PresenceTimeline.stints(from: YearReport(
+            year: 2025,
+            days: start.days(through: departure.adding(days: -1))
+                .map { DayPresence(day: $0, regions: [.california]) }
+                + [DayPresence(day: departure, regions: [.newYork])],
+            totals: [.california: 3, .newYork: 1],
+        ))
+        let items = PresenceJourneyItem.items(
+            stints: stints,
+            flights: [flight],
+            year: 2025,
+            calendar: calendar,
+        )
+        #expect(items.count == 3)
+        #expect(items.dropFirst().first == .flight(flight))
+    }
+
+    @Test(arguments: [-12, 0, 14])
+    func dateLineFlightSplitsAtItsFirstSupportedDateInTheSelectedYear(viewingOffset: Int) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: viewingOffset * 3600))
+        let flight = try RecordingFlightPreview.flight(.dateLine)
+        let start = CalendarDay(year: 2026, month: 1, day: 1)
+        let stint = RegionStint(region: .newYork, start: start, end: start.adding(days: 2))
+        let items = PresenceJourneyItem.items(
+            stints: [stint],
+            flights: [flight],
+            year: 2026,
+            calendar: calendar,
+        )
+        #expect(items == [
+            .stay(RegionStint(region: .newYork, start: start, end: start)),
+            .flight(flight),
+            .stay(RegionStint(
+                region: .newYork,
+                start: start.adding(days: 1),
+                end: start.adding(days: 2),
+            )),
+        ])
+    }
+
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         return calendar
+    }
+
+    private func logicalDay(_ day: Int, month: Int = 1) -> CalendarDay {
+        CalendarDay(year: 2026, month: month, day: day)
     }
 
     private func date(_ day: Int, month: Int = 1, hour: Int = 0) -> Date {
@@ -79,7 +132,7 @@ struct PresenceJourneyItemTests {
 
     @Test func splitsOverlappingStaysWithoutChangingAnyRegionDay() {
         let stints = [Region.california, .newYork].map {
-            RegionStint(region: $0, start: date(1), end: date(5), dayCount: 5)
+            RegionStint(region: $0, start: logicalDay(1), end: logicalDay(5))
         }
         let flight = flight(day: 3)
         let items = PresenceJourneyItem.items(
@@ -96,8 +149,8 @@ struct PresenceJourneyItemTests {
                 return nil
             }
             #expect(segments.map(\.dayCount) == [2, 3])
-            #expect(segments.first?.end == date(2))
-            #expect(segments.last?.start == date(3))
+            #expect(segments.first?.end == logicalDay(2))
+            #expect(segments.last?.start == logicalDay(3))
         }
         #expect(Set(items.map(\.id)).count == items.count)
     }
@@ -116,7 +169,7 @@ struct PresenceJourneyItemTests {
             return DayPresence(day: day, regions: regions)
         }
         let report = YearReport(year: 2026, days: days, totals: [:])
-        let stints = PresenceTimeline.stints(from: report, calendar: calendar)
+        let stints = PresenceTimeline.stints(from: report)
         let departedAt = try #require(calendar.date(
             bySettingHour: 12,
             minute: 0,
@@ -150,22 +203,19 @@ struct PresenceJourneyItemTests {
         #expect(items == [
             .stay(RegionStint(
                 region: .newYork,
-                start: start.startOfDay(in: calendar),
-                end: start.startOfDay(in: calendar),
-                dayCount: 1,
+                start: start,
+                end: start,
             )),
             .stay(RegionStint(
                 region: .california,
-                start: start.startOfDay(in: calendar),
-                end: departure.startOfDay(in: calendar),
-                dayCount: 25,
+                start: start,
+                end: departure,
             )),
             .flight(flight),
             .stay(RegionStint(
                 region: .newYork,
-                start: departure.startOfDay(in: calendar),
-                end: end.startOfDay(in: calendar),
-                dayCount: 10,
+                start: departure,
+                end: end,
             )),
         ])
         #expect(Set(items.map(\.id)).count == items.count)
@@ -181,7 +231,7 @@ struct PresenceJourneyItemTests {
             return DayPresence(day: CalendarDay(year: 2026, month: 9, day: day), regions: regions)
         }
         let report = YearReport(year: 2026, days: days, totals: [:])
-        let stints = PresenceTimeline.stints(from: report, calendar: calendar)
+        let stints = PresenceTimeline.stints(from: report)
         let flight = flight(day: 20, month: 9)
         let items = PresenceJourneyItem.items(
             stints: reversed ? stints.reversed() : stints,
@@ -193,28 +243,24 @@ struct PresenceJourneyItemTests {
         #expect(items == [
             .stay(RegionStint(
                 region: .newYork,
-                start: date(13, month: 9),
-                end: date(13, month: 9),
-                dayCount: 1,
+                start: logicalDay(13, month: 9),
+                end: logicalDay(13, month: 9),
             )),
             .stay(RegionStint(
                 region: .other,
-                start: date(14, month: 9),
-                end: date(14, month: 9),
-                dayCount: 1,
+                start: logicalDay(14, month: 9),
+                end: logicalDay(14, month: 9),
             )),
             .stay(RegionStint(
                 region: .newYork,
-                start: date(14, month: 9),
-                end: date(20, month: 9),
-                dayCount: 7,
+                start: logicalDay(14, month: 9),
+                end: logicalDay(20, month: 9),
             )),
             .flight(flight),
             .stay(RegionStint(
                 region: .california,
-                start: date(20, month: 9),
-                end: date(23, month: 9),
-                dayCount: 4,
+                start: logicalDay(20, month: 9),
+                end: logicalDay(23, month: 9),
             )),
         ])
         #expect(Set(items.map(\.id)).count == items.count)
@@ -277,7 +323,7 @@ struct PresenceJourneyItemTests {
 
     @Test func flightCrossingNewYearPrecedesFirstStay() {
         let crossing = flight(day: 0, hour: 23)
-        let stint = RegionStint(region: .california, start: date(1), end: date(3), dayCount: 3)
+        let stint = RegionStint(region: .california, start: logicalDay(1), end: logicalDay(3))
         #expect(PresenceJourneyItem.items(
             stints: [stint],
             flights: [crossing],

@@ -16,7 +16,7 @@ struct WhereFormatTests {
         format.timeZone = TimeZone(secondsFromGMT: 14 * 3600)!
         format.locale = Locale(identifier: "en_US")
         #expect(WhereFormat
-            .widgetDay(.init(year: 2025, month: 12, day: 31), format: format) ==
+            .calendarDay(.init(year: 2025, month: 12, day: 31), format: format) ==
             "December 31, 2025")
     }
 

@@ -7,7 +7,6 @@ import WhereCore
 struct YearRibbon: View {
     let days: [DayPresence]
     let year: Int
-    let calendar: Calendar
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -17,8 +16,8 @@ struct YearRibbon: View {
         let overview = timeline.overview
         let ribbon = timeline.ribbon
         let regions = Region.inCanonicalOrder(Set(days.flatMap(\.regions)))
-        let monthStarts = (1 ... 12).compactMap { month in
-            calendar.date(from: DateComponents(year: year, month: month, day: 1))
+        let monthStarts = (1 ... 12).map { month in
+            CalendarDay(year: year, month: month, day: 1)
         }
 
         VStack(alignment: .leading, spacing: overview.spacing) {
@@ -29,7 +28,7 @@ struct YearRibbon: View {
             VStack(spacing: ribbon.monthLabelSpacing) {
                 HStack(spacing: 0) {
                     ForEach(monthStarts, id: \.self) { month in
-                        Text(month, format: .dateTime.month(.narrow))
+                        Text(WhereFormat.calendarDay(month, format: .dateTime.month(.narrow)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
@@ -54,7 +53,6 @@ struct YearRibbon: View {
                                 YearRibbonBand(
                                     days: days,
                                     year: year,
-                                    calendar: calendar,
                                     isolatedRegion: region,
                                 )
                             }
@@ -64,7 +62,6 @@ struct YearRibbon: View {
                     YearRibbonBand(
                         days: days,
                         year: year,
-                        calendar: calendar,
                         isolatedRegion: nil,
                     )
                 }
@@ -96,7 +93,6 @@ struct YearRibbon: View {
         YearRibbon(
             days: report.report?.days ?? [],
             year: report.selectedYear,
-            calendar: report.calendar,
         )
         .padding()
         .whereBroadwayRoot()

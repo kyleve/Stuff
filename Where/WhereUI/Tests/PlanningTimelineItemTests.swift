@@ -6,12 +6,10 @@ import WhereCore
 struct PlanningTimelineItemTests {
     @Test func joinsOnlyCertainAdjacentPresenceInTheSameRegion() throws {
         let today = PlanningModelTestSupport.today
-        let calendar = PlanningModelTestSupport.calendar
         let stint = RegionStint(
             region: .newYork,
-            start: today.startOfDay(in: calendar),
-            end: today.startOfDay(in: calendar),
-            dayCount: 1,
+            start: today,
+            end: today,
         )
         let stay = try PlannedStay(
             id: .init(rawValue: UUID()),
@@ -25,21 +23,19 @@ struct PlanningTimelineItemTests {
             today: today,
         )
         let item = try #require(items.first)
-        #expect(item.continues(stint, calendar: calendar))
+        #expect(item.continues(stint))
         let otherRegion = RegionStint(
             region: .california,
             start: stint.start,
             end: stint.end,
-            dayCount: 1,
         )
-        #expect(!item.continues(otherRegion, calendar: calendar))
+        #expect(!item.continues(otherRegion))
         let gap = RegionStint(
             region: .newYork,
-            start: stint.start,
-            end: today.adding(days: -1).startOfDay(in: calendar),
-            dayCount: 1,
+            start: today.adding(days: -2),
+            end: today.adding(days: -1),
         )
-        #expect(!item.continues(gap, calendar: calendar))
+        #expect(!item.continues(gap))
         let flexible = try PlannedStay(
             id: stay.id,
             region: stay.region,
@@ -54,7 +50,7 @@ struct PlanningTimelineItemTests {
             year: 2026,
             today: today,
         ).first)
-        #expect(!uncertain.continues(stint, calendar: calendar))
+        #expect(!uncertain.continues(stint))
     }
 
     @Test func interleavesHomeGapsAndKeepsSeparateStayIdentities() throws {

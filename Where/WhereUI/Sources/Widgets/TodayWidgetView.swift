@@ -33,7 +33,7 @@ public struct TodayWidgetView: View {
                     .tracking(1)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text(WhereFormat.widgetDay(
+                Text(WhereFormat.calendarDay(
                     snapshot.day,
                     format: .dateTime.month(.abbreviated).day(),
                 ))

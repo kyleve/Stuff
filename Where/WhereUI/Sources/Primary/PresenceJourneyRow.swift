@@ -4,7 +4,6 @@ import SwiftUI
 /// a compact badge for the number of consecutive days.
 struct PresenceJourneyRow: View {
     let stint: RegionStint
-    let calendar: Calendar
     let daysInYear: Int
     let isFirst: Bool
     let isLast: Bool
@@ -21,7 +20,6 @@ struct PresenceJourneyRow: View {
         let dateRange = DateRangeFormatting.abbreviated(
             start: stint.start,
             end: stint.end,
-            calendar: calendar,
         )
         let countLayout = row.stacksDayCount
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: row.labelSpacing))
@@ -98,7 +96,6 @@ struct PresenceJourneyRow: View {
         {
             PresenceJourneyRow(
                 stint: stint,
-                calendar: report.calendar,
                 daysInYear: report.daysInSelectedYear,
                 isFirst: true,
                 isLast: false,

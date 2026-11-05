@@ -1320,7 +1320,9 @@ The localized recovery error retains the unresolved scope. Today queries no long
 Widgets reuse the shared report snapshot and publish separate day/year eligibility with the full policy version.
 Unresolved scopes withhold counts. Unavailable output and stale-policy caches remain distinct from empty complete history.
 Logical dates remain stable in home-screen and lock-screen widgets. Failed publication withdraws stale output and remains retryable.
-Review presentation and the selection model remain in progress.
+Timeline stays retain logical dates and stable identities across viewing zones. Recording-contract flights sort and display their selected dates without filling skipped dates.
+The timeline's year ribbon preserves each logical date, including dates skipped by a viewing zone.
+Review integration and the selection model remain in progress.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

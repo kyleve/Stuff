@@ -10,6 +10,23 @@ struct FlightJourneyRow: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
+    /// Recording labels are already resolved. Never interpolate dates skipped during travel.
+    var dateLabels: [String] {
+        guard !flight.isPending else { return [] }
+        return switch flight.dayBasis {
+            case .viewingCalendar:
+                flight.supportedPeriods.map {
+                    DateRangeFormatting.abbreviated(
+                        start: $0.start,
+                        end: $0.end,
+                        calendar: calendar,
+                    )
+                }
+            case let .recording(days):
+                days.sorted().map { DateRangeFormatting.abbreviated(start: $0, end: $0) }
+        }
+    }
+
     var body: some View {
         if case let .completed(arrival) = flight.progress {
             HStack(spacing: stylesheet.timeline.rail.toCardSpacing) {
@@ -17,15 +34,11 @@ struct FlightJourneyRow: View {
                 VStack(alignment: .leading, spacing: stylesheet.timeline.flight.labelSpacing) {
                     Text(.historyFlight).font(.subheadline.bold())
                     ForEach(
-                        Array(flight.supportedPeriods.enumerated()),
+                        Array(dateLabels.enumerated()),
                         id: \.offset,
-                    ) { _, period in
-                        Text(DateRangeFormatting.abbreviated(
-                            start: period.start,
-                            end: period.end,
-                            calendar: calendar,
-                        ))
-                        .font(.caption).foregroundStyle(.secondary)
+                    ) { _, label in
+                        Text(label)
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                     if arrival.isTimingUncertain {
                         Text(.flightStatusUncertainTitle)

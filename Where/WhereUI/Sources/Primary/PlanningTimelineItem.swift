@@ -55,9 +55,9 @@ enum PlanningTimelineItem: Hashable, Identifiable {
     }
 
     /// Join only certain, immediately adjacent presence in the same region.
-    func continues(_ stint: RegionStint, calendar: Calendar) -> Bool {
+    func continues(_ stint: RegionStint) -> Bool {
         guard region == stint.region,
-              start == CalendarDay(from: stint.end, in: calendar).adding(days: 1)
+              start == stint.end.adding(days: 1)
         else { return false }
         switch membership {
             case .planned(.certain), .homeAssumed(.certain): return true

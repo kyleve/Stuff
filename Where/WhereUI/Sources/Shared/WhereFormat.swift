@@ -458,7 +458,7 @@ enum WhereFormat {
     }
 
     /// Format the logical label without the viewer's zone or preferred calendar changing its day.
-    static func widgetDay(_ day: CalendarDay, format: Date.FormatStyle) -> String {
+    static func calendarDay(_ day: CalendarDay, format: Date.FormatStyle) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .gmt
         var format = format
@@ -483,7 +483,7 @@ enum WhereFormat {
 
     static func widgetTodayAccessibilityLabel(day: CalendarDay) -> String {
         String(localized: .widgetTodayAccessibilityLabel(
-            widgetDay(day, format: .dateTime.month(.wide).day()),
+            calendarDay(day, format: .dateTime.month(.wide).day()),
         ))
     }
 

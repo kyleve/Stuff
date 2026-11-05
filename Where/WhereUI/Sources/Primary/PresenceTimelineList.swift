@@ -27,7 +27,7 @@ struct PresenceTimelineList: View {
     var body: some View {
         let yearReport = report.report
         let stints = yearReport
-            .map { PresenceTimeline.stints(from: $0, calendar: report.calendar) } ?? []
+            .map { PresenceTimeline.stints(from: $0) } ?? []
         let recordedItems = PresenceJourneyItem.items(
             stints: stints,
             flights: report.completedFlights,
@@ -82,7 +82,6 @@ struct PresenceTimelineList: View {
                             YearRibbon(
                                 days: yearReport?.days ?? [],
                                 year: report.selectedYear,
-                                calendar: report.calendar,
                             )
                         }
 
@@ -111,7 +110,6 @@ struct PresenceTimelineList: View {
                         YearRibbon(
                             days: yearReport?.days ?? [],
                             year: report.selectedYear,
-                            calendar: report.calendar,
                         )
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
                         .padding(.top, stylesheet.spacing.large)
@@ -148,7 +146,7 @@ struct PresenceTimelineList: View {
         let lastStint: RegionStint? = if case let .stay(stint) = recordedItems.last { stint }
         else { nil }
         let joinsRecorded = lastStint.map { last in
-            plannedItems.first?.continues(last, calendar: report.calendar) == true
+            plannedItems.first?.continues(last) == true
         } ?? false
         ForEach(recordedItems) { item in
             Group {
@@ -156,7 +154,6 @@ struct PresenceTimelineList: View {
                     case let .stay(stint):
                         PresenceJourneyRow(
                             stint: stint,
-                            calendar: report.calendar,
                             daysInYear: report.daysInSelectedYear,
                             isFirst: item.id == recordedItems.first?.id,
                             isLast: plannedItems.isEmpty && item.id == recordedItems.last?.id,
@@ -178,7 +175,6 @@ struct PresenceTimelineList: View {
         ForEach(plannedItems) { item in
             let row = PlannedPresenceJourneyRow(
                 item: item,
-                calendar: report.calendar,
                 daysInYear: report.daysInSelectedYear,
                 isFirst: recordedItems.isEmpty && item.id == plannedItems.first?.id,
                 isLast: item.id == plannedItems.last?.id,
@@ -244,6 +240,28 @@ struct PresenceTimelineList: View {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .flightYearReportModel(state: .uncertainArrival))
+                    }
+                },
+                whereSnapshot(
+                    name: "RecordedPriorYear",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: RecordingFlightPreview.reportModel(
+                            .priorYear,
+                            year: 2025,
+                        ))
+                    }
+                },
+                whereSnapshot(
+                    name: "RecordedDateLine",
+                    configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: RecordingFlightPreview.reportModel(
+                            .dateLine,
+                            year: 2026,
+                        ))
                     }
                 },
                 whereSnapshot(name: "Itinerary", configurations: .fullContentPhoneLightDark) {

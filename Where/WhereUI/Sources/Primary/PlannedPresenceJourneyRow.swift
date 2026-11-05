@@ -5,7 +5,6 @@ import WhereCore
 /// A lighter hatched journey row for the future slice of a planned stay.
 struct PlannedPresenceJourneyRow: View {
     let item: PlanningTimelineItem
-    let calendar: Calendar
     let daysInYear: Int
     let isFirst: Bool
     let isLast: Bool
@@ -20,12 +19,9 @@ struct PlannedPresenceJourneyRow: View {
         let row = timeline.row
         let planned = timeline.planned
         let style = regionStyles.style(for: item.region)
-        let start = item.start.startOfDay(in: calendar)
-        let end = item.end.startOfDay(in: calendar)
         let dateRange = DateRangeFormatting.abbreviated(
-            start: start,
-            end: end,
-            calendar: calendar,
+            start: item.start,
+            end: item.end,
         )
         HStack(spacing: rail.toCardSpacing) {
             Color.clear
@@ -84,7 +80,6 @@ struct PlannedPresenceJourneyRow: View {
         ).first {
             PlannedPresenceJourneyRow(
                 item: item,
-                calendar: report.calendar,
                 daysInYear: 365,
                 isFirst: true,
                 isLast: true,

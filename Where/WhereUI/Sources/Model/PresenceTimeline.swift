@@ -7,20 +7,28 @@ import WhereCore
 /// two regions ends one stint and starts the next, so adjacent stints can
 /// share an endpoint date.
 public struct RegionStint: Hashable, Sendable, Identifiable {
-    public let region: Region
-    public let start: Date
-    public let end: Date
-    public let dayCount: Int
-
-    public var id: String {
-        "\(region.rawValue)@\(start.timeIntervalSinceReferenceDate)"
+    public struct ID: Hashable, Sendable {
+        public let region: Region
+        public let start: CalendarDay
     }
 
-    public init(region: Region, start: Date, end: Date, dayCount: Int) {
+    public let region: Region
+    public let start: CalendarDay
+    public let end: CalendarDay
+
+    public var dayCount: Int {
+        start.days(through: end).count
+    }
+
+    public var id: ID {
+        ID(region: region, start: start)
+    }
+
+    public init(region: Region, start: CalendarDay, end: CalendarDay) {
+        precondition(start <= end, "A stay must have ordered logical dates")
         self.region = region
         self.start = start
         self.end = end
-        self.dayCount = dayCount
     }
 }
 
@@ -32,15 +40,11 @@ public enum PresenceTimeline {
     /// flatten and sort by start date (ties broken by end date, then by the
     /// catalog's canonical order). `report.days` is already sorted ascending and
     /// has one entry per calendar day, so each region's dates are unique.
-    public static func stints(
-        from report: YearReport,
-        calendar: Calendar = .current,
-    ) -> [RegionStint] {
-        var datesByRegion: [Region: [Date]] = [:]
+    public static func stints(from report: YearReport) -> [RegionStint] {
+        var datesByRegion: [Region: [CalendarDay]] = [:]
         for day in report.days {
-            let startOfDay = day.startOfDay(in: calendar)
             for region in day.regions {
-                datesByRegion[region, default: []].append(startOfDay)
+                datesByRegion[region, default: []].append(day.day)
             }
         }
 
@@ -49,28 +53,23 @@ public enum PresenceTimeline {
             let sorted = dates.sorted()
             guard var runStart = sorted.first else { continue }
             var previous = runStart
-            var count = 1
             for date in sorted.dropFirst() {
-                if isConsecutive(previous, date, calendar: calendar) {
+                if previous.adding(days: 1) == date {
                     previous = date
-                    count += 1
                 } else {
                     stints.append(RegionStint(
                         region: region,
                         start: runStart,
                         end: previous,
-                        dayCount: count,
                     ))
                     runStart = date
                     previous = date
-                    count = 1
                 }
             }
             stints.append(RegionStint(
                 region: region,
                 start: runStart,
                 end: previous,
-                dayCount: count,
             ))
         }
 
@@ -79,15 +78,6 @@ public enum PresenceTimeline {
             if lhs.end != rhs.end { return lhs.end < rhs.end }
             return regionOrder(lhs.region) < regionOrder(rhs.region)
         }
-    }
-
-    private static func isConsecutive(
-        _ previous: Date,
-        _ candidate: Date,
-        calendar: Calendar,
-    ) -> Bool {
-        guard let next = calendar.date(byAdding: .day, value: 1, to: previous) else { return false }
-        return calendar.isDate(next, inSameDayAs: candidate)
     }
 
     private static func regionOrder(_ region: Region) -> Int {

@@ -45,6 +45,10 @@ Month cards are transparent in both zoom levels, so the screen background shows 
 Future months included by planning remain available. Accessibility text sizes use one column; Reduce Motion replaces the shake with an outline pulse.
 
 The timeline inserts a plane in a circle at departure, with supported travel periods beside the rail.
+Stays retain logical dates and stable identities across viewing zones, including dates that a zone skipped historically.
+The year ribbon gives every logical date its own column and uses Gregorian month labels.
+Recording-contract flights use their selected logical dates for ordering and labels. Date-line travel does not fill skipped dates.
+`RegionStint` now accepts `CalendarDay` bounds and derives its day count. `PresenceTimeline.stints(from:)` no longer accepts a calendar.
 When arrival timing is uncertain, it labels that uncertainty and shows the later ground observation separately.
 A flight can split a displayed regional stay into segments without changing residency totals.
 A stay that began before departure and ends that day remains intact before the flight. The arrival stay follows the flight.
