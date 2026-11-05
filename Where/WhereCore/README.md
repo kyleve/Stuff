@@ -415,6 +415,11 @@ one it belongs to rather than to a god-object:
   Its throwing `recordingIssues` projection groups overlapping or adjacent segments into continuous review concerns.
   `RecordingIssue` retains each segment's problem and evidence, known candidate dates, unknown assignments, and the full policy version.
   Gaps remain separate even when both concerns have the same logical date. Issue identities are derived; review queues must retain original scopes separately.
+  `RecordingReviewReference` captures those periods, the original year/query, and the reviewed service, generation, and policy.
+  `RecordingReviewQueue.remaining(in:)` matches current issues by absolute overlap, including new device evidence and changed logical dates.
+  A merged issue supplies context, while each queue item retains the exact periods available for a choice. Overlapping references share work without filling gaps.
+  `RecordingReviewSnapshot` must cover every original period before an empty result can establish resolution. A different service, generation, or major fails reassessment.
+  These values support in-memory review. They do not authorize writes or provide a persistent notification format.
   Missing-history and travel suggestions wait on dates that require recording review, while unrelated issues remain available.
   `HistoryCompleteness.daysRequiringReview` includes possible dates for unknown assignments without adding them to the known affected-day count.
   Detectors throw when they cannot assess the supplied scope; the scanner propagates that failure.
