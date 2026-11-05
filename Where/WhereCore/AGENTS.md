@@ -30,6 +30,10 @@ That document also owns the implementation plan.
   Resolve causal decisions through explicit predecessor identities, without timestamp or revision-prefix winners.
   Guards: `MultiDeviceAssessmentTests`, `RecordingTrackAssessmentTests`, and the `MultiDeviceDecisions` model.
 
+- Preserve established UTC offsets with recording calendar context. Do not recompute persisted assignments through the current time-zone database.
+  Validate synthesized control values at admission and resolution boundaries. Keep causal predecessors within their device or place scope.
+  Guards: `RecordingCalendarContextTests`, `RecordingDayCoverageTests`, and the recording-control resolver tests.
+
 - Use InstallerKit for local and published build identity, feed validation, and cache policy.
   Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
   installer identity only for the Development audience.

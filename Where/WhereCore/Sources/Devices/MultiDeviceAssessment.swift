@@ -43,6 +43,10 @@ public enum MultiDeviceAssessment {
         within query: RecordingPeriod,
         places: [RecordingPlace],
     ) throws -> [Segment] {
+        try query.validate()
+        for place in places {
+            try place.validate()
+        }
         var unique: [UUID: RecordingObservation] = [:]
         for observation in observations {
             if let existing = unique[observation.sample.id], existing != observation {

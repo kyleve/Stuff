@@ -17,7 +17,25 @@ struct RecordingDayCoverageTests {
         let result = try RecordingDayCoverage.resolve(
             day: logicalDay,
             within: search,
-            contexts: [.init(period: search, timeZone: zone)],
+            contexts: [
+                .init(
+                    period: RecordingPeriod(
+                        start: search.start,
+                        end: start.addingTimeInterval(2 * 3600),
+                    ),
+                    calendarContext: .init(observedAt: search.start, timeZone: zone),
+                ),
+                .init(
+                    period: RecordingPeriod(
+                        start: start.addingTimeInterval(2 * 3600),
+                        end: search.end,
+                    ),
+                    calendarContext: .init(
+                        observedAt: start.addingTimeInterval(2 * 3600),
+                        timeZone: zone,
+                    ),
+                ),
+            ],
         )
         #expect(try result == .resolved([RecordingPeriod(
             start: start,
@@ -37,10 +55,13 @@ struct RecordingDayCoverageTests {
             day: CalendarDay(year: 2026, month: 12, day: 8),
             within: search,
             contexts: [
-                .init(period: RecordingPeriod(start: hour(0), end: hour(30)), timeZone: utc),
+                .init(
+                    period: RecordingPeriod(start: hour(0), end: hour(30)),
+                    calendarContext: .init(observedAt: start, timeZone: utc),
+                ),
                 .init(
                     period: RecordingPeriod(start: hour(30), end: hour(36)),
-                    timeZone: earlier,
+                    calendarContext: .init(observedAt: start, timeZone: earlier),
                 ),
             ],
         )
@@ -54,7 +75,10 @@ struct RecordingDayCoverageTests {
         let result = try RecordingDayCoverage.resolve(
             day: CalendarDay(year: 2001, month: 1, day: 1),
             within: RecordingAssessmentTestSupport.period(0, 100),
-            contexts: [.init(period: RecordingAssessmentTestSupport.period(0, 40), timeZone: .gmt)],
+            contexts: [.init(
+                period: RecordingAssessmentTestSupport.period(0, 40),
+                calendarContext: .init(timeZone: .gmt, secondsFromGMT: 0),
+            )],
         )
         #expect(try result == .needsContext([RecordingAssessmentTestSupport.period(40, 100)]))
     }
@@ -66,8 +90,17 @@ struct RecordingDayCoverageTests {
                 day: CalendarDay(year: 2001, month: 1, day: 1),
                 within: period,
                 contexts: [
-                    .init(period: period, timeZone: .gmt),
-                    .init(period: period, timeZone: #require(TimeZone(secondsFromGMT: 3600))),
+                    .init(
+                        period: period,
+                        calendarContext: .init(timeZone: .gmt, secondsFromGMT: 0),
+                    ),
+                    .init(
+                        period: period,
+                        calendarContext: .init(
+                            timeZone: #require(TimeZone(secondsFromGMT: 3600)),
+                            secondsFromGMT: 3600,
+                        ),
+                    ),
                 ],
             )
         }

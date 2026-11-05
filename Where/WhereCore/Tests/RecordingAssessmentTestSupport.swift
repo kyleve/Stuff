@@ -77,6 +77,7 @@ enum RecordingAssessmentTestSupport {
             id: decisionID(value),
             author: first,
             periods: [period(start, end)],
+            scope: .fixedPeriods,
             action: action,
             predecessors: predecessors,
             version: version,

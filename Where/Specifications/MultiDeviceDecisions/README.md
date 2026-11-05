@@ -27,7 +27,7 @@ The durable-decision slice must refine those boundaries before activation.
 | --- | --- |
 | `delivered` | The lossless decision collection passed to `HistoryDecisionResolver.resolve` |
 | `Scope` and `Times` | `HistoryDecision.periods` split at all intersecting half-open boundaries |
-| `Ancestors` | Explicit predecessor closure computed by `ancestors` |
+| `Ancestors` | Explicit predecessor closure computed by `CausalPeriodResolver.ancestors` |
 | `Pending` | A nonempty missing-dependency set, abstracted to one unknown marker |
 | `Maximal` | Active decisions with no active causal successor |
 | `views` | Resolution abstraction: unknown for incomplete dependencies, otherwise the maximal decision identities |
@@ -35,6 +35,9 @@ The durable-decision slice must refine those boundaries before activation.
 The model abstracts away source-device names and version components. The Swift tests check compatible minor/patch versions and agreeing actions.
 Its fixed graph knows all dependency edges. Missing dependency identity sets are abstracted to unknown status rather than compared exactly.
 The implementation learns edges only from received records and retains missing identities explicitly.
+`HistoryDecisionResolver` validates source-choice semantics, then delegates this topology to `CausalPeriodResolver`.
+Ignore, place, and calendar controls use the same topology through separate typed identities and domain validation.
+Their eligibility, calendar, and place meanings remain outside this model.
 
 ## Controls and regressions
 

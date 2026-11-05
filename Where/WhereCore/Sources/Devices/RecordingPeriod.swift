@@ -1,7 +1,7 @@
 import Foundation
 
 /// A finite, nonempty half-open interval. Adjacent choices never claim the same instant.
-public struct RecordingPeriod: Hashable, Sendable, Comparable {
+public struct RecordingPeriod: Hashable, Codable, Sendable, Comparable {
     public enum ValidationError: Error {
         case invalidBounds
     }
@@ -16,6 +16,11 @@ public struct RecordingPeriod: Hashable, Sendable, Comparable {
         else { throw ValidationError.invalidBounds }
         self.start = start
         self.end = end
+    }
+
+    /// Store and archive admission validate synthesized wire values before use.
+    public func validate() throws {
+        _ = try Self(start: start, end: end)
     }
 
     public func contains(_ instant: Date) -> Bool {

@@ -32,11 +32,9 @@ public struct RecordingObservation: Hashable, Sendable {
         else { throw ValidationError.invalidMeasurement }
         guard region != .other else { throw ValidationError.reportingRegion }
         if case let .resolved(context) = recordingDay {
-            let expected = try RecordingDayAssignment.Context(
-                observedAt: sample.timestamp,
-                timeZone: context.timeZone,
-            )
-            guard context == expected else { throw ValidationError.inconsistentRecordingDay }
+            guard context.matches(observedAt: sample.timestamp) else {
+                throw ValidationError.inconsistentRecordingDay
+            }
         }
         self.sample = sample
         self.deviceID = deviceID

@@ -1210,6 +1210,12 @@ Exercise foreground and background consumers.
 
 ### 4. Durable choices, device controls, and places
 
+**Implemented control values:** source choices, ignore edits, place edits, and calendar-context edits share the pure causal interval resolver.
+All controls retain immutable identities and predecessor sets through serialization.
+Resume preserves elapsed ignored history. Place and calendar edits retain bounded historical validity and expose conflicting or incomplete context.
+Recording-day values retain established UTC offsets, so later time-zone database changes cannot reinterpret their logical dates.
+Persistence, conversion, reviewed writes, and production integration below remain required.
+
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Persist observation timestamps, recording-day assignments, and their time-zone context without recalculation during sync or import.
 Extend historical conversion for missing recording-day metadata with supported evidence or explicit mappings.

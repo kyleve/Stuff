@@ -35,6 +35,21 @@ The [decision model](../Specifications/MultiDeviceDecisions/README.md) describes
 These APIs do not change production capture, persistence, reports, or backup formats.
 The remaining integration and activation requirements stay in the primary design.
 
+## Durable recording-control values
+
+Source choices, ignore edits, place edits, and calendar-context edits carry typed UUID identities and explicit predecessor sets.
+Their pure resolvers share `CausalPeriodResolver`, which preserves concurrent conflicts and missing dependencies within each affected period.
+Place and calendar edits cannot replace another place's or device's operations.
+An ignore expiry does not erase its historical interval. Resume changes future eligibility, while undo changes the reviewed elapsed interval.
+Concurrent ignores agree where both exclude a device, even when their end dates differ.
+
+`RecordingCalendarContext` retains both the original zone name and its established UTC offset.
+`RecordingDayAssignment` and `RecordingDayCoverage` use the saved offset, without reinterpreting history through the current zone database.
+Coverage splits at offset changes, including daylight-saving transitions.
+Synthesized `Codable` preserves the strict wire shape. Admission and resolver boundaries validate decoded dates, periods, coordinates, and offsets before use.
+
+These values remain groundwork. Store integration, backup conversion, capture recovery, and the review controls belong to the remaining implementation slices.
+
 ## Compatibility protocol foundation
 
 `CompatibilityScopedStore` binds reads and transactions to one `DataAccessPermit`.

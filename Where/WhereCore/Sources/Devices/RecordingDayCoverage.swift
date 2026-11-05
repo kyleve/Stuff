@@ -4,13 +4,13 @@ import Foundation
 /// Unknown intervals prevent a whole-day save. The supplied search period must bound every
 /// occurrence of the requested date; completeness is an explicit caller obligation.
 public enum RecordingDayCoverage {
-    public struct Context: Hashable, Sendable {
+    public struct Context: Hashable, Codable, Sendable {
         public let period: RecordingPeriod
-        public let timeZone: TimeZone
+        public let calendarContext: RecordingCalendarContext
 
-        public init(period: RecordingPeriod, timeZone: TimeZone) {
+        public init(period: RecordingPeriod, calendarContext: RecordingCalendarContext) {
             self.period = period
-            self.timeZone = timeZone
+            self.calendarContext = calendarContext
         }
     }
 
@@ -31,10 +31,16 @@ public enum RecordingDayCoverage {
         contexts: [Context],
     ) throws -> Resolution {
         guard CalendarDay(iso: day.iso8601) == day else { throw ValidationError.invalidDay }
+        try searchPeriod.validate()
+        for context in contexts {
+            try context.period.validate()
+            try context.calendarContext.validate()
+        }
         let relevant = contexts.filter { $0.period.overlaps(searchPeriod) }
         for (index, context) in relevant.enumerated() {
             for other in relevant.dropFirst(index + 1)
-                where context.period.overlaps(other.period) && context.timeZone != other.timeZone
+                where context.period.overlaps(other.period) && context.calendarContext != other
+                .calendarContext
             {
                 throw ValidationError.conflictingContext
             }
@@ -57,8 +63,7 @@ public enum RecordingDayCoverage {
 
         var periods: [RecordingPeriod] = []
         for context in relevant {
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = context.timeZone
+            let calendar = try context.calendarContext.calendar()
             guard let instant = calendar.date(from: DateComponents(
                 year: day.year,
                 month: day.month,

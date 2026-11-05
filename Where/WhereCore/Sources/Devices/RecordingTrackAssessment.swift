@@ -23,6 +23,9 @@ public struct RecordingTrackAssessment: Hashable, Sendable {
         observations: [RecordingObservation],
         places: [RecordingPlace],
     ) throws -> Self {
+        for place in places {
+            try place.validate()
+        }
         var unique: [UUID: RecordingObservation] = [:]
         for observation in observations {
             if let existing = unique[observation.sample.id], existing != observation {

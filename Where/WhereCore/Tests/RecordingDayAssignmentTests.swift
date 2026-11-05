@@ -3,6 +3,27 @@ import Testing
 @testable import WhereCore
 
 struct RecordingDayAssignmentTests {
+    @Test func aSavedCommonEraDayCannotValidateAnObservationInThePreviousEra() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let commonEra = try #require(calendar.date(from: DateComponents(
+            era: 1,
+            year: 1,
+            month: 1,
+            day: 1,
+        )))
+        let previousEra = try #require(calendar.date(from: DateComponents(
+            era: 0,
+            year: 1,
+            month: 1,
+            day: 1,
+        )))
+        let context = try RecordingDayAssignment.Context(observedAt: commonEra, timeZone: .gmt)
+        let restored = try RecordingControlsTestSupport.roundTrip(context)
+        #expect(restored.matches(observedAt: commonEra))
+        #expect(!restored.matches(observedAt: previousEra))
+    }
+
     @Test(arguments: [Double.nan, .infinity, -.infinity])
     func rejectsNonfiniteTimestamps(seconds: Double) throws {
         #expect(throws: RecordingDayAssignment.Context.ValidationError.self) {
