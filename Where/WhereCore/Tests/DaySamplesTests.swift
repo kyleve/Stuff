@@ -82,4 +82,18 @@ struct DaySamplesTests {
         #expect(daySamples.samples(on: day).map(\.timestamp) == [a.timestamp, b.timestamp])
         #expect(daySamples.samples(on: day).map(\.timestamp) == [a.timestamp, b.timestamp])
     }
+
+    @Test func selectedRecordingDayDoesNotFollowTheViewingZone() throws {
+        let sample = try LocationHistoryReaderTestSupport.sample(
+            seconds: 1800,
+            zone: #require(TimeZone(secondsFromGMT: -3600)),
+        )
+        let day = CalendarDay(year: 2000, month: 12, day: 31)
+        let samples = DaySamples(
+            history: [.init(sample: sample, regions: [], day: .recording(day))],
+            calendar: LocationHistoryReaderTestSupport.calendar,
+        )
+        #expect(samples.samples(on: day) == [sample])
+        #expect(samples.samples(on: .init(year: 2001, month: 1, day: 1)).isEmpty)
+    }
 }

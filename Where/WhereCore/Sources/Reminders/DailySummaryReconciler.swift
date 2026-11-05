@@ -63,12 +63,19 @@ public actor DailySummaryReconciler {
             let year = calendar.component(.year, from: now())
             do {
                 let report = try await reportReader.yearReport(for: year)
+                guard report.completeness.isComplete else {
+                    // This notification cannot qualify its counts. Withdraw the prior complete
+                    // recap when newly arrived evidence makes that year unresolved.
+                    await scheduler.reconcile(enabled: false, time: config.time, body: "")
+                    return
+                }
                 await scheduler.reconcile(
                     enabled: true,
                     time: config.time,
                     body: summaryBody(for: report),
                 )
             } catch {
+                await scheduler.reconcile(enabled: false, time: config.time, body: "")
                 Self.logger.reconcileFailed(
                     error: .restricted(.errorDetails, error),
                 )

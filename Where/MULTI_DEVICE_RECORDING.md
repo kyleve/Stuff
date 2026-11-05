@@ -1307,7 +1307,10 @@ Logical date queries provide offset-complete search bounds before filtering sele
 `LocationHistoryReader` now performs that join in one store snapshot, with bounded adjacent evidence.
 One lazy historical catalog serves both selection and Elsewhere. Internal capture deduplication still reads raw observations.
 Elsewhere preserves selected dates, specific GPS geography, explicit unknown presence, and non-GPS enrichment.
-Report query integration, completeness, export gates, and flight boundaries below remain in progress.
+Report and map queries now use logical dates. Reports, Elsewhere, and issue inputs retain completeness and exclude disputed contributions.
+`exportableYearReport` checks the exact returned snapshot. It does not implement a report file format or export screen.
+The daily recap withholds counts while its year is unresolved or assessment fails.
+Widget and intent integration, review presentation, flight boundaries, and the selection model remain in progress.
 Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

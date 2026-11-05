@@ -29,6 +29,27 @@ enum LocationHistoryReaderTestSupport {
         )
     }
 
+    static func reports(_ store: any WhereStore, calendar: Calendar = calendar) -> ReportReader {
+        ReportReader(
+            store: store,
+            aggregator: DayAggregator(
+                calendar: calendar,
+                timeZone: calendar.timeZone,
+            ),
+            attributor: RegionAttributor(for: []),
+            history: reader(store),
+        )
+    }
+
+    static func competingTracks() throws -> [LocationSample] {
+        try [0.0, 600, 1200].flatMap { seconds in
+            try [
+                sample(seconds: seconds, longitude: -122 + seconds / 30000),
+                sample(seconds: seconds, deviceID: second, longitude: -74 + seconds / 30000),
+            ]
+        }
+    }
+
     static func sample(
         seconds: Double,
         deviceID: RecordingDeviceID = first,

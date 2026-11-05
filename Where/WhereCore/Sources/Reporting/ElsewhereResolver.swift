@@ -99,6 +99,10 @@ public actor ElsewhereResolver: ElsewhereResolving {
             )
         }
         try Task.checkCancellation()
-        return ElsewhereReport(year: input.report.year, regions: regions)
+        return ElsewhereReport(
+            year: input.report.year,
+            regions: regions,
+            completeness: input.report.completeness,
+        )
     }
 }

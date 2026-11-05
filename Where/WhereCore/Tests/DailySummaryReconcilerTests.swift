@@ -84,6 +84,40 @@ struct DailySummaryReconcilerTests {
         #expect(await spy.lastEnabled == false)
         #expect(await spy.lastBody == "")
     }
+
+    @Test func newConflictWithdrawsTheRecapUntilTheSameHistoryIsResolved() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let samples = try LocationHistoryReaderTestSupport.competingTracks()
+        try await LocationHistoryReaderTestSupport.add(
+            samples.filter { $0.recordingDeviceID == LocationHistoryReaderTestSupport.first },
+            to: store,
+        )
+        let scheduler = SpyDailySummaryScheduler()
+        let reconciler = DailySummaryReconciler(
+            scheduler: scheduler,
+            reportReader: LocationHistoryReaderTestSupport.reports(store),
+            calendar: LocationHistoryReaderTestSupport.calendar,
+            now: { RecordingAssessmentTestSupport.time(7200) },
+        )
+        await reconciler.configure(enabled: true, time: .defaultMorning)
+        #expect(await scheduler.lastEnabled == true)
+        #expect(await scheduler.lastBody?.contains("California") == true)
+        try await LocationHistoryReaderTestSupport.add(
+            samples.filter { $0.recordingDeviceID == LocationHistoryReaderTestSupport.second },
+            to: store,
+        )
+        await reconciler.reconcile()
+        #expect(await scheduler.lastEnabled == false)
+        #expect(await scheduler.lastBody == "")
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(930, end: 1201)),
+            store: store,
+        )
+        await reconciler.reconcile()
+        #expect(await scheduler.lastEnabled == true)
+        #expect(await scheduler.lastBody?.contains("California") == true)
+        #expect(await scheduler.authorizationRequests == 1)
+    }
 }
 
 private actor SpyDailySummaryScheduler: DailySummaryScheduling {

@@ -313,7 +313,11 @@ one it belongs to rather than to a god-object:
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
   `YearReportDetails` keeps the aggregate report, configured primary set, effective
   locations, and `ElsewhereInput` on one store snapshot. Its identity includes
-  location-only changes that do not alter day totals.
+  location-only changes that do not alter day totals. Recording reads query logical dates across
+  supported offsets. `HistoryCompleteness` retains the full policy, unresolved periods, distinct
+  affected dates, and unknown date assignments. Resolved contributions remain countable.
+  `exportableYearReport` checks eligibility on the exact content it returns; it throws with the
+  remaining review state. This API is separate from lossless backup export.
 - **`ElsewhereResolver`** — an injected actor that enriches foundation and non-GPS
   Other coordinates. Recording-contract GPS retains the shared selection's specific geography,
   unknown presence, and logical days. Its `ElsewhereReport` keeps days and map points together.

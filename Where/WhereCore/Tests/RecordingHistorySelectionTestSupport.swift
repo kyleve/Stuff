@@ -18,6 +18,25 @@ enum RecordingHistorySelectionTestSupport {
         }
     }
 
+    static func years(
+        _ observations: [RecordingObservation],
+        from first: Int,
+        through last: Int,
+    ) throws -> RecordingHistorySelection {
+        let period = try LocationHistoryQuery.days(
+            CalendarDay(year: first, month: 1, day: 1) ... CalendarDay(
+                year: last,
+                month: 12,
+                day: 31,
+            ),
+        ).recordingPeriod()
+        return try resolve(
+            observations,
+            start: period.start.timeIntervalSinceReferenceDate,
+            end: period.end.timeIntervalSinceReferenceDate,
+        )
+    }
+
     static func resolve(
         _ observations: [RecordingObservation],
         controls: [RecordingControl] = [],

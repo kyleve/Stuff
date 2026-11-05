@@ -188,11 +188,10 @@ That document also owns the implementation plan.
   changes. That is the residency bug this exists to prevent. Use a `Date` only
   for genuine instants (GPS bucketing via `CalendarDay(from:in:)`, grid
   geometry, sorting, display). Derive via `CalendarDay.startOfDay(in:)`.
-  **Scope boundary:** only user-asserted records are travel-proof. A GPS
-  sample is bucketed into a `CalendarDay` by the *current* calendar at read
-  time. A GPS-derived day (and a dismissed GPS-only issue keyed on it) can
-  still shift by one across a time-zone change. Deliberate: "where was I on
-  this *local* day?" Do not bucket GPS by a fixed home zone.
+  Foundation GPS uses the viewing calendar at read time. Recording-contract GPS uses its
+  selected recording day, including in year queries, maps, and issue inputs.
+  Do not bucket recording-contract GPS by a fixed home zone or a later viewing zone.
+  Guards: `ReportReaderTests` and `DaySamplesTests`.
 - **Composite identity keys are `store://` URLs, not joined strings.**
   Conform to `WhereStoreURLCodable` (see `DataIssueID`). Build and parse
   with `StoreURL`. Families without a dedicated identity type get theirs from
@@ -227,6 +226,10 @@ That document also owns the implementation plan.
 - **Read related year projections from one samples snapshot.** Use
   `ReportReader.yearReportDetails(for:)` for the scene's report, configured
   primary set, primary-region locations, and Elsewhere evidence.
+  Carry `HistoryCompleteness` with report counts. Validate its assessed scope before narrowing it.
+  Clip review-context issues to the reported period and candidate dates. Export only the immutable
+  result returned by `exportableYearReport`; never assess eligibility with a separate read.
+  Guards: `HistoryCompletenessTests` and `ReportReaderTests`.
 - **Elsewhere is a read-only projection.** `ElsewhereResolver` expands ordinary
   Other coordinates through the injected historical catalog. Recording-contract GPS already
   carries full-catalog geography; never reinterpret its unknown presence. Preserve explicit sample

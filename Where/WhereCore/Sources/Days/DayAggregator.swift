@@ -224,6 +224,15 @@ public struct DayAggregator: Sendable {
         history: [AttributedLocationSample],
         manualDays: [DayPresence],
     ) -> YearReport {
+        report(for: year, history: history, manualDays: manualDays, completeness: .foundation)
+    }
+
+    public func report(
+        for year: Int,
+        history: [AttributedLocationSample],
+        manualDays: [DayPresence],
+        completeness: HistoryCompleteness,
+    ) -> YearReport {
         var dayRegions: [CalendarDay: Set<Region>] = [:]
         for day in aggregate(history: history) {
             dayRegions[day.day, default: []].formUnion(day.regions)
@@ -251,7 +260,7 @@ public struct DayAggregator: Sendable {
             }
         }
 
-        return YearReport(year: year, days: yearDays, totals: totals)
+        return YearReport(year: year, days: yearDays, totals: totals, completeness: completeness)
     }
 
     /// Half-open `DateInterval` spanning the requested calendar year in this

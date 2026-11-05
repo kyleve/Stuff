@@ -380,4 +380,131 @@ struct ReportReaderTests {
         let interval = reader.yearInterval(year: 2026)
         #expect(WhereCoreTestSupport.calendar().component(.year, from: interval.start) == 2026)
     }
+
+    @Test func recordingDateDrivesReportsMapsAndIssueReadsAcrossUTCYears() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let sample = try LocationHistoryReaderTestSupport.sample(
+            seconds: 1800,
+            zone: #require(TimeZone(secondsFromGMT: -3600)),
+        )
+        try await LocationHistoryReaderTestSupport.add([sample], to: store)
+        let day = CalendarDay(year: 2000, month: 12, day: 31)
+        for hours in [-12, 0, 14] {
+            var calendar = LocationHistoryReaderTestSupport.calendar
+            calendar.timeZone = try #require(TimeZone(secondsFromGMT: hours * 3600))
+            let reader = LocationHistoryReaderTestSupport.reports(store, calendar: calendar)
+            let report = try await reader.yearReport(for: 2000)
+            #expect(report.days.map(\.day) == [day])
+            #expect(report.totals == [.california: 1])
+            #expect(report.completeness.isComplete)
+            #expect(try await reader.yearReport(for: 2001).totals.isEmpty)
+            #expect(try await reader.locations(onDay: day)[.california]?
+                .map(\.coordinate) == [sample.coordinate])
+            #expect(try await reader.locations(in: .california, year: 2000).map(\.day) == [day])
+            #expect(try await reader.representativeCoordinates(for: 2000)[.california] == sample
+                .coordinate)
+            #expect(try await reader.yearReportDetails(for: 2000).report == report)
+            let issues = try await reader.dataIssueReads(for: 2000)
+            #expect(issues.report == report)
+            #expect(issues.daySamples.samples(on: day) == [sample])
+        }
+    }
+
+    @Test func conflictsExcludeOnlyDisputedPresenceAndBlockTheAffectedExport() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let samples = try LocationHistoryReaderTestSupport.competingTracks()
+        let later = try LocationHistoryReaderTestSupport.sample(seconds: 7200)
+        try await LocationHistoryReaderTestSupport.add(samples + [later], to: store)
+        let reader = LocationHistoryReaderTestSupport.reports(store)
+        let report = try await reader.yearReport(for: 2001)
+        let day = CalendarDay(year: 2001, month: 1, day: 1)
+        #expect(report.totals == [.california: 1])
+        #expect(report.completeness.affectedDays == [day])
+        #expect(!report.completeness.isComplete)
+        await #expect(throws: UnresolvedHistoryError.self) {
+            try await reader.exportableYearReport(for: 2001)
+        }
+        #expect(try await reader.exportableYearReport(for: 2000).totals.isEmpty)
+        let details = try await reader.yearReportDetails(for: 2001)
+        let elsewhere = try await ElsewhereResolver(geography: HistoryRegionAttribution())
+            .resolve(details.elsewhereInput)
+        #expect(elsewhere.completeness == report.completeness)
+        #expect(elsewhere.regions.isEmpty)
+        try await store.perform {
+            try await store.setManualDay(.init(
+                day: day,
+                regions: [.newYork],
+                isAuthoritative: true,
+            ))
+        }
+        let overlaid = try await reader.yearReport(for: 2001)
+        #expect(overlaid.totals == [.newYork: 1])
+        #expect(overlaid.completeness == report.completeness)
+        #expect(try await store.allSamples().count == 7)
+    }
+
+    @Test func primaryChangesRegroupWithoutChangingSelectionAndChoicesAdmitLateSelectedFixes(
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let samples = try LocationHistoryReaderTestSupport.competingTracks()
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        try await RecordingChoiceTestSupport.append(
+            .source(RecordingAssessmentTestSupport.decision(920, end: 1201)),
+            store: store,
+        )
+        let reader = LocationHistoryReaderTestSupport.reports(store)
+        let original = try await reader.yearReportDetails(for: 2001)
+        #expect(original.report.totals == [.california: 1])
+        #expect(original.report.completeness.isComplete)
+        try await store.perform {
+            try await store.setPrimaryRegions([.init(region: .newYork, appearance: nil, order: 0)])
+        }
+        let regrouped = try await reader.yearReportDetails(for: 2001)
+        #expect(regrouped.report.totals == [.other: 1])
+        #expect(regrouped.elsewhereInput.history == original.elsewhereInput.history)
+        #expect(regrouped.report.completeness == original.report.completeness)
+        let elsewhere = try await ElsewhereResolver(geography: HistoryRegionAttribution())
+            .resolve(regrouped.elsewhereInput)
+        #expect(elsewhere.regions.map(\.region) == [.california])
+        let late = try LocationHistoryReaderTestSupport.sample(seconds: 650)
+        let other = try LocationHistoryReaderTestSupport.sample(
+            seconds: 650,
+            deviceID: LocationHistoryReaderTestSupport.second,
+            longitude: -74,
+        )
+        try await LocationHistoryReaderTestSupport.add([late, other], to: store)
+        let updated = try await reader.yearReportDetails(for: 2001)
+        #expect(updated.report == regrouped.report)
+        #expect(updated.elsewhereInput.history.rawSamples.contains(late))
+        #expect(!updated.elsewhereInput.history.rawSamples.contains(other))
+        #expect(try await reader.exportableYearReport(for: 2001) == updated.report)
+    }
+
+    @Test func adjacentYearReviewContextCannotBroadenReportIncompleteness() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let zone = try #require(TimeZone(secondsFromGMT: -18 * 3600))
+        let samples = try [64500.0, 65400].map {
+            try LocationHistoryReaderTestSupport.sample(seconds: $0, zone: zone)
+        }
+        try await LocationHistoryReaderTestSupport.add(samples, to: store)
+        try await RecordingChoiceTestSupport.append(.source(RecordingAssessmentTestSupport.decision(
+            940,
+            start: 65100,
+            end: 65220,
+        )), store: store)
+        try await RecordingChoiceTestSupport.append(.source(RecordingAssessmentTestSupport.decision(
+            941,
+            start: 65100,
+            end: 65220,
+            action: .select(LocationHistoryReaderTestSupport.second),
+        )), store: store)
+        let reader = LocationHistoryReaderTestSupport.reports(store)
+        let previousYear = try await reader.yearReport(for: 2000)
+        let reviewContext = try await reader.dataIssueReads(for: 2000)
+        #expect(previousYear.completeness.isComplete)
+        #expect(reviewContext.report == previousYear)
+        let currentYear = try await reader.yearReport(for: 2001)
+        #expect(currentYear.completeness.affectedDays == [.init(year: 2001, month: 1, day: 1)])
+        #expect(!currentYear.completeness.isComplete)
+    }
 }

@@ -46,4 +46,14 @@ public struct LocationHistoryProjection: Hashable, Sendable {
                 }
         }
     }
+
+    public func completeness(in days: ClosedRange<CalendarDay>) throws -> HistoryCompleteness {
+        switch contract {
+            case .foundation: .foundation
+            case let .recording(selection): try HistoryCompleteness(
+                    selection: selection,
+                    days: days,
+                )
+        }
+    }
 }
