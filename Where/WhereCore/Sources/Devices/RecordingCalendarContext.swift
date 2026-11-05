@@ -3,7 +3,8 @@ import Foundation
 /// The zone name and UTC offset established for a particular observation-time interval.
 /// The stored offset determines logical dates even if the system's zone database later changes.
 public struct RecordingCalendarContext: Hashable, Codable, Sendable {
-    public enum ValidationError: Error { case invalidOffset, invalidTimestamp }
+    public enum ValidationError: Error,
+        Equatable { case invalidOffset, invalidTimestamp, conflictingRecordedContext }
 
     public let timeZone: TimeZone
     public let secondsFromGMT: Int

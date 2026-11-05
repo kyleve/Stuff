@@ -11,6 +11,49 @@ import Testing
 /// BackupCoordinatorTests, ReminderReconcilerTests, …) cover each piece in
 /// isolation; these prove they work together once `WhereServices` glues them up.
 struct WhereServicesTests {
+    @Test func reviewedControlsUseTheAdmittedStoreAndAwaitTheExistingReconciliation() async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let widgets = SpyWidgetRefresher()
+        let now = RecordingAssessmentTestSupport.time(50)
+        let services = try await WhereServices.make(
+            access: access,
+            locationSource: ScriptedLocationSource(),
+            installationContext: .testing,
+            aggregator: Self.makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: widgets,
+            locationOutbox: NoOpLocationOutbox(),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+            now: { now },
+        )
+        let edit = try await services.recordingControlEdits
+            .review(RecordingControlEditTestSupport.edit(
+                .place,
+                removes: false,
+            ))
+        #expect(try await services.recordingControlEdits.apply(edit) == .applied)
+        #expect(await widgets.publishCount == 1)
+        let choice = try await RecordingChoiceTestSupport
+            .proposal(services.recordingChoices.review(RecordingChoiceTestSupport.request()))
+        #expect(choice.decision.author == InstallationRecordingContext.testing.currentDevice.id)
+        #expect(try await services.recordingChoices.apply(choice) == .applied)
+        #expect(await widgets.publishCount == 2)
+        access.revoke()
+        await #expect(throws: DataAccessPermit.AccessError.revoked) {
+            try await services.recordingControlEdits.apply(edit)
+        }
+        #expect(await widgets.publishCount == 2)
+        await services.retireCompatibilityScope()
+    }
+
     private static func makeAggregator() -> DayAggregator {
         DayAggregator(
             calendar: WhereCoreTestSupport.calendar(),

@@ -1,6 +1,42 @@
 /// Retains missing or conflicting calendar coverage explicitly. Only positive, agreed context
 /// can assign a day or fill a whole-day source choice's GPS gaps.
 public enum RecordingCalendarResolver {
+    /// User-established context can resolve an unknown assignment without rewriting the raw
+    /// observation. A recorded assignment remains authoritative over later calendar controls.
+    public static func assignment(
+        for sample: LocationSample,
+        decisions: [RecordingCalendarDecision],
+        version: DataSemanticsVersion,
+    ) throws -> RecordingDayAssignment {
+        try sample.validateRecordingContract()
+        guard let assignment = sample.recordingDay, let deviceID = sample.recordingDeviceID else {
+            throw RecordingObservation.ValidationError.unattributedGPS
+        }
+        switch assignment {
+            case .resolved: return assignment
+            case .unresolved:
+                let point = try RecordingPeriod(
+                    start: sample.timestamp,
+                    end: sample.timestamp.addingTimeInterval(RecordingEvidencePolicy.pointSupport),
+                )
+                let segments = try resolve(
+                    decisions,
+                    for: deviceID,
+                    within: point,
+                    version: version,
+                )
+                if let segment = segments.first(where: { $0.period.contains(sample.timestamp) }),
+                   case let .established(context) = segment.resolution
+                {
+                    return try .resolved(.init(
+                        observedAt: sample.timestamp,
+                        calendarContext: context,
+                    ))
+                }
+                return .unresolved
+        }
+    }
+
     public enum Resolution: Hashable, Sendable {
         case unknown
         case established(RecordingCalendarContext)

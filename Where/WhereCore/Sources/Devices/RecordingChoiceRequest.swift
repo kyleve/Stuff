@@ -32,16 +32,14 @@ public struct RecordingChoiceRequest: Hashable, Sendable {
         }
     }
 
-    /// Keep enough adjacent evidence for the bounded assessment to retain its original
-    /// intervals and movement context. Query clipping must not change the reviewed result.
+    func query() throws -> RecordingReviewQuery {
+        var devices: Set<RecordingDeviceID> = []
+        if case let .select(deviceID) = action { devices.insert(deviceID) }
+        if case let .recordingDay(deviceID, _) = scope { devices.insert(deviceID) }
+        return try RecordingReviewQuery(periods: searchPeriods(), deviceIDs: devices)
+    }
+
     func evidencePeriods() throws -> [RecordingPeriod] {
-        let padding = RecordingEvidencePolicy.maximumObservationGap
-            + RecordingEvidencePolicy.contextPadding + RecordingEvidencePolicy.pointSupport
-        return try RecordingPeriod.union(searchPeriods().map {
-            try RecordingPeriod(
-                start: $0.start.addingTimeInterval(-padding),
-                end: $0.end.addingTimeInterval(padding),
-            )
-        })
+        try query().evidencePeriods()
     }
 }

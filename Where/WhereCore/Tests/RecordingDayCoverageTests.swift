@@ -3,6 +3,29 @@ import Testing
 @testable import WhereCore
 
 struct RecordingDayCoverageTests {
+    @Test func contradictoryImportedCalendarContextCannotEstablishWholeDayCoverage() throws {
+        let day = CalendarDay(year: 2001, month: 1, day: 1)
+        let search = try RecordingDayCoverage.searchPeriod(for: day)
+        let context = try RecordingCalendarDecision(
+            id: .init(rawValue: UUID()),
+            author: RecordingChoiceTestSupport.author,
+            deviceID: RecordingChoiceTestSupport.author,
+            periods: [search],
+            action: .establish(.init(timeZone: .gmt, secondsFromGMT: 3600)),
+            predecessors: [],
+            version: RecordingEvidencePolicy.version,
+        )
+        let result = try RecordingDayCoverage.resolve(
+            day: day,
+            deviceID: RecordingChoiceTestSupport.author,
+            within: search,
+            decisions: [context],
+            samples: [RecordingChoiceTestSupport.sample(seconds: 50)],
+            version: RecordingEvidencePolicy.version,
+        )
+        #expect(result == .needsContext([search]))
+    }
+
     @Test(arguments: [-18 * 3600, 18 * 3600])
     func theSearchContainsTheWholeDayAtEverySupportedOffset(offset: Int) throws {
         let day = CalendarDay(year: 2001, month: 1, day: 1)

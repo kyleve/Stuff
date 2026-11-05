@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import WhereCore
 
@@ -67,5 +68,36 @@ struct RecordingIgnoreResolverTests {
         #expect(throws: RecordingIgnoreResolver.ValidationError.invalidPredecessor(resumed.id)) {
             try resolve([resumed, other])
         }
+    }
+
+    @Test func concurrentEndDateEditsAgreeBeforeTheirEndsAndConflictOnlyOnTheRestoredTail() throws {
+        let original = try RecordingControlsTestSupport.ignore(
+            1,
+            end: 3 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 3), timeZone: .gmt)),
+        )
+        let short = try RecordingControlsTestSupport.ignore(
+            2,
+            end: 3 * 86400,
+            predecessors: [original.id],
+        )
+        let medium = try RecordingControlsTestSupport.ignore(
+            3,
+            end: 3 * 86400,
+            change: .ignore(.init(day: .init(year: 2001, month: 1, day: 2), timeZone: .gmt)),
+            predecessors: [original.id],
+        )
+        let expected = try resolve([original, short, medium], end: 3 * 86400)
+        #expect(expected.map(\.resolution) == [
+            .ignored,
+            .conflict([short.id, medium.id]),
+            .eligible,
+        ])
+        #expect(try resolve([medium, short, original, short], end: 3 * 86400) == expected)
+        #expect(try resolve([short], end: 3 * 86400).allSatisfy {
+            $0.resolution == .incomplete([original.id])
+        })
+        #expect(short.action(at: Date(timeIntervalSinceReferenceDate: 86400)) == .eligible)
+        #expect(try RecordingControlsTestSupport.roundTrip(short) == short)
     }
 }

@@ -4,16 +4,17 @@ Run `./tla-check ReviewedRecordingChoices` from the repository root.
 
 This model asks whether a retry retains the reviewed operation and causal context.
 It also checks that changed evidence observed during reassessment requires another review.
-It represents `RecordingChoiceCoordinator` and its tests added above base `536acec8`.
+It represents `RecordingReviewTransaction`, shared by the source-choice and control-edit coordinators.
+The shared transaction was extracted from the source-choice implementation at `36372012`.
 
 ## Source correspondence
 
 | Model | Source boundary |
 | --- | --- |
-| `Preview`, `operationID` | `review` creates one immutable `HistoryDecision.ID` in its proposal. |
+| `Preview`, `operationID` | Each coordinator's `review` creates one immutable control identity in its proposal. |
 | `evidence`, `decisions` | The relevant observation and control values in `RecordingReviewEvidence`. |
 | `ReadSnapshot` | `RecordingReviewReader.evidence` reads through `WhereStore.readSnapshot`. |
-| `CompareReview` | `apply` compares the current evidence with the proposal's evidence. |
+| `CompareReview` | `RecordingReviewTransaction.apply` compares current evidence with the proposal's evidence. |
 | `stagedPredecessors` | The proposal's original predecessor set, encoded by `RecordingControlCodec`. |
 | `history`, `CommitGuard` | The store's persistent-history check can reject a crossing commit before save. |
 | `generation` | The expected data generation passed to `perform`; Reset rotates it. |
@@ -56,13 +57,16 @@ Reachability controls require a successful retry, recovery after a lost response
 `RecordingChoiceCoordinatorTests` holds the production save before its write, imports relevant or unrelated controls, and resumes it.
 It also covers duplicate retry, concurrent choices after commit, reset, permit revocation, service replacement, and complete whole-day context.
 `RecordingReviewReaderTests` covers late causal ancestors outside the displayed period and correction/removal/manual inputs.
+`RecordingControlEditCoordinatorTests` covers the shared protocol for ignore, place, and calendar edits.
+Its late calendar contradiction test verifies an invalid refreshed edit fails before append; this domain rule is outside the model.
+`RecordingReviewTransactionTests` covers exhausted retries and preservation of the original operation on a later attempt.
 TLC results belong to the exact model bounds and assumptions above; they do not prove the Swift implementation.
 
 ## Checked result
 
 On 2026-11-04, all nine manifest expectations passed with PlusCal 1.11, TLC 1.7.4, and Temurin 21.0.8+9.
 The tool archive SHA-256 was `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
-The checker retained generated source, traces, and `summary.json` under `.build/tla/runs/ReviewedRecordingChoices.6bXIEe/`.
+After the shared-transaction extraction, the checker retained generated source, traces, and `summary.json` under `.build/tla/runs/ReviewedRecordingChoices.6rr8xE/`.
 
 | Configuration | Result | Generated / distinct states | Depth |
 | --- | --- | ---: | ---: |

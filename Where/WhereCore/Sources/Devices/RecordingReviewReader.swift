@@ -14,7 +14,11 @@ public struct RecordingReviewReader: Sendable {
     public func evidence(for request: RecordingChoiceRequest) async throws
         -> RecordingReviewEvidence
     {
-        let periods = try request.evidencePeriods()
+        try await evidence(for: request.query())
+    }
+
+    public func evidence(for query: RecordingReviewQuery) async throws -> RecordingReviewEvidence {
+        let periods = try query.evidencePeriods()
         return try await store.readSnapshot {
             let generationID = try await store.dataGeneration().id
             let complete = try await RecordingControlStore(store: store, policy: policy).snapshot()
@@ -41,8 +45,7 @@ public struct RecordingReviewReader: Sendable {
                 try await manualDays.formUnion(store.manualDays(in: first ... last))
             }
             var deviceIDs = Set(samples.compactMap(\.recordingDeviceID))
-            if case let .select(deviceID) = request.action { deviceIDs.insert(deviceID) }
-            if case let .recordingDay(deviceID, _) = request.scope { deviceIDs.insert(deviceID) }
+            deviceIDs.formUnion(query.deviceIDs)
             for choice in controls.sourceChoices {
                 if case let .select(deviceID) = choice.action { deviceIDs.insert(deviceID) }
             }
@@ -51,6 +54,7 @@ public struct RecordingReviewReader: Sendable {
                     && periods.contains { removal.removedAt < $0.end }
             }
             return try await RecordingReviewEvidence(
+                query: query,
                 generationID: generationID,
                 policyVersion: RecordingEvidencePolicy.version,
                 samples: samples,

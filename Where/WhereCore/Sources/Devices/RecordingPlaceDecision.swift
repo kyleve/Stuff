@@ -84,4 +84,8 @@ public struct RecordingPlaceDecision: Hashable, Codable, Sendable {
     }
 }
 
-extension RecordingPlaceDecision: CausalPeriodOperation {}
+extension RecordingPlaceDecision: CausalPeriodOperation {
+    func action(at _: Date) -> Action {
+        action
+    }
+}

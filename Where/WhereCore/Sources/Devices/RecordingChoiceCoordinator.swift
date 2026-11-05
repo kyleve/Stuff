@@ -13,9 +13,6 @@ public struct RecordingChoiceCoordinator: Sendable {
     }
 
     private static let logger = WhereLog.reporting(RecordingChoiceCoordinatorLog.self)
-    /// Bound automatic transaction restarts under continuous imports. A busy store surfaces its
-    /// read-conflict error; the caller can retry the same proposal without allocating another ID.
-    private static let maximumSaveAttempts = 3
     private let store: any WhereStore
     private let policy: DataCompatibilityPolicy
     private let author: RecordingDeviceID
@@ -73,20 +70,13 @@ public struct RecordingChoiceCoordinator: Sendable {
                 scope = .fixedPeriods
             case let .recordingDay(deviceID, day):
                 let search = try RecordingDayCoverage.searchPeriod(for: day)
-                let segments = try RecordingCalendarResolver.resolve(
-                    evidence.controls.calendarContexts,
-                    for: deviceID,
-                    within: search,
-                    version: RecordingEvidencePolicy.version,
-                )
-                let contexts = segments.compactMap { segment -> RecordingDayCoverage.Context? in
-                    guard case let .established(context) = segment.resolution else { return nil }
-                    return .init(period: segment.period, calendarContext: context)
-                }
                 switch try RecordingDayCoverage.resolve(
                     day: day,
+                    deviceID: deviceID,
                     within: search,
-                    contexts: contexts,
+                    decisions: evidence.controls.calendarContexts,
+                    samples: Array(evidence.samples),
+                    version: RecordingEvidencePolicy.version,
                 ) {
                     case let .needsContext(missing):
                         return .needsCalendarContext(.init(
@@ -131,52 +121,21 @@ public struct RecordingChoiceCoordinator: Sendable {
                 .source(proposal.decision),
                 generationID: proposal.evidence.generationID,
             )
-            for attempt in 0 ..< Self.maximumSaveAttempts {
-                do {
-                    let result = try await store.perform(
-                        expectedDataGenerationID: proposal.evidence.generationID,
-                    ) {
-                        let controls = try await RecordingControlStore(store: store, policy: policy)
-                            .snapshot()
-                        if let committed = controls.records.first(where: { $0.id == record.id }) {
-                            guard committed == record
-                            else { throw DataCompatibilityError.conflictingRecord }
-                            return ApplyResult.applied
-                        }
-                        let current = try await RecordingReviewReader(store: store, policy: policy)
-                            .evidence(for: proposal.request)
-                        guard current == proposal.evidence,
-                              proposal.evidence.policyVersion == RecordingEvidencePolicy.version
-                        else {
-                            return try ApplyResult.stale(makeReview(
-                                proposal.request,
-                                evidence: current,
-                            ))
-                        }
-                        #if DEBUG
-                            await beforeWrite?()
-                        #endif
-                        try await RecordingControlStore(store: store, policy: policy).append(
-                            [record],
-                            expectedGenerationID: proposal.evidence.generationID,
-                        )
-                        return ApplyResult.applied
-                    }
-                    if case .applied = result { await onCommitted() }
-                    return result
-                } catch RecordingPersistenceError.dataGenerationChanged {
-                    return try await .stale(review(proposal.request))
-                } catch WhereStoreReadConflictError.changedDuringTransaction {
-                    // Recheck the same proposal after rollback. If only unrelated data arrived,
-                    // its relevant snapshot remains equal and no new user confirmation is needed.
-                    if attempt + 1 == Self
-                        .maximumSaveAttempts
-                    {
-                        throw WhereStoreReadConflictError.changedDuringTransaction
-                    }
+            var transaction = RecordingReviewTransaction(store: store, policy: policy)
+            #if DEBUG
+                transaction.beforeWrite = beforeWrite
+            #endif
+            do {
+                switch try await transaction.apply(record, reviewed: proposal.evidence) {
+                    case .applied:
+                        await onCommitted()
+                        return .applied
+                    case let .changed(current):
+                        return try .stale(makeReview(proposal.request, evidence: current))
                 }
+            } catch RecordingPersistenceError.dataGenerationChanged {
+                return try await .stale(review(proposal.request))
             }
-            preconditionFailure("A bounded save must return or throw on its final attempt.")
         }
     }
 }

@@ -82,9 +82,13 @@ That document also owns the implementation plan.
 - Keep versioned control scope outside its opaque payload. Validate envelope identity, semantics, scope, and causal family before application.
   Reset and Replace erase outgoing control payloads while preserving their observed major floor.
   Guards: `RecordingControlSnapshotTests`, `RecordingControlCodecTests`, and `RecordingControlStoreTests`.
-- Bind reviewed source writes to their admitted service, generation, relevant evidence, query, and full policy version.
+- Bind reviewed source and control writes to their admitted service, generation, relevant evidence, query, and full policy version.
   Preserve operation identity and reviewed predecessors on retry. Require complete calendar coverage for a whole-day choice.
-  Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests`.
+  Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests` and `RecordingReviewTransactionTests`.
+- Shortened ignore edits restore their old tail within the same immutable operation. Preserve the selected end day, zone, and offset.
+  Include observed causal extensions in a refreshed end-date preview. Never expand an existing proposal during Apply.
+  Calendar recovery must preserve known raw assignments. Reject an edit that conflicts with a known offset, including observations received after preview.
+  Guards: `RecordingControlEditCoordinatorTests` and `RecordingIgnoreResolverTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

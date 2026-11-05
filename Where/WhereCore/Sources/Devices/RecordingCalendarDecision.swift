@@ -76,4 +76,8 @@ public struct RecordingCalendarDecision: Hashable, Codable, Sendable {
     }
 }
 
-extension RecordingCalendarDecision: CausalPeriodOperation {}
+extension RecordingCalendarDecision: CausalPeriodOperation {
+    func action(at _: Date) -> Action {
+        action
+    }
+}

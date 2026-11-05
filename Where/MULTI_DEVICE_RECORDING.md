@@ -1228,7 +1228,13 @@ A shared Ruby/Swift fixture validates the converted wire shape through the produ
 Reviewed source choices now retain their operation identity and observed predecessors across guarded retries.
 Changed relevant inputs return a refreshed review. Unrelated imports can retry the same proposal without another confirmation.
 Whole-day proposals require complete calendar context and retain separate repeated-date intervals.
-Capture recovery, control-edit review, and production integration below remain required.
+Ignore, place, and calendar edits now use the same guarded transaction as source choices.
+Shortening an ignore restores its old tail within the same immutable operation and retains the new end day and zone.
+If a concurrent edit extends that interval, the refreshed preview includes its tail and requires another Apply before saving.
+Calendar recovery resolves unknown assignments while preserving known recording days and UTC offsets.
+A late conflicting observation rejects a pending calendar edit before save.
+The admitted services expose these coordinators and await the existing reconciliation after save.
+Capture-time context, shared history selection, and the controls UI below remain required. The foundation policy still blocks these writes.
 Observation imports now use transaction-scoped envelope indexes and an indexed lookup for legacy sample identities.
 Fresh compatibility and persistent-history checks remain adjacent to physical save; indexes do not replace those checks.
 Scaling fixtures exercise large SQLite imports and retries. Late identity conflicts in erased generations remain inert.
@@ -1361,3 +1367,26 @@ Thresholds require named units and scenario tests before they affect history.
 The automatic policy produces the same result for identical evidence, decisions, full policy versions, and query context, regardless of input or sync order.
 The first executable slice establishes that policy without changing capture or report behavior.
 Activation follows durable choices, consistent consumer integration, compatibility protection, and a usable review path.
+
+### Deferred discussion: time zone for fresh location fixes
+
+**Open, deferred by the user on 2026-11-04. Resolve before activating capture under the new recording-day contract.**
+
+Core Location supplies an observation timestamp, but no historical device time zone.
+[`CLLocation.timestamp`](https://developer.apple.com/documentation/corelocation/cllocation/timestamp) records when the location was determined.
+[`CLVisit`](https://developer.apple.com/documentation/corelocation/clvisit) supplies approximate arrival and departure times, which can precede delivery.
+The current device zone does not prove which zone applied to an earlier observation.
+This also applies after relaunch or an unobserved zone change.
+
+The strict rule leaves an assignment unresolved unless saved context or user confirmation establishes it.
+That protects historical dates, but could require review for many passive observations.
+Representative journeys have not yet established how often this occurs.
+
+The proposed alternative permits the current device zone for fixes no more than 60 seconds old.
+Older fixes still require saved context or user confirmation.
+This reduces expected review work, but a zone change within those 60 seconds can assign the wrong logical day.
+The threshold alone cannot prove historical context.
+
+Neither alternative was selected. Do not implement the proposed freshness exception as an approved policy.
+Continue independent persistence, selection, and review work. Preserve unresolved assignments and raw observations until this discussion resumes.
+After a decision, update the capture contract and its regression fixtures, then remove this discussion section.

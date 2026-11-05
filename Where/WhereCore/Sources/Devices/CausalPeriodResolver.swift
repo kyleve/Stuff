@@ -7,9 +7,16 @@ protocol CausalPeriodOperation: Hashable, Sendable {
     associatedtype Action: Hashable, Sendable
     var id: ID { get }
     var periods: [RecordingPeriod] { get }
-    var action: Action { get }
+    func action(at instant: Date) -> Action
+    var actionChangeInstants: [Date] { get }
     var predecessorIDs: [ID] { get }
     var predecessors: Set<ID> { get }
+}
+
+extension CausalPeriodOperation {
+    var actionChangeInstants: [Date] {
+        []
+    }
 }
 
 enum CausalPeriodResolver<Operation: CausalPeriodOperation> {
@@ -68,6 +75,7 @@ enum CausalPeriodResolver<Operation: CausalPeriodOperation> {
         }
         let boundaries = Set([query.start, query.end] + records.values.flatMap { operation in
             operation.periods.compactMap { $0.intersection(query) }.flatMap { [$0.start, $0.end] }
+                + operation.actionChangeInstants.filter { query.contains($0) }
         }).sorted()
         return try zip(boundaries, boundaries.dropFirst()).map { start, end in
             let active = records.values.filter { $0.periods.contains { $0.contains(start) } }
@@ -80,10 +88,10 @@ enum CausalPeriodResolver<Operation: CausalPeriodOperation> {
             let effective = Set(maximal.map(\.id))
             let resolution: Resolution = if !missing.isEmpty {
                 .incomplete(missing)
-            } else if Set(maximal.map(\.action)).count > 1 {
+            } else if Set(maximal.map { $0.action(at: start) }).count > 1 {
                 .conflict(effective)
             } else if let operation = maximal.first {
-                .agreed(operation.action)
+                .agreed(operation.action(at: start))
             } else {
                 .absent
             }

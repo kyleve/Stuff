@@ -72,4 +72,8 @@ public struct HistoryDecision: Hashable, Codable, Sendable {
     }
 }
 
-extension HistoryDecision: CausalPeriodOperation {}
+extension HistoryDecision: CausalPeriodOperation {
+    func action(at _: Date) -> Action {
+        action
+    }
+}

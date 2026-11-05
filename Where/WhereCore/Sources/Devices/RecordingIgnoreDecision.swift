@@ -120,9 +120,11 @@ public struct RecordingIgnoreDecision: Hashable, Codable, Sendable {
         try validate()
     }
 
-    public var action: Action {
+    /// A shortened ignore claims its original tail as eligible in this same immutable record.
+    /// No separately delivered restoration is needed to make the new end date take effect.
+    public func action(at instant: Date) -> Action {
         switch change {
-            case .ignore: .ignored
+            case let .ignore(until): instant < until.end ? .ignored : .eligible
             case .restoreEligibility: .eligible
         }
     }
@@ -136,10 +138,18 @@ public struct RecordingIgnoreDecision: Hashable, Codable, Sendable {
             case let .ignore(until):
                 try until.validate()
                 guard periods.count == 1,
-                      periods[0].end == until.end else { throw ValidationError.invalidScope }
+                      periods[0].start < until.end,
+                      periods[0].end >= until.end else { throw ValidationError.invalidScope }
             case .restoreEligibility: break
         }
     }
 }
 
-extension RecordingIgnoreDecision: CausalPeriodOperation {}
+extension RecordingIgnoreDecision: CausalPeriodOperation {
+    var actionChangeInstants: [Date] {
+        switch change {
+            case let .ignore(until): [until.end]
+            case .restoreEligibility: []
+        }
+    }
+}

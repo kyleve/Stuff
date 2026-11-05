@@ -57,6 +57,9 @@ public struct WhereServices: Sendable {
     /// Synced per-device recording intent and the current installation's
     /// serialized physical start/stop reconciliation.
     public let recording: DeviceRecordingController
+    /// Reviewed source choices and device/place/calendar controls in this admitted scope.
+    public let recordingChoices: RecordingChoiceCoordinator
+    public let recordingControlEdits: RecordingControlEditCoordinator
     /// User-sourced writes: manual days, backfills, clears, evidence.
     public let journal: DayJournal
     /// Backup export / import.
@@ -307,6 +310,18 @@ public struct WhereServices: Sendable {
         self.widgets = widgets
         self.ingestor = ingestor
         self.recording = recording
+        recordingChoices = RecordingChoiceCoordinator(
+            store: store,
+            policy: compatibilityPolicy,
+            author: currentDevice.id,
+            onCommitted: { await derivedData.reconcile() },
+        )
+        recordingControlEdits = RecordingControlEditCoordinator(
+            store: store,
+            policy: compatibilityPolicy,
+            author: currentDevice.id,
+            onCommitted: { await derivedData.reconcile() },
+        )
         self.journal = journal
         self.backup = backup
         self.plannedStays = plannedStays

@@ -2,6 +2,58 @@ import Testing
 @testable import WhereCore
 
 struct RecordingCalendarResolverTests {
+    @Test func explicitRecoveryResolvesUnknownContextAndWithdrawalRestoresUncertainty() throws {
+        let recorded = try RecordingChoiceTestSupport.sample(seconds: 50)
+        let unknown = LocationSample(
+            id: recorded.id,
+            timestamp: recorded.timestamp,
+            coordinate: recorded.coordinate,
+            horizontalAccuracy: recorded.horizontalAccuracy,
+            source: recorded.source,
+            recordingDeviceID: recorded.recordingDeviceID,
+            recordingDay: .unresolved,
+        )
+        let context = try RecordingControlsTestSupport.calendar(
+            10,
+            action: .establish(.init(timeZone: .gmt, secondsFromGMT: 0)),
+        )
+        let recovered = try RecordingCalendarResolver.assignment(
+            for: unknown,
+            decisions: [context],
+            version: RecordingEvidencePolicy.version,
+        )
+        #expect(recovered == recorded.recordingDay)
+        #expect(unknown.recordingDay == .unresolved)
+        let withdrawn = try RecordingControlsTestSupport.calendar(
+            11,
+            action: .withdraw,
+            predecessors: [context.id],
+        )
+        #expect(try RecordingCalendarResolver.assignment(
+            for: unknown,
+            decisions: [context, withdrawn],
+            version: RecordingEvidencePolicy.version,
+        ) == .unresolved)
+        #expect(try RecordingCalendarResolver.assignment(
+            for: unknown,
+            decisions: [withdrawn],
+            version: RecordingEvidencePolicy.version,
+        ) == .unresolved)
+    }
+
+    @Test func recordedAssignmentsRemainAuthoritativeOverLaterCalendarEdits() throws {
+        let recorded = try RecordingChoiceTestSupport.sample(seconds: 50)
+        let different = try RecordingControlsTestSupport.calendar(
+            10,
+            action: .establish(.init(timeZone: .gmt, secondsFromGMT: -3600)),
+        )
+        #expect(try RecordingCalendarResolver.assignment(
+            for: recorded,
+            decisions: [different],
+            version: RecordingEvidencePolicy.version,
+        ) == recorded.recordingDay)
+    }
+
     private func resolve(_ decisions: [RecordingCalendarDecision]) throws
         -> [RecordingCalendarResolver.Segment]
     {

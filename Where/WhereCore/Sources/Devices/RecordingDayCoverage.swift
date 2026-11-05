@@ -25,6 +25,36 @@ public enum RecordingDayCoverage {
         case unavailableCalendarBoundary
     }
 
+    /// Calendar controls cannot contradict an observation's immutable recorded offset. Such a
+    /// segment needs clarification before it can establish an exclusive whole-day boundary.
+    public static func resolve(
+        day: CalendarDay,
+        deviceID: RecordingDeviceID,
+        within searchPeriod: RecordingPeriod,
+        decisions: [RecordingCalendarDecision],
+        samples: [LocationSample],
+        version: DataSemanticsVersion,
+    ) throws -> Resolution {
+        let segments = try RecordingCalendarResolver.resolve(
+            decisions,
+            for: deviceID,
+            within: searchPeriod,
+            version: version,
+        )
+        let contexts = segments.compactMap { segment -> Context? in
+            guard case let .established(context) = segment.resolution else { return nil }
+            let contradictsRecording = samples.contains { sample in
+                guard sample.source.isGPS, sample.recordingDeviceID == deviceID,
+                      segment.period.contains(sample.timestamp),
+                      case let .resolved(recorded) = sample.recordingDay else { return false }
+                return recorded.secondsFromGMT != context.secondsFromGMT
+            }
+            guard !contradictsRecording else { return nil }
+            return Context(period: segment.period, calendarContext: context)
+        }
+        return try resolve(day: day, within: searchPeriod, contexts: contexts)
+    }
+
     /// Every supported fixed offset lies within eighteen hours of UTC. This search includes
     /// every occurrence of a logical date, including a repeated date after a date-line crossing.
     public static func searchPeriod(for day: CalendarDay) throws -> RecordingPeriod {

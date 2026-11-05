@@ -43,6 +43,9 @@ Their pure resolvers share `CausalPeriodResolver`, which preserves concurrent co
 Place and calendar edits cannot replace another place's or device's operations.
 An ignore expiry does not erase its historical interval. Resume changes future eligibility, while undo changes the reviewed elapsed interval.
 Concurrent ignores agree where both exclude a device, even when their end dates differ.
+Changing an ignore's end claims its old and new coverage in one operation.
+After a shortened end, that operation restores eligibility on the old tail. Its saved day and zone remain available for inspection.
+If another edit extends the ignore, the refreshed preview includes that extension. Saving the larger scope requires another confirmation.
 
 `RecordingCalendarContext` retains both the original zone name and its established UTC offset.
 `RecordingDayAssignment` and `RecordingDayCoverage` use the saved offset, without reinterpreting history through the current zone database.
@@ -63,7 +66,7 @@ Identical observation deliveries coalesce. Conflicting raw payloads cannot repla
 
 Backup format 8 preserves controls and recording-day context. Its required major is admitted before decoding history.
 The offline converter accepts explicit historical device and calendar mappings; [backup format](BACKUP_FORMAT.md#convert-historical-gps) describes the procedure.
-Capture recovery and production controls remain in the implementation plan.
+Capture-time context and the controls UI remain in the implementation plan.
 
 `RecordingChoiceCoordinator.review(_:)` prepares a source choice against one relevant history snapshot.
 The proposal keeps the query, evidence, policy version, and original causal predecessors until save completes.
@@ -73,7 +76,11 @@ Proposals cannot cross admitted service instances, even when two accounts share 
 An identical committed operation completes a retry without adopting later decisions.
 Whole-day proposals require complete calendar context; missing GPS alone does not prevent their exclusive coverage.
 The [reviewed-choice model](../Specifications/ReviewedRecordingChoices/README.md) documents the bounded verification and external-writer limitations.
-These APIs require the activated recording contract and are not yet wired into production services or UI.
+`RecordingControlEditCoordinator` uses the same guarded transaction for ignore, place, and calendar edits.
+Calendar recovery can resolve unknown assignments, but cannot override a recorded day or UTC offset.
+A conflicting observation received after preview rejects the edit before save and requires the user to revise it.
+`WhereServices` supplies both coordinators from its admitted store and awaits reconciliation after each successful save.
+These APIs require the activated recording contract. The current foundation policy blocks them, and their UI remains unimplemented.
 
 ## Compatibility protocol foundation
 
