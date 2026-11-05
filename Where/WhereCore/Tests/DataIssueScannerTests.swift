@@ -132,6 +132,7 @@ struct DataIssueScannerTests {
         )
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 1,
             policy: RecordingChoiceTestSupport.policy,
             onFailure: { _, _ in },

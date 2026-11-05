@@ -115,6 +115,7 @@ struct ReminderReconcilerTests {
         let store = try SwiftDataStore.inMemory()
         let access = DataCompatibilityAccess(
             base: store,
+            identity: .local(storeID: DataCompatibilityTestSupport.storeID),
             requiredMajor: 0,
             policy: .foundation,
             onFailure: { _, _ in },
