@@ -12,6 +12,14 @@ public struct DataIssueScanResult: Sendable {
     public let completedFlights: [FlightAssessment]
     public let nextReassessmentAt: Date?
 
+    /// Continuous recording concerns from this scan's assessed snapshot. Consumers keep these
+    /// separate from dismissible correction suggestions; unresolved history still needs review.
+    public var recordingIssues: [RecordingIssue] {
+        get throws {
+            try RecordingIssue.grouped(completeness.issues, version: completeness.policyVersion)
+        }
+    }
+
     public init(
         revision: UUID,
         completeness: HistoryCompleteness,

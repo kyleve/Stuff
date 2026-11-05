@@ -1365,6 +1365,10 @@ Verify unresolved contributions, report completeness, and export gating before a
 
 ### 6. Review experience, reminders, and activation
 
+**Review projection started:** `DataIssueScanResult.recordingIssues` groups continuous recording concerns from the same assessed snapshot.
+It preserves underlying problems, candidate dates, unknown assignments, and policy identity. Gaps remain separate, including gaps on the same logical day.
+Historical discovery, scoped queues, controls, reminder integration, and activation remain in progress.
+
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.

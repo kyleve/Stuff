@@ -33,3 +33,5 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Dismiss a ready review with its issue when no pending flight remains.
   Never let an invalidated scan restore cached data. Guard: `DataIssueScannerTests`.
 - Run presentation deadlines only in the foreground. Do not add background polling.
+- Group recording concerns only across overlapping or adjacent absolute periods. Preserve every problem, candidate date, unknown assignment, and full policy version.
+  A derived issue ID does not replace the original review scope when boundaries change. Guard: `RecordingIssueTests`.

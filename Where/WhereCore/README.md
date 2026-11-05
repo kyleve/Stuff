@@ -412,6 +412,9 @@ one it belongs to rather than to a god-object:
   Calendar builders accept these days through their explicit `flightDays` argument.
   Pending and completed informational reviews remain accessible.
   `DataIssueScanResult.completeness` preserves recording conflicts and their full policy version.
+  Its throwing `recordingIssues` projection groups overlapping or adjacent segments into continuous review concerns.
+  `RecordingIssue` retains each segment's problem and evidence, known candidate dates, unknown assignments, and the full policy version.
+  Gaps remain separate even when both concerns have the same logical date. Issue identities are derived; review queues must retain original scopes separately.
   Missing-history and travel suggestions wait on dates that require recording review, while unrelated issues remain available.
   `HistoryCompleteness.daysRequiringReview` includes possible dates for unknown assignments without adding them to the known affected-day count.
   Detectors throw when they cannot assess the supplied scope; the scanner propagates that failure.
