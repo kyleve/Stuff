@@ -41,8 +41,21 @@ public enum MultiDeviceAssessment {
 
     private struct DeviceTrack {
         let deviceID: RecordingDeviceID
-        let observations: [RecordingObservation]
+        let index: RecordingObservationIndex
         let coverage: [RecordingPeriod]
+
+        func coverage(at instant: Date) -> RecordingPeriod? {
+            // Unioned coverage is disjoint and sorted by both start and end.
+            var lower = 0
+            var upper = coverage.count
+            while lower < upper {
+                let middle = lower + (upper - lower) / 2
+                if coverage[middle].end <= instant { lower = middle + 1 }
+                else { upper = middle }
+            }
+            guard lower < coverage.count, coverage[lower].contains(instant) else { return nil }
+            return coverage[lower]
+        }
     }
 
     public static func assess(
@@ -65,20 +78,16 @@ public enum MultiDeviceAssessment {
         let deviceTracks = try grouped.keys
             .sorted { $0.rawValue.uuidString < $1.rawValue.uuidString }
             .map { deviceID in
-                let ordered = (grouped[deviceID] ?? []).sorted {
-                    if $0.sample.timestamp != $1.sample
-                        .timestamp { return $0.sample.timestamp < $1.sample.timestamp }
-                    return $0.sample.id.uuidString < $1.sample.id.uuidString
-                }
+                let index = RecordingObservationIndex(grouped[deviceID] ?? [])
                 return try DeviceTrack(
                     deviceID: deviceID,
-                    observations: ordered,
-                    coverage: coverage(ordered),
+                    index: index,
+                    coverage: coverage(index.observations),
                 )
             }
         let endpoints = deviceTracks.flatMap { track in
             track.coverage.flatMap { [$0.start, $0.end] }
-                + track.observations.map(\.sample.timestamp)
+                + track.index.observations.map(\.sample.timestamp)
         }
         // Assess the evidence's own intervals before clipping to the requested period. A report
         // boundary must not move an evidence window and change the selection at the same instant.
@@ -101,18 +110,17 @@ public enum MultiDeviceAssessment {
             ))
         }
         for (start, end) in zip(boundaries, boundaries.dropFirst()) {
-            guard let period = try RecordingPeriod(start: start, end: end).intersection(query)
+            let boundary = try RecordingPeriod(start: start, end: end)
+            guard let period = boundary.intersection(query)
             else { continue }
             let tracks = try deviceTracks.compactMap { track throws -> Track? in
-                guard let component = track.coverage.first(where: { $0.contains(start) })
+                guard let component = track.coverage(at: start)
                 else { return nil }
-                let context = track.observations.filter { observation in
-                    component.contains(observation.sample.timestamp)
-                        && observation.sample.timestamp >= start
-                        .addingTimeInterval(-RecordingEvidencePolicy.contextPadding)
-                        && observation.sample.timestamp <= end
-                        .addingTimeInterval(RecordingEvidencePolicy.contextPadding)
-                }
+                let context = track.index.context(
+                    in: component,
+                    around: boundary,
+                    padding: RecordingEvidencePolicy.contextPadding,
+                )
                 let before = context.last { $0.sample.timestamp <= start }?.sample.timestamp
                 let after = context.first { $0.sample.timestamp > start }?.sample.timestamp
                 // The final point still has its bounded one-second support. Retain the preceding

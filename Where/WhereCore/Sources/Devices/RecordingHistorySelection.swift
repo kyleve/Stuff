@@ -103,7 +103,9 @@ public struct RecordingHistorySelection: Hashable, Sendable {
 
     static func resolve(evidence: Evidence, version: DataSemanticsVersion) throws -> Self {
         let ordered = evidence.observations
-        let retained = ordered.filter { evidence.visibleSampleIDs.contains($0.sample.id) }
+        let retained = RecordingObservationIndex(ordered.filter {
+            evidence.visibleSampleIDs.contains($0.sample.id)
+        })
         var builder = Builder()
         for context in evidence.controls {
             let control = context.selection
@@ -129,18 +131,18 @@ public struct RecordingHistorySelection: Hashable, Sendable {
                         resolution: .chosen(deviceID),
                     ))
                     // A source choice stays exclusive even when its selected device has no fix.
-                    try builder.include(retained.filter {
-                        $0.deviceID == deviceID && control.period.contains($0.sample.timestamp)
+                    try builder.include(retained.observations(in: control.period).filter {
+                        $0.deviceID == deviceID
                     }, within: control.period)
                 case let .automatic(automatic):
-                    let eligible = retained.filter {
+                    let eligible = RecordingObservationIndex(retained.observations.filter {
                         switch automatic.eligibility(of: $0.deviceID) {
                             case .eligible, .conflict, .incomplete: true
                             case .ignored, .removed: false
                         }
-                    }
+                    })
                     for assessment in try MultiDeviceAssessment.assess(
-                        observations: eligible,
+                        observations: eligible.observations,
                         within: control.period,
                         places: evidence.places,
                     ) {
@@ -281,7 +283,7 @@ public struct RecordingHistorySelection: Hashable, Sendable {
         mutating func include(
             _ assessment: MultiDeviceAssessment.Segment,
             eligibility: RecordingControlSelection.Automatic,
-            observations: [RecordingObservation],
+            observations: RecordingObservationIndex,
         ) throws {
             let brackets = assessment.tracks.flatMap(\.bracketingObservations)
             var ambiguous: [RecordingDeviceID: RecordingControlSelection.Eligibility] = [:]
@@ -333,8 +335,8 @@ public struct RecordingHistorySelection: Hashable, Sendable {
                 period: assessment.period,
                 resolution: .automatic(assessment.selection),
             ))
-            try include(observations.filter {
-                selected.contains($0.deviceID) && assessment.period.contains($0.sample.timestamp)
+            try include(observations.observations(in: assessment.period).filter {
+                selected.contains($0.deviceID)
             }, within: assessment.period)
         }
     }

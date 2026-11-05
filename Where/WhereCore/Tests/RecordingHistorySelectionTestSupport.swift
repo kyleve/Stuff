@@ -2,6 +2,27 @@ import Foundation
 @testable import WhereCore
 
 enum RecordingHistorySelectionTestSupport {
+    /// Two agreeing phones, with four fixes each during separated half-hour journeys
+    /// distributed across one year. Stable identities make every expected contribution explicit.
+    static func annualObservations(count: Int) throws -> [RecordingObservation] {
+        precondition(count.isMultiple(of: 8))
+        return try (0 ..< count).map { index in
+            let journey = index / 8
+            let point = (index % 8) / 2
+            let seconds = Double(journey) * (365 * 86400 / Double(count / 8))
+                + Double(point) * 600
+            return try RecordingAssessmentTestSupport.observation(
+                deviceID: index.isMultiple(of: 2)
+                    ? RecordingAssessmentTestSupport.first : RecordingAssessmentTestSupport.second,
+                seconds: seconds,
+                sampleID: UUID(uuidString: String(
+                    format: "00000000-0000-4000-8000-%012d",
+                    500_000 + index,
+                ))!,
+            )
+        }
+    }
+
     static func midnightObservations() throws -> [RecordingObservation] {
         guard let previousDayZone = TimeZone(secondsFromGMT: -3600) else {
             preconditionFailure("The fixed test offset must be supported.")

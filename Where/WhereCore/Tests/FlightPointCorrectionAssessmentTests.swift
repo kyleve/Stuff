@@ -6,6 +6,53 @@ import Testing
 struct FlightPointCorrectionAssessmentTests {
     private typealias F = FlightTrajectoryFixtures
 
+    @Test(.timeLimit(.minutes(2)), arguments: [100, 250, 1000])
+    func denseRecordingFlightRetainsEveryPointDecision(sampleCount: Int) async throws {
+        let raw = try RecordingFlightTestSupport
+            .samples(F.denseFlight(cruiseSampleCount: sampleCount))
+        let store = try await RecordingChoiceTestSupport.store()
+        try await store.perform {
+            try await store.setPrimaryRegions([
+                PrimaryRegion(region: .newYork, appearance: nil, order: 0),
+            ])
+            for sample in raw {
+                try await store.add(sample: sample)
+            }
+        }
+        let calendar = SampleCorrectionTestSupport.calendar
+        let reports = RecordingFlightTestSupport.reports(
+            store,
+            catalog: RecordingFlightTestSupport.Geography(),
+            calendar: calendar,
+        )
+        let reads = try await reports.dataIssueReads(for: 2026)
+        guard case .recording = reads.history.contract else {
+            Issue.record("The scale fixture must exercise recording selection")
+            return
+        }
+        let clock = ContinuousClock()
+        let start = clock.now
+        let reviews = try SampleCorrectionAssessment(
+            attributor: reads.correctionAttribution,
+            calendar: calendar,
+        ).reviews(reads: reads, driftThresholdMeters: 1000, now: F.date(minutes: 640))
+        let elapsed = start.duration(to: clock.now)
+        print("RECORDING_POINT_REVIEW_SCALE cruise=\(sampleCount) elapsed=\(elapsed)")
+        let review = try #require(reviews.first)
+        #expect(review.pointCorrections.count == sampleCount + 1)
+        let selected = try #require(review.pointCorrections.dropFirst(sampleCount / 2).first)
+        let previewStart = clock.now
+        let resultingRegions = try selected.resultingRegions
+        print(
+            "RECORDING_POINT_PREVIEW_SCALE cruise=\(sampleCount) elapsed=\(previewStart.duration(to: clock.now))",
+        )
+        #expect(resultingRegions == [.newYork])
+        for correction in review.pointCorrections.prefix(1) + review.pointCorrections.suffix(1) {
+            #expect(try correction.resultingRegions == [.newYork])
+        }
+        #expect(try await Set(store.allSamples()) == Set(raw))
+    }
+
     @Test func uncertainArrivalOffersOnlySupportedAirborneIdentities() throws {
         let samples = [
             F.sample(1, minutes: 0, east: 0),
@@ -133,7 +180,7 @@ struct FlightPointCorrectionAssessmentTests {
             isAuthoritative: false,
             audit: nil,
         )] : []
-        let corrections = try FlightPointCorrectionAssessment(attributor: attributor).corrections(
+        let corrections = FlightPointCorrectionAssessment(attributor: attributor).corrections(
             day: day,
             entries: entries,
             conflictingSampleIDs: [],
@@ -166,12 +213,12 @@ struct FlightPointCorrectionAssessmentTests {
             let expected = try #require(SampleCorrectionTestSupport.aggregator
                 .report(for: day.year, history: corrected, manualDays: manuals)
                 .days.first { $0.day == day })
-            #expect(correction.resultingRegions == expected.regions)
+            #expect(try correction.resultingRegions == expected.regions)
         }
         if !allGPSExcluded {
             let soleSupport = try #require(corrections.first { $0.sampleID == F.sampleID(5) })
-            #expect(soleSupport.resultingRegions.contains(.newYork) == additiveManualDay)
-            #expect(soleSupport.resultingRegions.isSuperset(of: [.canada, .other]))
+            #expect(try soleSupport.resultingRegions.contains(.newYork) == additiveManualDay)
+            #expect(try soleSupport.resultingRegions.isSuperset(of: [.canada, .other]))
         }
     }
 
@@ -183,6 +230,9 @@ struct FlightPointCorrectionAssessmentTests {
             now: F.date(minutes: 640),
         ).first)
         #expect(review.pointCorrections.count == sampleCount + 1)
-        #expect(review.pointCorrections.allSatisfy { $0.resultingRegions == [.other] })
+        let previewsMatch = try review.pointCorrections.allSatisfy {
+            try $0.resultingRegions == [.other]
+        }
+        #expect(previewsMatch)
     }
 }

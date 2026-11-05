@@ -1314,6 +1314,7 @@ Flight and boundary inference respect selection exclusions even when the exclude
 Completed flights retain selected recording dates. Losing source eligibility ends live presentation without establishing arrival.
 Correction reviews retain relevant selection context and logical dates; restoration previews use specific geography before reporting groups.
 Previews read current primary regions and reassess competing devices when the proposed geographic correction can change automatic selection.
+Annual selection uses bounded timestamp lookups. Individual flight-point previews assess retained evidence on demand; Apply still checks fresh evidence.
 App Intents read current assessed reports and withhold answers for unresolved requested dates.
 Year counts require a complete year; unrelated unresolved dates do not block a clear day.
 The localized recovery error retains the unresolved scope. Today queries no longer use independently published widget files.

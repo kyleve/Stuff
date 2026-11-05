@@ -489,6 +489,8 @@ one it belongs to rather than to a god-object:
   destinations retain their contributions. Reviews coalesce identical synced rows
   by sample identity; conflicting representations remain uncorrected.
   A `FlightPointCorrection` lets the user explicitly include or restore one GPS point within a completed flight.
+  Its `resultingRegions` getter now throws and computes recording previews on demand from the retained evidence.
+  Building the point list does not calculate every possible preview. Foundation previews retain their shared support-count optimization.
   Both actions recheck the same evidence and data generation as automatic proposals.
   Restoration writes a reset revision. It preserves the original GPS sample and the earlier correction history.
   `LocationHistoryReader.projection`

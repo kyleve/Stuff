@@ -69,7 +69,7 @@ struct SampleCorrectionCoordinatorTests {
         if pointDecision {
             let correction = try #require(review.pointCorrections.first { $0.sampleID == targetID })
             #expect(correction.action == .includeInFlight)
-            preview = correction.resultingRegions
+            preview = try correction.resultingRegions
             result = try await coordinator.apply(correction)
         } else {
             let proposal = try #require(review.proposal)
@@ -137,7 +137,7 @@ struct SampleCorrectionCoordinatorTests {
         })
         #expect(restore.action == .restoreGPS)
         #expect(restore.day == day)
-        #expect(restore.resultingRegions == [isPrimary ? .newYork : .other, .canada])
+        #expect(try restore.resultingRegions == [isPrimary ? .newYork : .other, .canada])
         if configuration.changesPrimary {
             try await store.perform {
                 try await store.setPrimaryRegions([.init(
@@ -153,7 +153,10 @@ struct SampleCorrectionCoordinatorTests {
             let refreshedRestore = try #require(refreshed?.pointCorrections.first {
                 $0.sampleID == restore.sampleID
             })
-            #expect(refreshedRestore.resultingRegions == [isPrimary ? .other : .newYork, .canada])
+            #expect(try refreshedRestore.resultingRegions == [
+                isPrimary ? .other : .newYork,
+                .canada,
+            ])
             restore = refreshedRestore
         }
         guard case .applied = try await coordinator.apply(restore) else {
@@ -161,7 +164,7 @@ struct SampleCorrectionCoordinatorTests {
             return
         }
         let updated = try await reports.yearReport(for: day.year)
-        #expect(updated.days.first { $0.day == day }?.regions == restore.resultingRegions)
+        #expect(try updated.days.first { $0.day == day }?.regions == restore.resultingRegions)
         let history = try await reports.dataIssueReads(for: day.year).history
         let entry = try #require(history.samples.first { $0.sample.id == restore.sampleID })
         #expect(entry.regions == [.newYork])

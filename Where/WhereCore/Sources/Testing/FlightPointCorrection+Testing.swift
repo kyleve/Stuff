@@ -20,9 +20,9 @@
                 sampleID: sampleID,
                 action: action,
                 day: day,
-                resultingRegions: resultingRegions,
                 dataGenerationID: proposal.dataGenerationID,
                 evidence: proposal.evidence,
+                regionPreview: .resolved(resultingRegions),
             )
         }
     }

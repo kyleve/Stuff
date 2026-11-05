@@ -11,6 +11,7 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
 - Keep selection exclusions in boundary corroboration and relevant selection metadata in review equality.
   Preserve selected logical days through review and Apply. Restore specific GPS geography before applying reporting groups to previews.
   Read current primary regions in the same snapshot. Reassess proposed geography with all competing observations before showing the resulting regions.
+  Derive individual recording point previews on demand from their immutable evidence. Keep guarded Apply validation independent of whether a preview was requested.
   Guards: `SampleCorrectionAssessmentTests` and `SampleCorrectionCoordinatorTests`.
 - Offer explicit point corrections only within completed flights on the same recording device.
   Recheck the full review before inclusion or restoration. Write a newer reset revision to restore GPS attribution.

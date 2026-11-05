@@ -142,7 +142,7 @@ struct SampleCorrectionAssessment {
             calendar: calendar,
             flights: dayFlights,
         )
-        let pointCorrections = try FlightPointCorrectionAssessment(attributor: attributor)
+        let pointCorrections = FlightPointCorrectionAssessment(attributor: attributor)
             .corrections(
                 day: day,
                 entries: entries,

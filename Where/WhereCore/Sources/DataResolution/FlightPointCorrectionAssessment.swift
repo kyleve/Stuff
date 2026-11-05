@@ -12,7 +12,7 @@ struct FlightPointCorrectionAssessment {
         conflictingSampleIDs: Set<LocationSample.ID>,
         dataGenerationID: WhereDataGenerationID,
         evidence: SampleCorrectionProposal.Evidence,
-    ) throws -> [FlightPointCorrection] {
+    ) -> [FlightPointCorrection] {
         guard !evidence.manualDays.contains(where: \.isAuthoritative) else { return [] }
         let completed = evidence.flights.filter { !$0.isPending }
         guard !completed.isEmpty else { return [] }
@@ -27,7 +27,7 @@ struct FlightPointCorrectionAssessment {
             },
         )
         var seen: Set<LocationSample.ID> = []
-        return try entries.sorted {
+        return entries.sorted {
             if $0.sample.timestamp != $1.sample.timestamp {
                 return $0.sample.timestamp < $1.sample.timestamp
             }
@@ -43,25 +43,21 @@ struct FlightPointCorrectionAssessment {
             else { return nil }
             let replacement: Set<Region> = action == .restoreGPS
                 ? [attributor.region(at: sample.coordinate)] : []
-            let resultingRegions: Set<Region> = switch evidence.history.contract {
+            let regionPreview: FlightPointCorrection.RegionPreview = switch evidence.history
+                .contract
+            {
                 case .foundation:
-                    contributions.replacing(sampleID: sample.id, with: replacement)
+                    .resolved(contributions.replacing(sampleID: sample.id, with: replacement))
                 case .recording:
-                    try evidence.history.previewRegions(
-                        on: day,
-                        applying: [sample.id: replacement],
-                        primaryRegions: primaryRegions,
-                        manualDays: evidence.manualDays,
-                        calendar: evidence.calendar,
-                    )
+                    .recording(replacement: replacement)
             }
             return FlightPointCorrection(
                 sampleID: sample.id,
                 action: action,
                 day: day,
-                resultingRegions: resultingRegions,
                 dataGenerationID: dataGenerationID,
                 evidence: evidence,
+                regionPreview: regionPreview,
             )
         }
     }

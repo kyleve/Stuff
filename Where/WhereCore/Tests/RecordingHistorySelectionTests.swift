@@ -4,6 +4,23 @@ import Testing
 @testable import WhereCore
 
 struct RecordingHistorySelectionTests {
+    @Test(.timeLimit(.minutes(1)), arguments: [1000, 4000])
+    func annualTwoDeviceHistoryRetainsEveryAgreedObservation(count: Int) throws {
+        let observations = try RecordingHistorySelectionTestSupport.annualObservations(count: count)
+        let clock = ContinuousClock()
+        let start = clock.now
+        let result = try RecordingHistorySelectionTestSupport.resolve(
+            observations,
+            end: 365 * 86400,
+        )
+        let elapsed = start.duration(to: clock.now)
+        print("RECORDING_SELECTION_SCALE observations=\(count) elapsed=\(elapsed)")
+        #expect(result.contributions == observations)
+        #expect(result.issues.isEmpty)
+        #expect(result.evidence.observations == observations)
+        #expect(result.policyVersion == RecordingEvidencePolicy.version)
+    }
+
     @Test func removedWholeDayChoiceKeepsItsLogicalDateAcrossAnEmptyGap() throws {
         let day = CalendarDay(year: 2001, month: 1, day: 1)
         let choice = try HistoryDecision(
