@@ -52,6 +52,7 @@ enum FlightTrajectoryFixtures {
             source: source,
             recordingDeviceID: deviceID,
             motion: motion,
+            recordingDay: nil,
         )
     }
 
@@ -243,6 +244,7 @@ enum FlightTrajectoryFixtures {
             source: sample.source,
             recordingDeviceID: sample.recordingDeviceID,
             motion: motion,
+            recordingDay: timestamp == nil ? sample.recordingDay : .unresolved,
         )
     }
 }

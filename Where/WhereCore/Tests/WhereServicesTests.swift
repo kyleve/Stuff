@@ -42,6 +42,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
     }
 
@@ -135,6 +136,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
+            recordingDay: nil,
         )
         try await services.journal.ingest(sf)
 
@@ -154,18 +156,21 @@ struct WhereServicesTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ),
             LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-01-11T12:00:00-08:00"),
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ),
             LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-02-01T12:00:00-08:00"),
                 coordinate: nyc,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ),
         ]
         try await services.journal.ingest(samples)
@@ -191,6 +196,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
+            recordingDay: nil,
         ))
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
@@ -228,6 +234,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
+            recordingDay: nil,
         ))
         // The user corrects it to New York.
         try await services.journal.overrideDay(
@@ -265,6 +272,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
+            recordingDay: nil,
         ))
         // The user wrongly relabels it to New York, then resets to GPS.
         try await services.journal.overrideDay(
@@ -298,6 +306,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 5,
             source: .gpsVisit,
+            recordingDay: nil,
         ))
         // The user corrects the day to California only, removing the wrong NY hit.
         try await services.journal.overrideDay(
@@ -373,6 +382,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
+            recordingDay: nil,
         ))
         try await services.journal.clearYear(2026)
         let report = try await services.reports.yearReport(for: 2026)
@@ -388,6 +398,7 @@ struct WhereServicesTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                recordingDay: nil,
             ))
         }
 
@@ -461,12 +472,14 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         let sampleB = LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T12:05:00-07:00"),
             coordinate: Coordinate(latitude: 37.7750, longitude: -122.4195),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         await store.setShouldFail(true)
         source.emit(sampleA)
@@ -480,6 +493,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7751, longitude: -122.4196),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         source.emit(sampleC)
         // Wait on the true end-state (all three on disk). `retryQueueDepth`
@@ -638,6 +652,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
     }
 
@@ -648,6 +663,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 
@@ -1261,6 +1277,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         ))
 
         // Logging today removes today's reminder; the past backlog is unchanged.
@@ -1287,6 +1304,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         ))
         try await waitUntil { await spy.lastBadgeCount == 4 }
 
@@ -1298,6 +1316,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
+            recordingDay: nil,
         ))
 
         try await waitUntil { await spy.lastBadgeCount == 3 }
@@ -1619,6 +1638,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         ))
         #expect(await refresher.publishCount == 2)
         #expect(await refresher.lastSnapshot?.dayRegions == [.california, .newYork])
@@ -1783,6 +1803,21 @@ private struct ToggleFailingStoreError: Error {}
 /// reads stay deterministic and the failure injection point stays
 /// narrow.
 private actor ToggleFailingStore: WhereStore {
+    func dataCompatibilityState() async throws -> DataCompatibilityStoreState {
+        try await backing
+            .dataCompatibilityState()
+    }
+
+    func versionedHistoryRecords(policy: DataCompatibilityPolicy) async throws
+        -> [VersionedHistoryRecord]
+    {
+        try await backing.versionedHistoryRecords(policy: policy)
+    }
+
+    func addVersionedHistoryRecord(_ record: VersionedHistoryRecord) async throws {
+        try await backing.addVersionedHistoryRecord(record)
+    }
+
     private let backing: SwiftDataStore
     private var shouldFail = false
 

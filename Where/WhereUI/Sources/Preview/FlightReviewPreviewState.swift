@@ -196,6 +196,7 @@
                         horizontalAccuracy: 30,
                         source: .gpsSignificantChange,
                         recordingDeviceID: CurrentRecordingDevice.preview.id,
+                        recordingDay: nil,
                     ),
                     regions: index == 0 ? [.california] : [.other],
                 )
@@ -269,6 +270,7 @@
                         horizontalAccuracy: 30,
                         source: .gpsSignificantChange,
                         recordingDeviceID: CurrentRecordingDevice.preview.id,
+                        recordingDay: nil,
                     ),
                     regions: state == .completed && region == .other ? [] : [region],
                 )

@@ -18,6 +18,7 @@ struct DaySamplesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 10,
             source: source,
+            recordingDay: nil,
         )
     }
 

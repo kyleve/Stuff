@@ -8,6 +8,46 @@ struct FlightFixtureExporterTests {
     private let replacementStart = Date(timeIntervalSince1970: 1_577_836_800)
     private let replacementOrigin = Coordinate(latitude: 15, longitude: -30)
 
+    @Test func syntheticDateShiftPreservesEstablishedOffsetAndExplicitUnknownContext() throws {
+        let known = try RecordingDayAssignment.resolved(.init(
+            observedAt: Fixtures.start,
+            calendarContext: .init(timeZone: .gmt, secondsFromGMT: -18000),
+        ))
+        let assignments: [RecordingDayAssignment?] = [known, .unresolved, nil]
+        let samples = assignments.enumerated().map { index, assignment in
+            LocationSample(
+                id: Fixtures.sampleID(index + 1),
+                timestamp: Fixtures.start,
+                coordinate: replacementOrigin,
+                horizontalAccuracy: 5,
+                source: .gpsVisit,
+                recordingDeviceID: Fixtures.device,
+                recordingDay: assignment,
+            )
+        }
+        let exported = try FlightFixtureExporter(
+            samples: samples,
+            from: Fixtures.start,
+            until: Fixtures.date(minutes: 1),
+            now: Fixtures.date(minutes: 2),
+            replacementStart: replacementStart,
+            coordinateTransform: .preserve,
+        )
+        #expect(try exported.samples[0].recordingDay == .resolved(.init(
+            observedAt: replacementStart,
+            calendarContext: .init(timeZone: .gmt, secondsFromGMT: -18000),
+        )))
+        #expect(exported.samples[0].recordingDay?.day == CalendarDay(
+            year: 2019,
+            month: 12,
+            day: 31,
+        ))
+        #expect(exported.samples[1].recordingDay == .unresolved)
+        #expect(exported.samples[2].recordingDay == nil)
+        #expect(try RecordedFlightFixture.decode(exported.fixture.jsonData()).samples == exported
+            .samples)
+    }
+
     @Test(arguments: [
         FlightFixtureExporter.CoordinateTransform.rotate(origin: Coordinate(
             latitude: 15,
@@ -102,6 +142,7 @@ struct FlightFixtureExporterTests {
                 source: .gpsSignificantChange,
                 recordingDeviceID: Fixtures.device,
                 motion: nil,
+                recordingDay: nil,
             )
         }
         let exported = try FlightFixtureExporter(
@@ -142,6 +183,7 @@ struct FlightFixtureExporterTests {
                 source: .gpsSignificantChange,
                 recordingDeviceID: Fixtures.device,
                 motion: nil,
+                recordingDay: nil,
             )
         }
         let exported = try FlightFixtureExporter(
@@ -235,6 +277,7 @@ struct FlightFixtureExporterTests {
             source: .gpsSignificantChange,
             recordingDeviceID: Fixtures.device,
             motion: nil,
+            recordingDay: nil,
         )
         #expect(throws: FlightFixtureExporter.ExportError.invalidCoordinate) {
             try FlightFixtureExporter(
@@ -361,7 +404,7 @@ struct FlightFixtureExporterTests {
     private func exportArchiveFixture(
         configuration: FlightFixtureExporter.Configuration,
     ) throws -> RecordedFlightFixture {
-        let archive = try BackupService()
+        let archive = try BackupService(policy: .foundation)
             .readArchive(at: URL(fileURLWithPath: configuration.backupPath)).archive
         let exported = try FlightFixtureExporter(
             samples: RecordingDeviceRemovalFilter.visibleSamples(

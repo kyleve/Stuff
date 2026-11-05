@@ -34,7 +34,7 @@ struct SampleCorrectionAssessmentTests {
         let context = ModelContext(container)
         // Distinct synced records can carry the same logical sample identity.
         for sample in samples + samples {
-            context.insert(SDLocationSample(value: sample, generationID: .initial))
+            try context.insert(SDLocationSample(value: sample, generationID: .initial))
         }
         try context.save()
         let store = SwiftDataStore(modelContainer: container)
@@ -66,6 +66,10 @@ struct SampleCorrectionAssessmentTests {
         #expect(revisions.count == proposal.edits.count)
         #expect(Set(revisions.map(\.sampleID)) == Set(proposal.edits.map(\.sampleID)))
         #expect(try await store.allSamples().count == samples.count * 2)
+        #expect(try await store.samples(in: DateInterval(
+            start: FlightTrajectoryFixtures.start,
+            duration: 24 * 60 * 60,
+        )).count == samples.count * 2)
         #expect(try await services.reports.yearReport(for: day.year).days.first?.regions
             == proposal.resultingRegions)
     }

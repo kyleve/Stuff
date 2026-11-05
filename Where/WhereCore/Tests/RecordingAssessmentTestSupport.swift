@@ -22,6 +22,7 @@ enum RecordingAssessmentTestSupport {
                 horizontalAccuracy: accuracy,
                 source: .gpsSignificantChange,
                 recordingDeviceID: deviceID,
+                recordingDay: nil,
             ),
             recordingDay: assignment ?? .resolved(.init(
                 observedAt: time(seconds),

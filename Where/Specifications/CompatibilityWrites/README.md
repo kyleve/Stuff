@@ -36,7 +36,7 @@ This is a safety model. It claims no network or scheduling liveness.
 The stuttering process keeps completed executions available without a deadlock claim.
 It excludes account identity, shared verification, version admission, notification delivery, and published output.
 Those parts of the [compatibility slice](../../MULTI_DEVICE_RECORDING.md#3-compatibility-gate) still require their own implementation and correspondence review.
-The current app does not yet construct a compatibility scope in production.
+Production scopes construct admitted services through `WhereServices.make(access:...)`.
 The scoped wrapper must own the outermost transaction; the model does not cover a raw outer transaction with only a scoped inner call.
 The read-completion check is a local access check. It cannot fence publication of values that have already returned.
 Revocation can happen after this check releases its lock and before the caller receives or uses the result.

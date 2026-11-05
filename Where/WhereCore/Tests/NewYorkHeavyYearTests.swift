@@ -67,6 +67,7 @@ struct NewYorkHeavyYearTests {
                     coordinate: Coordinate(latitude: entry.lat, longitude: entry.lng),
                     horizontalAccuracy: 0,
                     source: .gpsSignificantChange,
+                    recordingDay: nil,
                 ))
             }
         }

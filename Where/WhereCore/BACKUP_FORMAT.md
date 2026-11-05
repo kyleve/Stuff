@@ -1,4 +1,4 @@
-# Where backup format v7
+# Where backup format v8
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -21,6 +21,7 @@ Current imports require the current schema, including its required collections.
 | 5 | Added `plannedStayRecords`, including clearing tombstones. | [Annual forecasts](https://github.com/kyleve/Stuff/commit/c2dbdf90b3e88e11e32de8bf76d7a41ac617130f) |
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
 | 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
+| 8 | Preserves recording-day context and versioned controls, declares the required data major, and uses Foundation's 2001 date epoch. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -81,3 +82,59 @@ The offline upgrader converts the singular v5/v6 stay register into one shared l
 It infers exact arrival from the revision's UTC Gregorian day, capped at the existing departure.
 It preserves revision IDs, timestamps, motion readings, correction history, and assets.
 The earlier itinerary prototype also used v6. Records with `stayID` retain their independent identities and date windows.
+
+## Version 8 contents
+
+All JSON `Date` values use numeric seconds since 2001-01-01 UTC, including envelope scopes.
+This preserves each Foundation `Date` exactly through export and reimport.
+Unix-epoch conversion can lose precision and change immutable observations or their recording day.
+The upgrader converts older timestamps before assigning recording days. Opaque control payload bytes remain unchanged.
+
+`requiredDataMajor` declares the history contract. The decoder admits this header before decoding history.
+`versionedHistoryRecords` retains source choices, ignore intervals, places, calendar context, and unknown control payloads.
+Each envelope retains its identity, authoring version, affected scope, causal dependencies, and original payload bytes.
+
+GPS observations in major 1 require a recording device and `recordingDay`.
+A resolved assignment contains the logical day, zone identifier, and captured UTC offset.
+An unresolved assignment explicitly records missing historical context.
+Import preserves these values. It never substitutes the importing phone's identity or calendar.
+
+Merge preserves operation identities and bytes. Replace rebinds envelopes to the new data generation without changing their contents.
+Neither strategy lowers the dataset's compatibility requirement or activates a newer contract.
+Import requires an admitted session with the same required major as the archive.
+
+### Convert historical GPS
+
+A format-only upgrade preserves the existing data major. Archives before version 8 remain major 0.
+Use `--recording-map` to prepare history for major 1:
+
+```sh
+mise exec -- ruby Where/Tools/upgrade-backup.rb original.zip converted.zip --recording-map recording-map.json
+```
+
+The mapping keys are stable sample UUIDs. Reuse the same mapping across exports containing the same samples.
+Supply a historical device UUID for each unattributed GPS observation.
+Supply calendar context for each observation without a saved assignment:
+
+```json
+{
+  "samples": {
+    "11111111-1111-1111-1111-111111111111": {
+      "recordingDeviceID": "22222222-2222-2222-2222-222222222222",
+      "calendar": {
+        "timeZone": "America/New_York",
+        "secondsFromGMT": -18000
+      }
+    }
+  }
+}
+```
+
+Use the offset that applied to that observation. The converter calculates its logical date from the timestamp and supplied offset.
+It does not recalculate the offset through the current time-zone database.
+If historical context is unavailable, use `"calendar": {"unresolved": true}`. That history requires later clarification before automatic selection.
+Existing device attribution and recording-day assignments must agree with any supplied mapping.
+Missing mappings stop conversion before output replacement. The original archive remains unchanged, including after a failed conversion.
+
+The shared `Tests/Fixtures/RecordingBackup` fixture checks this wire format through Ruby conversion and the production Swift decoder.
+The stack still uses major 0. Major 1 import and selection require the remaining activation gates in the [design](../MULTI_DEVICE_RECORDING.md).

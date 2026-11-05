@@ -30,6 +30,7 @@ enum SampleCorrectionAssessmentFixtures {
             horizontalAccuracy: accuracy,
             source: source,
             recordingDeviceID: deviceID,
+            recordingDay: nil,
         )
     }
 

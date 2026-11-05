@@ -613,6 +613,7 @@ public struct DemoDataBuilder: Sendable {
             coordinate: coordinate,
             horizontalAccuracy: Double(10 + random.next(upperBound: 40)),
             source: source,
+            recordingDay: nil,
         )
     }
 

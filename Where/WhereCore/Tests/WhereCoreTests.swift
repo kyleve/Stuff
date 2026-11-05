@@ -31,6 +31,7 @@ struct SwiftDataStoreFactoryTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 10,
             source: .manual,
+            recordingDay: nil,
         )
         try await store.perform { try await store.add(sample: sample) }
 
@@ -51,32 +52,34 @@ struct SwiftDataStoreFactoryTests {
 }
 
 struct SDLocationSampleTests {
-    @Test func missingSourceRawReturnsNil() {
-        let record = SDLocationSample(
+    @Test func missingSourceRawReturnsNil() throws {
+        let record = try SDLocationSample(
             value: LocationSample(
                 timestamp: Date(timeIntervalSince1970: 1_700_000_000),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                recordingDay: nil,
             ),
             generationID: .initial,
         )
         record.sourceRaw = nil
-        #expect(record.toValue() == nil)
+        #expect(try record.toValue() == nil)
     }
 
-    @Test func corruptSourceRawReturnsNil() {
-        let record = SDLocationSample(
+    @Test func corruptSourceRawReturnsNil() throws {
+        let record = try SDLocationSample(
             value: LocationSample(
                 timestamp: Date(timeIntervalSince1970: 1_700_000_000),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                recordingDay: nil,
             ),
             generationID: .initial,
         )
         record.sourceRaw = "not-a-real-source"
-        #expect(record.toValue() == nil)
+        #expect(try record.toValue() == nil)
     }
 }
 

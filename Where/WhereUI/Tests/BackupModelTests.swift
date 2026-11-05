@@ -43,7 +43,7 @@ struct BackupModelTests {
 
         #expect(backup.backupState == .idle)
         #expect(backup.backupError == nil)
-        let archive = try BackupService().readArchive(at: url).archive
+        let archive = try BackupService(policy: .foundation).readArchive(at: url).archive
         #expect(archive.evidence.count == 1)
         #expect(archive.manualDays.count == 1)
         #expect(archive.dismissedIssues.count == 1)

@@ -100,3 +100,30 @@ struct RecordingControlStoreTests {
             .isEmpty)
     }
 }
+
+extension RecordingControlStoreTests {
+    @Test func aNewControlCannotAdoptAnObservationAsItsCausalPredecessor() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        try await store.perform {
+            try await store.raiseRequiredDataMajor(1)
+            try await store.add(sample: sample)
+        }
+        let control = try RecordingControlCodec.encode(
+            .source(RecordingAssessmentTestSupport.decision(
+                16,
+                predecessors: [.init(rawValue: sample.id)],
+            )),
+            generationID: .initial,
+        )
+        let controls = RecordingControlStore(
+            store: store,
+            policy: RecordingBackupTestSupport.policy,
+        )
+        await #expect(throws: DataCompatibilityError.conflictingRecord) {
+            try await controls.append([control], expectedGenerationID: .initial)
+        }
+        #expect(try await controls.snapshot().records.isEmpty)
+        #expect(try await store.allSamples() == [sample])
+    }
+}

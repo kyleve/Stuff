@@ -109,6 +109,7 @@ enum FlightTrajectoryGenerator {
                 source: Bool.random(using: &random) ? .gpsVisit : .gpsSignificantChange,
                 recordingDeviceID: FlightTrajectoryFixtures.device,
                 motion: sensor,
+                recordingDay: nil,
             )
         }
         let expectedFlights = switch profile {

@@ -30,6 +30,11 @@ Keep every manifest transformation in `Where/Tools/upgrade-backup.rb`. The
 driver only packages input, invokes that authority, and independently verifies
 its output. Do not duplicate migration rules in the skill.
 
+For the multi-device contract, pass `--recording-map MAP.json` with the explicit historical mappings.
+See [the backup format](../../../Where/WhereCore/BACKUP_FORMAT.md#convert-historical-gps) for its schema.
+The driver preserves control counts and verifies the declared data major through a test-only policy.
+This policy does not activate the production contract.
+
 ## Safety and recovery
 
 - Never modify or delete the input.

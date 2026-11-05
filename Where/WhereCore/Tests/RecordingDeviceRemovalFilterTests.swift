@@ -31,6 +31,7 @@ struct RecordingDeviceRemovalFilterTests {
             coordinate: Coordinate(latitude: 1, longitude: 2),
             horizontalAccuracy: 3,
             source: .gpsVisit,
+            recordingDay: nil,
         )
         let manual = LocationSample(
             timestamp: Self.cutoff,
@@ -38,6 +39,7 @@ struct RecordingDeviceRemovalFilterTests {
             horizontalAccuracy: 3,
             source: .manual,
             recordingDeviceID: Self.phone,
+            recordingDay: nil,
         )
 
         #expect(RecordingDeviceRemovalFilter.visibleSamples(
@@ -68,6 +70,7 @@ struct RecordingDeviceRemovalFilterTests {
             horizontalAccuracy: 3,
             source: .gpsVisit,
             recordingDeviceID: deviceID,
+            recordingDay: nil,
         )
     }
 }

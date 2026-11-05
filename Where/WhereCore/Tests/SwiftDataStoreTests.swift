@@ -119,7 +119,7 @@ struct SwiftDataStoreTests {
             motion: LocationMotion(speed: speed, altitude: altitude),
         )
         let context = ModelContext(container)
-        let row = SDLocationSample(value: sample, generationID: .initial)
+        let row = try SDLocationSample(value: sample, generationID: .initial)
         let expectedMotion: LocationMotion?
         switch partial {
             case .missingSpeedValue:
@@ -162,7 +162,7 @@ struct SwiftDataStoreTests {
         #expect(inspected.altitudeMeters == row.altitudeMeters)
         #expect(inspected.altitudeAccuracyMeters == row.altitudeAccuracyMeters)
         #expect(inspected.motionPresent == row.motionPresent)
-        row.update(from: sample, generationID: .initial)
+        try row.update(from: sample, generationID: .initial)
         try context.save()
         let refreshed = SwiftDataStore(modelContainer: container)
         #expect(try await refreshed.allSamples() == [sample])
@@ -179,6 +179,7 @@ struct SwiftDataStoreTests {
                 speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                 altitude: .init(meters: 11000, accuracyMeters: 10),
             ),
+            recordingDay: nil,
         )
         let replacements: [Set<Region>?] = [[], [.newYork], nil]
         let revisions = replacements.enumerated().map { offset, replacement in
@@ -259,6 +260,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 40, longitude: -100),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         let revision = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
@@ -295,6 +297,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 0, longitude: 0),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await store.perform {
             try await store.add(sample: sample)
@@ -472,6 +475,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
         let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
         let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
@@ -820,6 +824,7 @@ struct SwiftDataStoreTests {
             horizontalAccuracy: 5,
             source: .gpsVisit,
             recordingDeviceID: deviceID,
+            recordingDay: nil,
         )
         let evidence = Evidence(
             kind: .boardingPass,
@@ -852,7 +857,7 @@ struct SwiftDataStoreTests {
             status: .recording,
         )
         let context = ModelContext(container)
-        let sampleRow = SDLocationSample(value: sample, generationID: .initial)
+        let sampleRow = try SDLocationSample(value: sample, generationID: .initial)
         sampleRow.generationID = nil
         context.insert(sampleRow)
         let evidenceRow = SDEvidence(value: evidence, blob: nil, generationID: .initial)
@@ -907,6 +912,7 @@ struct SwiftDataStoreTests {
             horizontalAccuracy: 5,
             source: .gpsVisit,
             recordingDeviceID: deviceID,
+            recordingDay: nil,
         )
         let evidence = try Evidence(
             id: #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")),
@@ -962,7 +968,7 @@ struct SwiftDataStoreTests {
         // afterward. Remote CloudKit writes do not pass through WhereStore's mutation methods,
         // so insert the old-generation records at the SwiftData boundary just as an import does.
         let remoteContext = ModelContext(container)
-        let sampleRow = SDLocationSample(value: sample, generationID: .initial)
+        let sampleRow = try SDLocationSample(value: sample, generationID: .initial)
         sampleRow.generationID = nil
         remoteContext.insert(sampleRow)
         let evidenceRow = SDEvidence(
@@ -1033,6 +1039,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
 
         #expect(currentGeneration.id != staleGenerationID)
@@ -1325,6 +1332,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
         let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
         let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
@@ -1374,6 +1382,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 0, longitude: 0),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await store.perform { try await store.add(sample: sample) }
         let correction = SampleAttributionRevision(
@@ -1440,6 +1449,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 0, longitude: 0),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         let correction = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
@@ -1494,12 +1504,13 @@ struct SwiftDataStoreTests {
         }
 
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDLocationSample(
+        try remoteContext.insert(SDLocationSample(
             value: LocationSample(
                 timestamp: Date(timeIntervalSince1970: 0),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .manual,
+                recordingDay: nil,
             ),
             generationID: .initial,
         ))
@@ -1614,6 +1625,7 @@ struct SwiftDataStoreTests {
             horizontalAccuracy: 5,
             source: .gpsVisit,
             recordingDeviceID: deviceID,
+            recordingDay: nil,
         )
         let metadata = try RecordingDeviceMetadataChange(
             id: metadataID,
@@ -1638,7 +1650,7 @@ struct SwiftDataStoreTests {
         }
 
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDLocationSample(value: sample, generationID: .initial))
+        try remoteContext.insert(SDLocationSample(value: sample, generationID: .initial))
         remoteContext.insert(SDRecordingDeviceMetadataChange(
             value: metadata,
             generationID: .initial,
@@ -1987,5 +1999,88 @@ private func firstPing(_ stream: AsyncStream<Void>, within budget: Duration) asy
         let result = await group.next() ?? false
         group.cancelAll()
         return result
+    }
+}
+
+extension SwiftDataStoreTests {
+    @Test func recordingContextRoundTripsWithoutUsingTheReadingCalendar() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        try await store.perform {
+            try await store.raiseRequiredDataMajor(1)
+            try await store.add(sample: sample)
+        }
+        #expect(try await store.allSamples() == [sample])
+        #expect(try await store
+            .samples(in: DateInterval(start: sample.timestamp, duration: 1)) == [sample])
+    }
+
+    @Test @MainActor func incompleteOrMalformedRecordingRowsNeverDisappearFromHistory(
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        let context = ModelContext(container)
+        let row = try SDLocationSample(value: sample, generationID: .initial)
+        context.insert(row)
+        try context.save()
+        let store = SwiftDataStore(modelContainer: container)
+        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        row.recordingDayData = nil
+        try context.save()
+        await #expect(throws: RecordingObservation.ValidationError.self) {
+            try await store.allSamples()
+        }
+        row.recordingDayData = Data("invalid JSON".utf8)
+        try context.save()
+        await #expect(throws: DecodingError.self) { try await store.allSamples() }
+        row.recordingDayData = try JSONEncoder().encode(RecordingDayAssignment.unresolved)
+        try context.save()
+        #expect(try await store.allSamples().first?.recordingDay == .unresolved)
+        row.sourceRaw = nil
+        try context.save()
+        await #expect(throws: RecordingPersistenceError.incompleteLocationHistory) {
+            try await store.allSamples()
+        }
+        #expect(try context.fetchCount(FetchDescriptor<SDLocationSample>()) == 1)
+    }
+
+    @Test func activeRecordingContractRejectsRawMeasurementsWithoutInventingAttribution(
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        let raw = LocationSample(
+            timestamp: Date(),
+            coordinate: .init(latitude: 40, longitude: -74),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+            recordingDay: nil,
+        )
+        await #expect(throws: RecordingObservation.ValidationError.self) {
+            try await store.perform { try await store.add(sample: raw) }
+        }
+        #expect(try await store.allSamples().isEmpty)
+    }
+}
+
+extension SwiftDataStoreTests {
+    @Test @MainActor func intervalReadsRejectUndatedRowsWithoutDeletingOrReassigningThem(
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        let context = ModelContext(container)
+        let row = try SDLocationSample(value: sample, generationID: .initial)
+        row.timestamp = nil
+        context.insert(row)
+        try context.save()
+        let store = SwiftDataStore(modelContainer: container)
+        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        await #expect(throws: RecordingPersistenceError.incompleteLocationHistory) {
+            try await store.samples(in: DateInterval(start: sample.timestamp, duration: 1))
+        }
+        #expect(row.timestamp == nil)
+        row.timestamp = sample.timestamp
+        try context.save()
+        #expect(try await store
+            .samples(in: DateInterval(start: sample.timestamp, duration: 1)) == [sample])
     }
 }

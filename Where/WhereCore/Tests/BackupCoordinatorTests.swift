@@ -20,6 +20,7 @@ struct BackupCoordinatorTests {
                 speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                 altitude: .init(meters: 11000, accuracyMeters: 12),
             ),
+            recordingDay: nil,
         )
         let replacements: [Set<Region>?] = [[], nil, [.newYork]]
         let revisions = replacements.enumerated().map { offset, regions in
@@ -46,7 +47,7 @@ struct BackupCoordinatorTests {
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        let exported = try BackupService().readArchive(at: url).archive
+        let exported = try BackupService(policy: .foundation).readArchive(at: url).archive
         #expect(exported.samples == [sample])
         #expect(exported.sampleAttributionRevisions == revisions)
         #expect(exported.plannedStayRecords == [stay])
@@ -136,6 +137,7 @@ struct BackupCoordinatorTests {
         let store = try SwiftDataStore.inMemory()
         let hook = HookSpy()
         let coordinator = BackupCoordinator(
+            compatibilityPolicy: .foundation,
             store: store,
             currentDeviceID: recordingDeviceID,
             now: { Date(timeIntervalSinceReferenceDate: 1000) },
@@ -552,6 +554,7 @@ struct BackupCoordinatorTests {
         let store = try SwiftDataStore.inMemory()
         let cleanup = CleanupSpy()
         let coordinator = BackupCoordinator(
+            compatibilityPolicy: .foundation,
             store: store,
             currentDeviceID: Self.recordingDeviceID,
             now: { Date(timeIntervalSinceReferenceDate: 1000) },
@@ -607,6 +610,7 @@ struct BackupCoordinatorTests {
         let persistence = RecoveryPersistenceSpy()
         func makeCoordinator() -> BackupCoordinator {
             BackupCoordinator(
+                compatibilityPolicy: .foundation,
                 store: store,
                 currentDeviceID: Self.recordingDeviceID,
                 now: { Date(timeIntervalSinceReferenceDate: 1000) },
@@ -655,6 +659,7 @@ struct BackupCoordinatorTests {
         let persistence = RecoveryPersistenceSpy()
         func makeCoordinator(deviceID: RecordingDeviceID) -> BackupCoordinator {
             BackupCoordinator(
+                compatibilityPolicy: .foundation,
                 store: store,
                 currentDeviceID: deviceID,
                 now: { Date(timeIntervalSinceReferenceDate: 1000) },
@@ -668,7 +673,8 @@ struct BackupCoordinatorTests {
         }
         let original = makeCoordinator(deviceID: Self.recordingDeviceID)
         await #expect(throws: BackupCoordinator.CommittedImportCleanupError.self) {
-            try await original.importBackup(from: url, strategy: .replace) { _ in }
+            try await original
+                .importBackup(from: url, strategy: .replace, onProgress: { _ in })
         }
         let recovery = try #require(await persistence.recovery)
         // Model death after the atomic store save but before promotion of the prepared marker.
@@ -694,7 +700,9 @@ struct BackupCoordinatorTests {
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let secondSample = Self.sample(at: "2026-08-03T10:00:00-07:00")
-        let secondURL = try BackupService().makeArchiveFile(
+        let secondURL = try BackupService(policy: .foundation).makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: [secondSample],
             evidence: [],
             manualDays: [],
@@ -713,6 +721,7 @@ struct BackupCoordinatorTests {
         let (releaseDidCommit, releaseDidCommitContinuation) = AsyncStream.makeStream(of: Void.self)
         let destinationStore = try SwiftDataStore.inMemory()
         let coordinator = BackupCoordinator(
+            compatibilityPolicy: .foundation,
             store: destinationStore,
             currentDeviceID: Self.recordingDeviceID,
             now: { Date(timeIntervalSinceReferenceDate: 1000) },
@@ -848,6 +857,211 @@ struct BackupCoordinatorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
+    }
+}
+
+extension BackupCoordinatorTests {
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func controlsAndRecordedDaysRetainIdentityAcrossImportAndRetry(
+        strategy: BackupCoordinator.ImportStrategy,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        let policy = RecordingBackupTestSupport.policy
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: policy,
+            onFailure: { _, _ in },
+        )
+        let coordinator = BackupCoordinator(
+            compatibilityPolicy: policy,
+            store: access.store,
+            currentDeviceID: RecordingControlsTestSupport.device,
+            now: { Date(timeIntervalSince1970: 1_800_000_000) },
+            importLifecycle: .init(prepare: { _ in }, didCommit: { _ in }, didRollBack: { _ in }),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+        let samples = try RecordingBackupTestSupport.convertedArchive().samples
+        let records = try RecordingBackupTestSupport.controls()
+        let url = try RecordingBackupTestSupport.zip(samples: samples, controls: records)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        _ = try await coordinator.importBackup(from: url, strategy: strategy, onProgress: { _ in })
+        let generation = try await store.dataGeneration().id
+        #expect((generation != .initial) == (strategy == .replace))
+        let first = try await RecordingControlStore(store: access.store, policy: policy).snapshot()
+        #expect(Set(first.records) == Set(records.map { $0.inGeneration(generation) }))
+        #expect(try await store.allSamples() == samples)
+        try await coordinator.acknowledgeOnboardingImport()
+        _ = try await coordinator.importBackup(from: url, strategy: .merge, onProgress: { _ in })
+        #expect(try await RecordingControlStore(store: access.store, policy: policy)
+            .snapshot() == first)
+        let exported = try await coordinator.exportBackup()
+        let roundTrip = try BackupService(policy: policy).readArchive(at: exported).archive
+        #expect(roundTrip.samples == samples)
+        #expect(Set(roundTrip.versionedHistoryRecords) == Set(first.records))
+        #expect(roundTrip.requiredDataMajor == 1)
+        await coordinator.discardExport()
+    }
+
+    @Test func importingNewerHistoryCannotActivateAFoundationSession() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let coordinator = BackupCoordinator(
+            compatibilityPolicy: RecordingBackupTestSupport.policy,
+            store: store,
+            currentDeviceID: RecordingControlsTestSupport.device,
+            now: { Date() },
+            importLifecycle: .init(
+                prepare: { _ in Issue.record("Import must fail before pausing recording") },
+                didCommit: { _ in },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+        let url = try RecordingBackupTestSupport.zip(
+            samples: RecordingBackupTestSupport.convertedArchive().samples,
+            controls: [],
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        await #expect(throws: DataCompatibilityError.activationNotReady) {
+            try await coordinator.importBackup(from: url, strategy: .replace, onProgress: { _ in })
+        }
+        #expect(try await store.dataCompatibilityState().requiredMajor == 0)
+        #expect(try await store.dataGeneration().id == .initial)
+        #expect(try await store.allSamples().isEmpty)
+    }
+}
+
+extension BackupCoordinatorTests {
+    @Test(arguments: [false, true])
+    func conflictingConvertedObservationRollsBackMergeWithoutReplacingProvenance(
+        changesDevice: Bool,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let original = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        try await store.perform {
+            try await store.raiseRequiredDataMajor(1)
+            try await store.add(sample: original)
+        }
+        let incoming = LocationSample(
+            id: original.id,
+            timestamp: original.timestamp,
+            coordinate: original.coordinate,
+            horizontalAccuracy: original.horizontalAccuracy,
+            source: original.source,
+            recordingDeviceID: changesDevice ? RecordingControlsTestSupport.device : original
+                .recordingDeviceID,
+            motion: original.motion,
+            recordingDay: changesDevice ? original.recordingDay : .unresolved,
+        )
+        let policy = RecordingBackupTestSupport.policy
+        let coordinator = BackupCoordinator(
+            compatibilityPolicy: policy,
+            store: store,
+            currentDeviceID: RecordingControlsTestSupport.device,
+            now: { Date() },
+            importLifecycle: .init(prepare: { _ in }, didCommit: { _ in }, didRollBack: { _ in }),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+        let url = try RecordingBackupTestSupport.zip(
+            samples: [incoming],
+            controls: RecordingBackupTestSupport.controls(),
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        await #expect(throws: RecordingPersistenceError
+            .conflictingImmutableRecord(id: original.id))
+        {
+            try await coordinator.importBackup(from: url, strategy: .merge, onProgress: { _ in })
+        }
+        #expect(try await store.allSamples() == [original])
+        #expect(try await RecordingControlStore(store: store, policy: policy).snapshot().records
+            .isEmpty)
+        #expect(try await store.dataGeneration().id == .initial)
+    }
+}
+
+extension BackupCoordinatorTests {
+    @Test(arguments: [815_000_000.1234568, 815_000_000.0000001])
+    func exportedObservationsAndPeriodBoundsRetainExactBitsThroughMerge(
+        referenceSeconds: Double,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let timestamp = Date(timeIntervalSinceReferenceDate: referenceSeconds)
+        let sample = try LocationSample(
+            timestamp: timestamp,
+            coordinate: .init(latitude: 40, longitude: -74),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+            recordingDeviceID: RecordingControlsTestSupport.device,
+            recordingDay: .resolved(.init(observedAt: timestamp, timeZone: .gmt)),
+        )
+        let choice = try HistoryDecision(
+            id: .init(rawValue: UUID()),
+            author: RecordingControlsTestSupport.device,
+            periods: [.init(start: timestamp, end: timestamp.addingTimeInterval(60))],
+            scope: .fixedPeriods,
+            action: .automatic,
+            predecessors: [],
+            version: RecordingBackupTestSupport.policy.current,
+        )
+        let record = try RecordingControlCodec.encode(.source(choice), generationID: .initial)
+        try await store.perform {
+            try await store.raiseRequiredDataMajor(1)
+            try await store.add(sample: sample)
+            try await store.addVersionedHistoryRecord(record)
+        }
+        let coordinator = BackupCoordinator(
+            compatibilityPolicy: RecordingBackupTestSupport.policy,
+            store: store,
+            currentDeviceID: RecordingControlsTestSupport.device,
+            now: { timestamp },
+            importLifecycle: .init(prepare: { _ in }, didCommit: { _ in }, didRollBack: { _ in }),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+        let url = try await coordinator.exportBackup()
+        let archive = try BackupService(policy: RecordingBackupTestSupport.policy)
+            .readArchive(at: url).archive
+        #expect(try #require(archive.samples.first).timestamp.timeIntervalSinceReferenceDate
+            .bitPattern == referenceSeconds.bitPattern)
+        #expect(archive.versionedHistoryRecords == [record])
+        _ = try await coordinator.importBackup(from: url, strategy: .merge, onProgress: { _ in })
+        #expect(try await store.allSamples() == [sample])
+        await coordinator.discardExport()
+    }
+
+    @Test func mergeRejectsExistingControlThatNamesANewObservationAsItsPredecessor() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        let control = try RecordingControlCodec.encode(
+            .source(RecordingAssessmentTestSupport.decision(
+                16,
+                predecessors: [.init(rawValue: sample.id)],
+            )),
+            generationID: .initial,
+        )
+        let policy = RecordingBackupTestSupport.policy
+        try await store.perform { try await store.raiseRequiredDataMajor(1) }
+        try await RecordingControlStore(store: store, policy: policy).append(
+            [control],
+            expectedGenerationID: .initial,
+        )
+        let coordinator = BackupCoordinator(
+            compatibilityPolicy: policy,
+            store: store,
+            currentDeviceID: RecordingControlsTestSupport.device,
+            now: { Date() },
+            importLifecycle: .init(prepare: { _ in }, didCommit: { _ in }, didRollBack: { _ in }),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+        let url = try RecordingBackupTestSupport.zip(samples: [sample], controls: [])
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        await #expect(throws: DataCompatibilityError.conflictingRecord) {
+            try await coordinator.importBackup(from: url, strategy: .merge, onProgress: { _ in })
+        }
+        #expect(try await store.allSamples().isEmpty)
+        #expect(try await RecordingControlStore(store: store, policy: policy).snapshot()
+            .records == [control])
     }
 }

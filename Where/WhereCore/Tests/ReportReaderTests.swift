@@ -28,6 +28,7 @@ struct ReportReaderTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
@@ -53,6 +54,7 @@ struct ReportReaderTests {
                 horizontalAccuracy: 0,
                 source: .gpsVisit,
                 recordingDeviceID: deviceID,
+                recordingDay: nil,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-01-12T12:00:00-08:00"),
@@ -60,6 +62,7 @@ struct ReportReaderTests {
                 horizontalAccuracy: 0,
                 source: .gpsVisit,
                 recordingDeviceID: deviceID,
+                recordingDay: nil,
             ))
             try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
                 id: .init(
@@ -107,6 +110,7 @@ struct ReportReaderTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
         }
 
@@ -125,18 +129,21 @@ struct ReportReaderTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 15,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-04-15T12:00:00-04:00"),
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 25,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2025-04-15T12:00:00-04:00"),
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 35,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
         }
 
@@ -156,12 +163,14 @@ struct ReportReaderTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 15,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         let second = LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T13:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7751, longitude: -122.4196),
             horizontalAccuracy: 8,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await store.perform {
             try await store.add(sample: first)
@@ -191,6 +200,7 @@ struct ReportReaderTests {
                 horizontalAccuracy: 10,
                 source: .gpsVisit,
                 recordingDeviceID: deviceID,
+                recordingDay: nil,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-01-12T12:00:00-08:00"),
@@ -198,6 +208,7 @@ struct ReportReaderTests {
                 horizontalAccuracy: 20,
                 source: .gpsVisit,
                 recordingDeviceID: deviceID,
+                recordingDay: nil,
             ))
             try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
                 id: .init(
@@ -237,6 +248,7 @@ struct ReportReaderTests {
                     coordinate: coordinate,
                     horizontalAccuracy: 10,
                     source: .gpsVisit,
+                    recordingDay: nil,
                 ))
             }
         }
@@ -256,6 +268,7 @@ struct ReportReaderTests {
                 horizontalAccuracy: 10,
                 source: .gpsVisit,
                 recordingDeviceID: device,
+                recordingDay: nil,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-06-03T12:00:00-07:00"),
@@ -263,6 +276,7 @@ struct ReportReaderTests {
                 horizontalAccuracy: 10,
                 source: .gpsVisit,
                 recordingDeviceID: device,
+                recordingDay: nil,
             ))
             try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
                 id: .init(rawValue: UUID()),
@@ -319,12 +333,14 @@ struct ReportReaderTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-03-16T12:00:00-07:00"),
                 coordinate: midOcean,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
             // A manual coordinate must not feed the speed-based day samples.
             try await store.add(sample: LocationSample(
@@ -332,6 +348,7 @@ struct ReportReaderTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .manual,
+                recordingDay: nil,
             ))
         }
 

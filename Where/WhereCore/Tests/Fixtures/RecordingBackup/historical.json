@@ -1,0 +1,61 @@
+{
+  "assets": [],
+  "dismissedIssues": [],
+  "evidence": [],
+  "exportedAt": 788992800,
+  "formatVersion": 8,
+  "homeRegionRecords": [],
+  "manualDays": [],
+  "plannedStayRecords": [],
+  "primaryRegions": [
+    {
+      "order": 0,
+      "region": "us-NY"
+    }
+  ],
+  "recordingDeviceMetadataChanges": [],
+  "recordingDeviceProfiles": [],
+  "recordingDeviceRemovals": [],
+  "requiredDataMajor": 1,
+  "sampleAttributionRevisions": [],
+  "samples": [
+    {
+      "coordinate": {
+        "latitude": 40,
+        "longitude": -74
+      },
+      "horizontalAccuracy": 12,
+      "id": "11111111-1111-1111-1111-111111111111",
+      "motion": {
+        "speed": {
+          "accuracyMetersPerSecond": 2,
+          "metersPerSecond": 15
+        }
+      },
+      "recordingDay": {
+        "resolved": {
+          "_0": {
+            "day": {
+              "day": 19,
+              "month": 2,
+              "year": 1504
+            },
+            "secondsFromGMT": 3600,
+            "timeZone": {
+              "identifier": "GMT+0100"
+            }
+          }
+        }
+      },
+      "recordingDeviceID": "store://devices/22222222-2222-2222-2222-222222222222",
+      "source": {
+        "gpsVisit": {}
+      },
+      "timestamp": -15678835200
+    }
+  ],
+  "trackedRegions": [
+    "us-NY"
+  ],
+  "versionedHistoryRecords": []
+}

@@ -394,6 +394,7 @@ struct LocationWelcomeModelTests {
             coordinate: coordinate,
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 

@@ -60,12 +60,14 @@ struct RegionCardLocationsTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 12,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         let second = LocationSample(
             timestamp: Self.date(hour: 13),
             coordinate: Coordinate(latitude: 37.7751, longitude: -122.4196),
             horizontalAccuracy: 8,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
 
         try await services.journal.ingest(first)

@@ -12,6 +12,7 @@ struct DeviceRecordingControllerTests {
             coordinate: Coordinate(latitude: 37, longitude: -122),
             horizontalAccuracy: 5,
             source: .gpsVisit,
+            recordingDay: nil,
         )
         let outbox = ScriptedLocationOutbox()
         let (controller, store, ingestor, _) = try makeController(enabled: true, outbox: outbox)
@@ -51,6 +52,7 @@ struct DeviceRecordingControllerTests {
             coordinate: Coordinate(latitude: 37, longitude: -122),
             horizontalAccuracy: 5,
             source: .gpsVisit,
+            recordingDay: nil,
         ).recorded(by: InstallationRecordingContext.testing.currentDevice.id)
         let outbox = ScriptedLocationOutbox([sample])
         let (controller, store, ingestor, _) = try makeController(enabled: true, outbox: outbox)
@@ -159,12 +161,14 @@ struct DeviceRecordingControllerTests {
             coordinate: Coordinate(latitude: 37, longitude: -122),
             horizontalAccuracy: 0,
             source: .gpsVisit,
+            recordingDay: nil,
         )
         let afterEnable = LocationSample(
             timestamp: enabledAt.addingTimeInterval(1),
             coordinate: Coordinate(latitude: 37, longitude: -122),
             horizontalAccuracy: 0,
             source: .gpsVisit,
+            recordingDay: nil,
         )
 
         source.emit(beforeEnable)

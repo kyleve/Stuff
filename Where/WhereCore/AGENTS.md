@@ -108,6 +108,13 @@ That document also owns the implementation plan.
   including reset tombstones. Add persisted user-data shapes end-to-end and cover both import
   strategies. Export no target-owned recording check-ins. Ignore any in an
   imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
+- Preserve recording-day assignments and versioned controls through both backup strategies.
+  Admit the archive's required major before history payloads. Import cannot activate or lower the dataset contract.
+  Major-one GPS must have device attribution and an explicit day assignment; missing context stays unresolved.
+  Store its complete observation in the existing atomic version envelope, so record-first delivery exposes its required major.
+  Keep observation IDs in causal-family validation when excluding their payloads from control snapshots.
+  Reject differing raw GPS payloads that reuse an identity. Clearing observations also resets their correction revisions.
+  Guards: `BackupServiceTests`, `BackupCoordinatorTests`, and `SwiftDataStoreTests`.
 - **Backup import never adopts or changes local recording consent.** Archives
   omit that device-local choice. Replace preserves it and every existing
   removal tombstone while rotating the data generation and discarding the local
@@ -155,7 +162,7 @@ That document also owns the implementation plan.
   `WhereStoreID`. Used to stamp Periscope `LogEvent.externalID`s.
 - **No in-app data migration or legacy recovery.** `SD….toValue()` reads only
   the current shape and fault-logs a row it cannot place. Incomplete generation
-  or removal history throws and fails closed instead of dropping into a benign
+  or removal history, and incomplete raw observations, throw and fail closed instead of dropping into a benign
   state. The one-time reshape path is backup **export → transform
   ([`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb)) →
   replace-import**. Deliberate pre-release. The durable successor

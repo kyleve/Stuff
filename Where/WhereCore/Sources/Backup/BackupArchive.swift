@@ -22,13 +22,17 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
     /// profile's registration-generation key; v5 adds `plannedStayRecords`; v6 retains motion
     /// measurements and sample-attribution revisions. v7 adds independent stay identities,
-    /// arrival/departure windows, and `homeRegionRecords`. There is no in-app
+    /// arrival/departure windows, and `homeRegionRecords`. v8 retains recording-day context,
+    /// versioned controls, and the required data major, and uses the exact Foundation 2001 epoch
+    /// for every Date. There is no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 7
+    public static let currentFormatVersion = 8
 
     public let formatVersion: Int
+    public let requiredDataMajor: UInt
+    public let versionedHistoryRecords: [VersionedHistoryRecord]
     public let exportedAt: Date
     public let samples: [LocationSample]
     public let evidence: [Evidence]
@@ -63,6 +67,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
 
     public init(
         formatVersion: Int = BackupArchive.currentFormatVersion,
+        requiredDataMajor: UInt,
+        versionedHistoryRecords: [VersionedHistoryRecord],
         exportedAt: Date,
         samples: [LocationSample],
         evidence: [Evidence],
@@ -79,6 +85,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
+        self.requiredDataMajor = requiredDataMajor
+        self.versionedHistoryRecords = versionedHistoryRecords
         self.exportedAt = exportedAt
         self.samples = samples
         self.evidence = evidence

@@ -2,6 +2,7 @@ import Foundation
 
 /// Honest failures from the append-only recording persistence boundary.
 public enum RecordingPersistenceError: Error, LocalizedError, Sendable, Hashable {
+    case incompleteLocationHistory
     case incompleteRemovalHistory
     case conflictingImmutableRecord(id: UUID)
     case deviceNotFound(RecordingDeviceID)
@@ -15,6 +16,8 @@ public enum RecordingPersistenceError: Error, LocalizedError, Sendable, Hashable
 
     public var errorDescription: String? {
         switch self {
+            case .incompleteLocationHistory:
+                String(localized: .recordingErrorIncompleteLocationHistory)
             case .incompleteRemovalHistory:
                 String(localized: .recordingErrorIncompletePolicyHistory)
             case .conflictingImmutableRecord:

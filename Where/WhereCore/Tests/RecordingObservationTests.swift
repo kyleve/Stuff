@@ -10,6 +10,7 @@ struct RecordingObservationTests {
             coordinate: Coordinate(latitude: 37, longitude: -122),
             horizontalAccuracy: 10,
             source: .gpsVisit,
+            recordingDay: nil,
         )
         #expect(throws: RecordingObservation.ValidationError.self) {
             try RecordingObservation(sample: raw, recordingDay: .unresolved, region: .california)

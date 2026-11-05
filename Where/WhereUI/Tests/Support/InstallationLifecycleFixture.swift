@@ -182,6 +182,7 @@ struct InstallationProcessFixture {
             horizontalAccuracy: 5,
             source: .gpsVisit,
             recordingDeviceID: deviceID,
+            recordingDay: nil,
         )
     }
 

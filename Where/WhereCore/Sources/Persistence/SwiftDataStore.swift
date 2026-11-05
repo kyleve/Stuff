@@ -59,6 +59,20 @@ private enum GenerationScopedFetch {
         }, sortBy: sortBy)
     }
 
+    static func undatedSamples(belongingTo generationID: WhereDataGenerationID)
+        -> FetchDescriptor<SDLocationSample>
+    {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        var result: FetchDescriptor<SDLocationSample> = descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil))
+                && $0.timestamp == nil
+        })
+        result.fetchLimit = 1
+        return result
+    }
+
     static func sampleAttributions(
         belongingTo generationID: WhereDataGenerationID,
     ) -> FetchDescriptor<SDSampleAttributionRevision> {
@@ -1329,37 +1343,83 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func add(sample: LocationSample) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
+        let requiredMajor = try Self.compatibilityState(in: context).requiredMajor
+        let requiresRecordingContract = requiredMajor >= 1
+        if requiresRecordingContract { try sample.validateRecordingContract() }
         let existing = try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
             sampleID: sample.id,
         ))
+        if requiresRecordingContract {
+            for row in existing {
+                let old = try Self.materializeSample(row, requiresRecordingContract: true)
+                if old.source.isGPS || sample.source.isGPS {
+                    guard old == sample else {
+                        throw RecordingPersistenceError.conflictingImmutableRecord(id: sample.id)
+                    }
+                }
+            }
+        }
+        for old in try Self.versionedSamples(in: context, generationID: generationID)
+            where old.id == sample.id
+        {
+            guard old == sample
+            else { throw RecordingPersistenceError.conflictingImmutableRecord(id: sample.id) }
+        }
+        if requiresRecordingContract, sample.source.isGPS {
+            guard requiredMajor == 1
+            else { throw DataCompatibilityError.updateRequired(requiredMajor: requiredMajor) }
+            // Keep the header and complete observation in one CloudKit field. Never split a new
+            // GPS shape across independently delivered legacy columns and compatibility metadata.
+            try await addVersionedHistoryRecord(VersionedLocationSample.encode(
+                sample,
+                generationID: generationID,
+            ))
+            return
+        }
         if let canonical = existing.first {
-            canonical.update(from: sample, generationID: generationID)
+            try canonical.update(from: sample, generationID: generationID)
             for duplicate in existing.dropFirst() {
                 context.delete(duplicate)
             }
         } else {
-            context.insert(SDLocationSample(value: sample, generationID: generationID))
+            try context.insert(SDLocationSample(value: sample, generationID: generationID))
         }
     }
 
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
         let context = readContext()
         let generationID = try readGenerationID(in: context)
+        // An undated row cannot be placed outside this query. Do not let the SQL interval
+        // predicate conceal incomplete delivery from a caller publishing history completeness.
+        if let row = try context
+            .fetch(GenerationScopedFetch.undatedSamples(belongingTo: generationID)).first
+        {
+            Self.logFault(forCorrupt: row)
+            throw RecordingPersistenceError.incompleteLocationHistory
+        }
         let descriptor = GenerationScopedFetch.samples(
             belongingTo: generationID,
             in: interval,
             sortBy: [SortDescriptor(\.timestamp)],
         )
+        let requiresRecordingContract = try Self.compatibilityState(in: context).requiredMajor >= 1
         // Spanning the fetch *and* the materialization together is deliberate:
         // decoding a year of rows into values is a real share of the cost, and
         // splitting them would only obscure it.
         return try Self.logger.measure(.fetchSamples) {
-            try context.fetch(descriptor).compactMap { record in
-                let value = record.toValue()
-                if value == nil { Self.logFault(forCorrupt: record) }
-                return value
+            let legacy = try context.fetch(descriptor).map { record in
+                try Self.materializeSample(
+                    record,
+                    requiresRecordingContract: requiresRecordingContract,
+                )
             }
+            guard requiresRecordingContract else { return legacy }
+            let versioned = try Self.versionedSamples(in: context, generationID: generationID)
+                .filter {
+                    $0.timestamp >= interval.start && $0.timestamp < interval.end
+                }
+            return try Self.mergeSampleDeliveries(legacy + versioned)
         }
     }
 
@@ -1370,11 +1430,27 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.timestamp)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        let requiresRecordingContract = try Self.compatibilityState(in: context).requiredMajor >= 1
+        let legacy = try context.fetch(descriptor).map { record in
+            try Self.materializeSample(record, requiresRecordingContract: requiresRecordingContract)
         }
+        guard requiresRecordingContract else { return legacy }
+        return try Self.mergeSampleDeliveries(legacy + Self.versionedSamples(
+            in: context,
+            generationID: generationID,
+        ))
+    }
+
+    private static func materializeSample(
+        _ record: SDLocationSample,
+        requiresRecordingContract: Bool,
+    ) throws -> LocationSample {
+        guard let value = try record.toValue() else {
+            logFault(forCorrupt: record)
+            throw RecordingPersistenceError.incompleteLocationHistory
+        }
+        if requiresRecordingContract { try value.validateRecordingContract() }
+        return value
     }
 
     // MARK: - Sample attributions
@@ -1866,7 +1942,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         ))
         // Clearing history also clears its reviewed attributions. Keep reset revisions
         // so a delayed old correction cannot regain authority if its raw sample returns.
-        let sampleIDs = Set(samples.compactMap(\.id))
+        let versionedSampleIDs = try Self.deleteVersionedSamples(
+            in: context,
+            generationID: generationID,
+            interval: interval,
+        )
+        let sampleIDs = Set(samples.compactMap(\.id)).union(versionedSampleIDs)
         try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
         for record in samples {
             context.delete(record)
@@ -2321,6 +2402,8 @@ final class SDLocationSample {
     /// Installation that produced an automatic sample. Nil on legacy rows and
     /// manual/evidence-implied samples.
     var recordingDeviceID: UUID?
+    /// One atomic field keeps the logical day, zone name, and captured offset together.
+    var recordingDayData: Data?
     /// Retains the distinction between absent motion and a present, empty measurement bundle.
     var motionPresent: Bool?
     var speedMetersPerSecond: Double?
@@ -2330,12 +2413,13 @@ final class SDLocationSample {
 
     init() {}
 
-    convenience init(value: LocationSample, generationID: WhereDataGenerationID) {
+    convenience init(value: LocationSample, generationID: WhereDataGenerationID) throws {
         self.init()
-        update(from: value, generationID: generationID)
+        try update(from: value, generationID: generationID)
     }
 
-    func update(from value: LocationSample, generationID: WhereDataGenerationID) {
+    func update(from value: LocationSample, generationID: WhereDataGenerationID) throws {
+        let encodedDay = try value.recordingDay.map { try JSONEncoder().encode($0) }
         self.generationID = generationID.rawValue
         id = value.id
         timestamp = value.timestamp
@@ -2346,6 +2430,7 @@ final class SDLocationSample {
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
         recordingDeviceID = value.recordingDeviceID?.rawValue
+        recordingDayData = encodedDay
         motionPresent = value.motion.map { _ in true }
         speedMetersPerSecond = value.motion?.speed?.metersPerSecond
         speedAccuracyMetersPerSecond = value.motion?.speed?.accuracyMetersPerSecond
@@ -2353,7 +2438,7 @@ final class SDLocationSample {
         altitudeAccuracyMeters = value.motion?.altitude?.accuracyMeters
     }
 
-    func toValue() -> LocationSample? {
+    func toValue() throws -> LocationSample? {
         guard let id, let timestamp, let latitude, let longitude, let horizontalAccuracy,
               let sourceRaw
         else { return nil }
@@ -2384,7 +2469,7 @@ final class SDLocationSample {
         let altitude: LocationMotion.Altitude? = if let altitudeMeters, let altitudeAccuracyMeters {
             .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
         } else { nil }
-        return LocationSample(
+        return try LocationSample(
             id: id,
             timestamp: timestamp,
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
@@ -2393,6 +2478,9 @@ final class SDLocationSample {
             recordingDeviceID: recordingDeviceID.map(RecordingDeviceID.init(rawValue:)),
             motion: motionPresent == true || speed != nil || altitude != nil
                 ? LocationMotion(speed: speed, altitude: altitude) : nil,
+            recordingDay: recordingDayData.map {
+                try JSONDecoder().decode(RecordingDayAssignment.self, from: $0)
+            },
         )
     }
 }

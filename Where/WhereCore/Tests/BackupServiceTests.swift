@@ -19,6 +19,8 @@ struct BackupServiceTests {
         let homeRegionRecordsCount: Int
         let sampleAttributionRevisionsCount: Int
         let assetsCount: Int
+        let versionedHistoryRecordsCount: Int
+        let requiredDataMajor: UInt
     }
 
     private static let calendar = WhereCoreTestSupport.calendar()
@@ -45,11 +47,17 @@ struct BackupServiceTests {
             UpgradeVerificationConfiguration.self,
             from: Data(contentsOf: URL(fileURLWithPath: configurationPath)),
         )
-        let result = try BackupService().readArchive(
+        let result = try BackupService(policy: .init(
+            current: RecordingBackupTestSupport.policy.current,
+            supportedMajors: [0, 1],
+        )).readArchive(
             at: URL(fileURLWithPath: configuration.backupPath),
         )
 
         #expect(result.archive.formatVersion == BackupArchive.currentFormatVersion)
+        #expect(result.archive.requiredDataMajor == configuration.requiredDataMajor)
+        #expect(result.archive.versionedHistoryRecords.count == configuration
+            .versionedHistoryRecordsCount)
         #expect(result.archive.samples.count == configuration.samplesCount)
         #expect(result.archive.evidence.count == configuration.evidenceCount)
         #expect(result.archive.manualDays.count == configuration.manualDaysCount)
@@ -81,6 +89,7 @@ struct BackupServiceTests {
                     speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                     altitude: .init(meters: 11000, accuracyMeters: 12),
                 ),
+                recordingDay: nil,
             ),
             LocationSample(
                 id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
@@ -88,6 +97,7 @@ struct BackupServiceTests {
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 10,
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
+                recordingDay: nil,
             ),
         ]
     }
@@ -145,6 +155,8 @@ struct BackupServiceTests {
 
     private static func archive() -> BackupArchive {
         BackupArchive(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             exportedAt: exportDate,
             samples: [],
             evidence: [],
@@ -220,7 +232,7 @@ struct BackupServiceTests {
     }
 
     @Test func archiveFileRoundTripsEveryTableAndBlobs() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let samples = Self.sampleFixtures()
         let evidence = Self.evidenceFixtures()
         let manualDays = Self.manualDayFixtures()
@@ -246,6 +258,8 @@ struct BackupServiceTests {
         )
 
         let url = try service.makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
@@ -296,7 +310,7 @@ struct BackupServiceTests {
         let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
 
         do {
-            _ = try BackupService.decodeManifest(legacyManifest)
+            _ = try BackupService.decodeManifest(legacyManifest, policy: .foundation)
             Issue.record("Expected the legacy backup format to be rejected.")
         } catch let BackupService.BackupError.unsupportedFormatVersion(rejectedVersion) {
             #expect(rejectedVersion == version)
@@ -324,6 +338,7 @@ struct BackupServiceTests {
         do {
             _ = try BackupService.decodeManifest(
                 JSONSerialization.data(withJSONObject: manifest),
+                policy: .foundation,
             )
             Issue.record("Expected the missing registration generation to be rejected.")
         } catch let DecodingError.keyNotFound(key, _) {
@@ -335,6 +350,8 @@ struct BackupServiceTests {
 
     @Test func decoderRejectsANegativeMetadataRevisionFromABackup() throws {
         let archive = BackupArchive(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             exportedAt: Self.exportDate,
             samples: [],
             evidence: [],
@@ -370,8 +387,10 @@ struct BackupServiceTests {
     }
 
     @Test func archiveNameIsDateAndTimeStamped() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let url = try service.makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: [],
             evidence: [],
             manualDays: [],
@@ -396,7 +415,7 @@ struct BackupServiceTests {
     }
 
     @Test func authoritativeManualDaySurvivesArchiveRoundTrip() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
@@ -406,6 +425,8 @@ struct BackupServiceTests {
             ),
         ]
         let url = try service.makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: [],
             evidence: [],
             manualDays: manualDays,
@@ -426,9 +447,11 @@ struct BackupServiceTests {
     }
 
     @Test func trackedRegionsSurviveArchiveRoundTrip() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let texas = try #require(Region(rawValue: "us-TX"))
         let url = try service.makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: [],
             evidence: [],
             manualDays: [],
@@ -449,7 +472,7 @@ struct BackupServiceTests {
     }
 
     @Test func primaryRegionAppearanceSurvivesArchiveRoundTrip() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let texas = try #require(Region(rawValue: "us-TX"))
         let primary = [
             PrimaryRegion(
@@ -464,6 +487,8 @@ struct BackupServiceTests {
             PrimaryRegion(region: texas, appearance: nil, order: 1),
         ]
         let url = try service.makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: [],
             evidence: [],
             manualDays: [],
@@ -487,7 +512,7 @@ struct BackupServiceTests {
     }
 
     @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
@@ -506,6 +531,8 @@ struct BackupServiceTests {
             ),
         ]
         let url = try service.makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: [],
             evidence: [],
             manualDays: manualDays,
@@ -527,6 +554,8 @@ struct BackupServiceTests {
 
     @Test func manifestRoundTripsThroughJSON() throws {
         let archive = try BackupArchive(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             exportedAt: Self.exportDate,
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),
@@ -565,7 +594,7 @@ struct BackupServiceTests {
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {
-        let service = BackupService()
+        let service = BackupService(policy: .foundation)
         let bogus = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).zip")
         try Data("definitely not a zip".utf8).write(to: bogus)
@@ -594,7 +623,10 @@ struct BackupServiceTests {
         manifest["plannedStayRecords"] = encodedRecords
 
         #expect(throws: BackupService.BackupError.invalidPlanningData) {
-            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+            try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+                policy: .foundation,
+            )
         }
     }
 
@@ -611,7 +643,10 @@ struct BackupServiceTests {
         manifest["plannedStayRecords"] = records
 
         #expect(throws: BackupService.BackupError.invalidPlanningData) {
-            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+            try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+                policy: .foundation,
+            )
         }
     }
 
@@ -628,7 +663,10 @@ struct BackupServiceTests {
         ]]
 
         #expect(throws: BackupService.BackupError.invalidPlanningData) {
-            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+            try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+                policy: .foundation,
+            )
         }
     }
 
@@ -647,7 +685,10 @@ struct BackupServiceTests {
         manifest["plannedStayRecords"] = records
 
         #expect(throws: BackupService.BackupError.invalidPlanningData) {
-            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+            try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+                policy: .foundation,
+            )
         }
     }
 
@@ -674,5 +715,70 @@ struct BackupServiceTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+    }
+}
+
+extension BackupServiceTests {
+    @Test func convertedRecordingContextAndAllControlFamiliesSurviveTheProductionArchive() throws {
+        let converted = try RecordingBackupTestSupport.convertedArchive()
+        let sample = try #require(converted.samples.first)
+        #expect(sample.recordingDay?.day == CalendarDay(year: 2025, month: 12, day: 31))
+        #expect(sample.timestamp.timeIntervalSince1970 == 1_767_232_800.25)
+        #expect(sample.motion?.speed?.metersPerSecond == 15)
+        let controls = try RecordingBackupTestSupport.controls()
+        let url = try RecordingBackupTestSupport.zip(samples: converted.samples, controls: controls)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let restored = try BackupService(policy: RecordingBackupTestSupport.policy)
+            .readArchive(at: url)
+        #expect(restored.archive.samples == converted.samples)
+        #expect(restored.archive.versionedHistoryRecords == controls)
+        #expect(restored.archive.requiredDataMajor == 1)
+        #expect(throws: DataCompatibilityError.updateRequired(requiredMajor: 1)) {
+            try BackupService(policy: .foundation).readArchive(at: url)
+        }
+    }
+
+    @Test func archiveMajorIsAdmittedBeforeAnyHistoryPayloadIsDecoded() throws {
+        let future = Data(
+            #"{"formatVersion":8,"requiredDataMajor":2,"samples":"opaque future shape"}"#
+                .utf8,
+        )
+        #expect(throws: DataCompatibilityError.updateRequired(requiredMajor: 2)) {
+            try BackupService.decodeManifest(future, policy: RecordingBackupTestSupport.policy)
+        }
+    }
+
+    @Test func majorOneArchiveRejectsMissingAttributionAndMissingCalendarAssignment() throws {
+        let archive = try RecordingBackupTestSupport.convertedArchive()
+        let data = try BackupService.makeEncoder().encode(archive)
+        for field in ["recordingDeviceID", "recordingDay"] {
+            var wire = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            var samples = try #require(wire["samples"] as? [[String: Any]])
+            samples[0].removeValue(forKey: field)
+            wire["samples"] = samples
+            #expect(throws: RecordingObservation.ValidationError.self) {
+                try BackupService.decodeManifest(
+                    JSONSerialization.data(withJSONObject: wire),
+                    policy: RecordingBackupTestSupport.policy,
+                )
+            }
+        }
+    }
+}
+
+extension BackupServiceTests {
+    @Test func convertedDayUsesTheInstantFoundationActuallyDecodes() throws {
+        let archive = try RecordingBackupTestSupport.convertedArchive(.epochBoundary)
+        let sample = try #require(archive.samples.first)
+        #expect(sample.timestamp == Date(timeIntervalSince1970: -0.00000001))
+        #expect(sample.recordingDay?.day == CalendarDay(year: 1970, month: 1, day: 1))
+        try sample.validateRecordingContract()
+    }
+
+    @Test func convertedHistoricalCalendarAndFixedOffsetMatchFoundation() throws {
+        let archive = try RecordingBackupTestSupport.convertedArchive(.historical)
+        let sample = try #require(archive.samples.first)
+        #expect(sample.recordingDay?.day == CalendarDay(year: 1504, month: 2, day: 19))
+        try sample.validateRecordingContract()
     }
 }

@@ -359,6 +359,7 @@ backup_upgrader_is_needed() {
 if backup_upgrader_is_needed; then
     echo "==> Testing backup upgrader"
     mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+    mise exec -- ruby Where/Tools/Tests/recording_backup_conversion_test.rb
 fi
 
 # Which bundles a set of changed paths affects.

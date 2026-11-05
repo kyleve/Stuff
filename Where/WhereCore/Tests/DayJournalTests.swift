@@ -187,6 +187,7 @@ struct DayJournalTests {
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ),
         ])
 
@@ -404,6 +405,7 @@ struct DayJournalTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
     }
 }

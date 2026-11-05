@@ -605,7 +605,7 @@ flag is needed there.
 
 **Use [`./test`](test)** — the only way to run the iOS bundles. Never hand-roll
 `tuist test` or `xcodebuild` for them. The command
-runs the host-side backup-upgrader regression for affected or unit-capable iOS
+runs the host-side backup-upgrader and recording-conversion regressions for affected or unit-capable iOS
 scopes. Snapshot-only runs skip this regression. Every normal invocation runs
 the Bumper Bowling checks first. **Run checks in proportion to risk.** Run
 `./swiftformat --lint` when the changed files are in its scope. Run the

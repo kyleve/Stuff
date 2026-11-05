@@ -37,7 +37,9 @@ enum RecordedFlightArchiveFixture {
         let first = try #require(samples.min { $0.timestamp < $1.timestamp })
         let deviceID = try #require(first.recordingDeviceID)
         let regions = Regions().loadedRegions
-        return try BackupService().makeArchiveFile(
+        return try BackupService(policy: .foundation).makeArchiveFile(
+            requiredDataMajor: 0,
+            versionedHistoryRecords: [],
             samples: samples,
             evidence: [],
             manualDays: [],

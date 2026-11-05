@@ -9,6 +9,7 @@ public struct RecordingObservation: Hashable, Sendable {
         case invalidMeasurement
         case reportingRegion
         case inconsistentRecordingDay
+        case missingRecordingDay
     }
 
     public let sample: LocationSample

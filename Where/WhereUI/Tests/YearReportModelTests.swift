@@ -47,6 +47,7 @@ struct YearReportModelTests {
                 coordinate: ElsewherePreview.vegas,
                 horizontalAccuracy: 10,
                 source: .gpsVisit,
+                recordingDay: nil,
             ))
         }
         await model.refresh()
@@ -60,6 +61,7 @@ struct YearReportModelTests {
                 coordinate: ElsewherePreview.portland,
                 horizontalAccuracy: 10,
                 source: .gpsVisit,
+                recordingDay: nil,
             ))
         }
         await model.refresh()
@@ -546,6 +548,7 @@ struct YearReportModelTests {
             coordinate: FlightReviewTestSupport.destination,
             horizontalAccuracy: 20,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await store.perform { try await store.add(sample: first) }
         await report.activate()
@@ -558,6 +561,7 @@ struct YearReportModelTests {
             coordinate: FlightReviewTestSupport.destination,
             horizontalAccuracy: 20,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
 
         try await store.perform { try await store.add(sample: later) }

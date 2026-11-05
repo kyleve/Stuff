@@ -12,6 +12,7 @@ struct DayAggregatorTests {
             coordinate: Coordinate(latitude: 37, longitude: -140),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         let day = CalendarDay(from: sample.timestamp, in: calendar)
         let report = aggregator.report(
@@ -392,6 +393,7 @@ struct DayAggregatorTests {
             coordinate: Coordinate(latitude: lat, longitude: lng),
             horizontalAccuracy: accuracy,
             source: .manual,
+            recordingDay: nil,
         )
     }
 

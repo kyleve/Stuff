@@ -225,6 +225,7 @@ struct CoreLocationSourceTests {
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: accuracy,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 

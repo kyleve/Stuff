@@ -74,6 +74,7 @@ enum FlightReviewTestSupport {
                 horizontalAccuracy: 20,
                 source: .gpsSignificantChange,
                 recordingDeviceID: CurrentRecordingDevice.preview.id,
+                recordingDay: nil,
             )
         }
         try await store.perform {
@@ -95,6 +96,7 @@ enum FlightReviewTestSupport {
                 horizontalAccuracy: sample.horizontalAccuracy,
                 source: sample.source,
                 recordingDeviceID: otherDevice,
+                recordingDay: nil,
             )
         }
         try await store.perform {

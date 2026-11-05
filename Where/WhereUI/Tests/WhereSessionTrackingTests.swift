@@ -67,6 +67,7 @@ struct WhereSessionTrackingTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 

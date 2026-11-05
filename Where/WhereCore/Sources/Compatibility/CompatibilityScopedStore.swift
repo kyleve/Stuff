@@ -140,19 +140,32 @@ struct CompatibilityScopedStore: WhereStore {
 
     func add(sample: LocationSample) async throws {
         try await access {
+            if permit.requiredMajor >= 1 { try sample.validateRecordingContract() }
             try await base.add(sample: sample)
         }
     }
 
     func samples(in interval: DateInterval) async throws -> [LocationSample] {
         try await access {
-            try await base.samples(in: interval)
+            let samples = try await base.samples(in: interval)
+            if permit.requiredMajor >= 1 {
+                for sample in samples {
+                    try sample.validateRecordingContract()
+                }
+            }
+            return samples
         }
     }
 
     func allSamples() async throws -> [LocationSample] {
         try await access {
-            try await base.allSamples()
+            let samples = try await base.allSamples()
+            if permit.requiredMajor >= 1 {
+                for sample in samples {
+                    try sample.validateRecordingContract()
+                }
+            }
+            return samples
         }
     }
 

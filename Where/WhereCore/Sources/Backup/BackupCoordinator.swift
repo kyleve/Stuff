@@ -83,7 +83,7 @@ public actor BackupCoordinator {
     }
 
     private let store: any WhereStore
-    private let backupService = BackupService()
+    private let backupService: BackupService
     private let importLifecycle: ImportLifecycle
     private let importRecoveryPersistence: any BackupImportRecoveryPersisting
     private let currentDeviceID: RecordingDeviceID
@@ -104,12 +104,14 @@ public actor BackupCoordinator {
     private var previousExportDirectory: URL?
 
     init(
+        compatibilityPolicy: DataCompatibilityPolicy,
         store: any WhereStore,
         currentDeviceID: RecordingDeviceID,
         now: @escaping @Sendable () -> Date,
         importLifecycle: ImportLifecycle,
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
     ) {
+        backupService = BackupService(policy: compatibilityPolicy)
         self.store = store
         self.importLifecycle = importLifecycle
         self.importRecoveryPersistence = importRecoveryPersistence
@@ -158,6 +160,11 @@ public actor BackupCoordinator {
                 // excluded: they are live proofs about a target's local outbox, not restorable
                 // user data.
                 try await ExportTables(
+                    requiredDataMajor: store.dataCompatibilityState().requiredMajor,
+                    versionedHistoryRecords: RecordingControlStore(
+                        store: store,
+                        policy: backupService.policy,
+                    ).snapshot().records,
                     samples: store.allSamples(),
                     evidence: store.allEvidence(),
                     manualDays: store.allManualDays(),
@@ -193,6 +200,8 @@ public actor BackupCoordinator {
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
             try backupService.makeArchiveFile(
+                requiredDataMajor: tables.requiredDataMajor,
+                versionedHistoryRecords: tables.versionedHistoryRecords,
                 samples: tables.samples,
                 evidence: tables.evidence,
                 manualDays: tables.manualDays,
@@ -218,6 +227,8 @@ public actor BackupCoordinator {
     /// A named value rather than five locals so the whole read leg fits inside
     /// one span without threading a tuple through it.
     private struct ExportTables {
+        let requiredDataMajor: UInt
+        let versionedHistoryRecords: [VersionedHistoryRecord]
         let samples: [LocationSample]
         let evidence: [Evidence]
         let manualDays: [DayPresence]
@@ -382,6 +393,13 @@ public actor BackupCoordinator {
         importRecoveryPhase = .ready
     }
 
+    private func validateImportMajor(_ major: UInt) async throws {
+        try backupService.policy.validate(requiredMajor: major)
+        let state = try await store.dataCompatibilityState()
+        // Import cannot activate a new contract or erase the requirement protecting existing data.
+        guard major == state.requiredMajor else { throw DataCompatibilityError.activationNotReady }
+    }
+
     /// `importBackup`'s body, split out for the same reason as
     /// ``performExport(onProgress:)``.
     private func performImport(
@@ -402,6 +420,7 @@ public actor BackupCoordinator {
             try backupService.readArchive(at: url)
         }.value
         let archive = result.archive
+        try await validateImportMajor(archive.requiredDataMajor)
         let blobs = result.blobs
         let summary = ImportSummary(
             sampleCount: archive.samples.count,
@@ -426,6 +445,7 @@ public actor BackupCoordinator {
             + archive.plannedStayRecords.count
             + archive.homeRegionRecords.count
             + archive.sampleAttributionRevisions.count
+            + archive.versionedHistoryRecords.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
         // close ingestion before either merge or replace so a streamed sample cannot cross the
@@ -450,6 +470,7 @@ public actor BackupCoordinator {
         do {
             try await Self.logger.measure(.importWrite) {
                 try await store.perform(expectedDataGenerationID: expectedGenerationID) {
+                    try await validateImportMajor(archive.requiredDataMajor)
                     let preservedRemovals: [RecordingDeviceRemoval] = if strategy == .replace {
                         try await store.recordingDeviceRemovals()
                     } else {
@@ -474,6 +495,15 @@ public actor BackupCoordinator {
                         guard percent != lastPercent else { return }
                         lastPercent = percent
                         onProgress(Double(completed) / Double(total))
+                    }
+                    let importGeneration = try await store.dataGeneration().id
+                    let controls = RecordingControlStore(store: store, policy: backupService.policy)
+                    try await controls.append(
+                        archive.versionedHistoryRecords.map { $0.inGeneration(importGeneration) },
+                        expectedGenerationID: importGeneration,
+                    )
+                    for _ in archive.versionedHistoryRecords {
+                        report()
                     }
                     for sample in archive.samples {
                         try await store.add(sample: sample)
@@ -534,6 +564,10 @@ public actor BackupCoordinator {
                         archivePrimary
                     }
                     try await store.setPrimaryRegions(regionsToWrite)
+                    // The last incoming observation can complete a formerly missing causal
+                    // dependency. Validate the final combined graph before the receipt commits.
+                    _ = try await RecordingControlStore(store: store, policy: backupService.policy)
+                        .snapshot()
                     try await store.addBackupImportReceipt(
                         id: transactionID,
                         installationID: currentDeviceID,

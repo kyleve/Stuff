@@ -105,6 +105,7 @@ struct WhereLifecycleFailureView: View {
         switch content {
             case let .generic(failure):
                 LifecycleFailureView(failure: failure)
+                    .background(Color(.systemBackground).ignoresSafeArea())
             case let .dedicated(presentation):
                 GeometryReader { geometry in
                     ScrollView {
@@ -133,6 +134,16 @@ struct WhereLifecycleFailureView: View {
 #if DEBUG
     extension WhereLifecycleFailureView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "IncompleteLocationHistory",
+                configurations: .fullContentPhoneLightDarkWithAX5,
+                measurementReadiness: .immediate,
+            ) {
+                WhereLifecycleFailureView(failure: .init(
+                    stepID: LaunchStepID.captureToday,
+                    error: RecordingPersistenceError.incompleteLocationHistory,
+                ))
+            }
             whereSnapshot(
                 name: "RecordingIdentityLocked",
                 configurations: .fullContentPhoneLightDark,

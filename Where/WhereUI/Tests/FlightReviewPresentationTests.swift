@@ -73,12 +73,14 @@ struct FlightReviewPresentationTests {
             horizontalAccuracy: 10,
             source: .gpsVisit,
             recordingDeviceID: RecordingDeviceID(rawValue: UUID()),
+            recordingDay: nil,
         )
         let manual = LocationSample(
             timestamp: remote.timestamp,
             coordinate: Coordinate(latitude: 3, longitude: 4),
             horizontalAccuracy: 10,
             source: .manual,
+            recordingDay: nil,
         )
         let review = GPSCorrectionReview(
             id: original.id,

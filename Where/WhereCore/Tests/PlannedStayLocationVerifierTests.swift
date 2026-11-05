@@ -91,6 +91,7 @@ struct PlannedStayLocationVerifierTests {
             coordinate: coordinate,
             horizontalAccuracy: horizontalAccuracy,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 }

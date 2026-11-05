@@ -230,6 +230,7 @@ public final class WhereScope {
             coordinate: DemoDataBuilder.homeCoordinate,
             horizontalAccuracy: 12,
             source: .gpsVisit,
+            recordingDay: nil,
         ))
         // Off the main actor, as the real scope opens its store
         // (`WhereBootstrap.makeServices`): building a container is synchronous

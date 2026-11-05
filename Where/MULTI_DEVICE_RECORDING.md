@@ -1217,7 +1217,16 @@ Recording-day values retain established UTC offsets, so later time-zone database
 Versioned envelopes retain affected scope outside opaque payloads. Unknown interpretation remains available for review with its original bytes.
 The store validates identity, causal family, and the complete received graph before admitting controls.
 Canonical predecessor order preserves retry bytes across restoration. Reset and Replace erase outgoing payloads without lowering known compatibility requirements.
-Backup conversion, reviewed writes, capture recovery, and production integration below remain required.
+Recording-day assignments now persist with raw samples. Major-one boundaries reject missing attribution or assignments without supplying historical defaults.
+Major-one observations use atomic version envelopes, including their required major and complete payload.
+Record-first delivery therefore exposes the requirement before any incompatible observation can reach a foundation reader.
+Merge rejects conflicting raw payloads that reuse an observation identity.
+Backup format 8 retains controls, affected scopes, and original payload bytes across Merge and Replace.
+The offline converter accepts reusable sample mappings for historical devices and calendar context, including explicitly unresolved context.
+A shared Ruby/Swift fixture validates the converted wire shape through the production decoder.
+Reviewed writes, capture recovery, and production integration below remain required.
+Before activation, bound observation import work with transaction-scoped indexes and verify large imports.
+Retain fresh compatibility and persistent-history checks before commit; an index must not conceal concurrent changes.
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Persist observation timestamps, recording-day assignments, and their time-zone context without recalculation during sync or import.

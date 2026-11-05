@@ -1,0 +1,43 @@
+{
+  "formatVersion": 7,
+  "exportedAt": 1767300000,
+  "samples": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "timestamp": 1767232800.25,
+      "coordinate": {
+        "latitude": 40,
+        "longitude": -74
+      },
+      "horizontalAccuracy": 12,
+      "source": {
+        "gpsVisit": {}
+      },
+      "motion": {
+        "speed": {
+          "metersPerSecond": 15,
+          "accuracyMetersPerSecond": 2
+        }
+      }
+    }
+  ],
+  "evidence": [],
+  "manualDays": [],
+  "dismissedIssues": [],
+  "trackedRegions": [
+    "us-NY"
+  ],
+  "primaryRegions": [
+    {
+      "region": "us-NY",
+      "order": 0
+    }
+  ],
+  "recordingDeviceProfiles": [],
+  "recordingDeviceMetadataChanges": [],
+  "recordingDeviceRemovals": [],
+  "plannedStayRecords": [],
+  "homeRegionRecords": [],
+  "sampleAttributionRevisions": [],
+  "assets": []
+}

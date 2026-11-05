@@ -710,6 +710,7 @@ extension InstallationRecordingContextStoreTests {
                 coordinate: .init(latitude: 40, longitude: -74),
                 horizontalAccuracy: 5,
                 source: .gpsVisit,
+                recordingDay: nil,
             )
             source.emit(input)
             try await InstallationLifecycleFixture.waitUntil {
@@ -767,6 +768,7 @@ extension InstallationRecordingContextStoreTests {
                     coordinate: .init(latitude: 41, longitude: -74),
                     horizontalAccuracy: 0,
                     source: .manual,
+                    recordingDay: nil,
                 ))
             }
             #expect(try await receiver.store.allSamples() == [sample])
@@ -1088,6 +1090,7 @@ extension InstallationRecordingContextStoreTests {
                     coordinate: .init(latitude: 40, longitude: -74),
                     horizontalAccuracy: 0,
                     source: .manual,
+                    recordingDay: nil,
                 ))
             }
             #expect(try await first.store.allSamples().isEmpty)

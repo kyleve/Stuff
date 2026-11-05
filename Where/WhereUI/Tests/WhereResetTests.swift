@@ -399,6 +399,7 @@ struct WhereResetTests {
                 horizontalAccuracy: 5,
                 source: .gpsVisit,
                 recordingDeviceID: installationID,
+                recordingDay: nil,
             ),
             dataGenerationID: .initial,
         )])

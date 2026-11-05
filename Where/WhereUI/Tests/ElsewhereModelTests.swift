@@ -162,6 +162,7 @@ struct ElsewhereModelTests {
                     coordinate: ElsewherePreview.portland,
                     horizontalAccuracy: 10,
                     source: entry.sample.source,
+                    recordingDay: nil,
                 ),
                 regions: entry.regions,
             )

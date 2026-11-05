@@ -21,6 +21,10 @@ public struct BackupService: Sendable {
         let formatVersion: Int
     }
 
+    private struct RecordingEnvelope: Decodable {
+        let requiredDataMajor: UInt
+    }
+
     /// Decoded contents of a backup archive: the manifest plus the evidence
     /// blob bytes, keyed by evidence id so the importer can pair them with
     /// the matching `Evidence` metadata.
@@ -67,21 +71,24 @@ public struct BackupService: Sendable {
     private static let assetsDirectory = "assets"
     private static let logger = WhereLog.backup(BackupServiceLog.self)
 
-    public init() {}
+    let policy: DataCompatibilityPolicy
+
+    public init(policy: DataCompatibilityPolicy) {
+        self.policy = policy
+    }
 
     static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
-        // ISO8601's Foundation encoder drops sub-second precision. Policy
-        // changes deliberately use that precision to preserve the order of
-        // rapid local actions, so encode the underlying instant losslessly.
-        encoder.dateEncodingStrategy = .secondsSince1970
+        // Date's synthesized representation preserves its exact reference-date Double.
+        // Converting to Unix seconds can lose a bit and turn an identical replay into a conflict.
+        encoder.dateEncodingStrategy = .deferredToDate
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }
 
     static func makeDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .secondsSince1970
+        decoder.dateDecodingStrategy = .deferredToDate
         return decoder
     }
 
@@ -94,6 +101,8 @@ public struct BackupService: Sendable {
     /// `blobs` holds the evidence bytes keyed by `Evidence.id`; evidence
     /// without an entry is exported as metadata only.
     public func makeArchiveFile(
+        requiredDataMajor: UInt,
+        versionedHistoryRecords: [VersionedHistoryRecord],
         samples: [LocationSample],
         evidence: [Evidence],
         manualDays: [DayPresence],
@@ -110,6 +119,13 @@ public struct BackupService: Sendable {
         exportedAt: Date = Date(),
         archiveName: String? = nil,
     ) throws -> URL {
+        try policy.validate(requiredMajor: requiredDataMajor)
+        try Self.validateRecordingContract(
+            requiredDataMajor: requiredDataMajor,
+            samples: samples,
+            records: versionedHistoryRecords,
+            policy: policy,
+        )
         try Self.validateRecordingData(
             metadataChanges: recordingDeviceMetadataChanges,
             sampleAttributionRevisions: sampleAttributionRevisions,
@@ -138,6 +154,8 @@ public struct BackupService: Sendable {
         }
 
         let archive = BackupArchive(
+            requiredDataMajor: requiredDataMajor,
+            versionedHistoryRecords: versionedHistoryRecords,
             exportedAt: exportedAt,
             samples: samples,
             evidence: evidence,
@@ -210,7 +228,7 @@ public struct BackupService: Sendable {
             throw BackupError.manifestMissing
         }
         let archive = try Self.logger.measure(.decodeManifest) {
-            try Self.decodeManifest(Data(contentsOf: manifestURL))
+            try Self.decodeManifest(Data(contentsOf: manifestURL), policy: policy)
         }
         try Self.validateRecordingData(archive)
 
@@ -247,18 +265,64 @@ public struct BackupService: Sendable {
         return blobs
     }
 
-    static func decodeManifest(_ data: Data) throws -> BackupArchive {
+    static func decodeManifest(
+        _ data: Data,
+        policy: DataCompatibilityPolicy,
+    ) throws -> BackupArchive {
         let decoder = makeDecoder()
         let envelope = try decoder.decode(FormatEnvelope.self, from: data)
         guard envelope.formatVersion == BackupArchive.currentFormatVersion else {
             throw BackupError.unsupportedFormatVersion(envelope.formatVersion)
         }
+        let recording = try decoder.decode(RecordingEnvelope.self, from: data)
+        try policy.validate(requiredMajor: recording.requiredDataMajor)
         let archive = try decoder.decode(BackupArchive.self, from: data)
+        try validateRecordingContract(
+            requiredDataMajor: archive.requiredDataMajor,
+            samples: archive.samples,
+            records: archive.versionedHistoryRecords,
+            policy: policy,
+        )
+        try validateRecordingData(archive)
         try validatePlanningData(
             stays: archive.plannedStayRecords,
             homes: archive.homeRegionRecords,
         )
         return archive
+    }
+
+    /// Header admission precedes payload decoding. A declared floor cannot conceal newer controls,
+    /// and major-one GPS cannot silently acquire attribution or a day at import time.
+    private static func validateRecordingContract(
+        requiredDataMajor: UInt,
+        samples: [LocationSample],
+        records: [VersionedHistoryRecord],
+        policy: DataCompatibilityPolicy,
+    ) throws {
+        for record in records {
+            try policy.validate(requiredMajor: record.semantics.major)
+            guard record.semantics.major <= requiredDataMajor,
+                  record.kind != VersionedLocationSample.kind
+            else {
+                throw BackupError.invalidRecordingData
+            }
+        }
+        if requiredDataMajor >= 1 {
+            for sample in samples {
+                try sample.validateRecordingContract()
+            }
+        }
+        let generationID = records.first?.dataGenerationID ?? .initial
+        let observations: [VersionedHistoryRecord] = if requiredDataMajor == 1 {
+            try samples.filter(\.source.isGPS).map {
+                try VersionedLocationSample.encode($0, generationID: generationID)
+            }
+        } else { [] }
+        _ = try RecordingControlSnapshot(
+            records: records + observations,
+            generationID: generationID,
+            policy: policy,
+        )
     }
 
     /// Synthesized decoding does not call validating initializers. Reject invalid planning

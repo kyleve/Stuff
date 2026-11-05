@@ -24,6 +24,7 @@ struct WidgetDataReaderTests {
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: 5,
             source: .manual,
+            recordingDay: nil,
         )
     }
 

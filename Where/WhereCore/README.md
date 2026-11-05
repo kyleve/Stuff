@@ -32,7 +32,7 @@ The caller supplies a complete search bound. Missing context produces a clarific
 `HistoryDecisionResolver.resolve(_:within:version:)` resolves immutable decisions with explicit predecessor identities.
 Concurrent incompatible decisions and missing dependencies remain visible per period.
 The [decision model](../Specifications/MultiDeviceDecisions/README.md) describes the bounded proof and source correspondence.
-These APIs do not change production capture, persistence, reports, or backup formats.
+These pure APIs do not activate history selection.
 The remaining integration and activation requirements stay in the primary design.
 
 ## Durable recording-control values
@@ -53,7 +53,16 @@ The envelope retains the affected scope separately from its payload. Unknown mea
 Canonical predecessor order makes restored retries byte-identical. Reusing an identity for different content fails the transaction.
 Reset and Replace erase outgoing control payloads while retaining the highest observed compatibility requirement.
 
-This boundary remains groundwork. Backup conversion, capture recovery, guarded review proposals, and production controls remain in the implementation plan.
+`LocationSample.recordingDay` preserves resolved or explicitly unresolved observation context through storage and backups.
+Raw sensor measurements and foundation-era rows may omit it. Major-one admission requires both device attribution and an explicit assignment.
+Incomplete raw rows fail reads instead of disappearing from an apparently complete history.
+Major-one GPS uses the existing atomic version envelope. Its required major remains visible when an observation arrives before shared compatibility metadata.
+Control snapshots validate observation identities and causal references, then expose only controls.
+Identical observation deliveries coalesce. Conflicting raw payloads cannot replace provenance through Merge.
+
+Backup format 8 preserves controls and recording-day context. Its required major is admitted before decoding history.
+The offline converter accepts explicit historical device and calendar mappings; [backup format](BACKUP_FORMAT.md#convert-historical-gps) describes the procedure.
+Capture recovery, guarded review proposals, and production controls remain in the implementation plan.
 
 ## Compatibility protocol foundation
 
@@ -412,8 +421,8 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v7** retains independent stays, date windows, Home choices, optional motion,
-  and every sample-attribution revision. Merge preserves revision IDs and timestamps.
+  Backup format **v8** retains independent stays, date windows, Home choices, optional motion,
+  recording-day context, versioned controls, and every sample-attribution revision. Merge preserves revision IDs and timestamps.
   Replace restores revisions into its new generation.
   The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.
   Legacy stay revisions retain one shared identity, including deletion tombstones.

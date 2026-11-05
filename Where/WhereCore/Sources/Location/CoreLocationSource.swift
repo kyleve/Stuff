@@ -398,6 +398,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
                 horizontalAccuracy: location.horizontalAccuracy,
                 source: .gpsSignificantChange,
                 motion: Self.motion(from: location),
+                recordingDay: nil,
             )
             sampleContinuation.yield(sample)
             validSamples.append(sample)
@@ -447,6 +448,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
             ),
             horizontalAccuracy: visit.horizontalAccuracy,
             source: .gpsVisit,
+            recordingDay: nil,
         )
         sampleContinuation.yield(sample)
     }

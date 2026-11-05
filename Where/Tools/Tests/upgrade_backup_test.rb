@@ -8,7 +8,7 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 7, upgraded.fetch("formatVersion")
+    assert_equal 8, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
@@ -58,7 +58,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 7, upgraded.fetch("formatVersion")
+    assert_equal 8, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -83,7 +83,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal original.merge("recordingDeviceID" => nil, "motion" => nil), upgraded.fetch("samples").first
+    assert_equal original.merge("recordingDeviceID" => nil, "motion" => nil, "timestamp" => original.fetch("timestamp") - 978_307_200), upgraded.fetch("samples").first
     assert_equal [], upgraded.fetch("sampleAttributionRevisions")
   end
 
@@ -106,7 +106,7 @@ class UpgradeBackupTest < Minitest::Test
     upgraded = upgrade_manifest(manifest)
 
     assert_equal motion, upgraded.fetch("samples").first.fetch("motion")
-    assert_equal revisions, upgraded.fetch("sampleAttributionRevisions")
+    assert_equal convert_date_epoch!(Marshal.load(Marshal.dump(revisions))), upgraded.fetch("sampleAttributionRevisions")
     stays = upgraded.fetch("plannedStayRecords")
     assert_equal %w[stay-revision stay-deletion], stays.map { |record| record.fetch("id") }
     assert_equal [LEGACY_PLANNED_STAY_ID], stays.map { |record| record.fetch("stayID") }.uniq
@@ -135,19 +135,31 @@ class UpgradeBackupTest < Minitest::Test
     assert_raises(RuntimeError) { driver.send(:verify_counts!, manifest, counts) }
   end
 
-  def test_normalizes_legacy_iso8601_dates_to_current_unix_timestamps
+  def test_verification_driver_passes_recording_map_and_counts_versioned_controls
+    manifest = upgrade_manifest(base_manifest(7))
+    manifest["requiredDataMajor"] = 1
+    manifest["versionedHistoryRecords"] = [{ "payload" => "opaque" }]
+    driver = UpgradeAndVerify.new(["input.zip", "output.zip", "--recording-map", "map.json"])
+    assert_equal ["--recording-map", File.expand_path("map.json")], driver.send(:upgrader_command, "input.zip").last(2)
+    assert_equal 1, driver.send(:expected_counts, manifest).fetch("versionedHistoryRecords")
+    configuration = driver.send(:verification_configuration, manifest)
+    assert_equal 1, configuration.fetch(:versionedHistoryRecordsCount)
+    assert_equal 1, configuration.fetch(:requiredDataMajor)
+  end
+
+  def test_normalizes_legacy_iso8601_dates_to_foundation_reference_timestamps
     manifest = base_manifest(1)
     manifest["exportedAt"] = "2023-11-14T22:13:20Z"
     manifest["samples"].first["timestamp"] = "2023-11-14T22:15:00.500Z"
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 1_700_000_000.0, upgraded.fetch("exportedAt")
-    assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
+    assert_equal 1_700_000_000.0 - 978_307_200, upgraded.fetch("exportedAt")
+    assert_equal 1_700_000_100.5 - 978_307_200, upgraded.fetch("samples").first.fetch("timestamp")
   end
 
   def test_rejects_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(8)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(9)) }
     assert_equal 1, error.status
   end
 
@@ -165,7 +177,7 @@ class UpgradeBackupTest < Minitest::Test
 
     assert_equal %w[old clear], upgraded.map { |record| record.fetch("id") }
     assert_equal [LEGACY_PLANNED_STAY_ID], upgraded.map { |record| record.fetch("stayID") }.uniq
-    assert_equal timestamp, upgraded.first.fetch("updatedAt")
+    assert_equal timestamp - 978_307_200, upgraded.first.fetch("updatedAt")
     assert_nil upgraded.last["value"]
     value = upgraded.first.fetch("value")
     assert_equal LEGACY_PLANNED_STAY_ID, value.fetch("id")
@@ -244,7 +256,7 @@ class UpgradeBackupTest < Minitest::Test
     upgraded = upgrade_manifest(manifest)
 
     assert_equal stays, upgraded.fetch("plannedStayRecords")
-    assert_equal homes, upgraded.fetch("homeRegionRecords")
+    assert_equal convert_date_epoch!(homes), upgraded.fetch("homeRegionRecords")
   end
 
   private

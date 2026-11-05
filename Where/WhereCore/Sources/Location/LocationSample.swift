@@ -108,6 +108,10 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     public let recordingDeviceID: RecordingDeviceID?
     /// Sensor readings when the source supplies valid speed or altitude evidence.
     public let motion: LocationMotion?
+    /// Observation-time calendar context. Nil is a raw or foundation-era measurement, never an
+    /// admitted automatic observation in the multi-device contract. Unknown captured context is
+    /// represented explicitly by `.unresolved`.
+    public let recordingDay: RecordingDayAssignment?
 
     public init(
         id: UUID = UUID(),
@@ -117,6 +121,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         source: SampleSource,
         recordingDeviceID: RecordingDeviceID? = nil,
         motion: LocationMotion? = nil,
+        recordingDay: RecordingDayAssignment?,
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -125,6 +130,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.source = source
         self.recordingDeviceID = recordingDeviceID
         self.motion = motion
+        self.recordingDay = recordingDay
     }
 
     /// Stamp an automatic sample with the installation that received it.
@@ -139,6 +145,16 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
             source: source,
             recordingDeviceID: deviceID,
             motion: motion,
+            recordingDay: recordingDay ?? .unresolved,
         )
+    }
+
+    /// New-contract admission is separate from raw sensor construction. It never supplies
+    /// missing historical attribution or a calendar assignment on a persisted read.
+    public func validateRecordingContract() throws {
+        guard source.isGPS else { return }
+        guard let recordingDay
+        else { throw RecordingObservation.ValidationError.missingRecordingDay }
+        _ = try RecordingObservation(sample: self, recordingDay: recordingDay, region: nil)
     }
 }

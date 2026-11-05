@@ -749,6 +749,7 @@ struct DataIssueScannerTests {
                     coordinate: coordinate,
                     horizontalAccuracy: 20,
                     source: source,
+                    recordingDay: nil,
                 ))
             }
         }

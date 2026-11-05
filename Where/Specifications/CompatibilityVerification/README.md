@@ -60,4 +60,7 @@ The [activation model](../CompatibilityActivation/README.md) covers uncertain sa
 `DataCompatibilityCoordinatorTests` covers stale responses, relaunch, empty stores, account changes, and supported imports.
 `CloudKitDataCompatibilityTransportTests` runs production transport logic through a conditional database fixture.
 `SwiftDataStoreCompatibilityTests` checks admission against real SwiftData transactions, including a record received before metadata.
+`VersionedLocationSample` puts major-one GPS and its version in that same atomic envelope.
+`SwiftDataStoreLocationSamplesTests.observationBeforeSharedFloorBlocksAFoundationReader` checks this delivery order with a real observation.
+The model's record-header abstraction covers this storage boundary; it does not verify location payloads or calendar assignments.
 The fixture does not claim live CloudKit validation. Recheck source correspondence whenever these boundaries change.

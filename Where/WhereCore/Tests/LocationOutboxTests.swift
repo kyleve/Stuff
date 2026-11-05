@@ -59,6 +59,7 @@ struct LocationOutboxTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 
@@ -85,6 +86,7 @@ struct LocationOutboxTests {
                 speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                 altitude: .init(meters: 10500, accuracyMeters: 12),
             ),
+            recordingDay: nil,
         )
         let entry = LocationOutboxEntry(sample: sample, dataGenerationID: .initial)
         try await outbox.save([entry])

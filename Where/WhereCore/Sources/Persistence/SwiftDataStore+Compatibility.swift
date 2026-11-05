@@ -72,7 +72,7 @@ extension SwiftDataStore {
         try Self.persistCompatibilityFloor(major, in: mutationContext())
     }
 
-    private static func persistCompatibilityFloor(_ major: UInt, in context: ModelContext) throws {
+    static func persistCompatibilityFloor(_ major: UInt, in context: ModelContext) throws {
         let state = try Self.compatibilityState(in: context)
         let nextMajor = max(major, state.requiredMajor)
         if let persisted = state.persistedRequiredMajor, persisted >= nextMajor { return }

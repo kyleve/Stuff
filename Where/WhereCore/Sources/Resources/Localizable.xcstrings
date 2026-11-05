@@ -244,6 +244,17 @@
         }
       }
     },
+    "recording.error.incompleteLocationHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some recorded locations are incomplete. Let sync finish, then try again."
+          }
+        }
+      }
+    },
     "recording.error.incompletePolicyHistory" : {
       "extractionState" : "manual",
       "localizations" : {

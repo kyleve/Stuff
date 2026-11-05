@@ -13,13 +13,14 @@ class UpgradeAndVerify
   PRESERVED_COLLECTIONS = %w[
     samples evidence manualDays dismissedIssues trackedRegions
     recordingDeviceProfiles recordingDeviceMetadataChanges recordingDeviceRemovals assets
-    plannedStayRecords homeRegionRecords sampleAttributionRevisions
+    plannedStayRecords homeRegionRecords sampleAttributionRevisions versionedHistoryRecords
   ].freeze
 
   def initialize(argv)
     @options = { force: false }
     parser = OptionParser.new do |options|
       options.banner = "Usage: ruby upgrade_and_verify.rb INPUT [OUTPUT] [options]"
+      options.on("--recording-map PATH", "Use explicit historical recording mappings") { |path| @options[:recording_map] = File.expand_path(path) }
       options.on("--force", "Replace an existing output archive") { @options[:force] = true }
       options.on("-h", "--help", "Show this help") do
         puts options
@@ -51,10 +52,7 @@ class UpgradeAndVerify
         @input
       end
 
-      run_command!(
-        "mise", "exec", "--", "ruby", @upgrader, input_zip, @output,
-        chdir: @repo_root,
-      )
+      run_command!(*upgrader_command(input_zip), chdir: @repo_root)
     end
 
     run_command!("unzip", "-tq", @output)
@@ -78,6 +76,12 @@ class UpgradeAndVerify
   end
 
   private
+
+  def upgrader_command(input_zip)
+    command = ["mise", "exec", "--", "ruby", @upgrader, input_zip, @output]
+    command += ["--recording-map", @options.fetch(:recording_map)] if @options[:recording_map]
+    command
+  end
 
   def default_output(input)
     "#{input.sub(/\.zip\z/i, "")}-upgraded.zip"
@@ -153,6 +157,8 @@ class UpgradeAndVerify
       homeRegionRecordsCount: manifest.fetch("homeRegionRecords").length,
       sampleAttributionRevisionsCount: manifest.fetch("sampleAttributionRevisions").length,
       assetsCount: manifest.fetch("assets").length,
+      versionedHistoryRecordsCount: manifest.fetch("versionedHistoryRecords").length,
+      requiredDataMajor: manifest.fetch("requiredDataMajor"),
     }
   end
 

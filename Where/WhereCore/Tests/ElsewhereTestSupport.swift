@@ -14,6 +14,7 @@ enum ElsewhereTestSupport {
             coordinate: coordinate,
             horizontalAccuracy: 10,
             source: .gpsVisit,
+            recordingDay: nil,
         )
     }
 

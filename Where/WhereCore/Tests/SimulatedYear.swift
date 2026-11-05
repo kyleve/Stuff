@@ -290,6 +290,7 @@ enum SimulatedYear {
             coordinate: Coordinate(latitude: lat, longitude: lng),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 }

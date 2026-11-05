@@ -26,14 +26,16 @@ public struct RecordingControlStore: Sendable {
         expectedGenerationID: WhereDataGenerationID,
     ) async throws {
         try await store.perform(expectedDataGenerationID: expectedGenerationID) {
-            let current = try await snapshot()
-            guard current.generationID == expectedGenerationID
-            else { throw RecordingPersistenceError.dataGenerationChanged }
-            _ = try RecordingControlSnapshot(
-                records: current.records + records,
-                generationID: expectedGenerationID,
-                policy: policy,
-            )
+            try await store.readSnapshot {
+                let generationID = try await store.dataGeneration().id
+                guard generationID == expectedGenerationID
+                else { throw RecordingPersistenceError.dataGenerationChanged }
+                _ = try await RecordingControlSnapshot(
+                    records: store.versionedHistoryRecords(policy: policy) + records,
+                    generationID: generationID,
+                    policy: policy,
+                )
+            }
             for record in records {
                 try await store.addVersionedHistoryRecord(record)
             }

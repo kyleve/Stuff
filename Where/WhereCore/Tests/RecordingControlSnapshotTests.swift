@@ -120,3 +120,30 @@ struct RecordingControlSnapshotTests {
         }
     }
 }
+
+extension RecordingControlSnapshotTests {
+    @Test func observationPredecessorsAreInvalidBeforeControlPayloadsAreFiltered() throws {
+        let sample = try #require(RecordingBackupTestSupport.convertedArchive().samples.first)
+        let observation = try VersionedLocationSample.encode(sample, generationID: .initial)
+        let decision = try RecordingAssessmentTestSupport.decision(
+            16,
+            predecessors: [.init(rawValue: sample.id)],
+        )
+        let control = try RecordingControlCodec.encode(.source(decision), generationID: .initial)
+        let policy = RecordingBackupTestSupport.policy
+        #expect(try RecordingControlSnapshot(
+            records: [control],
+            generationID: .initial,
+            policy: policy,
+        ).sourceChoices == [decision])
+        for records in [[control, observation], [observation, control]] {
+            #expect(throws: DataCompatibilityError.conflictingRecord) {
+                try RecordingControlSnapshot(
+                    records: records,
+                    generationID: .initial,
+                    policy: policy,
+                )
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes legacy Where backups into the current v7 manifest. The automatic-recording feature
+# Reshapes legacy Where backups into the current v8 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
 # v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
 # v6 preserves optional motion readings and adds per-sample attribution history.
@@ -13,9 +13,12 @@ require "fileutils"
 require "time"
 require "set"
 require "date"
+require "optparse"
+require_relative "recording_backup_conversion"
+require_relative "../../Tools/file_transaction"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 7
+CURRENT_FORMAT_VERSION = 8
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -47,10 +50,12 @@ end
 
 def print_usage
   puts <<~USAGE
-    Usage: ruby Where/Tools/upgrade-backup.rb INPUT.zip [OUTPUT.zip]
+    Usage: ruby Where/Tools/upgrade-backup.rb INPUT.zip [OUTPUT.zip] [--recording-map MAP.json]
 
     Upgrades a Where backup export to the current manifest shape.
     OUTPUT defaults to INPUT-upgraded.zip.
+    --recording-map converts foundation GPS to data major 1 using explicit historical mappings.
+    Without a map, the format upgrade preserves the existing data major (legacy archives use 0).
   USAGE
 end
 
@@ -143,6 +148,25 @@ def normalize_dates!(value)
   value
 end
 
+# v8 uses Foundation Date's exact reference-date representation (2001-01-01 UTC).
+# Existing Unix timestamps cannot recover precision already lost by old exports, but this
+# subtraction matches the old decoder's Date construction and preserves that decoded instant.
+def convert_date_epoch!(value)
+  case value
+  when Hash
+    value.each do |key, child|
+      if DATE_KEYS.include?(key) && child.is_a?(Numeric)
+        value[key] = child - 978_307_200
+      else
+        convert_date_epoch!(child)
+      end
+    end
+  when Array
+    value.each { |child| convert_date_epoch!(child) }
+  end
+  value
+end
+
 def upgrade_recording_devices!(manifest, source_version)
   return unless source_version < 4
 
@@ -205,13 +229,14 @@ def upgrade_planned_stays!(manifest, source_version)
   end
 end
 
-def upgrade_manifest(manifest)
+def upgrade_manifest(manifest, recording_map: nil)
+  manifest = Marshal.load(Marshal.dump(manifest))
   source_version = source_format_version(manifest)
   warnings = []
   upgrade_evidence!(manifest, warnings)
   upgrade_manual_days!(manifest, warnings)
   upgrade_dismissals!(manifest)
-  normalize_dates!(manifest)
+  normalize_dates!(manifest) if source_version < 8
   manifest["dismissedIssues"] ||= []
   manifest["trackedRegions"] ||= []
   manifest["trackedRegions"] = manifest["trackedRegions"].map do |id|
@@ -231,12 +256,18 @@ def upgrade_manifest(manifest)
   manifest["plannedStayRecords"] ||= []
   manifest["homeRegionRecords"] ||= []
   manifest["sampleAttributionRevisions"] ||= []
+  if source_version < 8
+    manifest["requiredDataMajor"] = 0
+    manifest["versionedHistoryRecords"] = []
+  end
   upgrade_recording_devices!(manifest, source_version)
   upgrade_planned_stays!(manifest, source_version)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")
+  convert_date_epoch!(manifest) if source_version < 8
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
+  RecordingBackupConversion.apply(manifest, mapping: recording_map) if recording_map
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest
 end
@@ -258,15 +289,29 @@ def sort_deep(value)
   end
 end
 
+def validate_output_file(output)
+  die "output must be a regular file, not a link or directory: #{output}" if File.symlink?(output) || (File.exist?(output) && !File.file?(output))
+end
+
 def main(argv)
   if argv.empty? || argv.include?("--help") || argv.include?("-h")
     print_usage
     exit(argv.empty? ? 1 : 0)
   end
 
-  input = argv[0]
+  recording_map_path = nil
+  parser = OptionParser.new do |options|
+    options.on("--recording-map PATH") { |path| recording_map_path = path }
+  end
+  arguments = parser.parse(argv)
+  die "expected INPUT.zip and optional OUTPUT.zip" unless (1..2).cover?(arguments.length)
+  recording_map = JSON.parse(File.read(recording_map_path)) if recording_map_path
+  input = arguments[0]
   die "input not found: #{input}" unless File.exist?(input)
-  output = File.expand_path(argv[1] || input.sub(/(\.zip)?\z/i, "-upgraded.zip"))
+  output = File.expand_path(arguments[1] || input.sub(/(\.zip)?\z/i, "-upgraded.zip"))
+
+  validate_output_file(output)
+  die "input and output must differ" if File.expand_path(input) == output || (File.exist?(output) && File.identical?(input, output))
 
   Dir.mktmpdir("where-backup-upgrade") do |work|
     run_or_die("unzip", "-q", File.expand_path(input), "-d", work)
@@ -274,11 +319,20 @@ def main(argv)
     die "#{MANIFEST_NAME} not found in archive (is this a Where backup?)" unless File.exist?(manifest_path)
 
     manifest = JSON.parse(File.read(manifest_path))
-    File.write(manifest_path, JSON.pretty_generate(sort_deep(upgrade_manifest(manifest))) + "\n")
-    FileUtils.rm_f(output)
-    Dir.chdir(work) { run_or_die("zip", "-q", "-r", output, ".") }
+    File.write(manifest_path, JSON.pretty_generate(sort_deep(upgrade_manifest(manifest, recording_map: recording_map))) + "\n")
+    Dir.mktmpdir(".where-backup-output", File.dirname(output)) do |staging|
+      staged = File.join(staging, "archive.zip")
+      Dir.chdir(work) { run_or_die("zip", "-q", "-r", staged, ".") }
+      run_or_die("unzip", "-tq", staged)
+      validate_output_file(output)
+      transaction = FileTransaction.new
+      transaction.replace(target: output, staged: staged)
+      transaction.commit
+    end
   end
   puts output
+rescue OptionParser::ParseError, JSON::ParserError, ArgumentError, KeyError, SystemCallError, FileTransaction::Error => error
+  die error.message
 end
 
 main(ARGV) if $PROGRAM_NAME == __FILE__

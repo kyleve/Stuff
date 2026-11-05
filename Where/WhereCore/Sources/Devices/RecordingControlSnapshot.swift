@@ -29,7 +29,14 @@ public struct RecordingControlSnapshot: Hashable, Sendable {
         var contexts: [RecordingCalendarDecision] = []
         var requiresReview: [VersionedHistoryRecord] = []
         var understood: [VersionedHistoryRecord.ID: RecordingControl] = [:]
+        var observationIDs: Set<VersionedHistoryRecord.ID> = []
         for record in ordered {
+            if record.kind == VersionedLocationSample.kind {
+                try policy.validate(requiredMajor: record.semantics.major)
+                _ = try VersionedLocationSample.decode(record)
+                observationIDs.insert(record.id)
+                continue
+            }
             let admission = try RecordingControlCodec.admit(record, policy: policy)
             if case let .understood(control) = admission { understood[record.id] = control }
             switch admission {
@@ -42,6 +49,9 @@ public struct RecordingControlSnapshot: Hashable, Sendable {
         }
         for control in understood.values {
             for predecessorID in control.predecessorRecordIDs {
+                guard !observationIDs.contains(predecessorID) else {
+                    throw DataCompatibilityError.conflictingRecord
+                }
                 if let predecessor = understood[predecessorID],
                    predecessor.family != control.family
                 {
@@ -95,7 +105,7 @@ public struct RecordingControlSnapshot: Hashable, Sendable {
             }
         }
         self.generationID = generationID
-        self.records = ordered
+        self.records = ordered.filter { !observationIDs.contains($0.id) }
         self.sourceChoices = sourceChoices
         self.ignores = ignores
         self.places = places

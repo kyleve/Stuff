@@ -127,6 +127,7 @@ public struct WhereServices: Sendable {
     /// day. Production names its own, via `make(...)`.
     @_spi(Testing)
     public init(
+        compatibilityPolicy: DataCompatibilityPolicy = .foundation,
         store: any WhereStore,
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext = .testing,
@@ -254,6 +255,7 @@ public struct WhereServices: Sendable {
             now: now,
         )
         let backup = BackupCoordinator(
+            compatibilityPolicy: compatibilityPolicy,
             store: store,
             currentDeviceID: currentDevice.id,
             now: now,
@@ -363,6 +365,7 @@ public struct WhereServices: Sendable {
         )
         let location = DataCompatibilityLocationSource(base: locationSource, access: access)
         var services = try await make(
+            compatibilityPolicy: access.permit.policy,
             store: access.store,
             locationSource: location,
             installationContext: installationContext,
@@ -421,6 +424,7 @@ public struct WhereServices: Sendable {
 
     @_spi(Demo) @_spi(Testing)
     public static func make(
+        compatibilityPolicy: DataCompatibilityPolicy = .foundation,
         store: any WhereStore,
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext,
@@ -443,6 +447,7 @@ public struct WhereServices: Sendable {
             trackedIDs: Set(tracked.map(\.rawValue)),
         )
         return WhereServices(
+            compatibilityPolicy: compatibilityPolicy,
             store: store,
             locationSource: locationSource,
             installationContext: installationContext,

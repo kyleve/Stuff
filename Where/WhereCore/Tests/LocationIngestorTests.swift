@@ -136,6 +136,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.3349, longitude: -122.0090),
             horizontalAccuracy: 6,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         source.setNextRequestedLocation(fix)
 
@@ -186,6 +187,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: -1,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await ingestor.start()
 
@@ -208,6 +210,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 1500,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await ingestor.start()
 
@@ -250,6 +253,7 @@ struct LocationIngestorTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                recordingDay: nil,
             ))
         }
         source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
@@ -401,6 +405,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         ))
 
         try await waitUntil { await recorder.count >= 2 }
@@ -619,6 +624,7 @@ struct LocationIngestorTests {
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
             recordingDeviceID: originalDeviceID,
+            recordingDay: nil,
         )
         let outbox = SpyLocationOutbox([restoredSample])
         let ingestor = Self.makeIngestor(
@@ -800,6 +806,7 @@ struct LocationIngestorTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ), dataGenerationID: .initial)
         }
         #expect(await ingestor.retryQueueDepth == 20)
@@ -810,6 +817,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         ), dataGenerationID: .initial)
 
         let queuedIDs = await ingestor.testingRetryQueueSampleIDs()
@@ -832,6 +840,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
     }
 

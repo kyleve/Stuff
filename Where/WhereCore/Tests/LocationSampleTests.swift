@@ -15,6 +15,7 @@ struct LocationSampleTests {
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
             motion: motion,
+            recordingDay: nil,
         )
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let stamped = sample.recorded(by: deviceID)

@@ -66,6 +66,7 @@ struct FlightReviewModelTests {
                 horizontalAccuracy: 20,
                 source: .gpsSignificantChange,
                 recordingDeviceID: CurrentRecordingDevice.preview.id,
+                recordingDay: nil,
             ))
         }
         await model.applyPointCorrection(correction)
@@ -107,6 +108,7 @@ struct FlightReviewModelTests {
                     horizontalAccuracy: 20,
                     source: .gpsSignificantChange,
                     recordingDeviceID: CurrentRecordingDevice.preview.id,
+                    recordingDay: nil,
                 ))
             }
         }
@@ -246,6 +248,7 @@ struct FlightReviewModelTests {
             horizontalAccuracy: 20,
             source: .gpsSignificantChange,
             recordingDeviceID: CurrentRecordingDevice.preview.id,
+            recordingDay: nil,
         )
         try await store.perform { try await store.add(sample: late) }
 

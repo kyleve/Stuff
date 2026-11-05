@@ -101,15 +101,29 @@ struct FlightFixtureExporter {
         self.deviceIDs = deviceIDs
         dateShift = shift
         self.now = now.addingTimeInterval(shift)
-        samples = selected.map { sample in
-            LocationSample(
+        samples = try selected.map { sample in
+            let shiftedTimestamp = sample.timestamp.addingTimeInterval(shift)
+            let recordingDay: RecordingDayAssignment? = switch sample.recordingDay {
+                case let .resolved(context):
+                    try .resolved(.init(
+                        observedAt: shiftedTimestamp,
+                        calendarContext: .init(
+                            timeZone: context.timeZone,
+                            secondsFromGMT: context.secondsFromGMT,
+                        ),
+                    ))
+                case .unresolved: .unresolved
+                case nil: nil
+            }
+            return LocationSample(
                 id: sampleIDs[sample.id]!,
-                timestamp: sample.timestamp.addingTimeInterval(shift),
+                timestamp: shiftedTimestamp,
                 coordinate: rotation.map { $0.apply(sample.coordinate) } ?? sample.coordinate,
                 horizontalAccuracy: sample.horizontalAccuracy,
                 source: sample.source,
                 recordingDeviceID: sample.recordingDeviceID.map { deviceIDs[$0]! },
                 motion: sample.motion,
+                recordingDay: recordingDay,
             )
         }
     }

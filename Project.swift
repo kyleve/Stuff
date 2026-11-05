@@ -702,7 +702,10 @@ let project = Project(
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
             sources: ["Where/WhereCore/Tests/**/*.swift"],
-            resources: [.folderReference(path: "Where/WhereCore/Tests/Fixtures/Flights")],
+            resources: [
+                .folderReference(path: "Where/WhereCore/Tests/Fixtures/Flights"),
+                .folderReference(path: "Where/WhereCore/Tests/Fixtures/RecordingBackup"),
+            ],
             extraPackageProducts: ["RegionKit"],
         ),
         // WhereUITests names LifecycleKit and SFSafeSymbols because its test sources

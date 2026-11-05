@@ -81,6 +81,7 @@ struct WidgetSnapshotPublisherTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
         }
         await publisher.publish()
@@ -134,6 +135,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await store.perform { try await store.add(sample: sf) }
         await publisher.publish() // today now counts California
@@ -145,6 +147,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 37.7750, longitude: -122.4195),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         await publisher.publishAfterIngest(of: sf2)
         #expect(await refresher.publishCount == 1)
@@ -158,6 +161,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         try await store.perform { try await store.add(sample: sf) }
         await publisher.publish()
@@ -169,6 +173,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDay: nil,
         )
         await publisher.publishAfterIngest(of: nyc)
         #expect(await refresher.publishCount == 2)

@@ -86,6 +86,7 @@ struct ReminderReconcilerTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDay: nil,
             ))
         }
         await h.reconciler.configure(

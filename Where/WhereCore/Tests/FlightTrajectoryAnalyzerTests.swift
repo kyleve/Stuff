@@ -107,6 +107,7 @@ struct FlightTrajectoryAnalyzerTests {
                         source: sample.source,
                         recordingDeviceID: sample.recordingDeviceID,
                         motion: sample.motion,
+                        recordingDay: nil,
                     )
                 }
                 let recognized = analyzer.analyze(samples: coarse, now: scenario.now)
@@ -121,6 +122,7 @@ struct FlightTrajectoryAnalyzerTests {
                         source: sample.source,
                         recordingDeviceID: index < 2 ? sample.recordingDeviceID : nil,
                         motion: sample.motion,
+                        recordingDay: nil,
                     )
                 }
                 #expect(
@@ -171,6 +173,7 @@ struct FlightTrajectoryAnalyzerTests {
                 source: .gpsSignificantChange,
                 recordingDeviceID: anchor.recordingDeviceID,
                 motion: nil,
+                recordingDay: nil,
             )
             let contradicted = analyzer.analyze(
                 samples: scenario.samples + [conflict],
