@@ -10,6 +10,9 @@ public struct HistoricalDataIssueScanResult: Sendable {
     public struct Year: Sendable {
         public let context: RecordingReviewReference.Context
         public let scan: DataIssueScanResult
+        /// Actual resolved presence from the same admitted read as the issues. Unresolved
+        /// recording dates remain in scan.completeness; they are not invented presence.
+        public let presentDays: Set<CalendarDay>
     }
 
     public let revision: Revision
@@ -42,6 +45,7 @@ public struct HistoricalDataIssueScanResult: Sendable {
             calendar: Calendar,
             scopeID: RecordingReviewSnapshot.ScopeID? = nil,
             generationID: WhereDataGenerationID = .initial,
+            presentDaysByYear: [Int: Set<CalendarDay>] = [:],
         ) throws {
             guard let version = yearScans.values.first?.completeness.policyVersion else {
                 throw RecordingReviewSnapshot.ValidationError.emptyAssessment
@@ -56,6 +60,7 @@ public struct HistoricalDataIssueScanResult: Sendable {
                         query: .days(ReportReader.dataIssueContextDays(for: year)),
                     ),
                     scan: scan,
+                    presentDays: presentDaysByYear[year] ?? [],
                 )
             }
             recording = try RecordingReviewSnapshot(
@@ -118,6 +123,7 @@ public struct HistoricalDataIssueScanResult: Sendable {
                     driftThresholdMeters: driftThresholdMeters,
                     now: now,
                 ),
+                presentDays: Set(year.reads.report.days.map(\.day)),
             ))
         }
         guard let version else { throw RecordingReviewSnapshot.ValidationError.emptyAssessment }

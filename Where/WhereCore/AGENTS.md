@@ -212,6 +212,7 @@ That document also owns the implementation plan.
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
 - Count reminder issues through the all-history scanner, including recording concerns once across year boundaries.
+  Derive logging presence and missing dates from that same publication. Retain discovered older years and exclude dates requiring recording review from missing-day prompts.
   Publish one combined evening request per day, with separate local logging and issue preferences and one shared time.
   Failed assessment must retain prior output while withdrawing stale requests after a known disablement or time change.
   Keep configuration and assessment revisions separate across permission prompts. Invalidate committed-ingest reads inline before reassessment.

@@ -4,6 +4,29 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct HistoricalDataIssueScanResultTests {
+    @Test func publicationRetainsActualPresenceWithoutTurningUnknownDatesIntoPresence(
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let known = CalendarDay(year: 2001, month: 1, day: 10)
+        try await store.perform {
+            try await store.setManualDay(DayPresence(day: known, regions: [.california]))
+        }
+        try await LocationHistoryReaderTestSupport.add([
+            LocationHistoryReaderTestSupport.sample(seconds: 0, assignment: .unresolved),
+        ], to: store)
+        let reads = try await LocationHistoryReaderTestSupport.reports(store)
+            .historicalDataIssueReads(currentYear: 2002)
+        let result = try HistoricalDataIssueTestSupport.result(reads)
+        let year = try #require(result.years.first { $0.context.historicalYear == 2001 })
+        #expect(year.presentDays == [known])
+        #expect(try year.scan.completeness.daysRequiringReview.contains(
+            CalendarDay(year: 2001, month: 1, day: 1),
+        ))
+        let otherPresence = result.years.filter { $0.context.historicalYear != 2001 }
+            .flatMap(\.presentDays)
+        #expect(otherPresence.isEmpty)
+    }
+
     @Test func continuousNewYearConflictIsCountedOnceAndKeepsBothYearContexts() async throws {
         let store = try await RecordingChoiceTestSupport.store()
         let samples = try HistoricalDataIssueTestSupport.conflicts(at: [-600, 0, 600])

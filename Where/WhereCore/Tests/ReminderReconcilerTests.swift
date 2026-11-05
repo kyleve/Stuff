@@ -44,7 +44,6 @@ struct ReminderReconcilerTests {
         let spy = SpyReminderScheduler()
         let reconciler = ReminderReconciler(
             scheduler: spy,
-            reportReader: reader,
             issueScanner: scanner,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
@@ -53,6 +52,96 @@ struct ReminderReconcilerTests {
     }
 
     private static let noIssues = Double(DriftThreshold.default.rawValue)
+
+    @Test func presenceAndIssuesUseTheSamePublicationWhenHistoryChangesDuringAssessment(
+    ) async throws {
+        let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let h = try Self.makeReconciler(now: { now })
+        let gate = CompatibilityTestGate()
+        await h.scanner.setBeforeHistoricalPublicationForTesting { await gate.suspend() }
+        let pending = Task {
+            await h.reconciler.configure(
+                enabled: true,
+                time: .defaultEvening,
+                issueAlertsEnabled: true,
+                driftThresholdMeters: Self.noIssues,
+                requestAuthorization: false,
+            )
+        }
+        await gate.waitUntilEntered()
+        try await h.store.perform {
+            try await h.store.setManualDay(DayPresence(
+                date: now,
+                in: WhereCoreTestSupport.calendar(),
+                regions: [.california],
+            ))
+        }
+        // This fixture deliberately has no store-change listener. The completed publication
+        // still represents the earlier snapshot, including its then-missing current day.
+        await gate.resume()
+        await pending.value
+        #expect(await h.spy.lastReminders.first?.remindsToLogDay == true)
+        await h.scanner.setBeforeHistoricalPublicationForTesting {}
+        await h.scanner.invalidate()
+        await h.reconciler.reconcile()
+        #expect(await h.spy.lastReminders.first?.remindsToLogDay == false)
+    }
+
+    @Test func loggingOnlyRetainsOlderMissingDaysAfterYearRollover() async throws {
+        let now = WhereCoreTestSupport.iso("2027-01-01T12:00:00-08:00")
+        let h = try Self.makeReconciler(now: { now })
+        try await h.store.perform {
+            try await h.store.setManualDay(DayPresence(
+                date: WhereCoreTestSupport.iso("2026-01-10T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
+                regions: [.california],
+            ))
+        }
+        await h.reconciler.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Self.noIssues,
+            requestAuthorization: false,
+        )
+        #expect(await h.spy.lastBadgeCount == 364)
+        #expect(await h.spy.lastReminders.count == 7)
+        #expect(await h.spy.lastReminders.allSatisfy {
+            $0.missingDayCount == 364 && $0.issueCount == 0 && $0.remindsToLogDay
+        })
+    }
+
+    @Test func unresolvedRecordingDatesAreNotLoggingPromptsWhenIssueAlertsAreOff() async throws {
+        let now = WhereCoreTestSupport.iso("2001-01-01T12:00:00-08:00")
+        let store = try await RecordingChoiceTestSupport.store()
+        try await LocationHistoryReaderTestSupport.add([
+            LocationHistoryReaderTestSupport.sample(seconds: 0, assignment: .unresolved),
+        ], to: store)
+        let h = try Self.makeReconciler(
+            now: { now },
+            existingStore: store,
+            policy: RecordingChoiceTestSupport.policy,
+        )
+        let history = try await h.scanner.historicalScan(
+            driftThresholdMeters: Self.noIssues,
+            force: false,
+        )
+        let today = CalendarDay(year: 2001, month: 1, day: 1)
+        let current = try #require(history.years.first { $0.context.historicalYear == 2001 })
+        #expect(!current.presentDays.contains(today))
+        #expect(try current.scan.completeness.daysRequiringReview.contains(today))
+        await h.reconciler.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Self.noIssues,
+            requestAuthorization: false,
+        )
+        #expect(await h.spy.lastReminders.first?.remindsToLogDay == false)
+        #expect(await h.spy.lastReminders.allSatisfy { $0.issueCount == 0 })
+        // 2000 is a leap year. Its final day needs recording review; the other 365 are gaps.
+        #expect(await h.spy.lastBadgeCount == 365)
+    }
 
     @Test func permissionCompletionAppliesAChangedTimeWithoutRestoringOldSettings() async throws {
         let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")

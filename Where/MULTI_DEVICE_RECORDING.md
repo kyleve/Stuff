@@ -1435,6 +1435,8 @@ This primitive requires recording-contract day semantics. Durable notification i
 **Combined evening scheduling implemented:** one daily request combines the enabled logging and issue categories at the existing evening time.
 Settings keeps both device-local toggles and shows the shared time while either category is enabled. Daily summaries remain independent.
 The rolling seven-day schedule retains known earlier missing days and all-history issues, including recording concerns across year boundaries.
+Presence, missing days, and issues now come from one historical publication. Logging backlog includes discovered older years.
+Possible unresolved recording dates require review; they do not become missing-day prompts or invented recorded presence.
 Recording today removes today's logging prompt while retaining unresolved earlier work. Future requests carry the last assessed backlog.
 Failed scans retain prior output. Known category disablement or time changes withdraw stale requests without inventing a badge count.
 Permission completion reconciles current settings; superseded assessments cannot restore older settings. Disabling a category does not request permission.

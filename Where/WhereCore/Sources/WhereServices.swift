@@ -163,7 +163,6 @@ public struct WhereServices: Sendable {
         )
         let reminders = ReminderReconciler(
             scheduler: reminderScheduler,
-            reportReader: reports,
             issueScanner: resolution,
             calendar: aggregator.calendar,
             now: now,
@@ -220,6 +219,9 @@ public struct WhereServices: Sendable {
                         await widgets.publishAfterIngest(of: sample)
                     }
                 } else if !outcome.changedDays.isEmpty {
+                    // A drain-only commit can precede delivery of the store-change signal.
+                    // Do not reuse pre-drain presence in the shared historical publication.
+                    await resolution.invalidate()
                     await reminders.reconcile()
                     if outcome.needsFullWidgetRebuild {
                         await widgets.publish()

@@ -414,6 +414,7 @@ one it belongs to rather than to a god-object:
   `historicalScan(driftThresholdMeters:force:)` covers stored years plus the current year from one admitted snapshot.
   It reuses annual detector assessment and groups continuous recording concerns across year boundaries.
   `HistoricalDataIssueScanResult.references(for:)` retains original year/query contexts for bounded review.
+  Each year retains actual resolved presence from that same snapshot, separately from dates requiring recording review.
   A failed year fails the whole refresh. Reset invalidation retries held completions; cancellation cannot populate the cache.
   Missing-day and abrupt-change detection share the same snapshot; flight and
   boundary cleanup use one sample assessment. Supported flight transitions stay
@@ -554,7 +555,8 @@ one it belongs to rather than to a god-object:
   `DailySummaryReconciler` owns the independent year-to-date recap.
   `EveningReminderScheduling` receives typed per-day work and maintains one request per day at the shared evening time.
   Logging and issue categories remain separate device-local preferences. Earlier missing days and historical issues can keep today's request after today's history is recorded.
-  Issue counts use the shared historical scan, including recording concerns once across year boundaries.
+  Presence, missing days, and issue counts use one shared historical publication, including recording concerns once across year boundaries.
+  Logging backlog includes discovered older years. Possible unresolved recording dates need review; they do not become missing-day prompts or invented presence.
   Failed scans retain prior output. Category disablement or time changes first cancel stale requests without guessing an unreadable badge count.
   Configuration revisions remain independent of assessment requests. Permission completion reconciles the latest settings, even after an intervening refresh.
   Callers explicitly choose whether configuration may request permission; disabling a category or editing the time does not request permission.

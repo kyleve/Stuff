@@ -547,6 +547,42 @@ struct WhereServicesTests {
         await services.ingestor.stop()
     }
 
+    @Test func retryDrainRefreshesLoggingPresenceBeforeStoreChangeDelivery() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing, emitsChanges: false)
+        let source = ScriptedLocationSource()
+        let reminders = SpyReminderScheduler()
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let services = WhereServices(
+            store: store,
+            locationSource: source,
+            aggregator: Self.makeAggregator(),
+            reminderScheduler: reminders,
+            now: { now },
+        )
+        _ = try await services.recording.register(authorization: .always)
+        await store.setShouldFail(true)
+        source.emit(gpsSample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await services.ingestor.retryQueueDepth == 1 }
+        await services.ingestor.pause()
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: 1000,
+            requestAuthorization: false,
+        )
+        #expect(await reminders.lastReminders.first?.remindsToLogDay == true)
+        await store.setShouldFail(false)
+        // start() awaits the drain-only callback. With no change signal delivered, that
+        // callback must invalidate the pre-drain historical publication itself.
+        try await services.ingestor.start()
+        #expect(await services.ingestor.retryQueueDepth == 0)
+        #expect(try await backing.allSamples().count == 1)
+        #expect(await reminders.lastReminders.first?.remindsToLogDay == false)
+        await services.ingestor.pause()
+    }
+
     @Test func trackingResumesAfterPauseWithoutDroppingSamples() async throws {
         let (services, _, source) = try Self.makeServices()
 
@@ -1899,10 +1935,12 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     private let backing: SwiftDataStore
+    private let emitsChanges: Bool
     private var shouldFail = false
 
-    init(backing: SwiftDataStore) {
+    init(backing: SwiftDataStore, emitsChanges: Bool = true) {
         self.backing = backing
+        self.emitsChanges = emitsChanges
     }
 
     func setShouldFail(_ value: Bool) {
@@ -1922,7 +1960,8 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     nonisolated func changes() -> AsyncStream<Void> {
-        backing.changes()
+        guard emitsChanges else { return AsyncStream { $0.finish() } }
+        return backing.changes()
     }
 
     func dataGeneration() async throws -> WhereDataGeneration {

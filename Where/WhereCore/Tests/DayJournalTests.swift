@@ -140,7 +140,6 @@ struct DayJournalTests {
         let reminderSpy = SpyReminderScheduler()
         let reminders = ReminderReconciler(
             scheduler: reminderSpy,
-            reportReader: reader,
             issueScanner: scanner,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,

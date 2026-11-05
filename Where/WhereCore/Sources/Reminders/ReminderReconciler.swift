@@ -5,7 +5,6 @@ import PeriscopeCore
 /// Daily summaries remain independent. A failed refresh never publishes a false zero badge.
 public actor ReminderReconciler {
     private let scheduler: any EveningReminderScheduling
-    private let reportReader: ReportReader
     private let issueScanner: DataIssueScanner
     private let calendar: Calendar
     private let now: @Sendable () -> Date
@@ -34,14 +33,12 @@ public actor ReminderReconciler {
 
     init(
         scheduler: any EveningReminderScheduling,
-        reportReader: ReportReader,
         issueScanner: DataIssueScanner,
         calendar: Calendar,
         now: @escaping @Sendable () -> Date,
         windowDays: Int = ReminderReconciler.defaultWindowDays,
     ) {
         self.scheduler = scheduler
-        self.reportReader = reportReader
         self.issueScanner = issueScanner
         self.calendar = calendar
         self.now = now
@@ -120,36 +117,56 @@ public actor ReminderReconciler {
         do {
             let currentDate = now()
             let today = calendar.startOfDay(for: currentDate)
-            let year = calendar.component(.year, from: today)
-            let issueCount: Int = if configuration.issueAlertsEnabled {
-                try await issueScanner.historicalScan(
-                    driftThresholdMeters: configuration.driftThresholdMeters,
-                    force: false,
-                ).issueCount
-            } else {
-                0
+            guard configuration.hasEnabledCategory else {
+                await scheduler.reconcile(
+                    badgeCount: 0,
+                    scheduleDays: [],
+                    reminderTime: configuration.time,
+                    enabled: false,
+                )
+                return
             }
+            // Presence and issue context must come from one admitted publication. Reading
+            // a second year report here could pair new presence with old issue scopes.
+            let history = try await issueScanner.historicalScan(
+                driftThresholdMeters: configuration.driftThresholdMeters,
+                force: false,
+            )
+            let issueCount = configuration.issueAlertsEnabled ? history.issueCount : 0
             guard requestID == request, !Task.isCancelled else { return }
             let present: Set<CalendarDay>
             let missingDayCount: Int
+            let reviewDays: Set<CalendarDay>
             if configuration.enabled {
-                let report = try await reportReader.yearReport(for: year)
-                present = Set(report.days.map(\.day))
-                missingDayCount = MissingDays.missingDayKeys(
-                    year: year,
-                    through: MissingDays.backlogCutoff(asOf: currentDate, calendar: calendar),
-                    present: present,
-                ).count
+                present = Set(history.years.flatMap(\.presentDays))
+                reviewDays = try history.years.reduce(into: Set<CalendarDay>()) {
+                    try $0.formUnion($1.scan.completeness.daysRequiringReview)
+                }
+                let currentYear = calendar.component(.year, from: today)
+                missingDayCount = history.years.reduce(0) { count, year in
+                    let value = year.context.historicalYear
+                    guard value <= currentYear else { return count }
+                    let cutoff = value == currentYear
+                        ? MissingDays.backlogCutoff(asOf: currentDate, calendar: calendar)
+                        : CalendarDay.lastDay(ofYear: value)
+                    return count + MissingDays.missingDayKeys(
+                        year: value,
+                        through: cutoff,
+                        present: present.union(reviewDays),
+                    ).count
+                }
             } else {
                 present = []
                 missingDayCount = 0
+                reviewDays = []
             }
             let windowEnd = calendar.date(byAdding: .day, value: windowDays, to: today) ?? today
             let reminders = today.calendarDays(through: windowEnd, in: calendar).map { instant in
                 let day = CalendarDay(from: instant, in: calendar)
                 return EveningReminder(
                     day: day,
-                    remindsToLogDay: configuration.enabled && !present.contains(day),
+                    remindsToLogDay: configuration.enabled && !present.contains(day)
+                        && !reviewDays.contains(day),
                     missingDayCount: missingDayCount,
                     issueCount: issueCount,
                 )

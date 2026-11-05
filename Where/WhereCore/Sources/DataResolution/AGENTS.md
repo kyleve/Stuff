@@ -33,6 +33,7 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Dismiss a ready review with its issue when no pending flight remains.
   Never let an invalidated scan restore cached data. Guard: `DataIssueScannerTests`.
 - Read historical issue inputs under one outer store snapshot before publishing or caching any year.
+  Retain each year's actual resolved presence with its issue result; unresolved dates remain separate completeness metadata.
   Include the current year and every discovered history year. Keep annual context within supported logical dates.
   Share detector assessment with annual scans. Deduplicate continuous recording concerns across year boundaries while preserving each original query.
   Invalidate both caches together. Reject cancelled completions and retry invalidated historical reads. Guards: `DataIssueScannerHistoryTests` and `HistoricalDataIssueScanResultTests`.
