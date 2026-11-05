@@ -9,6 +9,9 @@ struct RecordingControlEditCoordinatorTests {
         await #expect(throws: DataCompatibilityError.activationNotReady) {
             try await inactive.ignoreHistory(for: RecordingControlsTestSupport.device)
         }
+        await #expect(throws: DataCompatibilityError.activationNotReady) {
+            try await inactive.placeHistory()
+        }
         let store = try await RecordingChoiceTestSupport.store()
         let access = DataCompatibilityAccess(
             base: store,
@@ -20,9 +23,15 @@ struct RecordingControlEditCoordinatorTests {
         let initial = try await coordinator.ignoreHistory(for: RecordingControlsTestSupport.device)
         #expect(initial.decisions.isEmpty)
         #expect(try await initial.generationID == (store.dataGeneration().id))
+        let places = try await coordinator.placeHistory()
+        #expect(places.entries.isEmpty)
+        #expect(places.generationID == initial.generationID)
         access.revoke()
         await #expect(throws: (any Error).self) {
             try await coordinator.ignoreHistory(for: RecordingControlsTestSupport.device)
+        }
+        await #expect(throws: (any Error).self) {
+            try await coordinator.placeHistory()
         }
     }
 

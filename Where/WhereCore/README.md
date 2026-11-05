@@ -85,6 +85,9 @@ It also validates caller scopes before entering admitted history reads.
 Its segments describe automatic eligibility. Explicit source choices can still select that device, and unknown controls remain separately visible.
 `inspectIgnore(_:)` compares the exact proposal with its reviewed controls through `RecordingControlSelection`.
 The preview preserves source choices, removal cutoffs, unknown controls, and gaps between reviewed periods. It does not read newer evidence or authorize saving.
+`placeHistory()` reads precise place definitions by identity, including their earlier validity periods, removals, and unresolved edits.
+`inspectPlace(_:)` compares the exact reviewed definition before and after a place edit. Disjoint periods retain their gaps.
+These values preserve unknown control scopes separately. Place edits do not resolve those controls or claim changes to GPS presence or report totals.
 Its array overload reviews disjoint edits against one combined snapshot. A proposal pairs each edit with its immutable control.
 One local transaction saves the complete batch. A retry retains all operation identities and rejects conflicting reused identities.
 Remote delivery remains independent for each envelope. A partial batch requires another review before a retry can save its remaining edits.

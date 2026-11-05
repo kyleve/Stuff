@@ -97,6 +97,8 @@ That document also owns the implementation plan.
   Never expand an existing proposal during Apply.
   Read ignore history through the admitted coordinator. Retain elapsed intervals, causal uncertainty, and unknown control scopes.
   Inspect the exact ignore proposal through the shared control selector, including source-choice and removal precedence.
+  Read historical place definitions through the admitted coordinator. Inspect the exact proposal without filling validity gaps or discarding opaque control scopes.
+  Guards: `RecordingPlaceHistoryTests` and `RecordingPlaceInspectionTests`.
   Calendar recovery must preserve known raw assignments. Reject an edit that conflicts with a known offset, including observations received after preview.
   Split explicitly confirmed historical zones at every offset transition. Preserve unconfirmed gaps between periods.
   Guards: `RecordingControlEditCoordinatorTests`, `RecordingIgnoreHistoryTests`, `RecordingIgnoreInspectionTests`, `RecordingIgnoreResolverTests`, and `RecordingCalendarRecoveryTests`.

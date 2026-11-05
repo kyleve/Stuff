@@ -84,6 +84,25 @@ public struct RecordingControlEditCoordinator: Sendable {
         }
     }
 
+    public func placeHistory() async throws -> RecordingPlaceHistory {
+        try await Self.logger.measure(.history, budget: .seconds(2)) {
+            try await store.readSnapshot {
+                try await validateContract()
+                return try await RecordingPlaceHistory(
+                    controls: RecordingControlStore(store: store, policy: policy).snapshot(),
+                    version: policy.current,
+                )
+            }
+        }
+    }
+
+    /// Uses the exact displayed proposal without reading newer evidence or authorizing a save.
+    public func inspectPlace(_ proposal: Proposal) throws -> RecordingPlaceInspection {
+        try Self.logger.measure(.previewPlace, budget: .seconds(2)) {
+            try RecordingPlaceInspection(proposal: proposal, policy: policy)
+        }
+    }
+
     /// Review disjoint edits together, for example the offset segments of calendar recovery.
     /// The local commit is atomic; each envelope still retains its own remote-delivery scope.
     public func review(_ edits: [RecordingControlEdit]) async throws -> Proposal {

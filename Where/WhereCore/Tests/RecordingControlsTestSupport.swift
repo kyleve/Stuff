@@ -45,6 +45,7 @@ enum RecordingControlsTestSupport {
         _ identity: Int,
         start: Double = 0,
         end: Double = 100,
+        placeID: RecordingPlace.ID = placeID,
         action: RecordingPlaceDecision.Action = .set(
             kind: .regularHome,
             coordinate: .init(latitude: 37, longitude: -122),

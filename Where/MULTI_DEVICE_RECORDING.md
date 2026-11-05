@@ -274,6 +274,10 @@ The user can optionally specify a precise regular home location in each primary 
 They can also specify dated temporary bases, such as a different New York hotel for each trip.
 They choose a place on a map or save it during history review.
 
+A regular home has a start boundary and remains valid until the user changes or ends it.
+A temporary base requires an end date. Ongoing home validity uses an explicit representation, not an invented future expiration date.
+Changing or ending a home preserves its earlier definition for historical observations.
+
 These places provide supporting evidence for stationary observations and GPS noise.
 They can help distinguish a phone left at home from a phone that travels with the user.
 They never create recorded presence without observations or override coherent competing evidence or explicit user choices.
@@ -1234,6 +1238,9 @@ If a concurrent edit extends that interval, the refreshed preview includes its t
 Resume intents use the same refresh rule while retaining their original cutoff. Elapsed history and separate intervals remain outside that edit.
 The coordinator now reads durable ignore history and previews exact ignore proposals through the shared control selector.
 These values retain elapsed periods, gaps, causal uncertainty, source-choice precedence, removal cutoffs, and unknown controls for the controls UI.
+The coordinator also reads historical place definitions by identity and previews the exact reviewed place edit.
+Past definitions, removals, disjoint validity periods, and unresolved control scopes remain visible. These previews describe supporting places, not recorded presence or totals.
+Ongoing regular-home validity remains to be implemented before the place controls activate.
 Calendar recovery resolves unknown assignments while preserving known recording days and UTC offsets.
 A late conflicting observation rejects a pending calendar edit before save.
 `RecordingCalendarRecovery` splits an explicitly confirmed historical zone at each offset transition, without filling unconfirmed gaps.
