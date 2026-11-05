@@ -4,6 +4,44 @@ import Testing
 
 struct RecordingControlEditCoordinatorTests {
     @Test(arguments: RecordingControlEditTestSupport.Kind.allCases)
+    func invalidRequestDoesNotRevokeAdmittedHistory(
+        kind: RecordingControlEditTestSupport.Kind,
+    ) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let coordinator = RecordingControlEditTestSupport.coordinator(store: access.store)
+        let invalid: RecordingControlEdit = switch kind {
+            case .ignore:
+                .ignore(
+                    deviceID: RecordingChoiceTestSupport.author,
+                    periods: [],
+                    change: .restoreEligibility,
+                )
+            case .place:
+                .place(placeID: RecordingControlsTestSupport.placeID, periods: [], action: .remove)
+            case .calendar:
+                .calendar(
+                    deviceID: RecordingChoiceTestSupport.author,
+                    periods: [],
+                    action: .withdraw,
+                )
+        }
+        await #expect(throws: DataCompatibilityError.incompleteRecord) {
+            try await coordinator.review(invalid)
+        }
+        #expect(!access.isRevoked)
+        try access.validate()
+        _ = try await coordinator.review(RecordingControlEditTestSupport.edit(kind, removes: false))
+        #expect(try await store.versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+            .isEmpty)
+    }
+
+    @Test(arguments: RecordingControlEditTestSupport.Kind.allCases)
     func editsKeepTypedCausalPredecessorsAndRetryWithoutNewOperations(
         kind: RecordingControlEditTestSupport
             .Kind,

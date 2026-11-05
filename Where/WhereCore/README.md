@@ -69,6 +69,7 @@ The offline converter accepts explicit historical device and calendar mappings; 
 Capture-time context and the controls UI remain in the implementation plan.
 
 `RecordingChoiceCoordinator.review(_:)` prepares a source choice against one relevant history snapshot.
+It validates the requested scope before entering that snapshot, so invalid caller input cannot revoke admitted history access.
 The proposal keeps the query, evidence, policy version, and original causal predecessors until save completes.
 `apply(_:)` reassesses inside the guarded transaction, then appends that immutable operation.
 Relevant changes return a refreshed review. Unrelated imports can retry the same proposal without another confirmation.
@@ -77,6 +78,7 @@ An identical committed operation completes a retry without adopting later decisi
 Whole-day proposals require complete calendar context; missing GPS alone does not prevent their exclusive coverage.
 The [reviewed-choice model](../Specifications/ReviewedRecordingChoices/README.md) documents the bounded verification and external-writer limitations.
 `RecordingControlEditCoordinator` uses the same guarded transaction for ignore, place, and calendar edits.
+It also validates caller scopes before entering admitted history reads.
 Calendar recovery can resolve unknown assignments, but cannot override a recorded day or UTC offset.
 A conflicting observation received after preview rejects the edit before save and requires the user to revise it.
 `WhereServices` supplies both coordinators from its admitted store and awaits reconciliation after each successful save.

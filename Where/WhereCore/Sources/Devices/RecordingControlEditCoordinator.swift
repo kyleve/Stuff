@@ -38,7 +38,9 @@ public struct RecordingControlEditCoordinator: Sendable {
 
     public func review(_ edit: RecordingControlEdit) async throws -> Proposal {
         try await Self.logger.measure(.review, budget: .seconds(2)) {
-            try await store.readSnapshot {
+            // Invalid caller scope is not evidence of incompatible stored history.
+            let query = try edit.query()
+            return try await store.readSnapshot {
                 let state = try await store.dataCompatibilityState()
                 try state.validate(policy: policy)
                 guard try await store.dataContractMajor() == RecordingEvidencePolicy.version.major,
@@ -48,11 +50,13 @@ public struct RecordingControlEditCoordinator: Sendable {
                 }
                 let reader = RecordingReviewReader(store: store, policy: policy)
                 var edit = edit
+                var query = query
                 while true {
-                    let evidence = try await reader.evidence(for: edit.query())
+                    let evidence = try await reader.evidence(for: query)
                     let expanded = try edit.includingObservedIgnoreExtensions(evidence.controls)
                     guard expanded != edit else { return try prepare(edit, evidence: evidence) }
                     edit = expanded
+                    query = try expanded.query()
                 }
             }
         }

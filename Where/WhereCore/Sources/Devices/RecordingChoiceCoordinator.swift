@@ -43,7 +43,10 @@ public struct RecordingChoiceCoordinator: Sendable {
 
     public func review(_ request: RecordingChoiceRequest) async throws -> RecordingChoiceReview {
         try await Self.logger.measure(.review, budget: .seconds(2)) {
-            try await store.readSnapshot {
+            // Invalid caller input is not corrupt stored history. Validate it before admission,
+            // whose fail-closed error handling must still revoke genuinely unreadable records.
+            let query = try request.query()
+            return try await store.readSnapshot {
                 let state = try await store.dataCompatibilityState()
                 try state.validate(policy: policy)
                 guard try await store.dataContractMajor() == RecordingEvidencePolicy.version.major,
@@ -52,7 +55,7 @@ public struct RecordingChoiceCoordinator: Sendable {
                     throw DataCompatibilityError.activationNotReady
                 }
                 let evidence = try await RecordingReviewReader(store: store, policy: policy)
-                    .evidence(for: request)
+                    .evidence(for: query)
                 return try makeReview(request, evidence: evidence)
             }
         }

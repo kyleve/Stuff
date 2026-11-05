@@ -87,6 +87,7 @@ That document also owns the implementation plan.
   Reset and Replace erase outgoing control payloads while preserving their observed major floor.
   Guards: `RecordingControlSnapshotTests`, `RecordingControlCodecTests`, and `RecordingControlStoreTests`.
 - Bind reviewed source and control writes to their admitted service, generation, relevant evidence, query, and full policy version.
+  Validate caller request scopes before entering admitted reads; invalid input must not revoke history access.
   Preserve operation identity and reviewed predecessors on retry. Require complete calendar coverage for a whole-day choice.
   Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests` and `RecordingReviewTransactionTests`.
 - Shortened ignore edits restore their old tail within the same immutable operation. Preserve the selected end day, zone, and offset.

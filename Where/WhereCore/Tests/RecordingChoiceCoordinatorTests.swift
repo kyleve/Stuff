@@ -4,6 +4,35 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct RecordingChoiceCoordinatorTests {
+    @Test(arguments: [false, true])
+    func invalidRequestDoesNotRevokeAdmittedHistory(mismatchedDevice: Bool) async throws {
+        let store = try await RecordingChoiceTestSupport.store()
+        let access = DataCompatibilityAccess(
+            base: store,
+            requiredMajor: 1,
+            policy: RecordingChoiceTestSupport.policy,
+            onFailure: { _, _ in },
+        )
+        let coordinator = RecordingChoiceTestSupport.coordinator(store: access.store)
+        let invalid: RecordingChoiceRequest = mismatchedDevice
+            ? .init(
+                scope: .recordingDay(
+                    deviceID: RecordingAssessmentTestSupport.first,
+                    day: CalendarDay(year: 2001, month: 1, day: 1),
+                ),
+                action: .select(RecordingAssessmentTestSupport.second),
+            )
+            : .init(scope: .periods([]), action: .automatic)
+        let expected: DataCompatibilityError = mismatchedDevice ? .conflictingRecord :
+            .incompleteRecord
+        await #expect(throws: expected) { try await coordinator.review(invalid) }
+        #expect(!access.isRevoked)
+        try access.validate()
+        _ = try await coordinator.review(RecordingChoiceTestSupport.request())
+        #expect(try await store.versionedHistoryRecords(policy: RecordingChoiceTestSupport.policy)
+            .isEmpty)
+    }
+
     @Test func theFoundationContractCannotAuthorRecordingChoices() async throws {
         let store = try SwiftDataStore.inMemory()
         let coordinator = RecordingChoiceCoordinator(
