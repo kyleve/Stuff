@@ -108,6 +108,10 @@ That document also owns the implementation plan.
   Preserve exclusive gaps and removal-affected review periods. An explicit source bypasses ignores, including conflicting or incomplete ignore operations.
   Automatic eligibility uncertainty must remain unresolved when that device's evidence can affect the period.
   Guard: `RecordingControlSelectionTests`.
+- Use `RecordingHistorySelection` to combine GPS assessment with durable controls. Preserve raw observations and their effective recording-day assignments separately.
+  Exclude disputed contributions while retaining candidate dates and unknown day assignments. Known presence elsewhere remains eligible.
+  Pass specific geographic corrections before assessment. Equal unknown geography cannot establish agreement.
+  Guards: `RecordingHistorySelectionTests`, `RecordingGeographyTests`, and `MultiDeviceAssessmentTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

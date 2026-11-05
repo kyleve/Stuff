@@ -4,6 +4,85 @@ import Testing
 @testable import WhereCore
 
 struct MultiDeviceAssessmentTests {
+    @Test func finalSpatialAnchorDoesNotReplaceTheCurrentCorrectedGeography() throws {
+        let first = try [0.0, 600, 1200].map {
+            try RecordingAssessmentTestSupport.observation(
+                seconds: $0,
+                region: $0 == 1200 ? .newYork : .california,
+            )
+        }
+        let second = try RecordingAssessmentTestSupport.track(
+            deviceID: RecordingAssessmentTestSupport.second,
+            longitude: -74,
+            moving: false,
+            region: .newYork,
+        )
+        let result = try MultiDeviceAssessment.assess(
+            observations: first + second,
+            within: RecordingAssessmentTestSupport.period(1200, 1201),
+            places: [],
+        )
+        #expect(result.first?.selection == .agreement([
+            RecordingAssessmentTestSupport.first,
+            RecordingAssessmentTestSupport.second,
+        ]))
+    }
+
+    @Test func anotherDevicesBoundaryDoesNotEraseTheFinalSpatialAnchor() throws {
+        let first = try RecordingAssessmentTestSupport.track(moving: true)
+        let second = try [0.5, 600.5, 1200.5].enumerated().map { index, seconds in
+            try RecordingAssessmentTestSupport.observation(
+                deviceID: RecordingAssessmentTestSupport.second,
+                seconds: seconds,
+                longitude: -74 + Double(index) * 0.02,
+                region: .newYork,
+            )
+        }
+        let result = try MultiDeviceAssessment.assess(
+            observations: first + second,
+            within: RecordingAssessmentTestSupport.period(1200.5, 1201),
+            places: [],
+        )
+        #expect(result.first?.selection == .conflict([
+            RecordingAssessmentTestSupport.first,
+            RecordingAssessmentTestSupport.second,
+        ]))
+    }
+
+    @Test func midnightBracketCannotHideKnownDaysOnSimultaneousObservations() throws {
+        let observations = try RecordingHistorySelectionTestSupport.midnightObservations()
+        let result = try MultiDeviceAssessment.assess(
+            observations: observations,
+            within: RecordingAssessmentTestSupport.period(0, 1),
+            places: [],
+        )
+        #expect(result.count == 1)
+        #expect(result.first?.selection == .conflict([
+            RecordingAssessmentTestSupport.first,
+            RecordingAssessmentTestSupport.second,
+        ]))
+    }
+
+    @Test func finalPointSupportRetainsTheEstablishedCompetingTracks() throws {
+        let first = try RecordingAssessmentTestSupport.track(moving: true)
+        let second = try RecordingAssessmentTestSupport.track(
+            deviceID: RecordingAssessmentTestSupport.second,
+            longitude: -74,
+            moving: true,
+            region: .newYork,
+        )
+        let result = try MultiDeviceAssessment.assess(
+            observations: first + second,
+            within: RecordingAssessmentTestSupport.period(1200, 1201),
+            places: [],
+        )
+        #expect(result.count == 1)
+        #expect(result.first?.selection == .conflict([
+            RecordingAssessmentTestSupport.first,
+            RecordingAssessmentTestSupport.second,
+        ]))
+    }
+
     @Test func nearbyBoundaryPointsDoNotEstablishAGeographicConflict() throws {
         let nevada = try #require(Region(rawValue: "us-NV"))
         let oregon = try #require(Region(rawValue: "us-OR"))

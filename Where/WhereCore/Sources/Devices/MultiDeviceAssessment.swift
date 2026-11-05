@@ -15,9 +15,16 @@ public enum MultiDeviceAssessment {
 
     public struct Track: Hashable, Sendable {
         public let deviceID: RecordingDeviceID
-        public let region: Region?
+        public let geography: RecordingGeography?
+        public var region: Region? {
+            geography?.singleRegion
+        }
+
         public let recordingDay: CalendarDay?
         public let bracketingObservations: [RecordingObservation]
+        /// Spatial corroboration can retain a prior anchor without replacing the final fix's
+        /// effective corrected geography or authoritative recorded day.
+        public let divergenceObservations: [RecordingObservation]
         public let evidence: RecordingTrackAssessment
     }
 
@@ -108,18 +115,31 @@ public enum MultiDeviceAssessment {
                 }
                 let before = context.last { $0.sample.timestamp <= start }?.sample.timestamp
                 let after = context.first { $0.sample.timestamp > start }?.sample.timestamp
+                // The final point still has its bounded one-second support. Retain the preceding
+                // anchor when there is no following point, so that tail cannot suddenly combine
+                // tracks that were demonstrably divergent up to the very same observation.
+                let trailingAnchor = after == nil
+                    ? before
+                    .flatMap { last in
+                        context.last { $0.sample.timestamp < last }?.sample.timestamp
+                    } : nil
                 // Different observations can share a timestamp. Retain all of them so UUID
                 // ordering cannot hide contradictory region or recording-day assignments.
                 let brackets = context.filter {
                     $0.sample.timestamp == before || $0.sample.timestamp == after
                 }
-                let region = brackets.first?.region
+                let divergence = context.filter {
+                    $0.sample.timestamp == before || $0.sample.timestamp == after
+                        || $0.sample.timestamp == trailingAnchor
+                }
+                let geography = brackets.first?.geography
                 let day = brackets.first?.recordingDay.day
                 return try Track(
                     deviceID: track.deviceID,
-                    region: brackets.allSatisfy { $0.region == region } ? region : nil,
+                    geography: brackets.allSatisfy { $0.geography == geography } ? geography : nil,
                     recordingDay: brackets.allSatisfy { $0.recordingDay.day == day } ? day : nil,
                     bracketingObservations: brackets,
+                    divergenceObservations: divergence,
                     evidence: RecordingTrackAssessment.assess(
                         observations: context,
                         places: places,
@@ -128,7 +148,7 @@ public enum MultiDeviceAssessment {
             }
             result.append(Segment(
                 period: period,
-                selection: selection(tracks),
+                selection: selection(tracks, at: start),
                 tracks: tracks,
                 policyVersion: RecordingEvidencePolicy.version,
             ))
@@ -167,20 +187,26 @@ public enum MultiDeviceAssessment {
         return RecordingPeriod.union(periods)
     }
 
-    private static func selection(_ tracks: [Track]) -> Selection {
+    private static func selection(_ tracks: [Track], at instant: Date) -> Selection {
         guard let first = tracks.first else { return .noEvidence }
         guard tracks.count > 1 else { return .onlyAvailableDevice(first.deviceID) }
         let devices = Set(tracks.map(\.deviceID))
-        if let region = first.region, let day = first.recordingDay,
-           tracks.allSatisfy({ $0.region == region && $0.recordingDay == day })
+        if let geography = first.geography, geography.establishesAgreement,
+           let day = first.recordingDay,
+           tracks.allSatisfy({ $0.geography == geography && $0.recordingDay == day })
         { return .agreement(devices) }
 
-        let knownDays = Set(tracks.compactMap(\.recordingDay))
+        // A bracket can span midnight and therefore have no single day. Its observation at
+        // this exact evidence boundary still has an authoritative label; do not let the nil
+        // summary conceal disagreement between simultaneous fixes on different logical days.
+        let observedDays = tracks.flatMap(\.bracketingObservations)
+            .filter { $0.sample.timestamp == instant }.compactMap(\.recordingDay.day)
+        let knownDays = Set(tracks.compactMap(\.recordingDay)).union(observedDays)
         let divergent = tracks.enumerated().contains { index, left in
             tracks.dropFirst(index + 1).contains { right in
-                hasRepeatedBrackets(left) && hasRepeatedBrackets(right)
-                    && left.bracketingObservations.allSatisfy { leftObservation in
-                        right.bracketingObservations.allSatisfy { rightObservation in
+                hasRepeatedPositions(left) && hasRepeatedPositions(right)
+                    && left.divergenceObservations.allSatisfy { leftObservation in
+                        right.divergenceObservations.allSatisfy { rightObservation in
                             leftObservation.sample.coordinate
                                 .distance(to: rightObservation.sample.coordinate)
                                 - leftObservation.sample.horizontalAccuracy - rightObservation
@@ -204,13 +230,13 @@ public enum MultiDeviceAssessment {
         return .conflict(devices)
     }
 
-    private static func hasRepeatedBrackets(_ track: Track) -> Bool {
-        guard let first = track.bracketingObservations.first,
-              let last = track.bracketingObservations.last,
+    private static func hasRepeatedPositions(_ track: Track) -> Bool {
+        guard let first = track.divergenceObservations.first,
+              let last = track.divergenceObservations.last,
               last.sample.timestamp.timeIntervalSince(first.sample.timestamp)
               >= RecordingEvidencePolicy.minimumAnchorInterval
         else { return false }
-        return track.bracketingObservations.allSatisfy {
+        return track.divergenceObservations.allSatisfy {
             $0.sample.horizontalAccuracy <= RecordingEvidencePolicy.maximumAccuracyMeters
         }
     }

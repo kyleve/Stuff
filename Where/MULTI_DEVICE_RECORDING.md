@@ -241,6 +241,7 @@ Periods use half-open boundaries: the start is inclusive and the end is exclusiv
 Each point has one second of bounded support.
 Consecutive observations connect only across gaps of at most 30 minutes.
 The resolver splits at observation and coverage boundaries before it clips results to a query.
+The final point's bounded support retains its preceding anchor within the same coverage component.
 With identical input context, narrowing a query cannot change its overlapping assessment.
 Callers must supply adjacent evidence, including observations outside the displayed day or year.
 
@@ -1297,6 +1298,11 @@ Apply the identity lifecycle instead of preserving local identity through every 
 Prevent backup import and recovery from reusing decision operation identities.
 
 ### 5. Shared history selection
+
+**Pure integration boundary implemented:** `RecordingHistorySelection` combines source controls, eligibility, removals, and bounded assessment.
+It preserves raw observations, returns selected contributions, and exposes unresolved periods with candidate logical dates.
+Multiple-region corrections and explicit unknown or excluded presence remain distinct before reporting groups are applied.
+The consumers below still require integration. Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.
 Group selected observations by resolved recording day consistently across consumers.

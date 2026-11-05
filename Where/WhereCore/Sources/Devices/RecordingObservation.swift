@@ -15,12 +15,32 @@ public struct RecordingObservation: Hashable, Sendable {
     public let sample: LocationSample
     public let deviceID: RecordingDeviceID
     public let recordingDay: RecordingDayAssignment
-    public let region: Region?
+    public let geography: RecordingGeography
+
+    public var region: Region? {
+        geography.singleRegion
+    }
 
     public init(
         sample: LocationSample,
         recordingDay: RecordingDayAssignment,
         region: Region?,
+    ) throws {
+        guard region != .other else { throw ValidationError.reportingRegion }
+        try self.init(
+            sample: sample,
+            recordingDay: recordingDay,
+            geography: RecordingGeography(
+                knownRegions: Set(region.map { [$0] } ?? []),
+                includesUnknownPresence: region == nil,
+            ),
+        )
+    }
+
+    public init(
+        sample: LocationSample,
+        recordingDay: RecordingDayAssignment,
+        geography: RecordingGeography,
     ) throws {
         guard sample.source.isGPS, let deviceID = sample.recordingDeviceID else {
             throw ValidationError.unattributedGPS
@@ -31,7 +51,6 @@ public struct RecordingObservation: Hashable, Sendable {
               (-90 ... 90).contains(sample.coordinate.latitude),
               (-180 ... 180).contains(sample.coordinate.longitude)
         else { throw ValidationError.invalidMeasurement }
-        guard region != .other else { throw ValidationError.reportingRegion }
         if case let .resolved(context) = recordingDay {
             guard context.matches(observedAt: sample.timestamp) else {
                 throw ValidationError.inconsistentRecordingDay
@@ -40,6 +59,6 @@ public struct RecordingObservation: Hashable, Sendable {
         self.sample = sample
         self.deviceID = deviceID
         self.recordingDay = recordingDay
-        self.region = region
+        self.geography = geography
     }
 }

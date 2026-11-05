@@ -120,6 +120,12 @@ Consumers must preserve that uncertainty when the device's evidence can affect h
 Unknown controls remain unresolved within their stored scope.
 The [control-selection model](../Specifications/RecordingControlSelection/README.md) documents the bounded delivery-order checks.
 
+`RecordingHistorySelection` combines those controls with bounded GPS assessment.
+It returns selected observations, source explanations, and unresolved periods with candidate recording days.
+Unknown day assignments remain explicit and cannot promote a competing device into a known-day winner.
+`RecordingGeography` preserves multiple-region corrections, unknown presence, and excluded presence before reporting groups are applied.
+This pure boundary is groundwork. Shared consumer integration and production activation remain pending.
+
 ## Compatibility protocol foundation
 
 `CompatibilityScopedStore` binds reads and transactions to one `DataAccessPermit`.
