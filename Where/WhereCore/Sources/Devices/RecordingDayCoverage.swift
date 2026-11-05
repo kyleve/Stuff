@@ -25,6 +25,28 @@ public enum RecordingDayCoverage {
         case unavailableCalendarBoundary
     }
 
+    /// Every supported fixed offset lies within eighteen hours of UTC. This search includes
+    /// every occurrence of a logical date, including a repeated date after a date-line crossing.
+    public static func searchPeriod(for day: CalendarDay) throws -> RecordingPeriod {
+        guard (1 ... 9999).contains(day.year), CalendarDay(iso: day.iso8601) == day else {
+            throw ValidationError.invalidDay
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        guard let instant = calendar.date(from: DateComponents(
+            year: day.year,
+            month: day.month,
+            day: day.day,
+        )), let bounds = calendar.dateInterval(of: .day, for: instant) else {
+            throw ValidationError.unavailableCalendarBoundary
+        }
+        let maximumOffset: TimeInterval = 18 * 60 * 60
+        return try RecordingPeriod(
+            start: bounds.start.addingTimeInterval(-maximumOffset),
+            end: bounds.end.addingTimeInterval(maximumOffset),
+        )
+    }
+
     public static func resolve(
         day: CalendarDay,
         within searchPeriod: RecordingPeriod,

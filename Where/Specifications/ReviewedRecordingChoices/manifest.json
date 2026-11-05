@@ -1,0 +1,15 @@
+{
+  "source": "pluscal",
+  "module": "ReviewedRecordingChoices.tla",
+  "cases": [
+    {"name": "current", "config": "Current.cfg", "expect": "pass"},
+    {"name": "current-three-attempts", "config": "CurrentThreeAttempts.cfg", "expect": "pass"},
+    {"name": "adopt-newer", "config": "AdoptNewer.cfg", "expect": "fail", "outputContains": "Invariant OnlyReviewedPredecessors is violated."},
+    {"name": "ignore-evidence", "config": "IgnoreEvidence.cfg", "expect": "fail", "outputContains": "Invariant KnownChangedEvidenceRequiresReview is violated."},
+    {"name": "new-retry-id", "config": "NewRetryID.cfg", "expect": "fail", "outputContains": "Invariant RetryRetainsIdentity is violated."},
+    {"name": "rebind-generation", "config": "RebindGeneration.cfg", "expect": "fail", "outputContains": "Invariant NoGenerationRebinding is violated."},
+    {"name": "retry-reachability", "config": "RetryReachability.cfg", "expect": "fail", "outputContains": "Invariant RetrySuccessNotReached is violated."},
+    {"name": "lost-response-reachability", "config": "LostResponseReachability.cfg", "expect": "fail", "outputContains": "Invariant LostResponseRecoveryNotReached is violated."},
+    {"name": "changed-review-reachability", "config": "ChangedReviewReachability.cfg", "expect": "fail", "outputContains": "Invariant ChangedReviewNotReached is violated."}
+  ]
+}

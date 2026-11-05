@@ -3,6 +3,25 @@ import Testing
 @testable import WhereCore
 
 struct RecordingDayCoverageTests {
+    @Test(arguments: [-18 * 3600, 18 * 3600])
+    func theSearchContainsTheWholeDayAtEverySupportedOffset(offset: Int) throws {
+        let day = CalendarDay(year: 2001, month: 1, day: 1)
+        let search = try RecordingDayCoverage.searchPeriod(for: day)
+        let context = try RecordingCalendarContext(
+            timeZone: #require(TimeZone(secondsFromGMT: offset)),
+            secondsFromGMT: offset,
+        )
+        let resolved = try RecordingDayCoverage.resolve(
+            day: day,
+            within: search,
+            contexts: [.init(period: search, calendarContext: context)],
+        )
+        #expect(try resolved == .resolved([RecordingAssessmentTestSupport.period(
+            Double(-offset),
+            Double(86400 - offset),
+        )]))
+    }
+
     @Test(arguments: ["2026-03-08": 23, "2026-11-01": 25])
     func followsDaylightSavingWithoutAssumingTwentyFourHours(day: String, hours: Int) throws {
         let zone = try #require(TimeZone(identifier: "America/New_York"))

@@ -82,6 +82,9 @@ That document also owns the implementation plan.
 - Keep versioned control scope outside its opaque payload. Validate envelope identity, semantics, scope, and causal family before application.
   Reset and Replace erase outgoing control payloads while preserving their observed major floor.
   Guards: `RecordingControlSnapshotTests`, `RecordingControlCodecTests`, and `RecordingControlStoreTests`.
+- Bind reviewed source writes to their admitted service, generation, relevant evidence, query, and full policy version.
+  Preserve operation identity and reviewed predecessors on retry. Require complete calendar coverage for a whole-day choice.
+  Keep opaque controls unresolved after a source choice. Guard: `RecordingChoiceCoordinatorTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

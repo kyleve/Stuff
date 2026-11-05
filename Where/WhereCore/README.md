@@ -27,7 +27,8 @@ Results retain uncertainty, supporting evidence, and the full policy version.
 The [primary design](../MULTI_DEVICE_RECORDING.md#initial-assessment-policy) defines interval and evidence semantics.
 
 `RecordingDayCoverage.resolve(day:within:contexts:)` derives a logical day's possibly disjoint periods from calendar-context coverage.
-The caller supplies a complete search bound. Missing context produces a clarification requirement.
+`searchPeriod(for:)` supplies a complete search bound for all supported UTC offsets.
+Missing context produces a clarification requirement.
 
 `HistoryDecisionResolver.resolve(_:within:version:)` resolves immutable decisions with explicit predecessor identities.
 Concurrent incompatible decisions and missing dependencies remain visible per period.
@@ -62,7 +63,17 @@ Identical observation deliveries coalesce. Conflicting raw payloads cannot repla
 
 Backup format 8 preserves controls and recording-day context. Its required major is admitted before decoding history.
 The offline converter accepts explicit historical device and calendar mappings; [backup format](BACKUP_FORMAT.md#convert-historical-gps) describes the procedure.
-Capture recovery, guarded review proposals, and production controls remain in the implementation plan.
+Capture recovery and production controls remain in the implementation plan.
+
+`RecordingChoiceCoordinator.review(_:)` prepares a source choice against one relevant history snapshot.
+The proposal keeps the query, evidence, policy version, and original causal predecessors until save completes.
+`apply(_:)` reassesses inside the guarded transaction, then appends that immutable operation.
+Relevant changes return a refreshed review. Unrelated imports can retry the same proposal without another confirmation.
+Proposals cannot cross admitted service instances, even when two accounts share the implicit initial data generation.
+An identical committed operation completes a retry without adopting later decisions.
+Whole-day proposals require complete calendar context; missing GPS alone does not prevent their exclusive coverage.
+The [reviewed-choice model](../Specifications/ReviewedRecordingChoices/README.md) documents the bounded verification and external-writer limitations.
+These APIs require the activated recording contract and are not yet wired into production services or UI.
 
 ## Compatibility protocol foundation
 

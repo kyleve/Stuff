@@ -316,7 +316,8 @@ Earlier portions of the choice remain intact.
 
 ### Saving a reviewed choice
 
-A save retains the reviewed period, relevant evidence and decisions, causal context, full policy version, query context, and data generation.
+The save proposal retains the reviewed period, relevant evidence and decisions, and causal context.
+It also retains the full policy version, query context, and data generation until the guarded save completes.
 Reassessment and the decision write occur inside the same guarded transaction.
 The transaction checks the expected data generation, relevant read state, and current compatibility permit.
 Whole-day saves also require unambiguous coverage from the recorded calendar context used in the preview.
@@ -1224,10 +1225,15 @@ Merge rejects conflicting raw payloads that reuse an observation identity.
 Backup format 8 retains controls, affected scopes, and original payload bytes across Merge and Replace.
 The offline converter accepts reusable sample mappings for historical devices and calendar context, including explicitly unresolved context.
 A shared Ruby/Swift fixture validates the converted wire shape through the production decoder.
-Reviewed writes, capture recovery, and production integration below remain required.
+Reviewed source choices now retain their operation identity and observed predecessors across guarded retries.
+Changed relevant inputs return a refreshed review. Unrelated imports can retry the same proposal without another confirmation.
+Whole-day proposals require complete calendar context and retain separate repeated-date intervals.
+Capture recovery, control-edit review, and production integration below remain required.
 Observation imports now use transaction-scoped envelope indexes and an indexed lookup for legacy sample identities.
 Fresh compatibility and persistent-history checks remain adjacent to physical save; indexes do not replace those checks.
 Scaling fixtures exercise large SQLite imports and retries. Late identity conflicts in erased generations remain inert.
+The [reviewed-choice model](Specifications/ReviewedRecordingChoices/README.md) checks bounded retry identity and causal context.
+It does not claim that a synchronous local history check excludes a CloudKit import or observes another device's unsent changes.
 
 Extend the value-based store and backup contracts with source choices, ignore intervals, regular homes, and dated temporary bases.
 Persist observation timestamps, recording-day assignments, and their time-zone context without recalculation during sync or import.
