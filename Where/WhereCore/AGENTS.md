@@ -112,6 +112,9 @@ That document also owns the implementation plan.
   Exclude disputed contributions while retaining candidate dates and unknown day assignments. Known presence elsewhere remains eligible.
   Pass specific geographic corrections before assessment. Equal unknown geography cannot establish agreement.
   Guards: `RecordingHistorySelectionTests`, `RecordingGeographyTests`, and `MultiDeviceAssessmentTests`.
+- Carry selected logical days in `AttributedLocationSample` through aggregation and region transformations. Do not reconstruct them from the viewing calendar.
+  Logical date queries use `LocationHistoryQuery.recordingPeriod()` before filtering by selected day; fixed instant queries retain their exact boundaries.
+  Guards: `AttributedLocationSampleTests`, `LocationHistoryQueryTests`, and `DayAggregatorTests`.
 - Establish shared compatibility before opening a new CloudKit mirror.
   Retain one `DataCompatibilityStorePreparation` and coordinator per dataset; scope replacement must reuse them.
   Treat local file presence as conservative legacy evidence and admit actual headers after opening, before any grant.

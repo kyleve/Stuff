@@ -6,6 +6,34 @@ import WhereCore
 struct DayAggregatorTests {
     let attributor = RegionAttributor.shared
 
+    @Test(arguments: [-12 * 3600, 0, 14 * 3600])
+    func selectedRecordingDayStaysFixedAcrossViewingZones(offset: Int) throws {
+        let sample = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2001-01-01T00:00:00Z"),
+            coordinate: Coordinate(latitude: 37, longitude: -122),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+            recordingDay: nil,
+        )
+        let day = CalendarDay(year: 2000, month: 12, day: 31)
+        let entry = AttributedLocationSample(
+            sample: sample,
+            regions: [.california],
+            day: .recording(day),
+        )
+        let aggregator = try DayAggregator(timeZone: #require(TimeZone(secondsFromGMT: offset)))
+        #expect(aggregator.aggregate(history: [entry]) == [DayPresence(
+            day: day,
+            regions: [.california],
+        )])
+        #expect(aggregator.report(for: 2000, history: [entry], manualDays: [])
+            .totals[.california] == 1)
+        #expect(aggregator.report(for: 2001, history: [entry], manualDays: []).totals.isEmpty)
+        #expect(aggregator.locations(in: .california, history: [entry]).first?.day == day)
+        #expect(aggregator.pointsByRegion(onDay: day, history: [entry])[.california]?.count == 1)
+        #expect(entry.sample.timestamp == sample.timestamp)
+    }
+
     @Test func whollyExcludedObservedDayDoesNotBecomeAMissingBackfill() {
         let sample = LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),

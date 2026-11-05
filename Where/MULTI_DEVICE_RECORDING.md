@@ -1302,6 +1302,8 @@ Prevent backup import and recovery from reusing decision operation identities.
 **Pure integration boundary implemented:** `RecordingHistorySelection` combines source controls, eligibility, removals, and bounded assessment.
 It preserves raw observations, returns selected contributions, and exposes unresolved periods with candidate logical dates.
 Multiple-region corrections and explicit unknown or excluded presence remain distinct before reporting groups are applied.
+Attributed contributions now carry a separate selected logical day. Aggregation preserves that day across viewing zones.
+Logical date queries provide offset-complete search bounds before filtering selected contributions.
 The consumers below still require integration. Production remains on the foundation contract.
 
 Extend `LocationHistoryReader` with effective selections and explicit unresolved conflicts.

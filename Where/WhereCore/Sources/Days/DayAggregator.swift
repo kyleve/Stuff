@@ -36,7 +36,7 @@ public struct DayAggregator: Sendable {
         // A reviewed transit-only day remains recorded even when no region
         // receives presence. It must not become a new missing-day suggestion.
         for entry in history {
-            let day = CalendarDay(from: entry.sample.timestamp, in: calendar)
+            let day = entry.calendarDay(in: calendar)
             dayRegions[day, default: []].formUnion(entry.regions)
         }
         return dayRegions
@@ -94,7 +94,7 @@ public struct DayAggregator: Sendable {
         var pointsByRegionAndDay: [Region: [CalendarDay: [RegionDayPoint]]] = [:]
         for entry in history {
             let sample = entry.sample
-            let day = CalendarDay(from: sample.timestamp, in: calendar)
+            let day = entry.calendarDay(in: calendar)
             for region in entry.regions.intersection(regions) {
                 pointsByRegionAndDay[region, default: [:]][day, default: []].append(
                     RegionDayPoint(
@@ -135,7 +135,7 @@ public struct DayAggregator: Sendable {
         history: [AttributedLocationSample],
     ) -> [Region: [RegionDayPoint]] {
         var byRegion: [Region: [RegionDayPoint]] = [:]
-        for entry in history where CalendarDay(from: entry.sample.timestamp, in: calendar) == day {
+        for entry in history where entry.calendarDay(in: calendar) == day {
             for region in entry.regions {
                 byRegion[region, default: []].append(RegionDayPoint(
                     coordinate: entry.sample.coordinate,

@@ -126,6 +126,11 @@ Unknown day assignments remain explicit and cannot promote a competing device in
 `RecordingGeography` preserves multiple-region corrections, unknown presence, and excluded presence before reporting groups are applied.
 This pure boundary is groundwork. Shared consumer integration and production activation remain pending.
 
+`AttributedLocationSample` can retain a selected logical day separately from its raw sample.
+`DayAggregator` uses that day consistently for totals and mapped points. Foundation entries retain viewing-calendar behavior.
+`LocationHistoryQuery` distinguishes fixed instants from logical date ranges.
+Its recording search covers every supported UTC offset before callers filter the selected logical dates.
+
 ## Compatibility protocol foundation
 
 `CompatibilityScopedStore` binds reads and transactions to one `DataAccessPermit`.
