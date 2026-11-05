@@ -1403,9 +1403,11 @@ The source review retains its active calendar or place editor during reassessmen
 Locations, Calendar, Timeline, Elsewhere, and region-day details now label incomplete totals from their displayed report snapshot.
 The notice counts distinct known affected days and separately identifies unknown date assignments.
 Its all-history review stays open after the displayed year becomes complete. Read-only feature galleries withhold incomplete live counts.
-Automatic-selection inspection outside issues, report-export UI, reminder integration, and activation remain in progress.
-
-Complete inspection of automatic-selection reasons outside unresolved issues.
+Settings now opens recording inspection for an explicit UTC interval, including automatic selections without unresolved issues.
+The initial range covers the preceding 24 hours. It does not assign a logical recording date.
+Each open review retains its interval. An explicit source action and guarded Apply are required to change history.
+Dismissed or replaced reviews reject queued work. Saved results stay visible until Done.
+Report-export UI, reminder integration, and activation remain in progress.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.
 Support logical recording-day choices, fixed time ranges, return to automatic, and previews of affected region-days.
 Require clarification before a whole-day save with ambiguous calendar coverage, and retain the existing fixed time-range option.

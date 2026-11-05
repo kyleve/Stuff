@@ -72,8 +72,27 @@ enum RecordingReviewTestSupport {
         )
     }
 
+    static func strongMovementSamples() throws -> [LocationSample] {
+        try (0 ... 2).flatMap { index in
+            try [first, second]
+                .map { device in
+                    let timestamp = date(Double(index) * 600)
+                    return try LocationSample(
+                        id: UUID(),
+                        timestamp: timestamp,
+                        coordinate: device == first
+                            ? Coordinate(latitude: 37.78, longitude: -122.42 + Double(index) * 0.02)
+                            : Coordinate(latitude: 40.71, longitude: -74),
+                        horizontalAccuracy: 10,
+                        source: .gpsSignificantChange,
+                        recordingDeviceID: device,
+                        recordingDay: .resolved(.init(observedAt: timestamp, timeZone: .gmt)),
+                    )
+                }
+        }
+    }
+
     static func fixture(unresolved: Bool = false) async throws -> Fixture {
-        let store = try SwiftDataStore.inMemory()
         let samples = try [0.0, 600, 1200].flatMap { seconds in
             try [first, second].map { try sample(
                 deviceID: $0,
@@ -81,6 +100,11 @@ enum RecordingReviewTestSupport {
                 unresolved: unresolved,
             ) }
         }
+        return try await fixture(samples: samples)
+    }
+
+    static func fixture(samples: [LocationSample]) async throws -> Fixture {
+        let store = try SwiftDataStore.inMemory()
         try await store.perform {
             try await store.raiseRequiredDataMajor(1)
             for deviceID in [first, second] {

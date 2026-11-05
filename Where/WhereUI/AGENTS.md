@@ -176,7 +176,8 @@ Layering, localization, preview, and testing conventions live in the feature
   Retire the editor with its source-review owner, including after a lost save receipt.
   Guards: `RecordingCalendarEditorModelTests`, `RecordingControlModelTests`, and `RecordingReviewFlowModelTests`.
 - Keep the requested control draft separate from Core's expanded proposal. A stale scope may expand only in the displayed review; changed drafts require a new review.
-  Retire control editors permanently when their owner ends. Ignore queued intents and late reads after retirement.
+  Retire control editors and source reviews permanently when their owner ends. Ignore queued intents and late reads after retirement.
+  Keep standalone recording inspection read-only until an explicit source action. Retain its fixed interval independently of the range draft.
   Refresh device ignore history from committed changes without replacing its editor or failed save receipt.
   Pause ignore-history reads when its navigation destination disappears. A retained tab destination must reload on return; release or explicit retirement ends its editor.
   Hide recording controls and their search entries when the scope policy does not enable them.

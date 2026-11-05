@@ -100,6 +100,7 @@
                 RecordingIgnoreView.flyoverData,
                 RecordingIgnoreEditor.flyoverData,
                 RecordingPlaceView.flyoverData,
+                RecordingHistoryView.flyoverData,
                 RecordingPlaceEditor.flyoverData,
                 RecordingPlaceLocationPicker.flyoverData,
                 AlertsSettingsView.flyoverData,

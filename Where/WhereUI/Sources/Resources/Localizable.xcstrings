@@ -6731,6 +6731,72 @@
         }
       }
     },
+    "recording.history.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspect recordings and automatic source choices for a time range. Opening a review does not change your history."
+          }
+        }
+      }
+    },
+    "recording.history.errorTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot Inspect Recordings"
+          }
+        }
+      }
+    },
+    "recording.history.inspect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspect Recordings"
+          }
+        }
+      }
+    },
+    "recording.history.rangeDetail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Times are shown in UTC. The end time is excluded."
+          }
+        }
+      }
+    },
+    "recording.history.searchKeywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "history, recordings, automatic, source, device, tracks"
+          }
+        }
+      }
+    },
+    "recording.history.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording History"
+          }
+        }
+      }
+    },
     "recording.ignore.after" : {
       "extractionState" : "manual",
       "localizations" : {

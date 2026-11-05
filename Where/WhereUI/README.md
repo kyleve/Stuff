@@ -289,7 +289,13 @@ Current definitions offer Change From Now and End Now. These actions preserve ea
 Historical corrections remain separate. `RecordingPlaceLocationPicker` accepts an explicit map tap or coordinates.
 `RecordingPlaceEditor` shows UTC validity, exact before/after definitions, and unresolved opaque scopes before Save.
 Source review retains one calendar or place editor and waits for dismissal before refreshing its inspection.
-Reminders, automatic-selection inspection outside issues, incomplete-report UI, and activation remain under implementation.
+`RecordingHistoryView` opens source inspection from Settings, including automatic choices without issues.
+Users choose an explicit UTC interval. The initial range is the preceding 24 hours, independent of logical recording dates.
+`RecordingHistoryModel` retains each open inspection's fixed scope. Changing the range requires a new inspection.
+Dismissal, replacement, or owner release permanently retires the old source model. Queued actions cannot reopen it or save.
+Opening inspection does not select an action. An explicit choice and guarded Apply are required to change history.
+The saved result remains visible until Done. Re-entry starts another read-only inspection.
+Report export, reminders, and activation remain under implementation.
 The [recording design](../MULTI_DEVICE_RECORDING.md#review-and-explicit-source-choices) defines the complete flow.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.

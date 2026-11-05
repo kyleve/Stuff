@@ -133,10 +133,13 @@ struct RecordingChoiceView: View {
             case .saving:
                 Section { SavingStatusRow(text: String(localized: .manualSavingStatus)) }
             case .applied:
-                Section { Label(
-                    String(localized: .recordingReviewSaved),
-                    systemSymbol: .checkmarkCircle,
-                ) }
+                Section {
+                    Label(
+                        String(localized: .recordingReviewSaved),
+                        systemSymbol: .checkmarkCircle,
+                    )
+                    .accessibilityIdentifier("where_recording_saved")
+                }
             case let .failed(_, recovery):
                 Section {
                     Label(

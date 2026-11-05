@@ -65,6 +65,7 @@ public final class RecordingChoiceModel {
 
     private struct RequestID: Hashable { let value = UUID() }
     private var requestID = RequestID()
+    private var retired = false
     private(set) var state = State.idle
     enum Editor: Identifiable {
         enum ID: Hashable {
@@ -233,7 +234,7 @@ public final class RecordingChoiceModel {
     }
 
     private func inspect(_ request: RecordingChoiceRequest, choosing: Bool) async {
-        guard !Task.isCancelled else { return }
+        guard !retired, !Task.isCancelled else { return }
         if case .saving = state { return }
         let previous = state.content
         let recovery: Recovery = choosing ? .load : .review(request, previous: previous)
@@ -309,6 +310,7 @@ public final class RecordingChoiceModel {
     }
 
     func deactivate() {
+        retired = true
         requestID = RequestID()
         editor = nil
         state = .idle

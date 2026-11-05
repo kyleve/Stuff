@@ -5,6 +5,24 @@ import Testing
 
 @MainActor
 struct RecordingChoiceModelTests {
+    @Test func retiredReviewRejectsQueuedLoadAndSaveIntents() async throws {
+        let fixture = try await RecordingReviewTestSupport.fixture()
+        let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)
+        await model.load()
+        await model.choose(.select(RecordingReviewTestSupport.first))
+        #expect(model.canApply)
+        model.deactivate()
+        await model.loadIfNeeded()
+        await model.review(.init(
+            scope: .periods(fixture.periods),
+            action: .select(RecordingReviewTestSupport.first),
+        ))
+        await model.apply()
+        #expect(model.presentation == nil)
+        #expect(!model.canApply)
+        #expect(try await fixture.controls().sourceChoices.isEmpty)
+    }
+
     @Test func placeReviewBlocksSourceSaveAndRefreshesOnDismissal() async throws {
         let fixture = try await RecordingReviewTestSupport.fixture()
         let model = RecordingChoiceModel(services: fixture.services, periods: fixture.periods)

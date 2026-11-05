@@ -76,7 +76,8 @@ struct SettingsView: View {
     private func isAvailable(_ destination: SettingsDestination) -> Bool {
         destination.isAvailable(isInDemoMode: isInDemoMode, updatesEnabled: updates != nil)
             &&
-            (destination != .recordingPlaces || session.services.recordingControlEdits
+            (![.recordingHistory, .recordingPlaces].contains(destination) || session.services
+                .recordingControlEdits
                 .supportsRecordingControls)
     }
 
@@ -210,7 +211,8 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .recordingPlaces, .placesYear, .recording, .privacyBackups, .attachments,
+            case .recordingHistory, .recordingPlaces, .placesYear, .recording, .privacyBackups,
+                 .attachments,
                  .loggedDays, .devices,
                  .alerts, .appearance, .year, .siri,
                  .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
@@ -249,7 +251,8 @@ struct SettingsView: View {
                 updates?.attentionTitle
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .recordingPlaces, .placesYear, .recording, .privacyBackups, .attachments,
+            case .recordingHistory, .recordingPlaces, .placesYear, .recording, .privacyBackups,
+                 .attachments,
                  .loggedDays, .regions,
                  .alerts, .appearance, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
@@ -287,6 +290,8 @@ struct SettingsView: View {
                 DevicesSettingsView(session: session, focus: route.focus)
             case .recordingPlaces:
                 RecordingPlaceView(session: session)
+            case .recordingHistory:
+                RecordingHistoryView(session: session)
             case .regions:
                 // Regions is presented as a sheet (`isSheet`), so it's never
                 // routed here; this arm only keeps the switch exhaustive.
