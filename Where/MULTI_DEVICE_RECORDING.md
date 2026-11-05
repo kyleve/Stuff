@@ -1377,7 +1377,9 @@ Its cache rejects cancelled or invalidated completions, including reset during a
 `RecordingChoiceCoordinator.inspect` compares the exact proposal against current selection without writing history.
 It retains device tracks, physical gaps, selection reasons, unknown dates, and GPS contributions within the reviewed periods.
 Those contributions do not replace whole-day totals or manual overlays. A stale Apply supplies a new proposal for another explicit review.
-Review screens, controls, reminder integration, and activation remain in progress.
+The scene now shares historical correction issues and flight reviews with its badge and issue list.
+Selected-year calendar indicators derive from the same publication. Year changes retain outstanding historical work; failed scans retain the last admitted result and original error.
+Recording-specific review screens, controls, reminder integration, and activation remain in progress.
 
 Add the temporary-ignore row, place controls, and inspection of automatic-selection reasons.
 Explain that ignore affects automatic selection while explicit period choices take precedence, without another confirmation step.

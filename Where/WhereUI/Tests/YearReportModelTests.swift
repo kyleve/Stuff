@@ -780,6 +780,91 @@ struct YearReportModelTests {
         #expect(report.dataIssueScan == nil)
     }
 
+    @Test func historicalIssuesAndFlightReviewsSurviveSelectingAnEmptyYear() async throws {
+        let store = try TestStore()
+        let now = Self.day(2027, 1, 2)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2027,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.rescanForIssues()
+        let historical = try #require(report.correctionReviews.first { $0.proposal != nil })
+        #expect(historical.day.day.year == 2026)
+        #expect(report.completedFlights.isEmpty)
+        let count = report.dataIssueCount
+        let resolve = ResolveModel(services: services, source: report)
+        #expect(resolve.dataIssues.count == count)
+        #expect(resolve.reviews.contains { $0.id == historical.id })
+        let detail = FlightReviewModel(review: historical, report: report)
+
+        await report.select(year: 2028)
+        await resolve.load()
+        detail.receive(report.resolutionState.scan?.reviews)
+        #expect(report.dataIssueCount == count)
+        #expect(report.dataIssueScan == nil)
+        #expect(report.completedFlights.isEmpty)
+        #expect(resolve.reviews.contains { $0.id == historical.id })
+        #expect(detail.review?.id == historical.id)
+        #expect(detail.canApply)
+
+        await report.select(year: 2026)
+        #expect(!report.completedFlights.isEmpty)
+        #expect(report.dataIssueCount == count)
+    }
+
+    @Test func historicalRefreshFailureKeepsPendingWorkAndTheOriginalError() async throws {
+        let store = try TestStore()
+        let now = Self.day(2027, 1, 2)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: false)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2027,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.rescanForIssues()
+        let before = try #require(report.resolutionState.scan)
+        let resolve = ResolveModel(services: services, source: report)
+        await store.failSamples()
+        await report.rescanForIssues()
+        await resolve.load()
+        #expect(report.resolutionState.scan?.revision == before.revision)
+        #expect(report.resolutionState.error is SampleReadFailure)
+        #expect(resolve.loadError is SampleReadFailure)
+        #expect(resolve.reviews == before.reviews)
+        #expect(report.hasCorrectionReviews)
+    }
+
+    @Test(arguments: [false, true])
+    func cancelledOrDeactivatedHistoricalRefreshCannotPublish(cancel: Bool) async throws {
+        let store = try TestStore()
+        let now = Self.day(2027, 1, 2)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2027,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.rescanForIssues()
+        let before = try #require(report.resolutionState.scan?.revision)
+        let hold = ResolutionScanSuspension()
+        await services.resolution.setBeforeHistoricalPublicationForTesting {
+            await hold.suspendFirst()
+        }
+        let pending = Task { await report.refreshDataIssueCount(force: true) }
+        try await CompatibilityLaunchFixture.waitUntil { hold.entered }
+        if cancel { pending.cancel() } else { report.deactivate() }
+        hold.resume()
+        await pending.value
+        #expect(report.resolutionState.scan?.revision == before)
+    }
+
     // MARK: - Store-change observer
 
     /// The write path no longer refreshes inline: a manual edit commits, the

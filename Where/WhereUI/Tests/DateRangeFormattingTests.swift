@@ -14,6 +14,13 @@ struct DateRangeFormattingTests {
         ) == "Dec 30 – Jan 1")
     }
 
+    @Test func historicalRangesIdentifyBothYearsAndSingleDays() {
+        let day = CalendarDay(year: 2025, month: 12, day: 31)
+        #expect(DateRangeFormatting.withYear(start: day, end: day) == "Dec 31, 2025")
+        #expect(DateRangeFormatting.withYear(start: day, end: day.adding(days: 1))
+            == "Dec 31, 2025 – Jan 1, 2026")
+    }
+
     @Test func instantRangesHonorTheSuppliedCalendarTimeZone() throws {
         let instant = Date(timeIntervalSince1970: 1_767_225_600)
         var calendar = Calendar(identifier: .gregorian)

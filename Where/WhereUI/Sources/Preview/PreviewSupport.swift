@@ -723,7 +723,7 @@
             )
             return ResolveModel(
                 services: previewServices(),
-                source: FixtureResolutionSource(scan: scan),
+                source: FixtureResolutionSource(scan: scan, year: year),
             )
         }
 

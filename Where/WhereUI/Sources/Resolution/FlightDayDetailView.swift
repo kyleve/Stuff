@@ -199,7 +199,7 @@ struct FlightDayDetailView: View {
             Text(correction.action.confirmationMessage)
         }
         .task(id: report.dataIssueScanInputs) {
-            model.receive(report.dataIssueScan)
+            model.receive(report.resolutionState.scan?.reviews)
         }
         .refreshable { await report.rescanForIssues() }
     }

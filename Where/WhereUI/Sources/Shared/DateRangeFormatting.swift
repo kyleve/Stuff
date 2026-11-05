@@ -18,7 +18,19 @@ enum DateRangeFormatting {
         start: CalendarDay,
         end: CalendarDay,
     ) -> String {
-        let format = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        logicalRange(start: start, end: end, format: .dateTime.month(.abbreviated).day())
+    }
+
+    /// Historical review lists can show identical ranges in different years.
+    static func withYear(start: CalendarDay, end: CalendarDay) -> String {
+        logicalRange(start: start, end: end, format: .dateTime.month(.abbreviated).day().year())
+    }
+
+    private static func logicalRange(
+        start: CalendarDay,
+        end: CalendarDay,
+        format: Date.FormatStyle,
+    ) -> String {
         let first = WhereFormat.calendarDay(start, format: format)
         guard start != end else { return first }
         return "\(first) – \(WhereFormat.calendarDay(end, format: format))"

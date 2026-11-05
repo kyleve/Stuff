@@ -231,13 +231,17 @@ An actionable row is one button and one VoiceOver element. Its map preview does 
 For completed flights, the user can include one GPS point in the flight or restore its GPS attribution.
 Both actions require confirmation and retain the original recording. A changed review requires a new decision.
 
-`YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
-badge, and open detail. Committed raw GPS writes refresh it even when region
-totals do not change. Foreground-only deadlines update stale notices and remove
-live notices after 24 hours; unresolved historical reviews remain accessible.
+`YearReportModel` publishes one `HistoricalDataIssueScanResult` for the issue list, badge, and open correction reviews.
+It derives calendar flight indicators from the matching annual assessment. Choosing another year does not clear historical work.
+The issue list remains available if the selected year's report fails. A failed scan retains the prior admitted result and its original error.
+Cancelled, superseded, deactivated, or revoked reads cannot replace the current publication. If a publication check detects revocation, it clears retained content.
+Committed raw GPS writes refresh the scan even when region totals do not change.
+Foreground-only deadlines update stale notices and remove live notices after 24 hours; historical reviews remain accessible.
 `ResolveModel` receives a `ResolutionSource`. The scene supplies its `YearReportModel`.
 Standalone consumers use `ScannerResolutionSource`; previews supply a synchronous fixture
 through the same protocol. Product models have no preview-mode refresh branches.
+Settings uses `IssueSearchModel` for an explicit all-history scan. It reports a failed refresh instead of presenting the retained count as success.
+Historical missing-day ranges include the year on each endpoint.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.
 It also prepares unique point rows, individual point maps, inference explanations, and point correction actions.

@@ -1,4 +1,5 @@
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -12,10 +13,14 @@ struct AlertsSettingsView: View {
 
     @Environment(\.openURL) private var openURL
 
-    // "Find issues now": a manual, force-past-the-throttle data-issue scan and
-    // its result (issue count) shown until the next scan.
-    @State private var isScanningForIssues = false
-    @State private var lastScanIssueCount: Int?
+    @State private var issueSearch: IssueSearchModel
+
+    init(report: YearReportModel, reminders: RemindersSettingsModel, focus: SettingsFocus? = nil) {
+        self.report = report
+        self.reminders = reminders
+        self.focus = focus
+        _issueSearch = State(initialValue: IssueSearchModel(report: report))
+    }
 
     var body: some View {
         SettingsFocusScope(focus: focus) {
@@ -176,49 +181,41 @@ struct AlertsSettingsView: View {
     private var findIssuesSection: some View {
         Section {
             Button {
-                findIssues()
+                Task { await issueSearch.scan() }
             } label: {
-                if isScanningForIssues {
+                if issueSearch.isScanning {
                     SavingStatusRow(text: String(localized: .settingsFindIssuesScanning))
                 } else {
                     Label(String(localized: .settingsFindIssues), systemSymbol: .magnifyingglass)
                 }
             }
-            .disabled(isScanningForIssues)
+            .disabled(issueSearch.isScanning)
             .settingsRow(Item.findIssues)
 
-            if let count = lastScanIssueCount, !isScanningForIssues {
-                Label {
-                    Text(WhereFormat.settingsFindIssuesResult(count: count))
-                } icon: {
-                    Image(systemSymbol: count == 0 ? .checkmarkCircle : .checklist)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            switch issueSearch.state {
+                case .idle, .scanning:
+                    EmptyView()
+                case let .complete(count):
+                    Label {
+                        Text(WhereFormat.settingsFindIssuesResult(count: count))
+                    } icon: {
+                        Image(systemSymbol: count == 0 ? .checkmarkCircle : .checklist)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                case let .failed(error):
+                    Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
             }
         } header: {
             Text(String(localized: .settingsFindIssuesHeader))
         } footer: {
             Text(String(localized: .settingsFindIssuesFooter))
         }
-        .animation(.default, value: isScanningForIssues)
-        // The shown count is for the current year at the current threshold;
-        // drop it once either changes so it can't linger as a stale result.
-        .onChange(of: report.selectedYear) { lastScanIssueCount = nil }
-        .onChange(of: report.driftThreshold) { lastScanIssueCount = nil }
-    }
-
-    /// Force a fresh data-issue scan past the ~3h throttle, then surface the
-    /// resulting count. The scan also refreshes the Resolve tab's badge and
-    /// reloads its list (see `YearReportModel.rescanForIssues()`).
-    private func findIssues() {
-        Task {
-            isScanningForIssues = true
-            lastScanIssueCount = nil
-            await report.rescanForIssues()
-            lastScanIssueCount = report.dataIssueCount
-            isScanningForIssues = false
-        }
+        .animation(.default, value: issueSearch.isScanning)
+        .onChange(of: report.driftThreshold) { issueSearch.invalidate() }
+        .onDisappear { issueSearch.invalidate() }
     }
 }
 
@@ -259,14 +256,21 @@ extension AlertsSettingsView: SettingsSection {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            AlertsSettingsView(
-                report: PreviewSupport.loadedYearReportModel(),
-                reminders: PreviewSupport.remindersSettingsModel(),
-            )
+    extension AlertsSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .fullContentScreenRepresentative) {
+                NavigationStack {
+                    AlertsSettingsView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        reminders: PreviewSupport.remindersSettingsModel(),
+                    )
+                }
+            }
         }
-        .whereBroadwayRoot()
+    }
+
+    #Preview {
+        AlertsSettingsView.snapshotPreviews
     }
 #endif
 

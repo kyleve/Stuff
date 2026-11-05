@@ -34,10 +34,7 @@ struct ResolutionView: View {
                     }
                 }
                 .task(id: report.dataIssueScanInputs) {
-                    await resolve.load(
-                        year: report.selectedYear,
-                        primaryRegions: report.ranking.primary.map(\.region),
-                    )
+                    await resolve.load()
                 }
         }
         // Log View Mode: reveal an inspect badge for data-issue resolution
@@ -47,51 +44,34 @@ struct ResolutionView: View {
 
     @ViewBuilder
     private var screen: some View {
-        switch report.loadState {
-            case .loading where report.report == nil:
-                AppIconLoadingView(caption: String(localized: .primaryLoading))
-            case let .failed(error):
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .commonLoadErrorTitle),
-                        systemSymbol: .exclamationmarkIcloud,
-                    )
-                } description: {
-                    Text(error.message)
+        if !resolve.hasLoaded {
+            AppIconLoadingView(caption: String(localized: .primaryLoading))
+        } else if let error = resolve.loadError, resolve.dataIssues.isEmpty,
+                  resolve.reviews.isEmpty
+        {
+            ContentUnavailableView {
+                Label(
+                    String(localized: .commonLoadErrorTitle),
+                    systemSymbol: .exclamationmarkTriangle,
+                )
+            } description: {
+                Text(error.localizedDescription)
+            } actions: {
+                Button(String(localized: .commonRetry)) {
+                    Task { await report.rescanForIssues() }
                 }
-            case .idle, .loaded, .loading:
-                if !resolve.hasLoaded {
-                    // The report is loaded but this tab's own scan hasn't landed
-                    // yet; show the loading state rather than flash "all clear"
-                    // under a non-zero badge.
-                    AppIconLoadingView(caption: String(localized: .primaryLoading))
-                } else if let error = resolve.loadError, resolve.dataIssues.isEmpty,
-                          resolve.reviews.isEmpty
-                {
-                    ContentUnavailableView {
-                        Label(
-                            String(localized: .commonLoadErrorTitle),
-                            systemSymbol: .exclamationmarkTriangle,
-                        )
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button(String(localized: .commonRetry)) {
-                            Task { await report.rescanForIssues() }
-                        }
-                    }
-                } else if resolve.dataIssues.isEmpty, resolve.reviews.isEmpty {
-                    ContentUnavailableView {
-                        Label(
-                            String(localized: .resolutionEmptyTitle),
-                            systemSymbol: .checkmarkSeal,
-                        )
-                    } description: {
-                        Text(String(localized: .resolutionEmptyDescription))
-                    }
-                } else {
-                    issueList
-                }
+            }
+        } else if resolve.dataIssues.isEmpty, resolve.reviews.isEmpty {
+            ContentUnavailableView {
+                Label(
+                    String(localized: .resolutionEmptyTitle),
+                    systemSymbol: .checkmarkSeal,
+                )
+            } description: {
+                Text(String(localized: .resolutionEmptyDescription))
+            }
+        } else {
+            issueList
         }
     }
 
@@ -99,7 +79,7 @@ struct ResolutionView: View {
         List {
             if let error = resolve.loadError {
                 Section {
-                    Label(error, systemSymbol: .exclamationmarkTriangle)
+                    Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
                 }
             }
             if !resolve.pendingReviews.isEmpty {
@@ -228,7 +208,7 @@ private struct IssueRow: View {
     private var title: String {
         switch issue.resolution {
             case let .backfill(range):
-                DateRangeFormatting.abbreviated(start: range.start, end: range.end)
+                DateRangeFormatting.withYear(start: range.start, end: range.end)
             case let .markTravelDay(earlier, later, _):
                 WhereFormat.resolutionAbruptRowTitle(
                     earlier: earlier.regions,
@@ -264,6 +244,21 @@ private struct IssueRow: View {
                 ResolutionView(
                     report: PreviewSupport.loadedYearReportModel(),
                     resolve: PreviewSupport.resolveModel(),
+                )
+            }
+            whereSnapshot(name: "Historical", configurations: .fullContentPhoneLightDark) {
+                ResolutionView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    resolve: ResolutionPreview.historical(failed: false),
+                )
+            }
+            whereSnapshot(
+                name: "RefreshFailed",
+                configurations: [.init(device: .iPhoneFullContent)],
+            ) {
+                ResolutionView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    resolve: ResolutionPreview.historical(failed: true),
                 )
             }
             for state in [FlightReviewPreviewState.waiting, .ready, .completed] {

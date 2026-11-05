@@ -1,28 +1,44 @@
 import Foundation
 import Observation
 import PeriscopeCore
-import RegionKit
 import WhereCore
 
-/// Mirrors the scene's coherent scan for correction navigation and dismiss actions.
-/// Standalone consumers can load through the same Core scanner.
+/// Mirrors the scene's historical publication for navigation and dismiss actions.
 @MainActor
 @Observable
 public final class ResolveModel {
-    /// Unresolved data-quality issues for the selected year, grouped and sorted
-    /// by the scanner.
-    public private(set) var dataIssues: [any DataIssue] = []
-    public private(set) var reviews: [GPSCorrectionReview] = []
-    public private(set) var loadError: String?
+    private var state = ResolutionSourceState.idle
+    private var dismissedIssueIDs: Set<DataIssueID> = []
     private var loadRequestID = UUID()
 
-    /// Whether the source has published a scan or a failure. Until it
-    /// has, `ResolutionView` shows a spinner rather than the "all clear" empty
-    /// state — otherwise a populated tab (whose badge already scanned) would
-    /// flash empty for the frame before this model's own `load` lands. Once true
-    /// it stays true, so later re-scans update the list in place without a
-    /// spinner flicker.
-    public private(set) var hasLoaded = false
+    public var dataIssues: [any DataIssue] {
+        (state.scan?.issues ?? []).filter { !dismissedIssueIDs.contains($0.id) }
+    }
+
+    public var reviews: [GPSCorrectionReview] {
+        (state.scan?.reviews ?? []).compactMap {
+            dismissedIssueIDs.contains($0.id) ? $0.dismissingProposal() : $0
+        }
+    }
+
+    public var recordingIssues: [RecordingIssue] {
+        state.scan?.recording.issues ?? []
+    }
+
+    public var loadError: (any Error)? {
+        state.error
+    }
+
+    public var hasLoaded: Bool {
+        switch state {
+            case .idle: false
+            case .loaded, .failed: true
+        }
+    }
+
+    var snapshot: HistoricalDataIssueScanResult? {
+        state.scan
+    }
 
     private let services: WhereServices
     private let source: any ResolutionSource
@@ -31,7 +47,7 @@ public final class ResolveModel {
     public convenience init(services: WhereServices, preferences: WherePreferences) {
         self.init(
             services: services,
-            source: ScannerResolutionSource(scanner: services.resolution, preferences: preferences),
+            source: ScannerResolutionSource(services: services, preferences: preferences),
         )
     }
 
@@ -41,30 +57,23 @@ public final class ResolveModel {
         receive(source.resolutionState)
     }
 
-    public func load(year: Int, primaryRegions: [Region]) async {
+    public func load() async {
         let requestID = UUID()
         loadRequestID = requestID
-        await source.refreshResolution(year: year, primaryRegions: primaryRegions)
+        await source.refreshResolution()
         guard requestID == loadRequestID, !Task.isCancelled else { return }
         receive(source.resolutionState)
     }
 
-    private func receive(_ state: ResolutionSourceState) {
-        switch state {
-            case .idle:
-                break
-            case let .loaded(scan):
-                dataIssues = scan.issues
-                reviews = scan.reviews
-                loadError = nil
-                hasLoaded = true
-            case let .failed(error, previous):
-                if let previous {
-                    dataIssues = previous.issues
-                    reviews = previous.reviews
-                }
-                loadError = error
-                hasLoaded = true
+    private func receive(_ updated: ResolutionSourceState) {
+        do {
+            try services.validateDataAccess()
+            if updated.scan?.revision != state.scan?.revision { dismissedIssueIDs = [] }
+            state = updated
+        } catch {
+            state = .failed(error, previous: nil)
+            dismissedIssueIDs = []
+            Self.logger.dataIssueScanFailed(error: .restricted(.errorDetails, error))
         }
     }
 
@@ -82,15 +91,13 @@ public final class ResolveModel {
 
     public func dismiss(_ issue: any DataIssue) async {
         guard issue.isDismissible else { return }
+        let revision = state.scan?.revision
         do {
             try await services.journal.dismissIssue(id: issue.id)
-            // Optimistically drop the row for instant feedback; the committed
-            // write pings the store-change signal, so the scene's `YearReportModel`
-            // recomputes the badge count a beat later.
-            dataIssues.removeAll { $0.id == issue.id }
-            reviews = reviews.compactMap {
-                $0.id == issue.id ? $0.dismissingProposal() : $0
-            }
+            try services.validateDataAccess()
+            guard !Task.isCancelled, revision == state.scan?.revision else { return }
+            // Retain pending flights while the scene refreshes the shared publication.
+            dismissedIssueIDs.insert(issue.id)
         } catch {
             Self.logger.dismissFailed(
                 issueID: .restricted(.identifier, issue.id.storeURL.absoluteString),

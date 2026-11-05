@@ -6,6 +6,32 @@ import Testing
 
 @MainActor
 struct FlightReviewModelTests {
+    @Test func historicalCorrectionRemainsApplicableWhileViewingAnotherYear() async throws {
+        let store = try TestStore()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let now = try #require(calendar.date(from: DateComponents(year: 2027, month: 1, day: 2)))
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2027,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.rescanForIssues()
+        let review = try #require(report.correctionReviews.first { $0.proposal != nil })
+        let model = FlightReviewModel(review: review, report: report)
+        model.receive(report.resolutionState.scan?.reviews)
+        #expect(model.canApply)
+        #expect(report.completedFlights.isEmpty)
+        await model.apply()
+        #expect(model.saveState == .applied)
+        #expect(try await !store.allSampleAttributionRevisions().isEmpty)
+        #expect(report.correctionReviews.first { $0.id == review.id }?.proposal == nil)
+        #expect(report.selectedYear == 2027)
+    }
+
     @Test func pointConfirmationAppliesAndRestoresWithoutClosingTheReview() async throws {
         let store = try TestStore()
         let now = FlightReviewTestSupport.date(hour: 18)
@@ -142,7 +168,7 @@ struct FlightReviewModelTests {
         )
         try model.selectPointCorrection(#require(review.pointCorrections.first))
         #expect(model.isConfirmingPointCorrection)
-        model.receive(PreviewSupport.flightScan(state: .completed))
+        model.receive(PreviewSupport.flightScan(state: .completed).reviews)
         #expect(model.pointConfirmation == nil)
         #expect(model.saveState == .refreshed)
     }
@@ -221,7 +247,7 @@ struct FlightReviewModelTests {
             reviews: [informational],
             completedFlights: [],
             nextReassessmentAt: nil,
-        ))
+        ).reviews)
 
         #expect(model.canApply == false)
         #expect(model.review?.isPending == true)
@@ -327,7 +353,7 @@ struct FlightReviewModelTests {
             reviews: [ready],
             completedFlights: [],
             nextReassessmentAt: nil,
-        ))
+        ).reviews)
         #expect(model.canApply)
         #expect(model.saveState == .refreshed)
 
@@ -338,7 +364,7 @@ struct FlightReviewModelTests {
             reviews: [],
             completedFlights: [],
             nextReassessmentAt: nil,
-        ))
+        ).reviews)
         #expect(!model.canApply)
         #expect(model.review == nil)
         #expect(model.initialDay == pending.day)

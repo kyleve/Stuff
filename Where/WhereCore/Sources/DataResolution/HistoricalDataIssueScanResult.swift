@@ -21,9 +21,49 @@ public struct HistoricalDataIssueScanResult: Sendable {
         return years.flatMap(\.scan.issues).filter { seen.insert($0.id).inserted }
     }
 
+    public var reviews: [GPSCorrectionReview] {
+        years.flatMap(\.scan.reviews)
+    }
+
     public var nextReassessmentAt: Date? {
         years.compactMap(\.scan.nextReassessmentAt).min()
     }
+
+    #if DEBUG
+        /// Synchronous admitted-result fixtures for presentation tests and previews.
+        @_spi(Testing) public init(
+            yearScans: [Int: DataIssueScanResult],
+            calendar: Calendar,
+        ) throws {
+            guard let version = yearScans.values.first?.completeness.policyVersion else {
+                throw RecordingReviewSnapshot.ValidationError.emptyAssessment
+            }
+            guard yearScans.values.allSatisfy({ $0.completeness.policyVersion == version }) else {
+                throw DataCompatibilityError.concurrentChange
+            }
+            years = try yearScans.sorted { $0.key < $1.key }.map { year, scan in
+                try Year(
+                    context: .init(
+                        historicalYear: year,
+                        query: .days(ReportReader.dataIssueContextDays(for: year)),
+                    ),
+                    scan: scan,
+                )
+            }
+            recording = try RecordingReviewSnapshot(
+                scopeID: .init(rawValue: UUID()),
+                generationID: .initial,
+                policyVersion: version,
+                assessedPeriods: years.map {
+                    try version.major == 0
+                        ? $0.context.query.viewingPeriod(in: calendar)
+                        : $0.context.query.recordingPeriod()
+                },
+                issues: years.flatMap(\.scan.completeness.issues),
+            )
+            revision = Revision(rawValue: UUID())
+        }
+    #endif
 
     init(
         reads: HistoricalDataIssueReads,

@@ -147,7 +147,7 @@
         static func flightResolveModel(state: FlightReviewPreviewState) -> ResolveModel {
             ResolveModel(
                 services: previewServices(),
-                source: FixtureResolutionSource(scan: flightScan(state: state)),
+                source: FixtureResolutionSource(scan: flightScan(state: state), year: 2026),
             )
         }
 

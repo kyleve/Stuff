@@ -63,7 +63,7 @@ public final class YearReportModel {
         /// (year / report / threshold) changed.
         let manualScanToken: Int
         let evidenceRevision: UUID
-        let scanRevision: UUID?
+        let scanRevision: HistoricalDataIssueScanResult.Revision?
         let scanError: String?
     }
 
@@ -128,11 +128,29 @@ public final class YearReportModel {
     /// tracked separately from `report` (which drives residency).
     public private(set) var evidenceDayKeys: Set<CalendarDay> = []
 
-    /// One coherent assessment drives Locations, the review list, and actionable badges.
-    public private(set) var dataIssueScan: DataIssueScanResult?
-    public private(set) var dataIssueScanError: String?
+    /// One historical publication drives the issue list and badge. Calendar indicators use
+    /// its selected-year assessment; choosing another year never discards outstanding work.
+    private(set) var resolutionState = ResolutionSourceState.idle
+    public var dataIssueScan: DataIssueScanResult? {
+        resolutionState.scan?.years.first { $0.context.historicalYear == selectedYear }?.scan
+    }
+
+    public var dataIssueScanError: String? {
+        resolutionState.error?.localizedDescription
+    }
+
     private var recordingDeviceNames: [RecordingDeviceID: String] = [:]
-    public private(set) var dataIssueCount = 0
+    public var dataIssueCount: Int {
+        #if DEBUG
+            if let previewDataIssueCount { return previewDataIssueCount }
+        #endif
+        guard let scan = resolutionState.scan else { return 0 }
+        return scan.issues.count
+    }
+
+    #if DEBUG
+        private var previewDataIssueCount: Int?
+    #endif
 
     var completedFlights: [FlightAssessment] {
         dataIssueScan?.completedFlights ?? []
@@ -145,7 +163,7 @@ public final class YearReportModel {
     }
 
     var correctionReviews: [GPSCorrectionReview] {
-        dataIssueScan?.reviews ?? []
+        resolutionState.scan?.reviews ?? []
     }
 
     /// Historical pending reviews remain accessible after their live notice expires.
@@ -287,7 +305,7 @@ public final class YearReportModel {
             driftThreshold: driftThreshold,
             manualScanToken: manualScanToken,
             evidenceRevision: evidenceRevision,
-            scanRevision: dataIssueScan?.revision,
+            scanRevision: resolutionState.scan?.revision,
             scanError: dataIssueScanError,
         )
     }
@@ -439,9 +457,7 @@ public final class YearReportModel {
         // Clear the previous year's evidence markers too, so the calendar can't
         // briefly badge the new year's days with the old year's evidence.
         evidenceDayKeys = []
-        dataIssueScan = nil
-        dataIssueCount = 0
-        dataIssueScanError = nil
+        scanRequestID = UUID()
         await refreshAll(forceDataIssueCount: true)
     }
 
@@ -493,28 +509,29 @@ public final class YearReportModel {
     /// A later request, committed write, year switch, or deactivation prevents
     /// an older suspended scan from publishing into the current scene.
     func refreshDataIssueCount(force: Bool) async {
-        let requestedYear = selectedYear
         let requestID = UUID()
         scanRequestID = requestID
         do {
-            let scan = try await services.resolution.scan(
-                year: requestedYear,
-                primaryRegions: ranking.primary.map(\.region),
+            let scan = try await services.resolution.historicalScan(
                 driftThresholdMeters: Double(driftThreshold.rawValue),
                 force: force,
             )
-            guard requestedYear == selectedYear, scanRequestID == requestID,
-                  !Task.isCancelled else { return }
-            dataIssueScan = scan
-            dataIssueCount = scan.issues.count
-            dataIssueScanError = nil
+            guard scanRequestID == requestID, !Task.isCancelled else { return }
+            try services.validateDataAccess()
+            resolutionState = .loaded(scan)
+            #if DEBUG
+                previewDataIssueCount = nil
+            #endif
             scheduleReassessment()
-            await refreshRecordingDeviceNames(requestID: requestID, requestedYear: requestedYear)
+            await refreshRecordingDeviceNames(requestID: requestID)
         } catch is CancellationError {
             return
         } catch {
-            guard requestedYear == selectedYear, scanRequestID == requestID else { return }
-            dataIssueScanError = error.localizedDescription
+            guard scanRequestID == requestID, !Task.isCancelled else { return }
+            resolutionState = .failed(
+                error,
+                previous: services.isDataAccessRevoked ? nil : resolutionState.scan,
+            )
             Self.logger.dataIssueScanFailed(error: .restricted(
                 .errorDetails,
                 error,
@@ -522,11 +539,11 @@ public final class YearReportModel {
         }
     }
 
-    private func refreshRecordingDeviceNames(requestID: UUID, requestedYear: Int) async {
+    private func refreshRecordingDeviceNames(requestID: UUID) async {
         do {
             let names = try await services.recording.displayNames()
-            guard requestedYear == selectedYear, scanRequestID == requestID,
-                  !Task.isCancelled else { return }
+            guard scanRequestID == requestID, !Task.isCancelled else { return }
+            try services.validateDataAccess()
             recordingDeviceNames = names
         } catch is CancellationError {
             return
@@ -548,7 +565,7 @@ public final class YearReportModel {
         let expiryDates = correctionReviews.flatMap(\.flights).map {
             $0.lastObservationAt.addingTimeInterval(24 * 60 * 60)
         }
-        let deadlines = expiryDates + [dataIssueScan?.nextReassessmentAt].compactMap(\.self)
+        let deadlines = expiryDates + [resolutionState.scan?.nextReassessmentAt].compactMap(\.self)
         guard let deadline = deadlines.filter({ $0 > currentDate }).min() else { return }
         let delay = deadline.timeIntervalSince(currentDate)
         reassessmentTask = Task { @MainActor [weak self] in
@@ -753,12 +770,13 @@ public final class YearReportModel {
     @_spi(Testing) extension YearReportModel {
         /// Inject a badge count for previews/tests without seeding raw samples.
         public func setDataIssueScan(_ scan: DataIssueScanResult) {
-            dataIssueScan = scan
-            dataIssueCount = scan.issues.count
+            resolutionState = FixtureResolutionSource(scan: scan, year: selectedYear)
+                .resolutionState
+            previewDataIssueCount = nil
         }
 
         public func setDataIssueCount(_ count: Int) {
-            dataIssueCount = count
+            previewDataIssueCount = count
         }
     }
 #endif

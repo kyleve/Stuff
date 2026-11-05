@@ -9,9 +9,9 @@ import Testing
 @MainActor
 struct ResolveModelTests {
     private func date(year: Int, month: Int, day: Int) -> Date {
-        Calendar.current.date(
-            from: DateComponents(year: year, month: month, day: day, hour: 12),
-        )!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
     }
 
     @Test func loadPopulatesMissingDayIssues() async throws {
@@ -34,7 +34,7 @@ struct ResolveModelTests {
             regions: [.california],
             audit: nil,
         )
-        await resolve.load(year: 2026, primaryRegions: [.california])
+        await resolve.load()
 
         #expect(!resolve.dataIssues.isEmpty)
         #expect(resolve.dataIssues.contains { $0.category == .missingDays })
@@ -68,7 +68,7 @@ struct ResolveModelTests {
             regions: [.newYork],
             audit: nil,
         )
-        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+        await resolve.load()
 
         let issue = try #require(resolve.dataIssues.first { $0.isDismissible })
         await resolve.dismiss(issue)
@@ -91,7 +91,7 @@ struct ResolveModelTests {
                 reviews: [review],
                 completedFlights: [],
                 nextReassessmentAt: nil,
-            )),
+            ), year: review.day.day.year),
         )
 
         await resolve.dismiss(issue)
@@ -116,7 +116,7 @@ struct ResolveModelTests {
         )
 
         try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
-        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+        await resolve.load()
 
         let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
         guard case let .correctSamples(proposal) = flight.resolution else {
@@ -140,7 +140,7 @@ struct ResolveModelTests {
         )
 
         try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
-        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+        await resolve.load()
 
         let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
         guard case let .correctSamples(proposal) = flight.resolution else {
@@ -153,7 +153,7 @@ struct ResolveModelTests {
             return
         }
         await services.resolution.invalidate()
-        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+        await resolve.load()
 
         #expect(!resolve.dataIssues.contains { $0.category == .flightDay })
     }
@@ -167,7 +167,7 @@ struct ResolveModelTests {
         let resolve = ResolveModel(services: services, preferences: makePreferences())
         try await FlightReviewTestSupport.seed(into: store, includeArrival: false)
 
-        await resolve.load(year: 2026, primaryRegions: [.newYork, .california])
+        await resolve.load()
 
         #expect(resolve.dataIssues.allSatisfy { $0.category != .flightDay })
         #expect(resolve.pendingReviews.count == 1)
@@ -193,7 +193,7 @@ struct ResolveModelTests {
         )
 
         #expect(!resolve.hasLoaded)
-        await resolve.load(year: 2026, primaryRegions: [.california])
+        await resolve.load()
         #expect(resolve.hasLoaded)
     }
 
@@ -215,7 +215,7 @@ struct ResolveModelTests {
     @Test func fixtureUsesTheSourceProtocolDuringRefresh() async {
         let resolve = PreviewSupport.resolveModel(seededWithIssues: false)
         #expect(resolve.hasLoaded)
-        await resolve.load(year: 2026, primaryRegions: [.california])
+        await resolve.load()
         #expect(resolve.hasLoaded)
         #expect(resolve.dataIssues.isEmpty)
         #expect(resolve.reviews.isEmpty)

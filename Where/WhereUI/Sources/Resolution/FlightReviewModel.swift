@@ -81,9 +81,9 @@ final class FlightReviewModel {
         return regions.map(\.localizedName).sorted().joined(separator: ", ")
     }
 
-    func receive(_ scan: DataIssueScanResult?) {
-        guard let scan, saveState != .applying, saveState != .applied else { return }
-        let updated = scan.reviews.first { $0.id == reviewID }
+    func receive(_ reviews: [GPSCorrectionReview]?) {
+        guard let reviews, saveState != .applying, saveState != .applied else { return }
+        let updated = reviews.first { $0.id == reviewID }
         guard updated != review else { return }
         pointConfirmation = nil
         presentation = updated.map(Self.prepare)

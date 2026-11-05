@@ -124,9 +124,13 @@ Layering, localization, preview, and testing conventions live in the feature
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
-- Publish flight notices, historical indicators, correction reviews, and actionable counts from one
-  `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
-  on aggregate-report equality. Schedule presentation deadlines only in the foreground.
+- Publish historical correction reviews and actionable counts from one `YearReportModel` historical scan.
+  Derive selected-year flight indicators from that publication. Keep historical work when the selected year changes or its report fails.
+  Inject that scene as the Resolve model's `ResolutionSource`. Retain original errors and prior admitted work on refresh failure.
+  Reject cancelled, superseded, deactivated, or revoked publication; clear retained content when a publication check detects revocation.
+  Re-key on raw evidence changes, independently of aggregate-report equality. Schedule deadlines only in the foreground.
+  Report manual-search failures instead of presenting retained counts as a successful scan. Include years in historical date-range labels.
+  Guards: `YearReportModelTests`, `ResolveModelTests`, `ScannerResolutionSourceTests`, and `IssueSearchModelTests`.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
   Carry each cell's logical day into planning lookup and accessibility. Format logical dates through `WhereFormat.calendarDay`; never reconstruct them through a viewing-zone instant.
 - Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
