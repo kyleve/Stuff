@@ -11,17 +11,20 @@ It returns updated plans and unresolved questions to its caller. It does not pub
    For completed plans, apply the follow-up or reopening rule in the [Plans contract](../../../../Plans/AGENTS.md#structure-and-ownership).
    Preserve human edits, stable filenames, and story, requirement, exclusion, and question IDs.
 3. Update affected stories, requirements, exclusions, decisions, diagrams, Swift sketches, steps, and verification together.
+   Match detail to the planning horizon. Preserve deliberate uncertainty in later outlines.
    If requirements or evidence change, revisit the affected discovery or research in [Develop an initial plan](develop-plan.md).
    Do not implement product changes during a plan-only revision.
 4. Record the decision, reason, date, and source in the owning decision table.
    Put series-wide decisions in the overview and link them from affected plans.
    For a question answer, link its question record rather than duplicating the answer history.
    If a request is declined, record the reason.
-   If work is deferred, link the owning `TODOs.md` item.
+   For later selected work, link its outline and refinement trigger.
+   For work outside the series, link the owning `TODOs.md` item.
 5. If the revision invalidates earlier verification, label that evidence stale and identify the checks that must repeat.
    Reset affected progress checkboxes and status to reflect remaining work.
    Preserve the earlier execution record.
    Treat material design revisions as `draft` until reviewed, or `blocked` when a required answer is missing.
+   Keep later outlines as `outline` unless selected for refinement.
 6. Use [Review the plan](develop-plan.md#review-the-plan) to assess the revised series.
    During early discovery, review integration into existing sections and record unfinished drafting work without claiming full plan readiness.
    Return newly discovered questions to the caller instead of resolving them recursively.

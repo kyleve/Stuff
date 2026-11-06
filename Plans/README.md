@@ -29,13 +29,30 @@ Questions have stable IDs and progress through `open`, `answered`, and `closed`,
 The agent integrates answers into the plan and reviews consistency before closing questions.
 Deferred questions retain a reason, revisit condition, and next action. Blocking questions continue to block their plans.
 
-The skill copies the [overview template](../.agents/skills/planning/assets/overview.md) and [plan template](../.agents/skills/planning/assets/plan.md).
+The skill starts with the [overview template](../.agents/skills/planning/assets/overview.md).
 A small change needs only one numbered plan.
-Each plan includes acceptance criteria, progress, decisions, and a resume point.
+Plans inside the current horizon use the [executable template](../.agents/skills/planning/assets/plan.md).
+They include acceptance criteria, progress, decisions, and a resume point.
 User stories and requirements have stable IDs for review and acceptance checks.
 Mermaid diagrams show data flows. Swift pseudocode shows proposed architecture, ownership, and interfaces.
 Plans also state unnecessary capabilities and explicitly avoided approaches to constrain implementation scope.
 Planning alone does not start implementation.
+
+## Rolling-wave planning
+
+The planning horizon usually covers the next one or two deliverables in detail.
+Later selected work uses the [outline template](../.agents/skills/planning/assets/outline.md) in numbered files with status `outline`.
+These outlines retain outcomes, known requirements, exclusions, dependencies, assumptions, questions, and a trigger for refinement.
+Diagrams and Swift sketches show known boundaries. Unresolved details link to questions instead of speculative interfaces or implementation steps.
+
+After a deliverable completes, the agent uses its actual results to reconsider the next horizon.
+It expands selected outlines in place, resolves relevant questions, and reviews them before implementation.
+Agreed requirements and exclusions remain in force as the design develops.
+GitHub comments can refine either detailed plans or outlines without changing their paths.
+
+The whole series receives a scope and dependency review. Executable detail is required for plans that must be ready now.
+A later question blocks earlier work only when its answer affects that work's implementation or acceptance.
+Questions awaiting later selected work link to the outline and its refinement trigger. Work outside the series stays in `TODOs.md`.
 
 ## Review on GitHub
 
@@ -55,7 +72,8 @@ To limit scope, name a numbered plan file.
 Ask: "Use $planning to resume Plans/YYYY-MM-DD-topic" to continue existing authorized work.
 
 The agent reconciles recorded progress with the current source before continuing.
-Draft plans pass plan review before implementation. Material changes require another review of the affected plan.
+Outlines become executable drafts before plan review. Only reviewed, ready plans can start implementation.
+Material changes require another review of the affected plan.
 Plan files retain verification results, partial work, and the next action.
 Completed plans remain available at their original paths.
 
@@ -63,4 +81,4 @@ Completed plans remain available at their original paths.
 
 The owning `TODOs.md` retains backlog items and links to their execution plans.
 A direct request can start a plan without creating a duplicate backlog item.
-Deferred work belongs in `TODOs.md`, with a link from the plan.
+Work deferred outside the series belongs in `TODOs.md`, with a link from the plan.

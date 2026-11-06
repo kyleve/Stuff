@@ -75,6 +75,15 @@
 
 <!-- Each numbered plan owns its status, dependencies, progress, and verification evidence. -->
 
+## Planning horizon
+
+- Detail now: [Links to the next selected plans, usually one or two deliverables]
+- Reason: [Available evidence and what earlier work must establish before later design decisions]
+- Next horizon review: [Completion or evidence that prompts reconsideration]
+
+<!-- Later numbered files can remain outlines. Link their refinement triggers instead of duplicating them here. -->
+<!-- Keep agreed requirements and exclusions distinct from provisional design choices. -->
+
 ## Shared decisions
 
 | Date | Decision and reason | Source |
@@ -94,15 +103,15 @@
 - Answer and source: [Pending, or dated answer with a source path, GitHub comment URL, or summary of the user's response]
 - Integration: [Pending, or links to changed requirements, decisions, design sections, steps, and acceptance criteria]
 - Resolution history: [Dated closure after consistency review, or reopening with its reason and previous answer retained]
-- Deferral: [None, or reason, revisit condition, next action, and backlog link for remaining work]
+- Deferral: [None, or reason, revisit condition, next action, and link to the affected outline or backlog item]
 
 <!-- An answer alone does not close a question. Deferral alone does not unblock a plan. -->
 
 ## Plan review
 
-- Reviewed: [Date, source revision, and plan files reviewed, or Not reviewed]
+- Reviewed: [Date, source revision, series consistency scope, and plans checked for executable detail, or Not reviewed]
 - Findings and disposition: [Contradictions, unsupported assumptions, coverage gaps, scope additions, and their resolution, or None found]
-- Readiness: [Ready plans, blocked plans and reasons, or Still drafting]
+- Readiness: [Ready plans, drafts, blocked plans and reasons, and later outlines awaiting refinement]
 - Validation limits: [Unverified claims, diagram rendering limits, or planned feasibility experiments]
 
 <!-- This records review of the plan, not proof that its implementation works. Refresh after material revisions. -->

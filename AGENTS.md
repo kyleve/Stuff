@@ -324,7 +324,7 @@ walkthroughs, and persuasion belong in the PR that proved them.
 
 A few files outside the module pair carry *state* rather than rules:
 
-- **`TODOs.md`** — the durable backlog. Deferred and unselected work lives here.
+- **`TODOs.md`** — the durable backlog. Unselected work and work deferred outside a plan's scope live here.
   Selected work can link to an execution plan in `Plans/`.
   Keep one backlog entry rather than copying it into a second backlog.
   One per area, at that area's root, plus the root

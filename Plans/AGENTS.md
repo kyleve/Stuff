@@ -17,17 +17,32 @@ Use the [planning skill](../.agents/skills/planning/SKILL.md) to create, revise,
 - When scope changes, preserve completed history.
   Add a linked follow-up plan for new work after completion.
   If a completion claim was incorrect, reopen the plan and record why.
-- Keep deferred work in the owning `TODOs.md` and link it from the plan.
+- Keep work deferred outside the series in the owning `TODOs.md` and link it from the plan.
   Plans describe execution of selected work, not a second backlog.
 
 ## Status
 
-Use `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
+Use `outline`, `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
+`outline` means later selected work deliberately awaits further learning or refinement.
+`draft` means the executable plan is under development.
 `ready` means that the plan is executable, not that the user authorized implementation.
 `blocked` requires a recorded blocker and next action.
 `complete` requires acceptance evidence and the required review and publication.
 `superseded` requires a replacement link or a recorded cancellation reason.
 Implementation requires a current plan review and status `ready` or `executing`.
+
+## Rolling-wave planning
+
+The overview identifies the planning horizon: the selected plans to detail now, usually the next one or two deliverables.
+Later numbered outlines retain intended outcomes, known requirements, exclusions, dependencies, assumptions, question links, and refinement triggers.
+Each outline states what evidence will support refinement and what would demonstrate the intended outcome.
+Distinguish agreed requirements from provisional design choices.
+An outline is selected work within the series. Unselected possibilities belong in `TODOs.md`.
+Detailed steps, interfaces, recovery instructions, and verification procedures are required before readiness, not for every later outline.
+Review the whole series for scope and dependency consistency, and the current horizon for executable detail.
+Later uncertainty blocks an earlier plan only when it affects that plan's implementation or acceptance.
+Refinement preserves reviewed filenames, IDs, decisions, and completed history.
+Changing the horizon does not expand implementation authorization or remove agreed requirements and exclusions.
 
 ## Planning checkpoint
 
@@ -49,7 +64,8 @@ Keep a question register in the overview with stable `Q-NN` IDs and these status
 | `deferred` | Deliberately postponed with a reason, revisit condition, and next action. |
 
 Record each question's affected requirements or plans, blocking impact, answer source, and resolution history.
-Link deferred work to its owning `TODOs.md` item.
+For deferred questions within selected work, link the affected plan and its refinement trigger.
+Link work deferred outside the series to its owning `TODOs.md` item.
 Keep closed questions and their IDs. If new evidence invalidates a resolution, reopen the same question and preserve its history.
 Deferral does not remove a blocker. An `answered` blocking question remains blocking until its resolution is integrated.
 Question closure does not authorize resolution of its GitHub review thread.
@@ -58,8 +74,9 @@ Question closure does not authorize resolution of its GitHub review thread.
 
 - Give user stories, requirements, and exclusions stable IDs within each series.
   Keep shared definitions in the overview and link them from each implementing plan.
-  Map requirements to deliverables and acceptance criteria.
+  Map requirements to deliverables and intended outcomes, with detailed acceptance criteria before readiness.
 - Include Mermaid data flows and high-level Swift pseudocode for proposed architecture.
+  In outlines, sketch only known boundaries and link questions for deliberately unresolved design details.
   Label existing components, proposed components, and omitted details.
   If a diagram or sketch does not apply, record the reason instead of inventing architecture.
 - State what is not required and what implementation approaches are explicitly avoided.

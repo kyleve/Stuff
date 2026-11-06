@@ -15,7 +15,8 @@ Use the user's request and existing authorization to select the operation:
 
 | Request | Operation |
 | --- | --- |
-| Develop a plan | Create or refine plan files, then hand them over for review. |
+| Develop a new plan | Create plan files, then hand them over for review. |
+| Refine an existing outline | Advance its planning horizon, then hand over the revised files for review. |
 | Revise a plan or address its comments | Update the plan and affected dependent plans. |
 | Execute a plan | Implement the selected plan or series within the authorized scope. |
 | Resume a plan | Recover its recorded state, then continue the authorized operation. |
@@ -42,18 +43,21 @@ After planning finishes, record whether execution is already requested or awaits
 
 Read [references/develop-plan.md](references/develop-plan.md) before developing an initial plan.
 Use its discovery, research, question resolution, drafting, and review stages.
+Use rolling-wave planning: detail the current horizon and keep later selected work as numbered outlines.
 Keep findings in the plan files as work proceeds.
 Scale the depth to the uncertainty and scope, without requiring a questionnaire for a well-specified request.
 
 Publish the reviewable files through [github-workflow](../github-workflow/SKILL.md), unless the user requests local-only work.
 Link the overview and numbered plans in the PR body.
-State whether the plan is ready for execution or still has unresolved decisions.
+Identify the ready plans, later outlines, and unresolved decisions that affect the current horizon.
 Return the plan path, PR link, and material open questions.
 
 ## Revise a plan
 
 For GitHub feedback, collect comments through [Read the feedback](references/github-review.md#read-the-feedback).
 For direct feedback, use the supplied changes without fetching unrelated GitHub discussions.
+If the request selects an outline for executable refinement, use [Advance the planning horizon](references/develop-plan.md#advance-the-planning-horizon).
+Then handle remaining feedback and publish through this procedure. Ordinary outline edits do not require promotion to an executable plan.
 
 1. Route questions and answers through [the question loop](references/develop-plan.md#resolve-questions).
    That loop uses [Apply a revision](references/revise-plan.md) to integrate answers.
@@ -79,6 +83,7 @@ If resuming planning or revision, recover the recorded state and use that operat
    If recorded evidence conflicts with the source, investigate and correct the record.
 3. Apply the readiness check before starting or resuming implementation:
    - Skip `complete` plans whose evidence matches the checkout and exclude `superseded` plans.
+   - For an `outline`, use [Advance the planning horizon](references/develop-plan.md#advance-the-planning-horizon) before implementation.
    - For a `draft` or missing review record, finish the necessary planning and use [Review the plan](references/develop-plan.md#review-the-plan).
    - For a `blocked` plan, resolve its blocker and repeat the affected plan review before proceeding.
    - If material plan changes or changed source assumptions invalidate a prior review, repeat that review.
@@ -97,9 +102,10 @@ If resuming planning or revision, recover the recorded state and use that operat
 6. If source findings require a plan change, revise the affected files before continuing dependent work.
    Resolve routine details within scope and record the decision.
    If progress needs an external answer, record `blocked`, the blocker, and the next action.
-7. Continue through the authorized plans without asking for confirmation between steps.
-   At a stopping point, record partial work and the exact next action.
-8. Mark a plan `complete` only after its acceptance criteria pass and required review and publication finish.
+7. Mark a plan `complete` only after its acceptance criteria pass and required review and publication finish.
    Record the outcome and implementation PR link, or the requested local-only handoff.
    Reconcile linked backlog items under the root TODO rules.
+8. Use [Advance the planning horizon](references/develop-plan.md#advance-the-planning-horizon) before selecting the next plan.
+   Continue through the authorized plans without asking for confirmation between steps.
+   At a stopping point, record partial work and the exact next action.
    Report remaining work and validation limits honestly.

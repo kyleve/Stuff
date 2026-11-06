@@ -1,6 +1,8 @@
 # [NN — Deliverable]
 
 <!-- Copy beside the series README as NN-deliverable.md. Replace placeholders and remove instructions. -->
+<!-- For later work outside the planning horizon, start with the outline template instead. -->
+<!-- When expanding an outline, add these sections to its existing file and preserve decisions, question links, and history. -->
 
 - Status: draft
 - Depends on: [Relative links to prerequisite plan files, or None]

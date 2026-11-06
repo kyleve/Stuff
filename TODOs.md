@@ -10,7 +10,8 @@ This file also owns the **item format** and the **placement rule** every
 Selected items can link to execution plans in [`Plans/`](Plans/README.md).
 The backlog entry retains priority and disposition. The plan owns execution detail and progress.
 Direct requests can start plans without duplicate backlog entries.
-Deferred work remains in the owning `TODOs.md`.
+Work deferred outside a plan's scope remains in the owning `TODOs.md`.
+Later selected work can remain an outline under the [Plans contract](Plans/AGENTS.md#rolling-wave-planning).
 
 ## Format
 
