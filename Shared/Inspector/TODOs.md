@@ -13,8 +13,11 @@ The item format and placement rule live in the root
   `withKnownIssue(..., isIntermittent: true)`
   (`SnapshotTests/InspectorSnapshotTests.swift:61-73`); the likely fix is a
   measured capture-pipeline warm-up in SnapshotKitTesting, not re-recording one
-  bistable state. It is the only remaining `withKnownIssue` quarantine in tracked Swift
-  source as of 2026-09-28; PR #322 removed the Elsewhere inflection quarantine.
+  bistable state. It remains the only intermittent quarantine in tracked Swift source on
+  2026-11-04. The two `withKnownIssue` calls in
+  `Shared/SnapshotKitTesting/Tests/AssertSnapshotsTests.swift:13` and `:42`
+  assert deliberate failures with `isIntermittent: false`; they are not quarantines.
+  PR #322 removed the Elsewhere inflection quarantine.
   (agent 2026-07-28; re-verified 2026-08-30)
 - test [quick-win]: Cover the bare-`PersistentIdentifier` relationship branch
   in `SwiftDataReflection.swift:132-137` (`classify` when the relationship value
