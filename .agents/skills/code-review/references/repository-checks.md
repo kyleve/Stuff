@@ -143,9 +143,9 @@ The [cleanup contract](../../../../Tools/AGENTS.md#mutations) requires stable pa
 
 For shared retry or error policy, trace each caller's default adapter as well as its injected test dependency.
 Inject the failure below that adapter so the regression retains production error conversion and resource ownership.
-Compare the [installer command regressions](../../../../Tools/Tests/test_circleci_distribution.py): discovery failures retry through the default transport, while other HTTP failures propagate.
-Check discarded response cleanup in the [shared client tests](../../../../Tools/Tests/test_circleci_pipeline.py).
-The [publication contract](../../../../Tools/InstallerKit/AGENTS.md#publication) owns the transport choice and command guard.
+Compare the [GitHub transport guards](../../../../Tools/Tests/test_github_api.py): only explicitly allowed missing responses are absorbed, and redirects never forward credentials.
+Check discarded response cleanup whenever an adapter retries or absorbs an HTTP error.
+The [publication contract](../../../../Tools/InstallerKit/AGENTS.md#publication) and [native publisher guards](../../../../Tools/Tests/test_installer_ci.py) own signed-byte validation and credential boundaries.
 
 For secret-bearing commands, inspect captured child output as well as constructed arguments.
 The [signing state tests](../../../../Tools/Tests/signing_state_test.rb) cover diagnostic redaction and cleanup that can fail and be retried.
