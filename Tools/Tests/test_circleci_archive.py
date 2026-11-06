@@ -152,7 +152,7 @@ class CircleCIArchiveTests(unittest.TestCase):
 
     def test_another_app_is_propagated_and_wrong_app_archive_is_rejected(self):
         request = replace(archive_request(), app_id="throw")
-        self.assertEqual(request.parameters["installer_app"], "throw")
+        self.assertEqual(request.app_id, "throw")
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)
             (output / "export").mkdir()

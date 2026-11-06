@@ -12,7 +12,7 @@ const source = github + (channel.name === 'main' ? '/tree/main' : '/pull/' + cha
   {channel.name !== 'main' && <div><dt>Pull request</dt><dd><a href={source}>#{channel.name.slice(3)}</a></dd></div>}
   <div><dt>Published</dt><dd><PublishedDate date={release.publishedAt} includeYear={true}/> at {release.publishedAt.slice(11, 16)} UTC</dd></div>
   <div><dt>Build</dt><dd>{release.bundleVersion}</dd></div>
-  <div><dt>Workflow run</dt><dd><a href={github + '/actions/runs/' + release.id.run + '/attempts/' + release.id.attempt}>{release.id.run} · Attempt {release.id.attempt}</a></dd></div>
+  <div><dt>Workflow run</dt><dd><a href={release.workflowURL ?? github + '/actions/runs/' + release.id.run + '/attempts/' + release.id.attempt}>{release.id.run} · Attempt {release.id.attempt}</a></dd></div>
   <div><dt>Commit</dt><dd><a href={github + '/commit/' + release.sha}><code>{release.sha.slice(0, 12)}</code></a></dd></div>
   <div><dt>Bundle ID</dt><dd>{app.bundleIdentifier}</dd></div>
 </dl></section>

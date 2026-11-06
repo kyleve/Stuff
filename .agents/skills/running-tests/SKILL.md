@@ -45,7 +45,7 @@ Every normal invocation runs the complete Bumper Bowling sequence first. Use
 `./test --architecture-only` to run only the configuration validation, rule
 tests, and architecture lint.
 
-CI test jobs use `--skip-architecture` because the dedicated Bumper job owns
+CI test jobs use `--skip-architecture` because the dedicated architecture and host job owns
 that sequence. Do not use this flag for normal local validation.
 
 Affected and unit-capable scopes run the backup-upgrader regression. A scope
@@ -169,6 +169,6 @@ mise install
 ```
 
 This recipe is not the complete CI gate. Read
-[GitHub Actions](../../../.github/workflows/ci.yml) for the format and retained-tool checks.
-Read [CircleCI](../../../.circleci/continue.yml) for audience builds and artifact/shard validation.
+[CircleCI jobs](../../../.circleci/jobs.yml) for formatting, retained tools, web tests, audience builds, and artifact/shard validation.
+The complete gate is in [continue.yml](../../../.circleci/continue.yml).
 Select additional checks for the changed inputs rather than treating one green command as all CI coverage.

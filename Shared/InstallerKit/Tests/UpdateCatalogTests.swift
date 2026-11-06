@@ -5,6 +5,43 @@ import Testing
 struct UpdateCatalogTests {
     private typealias F = UpdateFixtures
 
+    @Test(arguments: [
+        "https://app.circleci.com/pipelines/circleci/org/project/321",
+        "http://app.circleci.com/pipelines/circleci/org/project/321",
+        "https://app.circleci.com.evil.test/pipelines/circleci/org/project/321",
+        "https://secret@app.circleci.com/pipelines/circleci/org/project/321",
+        "https://app.circleci.com/pipelines/circleci/org/project/321?secret=value",
+    ])
+    func validatesOptionalWorkflowLinks(_ link: String) throws {
+        let original = try JSONEncoder().encode(F.catalog([2, 1]))
+        var value = try #require(JSONSerialization.jsonObject(with: original) as? [String: Any])
+        var apps = try #require(value["apps"] as? [[String: Any]])
+        var channels = try #require(apps[0]["channels"] as? [[String: Any]])
+        var releases = try #require(channels[0]["releases"] as? [[String: Any]])
+        releases[0]["workflowURL"] = link
+        channels[0]["releases"] = releases
+        apps[0]["channels"] = channels
+        value["apps"] = apps
+        let decoded = try JSONDecoder().decode(
+            UpdateCatalog.self,
+            from: JSONSerialization.data(withJSONObject: value),
+        )
+        if link == "https://app.circleci.com/pipelines/circleci/org/project/321" {
+            try decoded.validate(feedURL: F.feedURL)
+            #expect(decoded.apps[0].channels[0].releases[0].workflowURL?.absoluteString == link)
+            #expect(decoded.apps[0].channels[0].releases[1].workflowURL == nil)
+            let cached = try JSONDecoder().decode(
+                UpdateCatalog.self,
+                from: JSONEncoder().encode(decoded),
+            )
+            #expect(cached == decoded)
+        } else {
+            #expect(throws: UpdateCatalog.ValidationError.self) {
+                try decoded.validate(feedURL: F.feedURL)
+            }
+        }
+    }
+
     @Test func preservesPublishedPRTitlesThroughDecodingCachingAndBrowsing() throws {
         let title = "Fix **refresh** & keep <older builds> working — 更新"
         let catalog = F.withChannels([.init(
@@ -187,6 +224,7 @@ struct UpdateCatalogTests {
             commits: [],
             buildDetails: nil,
             pullRequestTitle: nil,
+            workflowURL: nil,
         )
         let catalog = F.withChannels([
             .init(name: F.channel, active: true, releases: [latest, F.release(1)]),

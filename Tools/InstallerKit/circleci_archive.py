@@ -25,7 +25,7 @@ from Tools.InstallerKit.installer_update_feed import build_id
 
 @dataclass(frozen=True)
 class ArchiveRequest:
-    """GitHub run identity stays stable across the CircleCI artifact handoff."""
+    """Publication identity stays stable across the native workspace handoff."""
 
     repository: str
     app_id: str
@@ -51,18 +51,6 @@ class ArchiveRequest:
     def plan(self):
         number = None if self.channel == "main" else int(self.channel[3:])
         return Publication(self.sha, number)
-
-    @property
-    def parameters(self):
-        return {
-            "installer_archive": "true",
-            "installer_app": self.app_id,
-            "installer_sha": self.sha,
-            "installer_channel": self.channel,
-            "installer_run": self.run,
-            "installer_attempt": self.attempt,
-            "installer_feed_url": self.feed_url,
-        }
 
     def validate_ipa(self, path):
         app = load_app(self.app_id)

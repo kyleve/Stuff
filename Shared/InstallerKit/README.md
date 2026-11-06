@@ -84,3 +84,5 @@ Production callers still read signed metadata and decode catalogs. Services vali
 Run `./test InstallerKitTests` for identity, catalog, request, cache, and cancellation coverage.
 InstallerKitUI owns the shared screen snapshots. WhereUI covers its Settings integration.
 `ToolsSnapshotTests` captures the shared download site.
+
+New releases can include a validated CircleCI `workflowURL`. Historical releases retain their GitHub run links.

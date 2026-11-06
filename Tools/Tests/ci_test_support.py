@@ -18,7 +18,8 @@ class GitRepository:
             target = self.root / f"Tools/{name}.py"
             target.parent.mkdir(exist_ok=True)
             shutil.copyfile(source / f"Tools/{name}.py", target)
-        self.write(".circleci/continue.yml", "version: 2.1\n")
+        self.write(".circleci/jobs.yml", "version: 2.1\n")
+        self.write(".circleci/continue.yml", "workflows: {}\n")
         self.write("README.md", "Original documentation\n")
         self.write("app.py", "original = True\n")
         self.base = self.commit()

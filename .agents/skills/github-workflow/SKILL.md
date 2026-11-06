@@ -75,7 +75,7 @@ Read the app's distribution guide for its enable variable and signing setup.
 The trusted controller and app registration must already exist on `main`.
 After labeling, inspect the app's distribution run and follow its summary link.
 Verify the built SHA in the plan or summary. The PR controller itself runs from `main`.
-Report the install page as ready only after **App Install Site** succeeds.
+Report the install page as ready only after **Deploy Pages** succeeds.
 The shared homepage lists main builds. PR builds live under `/apps/<app-id>/`.
 
 ## Opening a PR
@@ -422,10 +422,8 @@ a long review, or to pick up a dependency:
   the merged result and run `./test` (at least the affected tier) after merging
   — a clean merge is not proof the branch still makes sense.
 - **Identify the revision the failing provider tested before changing branch history.**
-  GitHub Actions PR jobs use the default PR merge checkout in
-  [ci.yml](../../../.github/workflows/ci.yml).
   CircleCI checks out `pipeline.git.revision` directly in
-  [continue.yml](../../../.circleci/continue.yml).
+  [jobs.yml](../../../.circleci/jobs.yml).
   Compare that revision, base, toolchain, and selected suites with the local run.
   If the failure is an integration conflict, bring in the current base through the applicable branch or stack workflow.
 

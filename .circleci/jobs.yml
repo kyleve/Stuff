@@ -1,0 +1,800 @@
+version: 2.1
+
+parameters:
+  docs_only:
+    type: boolean
+    default: false
+  manual_full_gate:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+  publication_task:
+    type: enum
+    enum: [none, installer, flyover, pages]
+    default: none
+  pull_request:
+    type: integer
+    default: 0
+
+executors:
+  linux:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    environment:
+      MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+  m4-pro-medium:
+    macos:
+      xcode: "27.2"
+    resource_class: m4pro.medium
+    shell: /bin/bash --login -eo pipefail
+    environment:
+      # Tool installation is required; local-development agent skills are not.
+      MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
+  m4-pro-large:
+    macos:
+      xcode: "27.2"
+    resource_class: m4pro.large
+    shell: /bin/bash --login -eo pipefail
+    environment:
+      MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
+
+commands:
+  deploy_site:
+    steps:
+      - run:
+          name: Build and deploy the complete site, then retain Flyover releases
+          when: always
+          no_output_timeout: 15m
+          command: |
+            command -v gh >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y gh; }
+            publication_site_dir="$(mktemp -d)"
+            trap 'rm -rf "$publication_site_dir"' EXIT
+            git clone --filter=blob:none --depth 1 --branch main --single-branch \
+              "https://github.com/$GITHUB_REPOSITORY.git" "$publication_site_dir"
+            cd "$publication_site_dir"
+            curl --fail --silent --show-error https://mise.run | sh
+            export PATH="$HOME/.local/bin:$PATH"
+            mise trust .mise.toml
+            mise install node
+            mise exec node -- npm ci
+            python3 -m Tools.ci_pages
+
+  install_github_cli:
+    steps:
+      - run:
+          name: Install GitHub release client
+          command: |
+            command -v gh >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y gh; }
+
+  checkout_without_lfs:
+    steps:
+      - run:
+          name: Checkout code without Git LFS
+          command: |
+            git clone --filter=blob:none --no-checkout \
+              "<< pipeline.git.repo_url >>" .
+            git checkout --detach "<< pipeline.git.revision >>"
+            git config gc.auto 0
+
+  hydrate_snapshot_references:
+    steps:
+      - run:
+          name: Hydrate snapshot references
+          command: |
+            env -u GIT_LFS_SKIP_SMUDGE git lfs pull
+            pointer_files="$(git grep -Il '^version https://git-lfs.github.com/spec/v1$' -- ':(glob)**/__Snapshots__/**/*.png' || true)"
+            if [[ -n "$pointer_files" ]]; then
+              echo "Snapshot references remain as Git LFS pointers:" >&2
+              printf '%s\n' "$pointer_files" >&2
+              exit 1
+            fi
+
+  configure_test_workdir:
+    parameters:
+      test_workdir:
+        type: string
+    steps:
+      - run:
+          name: Configure test work directory
+          command: |
+            printf '%s\n' 'export TEST_WORKDIR="$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"' >> "$BASH_ENV"
+            mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
+            chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
+
+  validate_build_environment:
+    steps:
+      - run:
+          name: Validate build environment
+          command: |
+            echo "CPU: $(sysctl -n machdep.cpu.brand_string)"
+            echo "Logical CPUs: $(sysctl -n hw.logicalcpu)"
+            echo "Memory bytes: $(sysctl -n hw.memsize)"
+            echo "Architecture: $(uname -m)"
+            sw_vers
+            xcodebuild -version
+            expected_xcode_version="$(< .xcode-version)"
+            xcode_version="$(xcodebuild -version | awk '/^Xcode /{print $2}')"
+            xcode_version="$(printf '%s\n' "$xcode_version" | cut -d. -f1,2)"
+            if [[ "$xcode_version" != "$expected_xcode_version" ]]; then
+              echo "Expected Xcode $expected_xcode_version, found $xcode_version" >&2
+              exit 1
+            fi
+
+            echo "Checkout: $(git rev-parse HEAD)"
+            echo "Origin: $(git remote get-url origin)"
+            if git config --local --name-only --get-regexp 'credential|extraheader' >/tmp/git-credential-config.txt 2>/dev/null; then
+              echo "Unexpected persisted Git credential configuration keys:" >&2
+              cat /tmp/git-credential-config.txt >&2
+              exit 1
+            fi
+
+  validate_simulator_environment:
+    steps:
+      - run:
+          name: Validate simulator environment
+          command: |
+            echo "Available simulator runtimes:"
+            xcrun simctl list runtimes available
+            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27\.2 '; then
+              echo "An available iOS 27.2 simulator runtime is required" >&2
+              exit 1
+            fi
+
+            selected_simulator="$(./simulator --shared --os 27.2 --no-boot)"
+            echo "Selected simulator: $selected_simulator"
+            xcrun simctl list devices available | grep "$selected_simulator"
+
+  validate_runner_environment:
+    steps:
+      - validate_build_environment
+      - validate_simulator_environment
+
+  prepare_builder:
+    parameters:
+      test_workdir:
+        type: string
+      use_caches:
+        type: boolean
+        default: true
+      require_simulator:
+        type: boolean
+        default: true
+    steps:
+      - checkout_without_lfs
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - restore_cache:
+                keys:
+                  - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+            - restore_cache:
+                keys:
+                  - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+            - restore_cache:
+                keys:
+                  - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+      - run:
+          name: Install pinned tools
+          command: |
+            if ! command -v mise >/dev/null 2>&1; then
+              brew install mise
+            fi
+            mise trust .mise.toml
+            mise install
+      - run:
+          name: Install site dependencies
+          command: mise exec -- npm ci
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - save_cache:
+                key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+                paths:
+                  - ~/.local/share/mise/installs
+      - configure_test_workdir:
+          test_workdir: << parameters.test_workdir >>
+      - run:
+          name: Generate project and resolve Swift packages
+          command: |
+            # Populate the immutable download caches before either test job saves them.
+            started="$(python3 -c 'import time; print(time.time_ns())')"
+            if mise exec -- tuist generate --no-open >"$TEST_WORKDIR/generate.log" 2>&1; then
+              python3 -c 'import json,sys,time; print("CI_TIMING " + json.dumps({"phase":"generate","seconds":round((time.time_ns()-int(sys.argv[1]))/1e9,3),"status":0}, separators=(",",":")))' "$started"
+            else
+              status=$?
+              python3 -c 'import json,sys,time; print("CI_TIMING " + json.dumps({"phase":"generate","seconds":round((time.time_ns()-int(sys.argv[1]))/1e9,3),"status":int(sys.argv[2])}, separators=(",",":")))' "$started" "$status"
+              echo "error: tuist generate failed. Tail of $TEST_WORKDIR/generate.log:" >&2
+              tail -n 20 "$TEST_WORKDIR/generate.log" >&2
+              exit "$status"
+            fi
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - save_cache:
+                key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+                paths:
+                  - ~/Library/Caches/org.swift.swiftpm/repositories
+            - save_cache:
+                key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+                paths:
+                  - ~/Library/Caches/org.swift.swiftpm/artifacts
+      - validate_build_environment
+      - when:
+          condition: << parameters.require_simulator >>
+          steps:
+            - validate_simulator_environment
+
+  prepare_host:
+    steps:
+      - checkout_without_lfs
+      - run:
+          name: Install pinned host tools and dependencies
+          command: |
+            if ! command -v mise >/dev/null 2>&1; then
+              brew install mise
+            fi
+            mise trust .mise.toml
+            mise install
+            mise exec -- npm ci
+            BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
+      - validate_build_environment
+
+  prepare_worker:
+    parameters:
+      test_workdir:
+        type: string
+    steps:
+      - checkout_without_lfs
+      - attach_workspace:
+          at: ci-test-build
+      - configure_test_workdir:
+          test_workdir: << parameters.test_workdir >>
+      - validate_runner_environment
+
+  run_with_timeout:
+    parameters:
+      step_name:
+        type: string
+        default: Run tests
+      seconds:
+        type: integer
+      command:
+        type: string
+    steps:
+      - run:
+          name: << parameters.step_name >>
+          no_output_timeout: 45m
+          command: |
+            ruby -e '
+              timeout = Integer(ARGV.shift)
+              started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+              pid = Process.spawn(*ARGV, pgroup: true)
+              loop do
+                reaped = Process.waitpid(pid, Process::WNOHANG)
+                if reaped
+                  status = $?
+                  exit(status.exitstatus || 128 + status.termsig)
+                end
+                if Process.clock_gettime(Process::CLOCK_MONOTONIC) - started >= timeout
+                  warn "error: test command exceeded #{timeout} seconds"
+                  begin Process.kill("TERM", -pid); rescue Errno::ESRCH; end
+                  sleep 10
+                  begin Process.kill("KILL", -pid); rescue Errno::ESRCH; end
+                  begin Process.wait(pid); rescue Errno::ECHILD; end
+                  exit 124
+                end
+                sleep 1
+              end
+            ' << parameters.seconds >> /bin/bash -lc '<< parameters.command >>'
+
+  export_test_results:
+    parameters:
+      test_workdir:
+        type: string
+      output_directory:
+        type: string
+    steps:
+      - run:
+          name: Convert Xcode results to JUnit
+          when: always
+          command: |
+            mkdir -p "<< parameters.output_directory >>"
+            python3 .circleci/xcresult_to_junit.py \
+              "<< parameters.test_workdir >>" \
+              "<< parameters.output_directory >>/results.xml"
+      - store_test_results:
+          path: << parameters.output_directory >>
+
+  collect_diagnostics:
+    parameters:
+      test_workdir:
+        type: string
+      artifact_name:
+        type: string
+      include_snapshot_images:
+        type: boolean
+        default: false
+    steps:
+      - run:
+          name: Collect diagnostics
+          when: on_fail
+          command: |
+            mkdir -p diagnostics/crashes
+            cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
+            cp -R "<< parameters.test_workdir >>" diagnostics/test-output
+            if << parameters.include_snapshot_images >>; then
+              mkdir -p diagnostics/snapshot-images
+              { grep -hEo '/[^[:space:]]+\.png' "<< parameters.test_workdir >>"/*.log 2>/dev/null || true; } \
+                | sort -u \
+                | while IFS= read -r image; do
+                    [[ -f "$image" ]] || continue
+                    destination="diagnostics/snapshot-images/${image#/}"
+                    mkdir -p "$(dirname "$destination")"
+                    cp "$image" "$destination"
+                  done
+            fi
+            find diagnostics "<< parameters.test_workdir >>" -maxdepth 3 | sed -n '1,200p'
+      - store_artifacts:
+          path: diagnostics
+          destination: << parameters.artifact_name >>/diagnostics
+
+jobs:
+  no-publication:
+    executor: linux
+    steps:
+      - run: echo "This event needs no publication work."
+
+  export-flyover:
+    parameters:
+      sha: {type: string}
+    executor: m4-pro-medium
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FLYOVER_SOURCE_SHA: << parameters.sha >>
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+    steps:
+      - prepare_builder:
+          test_workdir: .build/flyover-ci-tests
+          # Published artifacts must not execute tools cached by PR builds.
+          use_caches: false
+      - run_with_timeout:
+          step_name: Capture registered Flyover apps
+          seconds: 3600
+          command: python3 -m Tools.flyover_ci --output .build/flyover-ci/atlases.zip
+      - persist_to_workspace:
+          root: .build/flyover-ci
+          paths: [atlases.zip]
+      - store_artifacts:
+          path: .build/flyover-ci/atlases.zip
+          destination: flyover/atlases.zip
+      - collect_diagnostics:
+          test_workdir: .build/flyover-ci-tests
+          artifact_name: flyover
+  archive-app:
+    parameters:
+      app: {type: string}
+      sha: {type: string}
+      channel: {type: string}
+      run: {type: string}
+      attempt: {type: string}
+      feed_url: {type: string}
+    executor: m4-pro-medium
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      RUNNER_TEMP: /tmp/installer-archive
+      INSTALLER_SIGNING_DIR: /tmp/installer-archive/installer-signing-material
+      INSTALLER_APP_ID: << parameters.app >>
+      INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_WORKFLOW_URL: https://app.circleci.com/pipelines/<< pipeline.project.slug >>/<< pipeline.number >>
+      GITHUB_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_REPOSITORY_URL: https://github.com/<< pipeline.config.repository.name >>
+      INSTALLER_BUILD_SHA: << parameters.sha >>
+      INSTALLER_CHANNEL: << parameters.channel >>
+      INSTALLER_RUN: << parameters.run >>
+      INSTALLER_ATTEMPT: << parameters.attempt >>
+      INSTALLER_FEED_URL: << parameters.feed_url >>
+    steps:
+      # Both the pipeline config and this control checkout come from main.
+      # The context restriction must enforce this outside branch-editable YAML.
+      - checkout_without_lfs
+      - validate_build_environment
+      - run:
+          name: Recheck eligibility and checkout the exact source commit
+          command: |
+            umask 077
+            mkdir -p "$RUNNER_TEMP"
+            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
+            cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
+      - run:
+          name: Install archive tools
+          command: |
+            if ! command -v mise >/dev/null 2>&1; then
+              brew install mise
+            fi
+            mise trust .mise.toml
+            mise install
+            BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
+            (cd "$RUNNER_TEMP/source" && mise trust .mise.toml && mise install)
+      - run:
+          name: Install temporary signing material
+          command: bash .github/installer-signing.sh prepare
+      - run:
+          name: Archive and export selected app
+          no_output_timeout: 45m
+          command: |
+            ./signing archive --app "$INSTALLER_APP_ID" --source "$RUNNER_TEMP/source" --output "$RUNNER_TEMP/output"
+      - run:
+          name: Validate the signed archive against the request
+          command: python3 -m Tools.InstallerKit.circleci_archive stage "$RUNNER_TEMP/output"
+      - run:
+          name: Remove temporary signing material
+          when: always
+          command: bash .github/installer-signing.sh cleanup
+      - run:
+          name: Stage the verified workspace archive
+          command: |
+            mkdir -p /tmp/publication/<< parameters.app >>
+            cp /tmp/installer-archive/output/app.ipa /tmp/publication/<< parameters.app >>/app.ipa
+      - persist_to_workspace:
+          root: /tmp/publication
+          paths: [<< parameters.app >>/app.ipa]
+      - store_artifacts:
+          path: /tmp/installer-archive/output/app.ipa
+          destination: installer/app.ipa
+
+  prepare-app:
+    parameters:
+      app: {type: string}
+      sha: {type: string}
+      channel: {type: string}
+      run: {type: string}
+      attempt: {type: string}
+      feed_url: {type: string}
+    executor: linux
+    environment:
+      INSTALLER_APP_ID: << parameters.app >>
+      INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_WORKFLOW_URL: https://app.circleci.com/pipelines/<< pipeline.project.slug >>/<< pipeline.number >>
+      GITHUB_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_BUILD_SHA: << parameters.sha >>
+      INSTALLER_CHANNEL: << parameters.channel >>
+      INSTALLER_RUN: << parameters.run >>
+      INSTALLER_ATTEMPT: << parameters.attempt >>
+      INSTALLER_FEED_URL: << parameters.feed_url >>
+    steps:
+      - checkout_without_lfs
+      - run:
+          name: Prepare installer publication
+          command: python3 -m Tools.InstallerKit.installer_ci prepare --workspace /tmp/publication/<< parameters.app >>
+      - persist_to_workspace:
+          root: /tmp/publication
+          paths: [<< parameters.app >>/request.json]
+      - run:
+          name: Record failed publication state
+          when: on_fail
+          command: python3 -m Tools.InstallerKit.installer_ci fail --workspace /tmp/publication/<< parameters.app >>
+
+  finish-app:
+    parameters:
+      command:
+        type: enum
+        enum: [finish, fail]
+      app: {type: string}
+      sha: {type: string}
+      channel: {type: string}
+      run: {type: string}
+      attempt: {type: string}
+      feed_url: {type: string}
+    executor: linux
+    resource_class: medium
+    environment:
+      INSTALLER_APP_ID: << parameters.app >>
+      INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_WORKFLOW_URL: https://app.circleci.com/pipelines/<< pipeline.project.slug >>/<< pipeline.number >>
+      GITHUB_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_BUILD_SHA: << parameters.sha >>
+      INSTALLER_CHANNEL: << parameters.channel >>
+      INSTALLER_RUN: << parameters.run >>
+      INSTALLER_ATTEMPT: << parameters.attempt >>
+      INSTALLER_FEED_URL: << parameters.feed_url >>
+    steps:
+      - checkout_without_lfs
+      - attach_workspace:
+          at: /tmp/publication
+      - run:
+          name: Finish installer publication
+          command: python3 -m Tools.InstallerKit.installer_ci << parameters.command >> --workspace /tmp/publication/<< parameters.app >>
+      - run:
+          name: Record failed publication state
+          when: on_fail
+          command: python3 -m Tools.InstallerKit.installer_ci fail --workspace /tmp/publication/<< parameters.app >>
+      - deploy_site
+
+  retire-app:
+    parameters:
+      app: {type: string}
+      channel: {type: string}
+      number: {type: integer}
+      feed_url: {type: string}
+    executor: linux
+    resource_class: medium
+    environment:
+      INSTALLER_APP_ID: << parameters.app >>
+      INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_WORKFLOW_URL: https://app.circleci.com/pipelines/<< pipeline.project.slug >>/<< pipeline.number >>
+      GITHUB_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_PR: << parameters.number >>
+      INSTALLER_FEED_URL: << parameters.feed_url >>
+    steps:
+      - checkout_without_lfs
+      - run:
+          name: Retire the live channel if it is no longer installable
+          command: python3 -m Tools.InstallerKit.installer_ci retire --workspace /tmp/publication/<< parameters.app >>
+      - deploy_site
+
+  publish-flyover:
+    parameters:
+      sha: {type: string}
+      run: {type: string}
+      attempt: {type: string}
+    executor: linux
+    environment:
+      GITHUB_REPOSITORY: << pipeline.config.repository.name >>
+      PUBLICATION_SHA: << parameters.sha >>
+      PUBLICATION_RUN: << parameters.run >>
+      PUBLICATION_ATTEMPT: << parameters.attempt >>
+    steps:
+      - checkout_without_lfs
+      - install_github_cli
+      - attach_workspace:
+          at: /tmp/flyover
+      - run:
+          name: Publish the verified Flyover bundle
+          command: python3 -m Tools.flyover_distribution --archive /tmp/flyover/atlases.zip --sha "$PUBLICATION_SHA" --run "$PUBLICATION_RUN" --attempt "$PUBLICATION_ATTEMPT"
+
+  publish-pages:
+    parameters:
+      feed_url: {type: string}
+    executor: linux
+    resource_class: medium
+    environment:
+      GITHUB_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_FEED_URL: << parameters.feed_url >>
+    steps:
+      - checkout_without_lfs
+      - deploy_site
+
+  format-and-tools:
+    executor: m4-pro-medium
+    steps:
+      - prepare_host
+      - run:
+          name: Lint and formatting
+          command: |
+            ./shellcheck
+            mise exec -- npm run lint
+            mise exec -- npm run test:lint
+            ./swiftformat --lint
+            ./sf-symbols --lint
+            ./xcstrings --lint
+            ./attribution --check
+      - run:
+          name: Retained tool regressions
+          command: |
+            python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+            mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+            python3 .circleci/Tests/test_xcresult_to_junit.py
+            python3 .circleci/Tests/test_test_artifacts.py
+            ./snapshot-shards check
+
+  architecture-and-host:
+    executor: m4-pro-medium
+    environment:
+      BUMPER_CACHE_DIR: .build/bumper-cache
+      BUMPER_RUNNER_BUILD_CONFIGURATION: debug
+      BUMPER_EVALUATION_TIMEOUT_SECONDS: "120"
+    steps:
+      - prepare_host
+      - configure_test_workdir:
+          test_workdir: test-output-host
+      - restore_cache:
+          keys:
+            - bumper-v1-{{ arch }}-{{ checksum "Package.resolved" }}-{{ checksum "BumperBowling.swift" }}
+      - run:
+          name: Architecture and host-side regression tests
+          no_output_timeout: 20m
+          command: |
+            ./test --architecture-only
+            ./test --skip-architecture PeriscopeMacrosTests
+      - save_cache:
+          key: bumper-v1-{{ arch }}-{{ checksum "Package.resolved" }}-{{ checksum "BumperBowling.swift" }}
+          paths:
+            - .build/bumper-cache
+      - collect_diagnostics:
+          test_workdir: test-output-host
+          artifact_name: architecture-and-host
+
+  web:
+    executor: linux
+    resource_class: medium
+    steps:
+      - checkout_without_lfs
+      - run:
+          name: Install pinned Node and browser dependencies
+          command: |
+            curl --fail --silent --show-error https://mise.run | sh
+            export PATH="$HOME/.local/bin:$PATH"
+            printf 'export PATH="$HOME/.local/bin:$PATH"\n' >> "$BASH_ENV"
+            mise trust .mise.toml
+            mise install node
+            mise exec node -- npm ci
+            mise exec node -- npx playwright install --with-deps chromium webkit
+      - run:
+          name: Web checks and browser regressions
+          command: |
+            mise exec node -- npm run check --workspaces --if-present
+            mise exec node -- npm run test:unit --workspaces --if-present
+            mise exec node -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
+      - store_artifacts:
+          path: Shared/Flyover/Web/test-results
+          destination: web-failures
+
+  documentation-only:
+    executor: linux
+    steps:
+      - run: echo "Documentation-only PR. Native builds and tests are skipped."
+
+  build-ios-tests:
+    executor: m4-pro-large
+    steps:
+      - prepare_builder:
+          test_workdir: test-output-build
+      # Dedicated host jobs own helper, architecture, and macOS checks.
+      # Start the shared simulator build without waiting for those checks.
+      - run_with_timeout:
+          seconds: 2700
+          command: >-
+            ./test --everything
+            --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --no-generate --skip-architecture --skip-host-tests
+      - run:
+          name: Validate changed snapshot inventory with Xcode
+          command: |
+            if git diff --quiet origin/main...HEAD -- \
+              Project.swift ':(glob)**/SnapshotTests/**/*.swift'; then
+              echo "Snapshot definitions did not change. The source-plan validation is sufficient."
+              exit 0
+            fi
+            ./test --snapshots --shared --os 27.2 \
+              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
+              --enumerate-suites "$TEST_WORKDIR/suites.txt" \
+              --skip-architecture
+            ./snapshot-shards compare-enumeration \
+              --enumeration "$TEST_WORKDIR/suites.txt"
+      - persist_to_workspace:
+          root: ci-test-build
+          paths:
+            - manifest.json
+            - DerivedData/Build/Products
+      - collect_diagnostics:
+          test_workdir: test-output-build
+          artifact_name: build-ios-tests
+
+  test-ios:
+    executor: m4-pro-medium
+    steps:
+      - prepare_worker:
+          test_workdir: test-output-ios
+      - run_with_timeout:
+          seconds: 2700
+          command: >-
+            ./test --all --shared --os 27.2
+            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --skip-architecture
+      - export_test_results:
+          test_workdir: test-output-ios
+          output_directory: test-results-ios
+      - collect_diagnostics:
+          test_workdir: test-output-ios
+          artifact_name: test-ios
+
+  build-where-audiences:
+    executor: m4-pro-medium
+    parallelism: 2
+    steps:
+      - prepare_builder:
+          test_workdir: test-output-audience-build
+          require_simulator: false
+      - run:
+          name: Select Where audience
+          command: |
+            case "$CIRCLE_NODE_INDEX" in
+              0) scheme="Where Beta" ;;
+              1) scheme="Where App Store" ;;
+              *)
+                echo "No Where audience for shard $CIRCLE_NODE_INDEX" >&2
+                exit 1
+                ;;
+            esac
+            printf 'export WHERE_AUDIENCE_SCHEME=%q\n' "$scheme" >> "$BASH_ENV"
+            echo "Selected scheme: $scheme"
+      - run_with_timeout:
+          step_name: Build selected Where audience
+          seconds: 2700
+          command: >-
+            set -o pipefail;
+            mise exec -- tuist xcodebuild build
+            -workspace Stuff.xcworkspace
+            -scheme "$WHERE_AUDIENCE_SCHEME"
+            -destination "generic/platform=iOS Simulator"
+            2>&1 | tee "$TEST_WORKDIR/build.log"
+      - collect_diagnostics:
+          test_workdir: test-output-audience-build
+          artifact_name: where-audience-build
+
+  snapshot:
+    # Shards run on isolated VMs. Keep captures serial inside each worker:
+    # one Mac shares a render server, and in-process captures share host state.
+    # Measurements and guards: Shared/SnapshotKitTesting/AGENTS.md.
+    executor: m4-pro-medium
+    parallelism: 5
+    environment:
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+    steps:
+      - checkout_without_lfs
+      - configure_test_workdir:
+          test_workdir: test-output-snapshots
+      - run:
+          name: Select deterministic snapshot shard
+          command: |
+            shard="$((CIRCLE_NODE_INDEX + 1))"
+            ./snapshot-shards list "$shard" --total "$CIRCLE_NODE_TOTAL" \
+              > "$TEST_WORKDIR/shard.txt"
+            suite_count="$(wc -l < "$TEST_WORKDIR/shard.txt" | tr -d ' ')"
+            printf 'CI_SHARD {"index":%s,"shards":%s,"suites":%s}\n' \
+              "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
+            echo "Assigned snapshot suites:"
+            sed 's/^/  /' "$TEST_WORKDIR/shard.txt"
+            if [[ ! -s "$TEST_WORKDIR/shard.txt" ]]; then
+              echo "The snapshot intake shard is empty."
+              circleci-agent step halt
+            fi
+      - hydrate_snapshot_references
+      - attach_workspace:
+          at: ci-test-build
+      - validate_runner_environment
+      - run_with_timeout:
+          seconds: 3600
+          command: >-
+            ./test --snapshots --shared --os 27.2 --review --timings
+            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --only-file "$TEST_WORKDIR/shard.txt"
+            --skip-architecture
+      - export_test_results:
+          test_workdir: test-output-snapshots
+          output_directory: test-results-snapshots
+      - run:
+          name: Validate snapshot shard execution
+          command: >-
+            ./snapshot-shards verify-execution
+            --assignment "$TEST_WORKDIR/shard.txt"
+            --junit test-results-snapshots/results.xml
+      - run:
+          name: Stage snapshot suite timings
+          when: always
+          command: |
+            mkdir -p snapshot-timing-artifact
+            cp test-results-snapshots/results.xml \
+              "snapshot-timing-artifact/results-$CIRCLE_NODE_INDEX.xml"
+      - store_artifacts:
+          path: snapshot-timing-artifact
+          destination: snapshot-timings
+      - collect_diagnostics:
+          test_workdir: test-output-snapshots
+          artifact_name: snapshots
+          include_snapshot_images: true

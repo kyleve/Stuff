@@ -12,6 +12,7 @@ import sys
 
 from Tools.InstallerKit.installer_apps import archive_product, load_app
 from Tools.repository import repository_root
+from Tools.ci_request import enable_arguments, settings
 from Tools.InstallerKit.installer_setup_credentials import signing_environment
 from Tools.InstallerKit.installer_setup_pr import (
     checkout,
@@ -153,7 +154,7 @@ def setup(
             "Prepare a temporary PR checkout and request publication for all enabled apps present on that PR."
         )
     if dry_run:
-        report("Dry run: no signing assets or repository variables changed.")
+        report("Dry run: no signing assets or CircleCI variables changed.")
         return
 
     credentials = signing_environment()
@@ -192,44 +193,41 @@ def setup(
             ) from error
         try:
             enabled = run(
-                [
-                    "gh",
-                    "variable",
-                    "set",
-                    variable,
-                    "--body",
-                    "true",
-                    "--repo",
+                enable_arguments(
                     repository,
-                ],
+                    app.id,
+                    settings(repository, root / ".circleci/project.json"),
+                ),
                 cwd=root,
                 capture_output=True,
                 text=True,
             )
         except OSError as error:
             raise SetupFailure(
-                "Signing refreshed, but GitHub could not enable distribution. Check gh and rerun setup."
+                "Signing refreshed, but CircleCI could not enable distribution. Check circleci and rerun setup."
             ) from error
         if enabled.returncode:
             raise SetupFailure(
-                "Signing refreshed, but enabling distribution failed. Check GitHub variable permissions and rerun setup.",
+                "Signing refreshed, but enabling distribution failed. Check CircleCI project permissions and rerun setup.",
                 enabled.returncode,
             )
         if pr:
             try:
-                request_publication(pr, command)
+                request_publication(
+                    pr, command, settings(repository, root / ".circleci/project.json")
+                )
             except (SetupFailure, ValueError, TypeError, KeyError, OSError) as error:
                 raise SetupFailure(
                     "Signing refreshed and distribution is enabled, but publication was not confirmed. "
-                    "Check the PR and Actions before retrying.",
+                    "Check the PR and CircleCI before retrying.",
                     error.status if isinstance(error, SetupFailure) else 1,
                 ) from error
             report(
-                f"Requested PR #{pr.number} publication. Check App Dev Distribution and App Install Site before installing."
+                f"Requested PR #{pr.number} publication. Check the CircleCI publication and Deploy Pages before installing."
             )
             return
         report(
-            f"Enabled {app.name} distribution. Add installable to its PR, or run App Dev Distribution for main."
+            f"Enabled {app.name} distribution. Add installable to its PR, or run python3 -m Tools.ci_request installer for main."
         )
         report(
             "Verify the published build on a registered device; setup does not publish or install a build."
@@ -254,7 +252,7 @@ def main(argv=None):
         )
     except KeyboardInterrupt:
         print(
-            "error: Setup interrupted. Check signing and Actions state before retrying.",
+            "error: Setup interrupted. Check signing and CircleCI state before retrying.",
             file=sys.stderr,
         )
         return 130

@@ -11,7 +11,7 @@ struct UpdateBuildInformation: View {
         UpdateCard(title: .installerBuildInformation) {
             UpdatePullRequestLink(channel: channel, installed: installed)
             UpdateDetailRow(title: .installerWorkflowRun) {
-                Link(destination: installed.repositoryURL
+                Link(destination: release.workflowURL ?? installed.repositoryURL
                     .appending(
                         path: "actions/runs/\(release.id.run)/attempts/\(release.id.attempt)",
                     )) {
