@@ -160,6 +160,8 @@ Custom presentations can render `state` and use the validated `installURL` direc
 **App Dev Distribution** uses the shared `installer-distribution.yml` entry point.
 It selects enabled registrations from trusted `main` and calls `installer-distribute-app.yml` on `main` for each app.
 The CircleCI API token stays on the GitHub controller. Signing secrets stay in the restricted CircleCI context.
+The installer uses the shared CircleCI transport, which preserves HTTP errors for discovery retries.
+Pipeline and workflow discovery retry HTTP 404 responses within the polling deadline.
 The selected source supplies build code, but never the signing descriptor, Fastfile, Gemfile, or controller.
 
 [Where's setup guide](../../Where/DISTRIBUTION.md) lists its signing secrets and device checks.

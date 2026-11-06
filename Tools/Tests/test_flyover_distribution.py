@@ -16,6 +16,7 @@ from Fixtures.circleci_distribution_fixtures import (
     DEFINITION,
     CircleCIServer,
     setup_workflow,
+    ARTIFACT_URL,
 )
 
 
@@ -229,3 +230,85 @@ class FlyoverDistributionTests(unittest.TestCase):
             request = opener.return_value.open.call_args.args[0]
             self.assertEqual(request.headers, {})
             self.assertEqual(request.get_header("Circle-token"), "token")
+
+    def test_command_recovers_from_discovery_404_and_times_out_without_publication(
+        self,
+    ):
+        for recovers in (True, False):
+            with self.subTest(recovers=recovers):
+                server = CircleCIServer()
+                server.workflows[0]["name"] = "Flyover Export"
+                server.jobs[0]["name"] = "Export Flyover"
+                server.artifacts[0]["path"] = "flyover/atlases.zip"
+                lookups = 0
+
+                def transport(request):
+                    nonlocal lookups
+                    if request.full_url.endswith(f"pipeline/{PIPELINE}"):
+                        lookups += 1
+                        if lookups == 1 or not recovers:
+                            raise HTTPError(
+                                request.full_url, 404, "secret", {}, io.BytesIO()
+                            )
+                    return server(request)
+
+                client = CircleCI(
+                    PROJECT,
+                    "token",
+                    transport,
+                    workflow="Flyover Export",
+                    job="Export Flyover",
+                    artifact="flyover/atlases.zip",
+                )
+                ticks = iter([0, 0, 15, 30])
+
+                def wait(client, pipeline):
+                    return wait_for_archive(
+                        client,
+                        pipeline,
+                        timeout=30,
+                        clock=lambda: next(ticks),
+                        sleep=lambda _: None,
+                    )
+
+                environment = {
+                    "CIRCLECI_PROJECT": PROJECT,
+                    "CIRCLECI_PIPELINE": DEFINITION,
+                    "CIRCLECI_TOKEN": "token",
+                    "GITHUB_REPOSITORY": "owner/repo",
+                    "GITHUB_RUN_ID": "10",
+                    "GITHUB_RUN_ATTEMPT": "1",
+                }
+                with (
+                    patch.dict("os.environ", environment),
+                    patch("Tools.flyover_distribution.CircleCI", return_value=client),
+                    patch(
+                        "Tools.flyover_distribution.wait_for_archive", side_effect=wait
+                    ),
+                    patch("Tools.flyover_distribution.download") as download,
+                    patch("Tools.flyover_distribution.unpack_bundle") as validate,
+                    patch("Tools.flyover_distribution.subprocess.run") as run,
+                    patch("sys.stdout", new_callable=io.StringIO) as stdout,
+                    patch("sys.stderr", new_callable=io.StringIO) as stderr,
+                ):
+                    self.assertEqual(main(["--sha", SHA]), 0 if recovers else 1)
+                self.assertEqual(lookups, 2)
+                self.assertEqual(
+                    sum(request.method == "POST" for request in server.requests), 1
+                )
+                self.assertIn(PIPELINE, stdout.getvalue())
+                self.assertNotIn("secret", stderr.getvalue())
+                if recovers:
+                    self.assertEqual(stderr.getvalue(), "")
+                    self.assertEqual(download.call_args.args[0], ARTIFACT_URL)
+                    validate.assert_called_once()
+                    self.assertEqual(run.call_count, 3)
+                    self.assertEqual(
+                        run.call_args.args[0][1:4],
+                        ["workflow", "run", "installer-pages.yml"],
+                    )
+                else:
+                    self.assertIn("publication did not complete", stderr.getvalue())
+                    download.assert_not_called()
+                    validate.assert_not_called()
+                    run.assert_not_called()

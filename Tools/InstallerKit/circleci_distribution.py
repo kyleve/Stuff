@@ -15,9 +15,9 @@ from Tools.circleci_pipeline import (
     ArtifactRedirects,
     artifact_url,
     CircleCI as PipelineClient,
+    request_json,
     wait_for_archive,
 )
-from Tools.InstallerKit.github_api import request_json
 
 
 WORKFLOW = "Installer Archive"
