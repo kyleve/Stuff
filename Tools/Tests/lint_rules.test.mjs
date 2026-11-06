@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
+import { stripVTControlCharacters } from 'node:util';
 
 const probes = [
     { name: 'Python formatting', command: 'mise', args: ['exec', '--', 'ruff', 'format', '--check', '--diff', '--stdin-filename', 'Tools/probe.py', '-'],
@@ -28,7 +29,8 @@ for (const probe of probes) {
         const result = spawnSync(probe.command, probe.args, { input: probe.source, encoding: 'utf8' });
         assert.equal(result.error, undefined);
         assert.notEqual(result.status, 0);
-        assert.ok((result.stdout + result.stderr).includes(probe.rule), result.stdout + result.stderr);
+        const output = result.stdout + result.stderr;
+        assert.ok(stripVTControlCharacters(output).includes(probe.rule), output);
     });
 }
 
