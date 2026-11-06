@@ -32,6 +32,7 @@ For each substantive item:
 - Apply the revision to affected stories, requirements, exclusions, diagrams, Swift sketches, steps, and dependent plans.
 - If feedback changes a flow or interface, update its diagram, sketch, and acceptance criteria together.
 - Record the comment URL, decision, and reason in the owning decision table.
+- For questions or answers, update the question register through [the question loop](develop-plan.md#resolve-questions).
 - If a request is declined, record the reason.
 - If work is deferred, link its owning `TODOs.md` item.
 - If evidence becomes stale, preserve it and identify the verification that must repeat.

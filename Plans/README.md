@@ -24,6 +24,9 @@ The skill starts with discovery of requirements and current behavior, then resea
 It asks focused questions and records evidence, assumptions, and decisions in the overview.
 Before marking plans ready, it reviews contradictions, missing requirements, scope additions, and agreement with repository constraints.
 Unresolved decisions remain visible with their impact and next action.
+Questions have stable IDs and progress through `open`, `answered`, and `closed`, or become explicitly `deferred`.
+The agent integrates answers into the plan and reviews consistency before closing questions.
+Deferred questions retain a reason, revisit condition, and next action. Blocking questions continue to block their plans.
 
 The skill copies the [overview template](../.agents/skills/planning/assets/overview.md) and [plan template](../.agents/skills/planning/assets/plan.md).
 A small change needs only one numbered plan.

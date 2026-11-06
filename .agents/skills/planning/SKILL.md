@@ -29,7 +29,7 @@ Do not select an unrelated plan by its date or filename alone.
 ## Create a plan
 
 Read [references/develop-plan.md](references/develop-plan.md) before developing an initial plan.
-Use its discovery, research, drafting, and review stages.
+Use its discovery, research, question resolution, drafting, and review stages.
 Keep findings in the plan files as work proceeds.
 Scale the depth to the uncertainty and scope, without requiring a questionnaire for a well-specified request.
 
@@ -50,6 +50,7 @@ For direct feedback, apply the same plan updates without fetching unrelated GitH
    If feedback would cross an explicit exclusion, use existing user authorization or request the missing decision before changing it.
 3. Record the decision, reason, date, and feedback link in the owning plan.
    Put series-wide decisions in the overview.
+   Use [the question loop](references/develop-plan.md#resolve-questions) for new questions or answers to existing questions.
    Avoid a transcript of the whole discussion.
 4. If changed acceptance criteria invalidate earlier evidence, record that evidence as stale.
    Reset affected completion checkboxes and status to reflect the remaining work.
@@ -69,6 +70,7 @@ If resuming planning or revision, recover the recorded state and use that operat
    If a linked PR exists, read its current plan feedback through the GitHub review reference.
    If feedback is unavailable, report the gap rather than assuming the review is clear.
 2. Reconcile recorded progress with the checkout before repeating work.
+   Resume pending question integration and inspect deferred questions whose revisit conditions now apply.
    Distinguish committed implementation, uncommitted work, and steps that never ran.
    If recorded evidence conflicts with the source, investigate and correct the record.
 3. Verify that dependencies are complete and their required results exist in the checkout.

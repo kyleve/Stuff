@@ -39,7 +39,7 @@
 ## Discovery
 
 [Describe the users, current problem, and success criteria established from the request and source inspection.]
-[Record material constraints and clarification answers with their sources. Keep unresolved questions in Open questions.]
+[Record material constraints and link clarification answers from Questions and resolutions.]
 
 ## Research and evidence
 
@@ -69,13 +69,22 @@
 | --- | --- | --- |
 | [YYYY-MM-DD] | [Decision affecting multiple plans] | [Request or GitHub comment URL] |
 
-## Open questions
+## Questions and resolutions
 
-| Question | Affected requirement or plan | Next action or needed answer |
-| --- | --- | --- |
-| [Unresolved decision or feasibility gap] | [ID or plan link, including whether it blocks execution] | [Who or what can resolve it] |
+| ID | Status | Question | Affected requirements or plans | Blocking impact | Next action |
+| --- | --- | --- | --- | --- | --- |
+| [Q-01](#q-01) | open | [Decision or feasibility gap] | [IDs or plan links] | [What cannot proceed, or Nonblocking with reason] | [Who or what can resolve it] |
 
-<!-- Write None when no questions remain. Do not treat unanswered questions as approved assumptions. -->
+<!-- Use open, answered, closed, or deferred. Keep closed records and stable IDs. Write None only if no questions were raised. -->
+
+### Q-01
+
+- Answer and source: [Pending, or dated answer with a source path, GitHub comment URL, or summary of the user's response]
+- Integration: [Pending, or links to changed requirements, decisions, design sections, steps, and acceptance criteria]
+- Resolution history: [Dated closure after consistency review, or reopening with its reason and previous answer retained]
+- Deferral: [None, or reason, revisit condition, next action, and backlog link for remaining work]
+
+<!-- An answer alone does not close a question. Deferral alone does not unblock a plan. -->
 
 ## Plan review
 

@@ -29,6 +29,7 @@
 [Link applicable AGENTS.md rules, existing guards, and required skills.]
 [Specify interfaces this plan consumes or produces.]
 [Record material assumptions without requiring prior chat history.]
+[Link relevant Q-IDs in the overview, including any question that blocks this plan.]
 
 ## Data flow
 

@@ -28,6 +28,23 @@ Use `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
 `complete` requires acceptance evidence and the required review and publication.
 `superseded` requires a replacement link or a recorded cancellation reason.
 
+## Questions
+
+Keep a question register in the overview with stable `Q-NN` IDs and these statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `open` | Needs investigation or an answer. |
+| `answered` | Answer recorded, but integration into the plan remains incomplete. |
+| `closed` | Resolution incorporated into affected plan sections and reviewed for consistency. |
+| `deferred` | Deliberately postponed with a reason, revisit condition, and next action. |
+
+Record each question's affected requirements or plans, blocking impact, answer source, and resolution history.
+Link deferred work to its owning `TODOs.md` item.
+Keep closed questions and their IDs. If new evidence invalidates a resolution, reopen the same question and preserve its history.
+Deferral does not remove a blocker. An `answered` blocking question remains blocking until its resolution is integrated.
+Question closure does not authorize resolution of its GitHub review thread.
+
 ## Reviewable design
 
 - Give user stories, requirements, and exclusions stable IDs within each series.
@@ -44,6 +61,6 @@ Use `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
 
 Keep discovery findings, research evidence, unresolved questions, and the plan review record in the overview.
 Distinguish observed facts, inferences, and user decisions.
-Do not mark a plan ready while an unanswered question blocks its implementation or acceptance.
+Do not mark a plan ready while an unresolved question blocks its implementation or acceptance, including answered or deferred questions.
 Verify links, dependencies, status, and agreement between requirements, design, steps, exclusions, and acceptance criteria.
 When revising plans from GitHub comments, preserve decisions and execution evidence.

@@ -33,9 +33,9 @@ Planning can produce incomplete drafts for discussion. Readiness requires the re
    Offer concrete options and trade-offs where useful.
    Continue independent discovery while awaiting answers.
    Do not repeat answered questions or treat silence as agreement.
-6. Record answers and their sources in the overview.
+6. Record answers and their sources in the overview's question register.
    Label reasonable implementation assumptions explicitly.
-   Keep decisions needing user input in Open questions, with affected plans and the next action.
+   Use [the question loop](#resolve-questions) to integrate answers and track unresolved decisions.
 
 ## Research the unknowns
 
@@ -56,6 +56,38 @@ Planning can produce incomplete drafts for discussion. Readiness requires the re
    Do not start product implementation merely to finish a planning request.
 6. Stop research when material decisions have sufficient evidence and remaining uncertainty is explicit.
    For familiar work without external unknowns, record the repository evidence and why external research was unnecessary.
+
+## Resolve questions
+
+Use this loop after discovery and research, and whenever drafting, review, or execution exposes a new question.
+Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#questions).
+
+1. Collect unresolved questions in the overview with stable `Q-NN` IDs.
+   Record affected requirements or plans, blocking impact, and the next action.
+   Reuse an existing question for the same decision rather than creating a duplicate.
+2. Resolve factual questions from available evidence before asking the user.
+   Ask a small, focused batch of remaining questions, starting with those that block important decisions.
+   Include the question IDs, concrete options, and relevant trade-offs.
+   Do not ask again when an existing answer still applies.
+3. Record each answer, its source, and date, then mark the question `answered`.
+   Link GitHub answers to their comments. Summarize chat answers with their date.
+   If an answer is partial or conflicting, keep the question `open` and identify what remains unresolved.
+4. Integrate the answer into affected requirements, exclusions, decisions, diagrams, Swift sketches, steps, and acceptance criteria.
+   Update dependent plans and invalidate evidence that no longer applies.
+   Use existing authorization for scope changes or request the missing decision.
+5. Review the affected sections for consistency and link them from the question's resolution record.
+   Mark the question `closed` only after integration and review finish.
+   If the question no longer applies, record the reason and relevant scope decision before closing it.
+6. For intentional deferral, record the reason, revisit condition, next action, and a backlog link for remaining work.
+   Mark the question `deferred` without treating it as answered.
+   For a blocking question, keep affected plans blocked.
+   Only an integrated answer or authorized removal of the dependency clears that blocker.
+7. Reassess readiness and record any new questions created by the answers.
+   If evidence invalidates a closed answer or a deferral's revisit condition occurs, reopen that question with its history intact.
+   Repeat the affected research, question, and review steps until no further answers are needed for the selected scope.
+8. If user input is pending, continue independent work and preserve the exact pending questions for handoff.
+   Do not spin on unanswered questions or infer answers from elapsed time.
+   Return unresolved blockers and deliberately deferred questions with their next actions.
 
 ## Draft the executable plans
 
@@ -99,6 +131,7 @@ Review the complete series before marking plans ready, including changes from di
 6. Read the plan as a fresh executor without prior chat context.
    Find missing decisions, prerequisites, and ambiguous instructions that would force that executor to guess.
 7. Correct supported findings and repeat the affected comparisons.
+   Route new questions through [the question loop](#resolve-questions).
    Record the review date, source revision, reviewed scope, findings, dispositions, and remaining limits in Plan review.
    If no findings remain, say so without claiming that the implementation is verified.
 8. Mark executable plans `ready` only when no unresolved question prevents their safe implementation or acceptance.
