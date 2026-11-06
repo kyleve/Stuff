@@ -6,8 +6,57 @@ This module owns the schema-tolerant tree walk used by their reports.
 
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
+import re
 from typing import Iterable, Iterator, Mapping, Sequence, Tuple
+
+
+DURATION_COMPONENT = re.compile(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>ms|h|m|s)")
+SECONDS_PER_UNIT = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
+
+
+def test_duration(node: Mapping[str, object]) -> float:
+    """Sum executed arguments/repetitions; Xcode's parent duration is a mean.
+
+    Keep one logical test identity for reports and reruns. Prefer precise
+    numeric seconds over the rounded display string on each execution leaf.
+    """
+    if str(node.get("result", "")).lower() == "skipped":
+        return 0.0
+    executions = [
+        child
+        for child in _children(node)
+        if child.get("nodeType") in ("Arguments", "Repetition")
+    ]
+    if executions:
+        return sum(test_duration(child) for child in executions)
+    for key in ("durationInSeconds", "duration"):
+        value = node.get(key)
+        if value is None or isinstance(value, bool):
+            continue
+        try:
+            seconds = float(value)
+        except (TypeError, ValueError):
+            if key != "duration":
+                continue
+            text = str(value).strip()
+            components = list(DURATION_COMPONENT.finditer(text))
+            if not components or DURATION_COMPONENT.sub("", text).strip():
+                continue
+            seconds = sum(
+                float(part.group("value")) * SECONDS_PER_UNIT[part.group("unit")]
+                for part in components
+            )
+        if math.isfinite(seconds) and seconds >= 0:
+            return seconds
+    return 0.0
+
+
+def _children(node: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
+    children = node.get("children", [])
+    if isinstance(children, Sequence) and not isinstance(children, (str, bytes)):
+        yield from (child for child in children if isinstance(child, Mapping))
 
 
 @dataclass(frozen=True)
@@ -75,21 +124,14 @@ def _walk(
     elif node_type == "Test Suite":
         suites = (*suites, name)
     elif node_type == "Test Case":
-        try:
-            duration = float(node.get("durationInSeconds") or 0)
-        except (TypeError, ValueError):
-            duration = 0.0
         yield TestCase(
             bundle=bundle,
             suites=suites,
             name=name or "?",
             node_identifier=str(node.get("nodeIdentifier") or ""),
             result=str(node.get("result") or "").lower(),
-            duration_seconds=duration,
+            duration_seconds=test_duration(node),
         )
 
-    children = node.get("children", [])
-    if isinstance(children, Sequence) and not isinstance(children, (str, bytes)):
-        for child in children:
-            if isinstance(child, Mapping):
-                yield from _walk(child, bundle=bundle, suites=suites)
+    for child in _children(node):
+        yield from _walk(child, bundle=bundle, suites=suites)
