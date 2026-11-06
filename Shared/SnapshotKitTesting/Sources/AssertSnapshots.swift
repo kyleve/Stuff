@@ -160,7 +160,7 @@ public func assertSnapshots(
         }
         await capture.timing.measure(.compare) {
             await assertSnapshotReference(
-                .image(capture.capture.image),
+                .imagePNG(capture.capture.pngData),
                 identifier: identifier,
                 configuration: configuration,
                 referenceGroup: referenceGroup,
