@@ -20,6 +20,11 @@ The [directory contract](AGENTS.md) defines structure, ownership, and status.
 Ask the agent to use `$planning` and describe the desired outcome.
 For example: "Use $planning to plan the backup migration. Publish the plan for review."
 
+The skill starts with discovery of requirements and current behavior, then researches material unknowns.
+It asks focused questions and records evidence, assumptions, and decisions in the overview.
+Before marking plans ready, it reviews contradictions, missing requirements, scope additions, and agreement with repository constraints.
+Unresolved decisions remain visible with their impact and next action.
+
 The skill copies the [overview template](../.agents/skills/planning/assets/overview.md) and [plan template](../.agents/skills/planning/assets/plan.md).
 A small change needs only one numbered plan.
 Each plan includes acceptance criteria, progress, decisions, and a resume point.

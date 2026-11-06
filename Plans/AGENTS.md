@@ -42,5 +42,8 @@ Use `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
 
 ## Review
 
+Keep discovery findings, research evidence, unresolved questions, and the plan review record in the overview.
+Distinguish observed facts, inferences, and user decisions.
+Do not mark a plan ready while an unanswered question blocks its implementation or acceptance.
 Verify links, dependencies, status, and agreement between requirements, design, steps, exclusions, and acceptance criteria.
 When revising plans from GitHub comments, preserve decisions and execution evidence.

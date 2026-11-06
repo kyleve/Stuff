@@ -35,7 +35,20 @@
 
 [Describe the current behavior and relevant repository paths.]
 [If a source backlog item exists, link it. Otherwise state that this is a direct request.]
-[Link research evidence and summarize facts needed for execution.]
+
+## Discovery
+
+[Describe the users, current problem, and success criteria established from the request and source inspection.]
+[Record material constraints and clarification answers with their sources. Keep unresolved questions in Open questions.]
+
+## Research and evidence
+
+| Question or assumption | Finding and evidence | Implication for the plan |
+| --- | --- | --- |
+| [Unknown tied to a requirement or decision] | [Observed, inferred, or unresolved. Source path or URL and relevant revision/version.] | [Design decision, constraint, or remaining gap] |
+
+[If external research is unnecessary, state why and cite the repository evidence used.]
+[Record meaningful alternatives and the selected approach in Shared decisions.]
 
 ## Design overview
 
@@ -58,7 +71,20 @@
 
 ## Open questions
 
-[List unresolved decisions and the plans they block, or write None.]
+| Question | Affected requirement or plan | Next action or needed answer |
+| --- | --- | --- |
+| [Unresolved decision or feasibility gap] | [ID or plan link, including whether it blocks execution] | [Who or what can resolve it] |
+
+<!-- Write None when no questions remain. Do not treat unanswered questions as approved assumptions. -->
+
+## Plan review
+
+- Reviewed: [Date, source revision, and plan files reviewed, or Not reviewed]
+- Findings and disposition: [Contradictions, unsupported assumptions, coverage gaps, scope additions, and their resolution, or None found]
+- Readiness: [Ready plans, blocked plans and reasons, or Still drafting]
+- Validation limits: [Unverified claims, diagram rendering limits, or planned feasibility experiments]
+
+<!-- This records review of the plan, not proof that its implementation works. Refresh after material revisions. -->
 
 ## Review and delivery
 

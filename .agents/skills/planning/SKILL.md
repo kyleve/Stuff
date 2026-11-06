@@ -28,46 +28,15 @@ Do not select an unrelated plan by its date or filename alone.
 
 ## Create a plan
 
-1. Read the affected source and its applicable `AGENTS.md` files.
-   Identify the existing guards and required skills.
-2. Define the user-visible outcome, scope, exclusions, and unresolved decisions.
-   Record material assumptions and research evidence in the plan.
-   If a decision blocks implementation, mark the affected plan `blocked` and name the missing answer.
-3. Create `Plans/YYYY-MM-DD-<topic>/` using the user's local date.
-   If that path already exists, inspect it before choosing another unique topic name.
-   Copy [assets/overview.md](assets/overview.md) to the series `README.md`.
-   Copy [assets/plan.md](assets/plan.md) for each numbered plan.
-   Replace placeholders and remove unused template instructions.
-4. Start with one plan, such as `01-deliverable.md`.
-   Split only at independently verifiable deliverables or useful review boundaries.
-   Keep setup and documentation with the deliverable that needs them.
-5. List the plans in execution order in the overview.
-   Give each plan explicit dependency links, even when filename order also expresses the dependency.
-   Prefer sequential execution unless independent work materially benefits from parallel execution.
-   Follow the session's delegation rules.
-6. Write concrete steps with affected paths, interfaces, and observable acceptance criteria.
-   Define stable story and requirement IDs in the overview.
-   Map each requirement to an implementing plan and its acceptance criteria.
-   State both unnecessary capabilities and explicitly avoided approaches.
-   Describe data flows with fenced Mermaid diagrams using the actual component names and data passed between them.
-   Sketch proposed ownership, interfaces, and composition with fenced Swift pseudocode.
-   Label existing APIs, proposed APIs, assumptions, and omitted details.
-   If a design view does not apply, record the reason.
-   Use repository-relative source paths and working directories for commands.
-   Include recovery instructions for steps that can leave partial state.
-   Link shared context instead of copying it across every plan.
-7. Review the complete series for missing requirements, dependency cycles, conflicting interfaces, and untestable acceptance criteria.
-   Trace stories through requirements, diagrams, sketches, steps, and acceptance criteria.
-   Verify that the proposed design respects every explicit exclusion.
-   If a renderer is available, verify Mermaid syntax and rendering.
-   Otherwise report the rendering limit.
-   Treat Swift pseudocode as a design sketch, not compilation evidence.
-   Verify that a fresh session can continue from the files and their repository references.
-   Mark executable plans `ready`.
-8. Use [github-workflow](../github-workflow/SKILL.md) to publish the reviewable plan files, unless the user requests local-only work.
-   Link the overview and numbered plans in the PR body.
-   State that the PR contains a plan and identify the decisions needing review.
-   Return the plan path and PR link.
+Read [references/develop-plan.md](references/develop-plan.md) before developing an initial plan.
+Use its discovery, research, drafting, and review stages.
+Keep findings in the plan files as work proceeds.
+Scale the depth to the uncertainty and scope, without requiring a questionnaire for a well-specified request.
+
+Publish the reviewable files through [github-workflow](../github-workflow/SKILL.md), unless the user requests local-only work.
+Link the overview and numbered plans in the PR body.
+State whether the plan is ready for execution or still has unresolved decisions.
+Return the plan path, PR link, and material open questions.
 
 ## Revise a plan
 
@@ -86,7 +55,9 @@ For direct feedback, apply the same plan updates without fetching unrelated GitH
    Reset affected completion checkboxes and status to reflect the remaining work.
    Preserve the earlier execution record.
    For completed plans, use the follow-up rule in the Plans contract.
-5. Review the revised series and publish through github-workflow.
+5. If feedback changes the underlying requirements or evidence, revisit discovery or research.
+   Use [the plan review procedure](references/develop-plan.md#review-the-plan) on the affected series.
+   Publish through github-workflow.
    Report unresolved decisions and their effect on execution.
 
 ## Execute or resume
