@@ -202,6 +202,7 @@ if 'refresh' in args:
             [str(self.root / "signing"), *arguments],
             cwd="/tmp",
             env={**self.env, **(overrides or {})},
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
         )
