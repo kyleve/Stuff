@@ -12,6 +12,27 @@ from Tools.Tests.Fixtures.installer_update_fixtures import (
 
 
 class InstallerSiteDataTests(unittest.TestCase):
+    def test_circleci_progress_links_survive_validation(self):
+        value = site_scenarios()["preparing"]
+        status = value["apps"][0]["channels"][1]["buildStatus"]
+        link = "https://app.circleci.com/pipelines/circleci/org/project/321"
+        status["workflowURL"] = link
+        prepared = prepare_site(value, REPO, FEED_URL)
+        self.assertEqual(
+            next(app for app in prepared.data["apps"] if app["id"] == "where")[
+                "channels"
+            ][1]["runURL"],
+            link,
+        )
+        for bad in (
+            "http://app.circleci.com/pipelines/circleci/org/project/321",
+            link + "?token=secret",
+            "https://evil.test",
+        ):
+            status["workflowURL"] = bad
+            with self.assertRaises(ValueError):
+                prepare_site(value, REPO, FEED_URL)
+
     def test_preparing_and_failed_channels_link_the_exact_run_without_install_manifests(
         self,
     ):

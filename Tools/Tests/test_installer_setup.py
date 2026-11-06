@@ -26,6 +26,8 @@ class InstallerSetupTests(unittest.TestCase):
             "signing",
             "Tools/repository.rb",
             "Tools/repository.py",
+            "Tools/ci_request.py",
+            ".circleci/project.json",
             "Tools/InstallerKit/signing_command.rb",
             "Tools/InstallerKit/installer_setup.py",
             "Tools/InstallerKit/installer_apps.py",
@@ -39,6 +41,10 @@ class InstallerSetupTests(unittest.TestCase):
             shutil.copy2(ROOT / name, destination)
         for module in (ROOT / "Tools/InstallerKit").glob("*.py"):
             shutil.copy2(module, self.root / "Tools/InstallerKit" / module.name)
+        project = self.root / ".circleci/project.json"
+        registration = json.loads(project.read_text())
+        registration["repository"] = "owner/repository"
+        project.write_text(json.dumps(registration))
         (self.root / ".git").mkdir()
         (self.root / "ide").touch()
         self.source = self.root / "source checkout ü"
@@ -68,6 +74,28 @@ class InstallerSetupTests(unittest.TestCase):
             "FIXTURE_ROOT": str(self.root),
             "GH_REPO": "wrong/repository",
         }
+        self.write_executable(
+            "circleci",
+            r"""
+import json, os, pathlib, sys
+root = pathlib.Path(os.environ['FIXTURE_ROOT'])
+args = sys.argv[1:]
+with open(os.environ['LOG'], 'a') as log:
+    log.write(json.dumps({'tool': 'circleci', 'args': args, 'gh_repo': os.environ.get('GH_REPO')}) + '\n')
+if args[1].endswith('/envvar'):
+    if os.environ.get('FAIL_ENABLE'):
+        print('sensitive subprocess diagnostic', file=sys.stderr)
+        sys.exit(47)
+    (root / 'enabled').write_text(json.dumps(args))
+elif args[1].endswith('/pipeline/run'):
+    if os.environ.get('FAIL_PUBLICATION'):
+        print('sensitive subprocess diagnostic', file=sys.stderr)
+        sys.exit(49)
+    (root / 'publication').write_text(json.dumps(args))
+else:
+    raise SystemExit('Unexpected CircleCI request')
+""",
+        )
         self.write_executable(
             "gh",
             r"""
@@ -174,6 +202,7 @@ if 'refresh' in args:
             [str(self.root / "signing"), *arguments],
             cwd="/tmp",
             env={**self.env, **(overrides or {})},
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
         )
@@ -313,17 +342,13 @@ if 'refresh' in args:
                 self.assertIn(f"app:{app}", refreshed)
                 self.assertIn(f"source:{self.source}", refreshed)
                 enabled = json.loads((self.root / "enabled").read_text())
+                self.assertTrue(enabled[1].endswith("/envvar"))
                 self.assertEqual(
-                    enabled,
-                    [
-                        "variable",
-                        "set",
-                        f"{app.upper()}_DISTRIBUTION_ENABLED",
-                        "--body",
-                        "true",
-                        "--repo",
-                        "owner/repository",
-                    ],
+                    json.loads(enabled[-1]),
+                    {
+                        "name": f"{app.upper()}_DISTRIBUTION_ENABLED",
+                        "value": "true",
+                    },
                 )
                 calls = self.calls()
                 self.assertEqual(calls[-1]["args"], enabled)
@@ -415,19 +440,13 @@ if 'refresh' in args:
         refreshed = json.loads((self.root / "refreshed").read_text())
         self.assertIn(f"source:{source}", refreshed)
         publication = json.loads((self.root / "publication").read_text())
+        self.assertTrue(publication[1].endswith("/pipeline/run"))
+        payload = json.loads(publication[-1])
+        self.assertEqual(payload["config"], {"branch": "main"})
+        self.assertEqual(payload["checkout"], {"branch": "main"})
         self.assertEqual(
-            publication,
-            [
-                "workflow",
-                "run",
-                "installer-distribution.yml",
-                "--repo",
-                "owner/repository",
-                "--ref",
-                "main",
-                "-f",
-                "pull_request=295",
-            ],
+            payload["parameters"],
+            {"publication_task": "installer", "pull_request": 295},
         )
         self.assertFalse(any("--remove-label" in call["args"] for call in self.calls()))
         self.assertNotIn(
@@ -527,7 +546,11 @@ if 'refresh' in args:
                 self.assertFalse((self.root / "publication").exists())
                 self.assertFalse(
                     any(
-                        call["args"][:2] in (["pr", "edit"], ["workflow", "run"])
+                        call["args"][:2] == ["pr", "edit"]
+                        or (
+                            len(call["args"]) > 1
+                            and call["args"][1].endswith("/pipeline/run")
+                        )
                         for call in self.calls()
                     )
                 )
@@ -553,7 +576,7 @@ if 'refresh' in args:
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         publication = json.loads((self.root / "publication").read_text())
-        self.assertEqual(publication[:2], ["workflow", "run"])
+        self.assertTrue(publication[1].endswith("/pipeline/run"))
         self.assertFalse(
             any(call["args"][:2] == ["pr", "edit"] for call in self.calls())
         )

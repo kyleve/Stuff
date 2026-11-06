@@ -7,6 +7,8 @@ from pathlib import Path
 import re
 import tempfile
 
+from Tools.ci_request import request_arguments
+
 
 @dataclass(frozen=True)
 class PullRequest:
@@ -96,22 +98,13 @@ def checkout(root, pr, command):
         yield source
 
 
-def request_publication(pr, command):
+def request_publication(pr, command, registration):
     current = recheck_pull_request(pr, command)
     if current.installable:
         command(
-            [
-                "gh",
-                "workflow",
-                "run",
-                "installer-distribution.yml",
-                "--repo",
-                pr.repository,
-                "--ref",
-                "main",
-                "-f",
-                f"pull_request={pr.number}",
-            ]
+            request_arguments(
+                pr.repository, "installer", pr.number, "main", registration
+            )
         )
     else:
         # Adding the label triggers the controller; no separate dispatch or label removal.

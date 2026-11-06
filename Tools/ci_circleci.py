@@ -11,19 +11,11 @@ from Tools.circleci_pipeline import request_json
 from Tools.repository import repository_root
 
 
-def continue_pipeline(root, environ, transport):
-    decision = classify_changes(
-        root,
-        event=environ.get("CI_EVENT", ""),
-        base=environ.get("CI_BASE_SHA", ""),
-        head=environ.get("CI_HEAD_SHA", ""),
-        force=environ.get("CI_MANUAL_FULL_GATE") == "true",
-    )
-    print(decision.reason, file=sys.stderr)
+def continue_configuration(configuration, parameters, environ, transport):
+    """Submit one native continuation without exposing its short-lived credential."""
     key = environ.get("CIRCLE_CONTINUATION_KEY")
     if not key:
         raise ValueError("Missing continuation key")
-    configuration = (root / ".circleci/continue.yml").read_text()
     transport(
         Request(
             "https://circleci.com/api/v2/pipeline/continue",
@@ -33,12 +25,27 @@ def continue_pipeline(root, environ, transport):
                 {
                     "continuation-key": key,
                     "configuration": configuration,
-                    # Only this new parameter is passed. Original API parameters
-                    # remain inherited, without conflicting with setup values.
-                    "parameters": {"docs_only": decision.docs_only},
+                    "parameters": parameters,
                 }
             ).encode(),
         )
+    )
+
+
+def continue_pipeline(root, environ, transport):
+    decision = classify_changes(
+        root,
+        event=environ.get("CI_EVENT", ""),
+        base=environ.get("CI_BASE_SHA", ""),
+        head=environ.get("CI_HEAD_SHA", ""),
+        force=environ.get("CI_MANUAL_FULL_GATE") == "true",
+    )
+    print(decision.reason, file=sys.stderr)
+    configuration = "\n".join(
+        (root / ".circleci" / name).read_text() for name in ("jobs.yml", "continue.yml")
+    )
+    continue_configuration(
+        configuration, {"docs_only": decision.docs_only}, environ, transport
     )
 
 

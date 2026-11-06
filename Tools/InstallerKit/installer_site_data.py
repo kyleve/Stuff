@@ -117,7 +117,8 @@ def prepare_site(catalog, repository, feed_url, registered_apps=None):
             progress = (
                 {
                     "state": status["state"],
-                    "runURL": f"https://github.com/{repository}/actions/runs/{status['id']['run']}/attempts/{status['id']['attempt']}",
+                    "runURL": status.get("workflowURL")
+                    or f"https://github.com/{repository}/actions/runs/{status['id']['run']}/attempts/{status['id']['attempt']}",
                 }
                 if status
                 else None

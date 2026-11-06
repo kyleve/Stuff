@@ -4,23 +4,6 @@ from Tools.InstallerKit.circleci_archive import ArchiveRequest
 from Fixtures.where_distribution_fixtures import SHA, write_ipa
 
 
-PROJECT = "circleci/fixture/project"
-PIPELINE = "11111111-1111-4111-8111-111111111111"
-WORKFLOW = "22222222-2222-4222-8222-222222222222"
-DEFINITION = "33333333-3333-4333-8333-333333333333"
-ARTIFACT_URL = "https://output.circle-artifacts.com/fixture/Where.ipa"
-
-
-def setup_workflow(status):
-    return {
-        "id": "44444444-4444-4444-8444-444444444444",
-        "pipeline_id": PIPELINE,
-        "name": "Select workflows",
-        "tag": "setup",
-        "status": status,
-    }
-
-
 def archive_request():
     return ArchiveRequest(
         "fixture/Stuff",
@@ -56,39 +39,3 @@ def pull_request():
         "base": {"repo": {"full_name": "fixture/Stuff"}},
         "head": {"sha": SHA, "repo": {"full_name": "fixture/Stuff"}},
     }
-
-
-class CircleCIServer:
-    def __init__(self):
-        self.requests = []
-        self.pipeline = {
-            "id": PIPELINE,
-            "project_slug": PROJECT,
-            "state": "created",
-            "errors": [],
-        }
-        self.workflows = [
-            {
-                "id": WORKFLOW,
-                "pipeline_id": PIPELINE,
-                "name": "Installer Archive",
-                "status": "success",
-            }
-        ]
-        self.jobs = [{"name": "Archive App", "status": "success", "job_number": 7}]
-        self.artifacts = [{"path": "installer/app.ipa", "url": ARTIFACT_URL}]
-
-    def __call__(self, request):
-        self.requests.append(request)
-        path = request.full_url.removeprefix("https://circleci.com/api/v2/")
-        if path == f"project/{PROJECT}/pipeline/run" and request.method == "POST":
-            return {"id": PIPELINE}
-        if path == f"pipeline/{PIPELINE}":
-            return self.pipeline
-        if path == f"pipeline/{PIPELINE}/workflow":
-            return {"items": self.workflows}
-        if path == f"workflow/{WORKFLOW}/job":
-            return {"items": self.jobs}
-        if path == f"project/{PROJECT}/7/artifacts":
-            return {"items": self.artifacts}
-        raise AssertionError(f"Unexpected CircleCI request: {request.method} {path}")

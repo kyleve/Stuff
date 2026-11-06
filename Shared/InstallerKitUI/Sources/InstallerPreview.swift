@@ -221,6 +221,7 @@
                 commits: commits,
                 buildDetails: buildDetails,
                 pullRequestTitle: pullRequestTitle,
+                workflowURL: nil,
             )
         }
 

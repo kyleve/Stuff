@@ -4,42 +4,20 @@ version: 2.1
 setup: true
 
 parameters:
-  flyover_export:
-    type: enum
-    enum: ["false", "true"]
-    default: "false"
-  flyover_sha:
-    type: string
-    default: ""
   manual_full_gate:
     type: enum
     enum: ["false", "true"]
     default: "false"
-
-  installer_archive:
+  publication_task:
     type: enum
-    enum: ["false", "true"]
-    default: "false"
-  installer_app:
-    type: string
-    default: ""
-  installer_sha:
-    type: string
-    default: ""
-  installer_channel:
-    type: string
-    default: ""
-  installer_run:
-    type: string
-    default: ""
-  installer_attempt:
-    type: string
-    default: ""
-  installer_feed_url:
-    type: string
-    default: ""
+    enum: [none, installer, flyover, pages]
+    default: none
+  pull_request:
+    type: integer
+    default: 0
 
 jobs:
+
   select-workflows:
     docker:
       - image: cimg/python:3.12
@@ -63,20 +41,45 @@ jobs:
           name: Classify the complete PR and continue
           command: python3 -m Tools.ci_circleci
 
+  select-publication:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    environment:
+      GIT_LFS_SKIP_SMUDGE: "1"
+      PUBLICATION_TASK: << pipeline.parameters.publication_task >>
+      PUBLICATION_PR: << pipeline.parameters.pull_request >>
+      PUBLICATION_REPOSITORY: << pipeline.config.repository.name >>
+      PUBLICATION_SHA: << pipeline.git.revision >>
+      PUBLICATION_ATTEMPT: << pipeline.number >>
+    steps:
+      - run:
+          name: Checkout trusted publication tools
+          command: |
+            git clone --filter=blob:none --no-checkout \
+              "<< pipeline.git.repo_url >>" .
+            git sparse-checkout set Tools .circleci .github
+            git checkout --detach "<< pipeline.git.revision >>"
+      - run:
+          name: Plan publication and continue
+          command: python3 -m Tools.ci_publication
+
 workflows:
   "Select workflows":
-    # Keep the existing event gates for CI, signed archives, and Flyover.
-    # Only one setup workflow runs, even when an API request sets several flags.
     when: >-
-      pipeline.parameters.manual_full_gate == "true" or
+      pipeline.parameters.publication_task == "none" and
+      (pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
       pipeline.event.github.pull_request.base.ref == "main" and
-      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/)) or
-      (pipeline.event.name == "api" and
-      pipeline.git.branch == "main" and
-      pipeline.config.ref == "refs/heads/main" and
-      (pipeline.parameters.flyover_export == "true" or
-      pipeline.parameters.installer_archive == "true"))
+      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/)))
     jobs:
       - select-workflows
+  "Select publication":
+    when: >-
+      pipeline.parameters.publication_task != "none" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - select-publication:
+          context: github-publication

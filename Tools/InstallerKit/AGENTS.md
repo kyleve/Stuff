@@ -30,13 +30,12 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
   Namespace release tags, manifest paths, catalog mutations, and channel pages by app ID.
   An app ID cannot change its bundle identifier. Preserve other apps and channels on writes.
 - Run signed archives on the shared CircleCI macOS executor. Keep its config and control checkout on `main`.
-  Require the signing context's project and config-source restrictions. Keep the CircleCI API token on the GitHub controller.
-  Validate a successful pipeline, job, artifact path, and signed run identity before publication.
-  Use the shared CircleCI transport to preserve HTTP errors for discovery retries.
-  Guard the default transport through the command entry point in `test_circleci_distribution.py`.
+  Require the signing context's project and config-source restrictions.
+  Pass the verified IPA through a workflow workspace. Validate its signed identity again before publication.
+  Select successful publication only after the archive job succeeds. Guard: `test_installer_ci.py` and `test_ci_publication.py`.
 - Keep repository write credentials out of archive jobs. Only same-repository PRs
   labeled `installable` may receive signed branch builds. Use a controller from `main`.
-- Use `pull_request_target` so conflicts cannot suppress retirement. Require confirmed
+- Use the fixed-main custom webhook so conflicts cannot suppress retirement. Require confirmed
   absence of merge conflicts before signing or publishing. Recheck the live SHA and label
   before publishing or retiring. Serialize mutations per app and channel.
   Manual PR dispatches must retain the label gate and share event-driven PR concurrency groups.
@@ -51,6 +50,7 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
   Fail deployment on unreadable or invalid catalogs, including a missing catalog on an existing branch.
   Guards: `test_installer_update_feed.py` and `test_installer_update_site.py`.
 - Publish preparing status before archiving and failed status after unsuccessful archive/publication jobs. Keep status scoped to the run and attempt; stale status must not replace newer progress or an equal/newer published release. Status alone never enables installs. Preserve the previous successful build, and clear progress on retirement.
+- Keep optional workflow URLs restricted to canonical CircleCI pipeline URLs. Older releases retain their GitHub run links. Guards: `test_installer_site_data.py` and `UpdateCatalogTests`.
 - Show only main installs on the homepage. Put PR builds under their app's page.
   Load site artwork from registered paths in the trusted checkout and publish it with the site.
   Read build details from the signed IPA; keep missing historical details explicit.

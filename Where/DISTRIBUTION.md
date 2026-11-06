@@ -3,7 +3,7 @@
 [InstallerKit](../Shared/InstallerKit/README.md) supplies the shared update engine.
 The [installer guide](../Tools/InstallerKit/README.md) covers adding apps to the common site.
 GitHub Releases hosts signed IPAs. GitHub Pages hosts the install site, OTA manifests, and update catalog.
-The [distribution workflow](../.github/workflows/installer-distribution.yml) publishes these channels:
+The [CircleCI publication flow](../.circleci/README.md#publication) publishes these channels:
 
 | Channel | Trigger | Availability |
 | --- | --- | --- |
@@ -14,8 +14,8 @@ Open [the install site](https://kyleve.github.io/Stuff/) in Safari on a register
 The homepage lists main builds for all registered apps.
 Open `/apps/where/` for Where PR builds.
 Select **Install Where Dev**, then confirm the iOS installation prompt.
-The workflow summary links directly to the channel page after publication.
-The page becomes available after **App Install Site** completes.
+The publication job output links directly to the channel page after publication.
+The page becomes available after **Deploy Pages** completes.
 Bookmark `/apps/where/main/` for routine installs.
 
 Removing `installable` or closing the PR retires its page and removes its manifests from the next Pages deployment.
@@ -30,11 +30,11 @@ Where Beta and the App Store app keep their separate identity and store.
 
 ## One-time setup
 
-The signed-build workflow stays disabled until the repository variable `WHERE_DISTRIBUTION_ENABLED` is `true`.
+The signed-build workflow stays disabled until the CircleCI project variable `WHERE_DISTRIBUTION_ENABLED` is `true`.
 Complete these steps before enabling it.
 The shared install site and empty catalog need only the [Pages configuration](../Tools/InstallerKit/README.md#shared-hosting).
-The repository must be public. Publication uses GitHub's built-in `GITHUB_TOKEN`.
-CircleCI builds the signed IPA. GitHub Actions uses a separate CircleCI API token to request and retrieve that build.
+The repository must be public. CircleCI builds the signed IPA and publishes its verified workspace archive from Linux.
+A restricted publication context holds the GitHub write credential.
 The IPA, manifest, commit notes, and build metadata are public.
 Apple's ad hoc profile still restricts installation to registered devices.
 The provisioning profile inside the IPA includes those device identifiers.
@@ -82,46 +82,17 @@ The provisioning profile inside the IPA includes those device identifiers.
    CI needs no Apple API key, Apple account password, or signing-repository write access.
 
    Use CircleCI's context secret form to enter the values. Do not commit or print them.
-   Add this context expression restriction before enabling distribution:
-
-   ```text
-   pipeline.config.repository.name == "kyleve/Stuff"
-   and pipeline.config.ref == "refs/heads/main"
-   and pipeline.config.file_path == ".circleci/config.yml"
-   and pipeline.git.branch == "main"
-   and not job.ssh.enabled
-   and not (pipeline.config_source starts-with "api")
-   ```
-
-   This restriction is enforced outside the PR's editable workflow configuration.
-   It permits an API-triggered pipeline whose configuration comes from GitHub `main`.
-   It rejects unversioned configuration submitted through the API.
-   See [CircleCI context restrictions](https://circleci.com/docs/guides/security/contexts/#expression-restrictions).
-6. In CircleCI, select the GitHub App pipeline definition for this repository's `.circleci/config.yml`.
-   The controller requests `main` for both configuration and checkout.
-   Add these values in GitHub Settings → Secrets and variables → Actions:
-
-   | Name | Type | Value |
-   | --- | --- | --- |
-   | `INSTALLER_CIRCLECI_PROJECT` | Variable | The project slug from CircleCI Project Settings → Overview |
-   | `INSTALLER_CIRCLECI_PIPELINE` | Variable | The definition ID from CircleCI Project Settings → Pipelines |
-   | `INSTALLER_CIRCLECI_TOKEN` | Secret | A CircleCI API token authorized to trigger that pipeline and read its artifacts |
-
-   Keep this API token out of CircleCI's signing context and project environment.
-   GitHub's Linux controller uses it without checking out or running PR code.
-   See [CircleCI's trigger API](https://circleci.com/docs/api/v2/index.html#operation/triggerPipelineRun).
-7. In GitHub Settings → Actions → Policies, allow this workflow's `push`, `workflow_dispatch`, and `pull_request_target` events.
-   Scope the event policy to `.github/workflows/installer-distribution.yml`.
-   GitHub's default policy can block `pull_request_target` in public repositories.
-   See [workflow execution policies](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
-8. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.
-   Allow `push` and `workflow_dispatch` for `.github/workflows/installer-pages.yml` in the Actions event policy.
-   Run **App Install Site** manually on `main` to publish the catalog before signing is ready.
-   The default feed URL is `https://kyleve.github.io/Stuff/updates.json`.
-   If Pages uses a custom domain, set `INSTALLER_FEED_URL` to its HTTPS catalog URL before building.
+   Apply the project and expression restrictions in [CI activation](../.circleci/README.md#activation-and-rollback).
+   That guide also owns the publication credential, trusted webhook, schedule, and Pages bridge setup.
+6. Verify the project and pipeline registration in [`.circleci/project.json`](../.circleci/project.json).
+7. Configure the trusted-main webhook and restricted `github-publication` context through the CI activation guide.
+8. Keep **GitHub Actions** as the Pages source and allow the bridge's `repository_dispatch` event.
+   Request the initial catalog with `python3 -m Tools.ci_request pages`.
+   The default feed is `https://kyleve.github.io/Stuff/updates.json`.
+   For a custom domain, set CircleCI project variable `INSTALLER_FEED_URL` before building.
 9. Create the repository label `installable` if it does not exist.
    Merge the integration into `main`, then set `WHERE_DISTRIBUTION_ENABLED` to `true`.
-   Run **App Dev Distribution** manually on `main` to publish the first build.
+   Run `python3 -m Tools.ci_request installer` to publish the first `main` build.
    Open its install link on a registered phone and verify launch, widgets, and sharing.
    Add `installable` to an open PR, then push again to verify that its page updates.
 
@@ -170,8 +141,8 @@ Its configuration, Fastfile, Gemfile lock, signing helper, eligibility checks, c
 The selected branch supplies the app source and project generation scripts.
 Older branches do not need a Fastfile or Gemfile.
 It rechecks the live PR before checking out the requested commit into a separate source directory.
-Only the final IPA is stored as a CircleCI artifact. Signing state is never uploaded.
-GitHub accepts the artifact only after that pipeline and archive job succeed.
+Only the final IPA enters the archive workspace and artifact. Signing state is never uploaded.
+The Linux publisher runs only after the archive job succeeds and validates the signed identity again.
 It validates the signed commit, app, channel, run, attempt, and feed URL before passing the IPA to publication.
 
 The publication job uses control scripts from `main` and a repository write token.
@@ -190,7 +161,7 @@ If an upload or verification fails, inspect the draft before retrying.
 The release does not become GitHub's latest stable release.
 
 Release tags point to trusted `main` at publication time.
-GitHub's workflow token cannot create tags at PR commits that change workflow files.
+Release tags anchor to trusted main independently of the selected PR source.
 The release notes and signed IPA stamp identify the actual source commit.
 Do not use the release tag's source archive as the source of a PR build.
 See [GitHub's release API](https://docs.github.com/en/rest/releases/releases#create-a-release).
@@ -245,8 +216,8 @@ Automated tests do not prove installation on a physical device.
 After release publication, the publisher updates `updates.json` on the `installer-update-feed` branch.
 A retirement marks the channel inactive in that catalog.
 Compare-and-swap writes preserve simultaneous changes to different apps and channels.
-The publisher then requests **App Install Site**.
-That workflow reads the latest catalog and generates the site with control scripts from `main`.
+The CircleCI publisher then builds the site from the latest catalog and fresh `main` source.
+The Pages Action uploads and deploys the prepared artifact.
 The complete catalog and all manifests ship in one Pages artifact.
 
 The schema version is `3`. The catalog groups channels under registered apps. Each release records its exact manifest URL, GitHub asset URL, and bundle version.
@@ -262,11 +233,11 @@ The catalog marks rewritten or unavailable ancestry explicitly.
 Retirement preserves catalog history.
 
 A failed catalog write fails the publication job. Its uploaded release remains on GitHub.
-Rerun the failed publication job to retry the catalog write with the existing GitHub archive artifact.
-To rebuild, rerun the GitHub archive job or the full controller. Do not rerun only the CircleCI workflow.
-The controller retains GitHub run and attempt numbers as the build identity.
-A controller timeout does not stop the CircleCI job. Inspect that pipeline before retrying.
-If the catalog write succeeds but deployment fails, rerun **App Install Site** on `main`.
+Retry the failed publisher with its original workspace IPA to retry the catalog write.
+To rebuild, start a new pipeline with `python3 -m Tools.ci_request installer`, adding `--pr <number>` when needed.
+New identities use epoch milliseconds and the project pipeline number, ordered after historical GitHub builds.
+If deployment fails after the catalog write, run `python3 -m Tools.ci_request pages`.
+Canceling a whole workflow can leave progress pending; a new publication replaces that state.
 The app sees the previous complete Pages deployment until the replacement succeeds.
 
 CI stamps the app ID, repository, channel, full commit, run ID, attempt, and feed URL into the signed app.

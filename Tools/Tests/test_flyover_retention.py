@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import patch
 
 from Tools.flyover_retention import expired_releases, main
-from Tools.repository import repository_root
 
 
 NOW = datetime(2026, 10, 26, 12, tzinfo=timezone.utc)
@@ -54,13 +53,15 @@ class FlyoverRetentionTests(unittest.TestCase):
 
     def test_cli_paginates_and_deletes_only_expired_release_ids(self):
         with (
-            patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"}),
+            patch.dict(
+                "os.environ", {"GITHUB_REPOSITORY": "owner/repo", "GH_TOKEN": "secret"}
+            ),
             patch("Tools.flyover_retention.datetime") as clock,
             patch(
                 "Tools.flyover_retention.subprocess.check_output",
                 return_value=json.dumps([[release(1, 9)], [release(2, 0)]]),
             ) as inventory,
-            patch("Tools.flyover_retention.subprocess.run") as delete,
+            patch("Tools.flyover_retention.request_json") as delete,
             patch("sys.stdout", new_callable=io.StringIO) as output,
         ):
             clock.now.return_value = NOW
@@ -70,10 +71,13 @@ class FlyoverRetentionTests(unittest.TestCase):
             ["gh", "api", "repos/owner/repo/releases", "--paginate", "--slurp"],
             text=True,
         )
-        delete.assert_called_once_with(
-            ["gh", "api", "--method", "DELETE", "repos/owner/repo/releases/1"],
-            check=True,
+        delete.assert_called_once()
+        request = delete.call_args.args[0]
+        self.assertEqual(request.method, "DELETE")
+        self.assertEqual(
+            request.full_url, "https://api.github.com/repos/owner/repo/releases/1"
         )
+        self.assertEqual(delete.call_args.kwargs, {"allow_missing": True})
         self.assertIn("removed 1 expired releases", output.getvalue())
 
     def test_bad_inventory_never_deletes_any_release(self):
@@ -87,12 +91,15 @@ class FlyoverRetentionTests(unittest.TestCase):
         ):
             with (
                 self.subTest(bad=bad),
-                patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"}),
+                patch.dict(
+                    "os.environ",
+                    {"GITHUB_REPOSITORY": "owner/repo", "GH_TOKEN": "secret"},
+                ),
                 patch(
                     "Tools.flyover_retention.subprocess.check_output",
                     return_value=json.dumps([[release(1, 90), bad, release(4, 0)]]),
                 ),
-                patch("Tools.flyover_retention.subprocess.run") as delete,
+                patch("Tools.flyover_retention.request_json") as delete,
                 patch("sys.stderr", new_callable=io.StringIO) as error,
             ):
                 self.assertEqual(main(["--deployed-release", "flyover-atlas-4-1"]), 1)
@@ -108,10 +115,13 @@ class FlyoverRetentionTests(unittest.TestCase):
         for phase in ("list", "delete"):
             with (
                 self.subTest(phase=phase),
-                patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"}),
+                patch.dict(
+                    "os.environ",
+                    {"GITHUB_REPOSITORY": "owner/repo", "GH_TOKEN": "secret"},
+                ),
                 patch("Tools.flyover_retention.datetime") as clock,
                 patch("Tools.flyover_retention.subprocess.check_output") as inventory,
-                patch("Tools.flyover_retention.subprocess.run") as delete,
+                patch("Tools.flyover_retention.request_json") as delete,
                 patch("sys.stderr", new_callable=io.StringIO) as error,
             ):
                 clock.now.return_value = NOW
@@ -124,20 +134,3 @@ class FlyoverRetentionTests(unittest.TestCase):
                 self.assertEqual(main(["--deployed-release", "flyover-atlas-3-1"]), 1)
                 self.assertEqual(delete.call_count, 0 if phase == "list" else 1)
                 self.assertIn("retention failed", error.getvalue())
-
-    def test_workflow_gates_cleanup_on_deployment_and_limits_write_permission(self):
-        workflow = (
-            repository_root(__file__) / ".github/workflows/installer-pages.yml"
-        ).read_text()
-        deploy, retention = workflow.split("  retain-flyover:\n")
-        self.assertIn("id: flyover", deploy)
-        self.assertIn("flyover-release: ${{ steps.flyover.outputs.release }}", deploy)
-        self.assertIn("uses: actions/deploy-pages@v4", deploy)
-        self.assertNotIn("contents: write", deploy)
-        self.assertIn("needs: deploy", retention)
-        self.assertIn("if: needs.deploy.outputs.flyover-release != ''", retention)
-        self.assertNotIn("always()", retention)
-        self.assertIn("contents: write", retention)
-        self.assertIn(
-            'Tools.flyover_retention --deployed-release "$DEPLOYED_RELEASE"', retention
-        )

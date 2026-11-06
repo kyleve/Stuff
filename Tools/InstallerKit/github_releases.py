@@ -15,7 +15,7 @@ def release_tag(app_id, channel, identifier):
         raise ValueError("Invalid distribution channel")
     for key in ("run", "attempt"):
         if type(identifier[key]) is not int or identifier[key] < 1:
-            raise ValueError("A positive GitHub run ID and attempt are required")
+            raise ValueError("A positive run ID and attempt are required")
     return f"installer-{app_id}-{channel}-{identifier['run']}-{identifier['attempt']}"
 
 
@@ -101,7 +101,7 @@ class GitHubReleases:
         )
         release = self.find(tag)
         if release is None:
-            # GITHUB_TOKEN cannot tag PR commits that modify workflow files.
+            # The publication token cannot tag PR commits that modify workflows.
             # The tag anchors publication to trusted main; the IPA stamp and
             # release body identify the actual source revision.
             controller_sha = self.request("GET", "/git/ref/heads/main")["object"]["sha"]

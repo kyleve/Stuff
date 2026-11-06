@@ -6,6 +6,7 @@ enum InstallerPattern: String {
     case bundleIdentifier = #"\A[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\z"#
     case pullRequestNumber = #"\A[1-9][0-9]*\z"#
     case repositoryURL = #"\Ahttps://github.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\z"#
+    case circleCIWorkflowURL = #"\Ahttps://app\.circleci\.com/pipelines/circleci/[A-Za-z0-9]+/[A-Za-z0-9]+/[1-9][0-9]*\z"#
     case revision = #"\A[0-9a-f]{40}\z"#
     case version = #"\A[0-9]+(?:\.[0-9]+){0,2}\z"#
 

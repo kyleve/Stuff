@@ -73,6 +73,15 @@ def validate_pull_request_title(value):
     return value
 
 
+def validate_workflow_url(value):
+    if not isinstance(value, str) or not re.fullmatch(
+        r"https://app\.circleci\.com/pipelines/circleci/[A-Za-z0-9]+/[A-Za-z0-9]+/[1-9][0-9]*",
+        value,
+    ):
+        raise ValueError("Invalid CircleCI workflow URL")
+    return value
+
+
 def validate_release(release, repository, app_id, channel, feed_url):
     expected_manifest = manifest_url(feed_url, app_id, channel, release["id"])
     if release["manifestURL"] != expected_manifest:
@@ -82,6 +91,8 @@ def validate_release(release, repository, app_id, channel, feed_url):
     if release["ipaURL"] != asset_url(repository, app_id, channel, release["id"]):
         raise ValueError("IPA URL does not match this GitHub release")
     validate_bundle_version(release["bundleVersion"])
+    if "workflowURL" in release:
+        validate_workflow_url(release["workflowURL"])
     if "buildDetails" in release:
         validate_build_details(release["buildDetails"])
     if release.get("pullRequestTitle") is not None:

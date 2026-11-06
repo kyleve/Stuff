@@ -15,15 +15,11 @@ The standard duplicate-property rule permits different CSS syntaxes, but rejects
 
 `.github/flyover-apps.json` owns hosted capture registration. `flyover_apps.py` validates it before capture.
 `flyover_ci.py` captures all registered apps serially. `flyover_bundle.py` validates the ZIP transport and captured identities.
-`flyover_distribution.py` requests CircleCI capture and publishes a complete bundle as an immutable prerelease asset.
+`flyover_distribution.py` validates the native workspace bundle and publishes it as an immutable prerelease asset.
 `flyover_pages.py` includes the latest bundle in the existing install-site deployment.
-`circleci_pipeline.py` owns shared CircleCI transport. Installer-specific IPA policy remains in `InstallerKit`.
-Pipeline and workflow discovery retry HTTP 404 responses within the existing polling deadline.
-The client closes discarded HTTP error responses before each retry.
-Other HTTP failures propagate immediately, including missing jobs or artifacts.
-
-The daily controller uses the existing `INSTALLER_CIRCLECI_PROJECT`, `INSTALLER_CIRCLECI_PIPELINE`, and `INSTALLER_CIRCLECI_TOKEN` configuration.
-The names remain compatible with the existing installation setup. Flyover does not use its signing context.
+`ci_publication.py` selects native CircleCI dependencies. `ci_pages.py` builds and publishes the shared site.
+The small Pages Action deploys the exact prepared commit and reports its result.
+See [CI operation](../.circleci/README.md) for triggers, credentials, recovery, and cost estimates.
 Publication validates and versions every declared thumbnail size, including the optional `thumbnailVariants` records.
 See [Flyover publication](../Shared/Flyover/README.md#daily-web-publication) for URLs, scheduling, and recovery behavior.
 `flyover_retention.py` removes expired release bundles after successful Pages deployment.
@@ -96,7 +92,7 @@ The [Astro project](InstallerKit/Site/README.md) owns routes, components, and st
 
 ## Documentation-only CI
 
-[`ci_changes.py`](ci_changes.py) owns the shared documentation policy for GitHub Actions and CircleCI.
+[`ci_changes.py`](ci_changes.py) owns the documentation policy for the complete CircleCI gate.
 It compares the complete PR from its merge base to the event's head commit.
 Regular `.md` and `.markdown` files qualify, including mixed-case extensions and nested paths.
 The classifier excludes executable files, symlinks, and Markdown in directories that contain build inputs, rendered content, or fixtures.
@@ -109,19 +105,11 @@ An empty diff, unavailable history, or classification error selects full CI and 
 Main pushes and manual runs always select full CI.
 The existing `NO-CI` title marker remains available for prototypes.
 
-GitHub runs one Linux classification job and skips the existing required jobs for documentation-only PRs.
-If classification fails, those jobs run.
-The workflow retains its triggers and required job names.
-Workflow-level path filters can leave required checks pending, so selection uses job conditions.
-See [GitHub's conditional-job behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions).
-
 CircleCI starts with [`.circleci/config.yml`](../.circleci/config.yml) on Linux.
-[`ci_circleci.py`](ci_circleci.py) passes the decision to [`.circleci/continue.yml`](../.circleci/continue.yml) through the continuation API.
+[`ci_circleci.py`](ci_circleci.py) combines `jobs.yml` and `continue.yml`, then passes the classification to the continuation API.
 Documentation-only PRs complete the existing `iOS CI` workflow with a small Linux job.
-Other PRs retain the existing macOS build and test graph.
-Installer and Flyover publication retain their event gates, parameters, and signing boundaries.
-If setup fails before publication starts, both controllers stop on the next poll and report failure.
-The setup and continuation configurations declare the same original parameters. The continuation request passes only the new classification parameter.
+Other PRs run all helper, web, host, architecture, iOS, snapshot, and audience checks.
+Publication uses a separate trusted-main setup and native workspace handoffs.
 
 This flow requires CircleCI's dynamic configuration setting, which new projects enable by default.
 After a setup failure, trigger a new pipeline. CircleCI does not permit continuation twice for the same pipeline.
