@@ -18,6 +18,9 @@ The standard duplicate-property rule permits different CSS syntaxes, but rejects
 `flyover_distribution.py` requests CircleCI capture and publishes a complete bundle as an immutable prerelease asset.
 `flyover_pages.py` includes the latest bundle in the existing install-site deployment.
 `circleci_pipeline.py` owns shared CircleCI transport. Installer-specific IPA policy remains in `InstallerKit`.
+Pipeline and workflow discovery retry HTTP 404 responses within the existing polling deadline.
+The client closes discarded HTTP error responses before each retry.
+Other HTTP failures propagate immediately, including missing jobs or artifacts.
 
 The daily controller uses the existing `INSTALLER_CIRCLECI_PROJECT`, `INSTALLER_CIRCLECI_PIPELINE`, and `INSTALLER_CIRCLECI_TOKEN` configuration.
 The names remain compatible with the existing installation setup. Flyover does not use its signing context.
@@ -90,6 +93,45 @@ Run their commands from the repository root with `python3 -m Tools.InstallerKit.
 Tests use the same module imports without changing Python's search path.
 The [Astro project](InstallerKit/Site/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
+
+## Documentation-only CI
+
+[`ci_changes.py`](ci_changes.py) owns the shared documentation policy for GitHub Actions and CircleCI.
+It compares the complete PR from its merge base to the event's head commit.
+Regular `.md` and `.markdown` files qualify, including mixed-case extensions and nested paths.
+The classifier excludes executable files, symlinks, and Markdown in directories that contain build inputs, rendered content, or fixtures.
+`INPUT_DIRECTORIES` in the classifier owns those exclusions.
+
+The Git diff includes additions, edits, deletions, and both paths of a rename.
+It has no API file-count limit.
+A later documentation commit cannot hide an earlier code change in the PR.
+An empty diff, unavailable history, or classification error selects full CI and prints the reason.
+Main pushes and manual runs always select full CI.
+The existing `NO-CI` title marker remains available for prototypes.
+
+GitHub runs one Linux classification job and skips the existing required jobs for documentation-only PRs.
+If classification fails, those jobs run.
+The workflow retains its triggers and required job names.
+Workflow-level path filters can leave required checks pending, so selection uses job conditions.
+See [GitHub's conditional-job behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions).
+
+CircleCI starts with [`.circleci/config.yml`](../.circleci/config.yml) on Linux.
+[`ci_circleci.py`](ci_circleci.py) passes the decision to [`.circleci/continue.yml`](../.circleci/continue.yml) through the continuation API.
+Documentation-only PRs complete the existing `iOS CI` workflow with a small Linux job.
+Other PRs retain the existing macOS build and test graph.
+Installer and Flyover publication retain their event gates, parameters, and signing boundaries.
+If setup fails before publication starts, both controllers stop on the next poll and report failure.
+The setup and continuation configurations declare the same original parameters. The continuation request passes only the new classification parameter.
+
+This flow requires CircleCI's dynamic configuration setting, which new projects enable by default.
+After a setup failure, trigger a new pipeline. CircleCI does not permit continuation twice for the same pipeline.
+See [CircleCI's dynamic configuration requirements](https://circleci.com/docs/guides/orchestrate/dynamic-config/).
+
+The focused regression command covers Git history, command output, continuation failures, and required-check wiring:
+
+```bash
+python3 -m unittest Tools.Tests.test_ci_changes Tools.Tests.test_ci_circleci Tools.Tests.test_ci_workflows Tools.Tests.test_flyover_workflows
+```
 
 ## Worktree cleanup
 

@@ -17,7 +17,7 @@ The [README](../../../README.md) describes the commands and intake worker.
    Search open PRs for an existing rebalance before creating another PR.
    If a matching PR exists, update that branch through the GitHub workflow.
 2. Run `./snapshot-shards check` to identify the current suite inventory and intake count.
-   Read `.circleci/config.yml` for the current snapshot job and worker count.
+   Read `.circleci/continue.yml` for the current snapshot job and worker count.
 3. Select the latest three successful snapshot jobs from distinct commits on `main`.
    Use `gh api` to read commit statuses and obtain the CircleCI job UUIDs.
    Retain each source commit, job URL, and completion date for the PR.

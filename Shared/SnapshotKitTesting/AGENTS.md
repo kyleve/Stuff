@@ -96,7 +96,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Captures are single-tenant per process.** `renderSnapshotImage` serializes through a FIFO `@MainActor` mutex.
 - **The safe-area swizzle is depth-counted.** Nested captures trap.
 - **Keep the suite serial anyway.** Concurrent scheduling degrades to queued-serial, gaining nothing.
-- **Guard: `SnapshotKitTestingTests.ConcurrentCaptureTests`.** The rejected experiments below record the interleaving failure. CircleCI shards across isolated VMs and keeps each worker serial; see [the snapshot job](../../.circleci/config.yml).
+- **Guard: `SnapshotKitTestingTests.ConcurrentCaptureTests`.** The rejected experiments below record the interleaving failure. CircleCI shards across isolated VMs and keeps each worker serial; see [the snapshot job](../../.circleci/continue.yml).
 - **Rendering requires `StuffTestHost`'s key window** (`TestHostSupport.hostKeyWindow()`). It is not usable from a non-hosted bundle.
 - **Pin determinism.** The pipeline overrides safe-area insets and quiesces animations.
 - **Set `SnapshotCaptureTrait` on the content controller, not a wrapper.** It must survive the intrinsic-measurement re-hosting so views can freeze never-settling motion.

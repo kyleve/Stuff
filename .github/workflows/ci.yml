@@ -21,10 +21,35 @@ env:
   MISE_NO_HOOKS: "1"
 
 jobs:
-  # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
-  # pushes still run every job.
-  format:
+  # Keep the workflow active so required job checks can report a successful skip.
+  # If checkout or classification fails, dependent jobs default to full CI.
+  changes:
+    name: Classify changes
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: Tools
+      - name: Classify the complete PR diff
+        id: classify
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python3 -m Tools.ci_changes
+          --event "$CI_EVENT" --base "$CI_BASE_SHA" --head "$CI_HEAD_SHA"
+          >> "$GITHUB_OUTPUT"
+
+  format:
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI')) && (needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true') }}
     name: Lint & Formatting
     runs-on: xcode-27
     timeout-minutes: 20
@@ -57,7 +82,8 @@ jobs:
         run: ./attribution --check
 
   test-tools:
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI')) && (needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true') }}
     name: Tool Tests
     runs-on: xcode-27
     timeout-minutes: 20
@@ -80,7 +106,8 @@ jobs:
           ./snapshot-shards check
 
   test-web:
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI')) && (needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true') }}
     name: Web Checks & Tests
     runs-on: xcode-27
     timeout-minutes: 20
@@ -107,7 +134,8 @@ jobs:
           retention-days: 7
 
   architecture:
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI')) && (needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true') }}
     name: Bumper Bowling
     runs-on: xcode-27
     env:
@@ -135,7 +163,8 @@ jobs:
           key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
 
   test-macos:
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI')) && (needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true') }}
     name: Build & Test (macOS)
     # Host-side Swift tests require GitHub's pinned Xcode image.
     runs-on: xcode-27

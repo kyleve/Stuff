@@ -1,4 +1,5 @@
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
+from functools import partial
 import io
 import json
 from pathlib import Path
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 import zipfile
 from unittest.mock import Mock, patch
+from urllib.error import HTTPError
 from urllib.request import Request
 
 from Tools.InstallerKit.circleci_distribution import (
@@ -26,6 +28,7 @@ from Fixtures.circleci_distribution_fixtures import (
     PROJECT,
     CircleCIServer,
     archive_request,
+    setup_workflow,
     write_archive,
 )
 
@@ -34,6 +37,119 @@ class CircleCIDistributionTests(unittest.TestCase):
     def setUp(self):
         self.server = CircleCIServer()
         self.client = CircleCI(PROJECT, "fixture-api-token", self.server)
+
+    def test_command_uses_default_transport_to_retry_discovery_until_its_deadline(self):
+        for path in (f"pipeline/{PIPELINE}", f"pipeline/{PIPELINE}/workflow"):
+            for recovers in (True, False):
+                with (
+                    self.subTest(path=path, recovers=recovers),
+                    tempfile.TemporaryDirectory() as temporary,
+                ):
+                    root = Path(temporary)
+                    fixture = root / "fixture.ipa"
+                    write_archive(fixture)
+                    output = root / "output/app.ipa"
+                    server = CircleCIServer()
+                    lookups = 0
+                    downloads = []
+
+                    def open_request(request, **kwargs):
+                        nonlocal lookups
+                        if request.full_url.endswith(path):
+                            lookups += 1
+                            if lookups == 1 or not recovers:
+                                raise HTTPError(
+                                    request.full_url, 404, "secret", {}, io.BytesIO()
+                                )
+                        if request.full_url == ARTIFACT_URL:
+                            downloads.append(request)
+                            return io.BytesIO(fixture.read_bytes())
+                        response = io.BytesIO(json.dumps(server(request)).encode())
+                        response.status = 200
+                        return response
+
+                    ticks = iter([0, 0, 15, 30])
+                    sleep = Mock()
+
+                    def wait(client, pipeline):
+                        return wait_for_archive(
+                            client,
+                            pipeline,
+                            timeout=30,
+                            clock=lambda: next(ticks),
+                            sleep=sleep,
+                        )
+
+                    request = archive_request()
+                    with (
+                        patch.dict("os.environ", {"CIRCLECI_TOKEN": "fixture-token"}),
+                        patch(
+                            "urllib.request.OpenerDirector.open",
+                            side_effect=open_request,
+                        ),
+                        patch(
+                            "Tools.InstallerKit.circleci_distribution.wait_for_archive",
+                            side_effect=wait,
+                        ),
+                        patch("sys.stdout", new_callable=io.StringIO) as stdout,
+                        patch("sys.stderr", new_callable=io.StringIO) as stderr,
+                    ):
+                        result = main(
+                            [
+                                "--project",
+                                PROJECT,
+                                "--definition",
+                                DEFINITION,
+                                "--repository",
+                                request.repository,
+                                "--app",
+                                request.app_id,
+                                "--sha",
+                                request.sha,
+                                "--channel",
+                                request.channel,
+                                "--run",
+                                request.run,
+                                "--attempt",
+                                request.attempt,
+                                "--feed-url",
+                                request.feed_url,
+                                "--output",
+                                str(output),
+                            ]
+                        )
+                    self.assertEqual(result, 0 if recovers else 1)
+                    self.assertEqual(lookups, 2)
+                    self.assertEqual(sleep.call_count, 1 if recovers else 2)
+                    self.assertEqual(
+                        sum(call.method == "POST" for call in server.requests), 1
+                    )
+                    self.assertIn(PIPELINE, stdout.getvalue())
+                    self.assertNotIn("secret", stderr.getvalue())
+                    self.assertNotIn("fixture-token", stderr.getvalue())
+                    if recovers:
+                        self.assertEqual(stderr.getvalue(), "")
+                        self.assertIn("Retrieved and validated", stdout.getvalue())
+                        self.assertEqual(output.read_bytes(), fixture.read_bytes())
+                        self.assertEqual(len(downloads), 1)
+                    else:
+                        self.assertIn(
+                            "archive retrieval did not complete", stderr.getvalue()
+                        )
+                        self.assertEqual(downloads, [])
+                        self.assertFalse(output.parent.exists())
+
+    def test_default_transport_preserves_http_failures_outside_discovery(self):
+        for code in (401, 403, 429, 500):
+            with self.subTest(code=code):
+                error = HTTPError(
+                    "https://circleci.com/secret", code, "secret", {}, io.BytesIO()
+                )
+                self.addCleanup(error.close)
+                with patch("urllib.request.OpenerDirector.open", side_effect=error):
+                    with self.assertRaises(HTTPError) as raised:
+                        CircleCI(PROJECT, "fixture-token").artifact(PIPELINE)
+                self.assertIs(raised.exception, error)
 
     def test_trigger_uses_trusted_main_and_passes_only_build_metadata(self):
         request = archive_request()
@@ -258,6 +374,74 @@ class CircleCIDistributionTests(unittest.TestCase):
             )
             start.assert_not_called()
             self.assertFalse(output.exists())
+
+    def test_command_reports_setup_failure_without_waiting_or_downloading(self):
+        request = archive_request()
+        for status in ("failed", "canceled"):
+            sleep = Mock()
+            self.server.pipeline["state"] = "setup"
+            self.server.workflows = [setup_workflow(status)]
+            with (
+                self.subTest(status=status),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.dict("os.environ", {"CIRCLECI_TOKEN": "fixture-api-token"}),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.CircleCI",
+                    return_value=self.client,
+                ),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.wait_for_archive",
+                    wraps=partial(
+                        wait_for_archive,
+                        clock=Mock(side_effect=[0, 0, 3601]),
+                        sleep=sleep,
+                    ),
+                ),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.download_ipa"
+                ) as download,
+                redirect_stdout(io.StringIO()) as stdout,
+                redirect_stderr(io.StringIO()) as stderr,
+            ):
+                output = Path(temporary) / "Where.ipa"
+                self.assertEqual(
+                    main(
+                        [
+                            "--project",
+                            PROJECT,
+                            "--definition",
+                            DEFINITION,
+                            "--repository",
+                            request.repository,
+                            "--app",
+                            request.app_id,
+                            "--sha",
+                            request.sha,
+                            "--channel",
+                            request.channel,
+                            "--run",
+                            request.run,
+                            "--attempt",
+                            request.attempt,
+                            "--feed-url",
+                            request.feed_url,
+                            "--output",
+                            str(output),
+                        ]
+                    ),
+                    1,
+                )
+                self.assertEqual(
+                    stdout.getvalue(),
+                    f"Waiting for CircleCI archive pipeline {PIPELINE}\n",
+                )
+                self.assertEqual(
+                    stderr.getvalue(),
+                    "error: ValueError; archive retrieval did not complete\n",
+                )
+                sleep.assert_not_called()
+                download.assert_not_called()
+                self.assertFalse(output.exists())
 
     def test_second_app_uses_same_trusted_controller_with_its_own_identity(self):
         from dataclasses import replace
