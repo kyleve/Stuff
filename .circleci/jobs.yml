@@ -639,7 +639,8 @@ jobs:
           command: |
             mise exec node -- npm run check --workspaces --if-present
             mise exec node -- npm run test:unit --workspaces --if-present
-            mise exec node -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
+            # Keep one browser worker within this two-CPU container's budget.
+            mise exec node -- npm run test:browser --workspace stuff-flyover-site -- --workers=1 --reporter=line
       - store_artifacts:
           path: Shared/Flyover/Web/test-results
           destination: web-failures
