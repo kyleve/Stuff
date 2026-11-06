@@ -205,10 +205,8 @@ public func renderSnapshotImage(
 /// A finished capture: the image to compare, and the PNG bytes it was
 /// round-tripped through.
 ///
-/// Both, because they answer different questions and re-deriving either costs a
-/// full encode or decode: `assertSnapshot` wants the image, while the reference
-/// byte-comparison (``compareAgainstReference(capturedPNG:referenceURL:)``) wants
-/// exactly the bytes that would be written to disk.
+/// Cutsheet composition uses the normalized image. Ordinary reference assertions,
+/// review diagnostics, and PNG export reuse the encoded bytes without another encode.
 @_spi(Testing) public struct SnapshotCapture {
     public let image: UIImage
     public let pngData: Data

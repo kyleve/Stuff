@@ -133,9 +133,9 @@ def failure_report(document: Mapping[str, object], result_path: str) -> str:
 class ProgressReporter:
     """State machine that turns raw Swift Testing output into live status lines."""
 
-    SUITE = re.compile(r"^[◇✔✘]\s+Suite (\S+) (started|passed|failed)")
-    TEST_STARTED = re.compile(r"^◇\s+Test (?!run\b)(\S+?) started")
-    TEST_DONE = re.compile(r"^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after")
+    SUITE = re.compile(r"^[◇✔✘━]\s+Suite (.+?) (started|passed|failed)")
+    TEST_STARTED = re.compile(r"^◇\s+Test (?!run\b)(.+?) started")
+    TEST_DONE = re.compile(r"^[✔✘━]\s+Test (?!run\b)(.+?) (passed|failed) after")
     INTERESTING = re.compile(
         r"does not match reference|^error:|Failure collecting|^SNAPSHOT_RETRY |"
         r"\*\* TEST (SUCCEEDED|FAILED) \*\*"
@@ -195,6 +195,9 @@ class ProgressReporter:
         self.finish()
 
     def consume(self, line: str) -> None:
+        # Swift Testing prefixes some parameterized results with a zero-width
+        # space and uses a different glyph for passes with known issues.
+        line = line.lstrip("\u200b")
         if self.count_images and line.startswith("SNAPSHOT_TIMING "):
             self.images += 1
             self.emit()

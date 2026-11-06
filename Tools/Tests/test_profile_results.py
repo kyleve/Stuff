@@ -31,11 +31,25 @@ Link (1 task) | 1.0 seconds
 
         report = test_report(documents, top=2, threshold=0.1)
 
-        self.assertIn("2 tests, summed self-time 0.55s", report)
+        self.assertIn("2 tests, summed execution time 0.55s", report)
         self.assertLess(report.index("slow()"), report.index("fast()"))
         self.assertNotIn("skipped()", report)
         self.assertIn("UITests (1 tests)", report)
         self.assertIn("1 test(s) at/over the 0.1s threshold", report)
+
+    def test_parameterized_work_is_ranked_by_total_not_average_duration(self):
+        document = self.document("CoreTests", "allConfigurations(_:)", "Passed", 0.2)
+        document["testNodes"][0]["children"][0]["children"] = [
+            {"nodeType": "Arguments", "durationInSeconds": 0.1},
+            {"nodeType": "Arguments", "durationInSeconds": 0.3},
+        ]
+        other = self.document("CoreTests", "single()", "Passed", 0.25)
+
+        report = test_report([document, other], top=2, threshold=0.3)
+
+        self.assertIn("2 tests, summed execution time 0.65s", report)
+        self.assertLess(report.index("allConfigurations(_:)"), report.index("single()"))
+        self.assertIn("1 test(s) at/over the 0.3s threshold", report)
 
     def document(self, bundle, name, result, duration):
         return {

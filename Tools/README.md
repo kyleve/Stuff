@@ -47,6 +47,11 @@ result reporting without requiring Java in its tests. The Xcode-facing root
 commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
+The profiler and CI JUnit export use precise execution durations from `xcode_results.py`.
+Parameterized tests retain one test identity and sum their argument and repetition durations.
+These sums measure elapsed test work. Concurrent executions can overlap, so the sum is not the suite wall time.
+The progress report counts completed test functions, including named tests and tests with expected issues.
+Skipped functions and parameter arguments do not add separate completion counts.
 `flyover_cli.py` parses the public Flyover commands and reports exit status.
 `flyover_png.py` validates PNG dimensions, chunk checksums, scanline filters, and the complete compressed stream before publication.
 It accepts native non-interlaced grayscale and RGB captures, with optional alpha, at 8 or 16 bits per channel.

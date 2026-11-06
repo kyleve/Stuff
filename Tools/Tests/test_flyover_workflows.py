@@ -65,14 +65,22 @@ class FlyoverWorkflowTests(unittest.TestCase):
         self.assertEqual(
             cache_steps(
                 config["commands"]["prepare_builder"]["steps"],
-                {"use_caches": True, "require_simulator": True},
+                {
+                    "use_caches": True,
+                    "require_simulator": True,
+                    "require_site_dependencies": True,
+                },
             ).count("restore_cache"),
             3,
         )
         self.assertEqual(
             cache_steps(
                 config["commands"]["prepare_builder"]["steps"],
-                {"use_caches": True, "require_simulator": True},
+                {
+                    "use_caches": True,
+                    "require_simulator": True,
+                    "require_site_dependencies": True,
+                },
             ).count("save_cache"),
             3,
         )

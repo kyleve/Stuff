@@ -156,6 +156,9 @@ commands:
       require_simulator:
         type: boolean
         default: true
+      require_site_dependencies:
+        type: boolean
+        default: true
     steps:
       - checkout_without_lfs
       - when:
@@ -178,9 +181,12 @@ commands:
             fi
             mise trust .mise.toml
             mise install
-      - run:
-          name: Install site dependencies
-          command: mise exec -- npm ci
+      - when:
+          condition: << parameters.require_site_dependencies >>
+          steps:
+            - run:
+                name: Install site dependencies
+                command: mise exec -- npm ci
       - when:
           condition: << parameters.use_caches >>
           steps:
@@ -463,6 +469,7 @@ jobs:
       - prepare_builder:
           test_workdir: test-output-audience-build
           require_simulator: false
+          require_site_dependencies: false
       - run:
           name: Select Where audience
           command: |
