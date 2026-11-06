@@ -15,6 +15,8 @@ Planning can produce incomplete drafts for discussion. Readiness requires the re
 3. Record the initial outcome, known constraints, and open questions before substantial research.
    Separate user requirements, observed behavior, and assumptions.
    Update these files throughout discovery instead of keeping findings only in chat.
+4. Initialize the overview's Planning checkpoint through [Maintain the checkpoint](../SKILL.md#maintain-the-checkpoint).
+   Maintain it through discovery, research, questions, drafting, and review, even before numbered plans exist.
 
 ## Discover the requirements
 
@@ -72,17 +74,17 @@ Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#que
 3. Record each answer, its source, and date, then mark the question `answered`.
    Link GitHub answers to their comments. Summarize chat answers with their date.
    If an answer is partial or conflicting, keep the question `open` and identify what remains unresolved.
-4. Integrate the answer into affected requirements, exclusions, decisions, diagrams, Swift sketches, steps, and acceptance criteria.
-   Update dependent plans and invalidate evidence that no longer applies.
-   Use existing authorization for scope changes or request the missing decision.
-5. Review the affected sections for consistency and link them from the question's resolution record.
-   Mark the question `closed` only after integration and review finish.
+4. Integrate the answer through [Apply a revision](revise-plan.md).
+   Collect its review result and any new questions before continuing this loop.
+5. Link the integrated sections and review result from the question's resolution record.
+   Mark the question `closed` only when the revision procedure confirms integration and review are complete.
    If the question no longer applies, record the reason and relevant scope decision before closing it.
 6. For intentional deferral, record the reason, revisit condition, next action, and a backlog link for remaining work.
    Mark the question `deferred` without treating it as answered.
    For a blocking question, keep affected plans blocked.
    Only an integrated answer or authorized removal of the dependency clears that blocker.
-7. Reassess readiness and record any new questions created by the answers.
+7. After closing questions, refresh readiness through [Review the plan](#review-the-plan).
+   Collect any new questions before the next iteration of this loop.
    If evidence invalidates a closed answer or a deferral's revisit condition occurs, reopen that question with its history intact.
    Repeat the affected research, question, and review steps until no further answers are needed for the selected scope.
 8. If user input is pending, continue independent work and preserve the exact pending questions for handoff.
@@ -131,13 +133,16 @@ Review the complete series before marking plans ready, including changes from di
 6. Read the plan as a fresh executor without prior chat context.
    Find missing decisions, prerequisites, and ambiguous instructions that would force that executor to guess.
 7. Correct supported findings and repeat the affected comparisons.
-   Route new questions through [the question loop](#resolve-questions).
+   Record new questions in the register and return them to the caller for [the question loop](#resolve-questions).
+   Do not start a nested question loop during this review.
    Record the review date, source revision, reviewed scope, findings, dispositions, and remaining limits in Plan review.
    If no findings remain, say so without claiming that the implementation is verified.
 8. Mark executable plans `ready` only when no unresolved question prevents their safe implementation or acceptance.
    Mark affected plans `blocked` when an external answer or feasibility result is required.
    Record the blocker and next action.
    Leave plans still being developed as `draft`.
+   Preserve `executing` for unchanged work already in progress, and preserve valid `complete` or `superseded` records.
    Unaffected plans can be ready when their dependencies permit execution.
 
-Return to [the planning skill](../SKILL.md#create-a-plan) for publication and handoff.
+When called by another procedure, return the review result to that caller without publishing.
+After initial plan development finishes, return to [Create a plan](../SKILL.md#create-a-plan) for publication and handoff.

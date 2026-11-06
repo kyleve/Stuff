@@ -2,6 +2,18 @@
 
 <!-- Copy to Plans/YYYY-MM-DD-topic/README.md. Replace placeholders and remove instructions. -->
 
+## Planning checkpoint
+
+- Updated: [Date and relevant source revision]
+- Operation: [Plan, revise, or execute]
+- Requested scope and source: [Selected work and limits, with a dated request summary or link]
+- Stage: [Discovery, research, questions, drafting, review, implementation, or handoff]
+- Completed: [Last completed activity and link to its findings]
+- Pending: [Unfinished investigation, question IDs, feedback links, or numbered-plan resume points]
+- Next action: [Exact continuation step, or Waiting for a specified answer or execution request]
+
+<!-- Update at stage changes and stopping points. Record existing intent, not inferred permission to implement. -->
+
 ## Outcome and scope
 
 [Explain the user-visible outcome and included work.]

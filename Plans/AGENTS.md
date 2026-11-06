@@ -11,7 +11,7 @@ Use the [planning skill](../.agents/skills/planning/SKILL.md) to create, revise,
 - Keep execution order in the overview and explicit dependency links in each plan.
   Dependencies must exist and form an acyclic graph.
 - Each numbered plan owns its status, progress, evidence, and resume point.
-  The overview owns shared context and decisions.
+  The overview owns shared context, decisions, and the operation checkpoint.
 - Track plans and concise execution records in Git.
   Keep completed plans at their original paths.
 - When scope changes, preserve completed history.
@@ -27,6 +27,15 @@ Use `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
 `blocked` requires a recorded blocker and next action.
 `complete` requires acceptance evidence and the required review and publication.
 `superseded` requires a replacement link or a recorded cancellation reason.
+Implementation requires a current plan review and status `ready` or `executing`.
+
+## Planning checkpoint
+
+Keep a checkpoint in the overview before substantial discovery or research, even when numbered plans do not exist yet.
+Record the operation, requested scope and its source, current stage, completed work, pending work, and next action.
+Update it at stage changes and stopping points.
+Link question records and numbered-plan resume points instead of duplicating them.
+The checkpoint records existing user intent, not additional authorization.
 
 ## Questions
 

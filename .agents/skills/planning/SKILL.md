@@ -26,6 +26,18 @@ If the target is ambiguous, inspect the request, branch, and linked PR first.
 If several candidates remain, ask which plan to use.
 Do not select an unrelated plan by its date or filename alone.
 
+## Maintain the checkpoint
+
+On resume, read the overview's Planning checkpoint before selecting the next action.
+Reconcile it with the current request, prior user instructions, and checkout.
+If the recorded operation or scope is unclear, ask before starting implementation.
+The checkpoint records user intent. It does not grant additional authorization.
+
+Update the checkpoint when work starts, the operation or stage changes, and at each stopping point.
+Record the operation, requested scope and its source, stage, completed work, pending work, and exact next action.
+Link question IDs and numbered-plan resume points instead of copying their state.
+After planning finishes, record whether execution is already requested or awaits a new request.
+
 ## Create a plan
 
 Read [references/develop-plan.md](references/develop-plan.md) before developing an initial plan.
@@ -40,25 +52,16 @@ Return the plan path, PR link, and material open questions.
 
 ## Revise a plan
 
-For GitHub feedback, read [references/github-review.md](references/github-review.md).
-For direct feedback, apply the same plan updates without fetching unrelated GitHub discussions.
+For GitHub feedback, collect comments through [Read the feedback](references/github-review.md#read-the-feedback).
+For direct feedback, use the supplied changes without fetching unrelated GitHub discussions.
 
-1. Read the current plan, shared decisions, execution record, and affected source.
-2. Update the relevant stories, requirements, exclusions, diagrams, Swift sketches, steps, and verification together.
-   Trace changes into dependent plans and the overview.
-   Preserve story and requirement IDs so existing review comments remain traceable.
-   If feedback would cross an explicit exclusion, use existing user authorization or request the missing decision before changing it.
-3. Record the decision, reason, date, and feedback link in the owning plan.
-   Put series-wide decisions in the overview.
-   Use [the question loop](references/develop-plan.md#resolve-questions) for new questions or answers to existing questions.
-   Avoid a transcript of the whole discussion.
-4. If changed acceptance criteria invalidate earlier evidence, record that evidence as stale.
-   Reset affected completion checkboxes and status to reflect the remaining work.
-   Preserve the earlier execution record.
-   For completed plans, use the follow-up rule in the Plans contract.
-5. If feedback changes the underlying requirements or evidence, revisit discovery or research.
-   Use [the plan review procedure](references/develop-plan.md#review-the-plan) on the affected series.
-   Publish through github-workflow.
+1. Route questions and answers through [the question loop](references/develop-plan.md#resolve-questions).
+   That loop uses [Apply a revision](references/revise-plan.md) to integrate answers.
+   For changes without a question, use Apply a revision directly.
+2. Resolve any returned questions within scope, or record them for handoff.
+   Update the checkpoint with remaining work and the next action.
+3. Publish through [github-workflow](../github-workflow/SKILL.md).
+   For GitHub feedback, then use [Close the loop](references/github-review.md#close-the-loop).
    Report unresolved decisions and their effect on execution.
 
 ## Execute or resume
@@ -67,16 +70,22 @@ If resuming planning or revision, recover the recorded state and use that operat
 
 1. Read the overview, selected plans, dependency records, and applicable repository instructions.
    Inspect the current branch, working tree, commits, and actual source.
-   If a linked PR exists, read its current plan feedback through the GitHub review reference.
+   If a linked PR exists, read its current plan feedback through [Read the feedback](references/github-review.md#read-the-feedback).
+   For relevant changes, use Revise a plan within the existing authorization.
    If feedback is unavailable, report the gap rather than assuming the review is clear.
 2. Reconcile recorded progress with the checkout before repeating work.
    Resume pending question integration and inspect deferred questions whose revisit conditions now apply.
    Distinguish committed implementation, uncommitted work, and steps that never ran.
    If recorded evidence conflicts with the source, investigate and correct the record.
-3. Verify that dependencies are complete and their required results exist in the checkout.
-   If the selected plan still has an unresolved blocker, stop its implementation and report the missing prerequisite.
-   Exclude `superseded` plans from execution.
-   If a dependency is superseded, update its consumers to the replacement before continuing.
+3. Apply the readiness check before starting or resuming implementation:
+   - Skip `complete` plans whose evidence matches the checkout and exclude `superseded` plans.
+   - For a `draft` or missing review record, finish the necessary planning and use [Review the plan](references/develop-plan.md#review-the-plan).
+   - For a `blocked` plan, resolve its blocker and repeat the affected plan review before proceeding.
+   - If material plan changes or changed source assumptions invalidate a prior review, repeat that review.
+   - Require a current review and status `ready` or `executing` before implementing any step.
+   - Verify that dependencies are complete and their required results exist in the checkout.
+   - If a dependency is superseded, revise its consumers to the replacement before continuing.
+   If readiness cannot be established, preserve the checkpoint and continue only independent, ready work within the authorized scope.
 4. Mark the selected plan `executing` and implement its steps in order.
    Keep implementation within the requirements and exclusions.
    If additional scope seems necessary, record the reason and request authorization before implementing it.
