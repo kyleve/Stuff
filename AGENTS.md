@@ -324,8 +324,10 @@ walkthroughs, and persuasion belong in the PR that proved them.
 
 A few files outside the module pair carry *state* rather than rules:
 
-- **`TODOs.md`** — the durable backlog, and the **only** place an actionable item
-  lives. One per area, at that area's root, plus the root
+- **`TODOs.md`** — the durable backlog. Deferred and unselected work lives here.
+  Selected work can link to an execution plan in `Plans/`.
+  Keep one backlog entry rather than copying it into a second backlog.
+  One per area, at that area's root, plus the root
   [`TODOs.md`](TODOs.md), which additionally owns the **item format** and the
   **placement rule**: an item goes in the *lowest* `TODOs.md` spanning every area
   it touches, up to root. Read that file before adding an item. Have a new
@@ -333,6 +335,11 @@ A few files outside the module pair carry *state* rather than rules:
   deferred rather than dropping it (see the
   [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill). A completed
   item moves to "Completed issues". Never delete a completed item.
+- **`Plans/`** — tracked plans and execution records for selected work.
+  Use the [`planning`](.agents/skills/planning/SKILL.md) skill to create, revise,
+  execute, or resume a plan, including revisions from GitHub comments.
+  [`Plans/AGENTS.md`](Plans/AGENTS.md) owns the file layout and lifecycle.
+  A direct request can start a plan without a duplicate backlog entry.
 - **`INBOX.md`** — the root drop-box for raw, unverified human notes. Agents
   **read from it and promote out of it**. They never file new items there
   (agent-found work goes straight to the right `TODOs.md`). The `todo-triage`

@@ -7,6 +7,11 @@ docs. Anything scoped to a single area lives in that area's own `TODOs.md`.
 This file also owns the **item format** and the **placement rule** every
 `TODOs.md` in the repo follows; the others point here rather than restating them.
 
+Selected items can link to execution plans in [`Plans/`](Plans/README.md).
+The backlog entry retains priority and disposition. The plan owns execution detail and progress.
+Direct requests can start plans without duplicate backlog entries.
+Deferred work remains in the owning `TODOs.md`.
+
 ## Format
 
 One item per bullet:

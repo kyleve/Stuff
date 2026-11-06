@@ -431,6 +431,10 @@ a long review, or to pick up a dependency:
 
 ## Review comments
 
+For feedback on `Plans/` files, also use [planning](../planning/SKILL.md).
+Its [GitHub review procedure](../planning/references/github-review.md) covers plan revisions and dependent plans.
+The addressing rules below also apply when the fix changes a plan rather than code.
+
 Three modes:
 
 **Exploring (user has not asked you to act):** read open review threads, summarize
