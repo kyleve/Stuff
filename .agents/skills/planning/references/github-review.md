@@ -29,7 +29,8 @@ Keep unrelated work moving where the dependency graph permits it.
 
 For each substantive item:
 
-- Apply the revision to all affected plan sections and dependent plans.
+- Apply the revision to affected stories, requirements, exclusions, diagrams, Swift sketches, steps, and dependent plans.
+- If feedback changes a flow or interface, update its diagram, sketch, and acceptance criteria together.
 - Record the comment URL, decision, and reason in the owning decision table.
 - If a request is declined, record the reason.
 - If work is deferred, link its owning `TODOs.md` item.

@@ -28,7 +28,19 @@ Use `draft`, `ready`, `executing`, `blocked`, `complete`, or `superseded`.
 `complete` requires acceptance evidence and the required review and publication.
 `superseded` requires a replacement link or a recorded cancellation reason.
 
+## Reviewable design
+
+- Give user stories, requirements, and exclusions stable IDs within each series.
+  Keep shared definitions in the overview and link them from each implementing plan.
+  Map requirements to deliverables and acceptance criteria.
+- Include Mermaid data flows and high-level Swift pseudocode for proposed architecture.
+  Label existing components, proposed components, and omitted details.
+  If a diagram or sketch does not apply, record the reason instead of inventing architecture.
+- State what is not required and what implementation approaches are explicitly avoided.
+  Keep these exclusions consistent across requirements, diagrams, sketches, and steps.
+  An exclusion remains in force until the user authorizes its revision.
+
 ## Review
 
-Verify links, dependencies, status, and agreement between steps and acceptance criteria.
+Verify links, dependencies, status, and agreement between requirements, design, steps, exclusions, and acceptance criteria.
 When revising plans from GitHub comments, preserve decisions and execution evidence.

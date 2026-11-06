@@ -46,10 +46,22 @@ Do not select an unrelated plan by its date or filename alone.
    Prefer sequential execution unless independent work materially benefits from parallel execution.
    Follow the session's delegation rules.
 6. Write concrete steps with affected paths, interfaces, and observable acceptance criteria.
+   Define stable story and requirement IDs in the overview.
+   Map each requirement to an implementing plan and its acceptance criteria.
+   State both unnecessary capabilities and explicitly avoided approaches.
+   Describe data flows with fenced Mermaid diagrams using the actual component names and data passed between them.
+   Sketch proposed ownership, interfaces, and composition with fenced Swift pseudocode.
+   Label existing APIs, proposed APIs, assumptions, and omitted details.
+   If a design view does not apply, record the reason.
    Use repository-relative source paths and working directories for commands.
    Include recovery instructions for steps that can leave partial state.
    Link shared context instead of copying it across every plan.
 7. Review the complete series for missing requirements, dependency cycles, conflicting interfaces, and untestable acceptance criteria.
+   Trace stories through requirements, diagrams, sketches, steps, and acceptance criteria.
+   Verify that the proposed design respects every explicit exclusion.
+   If a renderer is available, verify Mermaid syntax and rendering.
+   Otherwise report the rendering limit.
+   Treat Swift pseudocode as a design sketch, not compilation evidence.
    Verify that a fresh session can continue from the files and their repository references.
    Mark executable plans `ready`.
 8. Use [github-workflow](../github-workflow/SKILL.md) to publish the reviewable plan files, unless the user requests local-only work.
@@ -63,8 +75,10 @@ For GitHub feedback, read [references/github-review.md](references/github-review
 For direct feedback, apply the same plan updates without fetching unrelated GitHub discussions.
 
 1. Read the current plan, shared decisions, execution record, and affected source.
-2. Update the relevant requirements, steps, interfaces, and verification together.
+2. Update the relevant stories, requirements, exclusions, diagrams, Swift sketches, steps, and verification together.
    Trace changes into dependent plans and the overview.
+   Preserve story and requirement IDs so existing review comments remain traceable.
+   If feedback would cross an explicit exclusion, use existing user authorization or request the missing decision before changing it.
 3. Record the decision, reason, date, and feedback link in the owning plan.
    Put series-wide decisions in the overview.
    Avoid a transcript of the whole discussion.
@@ -91,6 +105,8 @@ If resuming planning or revision, recover the recorded state and use that operat
    Exclude `superseded` plans from execution.
    If a dependency is superseded, update its consumers to the replacement before continuing.
 4. Mark the selected plan `executing` and implement its steps in order.
+   Keep implementation within the requirements and exclusions.
+   If additional scope seems necessary, record the reason and request authorization before implementing it.
    Use [running-tests](../running-tests/SKILL.md) for appropriate verification.
    Use [code-review](../code-review/SKILL.md) and github-workflow for review and publication.
 5. After each meaningful step, update progress, verification evidence, and the resume point.

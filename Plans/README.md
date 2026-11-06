@@ -23,6 +23,9 @@ For example: "Use $planning to plan the backup migration. Publish the plan for r
 The skill copies the [overview template](../.agents/skills/planning/assets/overview.md) and [plan template](../.agents/skills/planning/assets/plan.md).
 A small change needs only one numbered plan.
 Each plan includes acceptance criteria, progress, decisions, and a resume point.
+User stories and requirements have stable IDs for review and acceptance checks.
+Mermaid diagrams show data flows. Swift pseudocode shows proposed architecture, ownership, and interfaces.
+Plans also state unnecessary capabilities and explicitly avoided approaches to constrain implementation scope.
 Planning alone does not start implementation.
 
 ## Review on GitHub
