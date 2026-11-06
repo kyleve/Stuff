@@ -7,7 +7,7 @@ from Tools.repository import repository_root
 
 class FlyoverWorkflowTests(unittest.TestCase):
     def test_credential_diagnostic_does_not_read_header_values(self):
-        text = (repository_root(__file__) / ".circleci/config.yml").read_text()
+        text = (repository_root(__file__) / ".circleci/continue.yml").read_text()
         diagnostic = text.split("  validate_build_environment:", 1)[1].split(
             "  validate_simulator_environment:", 1
         )[0]
@@ -18,7 +18,7 @@ class FlyoverWorkflowTests(unittest.TestCase):
         self.assertNotIn("sed -E", diagnostic)
 
     def test_publication_jobs_never_restore_or_save_shared_caches(self):
-        path = repository_root(__file__) / ".circleci/config.yml"
+        path = repository_root(__file__) / ".circleci/continue.yml"
         config = json.loads(
             subprocess.check_output(
                 [
@@ -92,7 +92,7 @@ class FlyoverWorkflowTests(unittest.TestCase):
         )
 
     def test_unsigned_worker_is_main_only_and_serial(self):
-        text = (repository_root(__file__) / ".circleci/config.yml").read_text()
+        text = (repository_root(__file__) / ".circleci/continue.yml").read_text()
         job = text.split("  export-flyover:", 1)[1].split("  archive-app:", 1)[0]
         self.assertIn("Tools.flyover_ci", job)
         self.assertNotIn("context:", job)

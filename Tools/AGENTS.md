@@ -45,6 +45,19 @@ These rules also apply when changing a root command or installer that calls this
 - Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
   Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).
 
+## CI selection
+
+- Keep documentation classification in `ci_changes.py` for both CI providers.
+  Compare the complete PR from its merge base to the event's head SHA, including both sides of renames.
+  Empty diffs, unavailable history, and classification failures must select full CI.
+- Add Markdown build, rendered-content, or fixture directories to the classifier's exclusions before introducing those consumers.
+  Keep executable and symlink changes outside the documentation shortcut.
+- Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
+  Keep main pushes, explicit full runs, and publication workflows outside the shortcut.
+  Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
+- Stop publication polling when a setup workflow fails before the requested publication workflow exists.
+  Guards: [test_circleci_pipeline.py](Tests/test_circleci_pipeline.py) and the installer and Flyover controller command tests.
+
 ## Installer publication
 
 Both websites share the root npm workspace and `astro_site.py` launcher.

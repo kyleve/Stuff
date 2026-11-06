@@ -425,7 +425,7 @@ a long review, or to pick up a dependency:
   GitHub Actions PR jobs use the default PR merge checkout in
   [ci.yml](../../../.github/workflows/ci.yml).
   CircleCI checks out `pipeline.git.revision` directly in
-  [config.yml](../../../.circleci/config.yml).
+  [continue.yml](../../../.circleci/continue.yml).
   Compare that revision, base, toolchain, and selected suites with the local run.
   If the failure is an integration conflict, bring in the current base through the applicable branch or stack workflow.
 

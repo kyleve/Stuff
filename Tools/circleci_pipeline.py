@@ -139,10 +139,9 @@ class CircleCI:
                 "CircleCI pipeline failed configuration or project validation"
             )
         try:
+            pipeline_workflows = self.items(f"pipeline/{pipeline}/workflow")
             workflows = [
-                item
-                for item in self.items(f"pipeline/{pipeline}/workflow")
-                if item["name"] == self.workflow
+                item for item in pipeline_workflows if item["name"] == self.workflow
             ]
         except HTTPError as error:
             if error.code != 404:
@@ -150,6 +149,18 @@ class CircleCI:
             error.close()
             return None
         if not workflows:
+            # Setup can fail before continuation creates the requested workflow.
+            for workflow in pipeline_workflows:
+                if workflow.get("tag") == "setup" and workflow["status"] in (
+                    "failed",
+                    "canceled",
+                    "error",
+                    "unauthorized",
+                    "not_run",
+                ):
+                    raise ValueError(
+                        f"CircleCI setup workflow ended with status {workflow['status']}"
+                    )
             return None
         if len(workflows) != 1 or workflows[0]["pipeline_id"] != pipeline:
             raise ValueError(
