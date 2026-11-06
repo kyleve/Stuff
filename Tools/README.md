@@ -117,6 +117,7 @@ CircleCI starts with [`.circleci/config.yml`](../.circleci/config.yml) on Linux.
 Documentation-only PRs complete the existing `iOS CI` workflow with a small Linux job.
 Other PRs retain the existing macOS build and test graph.
 Installer and Flyover publication retain their event gates, parameters, and signing boundaries.
+If setup fails before publication starts, both controllers stop on the next poll and report failure.
 The setup and continuation configurations declare the same original parameters. The continuation request passes only the new classification parameter.
 
 This flow requires CircleCI's dynamic configuration setting, which new projects enable by default.

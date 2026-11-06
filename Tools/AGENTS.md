@@ -55,6 +55,8 @@ These rules also apply when changing a root command or installer that calls this
 - Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
   Keep main pushes, explicit full runs, and publication workflows outside the shortcut.
   Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
+- Stop publication polling when a setup workflow fails before the requested publication workflow exists.
+  Guards: [test_circleci_pipeline.py](Tests/test_circleci_pipeline.py) and the installer and Flyover controller command tests.
 
 ## Installer publication
 

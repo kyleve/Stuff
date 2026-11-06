@@ -1,4 +1,5 @@
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
+from functools import partial
 import io
 import json
 from pathlib import Path
@@ -26,6 +27,7 @@ from Fixtures.circleci_distribution_fixtures import (
     PROJECT,
     CircleCIServer,
     archive_request,
+    setup_workflow,
     write_archive,
 )
 
@@ -258,6 +260,74 @@ class CircleCIDistributionTests(unittest.TestCase):
             )
             start.assert_not_called()
             self.assertFalse(output.exists())
+
+    def test_command_reports_setup_failure_without_waiting_or_downloading(self):
+        request = archive_request()
+        for status in ("failed", "canceled"):
+            sleep = Mock()
+            self.server.pipeline["state"] = "setup"
+            self.server.workflows = [setup_workflow(status)]
+            with (
+                self.subTest(status=status),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.dict("os.environ", {"CIRCLECI_TOKEN": "fixture-api-token"}),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.CircleCI",
+                    return_value=self.client,
+                ),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.wait_for_archive",
+                    wraps=partial(
+                        wait_for_archive,
+                        clock=Mock(side_effect=[0, 0, 3601]),
+                        sleep=sleep,
+                    ),
+                ),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.download_ipa"
+                ) as download,
+                redirect_stdout(io.StringIO()) as stdout,
+                redirect_stderr(io.StringIO()) as stderr,
+            ):
+                output = Path(temporary) / "Where.ipa"
+                self.assertEqual(
+                    main(
+                        [
+                            "--project",
+                            PROJECT,
+                            "--definition",
+                            DEFINITION,
+                            "--repository",
+                            request.repository,
+                            "--app",
+                            request.app_id,
+                            "--sha",
+                            request.sha,
+                            "--channel",
+                            request.channel,
+                            "--run",
+                            request.run,
+                            "--attempt",
+                            request.attempt,
+                            "--feed-url",
+                            request.feed_url,
+                            "--output",
+                            str(output),
+                        ]
+                    ),
+                    1,
+                )
+                self.assertEqual(
+                    stdout.getvalue(),
+                    f"Waiting for CircleCI archive pipeline {PIPELINE}\n",
+                )
+                self.assertEqual(
+                    stderr.getvalue(),
+                    "error: ValueError; archive retrieval did not complete\n",
+                )
+                sleep.assert_not_called()
+                download.assert_not_called()
+                self.assertFalse(output.exists())
 
     def test_second_app_uses_same_trusted_controller_with_its_own_identity(self):
         from dataclasses import replace

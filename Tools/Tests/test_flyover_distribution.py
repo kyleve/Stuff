@@ -1,4 +1,5 @@
 import io
+from functools import partial
 from http.client import BadStatusLine
 from pathlib import Path
 import tempfile
@@ -7,10 +8,70 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 from Tools.flyover_distribution import CaptureRequest, download, main, publish
+from Tools.circleci_pipeline import CircleCI, wait_for_archive
 from Tools.Tests.flyover_bundle_support import SHA
+from Fixtures.circleci_distribution_fixtures import (
+    PROJECT,
+    PIPELINE,
+    DEFINITION,
+    CircleCIServer,
+    setup_workflow,
+)
 
 
 class FlyoverDistributionTests(unittest.TestCase):
+    def test_command_reports_setup_failure_without_waiting_or_publishing(self):
+        environment = {
+            "CIRCLECI_PROJECT": PROJECT,
+            "CIRCLECI_PIPELINE": DEFINITION,
+            "GITHUB_REPOSITORY": "owner/repo",
+            "GITHUB_RUN_ID": "1",
+            "GITHUB_RUN_ATTEMPT": "1",
+            "CIRCLECI_TOKEN": "fixture-api-token",
+        }
+        for status in ("failed", "canceled"):
+            server = CircleCIServer()
+            server.pipeline["state"] = "setup"
+            server.workflows = [setup_workflow(status)]
+            client = CircleCI(
+                PROJECT,
+                "fixture-api-token",
+                server,
+                workflow="Flyover Export",
+                job="Export Flyover",
+                artifact="flyover/atlases.zip",
+            )
+            sleep = Mock()
+            with (
+                self.subTest(status=status),
+                patch.dict("os.environ", environment),
+                patch("Tools.flyover_distribution.CircleCI", return_value=client),
+                patch(
+                    "Tools.flyover_distribution.wait_for_archive",
+                    wraps=partial(
+                        wait_for_archive,
+                        clock=Mock(side_effect=[0, 0, 3601]),
+                        sleep=sleep,
+                    ),
+                ),
+                patch("Tools.flyover_distribution.download") as download_archive,
+                patch("Tools.flyover_distribution.subprocess.run") as run,
+                patch("sys.stdout", new_callable=io.StringIO) as stdout,
+                patch("sys.stderr", new_callable=io.StringIO) as stderr,
+            ):
+                self.assertEqual(main(["--sha", SHA]), 1)
+                self.assertEqual(
+                    stdout.getvalue(),
+                    f"Waiting for Flyover capture pipeline {PIPELINE}\n",
+                )
+                self.assertEqual(
+                    stderr.getvalue(),
+                    "flyover publication: ValueError; publication did not complete\n",
+                )
+                sleep.assert_not_called()
+                download_archive.assert_not_called()
+                run.assert_not_called()
+
     def test_malformed_header_never_prints_token_or_traceback(self):
         environment = {
             "CIRCLECI_PROJECT": "gh/owner/repo",
