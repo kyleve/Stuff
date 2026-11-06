@@ -83,5 +83,61 @@
         "Build & Test (macOS)": 5.25
       }
     }
+  ],
+  "calculation": "ceil(ceil(durationMilliseconds / 1000) * creditsPerMinute / 60) * creditUSD per job",
+  "sources": {
+    "rates": "https://circleci.com/pricing/price-list/",
+    "creditUSD": "https://circleci.com/docs/guides/plans-pricing/credits/",
+    "rounding": "https://circleci.com/docs/reference/faq/#if-a-container-is-used-for-under-one-minute-do-i-have-to-pay-for-a-full-minute"
+  },
+  "circleciSamples": [
+    {
+      "head": "e369e1529fd86087040a68b81aa6a15ef9b2b800",
+      "pipeline": 2111,
+      "pipelineID": "9a7ed831-6f1c-4e8f-af9d-17ee4eb61526",
+      "workflowID": "39723efe-cd69-42b6-b369-6cf640102b28",
+      "url": "https://app.circleci.com/workflow/39723efe-cd69-42b6-b369-6cf640102b28",
+      "jobs": [
+        {
+          "name": "Lint and Tool Tests",
+          "number": 3727,
+          "id": "62822217-b12d-49e3-a5cf-814d2e491c63",
+          "status": "success",
+          "resourceClass": "m4pro.medium",
+          "startedAt": "2026-11-06T19:24:43.179Z",
+          "stoppedAt": "2026-11-06T19:27:24.270Z",
+          "durationMilliseconds": 161090
+        },
+        {
+          "name": "Architecture and macOS Tests",
+          "number": 3726,
+          "id": "3a8cf754-c70e-429f-bfec-3781f29525fd",
+          "status": "success",
+          "resourceClass": "m4pro.medium",
+          "startedAt": "2026-11-06T19:24:45.287Z",
+          "stoppedAt": "2026-11-06T19:28:52.744Z",
+          "durationMilliseconds": 247456,
+          "includedSteps": [
+            {
+              "name": "WebKit browser regressions",
+              "includes": "Browser installation and all three WebKit projects",
+              "startedAt": "2026-11-06T19:27:52.762Z",
+              "stoppedAt": "2026-11-06T19:28:51.267Z",
+              "durationMilliseconds": 58505
+            }
+          ]
+        },
+        {
+          "name": "Web Checks and Tests",
+          "number": 3728,
+          "id": "c750275f-4aac-4465-9555-76367d64534f",
+          "status": "success",
+          "resourceClass": "docker.medium",
+          "startedAt": "2026-11-06T19:24:42.143Z",
+          "stoppedAt": "2026-11-06T19:27:09.714Z",
+          "durationMilliseconds": 147570
+        }
+      ]
+    }
   ]
 }

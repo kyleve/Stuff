@@ -135,23 +135,28 @@ Only the migrated checks and Linux publication work add compute.
 and 10 credits/minute for the standard Docker `medium` class.
 At [$0.0006 per credit](https://circleci.com/docs/guides/plans-pricing/credits/), these cost $0.12 and $0.006 per minute.
 
-The initial model used six recent successful GitHub CI attempts and put all browser tests on Linux:
+The three migrated jobs passed in [pipeline 2111](https://app.circleci.com/workflow/39723efe-cd69-42b6-b369-6cf640102b28).
+Their measured executor times give this compute estimate:
 
-| Migrated work | Minutes | Estimated CircleCI cost |
-| --- | ---: | ---: |
-| Lint and tool checks, combined | 6.35 | $0.76 |
-| Architecture and host checks, combined | 7.85 | $0.94 |
-| Web checks on Linux | 7.18 | $0.04 |
-| Total | 21.38 | **$1.75 per full run** |
+| Migrated work | Runtime | Credits | Estimated cost |
+| --- | ---: | ---: | ---: |
+| Lint and tool checks | 2m 41s | 540 | $0.32 |
+| Architecture, host, and WebKit checks | 4m 7s | 827 | $0.50 |
+| Web checks and Chromium on Linux | 2m 28s | 25 | $0.02 |
+| Total | | 1,392 | **$0.84 per full run** |
 
-These are GitHub timings applied to CircleCI rates, not a benchmark of the new jobs.
-WebKit now shares the architecture/host Mac job; measure that split before treating this model as a current budget.
-Shared setup can save time; cold caches, different hardware, and Linux browser setup can add time.
-Use **$1.50–$2.00 per full run** for initial budgeting.
-The [source measurements](cost-estimate.json) retain run IDs and durations.
+The WebKit step includes browser installation and tests; it took 58.5 seconds, or approximately $0.12 of the Mac job above.
+All browser projects passed: 97 Chromium tests and 96 WebKit tests, with five existing skips.
+CircleCI [rounds duration up to seconds, then usage up to credits](https://circleci.com/docs/reference/faq/#if-a-container-is-used-for-under-one-minute-do-i-have-to-pay-for-a-full-minute).
+The table applies that rule to each job's precise API duration; displayed times and dollars are rounded.
+
+This is one successful sample of the migrated jobs, not a long-term average or an invoice.
+Cache misses, tool updates, and workload changes can increase it.
+The earlier $1.75 model used six GitHub runs and overestimated the new jobs' runtime.
+The [source measurements](cost-estimate.json) retain both sets of run IDs and durations.
 
 From October 7 through November 5, GitHub recorded 1,199 CI attempts: 770 successful, 370 canceled, and 59 other outcomes.
-At $1.75 each, 770–1,199 full-run equivalents cost **about $1,350–$2,100 per month**.
+At the measured rate, 770–1,199 full-run equivalents cost **about $640–$1,000 per month**.
 Canceled/failed attempts consume partial work, and documentation-only skips reduce future usage.
 This range assumes the current check workload at that historical volume; it is not an invoice forecast.
 
@@ -160,4 +165,4 @@ For example, 1,000 five-minute medium site jobs add $30 before allowances.
 Actual site time includes the Pages acknowledgement wait.
 Workspace/artifact storage, plan fees, taxes, and any paid GitHub runner savings are outside this compute estimate.
 The `xcode-27` GitHub runner's billing arrangement was not available, so no savings are credited.
-Measure successful and canceled CircleCI runs after activation before revising the estimate.
+Use more successful and canceled runs after activation to refine this estimate.
