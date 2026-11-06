@@ -611,6 +611,14 @@ jobs:
           command: |
             ./test --architecture-only
             ./test --skip-architecture PeriscopeMacrosTests
+      - run:
+          name: WebKit browser regressions
+          command: |
+            mise exec -- npx playwright install webkit
+            mise exec -- npm run test:browser --workspace stuff-flyover-site -- --project='webkit-*' --reporter=line
+      - store_artifacts:
+          path: Shared/Flyover/Web/test-results
+          destination: webkit-failures
       - save_cache:
           key: bumper-v1-{{ arch }}-{{ checksum "Package.resolved" }}-{{ checksum "BumperBowling.swift" }}
           paths:
@@ -633,14 +641,14 @@ jobs:
             mise trust .mise.toml
             mise install node
             mise exec node -- npm ci
-            mise exec node -- npx playwright install --with-deps chromium webkit
+            mise exec node -- npx playwright install --with-deps chromium
       - run:
           name: Web checks and browser regressions
           command: |
             mise exec node -- npm run check --workspaces --if-present
             mise exec node -- npm run test:unit --workspaces --if-present
-            # Keep one browser worker within this two-CPU container's budget.
-            mise exec node -- npm run test:browser --workspace stuff-flyover-site -- --workers=1 --reporter=line
+            # WebKit runs on the existing Mac worker, matching Safari's platform.
+            mise exec node -- npm run test:browser --workspace stuff-flyover-site -- --workers=1 --project='chromium-*' --reporter=line
       - store_artifacts:
           path: Shared/Flyover/Web/test-results
           destination: web-failures

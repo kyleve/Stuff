@@ -15,7 +15,9 @@ and [Pages limits](https://docs.github.com/en/pages/getting-started-with-github-
 [`continue.yml`](continue.yml) defines the complete `iOS CI` gate; its existing check identity remains unchanged.
 The gate includes lint, retained tools, web tests, architecture, host tests, iOS tests, snapshots, and release-audience builds.
 Documentation-only PRs complete that gate on Linux.
-Web tests use Linux; Swift-dependent checks use the existing macOS executor.
+Web checks and Chromium tests use Linux.
+WebKit tests share the existing architecture/host Mac job and its installed dependencies.
+Linux WebKit stalled rendering in the high-density atlas fixtures; macOS retains the previous browser platform.
 
 To validate an explicit stack tip, run:
 
@@ -133,7 +135,7 @@ Only the migrated checks and Linux publication work add compute.
 and 10 credits/minute for the standard Docker `medium` class.
 At [$0.0006 per credit](https://circleci.com/docs/guides/plans-pricing/credits/), these cost $0.12 and $0.006 per minute.
 
-Six recent successful GitHub CI attempts give these median durations:
+The initial model used six recent successful GitHub CI attempts and put all browser tests on Linux:
 
 | Migrated work | Minutes | Estimated CircleCI cost |
 | --- | ---: | ---: |
@@ -143,6 +145,7 @@ Six recent successful GitHub CI attempts give these median durations:
 | Total | 21.38 | **$1.75 per full run** |
 
 These are GitHub timings applied to CircleCI rates, not a benchmark of the new jobs.
+WebKit now shares the architecture/host Mac job; measure that split before treating this model as a current budget.
 Shared setup can save time; cold caches, different hardware, and Linux browser setup can add time.
 Use **$1.50–$2.00 per full run** for initial budgeting.
 The [source measurements](cost-estimate.json) retain run IDs and durations.

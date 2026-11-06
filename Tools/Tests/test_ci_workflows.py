@@ -143,6 +143,11 @@ class CIWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(command, text)
         self.assertEqual(self.jobs["jobs"]["web"]["executor"], "linux")
+        self.assertIn("--project='chromium-*'", json.dumps(self.jobs["jobs"]["web"]))
+        self.assertIn(
+            "--project='webkit-*'",
+            json.dumps(self.jobs["jobs"]["architecture-and-host"]),
+        )
 
     def test_failure_status_and_site_deployment_are_native_dependencies(self):
         finish = self.jobs["jobs"]["finish-app"]
