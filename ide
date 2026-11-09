@@ -8,7 +8,7 @@ Usage: ./ide [--bootstrap] [--install] [--no-open] [--team-id ID]
 Set up repository tooling and generate the Xcode project.
 
 Options:
-  --bootstrap, --setup  Install mise and the repository's pinned tools.
+  --bootstrap, --setup  Install Homebrew, mise, and development tools.
   -i, --install        Resolve project and install-site dependencies first.
   --no-open            Generate without opening Xcode.
   --team-id ID         Persist the Apple Developer Team ID for this checkout.
@@ -65,33 +65,47 @@ done
 script_root=$(CDPATH='' cd "$(dirname "$0")" && pwd)
 cd "$script_root"
 
-# CI runs formatting via the workflow's `format` job;
-# this only configures the local pre-commit hook.
-git config core.hooksPath .githooks
-
-# .githooks carries the Git LFS hooks too, and those exit non-zero when the
-# git-lfs binary is missing — so routing Git at them without it turns every
-# checkout, merge, and push into a hard failure. LFS isn't optional here
-# anyway: without it the snapshot reference images (see .gitattributes) arrive
-# as pointer files and every comparison fails. Check-and-instruct rather than
-# install, same as the Xcode check below.
-if ! command -v git-lfs >/dev/null 2>&1; then
-    cat >&2 <<'EOF'
-error: git-lfs is required — the snapshot reference images are stored in Git LFS,
-and the hooks in .githooks fail without it.
-
-Install it, then re-run ./ide:
-  brew install git-lfs
-EOF
-    exit 1
-fi
-
-# Idempotent; sets this repo's lfs clean/smudge filters if they aren't already.
-# --skip-repo leaves the hooks alone, since .githooks is tracked in the repo.
-git lfs install --local --skip-repo >/dev/null
-
 # Gitignored, machine-local mise config that overrides/extends .mise.toml.
 LOCAL_MISE=".mise.local.toml"
+
+# Codex worktree setup can start without Homebrew's shell profile on PATH.
+find_brew() {
+    command -v brew 2>/dev/null && return
+    local candidate
+    for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
+    return 0
+}
+
+install_homebrew_tools() {
+    local brew_path installer shell_environment formula executable
+    brew_path="$(find_brew)"
+    if [ -z "$brew_path" ]; then
+        echo "==> installing Homebrew"
+        installer="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        /bin/bash -c "$installer"
+        brew_path="$(find_brew)"
+    fi
+    if [ -z "$brew_path" ]; then
+        echo "error: Homebrew installation did not provide brew. Install it from https://brew.sh and rerun bootstrap." >&2
+        exit 1
+    fi
+
+    shell_environment="$("$brew_path" shellenv bash)"
+    eval "$shell_environment"
+    for formula in git-lfs gh circleci cloc schpet/tap/linear; do
+        executable="${formula##*/}"
+        if ! command -v "$executable" >/dev/null 2>&1; then
+            echo "==> brew install $formula"
+            "$brew_path" install "$formula"
+            if ! command -v "$executable" >/dev/null 2>&1; then
+                echo "error: Homebrew did not put $executable on PATH." >&2
+                exit 1
+            fi
+        fi
+    done
+}
 
 # Resolve the mise binary: prefer one already on PATH, otherwise the common
 # install locations (the official installer's $HOME/.local/bin, Homebrew). This
@@ -103,6 +117,7 @@ find_mise() {
     for candidate in "$HOME/.local/bin/mise" /opt/homebrew/bin/mise /usr/local/bin/mise; do
         [ -x "$candidate" ] && { echo "$candidate"; return; }
     done
+    return 0
 }
 
 # Idempotently add `mise activate` to the user's shell rc so mise and the pinned
@@ -138,8 +153,6 @@ ensure_mise_activation() {
     echo "==> added mise activation to $rc (restart your shell or run: source $rc)"
 }
 
-# One-shot machine setup: verify Xcode, install mise, install the pinned tools.
-# Must run before anything that shells out to mise.
 if [ "$BOOTSTRAP" = true ]; then
     # Xcode must be a full Xcode.app (not just the Command Line Tools) and
     # runnable — Tuist can't operate against the CLT alone. We check-and-instruct
@@ -158,8 +171,20 @@ EOF
         exit 1
     fi
 
-    # Install mise (self-contained official installer — no Homebrew needed) if
-    # it isn't already available.
+    install_homebrew_tools
+fi
+
+# Check for Git LFS before enabling hooks that require it for Git operations.
+if ! command -v git-lfs >/dev/null 2>&1; then
+    echo "error: git-lfs is required. Run ./ide --bootstrap to install it." >&2
+    exit 1
+fi
+
+git lfs install --local --skip-repo >/dev/null
+git config core.hooksPath .githooks
+
+if [ "$BOOTSTRAP" = true ]; then
+    # Use mise's official installer to match the existing mise setup.
     if [ -z "$(find_mise)" ]; then
         echo "==> installing mise"
         curl -fsSL https://mise.run | sh
