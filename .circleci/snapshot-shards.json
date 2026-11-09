@@ -4,8 +4,6 @@
     {
       "index": 0,
       "suites": [
-        "InspectorSnapshotTests/InspectorSnapshotTests",
-        "InstallerKitUISnapshotTests/UpdateBrowserViewSnapshotTests",
         "WhereUISnapshotTests/AppearanceSettingsViewSnapshotTests",
         "WhereUISnapshotTests/CardDesignerStudioViewSnapshotTests",
         "WhereUISnapshotTests/DayRelabelViewSnapshotTests",
@@ -16,18 +14,18 @@
         "WhereUISnapshotTests/PlanningRegionPickerViewSnapshotTests",
         "WhereUISnapshotTests/RegionDaysViewSnapshotTests",
         "WhereUISnapshotTests/ResolutionViewSnapshotTests",
-        "WhereUISnapshotTests/RootViewSnapshotTests",
-        "WhereUISnapshotTests/SiriFeaturesViewSnapshotTests"
+        "WhereUISnapshotTests/RootViewSnapshotTests"
       ]
     },
     {
       "index": 1,
       "suites": [
         "InstallerKitUISnapshotTests/AppUpdatesViewSnapshotTests",
+        "InstallerKitUISnapshotTests/UpdateBrowserViewSnapshotTests",
         "InstallerKitUISnapshotTests/UpdateBuildViewSnapshotTests",
-        "InstallerKitUISnapshotTests/UpdateFailureCardSnapshotTests",
         "InstallerKitUISnapshotTests/UpdateHistoryViewSnapshotTests",
         "PeriscopeToolsSnapshotTests/PeriscopeViewerSnapshotTests",
+        "WhereUISnapshotTests/AboutSettingsViewSnapshotTests",
         "WhereUISnapshotTests/DataSettingsViewSnapshotTests",
         "WhereUISnapshotTests/DeveloperDemoLaunchSheetSnapshotTests",
         "WhereUISnapshotTests/ElsewhereViewSnapshotTests",
@@ -46,14 +44,13 @@
     {
       "index": 2,
       "suites": [
-        "FlyoverSnapshotTests/FlyoverSnapshotTests",
+        "InstallerKitUISnapshotTests/UpdateFailureCardSnapshotTests",
         "ToolsSnapshotTests/InstallerSiteSnapshotTests",
         "WhereUISnapshotTests/CalendarContentViewSnapshotTests",
         "WhereUISnapshotTests/DeveloperCrashTestingViewSnapshotTests",
         "WhereUISnapshotTests/EstimatedTimeFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/FlightReviewPointRowSnapshotTests",
         "WhereUISnapshotTests/FlightStatusBannerSnapshotTests",
-        "WhereUISnapshotTests/InsightsAccuracyFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/LaunchSplashViewSnapshotTests",
         "WhereUISnapshotTests/LocationsBackgroundSnapshotTests",
         "WhereUISnapshotTests/PrivacyBackupsFeaturesViewSnapshotTests",
@@ -67,11 +64,13 @@
     {
       "index": 3,
       "suites": [
-        "WhereUISnapshotTests/AboutSettingsViewSnapshotTests",
+        "FlyoverSnapshotTests/FlyoverSnapshotTests",
+        "InspectorSnapshotTests/InspectorSnapshotTests",
         "WhereUISnapshotTests/AppIconViewSnapshotTests",
         "WhereUISnapshotTests/DevelopmentUpdatesViewSnapshotTests",
         "WhereUISnapshotTests/DevicesSettingsViewSnapshotTests",
         "WhereUISnapshotTests/FlightDayDetailViewSnapshotTests",
+        "WhereUISnapshotTests/InsightsAccuracyFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/LoggedDaysViewSnapshotTests",
         "WhereUISnapshotTests/MainTabsSnapshotTests",
         "WhereUISnapshotTests/ManualDayViewSnapshotTests",
@@ -82,6 +81,7 @@
         "WhereUISnapshotTests/RegionMapViewSnapshotTests",
         "WhereUISnapshotTests/RegionWelcomeCardSnapshotTests",
         "WhereUISnapshotTests/SettingsViewSnapshotTests",
+        "WhereUISnapshotTests/SiriFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/SnapshotCaptureFlagProbeTests",
         "WhereUISnapshotTests/TodayInlineAccessoryViewSnapshotTests",
         "WhereUISnapshotTests/WhereFlyoverWebExportTests",
