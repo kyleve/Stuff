@@ -66,7 +66,7 @@
                     .environment(world.session)
                     .environment(\.isInDemoMode, true)
                     .environment(\.demoExitPresentation, .embedded)
-                    .padding(EdgeInsets(
+                    .safeAreaPadding(EdgeInsets(
                         top: insets.top,
                         leading: insets.leading,
                         bottom: insets.bottom,
@@ -100,6 +100,7 @@
                             verticalSizeClass: .regular,
                             interfaceIdiom: .pad,
                         ),
+                        scenePolicy: .retained,
                     ))],
                     onReadyToSnapshot: { await fixture.prepare() },
                 ) {
