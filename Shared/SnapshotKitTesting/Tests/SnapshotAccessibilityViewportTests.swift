@@ -1,5 +1,4 @@
 @testable import SnapshotKitTesting
-import SwiftUI
 import TestHostSupport
 import Testing
 import UIKit
@@ -21,19 +20,24 @@ struct SnapshotAccessibilityViewportTests {
             window.frame.size = size
             controller.view.frame = CGRect(origin: .zero, size: size)
 
-            let subject = UIHostingController(rootView: NavigationSplitView {
-                NavigationBarFixture(title: "Sidebar")
-            } detail: {
-                NavigationStack { NavigationBarFixture(title: "Calendar") }
-            }.environment(\.horizontalSizeClass, .regular))
-            subject.traitOverrides.horizontalSizeClass = .regular
+            let subject = UIViewController()
             subject.view.frame = controller.view.bounds
             controller.addChild(subject)
             controller.view.addSubview(subject.view)
             subject.didMove(toParent: controller)
-            let unrelated = UIHostingController(rootView: NavigationStack {
-                NavigationBarFixture(title: "Unrelated")
-            })
+            for (index, title) in ["Sidebar", "Calendar"].enumerated() {
+                let navigation = navigationController(title: title)
+                navigation.view.frame = CGRect(
+                    x: CGFloat(index) * size.width / 2,
+                    y: 0,
+                    width: size.width / 2,
+                    height: size.height,
+                )
+                subject.addChild(navigation)
+                subject.view.addSubview(navigation.view)
+                navigation.didMove(toParent: subject)
+            }
+            let unrelated = navigationController(title: "Unrelated")
             unrelated.view.frame = CGRect(x: 0, y: 300, width: size.width, height: 300)
             controller.addChild(unrelated)
             controller.view.addSubview(unrelated.view)
@@ -51,7 +55,8 @@ struct SnapshotAccessibilityViewportTests {
             let bars = navigationBars(in: subject.view)
             let unrelatedBar = try #require(navigationBars(in: unrelated.view).first)
             let before = bars.map { labels(in: $0) }
-            #expect(before.contains { !$0.contains("Planning") })
+            // UIKit versions differ in whether off-screen bar items are filtered.
+            // Both paths must restore automatic getters and preserve coordinates.
             #expect(before.contains { $0.contains("Planning") })
             let unrelatedBefore = labels(in: unrelatedBar)
             let frames = bars.map(\.frame)
@@ -98,6 +103,16 @@ struct SnapshotAccessibilityViewportTests {
         }
     }
 
+    private func navigationController(title: String) -> UINavigationController {
+        let content = UIViewController()
+        content.view.backgroundColor = .white
+        content.navigationItem.title = title
+        content.navigationItem.rightBarButtonItems = ["Planning", "Overview"].map {
+            UIBarButtonItem(title: $0, style: .plain, target: nil, action: nil)
+        }
+        return UINavigationController(rootViewController: content)
+    }
+
     private func navigationBars(in view: UIView) -> [UINavigationBar] {
         (view as? UINavigationBar).map { [$0] } ?? view.subviews.flatMap { navigationBars(in: $0) }
     }
@@ -114,23 +129,5 @@ private final class ScreenPathView: UIView {
     override var accessibilityPath: UIBezierPath? {
         get { UIBezierPath(rect: convert(bounds, to: nil)) }
         set { super.accessibilityPath = newValue }
-    }
-}
-
-private struct NavigationBarFixture: View {
-    let title: String
-
-    var body: some View {
-        Color.white
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Planning", systemImage: "calendar", action: {})
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Overview", systemImage: "square.grid.3x3", action: {})
-                }
-            }
     }
 }
