@@ -147,6 +147,11 @@ Compare the [installer command regressions](../../../../Tools/Tests/test_circlec
 Check discarded response cleanup in the [shared client tests](../../../../Tools/Tests/test_circleci_pipeline.py).
 The [publication contract](../../../../Tools/InstallerKit/AGENTS.md#publication) owns the transport choice and command guard.
 
+For pipelines with setup or continuation, fail setup before the requested downstream workflow exists.
+Check that polling reports the terminal setup failure without waiting for the publication deadline.
+Compare the [shared poller regressions](../../../../Tools/Tests/test_circleci_pipeline.py) for successful continuation and an already-created publication workflow.
+The [CI selection contract](../../../../Tools/AGENTS.md#ci-selection) owns this boundary and its controller command guards.
+
 For secret-bearing commands, inspect captured child output as well as constructed arguments.
 The [signing state tests](../../../../Tools/Tests/signing_state_test.rb) cover diagnostic redaction and cleanup that can fail and be retried.
 Trace trusted controller state separately from selected PR source when publication credentials are involved.
