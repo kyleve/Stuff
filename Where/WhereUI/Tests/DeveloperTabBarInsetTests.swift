@@ -6,6 +6,59 @@ import UIKit
 
 @MainActor
 struct DeveloperTabBarInsetTests {
+    @Test func windowReaderDiscardsTransientInsetsBeforeDeferredDelivery() async throws {
+        let window = InsetsWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 800))
+        let view = DeveloperWindowInsetsReader.InsetView()
+        var reported: [UIEdgeInsets] = []
+        view.changed = { reported.append($0) }
+        window.addSubview(view)
+        let initial = try #require(view.pending)
+        await initial.value
+        #expect(reported == [.zero])
+
+        window.simulatedInsets.bottom = 34
+        view.scheduleUpdate()
+        let pending = try #require(view.pending)
+        // Restore the last published geometry before the task can execute.
+        // The second request must invalidate the transient 34pt observation.
+        window.simulatedInsets = .zero
+        view.scheduleUpdate()
+        await pending.value
+        #expect(reported == [.zero])
+        #expect(view.pending == nil)
+
+        window.simulatedInsets.bottom = 20
+        view.scheduleUpdate()
+        let next = try #require(view.pending)
+        await next.value
+        #expect(reported == [.zero, UIEdgeInsets(top: 0, left: 0, bottom: 20, right: 0)])
+        #expect(view.pending == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func windowReaderDropsPendingDeliveryWhenRemoved(dismantles: Bool) async throws {
+        let window = InsetsWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 800))
+        let view = DeveloperWindowInsetsReader.InsetView()
+        var reported: [UIEdgeInsets] = []
+        view.changed = { reported.append($0) }
+        window.addSubview(view)
+        let initial = try #require(view.pending)
+        await initial.value
+        #expect(reported == [.zero])
+
+        window.simulatedInsets.bottom = 34
+        view.scheduleUpdate()
+        let pending = try #require(view.pending)
+        if dismantles {
+            DeveloperWindowInsetsReader.dismantleUIView(view, coordinator: ())
+        } else {
+            view.removeFromSuperview()
+        }
+        await pending.value
+        #expect(reported == [.zero])
+        #expect(view.pending == nil)
+    }
+
     @Test func reduceKeepsEachEdgesLargestReportedInset() {
         var value = DeveloperTabBarInsetKey.defaultValue
         DeveloperTabBarInsetKey.reduce(value: &value) { EdgeInsets(
@@ -60,6 +113,16 @@ struct DeveloperTabBarInsetTests {
             try waitFor { box.value.bottom > 0 }
             #expect(box.value.bottom > 0)
         }
+    }
+}
+
+/// Supplies deterministic native-window changes without requiring a simulator scene.
+@MainActor
+private final class InsetsWindow: UIWindow {
+    var simulatedInsets = UIEdgeInsets.zero
+
+    override var safeAreaInsets: UIEdgeInsets {
+        simulatedInsets
     }
 }
 

@@ -101,7 +101,7 @@ extension View {
     }
 
     /// Reads the window containing this reporter. It never searches other scenes or screens.
-    private struct DeveloperWindowInsetsReader: UIViewRepresentable {
+    struct DeveloperWindowInsetsReader: UIViewRepresentable {
         let changed: (UIEdgeInsets) -> Void
 
         func makeUIView(context _: Context) -> InsetView {
@@ -115,6 +115,7 @@ extension View {
 
         static func dismantleUIView(_ view: InsetView, coordinator _: Void) {
             view.pending?.cancel()
+            view.pending = nil
             view.changed = nil
         }
 
@@ -139,10 +140,16 @@ extension View {
             }
 
             func scheduleUpdate() {
-                guard let insets = window?.safeAreaInsets, reported != insets else { return }
-                pending?.cancel()
+                guard changed != nil, window != nil, pending == nil else { return }
                 pending = Task { @MainActor [weak self] in
-                    guard !Task.isCancelled, let self, window != nil else { return }
+                    // Dismantling already clears the cancelled task's handle. Do
+                    // not let it clear a newer update if this view is reused.
+                    guard !Task.isCancelled, let self else { return }
+                    defer { pending = nil }
+                    // UIKit can restore transient geometry before this deferred
+                    // delivery runs. Publish the current window, not the sample
+                    // that originally requested an update.
+                    guard let insets = window?.safeAreaInsets, reported != insets else { return }
                     reported = insets
                     changed?(insets)
                 }
