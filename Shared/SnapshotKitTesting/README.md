@@ -109,8 +109,6 @@ The fixed anchor detects cumulative motion that exceeds one unit within the quie
 It cannot distinguish slower motion inside that allowance from noise, or detect detail lost at the sample resolution.
 Readiness hooks and measured minimum durations remain necessary for asynchronous content and native glass adaptation.
 Final reference comparisons keep their existing tolerances and use the full capture after PNG encoding and decoding.
-Ordinary assertions reuse those PNG bytes for comparison, diagnostics, and recording.
-Comparison sheets encode a new PNG after composition to include their panel map.
 
 ## Quick start
 
@@ -288,8 +286,6 @@ emits one timing line that includes time spent on failed attempts.
   `StuffTestHost`, reached via `TestHostSupport`).
 - Device/OS-pinned: reference images are captured on a fixed simulator (this
   repo's CI uses the defaults and runtime pins in `Project.swift` and `test`).
-<<<<<<< HEAD
-=======
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
@@ -353,4 +349,3 @@ Capture hooks use their retained model or view references while the window is de
 A nil safe-area override retains native scene geometry.
 Synthetic captures validate composition and complete content. Native floating bars can retain system positioning despite custom content insets.
 Native Duo checks validate their clearance and reserved-region delivery.
->>>>>>> 02f3c090 (Stabilize synthetic capture geometry and accessibility outlines)
