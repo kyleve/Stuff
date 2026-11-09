@@ -88,5 +88,15 @@
     "repo": "microsoft/TypeScript",
     "ref": "050880ce59e30b356b686bd3144efe24f875ebc8",
     "version": "6.0.3"
+  },
+  "Linear CLI": {
+    "repo": "schpet/linear-cli",
+    "ref": "02571d34be662e5487204841fb80bf23ed79b4f0",
+    "version": "3.1.0"
+  },
+  "mdast-util-from-markdown": {
+    "repo": "syntax-tree/mdast-util-from-markdown",
+    "ref": "afe9516d97683e51974694f944a799a915a242c0",
+    "version": "2.1.0"
   }
 }

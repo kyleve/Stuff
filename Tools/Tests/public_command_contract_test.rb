@@ -28,6 +28,7 @@ class PublicCommandContractTest < Minitest::Test
     codex-watchdog
     circleci-artifacts
     snapshot-shards
+    backlog-migrate
     loc
   ].freeze
 
