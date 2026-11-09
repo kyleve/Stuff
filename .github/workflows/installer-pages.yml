@@ -1,81 +1,58 @@
-name: App Install Site
+name: Deploy Pages
 
+# CircleCI builds the complete site. GitHub's Pages API requires an Actions
+# OIDC token; this bridge only uploads/deploys those already-built files.
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  repository_dispatch:
+    types: [pages-publication]
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  statuses: write
 
-# A replaced pending deployment is safe: each run reads the entire latest feed.
 concurrency:
   group: installer-pages
   cancel-in-progress: false
 
-env:
-  PYTHONDONTWRITEBYTECODE: '1'
-  MISE_NO_HOOKS: '1'
-  INSTALLER_FEED_URL: ${{ vars.INSTALLER_FEED_URL || format('https://{0}.github.io/{1}/updates.json', github.repository_owner, github.event.repository.name) }}
-
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
-      flyover-release: ${{ steps.flyover.outputs.release }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Dispatches are wake-ups. A delayed event must not replace a newer pending
+      # deployment with a stale SHA in GitHub's one-pending-run concurrency slot.
+      - name: Select the latest complete generated site
+        id: validate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          site_commit="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/gh-pages" --jq .object.sha)"
+          [[ "$site_commit" =~ ^[0-9a-f]{40}$ ]]
+          printf 'sha=%s\n' "$site_commit" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ steps.validate.outputs.sha }}
           persist-credentials: false
-      - uses: jdx/mise-action@v3
-        with:
-          install_args: node
-      - name: Install site dependencies
-        run: mise exec node -- npm ci
-      - name: Prepare install pages, manifests, and catalog
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          python3 -m Tools.InstallerKit.installer_update_site
-          --published-catalog
-          --repository "$GITHUB_REPOSITORY"
-          --feed-url "$INSTALLER_FEED_URL"
-          --output "$RUNNER_TEMP/installer-pages"
       - uses: actions/configure-pages@v5
-      - name: Include the latest complete Flyover atlases
-        id: flyover
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 -m Tools.flyover_pages --output "$RUNNER_TEMP/installer-pages"
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ runner.temp }}/installer-pages
-      - name: Deploy install site
+          path: .
+      - uses: actions/deploy-pages@v4
         id: deployment
-        uses: actions/deploy-pages@v4
-
-  retain-flyover:
-    needs: deploy
-    if: needs.deploy.outputs.flyover-release != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          persist-credentials: false
-      - name: Retain one week and at least one Flyover bundle
+      - name: Report deployment of this exact site
+        if: ${{ always() && steps.validate.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          DEPLOYED_RELEASE: ${{ needs.deploy.outputs.flyover-release }}
-        run: python3 -m Tools.flyover_retention --deployed-release "$DEPLOYED_RELEASE"
+          SITE_COMMIT: ${{ steps.validate.outputs.sha }}
+          DEPLOYMENT_STATUS: ${{ job.status }}
+        run: |
+          state=failure
+          if [[ "$DEPLOYMENT_STATUS" == success ]]; then state=success; fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$SITE_COMMIT" \
+            -f state="$state" -f context=pages-publication \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

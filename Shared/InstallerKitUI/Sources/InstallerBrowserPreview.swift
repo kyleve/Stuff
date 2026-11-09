@@ -106,6 +106,7 @@
                         commits: release.commits,
                         buildDetails: release.buildDetails,
                         pullRequestTitle: release.pullRequestTitle,
+                        workflowURL: release.workflowURL,
                     )
                 }
                 let older = InstallerPreview.release(

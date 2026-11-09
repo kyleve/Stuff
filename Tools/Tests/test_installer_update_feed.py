@@ -296,7 +296,7 @@ class InstallerUpdateFeedTests(unittest.TestCase):
             self.assertFalse(channel["active"])
             self.assertEqual(channel["releases"], [])
             self.assertTrue(
-                requests[-1].full_url.endswith("installer-pages.yml/dispatches")
+                all("/actions/" not in request.full_url for request in requests)
             )
 
     def test_invalid_progress_fails_before_feed_mutation(self):
@@ -488,7 +488,7 @@ class InstallerUpdateFeedTests(unittest.TestCase):
                 for call in fetch.call_args_list
             )
         )
-        feed.deploy.assert_called_once()
+        feed.deploy.assert_not_called()
         pr["state"] = "closed"
         publish_receipt(
             {"action": "retire", "appID": "where", "channel": "pr-42"},
@@ -585,9 +585,8 @@ class InstallerUpdateFeedTests(unittest.TestCase):
             self.assertEqual(stdout.getvalue(), "")
             self.assertEqual(stderr.getvalue(), "")
         self.assertEqual(len(saved), 1)
-        self.assertEqual(
-            requests[-1].full_url,
-            f"https://api.github.com/repos/{REPO}/actions/workflows/installer-pages.yml/dispatches",
+        self.assertTrue(
+            all("/actions/" not in request.full_url for request in requests)
         )
         files = render_site(saved[0], REPO, FEED_URL)
         self.assertEqual(json.loads(files["updates.json"]), saved[0])

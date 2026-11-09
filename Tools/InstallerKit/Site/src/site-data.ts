@@ -1,6 +1,7 @@
 export interface Release {
   id: { run: number; attempt: number };
   sha: string;
+  workflowURL?: string;
   publishedAt: string;
   bundleVersion: string;
   buildDetails?: { version: string; minimumOSVersion: string; sizeBytes: number };
@@ -110,6 +111,7 @@ function parseRelease(value: unknown, path: string): Release {
   return {
     id: { run: positiveInteger(identity.run, path + '.id.run'), attempt: positiveInteger(identity.attempt, path + '.id.attempt') },
     sha: text(data.sha, path + '.sha'),
+    ...(data.workflowURL === undefined ? {} : { workflowURL: text(data.workflowURL, path + '.workflowURL') }),
     publishedAt: text(data.publishedAt, path + '.publishedAt'),
     bundleVersion: text(data.bundleVersion, path + '.bundleVersion'),
     baseSHA: nullableText(data.baseSHA, path + '.baseSHA'),

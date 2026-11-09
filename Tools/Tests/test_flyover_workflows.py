@@ -7,7 +7,7 @@ from Tools.repository import repository_root
 
 class FlyoverWorkflowTests(unittest.TestCase):
     def test_credential_diagnostic_does_not_read_header_values(self):
-        text = (repository_root(__file__) / ".circleci/continue.yml").read_text()
+        text = (repository_root(__file__) / ".circleci/jobs.yml").read_text()
         diagnostic = text.split("  validate_build_environment:", 1)[1].split(
             "  validate_simulator_environment:", 1
         )[0]
@@ -18,7 +18,7 @@ class FlyoverWorkflowTests(unittest.TestCase):
         self.assertNotIn("sed -E", diagnostic)
 
     def test_publication_jobs_never_restore_or_save_shared_caches(self):
-        path = repository_root(__file__) / ".circleci/continue.yml"
+        path = repository_root(__file__) / ".circleci/jobs.yml"
         config = json.loads(
             subprocess.check_output(
                 [
@@ -77,26 +77,10 @@ class FlyoverWorkflowTests(unittest.TestCase):
             3,
         )
 
-    def test_daily_controller_and_shared_pages_are_wired(self):
-        root = repository_root(__file__)
-        daily = (root / ".github/workflows/flyover-daily.yml").read_text()
-        self.assertIn("cron: '23 9 * * *'", daily)
-        self.assertIn("github.ref == 'refs/heads/main'", daily)
-        self.assertIn("persist-credentials: false", daily)
-        self.assertIn("Tools.flyover_distribution", daily)
-        self.assertNotIn("deploy-pages", daily)
-        pages = (root / ".github/workflows/installer-pages.yml").read_text()
-        self.assertLess(
-            pages.index("Tools.flyover_pages"),
-            pages.index("actions/upload-pages-artifact"),
-        )
-
-    def test_unsigned_worker_is_main_only_and_serial(self):
-        text = (repository_root(__file__) / ".circleci/continue.yml").read_text()
+    def test_unsigned_worker_is_serial_and_has_no_credentials(self):
+        text = (repository_root(__file__) / ".circleci/jobs.yml").read_text()
         job = text.split("  export-flyover:", 1)[1].split("  archive-app:", 1)[0]
         self.assertIn("Tools.flyover_ci", job)
         self.assertNotIn("context:", job)
         self.assertNotIn("parallelism:", job)
-        workflow = text.split('  "Flyover Export":', 1)[1].split('  "iOS CI":', 1)[0]
-        self.assertIn('pipeline.config.ref == "refs/heads/main"', workflow)
-        self.assertIn('pipeline.event.name == "api"', workflow)
+        self.assertIn("persist_to_workspace", job)

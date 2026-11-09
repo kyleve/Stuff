@@ -42,7 +42,7 @@ class CICircleCITests(unittest.TestCase):
     def test_documentation_continues_with_only_the_new_parameter(self):
         payload = self.request()
         self.assertEqual(payload["parameters"], {"docs_only": True})
-        self.assertEqual(payload["configuration"], "version: 2.1\n")
+        self.assertEqual(payload["configuration"], "version: 2.1\n\nworkflows: {}\n")
         self.assertEqual(payload["continuation-key"], "synthetic-secret")
 
     def test_manual_main_and_publication_requests_keep_full_ci(self):

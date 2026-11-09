@@ -47,7 +47,7 @@ These rules also apply when changing a root command or installer that calls this
 
 ## CI selection
 
-- Keep documentation classification in `ci_changes.py` for both CI providers.
+- Keep documentation classification in `ci_changes.py` for the complete CircleCI gate.
   Compare the complete PR from its merge base to the event's head SHA, including both sides of renames.
   Empty diffs, unavailable history, and classification failures must select full CI.
 - Add Markdown build, rendered-content, or fixture directories to the classifier's exclusions before introducing those consumers.
@@ -55,8 +55,8 @@ These rules also apply when changing a root command or installer that calls this
 - Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
   Keep main pushes, explicit full runs, and publication workflows outside the shortcut.
   Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
-- Stop publication polling when a setup workflow fails before the requested publication workflow exists.
-  Guards: [test_circleci_pipeline.py](Tests/test_circleci_pipeline.py) and the installer and Flyover controller command tests.
+- Keep publication dependencies native to CircleCI. A failed or canceled archive must never take the successful publication route.
+  Guards: `test_ci_publication.py`, `test_ci_workflows.py`, and `test_installer_ci.py`.
 
 ## Installer publication
 
@@ -66,12 +66,12 @@ Keep generated Astro and Vite state isolated per invocation.
 
 ## Flyover publication
 
-- Keep app registration in `.github/flyover-apps.json`. Keep CircleCI credentials on the GitHub controller, not the capture worker.
+- Keep app registration in `.github/flyover-apps.json`. Keep GitHub write credentials on Linux publishers, not capture workers.
 - Skip shared cache restore and save for publication builds. Guard: `test_flyover_workflows.py`.
-- Report only error categories and HTTP status codes from credential-bearing CircleCI controllers. Never print arbitrary exception text, headers, or response data.
-- Bound CircleCI discovery retries with the polling deadline. Close discarded HTTP error responses before retrying. Keep job and artifact HTTP failures visible. Guard: `test_circleci_pipeline.py`.
-- Publish immutable release bundles only after validation. The existing Pages workflow owns the complete site, including `/flyover/`.
-- Run release retention only after successful Pages deployment. Keep seven days, the deployed bundle, and the newest published bundle. Never delete drafts or unrelated releases.
+- Report only error categories and HTTP status codes from credential-bearing controllers. Never print arbitrary exception text, headers, or response data.
+- Publish immutable release bundles only after validation. CircleCI builds the complete site, including `/flyover/`; the Pages Action only deploys its prepared artifact.
+- Run release retention only after Pages confirms the exact generated commit. Keep seven days, the deployed bundle, and the newest published bundle. Never delete drafts or unrelated releases. Treat an already-deleted exact release ID as success; propagate other deletion failures.
+- Read the generated-branch lease before site inputs. Rebuild after a competing write, and reject stale main source before publishing. Guards: `test_ci_pages.py`.
 - Reject unsafe ZIP entries, wrong capture identities, dirty captures, and oversized bundles before deployment. Retain the previous release on capture failure.
 - Keep filesystem access out of the pure schema, canvas, and image validators.
 - Validate, allowlist, and version every declared thumbnail size. Guards: `test_flyover_images.py`, `test_flyover_manifest.py`, `test_flyover_pages.py`.

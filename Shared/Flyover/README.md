@@ -16,18 +16,18 @@ The daily workflow captures every app in [the export registry](../../.github/fly
 Where is the first adapter. Add an app ID, title, and hosted test identifier to register another adapter.
 Use `./flyover export --app where` for a local export. Each app defaults to `.build/flyover/<app>`.
 
-GitHub schedules the controller at 09:23 UTC. CircleCI captures the native views serially, without signing credentials.
+A CircleCI schedule requests the controller at 09:23 UTC, with the provider's scheduling delay. CircleCI captures the native views serially, without signing credentials.
 The default profiles are `phone-light` and `phone-dark`.
 GitHub retains each complete bundle as a prerelease asset. Failed captures do not replace the previous bundle.
-The existing Pages workflow combines that bundle with the install site. Atlas URLs use `/flyover/<app>/` beneath the Pages base URL.
+CircleCI combines that bundle with the install site; the small Pages Action deploys the prepared artifact. Atlas URLs use `/flyover/<app>/` beneath the Pages base URL.
 The `/flyover/` index lists published, registered apps.
 
-The controller reuses the existing CircleCI project, pipeline, and token configuration for app distribution.
+The controller uses the shared CircleCI project and trusted-main publication config.
 No signing context is attached to the Flyover job. The native worker receives no GitHub write credential.
 Publication builds skip shared tool and SwiftPM caches. Ordinary CI builds retain those caches.
 CircleCI controller errors report categories and HTTP status codes, not exception text that can contain credentials.
-The workflow becomes active after this configuration merges into `main`.
-Use **Daily Flyover Atlases → Run workflow** for the first publication or a retry.
+Complete [CI activation](../../.circleci/README.md#activation-and-rollback) after merge.
+Use `python3 -m Tools.ci_request flyover` for the first publication or a retry.
 If main changes before CircleCI checks out the requested commit, the controller fails without publication. Start a new run.
 
 The transport validates app IDs, commit identity, clean-tree metadata, manifest assets, ZIP paths, and size limits.

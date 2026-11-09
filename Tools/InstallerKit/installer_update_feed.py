@@ -18,6 +18,7 @@ from Tools.InstallerKit.github_api import API_VERSION, request_json
 from Tools.InstallerKit.installer_installation import (
     validate_pull_request_title,
     validate_release,
+    validate_workflow_url,
 )
 from Tools.InstallerKit.installer_apps import load_app, validate_metadata
 
@@ -34,6 +35,7 @@ class BuildStatus:
     state: str
     identifier: dict
     sha: str
+    workflow_url: str = None
 
     def metadata(self):
         if (
@@ -47,13 +49,24 @@ class BuildStatus:
             for key in ("run", "attempt")
         ):
             raise ValueError("Invalid distribution build identity")
-        return {"state": self.state, "id": self.identifier, "sha": self.sha}
+        return {
+            "state": self.state,
+            "id": self.identifier,
+            "sha": self.sha,
+            **(
+                {"workflowURL": validate_workflow_url(self.workflow_url)}
+                if self.workflow_url is not None
+                else {}
+            ),
+        }
 
     @classmethod
     def read(cls, value):
         if not isinstance(value, dict):
             raise ValueError("Distribution build status must be an object")
-        status = cls(value["state"], value["id"], value["sha"])
+        status = cls(
+            value["state"], value["id"], value["sha"], value.get("workflowURL")
+        )
         status.metadata()
         return status
 
@@ -65,7 +78,7 @@ def build_id(run, attempt):
         or int(run) < 1
         or int(attempt) < 1
     ):
-        raise ValueError("A positive GitHub run ID and attempt are required")
+        raise ValueError("A positive publication run ID and attempt are required")
     return {"run": int(run), "attempt": int(attempt)}
 
 
@@ -298,11 +311,6 @@ class GitHubUpdateFeed:
                     raise
         raise ValueError("Update catalog changed repeatedly; rerun this workflow")
 
-    def deploy(self):
-        self.request(
-            "POST", "actions/workflows/installer-pages.yml/dispatches", {"ref": "main"}
-        )
-
 
 def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
     from Tools.InstallerKit.installer_distribution import (
@@ -340,6 +348,11 @@ def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
             return {
                 "id": identifier,
                 "sha": plan.sha,
+                **(
+                    {"workflowURL": receipt["workflowURL"]}
+                    if "workflowURL" in receipt
+                    else {}
+                ),
                 **title,
                 "manifestURL": receipt["manifestURL"],
                 "ipaURL": receipt["ipaURL"],
@@ -361,10 +374,9 @@ def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
             return None
     else:
         raise ValueError("Invalid publication receipt")
-    if feed.save(
+    return feed.save(
         app, channel, make_release, lambda: is_current(plan, feed.repository, fetch)
-    ):
-        feed.deploy()
+    )
 
 
 def publish_status(app_id, channel, status, feed, fetch):
@@ -385,8 +397,7 @@ def publish_status(app_id, channel, status, feed, fetch):
         pr = fetch(f"repos/{feed.repository}/pulls/{int(channel[3:])}")
         return eligible(pr, feed.repository) and pr["head"]["sha"] == status.sha
 
-    if feed.save(app, channel, lambda _: status, current):
-        feed.deploy()
+    return feed.save(app, channel, lambda _: status, current)
 
 
 def main(argv=None):

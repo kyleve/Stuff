@@ -65,7 +65,7 @@ class InstallerSetupPRTests(unittest.TestCase):
                 self.subTest(changes=changes),
                 self.assertRaisesRegex(ValueError, "changed"),
             ):
-                request_publication(pr, command)
+                request_publication(pr, command, {})
             self.assertEqual(
                 command.call_count, 1
             )  # Only the read; never label or dispatch.

@@ -62,6 +62,7 @@ enum UpdateFixtures {
             commits: [.init(sha: revision(run), subject: "Change \(run)")],
             buildDetails: buildDetails,
             pullRequestTitle: pullRequestTitle,
+            workflowURL: nil,
         )
     }
 

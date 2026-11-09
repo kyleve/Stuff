@@ -51,6 +51,8 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let buildDetails: BuildDetails?
         /// GitHub's PR title at publication time. Older releases and main builds omit it.
         public let pullRequestTitle: String?
+        /// CircleCI provenance for new publications. Older releases use their GitHub run ID.
+        public let workflowURL: URL?
 
         #if DEBUG
             @_spi(Testing)
@@ -64,6 +66,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
                 commits: [Commit],
                 buildDetails: BuildDetails?,
                 pullRequestTitle: String?,
+                workflowURL: URL?,
             ) {
                 self.id = id
                 self.sha = sha
@@ -74,6 +77,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
                 self.commits = commits
                 self.buildDetails = buildDetails
                 self.pullRequestTitle = pullRequestTitle
+                self.workflowURL = workflowURL
             }
         #endif
 
@@ -198,13 +202,18 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
                           release.publishedAt.timeIntervalSince1970.isFinite,
                           release.manifestURL.absoluteString == expectedManifest.absoluteString,
                           release.buildDetails?.isValid != false,
-                          release.pullRequestTitle == nil || (
-                              channel.name != .main &&
-                                  release.pullRequestTitle?
-                                  .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-                          ),
-                          Set(release.commits.map(\.sha)).count == release.commits.count,
-                          index == 0 || channel.releases[index - 1].id > release.id
+                          release.workflowURL
+                          .map
+                    { InstallerPattern.circleCIWorkflowURL.matches($0.absoluteString)
+                    } !=
+                        false,
+                        release.pullRequestTitle == nil || (
+                            channel.name != .main &&
+                                release.pullRequestTitle?
+                                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                        ),
+                        Set(release.commits.map(\.sha)).count == release.commits.count,
+                        index == 0 || channel.releases[index - 1].id > release.id
                     else { throw ValidationError.invalidCatalog }
                 }
             }

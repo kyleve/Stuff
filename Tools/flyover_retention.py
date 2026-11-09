@@ -9,8 +9,10 @@ import os
 import re
 import subprocess
 import sys
+from urllib.request import Request
 
 from Tools.flyover_pages import latest_release
+from Tools.InstallerKit.github_api import API_VERSION, request_json
 
 
 def expired_releases(releases: list[dict], deployed: str, now: datetime) -> list[int]:
@@ -69,15 +71,19 @@ def prune(repository: str, deployed: str, now: datetime) -> None:
     for release_id in targets:
         # Delete the exact inventoried release and its assets, not a mutable tag.
         # Git tags remain as lightweight provenance records.
-        subprocess.run(
-            [
-                "gh",
-                "api",
-                "--method",
-                "DELETE",
-                f"repos/{repository}/releases/{release_id}",
-            ],
-            check=True,
+        request_json(
+            Request(
+                f"https://api.github.com/repos/{repository}/releases/{release_id}",
+                method="DELETE",
+                headers={
+                    "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": API_VERSION,
+                },
+            ),
+            # Another successful deployment may have retired this exact ID.
+            # The shared transport still fails on authentication and server errors.
+            allow_missing=True,
         )
         print(f"Removed expired Flyover release {release_id}", flush=True)
     print(f"Flyover retention: removed {len(targets)} expired releases")

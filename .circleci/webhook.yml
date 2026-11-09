@@ -1,0 +1,36 @@
+version: 2.1
+setup: true
+
+# A custom GitHub webhook fixes config and checkout to main, including PR events.
+# Context restrictions enforce that trust boundary outside this file.
+jobs:
+  select-publication:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    environment:
+      GIT_LFS_SKIP_SMUDGE: "1"
+      PUBLICATION_WEBHOOK: << pipeline.trigger_parameters.webhook.body >>
+      PUBLICATION_REPOSITORY: << pipeline.config.repository.name >>
+      PUBLICATION_SHA: << pipeline.git.revision >>
+      PUBLICATION_ATTEMPT: << pipeline.number >>
+    steps:
+      - run:
+          name: Checkout trusted publication tools
+          command: |
+            git clone --filter=blob:none --no-checkout \
+              "<< pipeline.git.repo_url >>" .
+            git sparse-checkout set Tools .circleci .github
+            git checkout --detach "<< pipeline.git.revision >>"
+      - run:
+          name: Plan publication and continue
+          command: python3 -m Tools.ci_publication
+
+workflows:
+  "Select publication":
+    when: >-
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - select-publication:
+          context: github-publication
