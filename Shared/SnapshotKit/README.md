@@ -220,7 +220,7 @@ Retention preserves the frame’s size, traits, and insets, but physical reserve
 It does not change reference identifiers; name variants explicitly when comparing both policies. Previews remain an approximation.
 
 The Duo presets retain [native iOS 27.1 measurements](Documentation/DuoMeasurements.json) from Xcode build `27A9275`, runtime `24A94232`.
-Re-measurement on the native 27.2 Duo runtime remains pending in the [release validation item](../../TODOs.md).
+Re-measurement on the native 27.2 Duo runtime remains pending; see [native release validation in PR #466](https://github.com/kyleve/Stuff/pull/466).
 Synthetic captures on the current runtime verify layout against these recorded profiles, not current native geometry.
 All four profiles use 3× scale and the phone idiom.
 
