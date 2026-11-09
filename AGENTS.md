@@ -45,8 +45,9 @@ two manifests are the authoritative target catalog. This file does not duplicate
 
 `./ide` regenerates the Xcode project and does the surrounding setup. That setup includes external agent skills and `core.hooksPath`. Use `./ide` to regenerate. Do not use `tuist generate` alone. Agents must always pass `--no-open` (see [Generating the
 Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
---bootstrap` first. That command installs `mise` and the pinned tools before
-generating. Plain `./ide` fails fast and points at bootstrap.
+--bootstrap` first. That command installs missing Homebrew and mise tools before
+generating. See [Getting started](README.md#getting-started) for the workstation setup.
+Plain `./ide` fails fast if Git LFS or mise is missing and points at bootstrap.
 `./ide --bootstrap` and `./ide --install` also install the locked site and Fastlane dependencies.
 After a site lockfile change, run `mise exec -- npm ci`.
 

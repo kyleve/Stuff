@@ -7,22 +7,24 @@ Random apps and stuff.
 - Xcode 27.2 (major.minor version pinned in `.xcode-version`; a full Xcode.app, not the Command Line Tools)
 - iOS 27.2 Simulator runtime for development and tests
 - iOS 27.0+
-- [mise](https://mise.jdx.dev) pins Tuist, SwiftFormat, and Ruby.
-  `./ide --bootstrap` installs it for you (see below).
 
 ## Getting started
 
-On a fresh machine, run the one-shot bootstrap.
-It checks that Xcode is installed and selected.
-If `mise` is missing, it installs `mise` via the official installer (no Homebrew required).
-It installs the pinned tools (Tuist, SwiftFormat, Ruby).
-Then it sets Git hooks, runs `sync-agents --install`, and generates the Xcode project:
+Install and select full Xcode first. Then run bootstrap.
 
 ```bash
-# One-shot setup for a new laptop (add -i to fetch Tuist package deps,
-# --team-id ABCDE12345 for on-device signing — see below)
 ./ide --bootstrap
 ```
+
+Bootstrap installs Homebrew and mise if they are missing.
+Homebrew installs missing Git LFS, GitHub CLI, CircleCI CLI, `cloc`, and Linear CLI (`schpet/tap/linear`).
+Mise installs the tools pinned in [`.mise.toml`](.mise.toml).
+Bootstrap also installs locked Ruby and site dependencies, fetches Git LFS files, syncs agent skills, and generates the Xcode project.
+
+If the Homebrew installer prompts you, follow its instructions to finish installation and configure your shell.
+GitHub, CircleCI, and Linear CLI authentication is separate.
+Add `--install` to fetch Tuist package dependencies.
+For on-device signing, pass `--team-id` with your Apple Developer Team ID.
 
 When bootstrap installs `mise`, it also adds `mise activate` to your shell rc (zsh/bash).
 Then `mise` and the pinned tools are on `PATH` in new terminals.
