@@ -210,16 +210,3 @@ They use the existing LFS references, snapshot scheme, and CI shard discovery.
 [`ADVERSARIAL_TEST_PLAN.md`](ADVERSARIAL_TEST_PLAN.md) records the public
 behavior contracts, portability matrix, destructive-operation boundaries, and
 mutation review used to accept changes to these tools.
-
-## Backlog migration
-
-[`../backlog-migrate`](../backlog-migrate) inventories, imports, and verifies the one-time migration to Linear’s Stuff team.
-[The migration guide](BacklogMigration/README.md) describes checkpoints, validation, and the post-merge handoff.
-[BACKLOG.md](../BACKLOG.md) owns ongoing issue workflows.
-The importer uses the root npm-pinned Linear CLI. It does not provide an ongoing export or synchronization service.
-
-Run its offline regression suite with:
-
-```sh
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/Tests -p 'test_backlog*.py'
-```

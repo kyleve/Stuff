@@ -120,7 +120,7 @@ Use the [todo-triage skill](.agents/skills/todo-triage/SKILL.md) for intake, fin
 `MODULE_AUDIT.md` remains a dated report of verified code and cross-cutting themes.
 It carries Linear links, not a second list of actionable work.
 
-The one-time migration is documented in [the migration guide](Tools/BacklogMigration/README.md).
+The one-time migration is documented in [the migration record](Tools/BacklogMigration/README.md).
 Historical descriptions retain their original meaning; import is not a fresh source verification.
 Known completion dates use native fields. User-approved creation-date estimates are explicitly labeled in imported issues.
 These one-time estimates do not authorize agents to invent dates during normal backlog maintenance.

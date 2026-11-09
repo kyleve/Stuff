@@ -110,11 +110,3 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 - Use [README testing commands](README.md#testing) and the applicable checks in
   [running-tests](../.agents/skills/running-tests/SKILL.md).
   The [adversarial plan](ADVERSARIAL_TEST_PLAN.md) records the original acceptance scenarios and mutation evidence.
-
-## Backlog migration
-
-`./backlog-migrate` owns the one-time Markdown-to-Linear import. See [the migration guide](BacklogMigration/README.md).
-Preserve source revisions, entry hashes, reviewed date evidence, and stable client IDs.
-Validate source coverage before writes. Read remote state before retries and stop on differing content.
-Never overwrite human issue edits or interpret an API error as an empty result.
-The manifest is a historical receipt, not a live backlog. Guards: `test_backlog_inventory.py`, `test_backlog_linear.py`, and `test_backlog_migrate.py`.

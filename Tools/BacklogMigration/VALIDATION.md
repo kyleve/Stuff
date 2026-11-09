@@ -39,8 +39,8 @@ This focused check does not replace the first subsequent backlog audit.
 
 The pinned CLI authenticated through Keychain from the automation project's actual local checkout.
 That shell required `mise exec` to supply Node; the access guide includes this prefix.
-Both scheduled jobs remain paused with their prior Monday schedule, model, reasoning setting, and local environment.
-The migration guide contains the required post-merge restoration procedure.
+During import, both scheduled jobs were paused with their prior Monday schedule, model, reasoning setting, and local environment.
+Post-merge completion is recorded in [README.md](README.md).
 
 ## Repository checks
 
@@ -59,9 +59,9 @@ The reviewer also exercised content-preservation failures against the Markdown c
 No application behavior changed. Swift edits only replace backlog references in comments.
 Simulator, application-build, and screenshot tests were not run for this migration.
 
-## Remaining cutover work
+## Post-merge completion
 
-The repository PR must merge before the scheduled jobs resume.
-After merge, verify guidance and source-file removal on main, then repeat automation access checks.
-Restore the two existing jobs through the automation tool without creating replacements.
+PR #491 merged on November 9, 2026, at `0e95a9398c382ff6d28ef46c9474718023f14ccb`.
+The merged guidance, source-file removal, all 313 issues, and local automation access were verified.
+Both existing jobs resumed through the automation tool with their prior schedules and settings.
 The first subsequent audit must re-verify the imported historical claims.
