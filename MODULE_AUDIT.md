@@ -1,8 +1,8 @@
 # Swift Module Audit Report
 
-**Date:** November 4, 2026 (America/New_York)
-**Reviewed source:** `a22b6095254d391cb70a2dbed61943647ecbdeab` (PR #474), fetched from `origin/main`.
-**Prior audit:** October 26, 2026, source cutoff `123272e3f2361a9fa2d23879d654eede6d90b072`, report merged in PR #441.
+**Date:** November 9, 2026 (America/New_York)
+**Reviewed source:** `bbe90c4c58d9d458382335418a18a5dccb434e87` (PR #485), fetched from `origin/main`.
+**Prior audit:** November 4, 2026, source cutoff `a22b6095254d391cb70a2dbed61943647ecbdeab`, report merged in PR #479 on November 6.
 
 This report derives from all **11 current `TODOs.md` files**. It carries no actionable items.
 The root [backlog](TODOs.md) owns item format and placement.
@@ -10,95 +10,84 @@ The report describes the header date and reviewed source, not later HEADs.
 
 ## Method and backlog reconciliation
 
-The pass read every open area backlog and checked its cited source seams, test inventory, and changes since the prior cutoff.
-Unchanged implementations were compared with that cutoff; this was not a fresh line-by-line review of all 890 source files.
-Design requests remain decisions, source findings remain findings, and runtime acceptance remains unverified unless explicitly exercised below.
+The pass read the open area backlogs, checked cited source locations, and compared implementations and tests with the previous cutoff.
+All Swift source, tests, manifests, and reference images are unchanged in this window.
+Those unchanged blobs support retaining prior findings; this was not a fresh review of every source line.
+Runtime, visual, and design acceptance requirements remain open.
 Existing priorities, human origins, and completed history remain intact.
 
 `INBOX.md` has no open notes. Nothing required promotion or a decline verdict.
-No open implementation item met its full closure condition this week.
-Ledger's already-archived items now cite PR #451 and its actual October 27 merge date.
-No new independent defect was established; existing findings were corrected or sharpened instead of duplicated.
+No implementation item met its full closure condition. No new independent defect was established.
+The previous triage PR #479 merged on November 6; no unfinished matching triage PR existed at branch creation.
 
 | Backlog | Result of this pass |
 |---|---|
-| [Root](TODOs.md) | Retained calendar enforcement, publication races, distribution acceptance, portability, parser, package, and documentation items. Corrected CI locations and Ledger dates. Narrowed LFS caching to the remaining benchmark decision. |
-| [Where](Where/TODOs.md) | Retained reconciliation, attribution, recording, performance, test, localization, and visual acceptance requirements. Expanded the identifier question; corrected naming, welcome, map, and widget-fixture citations. |
-| [Broadway](Shared/Broadway/TODOs.md) | Rechecked placeholder/host/test, observer, invalidation, cache, and namesake-test gaps. Corrected target and scheme locations. |
-| [CreditKit](Shared/CreditKit/TODOs.md) | The permissive GitHub-slug expression remains; no focused malformed-pin regression was found. |
-| [Flyover](Shared/Flyover/TODOs.md) | Retained shortcut, group-filter, drawer, error-preservation, and native interaction gaps. Added the bounded effect of this week's thumbnail and layout-trait work. |
-| [Inspector](Shared/Inspector/TODOs.md) | Retained fetch, relationship, image-coverage, and search-width requirements. Distinguished its intermittent quarantine from deliberate failure assertions. |
-| [JournalKit](Shared/JournalKit/TODOs.md) | Concurrent append still discards original errors. Full-sync coverage remains one append; neither item is closed. |
-| [LifecycleKit](Shared/LifecycleKit/TODOs.md) | Both uniqueness guards remain; their duplicate-input trap tests remain absent. |
-| [Periscope](Shared/Periscope/TODOs.md) | Rechecked all modeling, hierarchy, journal, resume, query, density, handoff, and hosting-coverage items. Corrected the image-bundle location. |
-| [SnapshotKit](Shared/SnapshotKit/TODOs.md) | Ordinary configuration model isolation remains distinct from fresh cutsheet panels and retry reuse. |
-| [SnapshotKitTesting](Shared/SnapshotKitTesting/TODOs.md) | Retained parse-failure, pipeline-coverage, inline-identity, and performance items. Historical timing and visual requirements remain unverified this week. |
-
-The identifier search found 13 production modifiers and no tracked consumers of their string values.
-That does not establish that external automation has no consumers; the existing P1 remains a policy decision.
-The widget timestamp correction separates `referenceWidgetDay` from an evidence fixture with the same numeric instant.
+| [Root](TODOs.md) | Corrected architecture/tool-job citations and LFS hydration ownership after the CI split. Retained publication races, parser, portability, calendar, distribution, and documentation requirements. |
+| [Where](Where/TODOs.md) | Source locations and unchanged implementation support retaining reconciliation, attribution, recording, localization, test, performance, and visual requirements. |
+| [Broadway](Shared/Broadway/TODOs.md) | Placeholder app/test, missing root, unconditional observer, invalidation, and cache gaps remain in unchanged source. |
+| [CreditKit](Shared/CreditKit/TODOs.md) | The permissive GitHub-slug expression remains at lines 97–98. |
+| [Flyover](Shared/Flyover/TODOs.md) | Web and native sources are unchanged. Shortcut, group-filter, drawer, error-preservation, and native interaction findings remain open. |
+| [Inspector](Shared/Inspector/TODOs.md) | Relationship branch, silent fetches, image gaps, and intermittent search-width quarantine remain. |
+| [JournalKit](Shared/JournalKit/TODOs.md) | Concurrent append still discards original errors; full-sync coverage remains one append. |
+| [LifecycleKit](Shared/LifecycleKit/TODOs.md) | Duplicate-input preconditions and the missing trap tests remain unchanged. |
+| [Periscope](Shared/Periscope/TODOs.md) | Modeling, hierarchy, journal, resume, query, density, handoff, and hosting-coverage requirements remain open. |
+| [SnapshotKit](Shared/SnapshotKit/TODOs.md) | Ordinary content still builds once before the configuration loop. Cutsheet isolation does not close this item. |
+| [SnapshotKitTesting](Shared/SnapshotKitTesting/TODOs.md) | Parse traps, pipeline coverage, and duplicate inline identities remain. Removed the claim that old timings establish current phase costs. |
 
 ## Changes since the prior audit
 
-The window `123272e3f..a22b6095` contains nine merged commits, including the previous audit commit.
-Dates below are GitHub merge dates in UTC, not branch-author dates.
-Open StorageKit, compatibility, multi-device, theme, and Duo PRs are not shipped evidence.
+The window `a22b6095..bbe90c4c` contains five merged commits. All five PRs merged on November 6, UTC.
+Open PRs, including CI consolidation #484 and snapshot optimization #486, are not shipped evidence.
 
-| Merged | PR | Surface checked |
-|---|---|---|
-| October 27 | #441 | Previous backlog and audit publication; treated as the documentary baseline. |
-| October 27 | #451 | Ledger, LedgerCore, installer wrapper, and native macOS app-test scheme removed. Retired issues remain archived. |
-| October 27 | #452 | Native thumbnail pyramid, optional manifest metadata, Python validation/versioning, browser size selection, and regression fixtures. |
-| October 27 | #453 | Lint, tool, and web jobs separated. Live branch protection requires all three new statuses. |
-| October 31 | #465 | DerivedData ownership, dry run, orphan eligibility, and public cleanup wrapper. Focused temporary-directory tests passed. |
-| November 2 | #467 | Xcode 27.2 major/minor pin, simulator defaults, shell/tool expectations, and reference replacement. No visual approval inferred from replacement. |
-| November 4 | #470 | Accepted-pipeline and workflow-discovery 404 retries; deadline, response closure, and non-discovery failures. |
-| November 4 | #471 | Independent web accessibility tests by surface; native device-preview layout traits and host sizing. |
-| November 4 | #474 | Installer controller uses the shared HTTP transport. Public-command tests cover eventual discovery and timeout without duplicate submission. |
+| PR | Surface checked |
+|---|---|
+| #469 | Shared documentation classifier, Linux CircleCI selection, continuation jobs, required GitHub job names, and early publication failure after setup failure. |
+| #478 | Review guidance for default transport adapters and filesystem cleanup ownership; no executable change. |
+| #477 | DayRelabelView suite moved from shard 3 to shard 1. Suite membership and reference inventory remain unchanged. |
+| #479 | Previous audit and backlog reconciliation; documentary baseline for this pass. |
+| #485 | Dated CI timing/cost report distinguishes production from the unmerged consolidation proposal. No current price or billing verification performed. |
 
-**Flyover:** native exports retain the largest thumbnail and add smaller variants without upscaling.
-Python validates paths, dimensions, order, and aspect ratio; publication versions the additional assets.
-Browser selection considers layout size, zoom, pixel density, and contain/cover mode.
-Seven TypeScript tests passed, including legacy fallback and the shared native manifest fixture.
-Browser bounds, request budgets, and axe assertions were inspected, but browser tests did not run during this pass.
-Native layout-trait assertions cover phone orientations, tablets, and fixed components; they do not close native inspector/menu image gaps.
+**CI selection:** the classifier checks the complete merge-base diff, including deleted paths and both sides of renames.
+Executable Markdown, symlinks, rendered-content paths, empty diffs, and unavailable history select full CI.
+Main, manual, and publication events retain full checks. Focused tests exercise these boundaries and continuation request redaction.
+Workflow tests check required names, selection conditions, and setup/continuation parameter parity.
+These local checks do not execute the hosted providers.
 
-**Tooling:** CircleCI discovery retries only the accepted pipeline's missing pipeline/workflow resources and remains bounded by the polling deadline.
-Other HTTP failures propagate. Installer transport tests exercise the actual command entry point with fake HTTP responses.
-Cleanup tests use temporary directories and fake simulator commands; no developer cache or device was removed.
-The cleanup contract explicitly excludes concurrent path mutation guarantees.
+**Publication polling:** the shared controller now stops when setup fails before the requested workflow exists.
+The installer and Flyover command tests exercise this failure through their command boundaries.
+No signed archive, site publication, or remote artifact mutation occurred during this pass.
 
-**Existing counterexamples:** fresh temporary-directory probes reproduced both filed atlas publication races at this cutoff.
-Installation can replace an empty competing directory, and context exit can restore an old atlas after the committed destination moves.
-A parser probe still rejects a parameterized Swift Testing completion while accepting an ordinary completion.
-These results sharpen existing root items; the passing ordinary tests do not establish those missing guarantees.
+**Backlog corrections:** snapshot workers hydrate references at `.circleci/continue.yml:520`; the shared builder does not.
+The LFS cache item now names that owner and preserves the missing cold/warm benchmark requirement.
+Suite durations and job costs do not establish the current settle/render/compare breakdown.
+The snapshot performance item now treats both its old measurements and its optimization conclusion as historical.
 
-**Documentation:** current Flyover READMEs/AGENTS describe thumbnail selection and device traits.
-Tools guidance describes cleanup ownership and discovery retries; root guidance describes the split CI jobs and Xcode pin source.
-No additional module architecture/API documentation mismatch was established in this window.
-The missing Where group README remains filed. Generated agent mirrors were synchronized.
+**Documentation:** Tools README/AGENTS and root guidance already describe the new CI selection flow.
+SnapshotKitTesting guidance points to the continuation file for serial worker configuration.
+No additional module API or architecture documentation mismatch was established in this window.
+The existing missing Where group README remains filed. Agent mirrors were synchronized.
 
 ## Inventory changes
 
-| Inventory | October 26 cutoff | November 4 cutoff |
+| Inventory | November 4 cutoff | November 9 cutoff |
 |---|---:|---:|
-| Leaf modules, each with README and AGENTS | 30 | 28 |
-| Source Swift files | 914 | 890 |
-| Test/support Swift files | 528 | 514 |
+| Leaf modules, each with README and AGENTS | 28 | 28 |
+| Source Swift files | 890 | 890 |
+| Test/support Swift files | 514 | 514 |
 | Leaf image-suite Swift files | 69 | 69 |
 | Additional tool image suites | 1 | 1 |
 | Reference PNGs | 885 | 885 |
-| Area backlog files | 12 | 11 |
+| Area backlog files | 11 | 11 |
 
-Ledger removal accounts for the 24 source files, 14 test/support files, two modules, and one backlog file removed.
-Reference count does not equal capture count: comparison sheets contain independently captured panels.
-The shard plan remains 70 suites across 13 / 18 / 17 / 22 planned assignments and zero intake suites.
+The shard plan now assigns 70 suites across **14 / 18 / 16 / 22**, with zero intake suites.
+The prior plan assigned 13 / 18 / 17 / 22. Reference count does not equal capture count because sheets contain independent panels.
 
 ## Module inventory and Verified OK
 
 Counts cover tracked `.swift` files under each leaf's `Sources/`, `Tests/`, and `SnapshotTests/`.
 Test counts include support files, not test cases. Every row has both module documents.
-The bounded results below are source checks unless the verification section explicitly names an executed check.
+The bounded results below retain the prior source conclusions after checking unchanged implementation and test blobs.
+They are not new runtime results. No Swift source, test, manifest, or PNG changed since the prior cutoff.
 
 | Module | Source | Test/support | Image suite | Verified OK / bounded result |
 |---|---:|---:|---:|---|
@@ -106,7 +95,7 @@ The bounded results below are source checks unless the verification section expl
 | [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 19 | 13 | 0 | Context mutations still update the stylesheet key. Cache sharing remains explicit; unchanged-value and eviction gaps remain filed. |
 | [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 6 | 4 | 0 | Dependency points downward to BroadwayCore. The nested-observer TODO remains beside unconditional observer creation. |
 | [CreditKit](Shared/CreditKit/README.md) | 2 | 3 | 0 | Foundation-only values and manifest-derived attribution ownership remain. The GitHub-slug parsing gap remains reproducible from source. |
-| [Flyover](Shared/Flyover/README.md) | 66 | 19 | 1 | Thumbnail metadata reaches native export, Python validation, and browser selection. Device previews now supply layout traits; native interaction gaps remain open. |
+| [Flyover](Shared/Flyover/README.md) | 66 | 19 | 1 | Thumbnail metadata reaches native export, Python validation, and browser selection. Device previews supply layout traits; native interaction gaps remain open. |
 | [Inspector](Shared/Inspector/README.md) | 23 | 14 | 1 | The four-reference suite retains its intermittent search-width quarantine. Bare-identifier and silent-fetch gaps still match source. |
 | [InstallerKit](Shared/InstallerKit/README.md) | 10 | 11 | 0 | Host-injected fetch/preferences and app/bundle selection remain. No package source changed in this window; device acceptance remains open. |
 | [InstallerKitUI](Shared/InstallerKitUI/README.md) | 27 | 8 | 5 | Page-owned refresh and typed destinations remain unchanged. The shared five-suite matrix retains 106 references. |
@@ -144,11 +133,10 @@ Broadway and Periscope have group docs; Where still lacks its group README.
 
 ## Cross-cutting themes and top findings
 
-- Partial test improvements need narrow closure criteria. Thumbnail tests and device traits do not prove native navigation or scroll reachability.
-- Filesystem validation does not establish publication ownership. Both existing rename counterexamples remain reproducible despite ordinary recovery tests passing.
-- A toolchain refresh invalidates old timing and visual assumptions. Reference replacement alone supplies neither live acceptance nor a new performance measurement.
-- Independent CI jobs need independent required statuses. GitHub protection now names the three split jobs; no protection gap was found.
-- Existing write fan-out and pre-attach durability gaps survive unrelated UI and tooling growth.
+- Unchanged implementation preserves open acceptance requirements; green documentation checks cannot close runtime defects.
+- Suite timings, capture-phase timings, and provider costs answer different performance questions.
+- CI configuration now has a selection entry point and a continuation file; job citations must name their current owner.
+- Filesystem ownership and pre-attach durability remain independent of this week's CI improvements.
 
 Pointers only; the owning backlogs contain evidence and proposed work.
 
@@ -165,25 +153,22 @@ Pointers only; the owning backlogs contain evidence and proposed work.
 
 ## Verification and limitations
 
-This run used **macOS with Xcode 27.2 (27B52)**, not the Linux environment assumed by the skill's environment paragraph.
-The final change is documentation-only. No executable, target, dependency, product copy, or reference image changed.
+This run used **macOS with Xcode 27.2 (27B52)**, not the Linux environment assumed by the skill.
+The resulting diff changes documentation only.
 
 Executed at the reviewed source:
 
-- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_circleci_pipeline test_circleci_distribution test_flyover_distribution test_flyover_images test_flyover_manifest test_flyover_publication test_worktree_cleanup test_worktree_command test_test_runner` — **99 tests passed**.
-- `mise exec -- node --experimental-strip-types --test Shared/Flyover/Web/tests/thumbnail-selection.test.ts Shared/Flyover/Web/tests/catalog.test.ts` — **7 tests passed**.
-- `./swiftformat --lint` — **0 of 1,482 files required formatting; 143 skipped**. Mise needed sandbox escalation to register the isolated checkout.
+- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_ci_changes test_ci_circleci test_ci_workflows test_circleci_pipeline test_circleci_distribution test_flyover_distribution test_flyover_workflows test_snapshot_shards test_test_runner` — **116 tests passed**.
 - `./snapshot-shards check` — valid, 70 suites with the assignments above.
 - `./sync-agents` — passed; only ignored mirrors generated.
-- Temporary-directory publication probes and a completion-parser probe reproduced the three existing defects described above.
-- Tracked inventory, backlog source citations, local Markdown links, and `git diff --check` were checked during final review.
+- Recounted tracked module files and PNGs; checked source citations, unchanged implementation blobs, and the complete documentation diff.
+- Local Markdown targets and `git diff --check` checked before publication.
 
-`./test`, architecture execution, simulator captures, browser execution, live VoiceOver, and physical-device installation were not run.
-The documentation diff does not exercise those runtime paths; the original acceptance requirements remain open.
-No new snapshot timing, memory, visual-reference approval, CloudKit delivery, or Linux portability result is claimed.
-No signing, deployment, remote artifact deletion, or billing change occurred.
+`./test`, SwiftFormat, architecture execution, simulator captures, and browser execution were skipped for this documentation-only diff.
+No live VoiceOver, physical-device installation, CloudKit, Linux portability, or new performance result is claimed.
+Visual findings retain their earlier evidence dates; this pass did not inspect rendered references or exercise scroll reachability.
+The earlier publication-race probes remain historical evidence against unchanged code; this pass did not rerun those probes.
 
-GitHub confirms that `kve-stuff/Stuff-CI-Benchmark` still exists and is not archived on November 4.
+GitHub confirms that `kve-stuff/Stuff-CI-Benchmark` still exists and is not archived on November 9.
 Billing, downgrade, and installed-integration state remain unverified.
-The audit found no unfinished matching triage PR before branch creation.
-CI results for the publication commit belong to its PR; historical green runs are not validation of that commit.
+CI results for the publication commit belong to its PR. Documentation skips do not establish runtime coverage.
