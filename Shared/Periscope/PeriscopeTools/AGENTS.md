@@ -41,7 +41,7 @@ Follow the repo [`building-ui`](../../../.agents/skills/building-ui/SKILL.md) sk
 - **`LogHierarchyModel` and `SpanTreeModel` accumulate derived state.** They fetch only past their highest merged `sequence` (`LogQuery.afterSequence`).
 - **Never do a full-store re-read.** The merge re-filters on `sequence` so restarts stay idempotent.
 - **This trades exact reflection of deletions for a bounded per-commit fetch.** Retention prune / clear are neither wired into the live app.
-- **The in-memory rebuild is still O(accumulated) — see [`TODOs.md`](../TODOs.md).** A store swap makes the hosting view build a fresh model.
+- **The in-memory rebuild is still O(accumulated) — see [Periscope backlog](https://linear.app/kve/view/c0511a6281eb).** A store swap makes the hosting view build a fresh model.
 - **Rebind tool views on in-place input swaps.** Each view's `.task(id:)` is keyed on store identity plus its other inputs.
 - **A new identity-relevant input must join the key.** Otherwise the view silently keeps serving the old inputs.
 - **Name the builds a timing reading pools.** `SpanHistoryScope` filters the accumulated ends (never a refetch).

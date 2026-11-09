@@ -32,7 +32,7 @@ The weekly [todo-triage](../todo-triage/SKILL.md) pass owns backlog maintenance 
 - Include completed agent-review reports available in the current task or linked to the reviewed PRs.
   Preserve findings fixed before publication when the review report or fix history records them.
   Record inaccessible or unrecorded reviews as a coverage limit. A PR-only collection cannot establish complete agent-review coverage.
-- Use scoped `TODOs.md` files, including completed items, and dated `MODULE_AUDIT.md` reports to locate agent-found issues and fixes.
+- Search the Stuff team’s Linear issues, including completed and archived history, and dated `MODULE_AUDIT.md` reports to locate agent-found issues and fixes. Follow [BACKLOG.md](../../../BACKLOG.md) for complete reads.
   Verify them against source and history. A backlog entry or stale audit is not proof of a current defect.
 - Collect clarification questions about scope, affected callers, validation, and design rationale.
   Compare them with the description and context available at the time of review.
@@ -86,7 +86,7 @@ For a new guard, cover the actual failing form and a valid neighboring form.
 Check the guard's file selection, exclusions, configured severity, and CI invocation.
 Retain the production configuration in regression probes so disabling the guard makes them fail.
 Avoid broad text matching for rules that require type or runtime context.
-If enforcement needs a separate product change, file it through `todo-triage` in the owning `TODOs.md`.
+If enforcement needs a separate product change, file it through `todo-triage` in Linear’s Stuff team and link the issue.
 Search existing backlog items before filing another one.
 Keep review history in the PR and actionable follow-ups in the backlog.
 If a confirmed lesson lacks a useful review check, update [repository checks](../code-review/references/repository-checks.md).

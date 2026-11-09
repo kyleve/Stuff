@@ -56,8 +56,7 @@ struct InspectorSnapshotTests {
         // configurations (rebuilding the view per configuration still failed 1 of
         // 6); and not a regression from the commit that first went red, which was
         // docs plus two WhereUI files this bundle doesn't link. See
-        // `Shared/Inspector/TODOs.md` for the full evidence and the
-        // candidate fix.
+        // [STU-20](https://linear.app/kve/issue/STU-20) for the evidence and candidate fix.
         await withKnownIssue(
             "inspectorSurfaces.SwiftData_iPhone_dark is bistable",
             isIntermittent: true,

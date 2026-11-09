@@ -25,6 +25,6 @@ shadowed scope is remembered but not attached.
 
 Swift guard: [`DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope`](../../WhereUI/Tests/DemoModeTests.swift).
 
-Note: static `WhereLog` bypass in Flyover remains tracked separately in [`Where/TODOs.md`](../../TODOs.md).
+Note: static `WhereLog` bypass in Flyover remains tracked separately in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 
 Run: `./tla-check LogRouting`

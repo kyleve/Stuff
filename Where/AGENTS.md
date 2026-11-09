@@ -117,7 +117,7 @@ a screen felt slow.
   half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog.
   The `SpanEnded` lands in the store. Durations survive but the pair does not.
   That gap is Periscope's to close (P0 in its
-  [`TODOs.md`](../Shared/Periscope/TODOs.md)). Do not work around it here.
+  [Periscope backlog](https://linear.app/kve/view/c0511a6281eb)). Do not work around it here.
 
 ## Scopes and the launch
 
@@ -170,7 +170,7 @@ a screen felt slow.
 - **Flyover builds but never activates its demo scope.** Its frames share that
   one in-memory world while the real app keeps its current scope. Dismissing
   Flyover releases the sibling. The process-global `WhereLog` facade remains a
-  known exception tracked in [`TODOs.md`](TODOs.md).
+  known exception tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 - **The logging system is injected, not global.** `WhereModel.logSystem` has no
   default. A test must not silently attach sinks to `Periscope.shared`. (The
   `WhereLog` facade still emits into `.shared`. Pre-existing.)

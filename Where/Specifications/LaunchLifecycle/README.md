@@ -40,6 +40,6 @@ Swift guards:
 - [`LifecycleRunnerTests.promotionSkipsNodesCompletedInTheHeadlessDrive`](../../../Shared/LifecycleKit/Tests/LifecycleRunnerTests.swift)
 - [`LifecycleRunnerTests.undeterminedLaunchRunsBackgroundNodesThenPromotesToForeground`](../../../Shared/LifecycleKit/Tests/LifecycleRunnerTests.swift)
 
-Broader launch state-machine rewrite remains tracked in [`Where/TODOs.md`](../../TODOs.md).
+Broader launch state-machine rewrite remains tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 
 Run: `./tla-check LaunchLifecycle`

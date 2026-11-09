@@ -42,7 +42,7 @@ Keep topic titles, search focus items, navigation, Flyover registrations, previe
 Use localized copy and typed symbols. Update module documentation when its described behavior changes.
 
 If a product decision blocks one change, complete independent updates first.
-File deferred work in the lowest applicable `TODOs.md`, using the root backlog format.
+File deferred work in Linear’s Stuff team through [todo-triage](../todo-triage/SKILL.md). Use [BACKLOG.md](../../../BACKLOG.md) for evidence, labels, and duplicate searches.
 Do not invent a product feature to fill a documentation gap.
 
 ## Validate and report

@@ -62,7 +62,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **If a journal fails ingest, keep it for the next launch.**
 - **Only app processes ingest journals.** Extensions journal their own sessions but skip ingest.
 - **Ingest deletes journals.** An extension launch must not eat the live app's.
-- **Concurrently live processes sharing one on-disk store is unsupported.** See [`TODOs.md`](../TODOs.md).
+- **Concurrently live processes sharing one on-disk store is unsupported.** See [Periscope backlog](https://linear.app/kve/view/c0511a6281eb).
 - **Keep Periscope storage local-only.** Every on-disk `ModelConfiguration` explicitly sets `cloudKitDatabase: .none`.
 - **A host app's iCloud entitlement must never opt the logging schema into CloudKit implicitly.**
 - **Persist payloads as versioned JSON** (`eventName` + `eventVersion`). An event shape change must not require a SwiftData migration.
@@ -76,7 +76,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **They are the adapters that let a standalone Inspector enumerate or recover internal storage without starting the logging pipeline.**
 - **Every span eventually ends, and its began is delivered first.**
 - **`measure` closes on every path.** Bounded spans expire through the watchdog. Re-begins supersede.
-- **Relaunch orphan-closes `endsWithProcess` spans.** The `survivesRelaunch` resume is staged — see [`TODOs.md`](../TODOs.md).
+- **Relaunch orphan-closes `endsWithProcess` spans.** The `survivesRelaunch` resume is staged — see [Periscope backlog](https://linear.app/kve/view/c0511a6281eb).
 - **Keep all three protections:** begin registration and `SpanBegan` record land atomically (`LogRecorder.beginSpan`).
 - **The overflow drop policy never splits a recorded pair** (`LogEvent.isProtectedFromDropping`).
 - **Redaction is transform-only for pair records.**

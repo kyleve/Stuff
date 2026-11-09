@@ -360,7 +360,7 @@ public final class WhereScope {
     /// critical path — it touches disk (and may run a lightweight migration),
     /// which must not delay the launch. The OSLog sink covers the window
     /// before it lands. (Fully closing that window — a bootstrap journal from
-    /// process start — is tracked as a P0 in `Shared/Periscope/TODOs.md`.)
+    /// process start — is tracked as a P0 in [STU-37](https://linear.app/kve/issue/STU-37).)
     ///
     /// The bring-up is itself a span (`openLogStore`), deliberately ending
     /// *after* the sink is routed rather than around the open alone: a span

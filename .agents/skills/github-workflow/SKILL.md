@@ -117,7 +117,7 @@ branch.
 
 - **Title:** prefer `type(scope): imperative description` when it fits — the squash
   commit subject on `main`. Use the same **types** and **scopes** as
-  [`TODOs.md`](../../../TODOs.md) (`feat`, `fix`, `refactor`, `docs`, …;
+  [BACKLOG.md](../../../BACKLOG.md) (`feat`, `fix`, `refactor`, `docs`, …;
   `WhereUI`, `WhereCore`, `Periscope`, …). Prose titles are fine for
   cross-cutting work that doesn't have one scope (`Add demo mode…`). Branch
   commits stay bisectable narrative. Only the PR title needs this shape.
@@ -275,8 +275,8 @@ shape below is genuinely unclear.
 - **Design decisions:** explicit choices and rejected alternatives.
 - **⚠️ Breaking changes** / **Compatibility** when stored shapes or backup
   restore behavior changes.
-- **Backlog reconciliation** when the branch touched `TODOs.md` or
-  `MODULE_AUDIT.md`.
+- **Backlog reconciliation** when the branch changed Linear issues or
+  `MODULE_AUDIT.md`. Link the affected issues and state what remains open.
 
 ##### Docs, skills, or repo tooling
 
@@ -460,9 +460,16 @@ When addressing:
   that resolved it (short summary of what changed). Use `gh` or
   `ManagePullRequest` `post_comment` with `in_reply_to` for review threads.
 - **Reply on threads you declined** — say why, or that it was filed in the
-  area's [`TODOs.md`](../../../TODOs.md). Never drop feedback silently.
-- Anything deferred gets filed in `TODOs.md` and the reply links
+  Stuff team's Linear backlog under [BACKLOG.md](../../../BACKLOG.md). Never drop feedback silently.
+- Anything deferred gets filed in Linear and the reply links
   to that item.
+
+## Linear issue lifecycle
+
+Use [BACKLOG.md](../../../BACKLOG.md) for issue evidence and closure rules.
+Link affected STU issues in the PR description. Keep work In Review while its PR is open.
+After merge, verify acceptance conditions before marking Done. Keep partial fixes open with the remainder documented.
+Do not treat publishing a PR as completing its issue.
 
 ## CI
 

@@ -119,7 +119,7 @@ fully expresses Where's constructor facts.
 `where.gregorian_calendar` rejects explicitly spelled `Calendar.current` in
 Where's production sources. It does not catch an implicit `.current` whose
 contextual type is `Calendar`. The enforcement gap and missing mutation test
-are tracked in the root [`TODOs.md`](../TODOs.md).
+are tracked in the root [Repo backlog](https://linear.app/kve/view/df229f7aa2f4).
 Day and year math still requires an injected Gregorian calendar or,
 inside WhereIntents, `Calendar.whereIntents`.
 

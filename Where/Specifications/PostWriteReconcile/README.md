@@ -34,7 +34,7 @@ Single-sample ingest routes through `reconcileIssueState()` plus
 full `reconcileAfterDayDataChange()`.
 
 Out of model until routed: `DailySummaryReconciler`, `setPrimaryRegions` (see
-[`Where/TODOs.md`](../../TODOs.md) with links here). Dismiss/restore uses
+[Where backlog](https://linear.app/kve/view/1cdf347a9c54) with links here). Dismiss/restore uses
 widget-less `reconcileIssueState()` by design.
 
 Run: `./tla-check PostWriteReconcile`

@@ -27,6 +27,6 @@ Swift guard: [`LocationIngestorTests.quiesceStopsPersistingFurtherSamples`](../.
 
 Outbox save failure is covered by
 `LocationIngestorTests.failedOutboxWriteStopsRecordingWithTheSampleStillInMemory`. Retry eviction
-remains excluded from this model (see [`Where/TODOs.md`](../../TODOs.md)).
+remains excluded from this model (see [Where backlog](https://linear.app/kve/view/1cdf347a9c54)).
 
 Run: `./tla-check IngestorQuiesce`
