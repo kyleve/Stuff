@@ -68,7 +68,7 @@ def test_report(
         cases.extend(case for case in test_cases(document) if case.result != "skipped")
 
     total = sum(case.duration_seconds for case in cases)
-    lines = [f"{len(cases)} tests, summed self-time {total:.2f}s", ""]
+    lines = [f"{len(cases)} tests, summed execution time {total:.2f}s", ""]
     lines.append(f"Slowest {top} tests:")
     for case in sorted(cases, key=lambda item: -item.duration_seconds)[:top]:
         flag = "  <== over threshold" if case.duration_seconds >= threshold else ""
@@ -80,7 +80,7 @@ def test_report(
     for case in cases:
         by_bundle[case.bundle][0] += case.duration_seconds
         by_bundle[case.bundle][1] += 1
-    lines.extend(["", "Per-bundle self-time:"])
+    lines.extend(["", "Per-bundle summed execution time:"])
     for bundle, (duration, count) in sorted(
         by_bundle.items(), key=lambda item: -item[1][0]
     ):

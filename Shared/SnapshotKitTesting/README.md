@@ -106,6 +106,8 @@ The fixed anchor detects cumulative motion that exceeds one unit within the quie
 It cannot distinguish slower motion inside that allowance from noise, or detect detail lost at the sample resolution.
 Readiness hooks and measured minimum durations remain necessary for asynchronous content and native glass adaptation.
 Final reference comparisons keep their existing tolerances and use the full capture after PNG encoding and decoding.
+Ordinary assertions reuse those PNG bytes for comparison, diagnostics, and recording.
+Comparison sheets encode a new PNG after composition to include their panel map.
 
 ## Quick start
 

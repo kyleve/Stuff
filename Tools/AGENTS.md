@@ -97,6 +97,9 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 
 ## Validation
 
+- Use `xcode_results.test_duration` for profiler and JUnit execution totals.
+  Sum argument and repetition durations instead of Xcode's parent averages or rounded display durations.
+  Guards: `test_xcode_results.py`, `test_profile_results.py`, and `.circleci/Tests/test_xcresult_to_junit.py`.
 - For policy changes, exercise both the policy and its public command boundary.
   Assert exit status, stdout, stderr, and resulting filesystem or process operations.
   Do not rely only on helper return values.
