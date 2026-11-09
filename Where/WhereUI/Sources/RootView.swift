@@ -337,7 +337,7 @@ public struct RootView: View {
         /// hosts. Those have no reachable completion signal (the scene's report
         /// model is private to `MainTabs`; the adaptation has no public
         /// notification), hence the generous floor — see the flakiness ledger in
-        /// `Where/TODOs.md`.
+        /// [STU-280](https://linear.app/kve/issue/STU-280).
         public static var snapshots: [SnapshotCase] {
             let model = welcomeDisabled(PreviewSupport.loadedModel())
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)

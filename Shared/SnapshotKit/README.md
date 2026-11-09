@@ -65,7 +65,7 @@ capture + comparison pipeline lives in the sibling
   builder. Declaring a matrix does not instantiate its views or models. The
   current test runner evaluates an ordinary single-view builder once per case
   and re-hosts that value across configurations, sharing captured reference models
-  (see [`TODOs.md`](TODOs.md)). Cutsheet panel builders run per configuration
+  (see [SnapshotKit backlog](https://linear.app/kve/view/c1d3e2053ada)). Cutsheet panel builders run per configuration
   and must construct fresh fixtures. Settling retries reuse the supplied view and
   captured models in either path. `SnapshotCase` is
   also a `View`, so `snapshotPreviews` can render the whole matrix as a

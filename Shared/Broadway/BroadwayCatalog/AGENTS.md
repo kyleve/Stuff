@@ -11,4 +11,4 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 
 ## Testing
 
-Run `BroadwayCatalogTests` (`./test BroadwayCatalogTests`). This app currently hosts its own tests. That deviates from the shared-`StuffTestHost` convention. Track it in [`../TODOs.md`](../TODOs.md).
+Run `BroadwayCatalogTests` (`./test BroadwayCatalogTests`). This app currently hosts its own tests. That deviates from the shared-`StuffTestHost` convention. Track it in [Broadway backlog](https://linear.app/kve/view/44ec91d450b2).

@@ -90,7 +90,7 @@ public enum WhereLaunch {
     /// sources' opening snapshots included — reaches OSLog only. That is the
     /// cost of opening no store until the user asks for one. (Closing the
     /// pre-sink window properly — a bootstrap journal from process start — is
-    /// tracked as a P0 in `Shared/Periscope/TODOs.md`.)
+    /// tracked as a P0 in [STU-37](https://linear.app/kve/issue/STU-37).)
     public static func startAmbientLogging(on system: Periscope) {
         system.startDefaultAmbientSources()
     }

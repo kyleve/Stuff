@@ -85,7 +85,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Pixel stability cannot become a readiness signal.** Nothing public sees pending dispatch or Swift-concurrency work — see below.
 - **If content arrives asynchronously, make the case deterministic instead.**
 - **Seed the fixture so its first frame is final (`resolution.Empty`).** Or await a completion signal from `onReadyToSnapshot` (`root.LoggedIn`).
-- **Both incidents, and how each was found, are ledgered in [`Where/TODOs.md`](../../Where/TODOs.md).**
+- **Both incidents and their evidence remain in [STU-279](https://linear.app/kve/issue/STU-279/resolutionempty-never-rendered-the-empty-state-and-its-capture-raced-a) and [STU-280](https://linear.app/kve/issue/STU-280/rootloggedin-failed-3-consecutive-ci-runs-29617740607-29621920437).**
 - **Height-changing readiness runs before measurement.**
 - **Intrinsic/full-content cases await `onReadyToMeasure` only after the sizing probe is hosted and laid out.** Then they settle and resolve height.
 - **The hook is bounded by the effective settle ceiling unless an explicit timeout overrides it.** Scale either ceiling with the CI multiplier. Preserve thrown errors, skip failed captures, and require cancellation cooperation. Reject hooks for fixed sizing.

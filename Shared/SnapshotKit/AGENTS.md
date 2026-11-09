@@ -34,7 +34,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
   `SnapshotKitTesting` runner evaluates ordinary content once per case and re-hosts it.
   Cutsheet panel builders run per configuration and must create fresh fixtures.
   Retries reuse the supplied view and captured models in both paths. Ordinary
-  per-configuration model isolation remains in [`TODOs.md`](TODOs.md).
+  per-configuration model isolation remains in [SnapshotKit backlog](https://linear.app/kve/view/c1d3e2053ada).
 - **Use `\.isCapturingSnapshot` for motion end-states only.** A view may read it only to freeze motion at a deterministic phase.
 - **Never use it to change layout, content, or behavior.**
 - **One carve-out (documented on the property):** content no settle window can make deterministic may substitute a placeholder of identical layout.

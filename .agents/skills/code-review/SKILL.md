@@ -131,5 +131,6 @@ For review-only work, keep it in the run summary. Recording a lesson does not au
 
 After fixes or a material base change, review the complete resulting diff and affected consumers again.
 Repeat checks only where changes or unresolved evidence invalidate the earlier result.
-File deferred work through [todo-triage](../todo-triage/SKILL.md).
+File deferred work in Linear’s Stuff team through [todo-triage](../todo-triage/SKILL.md).
+Search completed and archived history before creating issues, and link each deferred issue in the review summary.
 Stop when supported findings are resolved or explicitly reported and the required checks are accounted for.

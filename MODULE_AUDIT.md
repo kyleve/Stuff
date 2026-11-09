@@ -4,8 +4,8 @@
 **Reviewed source:** `bbe90c4c58d9d458382335418a18a5dccb434e87` (PR #485), fetched from `origin/main`.
 **Prior audit:** November 4, 2026, source cutoff `a22b6095254d391cb70a2dbed61943647ecbdeab`, report merged in PR #479 on November 6.
 
-This report derives from all **11 current `TODOs.md` files**. It carries no actionable items.
-The root [backlog](TODOs.md) owns item format and placement.
+This report was verified against 11 Markdown backlog files at its header date. It carries no actionable items.
+[BACKLOG.md](BACKLOG.md) now owns the Linear workflow. Links below were migrated without changing this report’s verification date.
 The report describes the header date and reviewed source, not later HEADs.
 
 ## Method and backlog reconciliation
@@ -16,23 +16,23 @@ Those unchanged blobs support retaining prior findings; this was not a fresh rev
 Runtime, visual, and design acceptance requirements remain open.
 Existing priorities, human origins, and completed history remain intact.
 
-`INBOX.md` has no open notes. Nothing required promotion or a decline verdict.
+At this audit’s date, the former Markdown inbox had no open notes. Nothing required promotion or a decline verdict.
 No implementation item met its full closure condition. No new independent defect was established.
 The previous triage PR #479 merged on November 6; no unfinished matching triage PR existed at branch creation.
 
 | Backlog | Result of this pass |
 |---|---|
-| [Root](TODOs.md) | Corrected architecture/tool-job citations and LFS hydration ownership after the CI split. Retained publication races, parser, portability, calendar, distribution, and documentation requirements. |
-| [Where](Where/TODOs.md) | Source locations and unchanged implementation support retaining reconciliation, attribution, recording, localization, test, performance, and visual requirements. |
-| [Broadway](Shared/Broadway/TODOs.md) | Placeholder app/test, missing root, unconditional observer, invalidation, and cache gaps remain in unchanged source. |
-| [CreditKit](Shared/CreditKit/TODOs.md) | The permissive GitHub-slug expression remains at lines 97–98. |
-| [Flyover](Shared/Flyover/TODOs.md) | Web and native sources are unchanged. Shortcut, group-filter, drawer, error-preservation, and native interaction findings remain open. |
-| [Inspector](Shared/Inspector/TODOs.md) | Relationship branch, silent fetches, image gaps, and intermittent search-width quarantine remain. |
-| [JournalKit](Shared/JournalKit/TODOs.md) | Concurrent append still discards original errors; full-sync coverage remains one append. |
-| [LifecycleKit](Shared/LifecycleKit/TODOs.md) | Duplicate-input preconditions and the missing trap tests remain unchanged. |
-| [Periscope](Shared/Periscope/TODOs.md) | Modeling, hierarchy, journal, resume, query, density, handoff, and hosting-coverage requirements remain open. |
-| [SnapshotKit](Shared/SnapshotKit/TODOs.md) | Ordinary content still builds once before the configuration loop. Cutsheet isolation does not close this item. |
-| [SnapshotKitTesting](Shared/SnapshotKitTesting/TODOs.md) | Parse traps, pipeline coverage, and duplicate inline identities remain. Removed the claim that old timings establish current phase costs. |
+| [Root](https://linear.app/kve/view/df229f7aa2f4) | Corrected architecture/tool-job citations and LFS hydration ownership after the CI split. Retained publication races, parser, portability, calendar, distribution, and documentation requirements. |
+| [Where](https://linear.app/kve/view/1cdf347a9c54) | Source locations and unchanged implementation support retaining reconciliation, attribution, recording, localization, test, performance, and visual requirements. |
+| [Broadway](https://linear.app/kve/view/44ec91d450b2) | Placeholder app/test, missing root, unconditional observer, invalidation, and cache gaps remain in unchanged source. |
+| [CreditKit](https://linear.app/kve/view/835453b822e9) | The permissive GitHub-slug expression remains at lines 97–98. |
+| [Flyover](https://linear.app/kve/view/2292471484f2) | Web and native sources are unchanged. Shortcut, group-filter, drawer, error-preservation, and native interaction findings remain open. |
+| [Inspector](https://linear.app/kve/view/83c3c45cf416) | Relationship branch, silent fetches, image gaps, and intermittent search-width quarantine remain. |
+| [JournalKit](https://linear.app/kve/view/0ea46c42ff5f) | Concurrent append still discards original errors; full-sync coverage remains one append. |
+| [LifecycleKit](https://linear.app/kve/view/b4bc9780ee5f) | Duplicate-input preconditions and the missing trap tests remain unchanged. |
+| [Periscope](https://linear.app/kve/view/c0511a6281eb) | Modeling, hierarchy, journal, resume, query, density, handoff, and hosting-coverage requirements remain open. |
+| [SnapshotKit](https://linear.app/kve/view/c1d3e2053ada) | Ordinary content still builds once before the configuration loop. Cutsheet isolation does not close this item. |
+| [SnapshotKitTesting](https://linear.app/kve/view/82d7e3ada668) | Parse traps, pipeline coverage, and duplicate inline identities remain. Removed the claim that old timings establish current phase costs. |
 
 ## Changes since the prior audit
 
@@ -142,14 +142,14 @@ Pointers only; the owning backlogs contain evidence and proposed work.
 
 | Area | Finding | Backlog |
 |---|---|---|
-| Bumper | Gregorian lint misses implicit `.current` | [Root P0](TODOs.md) |
-| WhereCore | Daily-summary reconciliation absent from local fan-out | [Where P0](Where/TODOs.md) |
-| PeriscopeCore | Pre-store-attach events lack durable journaling | [Periscope P0](Shared/Periscope/TODOs.md) |
-| Scripts | Atlas replacement and committed-install recovery races | [Root P1](TODOs.md) |
-| WhereCore / WhereUI | Residency requirements, attribution, picker fan-out, and display calendars | [Where P1](Where/TODOs.md) |
-| Installer | Signed-device and update-flow acceptance | [Root P1](TODOs.md) |
-| Snapshot infrastructure | Captured-model isolation and accessibility parse failures | [SnapshotKit](Shared/SnapshotKit/TODOs.md), [SnapshotKitTesting](Shared/SnapshotKitTesting/TODOs.md) |
-| Flyover | Focused shortcuts, group identity, drawer bounds, and original errors | [Flyover P2](Shared/Flyover/TODOs.md) |
+| Bumper | Gregorian lint misses implicit `.current` | [Root P0](https://linear.app/kve/view/df229f7aa2f4) |
+| WhereCore | Daily-summary reconciliation absent from local fan-out | [Where P0](https://linear.app/kve/view/1cdf347a9c54) |
+| PeriscopeCore | Pre-store-attach events lack durable journaling | [Periscope P0](https://linear.app/kve/view/c0511a6281eb) |
+| Scripts | Atlas replacement and committed-install recovery races | [Root P1](https://linear.app/kve/view/df229f7aa2f4) |
+| WhereCore / WhereUI | Residency requirements, attribution, picker fan-out, and display calendars | [Where P1](https://linear.app/kve/view/1cdf347a9c54) |
+| Installer | Signed-device and update-flow acceptance | [Root P1](https://linear.app/kve/view/df229f7aa2f4) |
+| Snapshot infrastructure | Captured-model isolation and accessibility parse failures | [SnapshotKit](https://linear.app/kve/view/c1d3e2053ada), [SnapshotKitTesting](https://linear.app/kve/view/82d7e3ada668) |
+| Flyover | Focused shortcuts, group identity, drawer bounds, and original errors | [Flyover P2](https://linear.app/kve/view/2292471484f2) |
 
 ## Verification and limitations
 

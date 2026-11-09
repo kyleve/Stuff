@@ -40,6 +40,6 @@ Swift guards:
 - [`DemoModeTests.demoingFromAFreshInstallOpensNoRealStore`](../../WhereUI/Tests/DemoModeTests.swift)
 
 Log sink routing is separately verified by [`LogRouting`](../LogRouting/README.md).
-Static `WhereLog` bypass in Flyover remains in [`Where/TODOs.md`](../../TODOs.md).
+Static `WhereLog` bypass in Flyover remains in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 
 Run: `./tla-check ScopeExclusivity`
