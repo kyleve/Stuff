@@ -54,7 +54,7 @@ After a site lockfile change, run `mise exec -- npm ci`.
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `flyover`, `icons`, `flaky`, `simulator`,
 `worktree`, `signing`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
-`circleci-artifacts`, `snapshot-shards`, `loc`, `backlog-migrate`. Each takes `--help`. Use one of these scripts instead of
+`circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` owns iOS and host-side tests
 (see [Running tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state that is
 easy to corrupt by hand. `./simulator` owns a per-checkout device (see the
