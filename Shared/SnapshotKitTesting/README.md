@@ -336,9 +336,10 @@ See [SnapshotKit's adaptive container contract](../SnapshotKit/README.md#adaptiv
 Fixed, regular-width phone captures retain their scene so native bar heights stay stable during settlement.
 The pipeline selects this path from the content controller’s layout traits before hosting.
 Other synthetic captures detach the marked window. This prevents physical reserved regions from truncating compact titles and keeps full-content search anchored to expanded content.
-For fixed captures, the pipeline subtracts the resized host controller’s native insets from the requested clearance.
+The pipeline reconciles the host controller’s effective insets after containment and settlement.
 It detaches already-mounted subjects before configuring the capture host.
-Only the captured root overrides its safe-area getter. Native controller insets supply ancestor clearance; root pinning preserves translated tile geometry.
+Native safe-area getters remain active during layout so inset changes reach child controllers.
+Only pixel rendering overrides the captured root’s getter to preserve translated tile geometry.
 Annotation padding has zero safe-area insets so image content and accessibility outlines share the same layout.
 The host controller propagates the configured content insets through native navigation containers.
 
