@@ -157,7 +157,8 @@ struct SnapshotImageRenderingTests {
     }
 
     private enum CaptureLayout: CaseIterable {
-        case compactViewport, regularViewport, fullContent
+        case compactViewport, regularViewport, fullContent, retainedTabletViewport,
+             retainedFullContent
     }
 
     private func verifyWindowRestoration(
@@ -165,7 +166,9 @@ struct SnapshotImageRenderingTests {
         anotherWindowIsKey: Bool,
         layout: CaptureLayout,
     ) async throws {
-        let intrinsic = layout == .fullContent
+        let intrinsic = layout == .fullContent || layout == .retainedFullContent
+        let explicitlyRetained = layout == .retainedTabletViewport || layout == .retainedFullContent
+        let expectsScene = explicitlyRetained || layout == .regularViewport
         try waitFor { hostKeyWindow() != nil }
         let window = try #require(hostKeyWindow())
         let scene = try #require(window.windowScene)
@@ -189,15 +192,32 @@ struct SnapshotImageRenderingTests {
         let wasHidden = window.isHidden
         let animationsWereEnabled = UIView.areAnimationsEnabled
         let host = UIHostingController(rootView: Color.red)
-        host.traitOverrides.userInterfaceIdiom = .phone
-        host.traitOverrides.horizontalSizeClass = layout == .regularViewport ? .regular : .compact
+        host.traitOverrides.userInterfaceIdiom = layout == .retainedTabletViewport ? .pad : .phone
+        host.traitOverrides
+            .horizontalSizeClass = layout == .regularViewport || layout == .retainedTabletViewport ?
+            .regular : .compact
         host.traitOverrides.verticalSizeClass = .regular
         let additionalInsets = UIEdgeInsets(top: 5, left: 7, bottom: 9, right: 11)
         host.additionalSafeAreaInsets = additionalInsets
         let contentFrame = CGRect(x: 0, y: 0, width: 280, height: 400)
         host.view.frame = contentFrame
-        let readiness: (@MainActor @Sendable () async throws -> Void)? = if fails {
-            { throw WindowRestorationFailure.readiness }
+        let requestedInsets = UIEdgeInsets(top: 13, left: 0, bottom: 17, right: 0)
+        let verifyHost: @MainActor @Sendable () -> Void = {
+            if expectsScene { #expect(window.windowScene === scene) }
+            else { #expect(window.windowScene == nil) }
+            #expect(host.view.window === window)
+            #expect(host.traitCollection
+                .userInterfaceIdiom == (layout == .retainedTabletViewport ? .pad : .phone))
+            #expect(host.traitCollection
+                .horizontalSizeClass ==
+                (layout == .regularViewport || layout == .retainedTabletViewport ? .regular :
+                    .compact))
+        }
+        let readiness: (@MainActor @Sendable () async throws -> Void)? = if intrinsic || fails {
+            {
+                verifyHost()
+                if fails { throw WindowRestorationFailure.readiness }
+            }
         } else { nil }
 
         do {
@@ -205,12 +225,13 @@ struct SnapshotImageRenderingTests {
                 of: host,
                 named: "window-restoration",
                 sizing: intrinsic ? .intrinsic(width: 280, minimumHeight: 400) : .fixed,
+                safeAreaInsets: requestedInsets,
+                scenePolicy: explicitlyRetained ? .retained : .automatic,
                 onReadyToMeasure: readiness,
                 settle: .immediate,
                 onReadyToSnapshot: {
-                    if layout == .regularViewport { #expect(window.windowScene === scene) }
-                    else { #expect(window.windowScene == nil) }
-                    #expect(host.view.window === window)
+                    verifyHost()
+                    #expect(root.view.safeAreaInsets == requestedInsets)
                     #expect(window.bounds.size == contentFrame.size)
                 },
             )

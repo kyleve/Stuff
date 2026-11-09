@@ -57,6 +57,7 @@ func captureConfiguredSnapshot(
                 named: name,
                 sizing: sizing,
                 safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
+                scenePolicy: configuration.device.scenePolicy,
                 isAccessibility: configuration.snapshotType == .accessibility,
                 measurementReadiness: measurementReadiness,
                 onReadyToMeasure: onReadyToMeasure,

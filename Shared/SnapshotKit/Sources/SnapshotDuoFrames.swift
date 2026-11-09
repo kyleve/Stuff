@@ -1,7 +1,7 @@
 import CoreGraphics
 
 extension SnapshotConfiguration.Frame {
-    /// Duo outer portrait bounds and insets measured on the pinned simulator.
+    /// Duo outer portrait bounds and insets from the recorded native measurements.
     /// These synthetic viewports do not change the host simulator's physical pose.
     /// See `Documentation/DuoMeasurements.json` for the native measurements.
     public static let duoOuterPortrait = viewport(

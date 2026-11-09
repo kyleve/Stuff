@@ -46,6 +46,7 @@ public func captureSnapshotPNG(
             named: name,
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
+            scenePolicy: configuration.device.scenePolicy,
             isAccessibility: configuration.snapshotType == .accessibility,
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,

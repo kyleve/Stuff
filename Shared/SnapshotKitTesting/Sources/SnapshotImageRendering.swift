@@ -178,6 +178,7 @@ public func renderSnapshotImage(
     named name: String,
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
+    scenePolicy: SnapshotConfiguration.Frame.ScenePolicy = .automatic,
     isAccessibility: Bool = false,
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
@@ -191,6 +192,7 @@ public func renderSnapshotImage(
         named: name,
         sizing: sizing,
         safeAreaInsets: safeAreaInsets,
+        scenePolicy: scenePolicy,
         isAccessibility: isAccessibility,
         measurementReadiness: measurementReadiness,
         onReadyToMeasure: onReadyToMeasure,
@@ -212,7 +214,7 @@ public func renderSnapshotImage(
     public let pngData: Data
 }
 
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
 /// capture *and* the comparison that follows it to one line of output, and can
 /// compare the captured bytes against the reference without re-encoding.
@@ -222,6 +224,7 @@ public func renderSnapshotImage(
     named name: String,
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
+    scenePolicy: SnapshotConfiguration.Frame.ScenePolicy = .automatic,
     isAccessibility: Bool,
     measurementReadiness: SnapshotMeasurementReadiness,
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
@@ -238,6 +241,7 @@ public func renderSnapshotImage(
             named: name,
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
+            scenePolicy: scenePolicy,
             isAccessibility: isAccessibility,
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
@@ -251,7 +255,7 @@ public func renderSnapshotImage(
 }
 
 /// The capture body of
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``,
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``,
 /// run while holding ``SnapshotCaptureLock``.
 @MainActor
 func renderSnapshotCaptureLocked(
@@ -260,6 +264,7 @@ func renderSnapshotCaptureLocked(
     named name: String,
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
+    scenePolicy: SnapshotConfiguration.Frame.ScenePolicy = .automatic,
     isAccessibility: Bool,
     measurementReadiness: SnapshotMeasurementReadiness,
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
@@ -312,9 +317,11 @@ func renderSnapshotCaptureLocked(
 
         if let safeAreaInsets {
             // Regular-width phone bars require a scene to keep their height stable.
-            // Other synthetic layouts detach so physical reserved regions cannot
+            // Other synthetic layouts detach unless explicitly retained, so physical regions cannot
             // truncate their titles or move controls into overflow.
-            let retainsScene: Bool = if case .fixed = sizing {
+            let retainsScene: Bool = if scenePolicy == .retained {
+                true
+            } else if case .fixed = sizing {
                 viewController.traitCollection.horizontalSizeClass == .regular
                     && viewController.traitCollection.userInterfaceIdiom == .phone
             } else { false }

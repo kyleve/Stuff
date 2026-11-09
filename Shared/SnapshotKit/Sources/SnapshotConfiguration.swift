@@ -156,16 +156,31 @@ extension SnapshotConfiguration {
         /// unchanged.
         public var layoutTraits: LayoutTraits?
 
+        /// Preserve the host scene only for subjects whose native chrome needs it.
+        /// This can expose physical reserved regions; it does not simulate a Duo pose.
+        /// Previews remain an approximation. This policy does not change identifiers.
+        public var scenePolicy: ScenePolicy
+
+        public enum ScenePolicy: Hashable, Sendable {
+            /// Keep the scene for fixed regular-width phone captures; detach other
+            /// synthetic captures so physical geometry cannot affect their layout.
+            case automatic
+            /// Keep the scene while applying the configured size, traits, and insets.
+            case retained
+        }
+
         public init(
             name: String,
             size: SizeStrategy,
             safeAreaInsets: Insets = .zero,
             layoutTraits: LayoutTraits? = nil,
+            scenePolicy: ScenePolicy = .automatic,
         ) {
             self.name = name
             self.size = size
             self.safeAreaInsets = safeAreaInsets
             self.layoutTraits = layoutTraits
+            self.scenePolicy = scenePolicy
         }
 
         /// Safe-area insets in points. A minimal `Hashable` value type so
@@ -195,12 +210,14 @@ extension SnapshotConfiguration {
             size: CGSize,
             safeAreaInsets: Insets = .zero,
             layoutTraits: LayoutTraits,
+            scenePolicy: ScenePolicy = .automatic,
         ) -> Frame {
             Frame(
                 name: name,
                 size: .fixed(size),
                 safeAreaInsets: safeAreaInsets,
                 layoutTraits: layoutTraits,
+                scenePolicy: scenePolicy,
             )
         }
 
@@ -234,11 +251,13 @@ extension SnapshotConfiguration {
             width: CGFloat,
             minimumHeight: CGFloat? = nil,
             layoutTraits: LayoutTraits? = nil,
+            scenePolicy: ScenePolicy = .automatic,
         ) -> Frame {
             Frame(
                 name: name,
                 size: .fullContent(width: width, minimumHeight: minimumHeight),
                 layoutTraits: layoutTraits,
+                scenePolicy: scenePolicy,
             )
         }
 

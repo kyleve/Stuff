@@ -215,8 +215,13 @@ Use `Frame.viewport` to capture bounded adaptive shells. Pair these images with 
 Create independent models and readiness hooks for each configuration. Keep one mounted model only in deliberate resize tests.
 Device-specific profiles require measured runtime bounds, scale, insets, and reserved regions.
 Synthetic windows test layout policy; they do not validate native folding or system bars.
+`Frame.scenePolicy` defaults to `.automatic`. Opt into `.retained` only when a subject needs scene-backed native chrome.
+Retention preserves the frame’s size, traits, and insets, but physical reserved regions can affect native chrome.
+It does not change reference identifiers; name variants explicitly when comparing both policies. Previews remain an approximation.
 
-The Duo presets use [native simulator measurements](Documentation/DuoMeasurements.json) from Xcode build `27A9275`, runtime `24A94232`.
+The Duo presets retain [native iOS 27.1 measurements](Documentation/DuoMeasurements.json) from Xcode build `27A9275`, runtime `24A94232`.
+Re-measurement on the native 27.2 Duo runtime remains pending in the [release validation item](../../TODOs.md).
+Synthetic captures on the current runtime verify layout against these recorded profiles, not current native geometry.
 All four profiles use 3× scale and the phone idiom.
 
 | Frame | Bounds (points) | Horizontal / vertical size class | Insets (top, left, bottom, right) |

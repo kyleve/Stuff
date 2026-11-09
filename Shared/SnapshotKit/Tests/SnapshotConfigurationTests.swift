@@ -5,6 +5,16 @@ import Testing
 /// Pure-logic tests for the ``SnapshotConfiguration`` matrix: combination counts,
 /// preset shapes, and the identifier omission rules that name reference images.
 struct SnapshotConfigurationTests {
+    @Test func retainedScenePreservesFrameIdentity() {
+        let original = SnapshotConfiguration(device: .iPhoneFullContent)
+        var retained = original
+        retained.device.scenePolicy = .retained
+        #expect(original.device.scenePolicy == .automatic)
+        #expect(original.identifier == retained.identifier)
+        #expect(original != retained)
+        #expect(Set([original, retained]).count == 2)
+    }
+
     @Test func adaptiveLayoutTraitsHaveStableDistinctIdentifierTokens() {
         let phonePortrait = SnapshotConfiguration(layoutTraits: .phonePortrait)
         let phoneLandscape = SnapshotConfiguration(layoutTraits: .phoneLandscape)

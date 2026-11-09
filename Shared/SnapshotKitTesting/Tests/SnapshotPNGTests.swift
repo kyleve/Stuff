@@ -82,15 +82,27 @@ struct SnapshotPNGTests {
         #expect(finalHookRan)
     }
 
-    @Test func capturesFullHeightContent() async throws {
+    @Test(arguments: [SnapshotConfiguration.Frame.ScenePolicy.automatic, .retained])
+    func capturesFullHeightContent(scenePolicy: SnapshotConfiguration.Frame
+        .ScenePolicy) async throws
+    {
+        try waitFor { hostKeyWindow() != nil }
+        let window = try #require(hostKeyWindow())
+        let scene = try #require(window.windowScene)
+        let blueHeight = window.bounds.height + 100
         let content = ScrollView {
             VStack(spacing: 0) {
                 Color.red.frame(height: 100)
-                Color.blue.frame(height: 100)
+                Color.blue.frame(height: blueHeight)
             }
         }
         let configuration = SnapshotConfiguration(
-            device: .fullContent(name: "full-height-probe", width: 100, minimumHeight: 60),
+            device: .fullContent(
+                name: "full-height-probe",
+                width: 100,
+                minimumHeight: 60,
+                scenePolicy: scenePolicy,
+            ),
         )
 
         let png = try await captureSnapshotPNG(
@@ -100,12 +112,21 @@ struct SnapshotPNGTests {
             sizing: .intrinsic(width: 100, minimumHeight: 60),
             safeAreaInsets: .zero,
             measurementReadiness: .immediate,
-            onReadyToMeasure: nil,
+            onReadyToMeasure: {
+                if scenePolicy == .retained { #expect(window.windowScene === scene) }
+                else { #expect(window.windowScene == nil) }
+            },
             settle: .immediate,
-            onReadyToSnapshot: nil,
+            onReadyToSnapshot: {
+                if scenePolicy == .retained { #expect(window.windowScene === scene) }
+                else { #expect(window.windowScene == nil) }
+            },
         )
 
-        #expect(png.pointSize == CGSize(width: 100, height: 200))
+        #expect(png.pointSize == CGSize(width: 100, height: blueHeight + 100))
+        let image = try #require(UIImage(data: png.data, scale: png.scale))
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.9)).blue > 0.9)
+        #expect(window.windowScene === scene)
     }
 
     @Test func capturesTwoAxisFullContent() async throws {

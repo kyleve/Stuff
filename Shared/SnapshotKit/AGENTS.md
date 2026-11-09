@@ -49,6 +49,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **If a container is intentionally bounded or greedy, snapshot its shared scrolling child directly.** Never add snapshot-only production layout.
 - **Fixed device frames are for non-scrolling subjects.** Use explicit `Frame.viewport` captures for bounded adaptive shells only with full-content pane coverage.
 - **Keep frame names stable when setting layout traits.** Presets carry truthful size classes and idioms; component frames inherit.
+- **Keep scene retention explicit.** Use `Frame.scenePolicy = .retained` only for subjects that require native scene-backed chrome. Preserve truthful traits, configured insets, and full-content sizing. This policy keeps identifiers unchanged; name variants explicitly if both policies appear in one matrix. Preview rendering does not guarantee retained-scene fidelity.
 - **Source Duo frames from native measurements.** Re-measure `Documentation/DuoMeasurements.json` when the runtime pin changes. Synthetic frames do not change native pose or bar arrangement.
 - **Create a separate case and model for each new adaptive configuration.** Readiness hooks must target that configuration's model.
 - **Use two-axis full-content frames only for spatial canvases.** Choose `.iPhoneFullContent2D`, `.iPadFullContent2D`, or an explicit `.fullContent2D` when the production subject intentionally scrolls in both dimensions.

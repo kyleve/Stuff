@@ -84,7 +84,7 @@ private struct WhereThemeOption: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(3, reservesSpace: true)
+                    .lineLimit(3...)
             }
         }
         .padding(stylesheet.spacing.medium)

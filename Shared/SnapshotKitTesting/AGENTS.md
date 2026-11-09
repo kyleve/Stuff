@@ -61,10 +61,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **When they were one function, this module's own tests put a fabricated reference at the top of `./test --review`.** Its numbers were borrowed from a real regression.
 - **Five invented captures also landed in `--timings`.** Then a run that captured nothing reported "5 captures, 0.024s per image".
 - **Read display bounds and scale from the marked test-host window.** Never select a process-global main screen.
-- **Keep the scene only for fixed, regular-width phone captures with inset overrides.** Resolve the predicate from the content controller’s traits before hosting.
+- **By default, keep the scene only for fixed, regular-width phone captures with inset overrides.** Resolve the predicate from the content controller’s traits before hosting.
 - **Detach already-mounted subjects before configuring the capture host.** Reconcile host insets after containment and settlement, when UIKit has updated its native geometry.
 - **Override only the captured root’s safe-area getter, during pixel rendering.** Keep native getters during containment, measurement, and settling so inset changes propagate to children. Root pinning preserves translated tile geometry.
-- **Detach other synthetic captures, including compact phones, tablets, and full content.** Resize the marked window with the content.
+- **Detach other synthetic captures unless the frame explicitly requests `.retained` scene policy.** Retention preserves configured traits and insets but can expose physical reserved regions. Keep it off general presets; review chrome and full-content completeness at each opt-in. Resize the marked window with the content.
 - **Restore the scene, frames, insets, visibility, and key state after every capture.** Guard: `SnapshotImageRenderingTests`.
 - **Keep native geometry when the inset override is nil.** Synthetic captures do not validate Duo system bars or reserved-region delivery.
 - **Inset overrides describe content clearance.** Propagate them through the host controller. Native floating bars can retain system positioning; validate their reserved-region clearance on the native runtime.

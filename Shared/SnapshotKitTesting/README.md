@@ -109,6 +109,8 @@ The fixed anchor detects cumulative motion that exceeds one unit within the quie
 It cannot distinguish slower motion inside that allowance from noise, or detect detail lost at the sample resolution.
 Readiness hooks and measured minimum durations remain necessary for asynchronous content and native glass adaptation.
 Final reference comparisons keep their existing tolerances and use the full capture after PNG encoding and decoding.
+Ordinary assertions reuse those PNG bytes for comparison, diagnostics, and recording.
+Comparison sheets encode a new PNG after composition to include their panel map.
 
 ## Quick start
 
@@ -335,7 +337,7 @@ See [SnapshotKit's adaptive container contract](../SnapshotKit/README.md#adaptiv
 
 Fixed, regular-width phone captures retain their scene so native bar heights stay stable during settlement.
 The pipeline selects this path from the content controller’s layout traits before hosting.
-Other synthetic captures detach the marked window. This prevents physical reserved regions from truncating compact titles and keeps full-content search anchored to expanded content.
+Other synthetic captures detach the marked window by default. This prevents physical reserved regions from truncating compact titles and keeps full-content search anchored to expanded content.
 The pipeline reconciles the host controller’s effective insets after containment and settlement.
 It detaches already-mounted subjects before configuring the capture host.
 Native safe-area getters remain active during layout so inset changes reach child controllers.
@@ -343,6 +345,10 @@ Only pixel rendering overrides the captured root’s getter to preserve translat
 Annotation padding has zero safe-area insets so image content and accessibility outlines share the same layout.
 The host controller propagates the configured content insets through native navigation containers.
 
+A frame can opt into `scenePolicy: .retained` when native chrome requires a scene.
+The lab preview and Periscope segmented toolbar use this option.
+It preserves the configured size, traits, insets, and full-content measurement, but physical reserved regions can still affect native chrome.
+Keep it off general presets and review each opt-in.
 The pipeline restores the scene, frames, additional insets, visibility, and key state after success or failure.
 Window discovery, environment checks, and content preparation run under the same capture lock.
 Capture hooks use their retained model or view references while the window is detached.
