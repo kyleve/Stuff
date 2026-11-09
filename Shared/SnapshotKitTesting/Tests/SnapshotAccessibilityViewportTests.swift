@@ -6,6 +6,46 @@ import UIKit
 @MainActor
 struct SnapshotAccessibilityViewportTests {
     @Test(arguments: [false, true])
+    func unclippingRecoversOnlyCapturedBarElements(throwsDuringCapture: Bool) async throws {
+        try await show(UIViewController()) { controller in
+            let window = try #require(controller.view.window)
+            let scene = try #require(window.windowScene)
+            let originalFrame = window.frame
+            defer { window.frame = originalFrame }
+            let available = scene.effectiveGeometry.coordinateSpace.bounds
+            window.frame.size.width = available.width + 300
+            controller.view.frame = window.bounds
+
+            let subject = UIView(frame: controller.view.bounds)
+            controller.view.addSubview(subject)
+            let barFrame = CGRect(x: available.width + 30, y: 100, width: 100, height: 44)
+            let capturedBar = ScreenClippedNavigationBar(frame: barFrame)
+            subject.addSubview(capturedBar)
+            let unrelatedBar = ScreenClippedNavigationBar(frame: barFrame.offsetBy(dx: 0, dy: 100))
+            controller.view.addSubview(unrelatedBar)
+
+            #expect(labels(in: capturedBar).isEmpty)
+            #expect(labels(in: unrelatedBar).isEmpty)
+            do {
+                try SnapshotAccessibilityViewport.withUnclippedNavigationBars(in: subject) {
+                    #expect(labels(in: capturedBar) == ["Offscreen action"])
+                    #expect(labels(in: unrelatedBar).isEmpty)
+                    if throwsDuringCapture { throw CaptureFailure.expected }
+                }
+                #expect(!throwsDuringCapture)
+            } catch CaptureFailure.expected {
+                #expect(throwsDuringCapture)
+            }
+            #expect(labels(in: capturedBar).isEmpty)
+            #expect(labels(in: unrelatedBar).isEmpty)
+
+            // The restored getter follows live geometry rather than a saved list.
+            capturedBar.frame.origin.x = 10
+            #expect(labels(in: capturedBar) == ["Offscreen action"])
+        }
+    }
+
+    @Test(arguments: [false, true])
     func nativeBarListsRestoreAfterCapture(throwsDuringCapture: Bool) async throws {
         let host = UIViewController()
         try await show(host) { controller in
@@ -122,6 +162,29 @@ struct SnapshotAccessibilityViewportTests {
     }
 
     private enum CaptureFailure: Error { case expected }
+}
+
+/// Reproduces native off-screen element filtering independently of UIKit's
+/// current navigation-bar accessibility implementation.
+@MainActor
+private final class ScreenClippedNavigationBar: UINavigationBar {
+    private lazy var actionElement: UIAccessibilityElement = {
+        let element = UIAccessibilityElement(accessibilityContainer: self)
+        element.accessibilityLabel = "Offscreen action"
+        return element
+    }()
+
+    override var accessibilityElements: [Any]? {
+        get {
+            guard let window, let scene = window.windowScene else { return [] }
+            let coordinates = scene.effectiveGeometry.coordinateSpace
+            let frameInWindow = convert(bounds, to: window)
+            let frameInScene = window.convert(frameInWindow, to: coordinates)
+            guard coordinates.bounds.contains(frameInScene) else { return [] }
+            return [actionElement]
+        }
+        set { super.accessibilityElements = newValue }
+    }
 }
 
 @MainActor
