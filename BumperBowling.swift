@@ -5,6 +5,7 @@ enum WhereComponent: String, ComponentKey {
     case loggingTests
     case installerKit
     case installerKitUI
+    case storageKit
     case regionKit
     case whereCore
     case whereUI
@@ -29,6 +30,7 @@ let bumper = BumperProject {
         "Shared/InstallerKit/Tests"
         "Shared/InstallerKitUI/Sources"
         "Shared/InstallerKitUI/Tests"
+        "Shared/StorageKit/Sources"
         "Where/RegionKit/Sources"
         "Where/RegionKit/Tests"
         "Where/WhereCore/Sources"
@@ -100,6 +102,12 @@ let bumper = BumperProject {
             )
         }
 
+        Component(.storageKit) {
+            Owns("Shared/StorageKit/Sources")
+            Modules("StorageKit")
+            Applies(.whereDomainLayer)
+        }
+
         Component(.regionKit) {
             Owns("Where/RegionKit/Sources")
             Modules("RegionKit")
@@ -111,7 +119,7 @@ let bumper = BumperProject {
         Component(.whereCore) {
             Owns("Where/WhereCore/Sources")
             Modules("WhereCore")
-            MayDependOn(.periscope, .installerKit, .regionKit)
+            MayDependOn(.periscope, .installerKit, .storageKit, .regionKit)
             Applies(.whereDomainLayer)
         }
 

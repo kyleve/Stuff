@@ -21,6 +21,15 @@ internal shape.
 
 ## Shape & invariants
 
+- Use StorageKit for SwiftData construction through `SwiftDataStore` and `WhereStorage`.
+  Use `Library/Application Support/Where/shared/history/history.store` in the resolved App Group.
+  Keep store files isolated from logs and other storage owners.
+  Do not add a legacy path fallback or automatic migration before release.
+  Keep reset generation-aware through WhereServices; filesystem deletion cannot replace CloudKit deletion.
+  A missing App Group must throw. Never fall back to the process sandbox.
+  Keep the same schema and path for the app, share extension, and Inspector.
+  Guards: `WhereStorageTests` and `WhereArchitectureTests`.
+
 - Use InstallerKit for local and published build identity, feed validation, and cache policy.
   Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
   installer identity only for the Development audience.

@@ -261,7 +261,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
-    private var preparedStore: SwiftDataStore?
+    private let storePreparation: WhereStorePreparation
 
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
@@ -271,6 +271,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
+        storePreparation = WhereStorePreparation {
+            try await SwiftDataStore.make(storage: storeStorage)
+        }
         self.widgetRefresher = widgetRefresher
         self.locationOutbox = locationOutbox
     }
@@ -344,13 +347,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     }
 
     private func prepareStore() async throws -> SwiftDataStore {
-        if let preparedStore { return preparedStore }
-        let storeStorage = storeStorage
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make(storage: storeStorage)
-        }.value
-        preparedStore = store
-        return store
+        try await storePreparation.get()
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this

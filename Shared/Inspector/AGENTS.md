@@ -30,7 +30,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Keep every SwiftData context and model instance on `InspectorSwiftDataStore`.**
 - **Only value snapshots and persistent identifiers cross to the main actor.**
 - **Erase an open store through `ModelContainer.erase()`.** Remove its exact `recoveryStorageURLs`.
-- **Replace the actor's container with one reopened by the configured factory.**
+- **Replace the actor's container with one reopened by the configured async factory.**
+- Retain the configured store-family URLs during a suspended or failed reopen so filesystem protection cannot disappear.
+- Clear the old container before awaiting a reopen. Reject reads and mutations until the replacement is ready.
+  Guard: `InspectorSwiftDataStoreTests`.
 - **Honor cancellation only before destructive work.**
 - **Expose whole-store erase from `InspectorSwiftDataConfiguration` only when its caller supplies a fresh-container factory.**
 - **Keep private SwiftData reflection in [`SwiftDataReflection.swift`](Sources/SwiftDataReflection.swift).**

@@ -100,7 +100,7 @@ struct InspectorSwiftDataMutationTests {
             modelTypes: [MutationRecord.self, MutationOther.self],
             makeContainer: { try Self.makeContainer(at: storeURL) },
         )
-        let store = try InspectorSwiftDataStore(source: source)
+        let store = try await InspectorSwiftDataStore(source: source)
 
         _ = try await store.eraseAndReopen()
 
@@ -135,8 +135,7 @@ struct InspectorSwiftDataMutationTests {
     @Test func cancellationAfterEraseStillDiscardsAndReopens() async throws {
         let completedSequence = try await Task {
             var didDiscard = false
-            var didReopen = false
-            let reopenedValue = try InspectorSwiftDataStore.performEraseAndReopen(
+            let reopenedValue = try await InspectorSwiftDataStore.performEraseAndReopen(
                 erase: {
                     withUnsafeCurrentTask { $0?.cancel() }
                 },
@@ -144,11 +143,11 @@ struct InspectorSwiftDataMutationTests {
                     didDiscard = true
                 },
                 reopen: {
-                    didReopen = true
+                    try Task.checkCancellation()
                     return 42
                 },
             )
-            return reopenedValue == 42 && didDiscard && didReopen
+            return reopenedValue == 42 && didDiscard
         }.value
 
         #expect(completedSequence)

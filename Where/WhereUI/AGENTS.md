@@ -30,6 +30,9 @@ Layering, localization, preview, and testing conventions live in the feature
   [`Package.swift`](../../Package.swift).
 - WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'
   `SFSymbol` and re-exports SFSafeSymbols for its presentation API consumers.
+- Share an in-flight store open through `WhereStorePreparation` across onboarding and scope resolution.
+  A cancelled waiter must not cancel that shared open. Retry only after an open fails.
+  Guard: `WhereStorePreparationTests`.
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).

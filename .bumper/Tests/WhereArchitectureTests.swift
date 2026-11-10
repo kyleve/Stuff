@@ -73,7 +73,7 @@ func `Where architecture accepts downward dependencies`() throws {
                 SourceInput(
                     path: "Where/WhereCore/Sources/Service.swift",
                     component: ComponentID(WhereComponent.whereCore.rawValue),
-                    source: "import RegionKit\nstruct Service {}",
+                    source: "import RegionKit\nimport StorageKit\nstruct Service {}",
                 ),
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
@@ -200,4 +200,34 @@ func `Where consumers can use InstallerKit`() throws {
         )],
     ))
     #expect(report.violations.isEmpty)
+}
+
+@Test
+func `StorageKit rejects app and UI dependencies`() throws {
+    let path: RelativeFilePath = "Shared/StorageKit/Sources/Storage.swift"
+    let allowed = try bumper.evaluate(RepositoryInput(
+        architecture: bumper.architecture,
+        files: [SourceInput(
+            path: path,
+            component: ComponentID(WhereComponent.storageKit.rawValue),
+            source: "import Foundation\nimport SwiftData",
+        )],
+    ))
+    #expect(allowed.violations.isEmpty)
+    for source in ["import WhereCore", "import WhereUI", "import UIKit", "import SwiftUI"] {
+        let report = try bumper.evaluate(RepositoryInput(
+            architecture: bumper.architecture,
+            files: [SourceInput(
+                path: path,
+                component: ComponentID(WhereComponent.storageKit.rawValue),
+                source: source,
+            )],
+        ))
+        let violation = try #require(report.violations.first)
+        #expect(report.violations.count == 1)
+        #expect(violation.path == path)
+        #expect(violation.rule.severity == .error)
+        #expect(violation.rule
+            .id == (source.contains("Where") ? .componentBoundary : .forbiddenImport))
+    }
 }
