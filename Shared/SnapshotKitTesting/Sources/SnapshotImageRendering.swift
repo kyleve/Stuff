@@ -178,6 +178,7 @@ public func renderSnapshotImage(
     named name: String,
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
+    scenePolicy: SnapshotConfiguration.Frame.ScenePolicy = .automatic,
     isAccessibility: Bool = false,
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
@@ -191,6 +192,7 @@ public func renderSnapshotImage(
         named: name,
         sizing: sizing,
         safeAreaInsets: safeAreaInsets,
+        scenePolicy: scenePolicy,
         isAccessibility: isAccessibility,
         measurementReadiness: measurementReadiness,
         onReadyToMeasure: onReadyToMeasure,
@@ -212,7 +214,7 @@ public func renderSnapshotImage(
     public let pngData: Data
 }
 
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
 /// capture *and* the comparison that follows it to one line of output, and can
 /// compare the captured bytes against the reference without re-encoding.
@@ -222,6 +224,7 @@ public func renderSnapshotImage(
     named name: String,
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
+    scenePolicy: SnapshotConfiguration.Frame.ScenePolicy = .automatic,
     isAccessibility: Bool,
     measurementReadiness: SnapshotMeasurementReadiness,
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
@@ -231,13 +234,14 @@ public func renderSnapshotImage(
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
 ) async throws -> SnapshotCapture {
-    try await SnapshotCaptureLock.withLock {
-        try Task.checkCancellation()
-        return try await renderSnapshotImageLocked(
+    try await SnapshotCaptureLock.withHost { window in
+        try await renderSnapshotCaptureLocked(
             of: viewController,
+            hostWindow: window,
             named: name,
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
+            scenePolicy: scenePolicy,
             isAccessibility: isAccessibility,
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
@@ -251,14 +255,16 @@ public func renderSnapshotImage(
 }
 
 /// The capture body of
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``,
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``,
 /// run while holding ``SnapshotCaptureLock``.
 @MainActor
-private func renderSnapshotImageLocked(
+func renderSnapshotCaptureLocked(
     of viewController: UIViewController,
+    hostWindow window: UIWindow,
     named name: String,
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
+    scenePolicy: SnapshotConfiguration.Frame.ScenePolicy = .automatic,
     isAccessibility: Bool,
     measurementReadiness: SnapshotMeasurementReadiness,
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
@@ -268,24 +274,62 @@ private func renderSnapshotImageLocked(
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
 ) async throws -> SnapshotCapture {
+    let initialContentFrame = viewController.view.frame
+    // Reparent before configuring the host so an existing hierarchy cannot apply
+    // the requested insets once before and once after capture hosting.
+    if viewController.parent != nil || viewController.view.superview != nil {
+        removeChildAfterCapture(viewController)
+    }
+
     func capture() async throws -> SnapshotCapture {
-        // `hostKeyWindow()` is the specific window `StuffTestHost` stamps with
-        // `isMainTestHostWindow` — the guaranteed root window we set up, not
-        // merely whatever window happens to be key. So this is stable regardless
-        // of any transient key-window changes during a capture.
-        guard let window = hostKeyWindow(), let hostRoot = window.rootViewController else {
+        guard let hostRoot = window.rootViewController else {
             preconditionFailure(
                 "SnapshotKitTesting requires the StuffTestHost key window. Run snapshot tests in a hosted bundle.",
             )
         }
 
-        let initialContentFrame = viewController.view.frame
+        let initialScene = window.windowScene
+        let initialKeyWindow = initialScene?.keyWindow
+        let initialWindowFrame = window.frame
+        let initialHostFrame = hostRoot.view.frame
+        let initialAdditionalInsets = hostRoot.additionalSafeAreaInsets
+        let wasKeyWindow = window.isKeyWindow
+        let wasHidden = window.isHidden
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
         defer {
             viewController.view.frame = initialContentFrame
             viewController.traitOverrides.remove(SnapshotCaptureTrait.self)
+            hostRoot.additionalSafeAreaInsets = initialAdditionalInsets
+            window.windowScene = initialScene
+            window.frame = initialWindowFrame
+            hostRoot.view.frame = initialHostFrame
+            window.isHidden = wasHidden
+            if wasKeyWindow {
+                window.makeKey()
+            } else {
+                window.resignKey()
+                initialKeyWindow?.makeKey()
+            }
+            window.layoutIfNeeded()
             UIView.setAnimationsEnabled(animationsWereEnabled)
+        }
+
+        if let safeAreaInsets {
+            // Regular-width phone bars require a scene to keep their height stable.
+            // Other synthetic layouts detach unless explicitly retained, so physical regions cannot
+            // truncate their titles or move controls into overflow.
+            let retainsScene: Bool = if scenePolicy == .retained {
+                true
+            } else if case .fixed = sizing {
+                viewController.traitCollection.horizontalSizeClass == .regular
+                    && viewController.traitCollection.userInterfaceIdiom == .phone
+            } else { false }
+            if !retainsScene {
+                window.windowScene = nil
+                window.makeKeyAndVisible()
+            }
+            hostRoot.additionalSafeAreaInsets = safeAreaInsets
         }
 
         // Set on the content controller itself (not a wrapper) so it survives
@@ -293,6 +337,10 @@ private func renderSnapshotImageLocked(
         // wrapper; UIKit propagates it down the tree and the bridged key
         // surfaces it to SwiftUI as `\.isCapturingSnapshot`.
         viewController.traitOverrides[SnapshotCaptureTrait.self] = true
+
+        if case .fixed = sizing {
+            resizeHostWindow(window, root: hostRoot, to: initialContentFrame.size)
+        }
 
         try await resolveContentSize(
             of: viewController,
@@ -303,6 +351,7 @@ private func renderSnapshotImageLocked(
             measurementHookMaximumDuration: measurementHookTimeout
                 .map { $0 * settleTimeoutPolicy.multiplier }
                 ?? settleTimeoutPolicy.maximumDuration(for: settle),
+            safeAreaInsets: safeAreaInsets,
             hostedIn: hostRoot,
             window: window,
             timing: timing,
@@ -323,8 +372,15 @@ private func renderSnapshotImageLocked(
             hostChildForCapture(wrappingViewController, in: hostRoot)
             wrappingViewController.view.setNeedsLayout()
             CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
         }
-        defer { removeChildAfterCapture(wrappingViewController) }
+        defer {
+            removeChildAfterCapture(viewController)
+            if captureViewController !== viewController {
+                removeChildAfterCapture(captureViewController)
+            }
+            removeChildAfterCapture(wrappingViewController)
+        }
 
         try await throwIfUnsettled(
             timing.measure(.settle) {
@@ -340,6 +396,23 @@ private func renderSnapshotImageLocked(
             of: viewController,
             named: name,
         )
+
+        if reconcileCaptureInsets(safeAreaInsets, in: hostRoot) {
+            try await throwIfUnsettled(
+                timing.measure(.settle) {
+                    await settleForCapture(
+                        wrappingViewController.view,
+                        named: name,
+                        settle: settle,
+                        timing: timing,
+                        timeoutPolicy: settleTimeoutPolicy,
+                    )
+                },
+                phase: "native inset reconciliation",
+                of: viewController,
+                named: name,
+            )
+        }
 
         // The pre-capture hook sees fully settled content, then its own
         // effects (a focused field, a presented state) are settled before the
@@ -366,6 +439,36 @@ private func renderSnapshotImageLocked(
             )
         }
 
+        // A pane can restore its anchor when the measurement host is replaced.
+        // Full-content sizing must include its first row even when that late
+        // scroll request survives expansion to the complete content height.
+        if case .intrinsic = sizing,
+           let scrollView = viewController.view.viewportFillingScrollContentExtent?.scrollView,
+           abs(scrollView.contentOffset.y + scrollView.adjustedContentInset.top) > 0.5
+        {
+            CATransaction.performWithoutAnimation {
+                scrollView.setContentOffset(
+                    CGPoint(x: scrollView.contentOffset.x, y: -scrollView.adjustedContentInset.top),
+                    animated: false,
+                )
+                wrappingViewController.view.layoutIfNeeded()
+            }
+            try await throwIfUnsettled(
+                timing.measure(.settle) {
+                    await settleForCapture(
+                        wrappingViewController.view,
+                        named: name,
+                        settle: settle,
+                        timing: timing,
+                        timeoutPolicy: settleTimeoutPolicy,
+                    )
+                },
+                phase: "full-content scroll reset",
+                of: viewController,
+                named: name,
+            )
+        }
+
         // Parse accessibility only after the content has settled, so the
         // annotation reflects the loaded/revealed state (not a placeholder).
         // A raised settle floor opts accessibility rendering into a preparation
@@ -380,9 +483,6 @@ private func renderSnapshotImageLocked(
         {
             func parseAccessibility() {
                 accessibilityViewController.parseAccessibility()
-                wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
-                wrappingViewController.view.setNeedsLayout()
-                CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
             }
 
             if case .settledAtLeast = settle {
@@ -406,6 +506,10 @@ private func renderSnapshotImageLocked(
             }
             timing.measure(.accessibilityParse) {
                 parseAccessibility()
+                accessibilityViewController.sizeToFitAnnotations()
+                wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
+                wrappingViewController.view.setNeedsLayout()
+                CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
             }
         }
 
@@ -413,30 +517,30 @@ private func renderSnapshotImageLocked(
         viewController.view.hideTextInputCursors()
         timing.measure(.drain) { drainInFlightAnimations() }
 
-        // Drain rendering intermediates before returning to the async caller.
-        // Only the normalized image and PNG bytes escape this synchronous pool.
-        return try autoreleasepool {
-            let image = timing.measure(.tileStitch) {
-                tileAndStitchImage(of: wrappingViewController, timing: timing)
-            }
-            // Preserve scale so comparison sees the same pixels as the disk artifact.
-            return try timing.measure(.pngRoundTrip) {
-                guard let pngData = image.pngData(),
-                      let decoded = UIImage(data: pngData, scale: image.scale)
-                else {
-                    throw SnapshotRenderingError.pngEncodingFailed(name: name)
+        /// Drain rendering intermediates before returning to the async caller.
+        /// Only the normalized image and PNG bytes escape this synchronous pool.
+        func render() throws -> SnapshotCapture {
+            try autoreleasepool {
+                let image = timing.measure(.tileStitch) {
+                    tileAndStitchImage(of: wrappingViewController, timing: timing)
                 }
-                return SnapshotCapture(image: decoded, pngData: pngData)
+                // Preserve scale so comparison sees the same pixels as the disk artifact.
+                return try timing.measure(.pngRoundTrip) {
+                    guard let pngData = image.pngData(),
+                          let decoded = UIImage(data: pngData, scale: image.scale)
+                    else {
+                        throw SnapshotRenderingError.pngEncodingFailed(name: name)
+                    }
+                    return SnapshotCapture(image: decoded, pngData: pngData)
+                }
             }
         }
-    }
-
-    if let safeAreaInsets {
-        return try await swizzle(
-            safeAreaInsets: safeAreaInsets,
-            for: viewController,
-            operation: capture,
-        )
+        if let safeAreaInsets {
+            return try await swizzle(safeAreaInsets: safeAreaInsets, for: viewController) {
+                try render()
+            }
+        }
+        return try render()
     }
     return try await capture()
 }
@@ -473,6 +577,34 @@ private func removeChildAfterCapture(_ child: UIViewController) {
     child.removeFromParent()
 }
 
+/// Reconciles native ancestor clearance after containment has updated scene geometry.
+@MainActor
+@discardableResult
+private func reconcileCaptureInsets(_ requested: UIEdgeInsets?, in root: UIViewController) -> Bool {
+    guard let requested else { return false }
+    let actual = root.view.safeAreaInsets
+    guard actual != requested else { return false }
+    let additional = root.additionalSafeAreaInsets
+    root.additionalSafeAreaInsets = UIEdgeInsets(
+        top: additional.top + requested.top - actual.top,
+        left: additional.left + requested.left - actual.left,
+        bottom: additional.bottom + requested.bottom - actual.bottom,
+        right: additional.right + requested.right - actual.right,
+    )
+    root.view.setNeedsLayout()
+    CATransaction.performWithoutAnimation(root.view.layoutIfNeeded)
+    return true
+}
+
+/// Keeps native chrome aligned with the synthetic viewport after scene isolation.
+@MainActor
+private func resizeHostWindow(_ window: UIWindow, root: UIViewController, to size: CGSize) {
+    window.frame.size = size
+    root.view.frame = window.bounds
+    window.setNeedsLayout()
+    CATransaction.performWithoutAnimation(window.layoutIfNeeded)
+}
+
 /// For measured-content sizing, hosts the content at the initial viewport with
 /// the full appearance lifecycle driven (so SwiftUI `.task` loads and finite
 /// time-based reveals run), lets it settle, then measures `sizeThatFits` and
@@ -507,6 +639,7 @@ private func resolveContentSize(
     settle: SnapshotSettle,
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookMaximumDuration: TimeInterval,
+    safeAreaInsets: UIEdgeInsets?,
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
     timing: SnapshotCaptureTiming,
@@ -529,12 +662,14 @@ private func resolveContentSize(
     }
 
     let probeWrapper = timing.measure(.intrinsicMeasure) {
+        resizeHostWindow(window, root: hostRoot, to: probeSize)
         viewController.view.frame = CGRect(origin: .zero, size: probeSize)
 
         let wrapper = SnapshotWrappingViewController(viewController)
         hostChildForCapture(wrapper, in: hostRoot)
         wrapper.view.setNeedsLayout()
         CATransaction.performWithoutAnimation(wrapper.view.layoutIfNeeded)
+        reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
         return wrapper
     }
     defer {
@@ -603,6 +738,7 @@ private func resolveContentSize(
                 var measuredHeights = [measured.height]
                 var didConverge = false
                 for _ in 0 ..< 10 {
+                    resizeHostWindow(window, root: hostRoot, to: measured)
                     viewController.view.frame = CGRect(origin: .zero, size: measured)
                     probeWrapper.view.frame.size = measured
                     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
@@ -664,6 +800,7 @@ private func resolveContentSize(
                     named: name,
                 )
                 timing.measure(.intrinsicMeasure) {
+                    resizeHostWindow(window, root: hostRoot, to: measurement.size)
                     viewController.view.frame = CGRect(origin: .zero, size: measurement.size)
                     probeWrapper.view.frame.size = measurement.size
                     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)

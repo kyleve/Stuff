@@ -691,3 +691,11 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+Calendar month sections, day rows, and Timeline rows measure eagerly. This gives
+full-content snapshots their complete height before capture. Timeline measurement
+also avoids blank trailing space from lazy estimates in its bottom-anchored scroll view.
+
+Developer Overlay snapshots retain their scene for native glass rendering. Detached
+windows produce material bands and clipping in the menu. The retained-scene
+cases keep their device traits, content clearance, and full-content sizing.

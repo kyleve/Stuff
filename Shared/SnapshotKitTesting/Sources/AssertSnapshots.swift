@@ -1,7 +1,6 @@
 @_spi(Capture) import SnapshotKit
 import SnapshotTesting
 import SwiftUI
-import TestHostSupport
 import Testing
 import UIKit
 
@@ -25,7 +24,7 @@ public func assertSnapshots(
     line: UInt = #line,
     column: UInt = #column,
 ) async {
-    guard simulatorMatchesSnapshotExpectations() else { return }
+    guard await validateSnapshotEnvironment() else { return }
     do {
         _ = try SnapshotSettleTimeoutPolicy.fromEnvironment()
     } catch {
@@ -60,22 +59,25 @@ public func assertSnapshots(
                     column: column,
                 )
             case let .single(content):
-                await assertSnapshots(
-                    of: content(),
-                    named: snapshotCase.name,
-                    configurations: snapshotCase.configurations,
-                    referenceGroup: snapshotCase.referenceGroup,
-                    measurementReadiness: snapshotCase.measurementReadiness,
-                    onReadyToMeasure: snapshotCase.onReadyToMeasure,
-                    settle: snapshotCase.settle,
-                    onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
-                    record: record,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
+                for configuration in snapshotCase.configurations {
+                    guard !Task.isCancelled else { return }
+                    await assertSnapshots(
+                        of: content(),
+                        named: snapshotCase.name,
+                        configurations: [configuration],
+                        referenceGroup: snapshotCase.referenceGroup,
+                        measurementReadiness: snapshotCase.measurementReadiness,
+                        onReadyToMeasure: snapshotCase.onReadyToMeasure,
+                        settle: snapshotCase.settle,
+                        onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
+                        record: record,
+                        fileID: fileID,
+                        file: filePath,
+                        testName: testName,
+                        line: line,
+                        column: column,
+                    )
+                }
         }
     }
 }
@@ -104,14 +106,7 @@ public func assertSnapshots(
     line: UInt = #line,
     column: UInt = #column,
 ) async {
-    guard simulatorMatchesSnapshotExpectations() else { return }
-    do {
-        try waitFor { hostKeyWindow() != nil }
-    } catch {
-        Issue.record("Snapshot host window never appeared: \(error)")
-        return
-    }
-
+    guard await validateSnapshotEnvironment() else { return }
     // Record-mode precedence, resolved here so callers need no per-suite trait:
     // an explicit `record:` argument wins, then the environment override
     // (`SNAPSHOT_RECORD`, forwarded as TEST_RUNNER_SNAPSHOT_RECORD on the command
@@ -226,7 +221,7 @@ func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
 /// When the expectation variables are absent (direct `renderSnapshotImage`
 /// callers, non-scheme invocations), the guard is inert.
 @MainActor
-private func simulatorMatchesSnapshotExpectations() -> Bool {
+private func simulatorMatchesSnapshotExpectations(in hostWindow: UIWindow) -> Bool {
     let environment = ProcessInfo.processInfo.environment
     var mismatches: [String] = []
 
@@ -240,7 +235,7 @@ private func simulatorMatchesSnapshotExpectations() -> Bool {
     }
 
     if let expectedScale = environment["SNAPSHOT_EXPECTED_SCREEN_SCALE"] {
-        let actualScale = Double(UIScreen.main.scale)
+        let actualScale = Double(hostWindow.traitCollection.displayScale)
         if Double(expectedScale) != actualScale {
             mismatches.append(
                 """
@@ -276,4 +271,19 @@ private func simulatorMatchesSnapshotExpectations() -> Bool {
         return false
     }
     return true
+}
+
+/// Resolve native environment only while the marked host is available.
+@MainActor
+private func validateSnapshotEnvironment() async -> Bool {
+    do {
+        return try await SnapshotCaptureLock.withHost { window in
+            simulatorMatchesSnapshotExpectations(in: window)
+        }
+    } catch is CancellationError {
+        return false
+    } catch {
+        Issue.record(error)
+        return false
+    }
 }

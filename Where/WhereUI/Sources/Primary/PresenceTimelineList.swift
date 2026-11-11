@@ -77,7 +77,9 @@ struct PresenceTimelineList: View {
                 let pinsOverview = stylesheet.timeline.overview.pinsToViewport
 
                 ScrollView {
-                    LazyVStack(spacing: stylesheet.spacing.large) {
+                    // Measure the complete year before expanding a bottom-anchored viewport.
+                    // Lazy estimates can leave blank space below the final forecast.
+                    VStack(spacing: stylesheet.spacing.large) {
                         if !pinsOverview {
                             YearRibbon(
                                 days: yearReport?.days ?? [],
@@ -86,7 +88,7 @@ struct PresenceTimelineList: View {
                             )
                         }
 
-                        LazyVStack(spacing: 0) {
+                        VStack(spacing: 0) {
                             journeyRows(recordedItems: recordedItems, plannedItems: plannedItems)
                         }
 

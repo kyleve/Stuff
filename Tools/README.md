@@ -165,6 +165,10 @@ The command does not coordinate concurrent builds, checkout restoration, or path
 
 ## Snapshot shard policy
 
+Suite discovery reads each target's literal source array in `Project.swift`.
+Arrays can span lines and include shared support files. Only `SnapshotTests/**`
+paths define suite roots. Unsupported declarations fail before shard selection.
+
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
 places intake first, then stops existing-suite moves at a 5% reduction in the
 slowest worker. If single-suite moves cannot reach that target, it discards them.

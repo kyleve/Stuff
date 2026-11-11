@@ -8,5 +8,6 @@ struct StuffTestHostSmokeTests {
         let window = hostKeyWindow()
         #expect(window != nil)
         #expect(window?.rootViewController != nil)
+        #expect(window?.rootViewController?.preferredVerticalBarBehavior == .disabled)
     }
 }

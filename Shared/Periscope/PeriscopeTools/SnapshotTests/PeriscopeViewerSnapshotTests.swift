@@ -18,7 +18,12 @@ struct PeriscopeViewerSnapshotTests {
         await assertSnapshots(
             of: viewer,
             named: "PeriscopeViewer",
-            configurations: .fullContentPhoneLightDark,
+            // Native segmented glass loses its selected appearance without a scene.
+            configurations: [ColorScheme.light, .dark].map {
+                var frame = SnapshotConfiguration.Frame.iPhoneFullContent
+                frame.scenePolicy = .retained
+                return SnapshotConfiguration(colorScheme: $0, device: frame)
+            },
         )
     }
 
