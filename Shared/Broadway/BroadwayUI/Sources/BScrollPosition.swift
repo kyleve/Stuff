@@ -9,7 +9,52 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
     @State private var localStore = BScrollRestorationStore()
     private let key: BScrollRestorationStore.Key
     private let context: () -> AnyHashable
-    private var resolvedEntry: BScrollRestorationStore.Entry<ID>?
+    @State private var mount = Mount()
+    private var resolvedAttachment: Attachment?
+
+    private struct Restoration {
+        let position: ScrollPosition
+        let anchor: UnitPoint?
+    }
+
+    private final class Attachment {
+        let entry: BScrollRestorationStore.Entry<ID>
+        var pending: Restoration?
+        let userRevision: Int
+
+        init(entry: BScrollRestorationStore.Entry<ID>) {
+            self.entry = entry
+            userRevision = entry.userRevision
+            pending = Restoration(position: entry.position, anchor: entry.anchor)
+        }
+    }
+
+    @MainActor
+    private final class Mount {
+        private var store: BScrollRestorationStore?
+        private var context: AnyHashable?
+        private var key: BScrollRestorationStore.Key?
+        private var attachment: Attachment?
+
+        func resolve(
+            store: BScrollRestorationStore,
+            key: BScrollRestorationStore.Key,
+            context: AnyHashable,
+        ) -> Attachment {
+            if self.store === store, self.key == key, self.context == context,
+               let attachment { return attachment }
+            let attachment = Attachment(entry: store.entry(
+                for: key,
+                context: context,
+                idType: ID.self,
+            ))
+            self.store = store
+            self.key = key
+            self.context = context
+            self.attachment = attachment
+            return attachment
+        }
+    }
 
     public init(
         _ view: (some View).Type,
@@ -41,18 +86,29 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
     }
 
     public mutating func update() {
-        resolvedEntry = (sharedStore ?? localStore).entry(
-            for: key,
+        // An outgoing view can still render while its replacement is mounted.
+        // Only a new mount, scope, or context may claim the store's current entry.
+        resolvedAttachment = mount.resolve(
+            store: sharedStore ?? localStore,
+            key: key,
             context: context(),
-            idType: ID.self,
         )
     }
 
-    private var entry: BScrollRestorationStore.Entry<ID> {
-        guard let resolvedEntry else {
+    private var attachment: Attachment {
+        guard let resolvedAttachment else {
             preconditionFailure("BScrollPosition must be read from a mounted view")
         }
-        return resolvedEntry
+        return resolvedAttachment
+    }
+
+    private var entry: BScrollRestorationStore.Entry<ID> {
+        attachment.entry
+    }
+
+    /// Alignment used for semantic restoration; native user scrolling adopts top alignment.
+    public var anchor: UnitPoint? {
+        entry.anchor
     }
 
     public var wrappedValue: ScrollPosition {
@@ -61,19 +117,54 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
     }
 
     public var projectedValue: Binding<ScrollPosition> {
-        // Capture this render's entry. An obsolete task or outgoing view cannot
-        // redirect a write into a new context's entry.
-        let entry = entry
-        // Register the value with SwiftUI even when the consumer only reads the binding.
-        _ = entry.position
-        return Binding(get: { entry.position }, set: { entry.position = $0 })
+        // Preserve SwiftUI's observable binding transaction, and capture this entry
+        // so an outgoing view cannot redirect a write into a replacement context.
+        @Bindable var entry = entry
+        return $entry.position
     }
 
-    /// Apply the view's initial policy once its content is ready, once per context.
-    /// Native layout can publish a provisional target before asynchronous data arrives.
-    public func initialize(_ initialPosition: @autoclosure () -> ScrollPosition) {
-        guard !entry.isInitialized else { return }
-        entry.position = initialPosition()
+    /// Restore once per mount when content is ready, or apply this context's initial policy.
+    public func initialize(id: ID, anchor: UnitPoint) {
+        initialize(position: ScrollPosition(id: id, anchor: anchor), anchor: anchor)
+    }
+
+    public func initialize(edge: Edge) {
+        initialize(position: ScrollPosition(idType: ID.self, edge: edge), anchor: nil)
+    }
+
+    private func initialize(position: ScrollPosition, anchor: UnitPoint?) {
+        let attachment = attachment
+        guard let restoration = attachment.pending else { return }
+        attachment.pending = nil
+        guard attachment.userRevision == entry.userRevision else { return }
+        // Mutate the live position so repeated semantic commands notify its native binding.
+        if entry.isInitialized, let edge = restoration.position.edge {
+            entry.position.scrollTo(edge: edge)
+            entry.anchor = nil
+        } else if entry.isInitialized,
+                  let target = restoration.position.viewID(type: ID.self)
+        {
+            entry.position.scrollTo(id: target, anchor: restoration.anchor)
+            entry.anchor = restoration.anchor
+        } else {
+            entry.position = position
+            entry.anchor = anchor
+        }
         entry.isInitialized = true
+    }
+
+    /// Use semantic commands to retain alignment, which native ScrollPosition does not expose.
+    public func scrollTo(id: ID, anchor: UnitPoint) {
+        attachment.pending = nil
+        entry.isInitialized = true
+        entry.anchor = anchor
+        entry.position.scrollTo(id: id, anchor: anchor)
+    }
+
+    public func scrollTo(edge: Edge) {
+        attachment.pending = nil
+        entry.isInitialized = true
+        entry.anchor = nil
+        entry.position.scrollTo(edge: edge)
     }
 }

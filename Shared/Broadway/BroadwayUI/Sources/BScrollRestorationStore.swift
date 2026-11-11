@@ -17,8 +17,18 @@ public final class BScrollRestorationStore {
 
     @Observable
     final class Entry<ID: Hashable & Sendable> {
-        var position = ScrollPosition(idType: ID.self)
+        var position = ScrollPosition(idType: ID.self) {
+            didSet {
+                guard oldValue != position, position.isPositionedByUser else { return }
+                anchor = .top
+                isInitialized = true
+                userRevision += 1
+            }
+        }
+
+        private(set) var userRevision = 0
         var isInitialized = false
+        var anchor: UnitPoint?
     }
 
     private var records: [Key: Record] = [:]

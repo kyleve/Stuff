@@ -50,9 +50,17 @@ returning to that context starts fresh. Old bindings retain their detached entry
 and cannot overwrite its replacement. Stores belong to one scene/session.
 
 Views choose initial anchors, wait for content, and handle missing targets.
-Call `_position.initialize(ScrollPosition(id: target, anchor: .top))` after content
-is ready. This applies the initial policy once per context, even if native layout
-already reported a provisional first item. Later calls preserve the retained position.
+Call `_position.initialize(id: target, anchor: .top)` or `.initialize(edge: .top)`
+from a view task after content is ready. The first call restores the retained target for this mount,
+or applies the initial policy for a new context. Later calls in the same mount are no-ops.
+A pending restoration protects the previous target from provisional layout updates. User movement supersedes that pending restoration.
+
+Use `_position.scrollTo(id: target, anchor: .bottom)` or `.scrollTo(edge: .top)` for
+explicit commands. These retain alignment, which `ScrollPosition` does not expose
+for reading. The native binding still supports immediate scrolling, but commands
+through that binding cannot retain non-default alignment. User scrolling adopts
+top alignment. The read-only `anchor` property supplies transition geometry.
+A context closure can read a live observable input when the owning view updates.
 The store neither interprets application data nor synchronizes separate panes.
 Use identified content and alignment for restoration; pixel offsets are not a
 cross-layout restoration contract. Guards: `BScrollPositionTests`.

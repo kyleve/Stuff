@@ -19,10 +19,12 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 - **Mirror the value into the UIKit trait system** so nested UIKit views receive it.
 - **If none is set, fall back to the UIKit trait-bridged value.** Then a `BRootViewController`-set context still reaches SwiftUI.
 
-## Testing
+## Scroll restoration
 
 - Keep scroll restoration opt-in through an explicit stable scope. Key entries by view type and typed role; a context change replaces the entry, not its value in a historical cache.
-- Capture the resolved scroll entry in bindings. Outgoing views and obsolete contexts must not write into a replacement entry. Guard: `BScrollPositionTests`.
+- Resolve a mount again only when its scope, key, or context changes. Capture the resolved entry in native observable bindings. Outgoing views and obsolete contexts must not write into a replacement entry. Guard: `BScrollPositionTests`.
 - Views own initial positioning and missing-target policy. The shared store must not import application types or synchronize panes.
+
+## Testing
 
 Run `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport` (`./test BroadwayUITests`).
