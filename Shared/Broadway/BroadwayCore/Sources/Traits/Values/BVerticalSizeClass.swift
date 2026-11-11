@@ -1,23 +1,22 @@
 import UIKit
 
-/// The vertical space available to a component. Unspecified preserves an unknown system value.
+/// The vertical space available to a component. Unavailable system values use compact styling.
 public enum BVerticalSizeClass: Hashable, Sendable {
-    case unspecified
     case compact
     case regular
 
     public init(_ sizeClass: UIUserInterfaceSizeClass) {
         self = switch sizeClass {
-            case .unspecified: .unspecified
+            case .unspecified: .compact
             case .compact: .compact
             case .regular: .regular
-            @unknown default: .unspecified
+            @unknown default: .compact
         }
     }
 }
 
 extension BVerticalSizeClass: BTraitsValue {
-    public static let defaultValue: Self = .unspecified
+    public static let defaultValue: Self = .compact
 
     @MainActor public static func currentValue(from viewController: UIViewController) -> Self {
         Self(viewController.traitCollection.verticalSizeClass)

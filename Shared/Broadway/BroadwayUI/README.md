@@ -31,6 +31,8 @@ WindowGroup {
 ```
 
 The root observes horizontal and vertical size classes through SwiftUI.
+Missing or unknown size classes resolve to compact on both axes, matching the UIKit bridge.
+Later explicit values update the context normally.
 `bHorizontalSizeClass(_:)` and `bVerticalSizeClass(_:)` scope Broadway layout policies to a subtree.
 These overrides affect stylesheets; native container traits remain under system control.
 

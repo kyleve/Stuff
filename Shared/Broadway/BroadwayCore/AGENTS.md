@@ -21,7 +21,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 
 - Select `BModeVarying` values with the slice's explicit mode. Keep product theme definitions in consumer modules.
 
-- **Keep both size classes registered in `BTraits.system`.** Preserve unspecified values; do not infer them from device identity.
+- **Keep both size classes registered in `BTraits.system`.** Expose only compact and regular values. Normalize unavailable UIKit values to compact; do not infer size classes from device identity or measured bounds.
 
 ## Testing
 

@@ -5,10 +5,12 @@ import UIKit
 
 @MainActor
 struct BHorizontalSizeClassTests {
-    @Test func mapsUIKitValuesAndPreservesUnspecified() {
-        #expect(BHorizontalSizeClass(.unspecified) == .unspecified)
+    @Test func mapsUIKitValuesAndDefaultsToCompact() {
+        #expect(BHorizontalSizeClass(.unspecified) == .compact)
         #expect(BHorizontalSizeClass(.compact) == .compact)
         #expect(BHorizontalSizeClass(.regular) == .regular)
+        #expect(BTraits().horizontalSizeClass == .compact)
+        #expect(BTraits.system.horizontalSizeClass == .compact)
     }
 
     @Test func observesLiveChangesAndScopedOverrides() throws {

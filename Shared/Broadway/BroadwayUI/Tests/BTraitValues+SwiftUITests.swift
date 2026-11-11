@@ -30,12 +30,12 @@ struct BContentSizeCategorySwiftUIMappingTests {
 }
 
 struct BSizeClassSwiftUIMappingTests {
-    @Test func mapsSizeClasses() {
+    @Test func mapsSizeClassesAndDefaultsToCompact() {
         #expect(BHorizontalSizeClass(UserInterfaceSizeClass.compact) == .compact)
         #expect(BHorizontalSizeClass(UserInterfaceSizeClass.regular) == .regular)
-        #expect(BHorizontalSizeClass(nil) == .unspecified)
+        #expect(BHorizontalSizeClass(nil) == .compact)
         #expect(BVerticalSizeClass(UserInterfaceSizeClass.compact) == .compact)
         #expect(BVerticalSizeClass(UserInterfaceSizeClass.regular) == .regular)
-        #expect(BVerticalSizeClass(nil) == .unspecified)
+        #expect(BVerticalSizeClass(nil) == .compact)
     }
 }
