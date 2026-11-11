@@ -45,16 +45,16 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test(
-        arguments: [BHorizontalSizeClass.unspecified, .compact, .regular],
-        [BVerticalSizeClass.unspecified, .compact, .regular],
+        arguments: [UIUserInterfaceSizeClass.unspecified, .compact, .regular],
+        [UIUserInterfaceSizeClass.unspecified, .compact, .regular],
     )
-    func historyPanePolicyFollowsBothSizeClasses(
-        horizontal: BHorizontalSizeClass,
-        vertical: BVerticalSizeClass,
+    func historyPanePolicyFollowsSystemSizeClasses(
+        horizontal: UIUserInterfaceSizeClass,
+        vertical: UIUserInterfaceSizeClass,
     ) throws {
         var context = BContext(traits: .system)
-        context.traitOverrides.horizontalSizeClass = horizontal
-        context.traitOverrides.verticalSizeClass = vertical
+        context.traitOverrides.horizontalSizeClass = BHorizontalSizeClass(horizontal)
+        context.traitOverrides.verticalSizeClass = BVerticalSizeClass(vertical)
         context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.large)
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
         let expected: WhereStylesheet.AdaptiveHistoryStyle.Panes =
