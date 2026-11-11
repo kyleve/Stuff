@@ -90,9 +90,27 @@ extension SnapshotConfiguration {
     public var resolvedLayoutTraits: Frame.LayoutTraits? {
         guard let layoutTraits else { return device.layoutTraits }
         return Frame.LayoutTraits(
-            horizontalSizeClass: layoutTraits.horizontalSizeClass == .compact ? .compact : .regular,
-            verticalSizeClass: layoutTraits.verticalSizeClass == .compact ? .compact : .regular,
-            interfaceIdiom: layoutTraits.interfaceIdiom == .phone ? .phone : .pad,
+            horizontalSizeClass: layoutTraits.horizontalSizeClass.frameSizeClass,
+            verticalSizeClass: layoutTraits.verticalSizeClass.frameSizeClass,
+            interfaceIdiom: layoutTraits.interfaceIdiom.frameIdiom,
         )
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.SizeClass {
+    fileprivate var frameSizeClass: SnapshotConfiguration.Frame.LayoutTraits.SizeClass {
+        switch self {
+            case .compact: .compact
+            case .regular: .regular
+        }
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.InterfaceIdiom {
+    fileprivate var frameIdiom: SnapshotConfiguration.Frame.LayoutTraits.InterfaceIdiom {
+        switch self {
+            case .phone: .phone
+            case .tablet: .pad
+        }
     }
 }
