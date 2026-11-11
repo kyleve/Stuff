@@ -219,8 +219,10 @@ Synthetic windows test layout policy; they do not validate native folding or sys
 Retention preserves the frame’s size, traits, and insets, but physical reserved regions can affect native chrome.
 It does not change reference identifiers; name variants explicitly when comparing both policies. Previews remain an approximation.
 
-The Duo presets retain [native iOS 27.1 measurements](Documentation/DuoMeasurements.json) from Xcode build `27A9275`, runtime `24A94232`.
-Re-measurement on the native 27.2 Duo runtime remains pending; see [native release validation in PR #466](https://github.com/kyleve/Stuff/pull/466).
+The Duo presets use native simulator measurements collected on 2026-10-15 with iOS 27.1, Xcode build `27A9275`, and runtime build `24A94232`.
+Device Hub selected each pose. A native UIKit app read `UIWindowScene.screen`, `UIWindow.safeAreaInsets`, `UIView.traitCollection`, and `UIView.reservedRegions(kind:options:)`.
+These measurements have not been verified on hardware.
+Re-measurement on the native 27.2 Duo runtime remains pending; see [native release validation in PR #372](https://github.com/kyleve/Stuff/pull/372).
 Synthetic captures on the current runtime verify layout against these recorded profiles, not current native geometry.
 All four profiles use 3× scale and the phone idiom.
 
@@ -233,6 +235,6 @@ All four profiles use 3× scale and the phone idiom.
 
 The inner display reports a 40-point division with 20-point margins on each adjoining side. Its frame already includes these margins.
 The division is active when partially folded. Flat layouts must ignore inactive divisions.
-The measurement record also contains camera and status-bar occlusions. Use current region geometry in production; these records describe specific simulator poses.
+Use current region geometry in production; the measurements describe specific simulator poses.
 
 Explicit configuration layout traits override frame traits and retain their identifier tokens. With no explicit override, previews and captures use the frame’s measured traits.
