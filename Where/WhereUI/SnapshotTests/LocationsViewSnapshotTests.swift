@@ -11,7 +11,7 @@ struct LocationsViewSnapshotTests {
 
     @Test func adaptiveLoadStates() async throws {
         for state in AdaptiveHistoryLoadFixture.State.allCases {
-            for pose in [AdaptiveHistoryPose.innerPortrait, .tabletop] {
+            for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop] {
                 let fixture = try await AdaptiveHistoryLoadFixture(state: state)
                 await assertSnapshots(
                     of: LocationsView(report: fixture.report)

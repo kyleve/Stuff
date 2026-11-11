@@ -1,24 +1,32 @@
 #if DEBUG
+    import RegionKit
     import SnapshotKit
     import SwiftUI
 
     /// A DEBUG-only mounted production scene. Pose controls change geometry, never its models.
     struct AdaptiveHistoryLabView: View {
         @State private var model: AdaptiveHistoryLabModel
+        @State private var pose: SnapshotConfiguration.Pose
+        private let initialRegion: Region?
 
-        init(model: AdaptiveHistoryLabModel = AdaptiveHistoryLabModel()) {
+        init(
+            model: AdaptiveHistoryLabModel = AdaptiveHistoryLabModel(),
+            pose: SnapshotConfiguration.Pose = .outerPortrait,
+            initialRegion: Region? = nil,
+        ) {
             _model = State(initialValue: model)
+            _pose = State(initialValue: pose)
+            self.initialRegion = initialRegion
         }
 
         @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
-            @Bindable var model = model
             VStack(spacing: stylesheet.spacing.medium) {
                 Text(String(localized: .developerDuoTitle))
                     .font(.headline)
-                Picker(String(localized: .developerDuoPose), selection: $model.pose) {
-                    ForEach(AdaptiveHistoryPose.allCases) { pose in
+                Picker(String(localized: .developerDuoPose), selection: $pose) {
+                    ForEach(SnapshotConfiguration.Pose.allCases) { pose in
                         Text(pose.title).tag(pose)
                     }
                 }
@@ -55,13 +63,12 @@
 
         private func preview(world: WhereFlyoverWorld) -> some View {
             GeometryReader { proxy in
-                let pose = model.pose
                 let insets = pose.frame.safeAreaInsets
                 let scale = min(
                     1,
                     min(proxy.size.width / pose.size.width, proxy.size.height / pose.size.height),
                 )
-                MainTabs(world: world, navigation: model.navigation)
+                MainTabs(world: world, region: initialRegion)
                     .environment(world.model)
                     .environment(world.session)
                     .environment(\.isInDemoMode, true)
@@ -87,9 +94,8 @@
 
     extension AdaptiveHistoryLabView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            [AdaptiveHistoryPose.outerPortrait, .tabletop].map { pose in
+            [SnapshotConfiguration.Pose.outerPortrait, .tabletop].map { pose in
                 let fixture = AdaptiveHistorySnapshotFixture(tab: .locations, selection: .region)
-                fixture.model.pose = pose
                 return whereSnapshot(
                     name: pose.rawValue,
                     configurations: [SnapshotConfiguration(device: .viewport(
@@ -104,8 +110,12 @@
                     ))],
                     onReadyToSnapshot: { await fixture.prepare() },
                 ) {
-                    AdaptiveHistoryLabView(model: fixture.model)
-                        .environment(\.regionOutlinePathCache, fixture.artwork)
+                    AdaptiveHistoryLabView(
+                        model: fixture.model,
+                        pose: pose,
+                        initialRegion: .california,
+                    )
+                    .environment(\.regionOutlinePathCache, fixture.artwork)
                 }
             }
         }

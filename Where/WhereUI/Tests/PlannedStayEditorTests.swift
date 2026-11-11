@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -25,7 +26,7 @@ struct PlannedStayEditorTests {
             await gate.waitUntilReached()
             do {
                 for pose in [
-                    AdaptiveHistoryPose.outerPortrait,
+                    SnapshotConfiguration.Pose.outerPortrait,
                     .innerPortrait,
                     .tabletop,
                     .outerPortrait,

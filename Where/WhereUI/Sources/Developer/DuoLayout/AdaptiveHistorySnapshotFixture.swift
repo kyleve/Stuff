@@ -37,11 +37,13 @@
 
         let model = AdaptiveHistoryLabModel()
         let artwork = RegionOutlinePathCache()
-        private let selection: Selection
+        let tab: MainTabSelection.TabID
+        let history = HistorySelectionModel()
+        let selection: Selection
         private var didSelect = false
 
-        init(tab: SceneNavigationModel.TabID, selection: Selection) {
-            model.navigation.selectedTab = tab
+        init(tab: MainTabSelection.TabID, selection: Selection) {
+            self.tab = tab
             self.selection = selection
         }
 
@@ -57,7 +59,7 @@
                 switch selection {
                     case .none: break
                     case .region:
-                        model.navigation.locations.select(region: .california)
+                        break
                     case .stay:
                         if let report = world.report.report,
                            let stint = PresenceTimeline.stints(
@@ -65,18 +67,18 @@
                                calendar: world.report.calendar,
                            ).first
                         {
-                            model.navigation.year.history.select(
+                            history.select(
                                 stint: stint,
                                 dateCalendar: world.report.calendar,
                             )
                         }
                     case let .month(month):
-                        model.navigation.year.history.select(
+                        history.select(
                             month: month,
                             dateCalendar: world.report.calendar,
                         )
                     case .settings:
-                        model.navigation.settings.selectedRoute = SettingsRoute(.appearance)
+                        break
                 }
             }
             for region in LocationsBackgroundArtwork.regions(in: world.report.ranking) {
@@ -98,7 +100,7 @@
 
     struct AdaptiveHistorySnapshotScene: View {
         let fixture: AdaptiveHistorySnapshotFixture
-        let pose: AdaptiveHistoryPose
+        let pose: SnapshotConfiguration.Pose
 
         var body: some View {
             Group {
@@ -106,12 +108,19 @@
                     case .idle, .loading:
                         ProgressView(String(localized: .primaryLoading))
                     case let .loaded(world):
-                        MainTabs(world: world, navigation: fixture.model.navigation)
-                            .environment(world.model)
-                            .environment(world.session)
-                            .environment(\.isInDemoMode, true)
-                            .environment(\.demoExitPresentation, .embedded)
-                            .environment(\.regionOutlinePathCache, fixture.artwork)
+                        MainTabs(
+                            world: world,
+                            tab: fixture.tab,
+                            region: fixture.selection == .region ? .california : nil,
+                            settingsRoute: fixture
+                                .selection == .settings ? SettingsRoute(.appearance) : nil,
+                            history: fixture.history,
+                        )
+                        .environment(world.model)
+                        .environment(world.session)
+                        .environment(\.isInDemoMode, true)
+                        .environment(\.demoExitPresentation, .embedded)
+                        .environment(\.regionOutlinePathCache, fixture.artwork)
                     case let .failed(error):
                         ContentUnavailableView(
                             String(localized: .commonLoadErrorTitle),

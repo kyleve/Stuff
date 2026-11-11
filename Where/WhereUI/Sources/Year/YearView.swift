@@ -1,3 +1,4 @@
+import BroadwayUI
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -9,24 +10,38 @@ import WhereCore
 struct YearView: View {
     let report: YearReportModel
 
-    @State private var navigation: SceneNavigationModel.Year
+    @State private var mode: YearMode
+    @State private var history: HistorySelectionModel
+    @State private var planningDestination: PlannedStaysDestination?
+    @State private var calendarPresentation: CalendarPresentationState
 
     @Environment(\.stylesheet) private var stylesheet
 
-    init(report: YearReportModel, navigation: SceneNavigationModel.Year) {
+    init(
+        report: YearReportModel,
+        initialMode: YearMode = .calendar,
+        history: HistorySelectionModel? = nil,
+    ) {
         self.report = report
-        _navigation = State(initialValue: navigation)
-    }
-
-    init(report: YearReportModel, initialMode: YearMode = .calendar) {
-        self.init(report: report, navigation: SceneNavigationModel.Year(mode: initialMode))
+        _mode = State(initialValue: initialMode)
+        _history = State(initialValue: history ?? HistorySelectionModel())
+        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
+            report: report,
+            persistenceKey: .year,
+        ).isOverview(fallback: false) ? .overview : .detail))
     }
 
     var body: some View {
         AdaptiveHistoryContainer { arrangement in
             switch arrangement {
                 case .compact:
-                    YearCompactView(report: report, navigation: navigation)
+                    YearCompactContent(
+                        report: report,
+                        mode: $mode,
+                        history: history,
+                        calendarPresentation: calendarPresentation,
+                        planningDestination: $planningDestination,
+                    )
                 case .columns:
                     NavigationSplitView(columnVisibility: .constant(.all)) {
                         timeline(presentation: .linked)
@@ -51,22 +66,26 @@ struct YearView: View {
                                 .safeAreaInset(edge: .top, spacing: 0) {
                                     HistoryMonthControls(
                                         report: report,
-                                        history: navigation.history,
+                                        history: history,
                                     )
                                 }
                         }
                     }
             }
         }
-        .modifier(PlanningPresentation(report: report, navigation: navigation.history.planning))
+        .modifier(PlanningPresentation(report: report, destination: $planningDestination))
+        .onChange(of: report.selectedYear) { history.reset() }
     }
 
     private func calendar(presentation: CalendarContentView.Presentation) -> some View {
         CalendarContentView(
             report: report,
-            history: navigation.history,
+            history: history,
+            presentationState: calendarPresentation,
             presentation: presentation,
             persistenceKey: .year,
+            scrollRole: .year,
+            planningDestination: $planningDestination,
         )
         .navigationTitle(String(localized: .primaryCalendar))
         .navigationBarTitleDisplayMode(.inline)
@@ -76,7 +95,8 @@ struct YearView: View {
         PresenceTimelineList(
             report: report,
             presentation: presentation,
-            history: navigation.history,
+            history: history,
+            planningDestination: $planningDestination,
         )
         .navigationTitle(String(localized: .primaryTimeline))
         .navigationBarTitleDisplayMode(.inline)
@@ -86,32 +106,64 @@ struct YearView: View {
 /// The single-pane production presentation, also captured in full for content completeness.
 struct YearCompactView: View {
     let report: YearReportModel
-    @State private var navigation: SceneNavigationModel.Year
-    @Environment(\.stylesheet) private var stylesheet
+    @State private var mode = YearMode.calendar
+    @State private var history = HistorySelectionModel()
+    @State private var planningDestination: PlannedStaysDestination?
+    @State private var calendarPresentation: CalendarPresentationState
 
-    init(report: YearReportModel, navigation: SceneNavigationModel.Year? = nil) {
+    init(report: YearReportModel) {
         self.report = report
-        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Year())
+        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
+            report: report,
+            persistenceKey: .year,
+        ).isOverview(fallback: false) ? .overview : .detail))
     }
 
     var body: some View {
-        @Bindable var navigation = navigation
+        YearCompactContent(
+            report: report,
+            mode: $mode,
+            history: history,
+            calendarPresentation: calendarPresentation,
+            planningDestination: $planningDestination,
+        )
+        .bScrollRestorationScope()
+        .modifier(PlanningPresentation(report: report, destination: $planningDestination))
+    }
+}
+
+private struct YearCompactContent: View {
+    let report: YearReportModel
+    @Binding var mode: YearMode
+    let history: HistorySelectionModel
+    let calendarPresentation: CalendarPresentationState
+    @Binding var planningDestination: PlannedStaysDestination?
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         NavigationStack {
             Group {
-                switch navigation.mode {
+                switch mode {
                     case .calendar:
                         CalendarContentView(
                             report: report,
-                            history: navigation.history,
+                            history: history,
+                            presentationState: calendarPresentation,
                             persistenceKey: .year,
+                            scrollRole: .year,
+                            planningDestination: $planningDestination,
                         )
                     case .timeline:
-                        PresenceTimelineList(report: report, history: navigation.history)
+                        PresenceTimelineList(
+                            report: report,
+                            history: history,
+                            planningDestination: $planningDestination,
+                        )
                 }
             }
             // Crossfade between the two views rather than hard-cutting.
-            .animation(.default, value: navigation.mode)
-            .navigationTitle(navigation.mode.title)
+            .animation(.default, value: mode)
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             // Keep the bar background on at all times. The calendar auto-scrolls
             // under the bar (so its scroll-edge material is showing) while the
@@ -119,7 +171,7 @@ struct YearCompactView: View {
             // them animates that material in/out — reading as a toolbar fade.
             .toolbarBackground(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom, alignment: .center) {
-                YearModePicker(mode: $navigation.mode)
+                YearModePicker(mode: $mode)
                     .padding(.bottom, stylesheet.spacing.xLarge)
             }
         }

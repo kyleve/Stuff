@@ -1,3 +1,4 @@
+import Observation
 #if DEBUG
     @_spi(Testing) import InstallerKitUI
 #endif
@@ -21,20 +22,44 @@ import WhereCore
 /// the `WhereSession` coordinator (recording/location) and
 /// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
+    @MainActor @Observable
+    final class Navigation {
+        // Settings, evidence, and feature-gallery routes share the same stack.
+        // NavigationPath retains each value's concrete Hashable identity.
+        var path = NavigationPath()
+        private var route: SettingsRoute?
+        var compactColumn = NavigationSplitViewColumn.sidebar
+        var selectedRoute: SettingsRoute? {
+            get { route }
+            set {
+                guard route != newValue else { return }
+                route = newValue
+                path = NavigationPath()
+                if newValue != nil { compactColumn = .detail }
+            }
+        }
+
+        var searchText = ""
+        var showRegions = false
+    }
+
     let report: YearReportModel
     let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
-    @State private var navigation: SceneNavigationModel.Settings
+    @State private var navigation: SettingsView.Navigation
 
     @Environment(\.stylesheet) private var stylesheet
 
     init(
         report: YearReportModel,
         recordingWarning: RecordingConfigurationWarningModel? = nil,
-        navigation: SceneNavigationModel.Settings? = nil,
+        navigation: SettingsView.Navigation? = nil,
+        initialRoute: SettingsRoute? = nil,
     ) {
-        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Settings())
+        let navigation = navigation ?? SettingsView.Navigation()
+        if let initialRoute { navigation.selectedRoute = initialRoute }
+        _navigation = State(initialValue: navigation)
         self.report = report
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
             preferences: report.preferences,

@@ -1,4 +1,6 @@
+import BroadwayUI
 import InstallerKit
+import SnapshotKit
 @_spi(Testing) import InstallerKitUI
 import SwiftUI
 import TestHostSupport
@@ -77,19 +79,18 @@ struct MainTabsTests {
 struct MainTabsTestsDuo {
     @Test func settingsSearchStaysVisibleAcrossFoldLayouts() async throws {
         let world = try await WhereFlyoverWorld.build()
-        let navigation = SceneNavigationModel()
-        navigation.selectedTab = .settings
         let state = AdaptiveHistoryHostState()
         let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
-            MainTabs(world: world, navigation: navigation)
+            MainTabs(world: world, tab: .settings)
                 .environment(world.model)
                 .environment(world.session)
                 .environment(\.isInDemoMode, true)
         })
         host.safeAreaRegions = []
         try await show(host) { controller in
+            var enteredQuery = false
             for pose in [
-                AdaptiveHistoryPose.outerPortrait,
+                SnapshotConfiguration.Pose.outerPortrait,
                 .innerPortrait,
                 .tabletop,
                 .book,
@@ -113,16 +114,27 @@ struct MainTabsTestsDuo {
                             .contains(frame)
                     }
                 }
+                let field = try #require(AdaptiveHistoryTestSupport.descendants(
+                    of: window,
+                    matching: UISearchTextField.self,
+                ).first { !$0.isHidden && $0.window != nil })
+                if !enteredQuery {
+                    field.text = "appearance"
+                    field.sendActions(for: .editingChanged)
+                    enteredQuery = true
+                }
+                #expect(field.text == "appearance")
             }
         }
     }
 
     @Test func foldingKeepsOnePresentedEditorAndItsUnsavedDate() async throws {
         let world = try await WhereFlyoverWorld.build()
-        let navigation = SceneNavigationModel()
+        let navigation = LocationsView.Navigation()
         let state = AdaptiveHistoryHostState()
         let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
-            MainTabs(world: world, navigation: navigation)
+            LocationsView(report: world.report, navigation: navigation)
+                .bScrollRestorationScope()
                 .environment(world.model)
                 .environment(world.session)
                 .environment(\.isInDemoMode, true)
@@ -134,12 +146,8 @@ struct MainTabsTestsDuo {
                 state: state,
                 to: .outerPortrait,
             )
-            navigation.locations.select(region: .california)
-            let month = CalendarDay(year: world.report.selectedYear, month: 2, day: 1)
-            navigation.locations.calendar.reveal(month: month)
-            navigation.settings.searchText = "appearance"
-            navigation.year.mode = .timeline
-            navigation.locations.planningDestination = .new(.california)
+            navigation.select(region: .california)
+            navigation.planningDestination = .new(.california)
             let root = try #require(controller.view.window?.rootViewController)
             try await waitForAsync {
                 AdaptiveHistoryTestSupport.presentedController(from: root) != nil
@@ -159,7 +167,7 @@ struct MainTabsTestsDuo {
             picker.date = draft
             picker.sendActions(for: .valueChanged)
             for pose in [
-                AdaptiveHistoryPose.innerPortrait,
+                SnapshotConfiguration.Pose.innerPortrait,
                 .tabletop,
                 .outerPortrait,
                 .innerLandscape,
@@ -167,10 +175,7 @@ struct MainTabsTestsDuo {
             ] {
                 try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
                 #expect(AdaptiveHistoryTestSupport.presentedController(from: root) === editor)
-                #expect(navigation.locations.selectedRegion == .california)
-                #expect(navigation.locations.calendar.displayedMonth == month)
-                #expect(navigation.settings.searchText == "appearance")
-                #expect(navigation.year.mode == .timeline)
+                #expect(navigation.selectedRegion == .california)
                 #expect(AdaptiveHistoryTestSupport.descendants(
                     of: editor.view,
                     matching: UIDatePicker.self,

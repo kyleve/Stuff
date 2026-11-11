@@ -1,3 +1,5 @@
+import AccessibilitySnapshotParser
+import BroadwayUI
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -6,10 +8,58 @@ import WhereCore
 
 @MainActor
 struct PresenceTimelineListTests {
+    @Test func aPendingRevealRetriesWhenAStayExtendsWithoutChangingIdentity() async throws {
+        let store = try TestStore()
+        let report = PlanningTestSupport.report(store: store)
+        for day in 20 ... 31 {
+            try await report.services.journal.addManualDay(
+                date: CalendarDay(year: report.selectedYear, month: 1, day: day)
+                    .startOfDay(in: report.calendar),
+                regions: [.california],
+                audit: nil,
+            )
+        }
+        await report.refresh()
+        let before = try PresenceTimeline.stints(
+            from: #require(report.report),
+            calendar: report.calendar,
+        )
+        let original = try #require(before.first)
+        let history = HistorySelectionModel()
+        history.select(
+            month: CalendarDay(year: report.selectedYear, month: 2, day: 1),
+            dateCalendar: report.calendar,
+        )
+        let host = UIHostingController(rootView: PresenceTimelineList(
+            report: report,
+            presentation: .linked,
+            history: history,
+        ).whereBroadwayRoot().bScrollRestorationScope())
+        try await show(host) { _ in
+            #expect(history.pendingRequest(for: .timeline) != nil)
+            for day in 1 ... 3 {
+                try await report.services.journal.addManualDay(
+                    date: CalendarDay(year: report.selectedYear, month: 2, day: day)
+                        .startOfDay(in: report.calendar),
+                    regions: [.california],
+                    audit: nil,
+                )
+            }
+            await report.refresh()
+            let updatedReport = try #require(report.report)
+            let extended = try #require(PresenceTimeline.stints(
+                from: updatedReport,
+                calendar: report.calendar,
+            ).first)
+            #expect(extended.id == original.id)
+            try await waitForAsync { history.pendingRequest(for: .timeline) == nil }
+        }
+    }
+
     @Test func selectingTheSameMonthAgainRevealsItAfterIndependentBrowsing() async throws {
         let world = try await WhereFlyoverWorld.build()
         let report = try #require(world.report.report)
-        let history = HistoryNavigationModel()
+        let history = HistorySelectionModel()
         let month = CalendarDay(year: report.year, month: 5, day: 1)
         let end = CalendarDay(year: report.year, month: 5, day: 31)
         let stints = PresenceTimeline.stints(from: report, calendar: world.report.calendar)
@@ -29,20 +79,62 @@ struct PresenceTimelineListTests {
         })
         let browsed = try #require(displayedStints.last)
         #expect(expected.id != browsed.id)
+        let expectedLabel = WhereFormat.timelineRowAccessibility(
+            region: expected.region.localizedName,
+            range: DateRangeFormatting
+                .abbreviated(
+                    start: expected.start,
+                    end: expected.end,
+                    calendar: world.report.calendar,
+                ),
+            days: expected.dayCount,
+        )
+        let browsedLabel = WhereFormat.timelineRowAccessibility(
+            region: browsed.region.localizedName,
+            range: DateRangeFormatting
+                .abbreviated(
+                    start: browsed.start,
+                    end: browsed.end,
+                    calendar: world.report.calendar,
+                ),
+            days: browsed.dayCount,
+        )
+        let capture = ScrollPositionCapture()
         let host = UIHostingController(rootView: PresenceTimelineList(
             report: world.report,
             presentation: .linked,
             history: history,
-        ).whereBroadwayRoot())
+        ).overlay {
+            ScrollPositionProbe(
+                PresenceTimelineList.self,
+                role: PresenceTimelineList.ScrollRole.timeline,
+                context: report.year,
+                idType: HistorySelectionModel.Item.self,
+                capture: capture,
+            )
+        }.whereBroadwayRoot().bScrollRestorationScope())
 
         try await show(host) { _ in
             for _ in 0 ..< 4 {
                 history.select(month: month, dateCalendar: world.report.calendar)
-                try await waitForAsync { history.timeline.visibleItem == .recorded(expected.id) }
-                #expect(history.timeline.requestedMonth == nil)
+                try await waitForAsync {
+                    capture.binding?.wrappedValue
+                        .viewID(type: HistorySelectionModel.Item.self) == .recorded(expected.id)
+                        && HostedAccessibility.isVisible(expectedLabel, in: host.view)
+                }
+                #expect(history.pendingRequest(for: .timeline) == nil)
                 let selectedInterval = history.selection
-                history.timeline.recordVisibleItems([.recorded(browsed.id)], in: report.year)
-                #expect(history.timeline.visibleItem == .recorded(browsed.id))
+                capture.binding?.wrappedValue.scrollTo(
+                    id: HistorySelectionModel.Item.recorded(browsed.id),
+                    anchor: .top,
+                )
+                try await waitForAsync {
+                    capture.binding?.wrappedValue
+                        .viewID(type: HistorySelectionModel.Item.self) == .recorded(browsed.id)
+                        && HostedAccessibility.isVisible(browsedLabel, in: host.view)
+                }
+                #expect(capture.binding?.wrappedValue
+                    .viewID(type: HistorySelectionModel.Item.self) == .recorded(browsed.id))
                 #expect(history.selection == selectedInterval)
             }
         }

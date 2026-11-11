@@ -1,3 +1,5 @@
+import BroadwayUI
+import RegionKit
 import SFSafeSymbols
 import SwiftUI
 import WhereCore
@@ -5,12 +7,32 @@ import WhereCore
 /// Explicit month browsing controls shared by both tabletop destinations.
 struct HistoryMonthControls: View {
     let report: YearReportModel
-    let history: HistoryNavigationModel
+    let history: HistorySelectionModel
+    @BScrollPosition<CalendarPresentationState.Target> private var position: ScrollPosition
+    init(
+        report: YearReportModel,
+        history: HistorySelectionModel,
+        region: Region? = nil,
+        scrollRole: CalendarContentView.ScrollRole = .year,
+    ) {
+        self.report = report
+        self.history = history
+        _position = BScrollPosition(
+            CalendarContentView.self,
+            role: scrollRole,
+            context: { CalendarContentView.ScrollContext(region: region, year: report.selectedYear)
+            },
+            idType: CalendarPresentationState.Target.self,
+        )
+    }
+
     @Environment(\.stylesheet) private var stylesheet
 
     private var month: CalendarDay {
-        if let month = history.calendar.displayedMonth, month.year == report.selectedYear {
-            return month
+        if let day = history.selectedInterval(in: report.selectedYear)?.lowerBound ?? position
+            .viewID(type: CalendarPresentationState.Target.self)?.month
+        {
+            return CalendarDay(year: day.year, month: day.month, day: 1)
         }
         let today = CalendarDay(from: report.referenceDate, in: report.calendar)
         return CalendarDay(
@@ -69,7 +91,7 @@ struct HistoryMonthControls: View {
     #Preview {
         HistoryMonthControls(
             report: PreviewSupport.loadedYearReportModel(),
-            history: HistoryNavigationModel(),
+            history: HistorySelectionModel(),
         )
         .whereBroadwayRoot()
     }

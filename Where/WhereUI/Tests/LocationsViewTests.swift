@@ -1,3 +1,6 @@
+import BroadwayUI
+import RegionKit
+import SnapshotKit
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -10,17 +13,27 @@ struct LocationsViewTests {
     }
 }
 
-/// Both tests resize native navigation in the shared test host window.
+/// These tests resize native navigation in the shared test host window.
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
     @Test func initialBrowsePositionFollowsInsetsUntilARegionIsRestored() async throws {
         let world = try await WhereFlyoverWorld.build()
-        let navigation = SceneNavigationModel.Locations()
+        let navigation = LocationsView.Navigation()
+        let store = BScrollRestorationStore()
+        let capture = ScrollPositionCapture()
         let host = UIHostingController(rootView: LocationsBrowsePane(
             report: world.report,
             navigation: navigation,
         )
+        .overlay { ScrollPositionProbe(
+            LocationsCardsView.self,
+            role: LocationsCardsView.ScrollRole.browse,
+            context: world.report.selectedYear,
+            idType: Region.self,
+            capture: capture,
+        ) }
+        .bScrollRestorationScope(store)
         .dynamicTypeSize(.accessibility5)
         .whereBroadwayRoot())
 
@@ -28,32 +41,117 @@ struct LocationsViewTestsDuo {
             controller.view.frame = CGRect(x: 0, y: 0, width: 466, height: 678)
             controller.traitOverrides.horizontalSizeClass = .compact
             controller.view.layoutIfNeeded()
-            try await waitForAsync {
+            try await waitForStage("initial scroll content") {
                 AdaptiveHistoryTestSupport.descendants(
                     of: controller.view,
                     matching: UIScrollView.self,
                 ).contains { $0.contentSize.height > $0.bounds.height }
             }
-            let scroll = try #require(AdaptiveHistoryTestSupport.descendants(
+            var scroll = try #require(AdaptiveHistoryTestSupport.descendants(
                 of: controller.view,
                 matching: UIScrollView.self,
             ).first { $0.contentSize.height > $0.bounds.height })
+            @MainActor func currentScroll() -> UIScrollView? {
+                AdaptiveHistoryTestSupport.descendants(
+                    of: controller.view,
+                    matching: UIScrollView.self,
+                )
+                .first { $0.window != nil && $0.contentSize.height > $0.bounds.height }
+            }
             for topInset in [CGFloat(82), 0, 56, 0] {
                 let previousInset = scroll.adjustedContentInset.top
                 controller.additionalSafeAreaInsets.top = topInset
-                controller.view.layoutIfNeeded()
-                try await waitForAsync {
-                    abs(scroll.adjustedContentInset.top - previousInset) > 1
-                        && abs(scroll.contentOffset.y + scroll.adjustedContentInset.top) < 1
+                controller.view.setNeedsLayout()
+                controller.view.window?.layoutIfNeeded()
+                do {
+                    try await waitForStage(
+                        "top anchoring after inset \(previousInset) -> requested \(topInset)",
+                    ) {
+                        guard let current = currentScroll() else { return false }
+                        return abs(current.adjustedContentInset.top - previousInset) > 1
+                            && abs(current.contentOffset.y + current.adjustedContentInset.top) < 1
+                    }
+                } catch {
+                    throw TestHostError(
+                        "\(error); adjusted=\(scroll.adjustedContentInset), offset=\(scroll.contentOffset), bounds=\(scroll.bounds), content=\(scroll.contentSize), attached=\(scroll.window != nil), current=\(String(describing: currentScroll()))",
+                    )
                 }
+                let current = try #require(currentScroll())
+                scroll = current
             }
-            navigation.visibleRegion = .california
-            navigation.restoreBrowsePosition()
-            try await waitForAsync {
+            let position = try #require(capture.binding)
+            position.wrappedValue.scrollTo(id: Region.california, anchor: .top)
+            try await waitForStage("browse to California") {
                 scroll.contentOffset.y + scroll.adjustedContentInset.top > 100
             }
             #expect(navigation.selectedRegion == nil)
         }
+        let restored = UIHostingController(rootView: LocationsBrowsePane(report: world.report)
+            .dynamicTypeSize(.accessibility5).whereBroadwayRoot().bScrollRestorationScope(store))
+        try await show(restored) { controller in
+            controller.view.frame = CGRect(x: 0, y: 0, width: 466, height: 678)
+            controller.view.layoutIfNeeded()
+            try await waitForStage("restored California after pane replacement") {
+                AdaptiveHistoryTestSupport.descendants(
+                    of: controller.view,
+                    matching: UIScrollView.self,
+                )
+                .contains {
+                    $0.contentSize.height > $0.bounds.height && $0.contentOffset.y + $0
+                        .adjustedContentInset.top > 100
+                }
+            }
+        }
+    }
+
+    @Test func aPushedBrowseStackRemainsMountedThroughTabletop() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        let navigation = LocationsView.Navigation()
+        let state = AdaptiveHistoryHostState()
+        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+            LocationsView(report: world.report, navigation: navigation)
+                .environment(world.session).environment(world.model)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        @MainActor func controllers(_ root: UIViewController) -> [UIViewController] {
+            [root] + root.children.flatMap(controllers)
+        }
+        try await show(host) { controller in
+            controller.view.window?.layer.speed = 1
+            try await AdaptiveHistoryTestSupport.resize(
+                controller,
+                state: state,
+                to: .outerPortrait,
+            )
+            try await waitForStage("browse stack to mount") {
+                controllers(controller).contains { $0 is UINavigationController }
+            }
+            navigation.open(.flight(PreviewSupport.flightReview(state: .ready)))
+            do {
+                try await waitForStage("flight detail push") {
+                    controllers(controller).compactMap { $0 as? UINavigationController }
+                        .contains { $0.viewControllers.count > 1 }
+                }
+            } catch {
+                throw TestHostError(
+                    "\(error); path=\(navigation.browsePath.count); controllers=\(controllers(controller).map { String(describing: type(of: $0)) + ":" + (($0 as? UINavigationController)?.navigationBar.topItem?.title ?? $0.title ?? "nil") + ":" + String(($0 as? UINavigationController)?.viewControllers.count ?? 0) })",
+                )
+            }
+            let stack = try #require(controllers(controller)
+                .compactMap { $0 as? UINavigationController }
+                .first { $0.viewControllers.count > 1 })
+            let pushed = try #require(stack.topViewController)
+            for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop, .outerPortrait] {
+                try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                #expect(navigation.browsePath.count == 1)
+                #expect(controllers(controller).contains { $0 === pushed })
+            }
+        }
+    }
+
+    private func waitForStage(_ stage: String, _ predicate: () -> Bool) async throws {
+        do { try await waitForAsync(predicate: predicate) }
+        catch { throw TestHostError("Locations stage: \(stage): \(error)") }
     }
 
     @Test func foldingDuringLoadingAndAYearChangeDoesNotRestartOrPublishTheOlderRead() async throws {
@@ -73,7 +171,7 @@ struct LocationsViewTestsDuo {
         await store.enableFirstSamplesGate()
         let olderRead = Task { await report.select(year: 2024) }
         await store.awaitFirstSamplesCall()
-        let navigation = SceneNavigationModel.Locations()
+        let navigation = LocationsView.Navigation()
         navigation.select(region: .california)
         let state = AdaptiveHistoryHostState()
         let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
@@ -84,7 +182,7 @@ struct LocationsViewTestsDuo {
             try await show(host) { controller in
                 let readsBeforeFolding = await store.sampleReadCount
                 for pose in [
-                    AdaptiveHistoryPose.outerPortrait,
+                    SnapshotConfiguration.Pose.outerPortrait,
                     .innerPortrait,
                     .tabletop,
                     .outerPortrait,
@@ -95,7 +193,7 @@ struct LocationsViewTestsDuo {
                 }
                 await report.select(year: 2026)
                 let readsAfterYearChange = await store.sampleReadCount
-                for pose in [AdaptiveHistoryPose.innerLandscape, .tabletop, .outerPortrait] {
+                for pose in [SnapshotConfiguration.Pose.innerLandscape, .tabletop, .outerPortrait] {
                     try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
                     #expect(await store.sampleReadCount == readsAfterYearChange)
                 }
