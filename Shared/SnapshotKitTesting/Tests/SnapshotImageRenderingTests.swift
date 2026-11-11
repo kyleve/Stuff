@@ -43,7 +43,8 @@ struct SnapshotImageRenderingTests {
         }
     }
 
-    @Test func fixedViewportSettlementPreservesNativeBarGeometry() async throws {
+    @Test(arguments: [false, true])
+    func fixedViewportSettlementPreservesNativeBarGeometry(isAccessibility: Bool) async throws {
         let configuration = SnapshotConfiguration(device: .duoInnerPortrait)
         let probe = NativeBarGeometryProbe()
         let host = UIHostingController(rootView: NativeBarGeometryFixture(probe: probe)
@@ -58,8 +59,13 @@ struct SnapshotImageRenderingTests {
             of: host,
             named: "native-bar-geometry",
             safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
+            isAccessibility: isAccessibility,
             settle: .settledAtLeast(minDuration: 1.5),
             onReadyToSnapshot: {
+                guard host.view.window != nil else {
+                    Issue.record("The native content must be mounted during readiness and settling")
+                    return
+                }
                 probe.begin()
                 let outcome = await settleContent(host.view, named: "native-bar-geometry-proof")
                 probe.end()
