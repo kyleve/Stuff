@@ -1,3 +1,4 @@
+import BroadwayUI
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -12,8 +13,39 @@ struct LocationsCardsView: View {
     let isCardSurfaceUncovered: Bool
     @Binding var isCardSurfaceVisible: Bool
     let planningAction: () -> Void
-    @Bindable var navigation: SceneNavigationModel.Locations
+    @Bindable var navigation: LocationsView.Navigation
     let cardVariant: WhereStylesheet.CardStyle.Variant
+
+    @BScrollPosition<Region> private var position: ScrollPosition
+    enum ScrollRole: Hashable { case browse }
+
+    init(
+        report: YearReportModel,
+        cardPresentation: LocationCardsPresentationModel,
+        tilt: TiltProvider,
+        calendarTransition: Namespace.ID,
+        isCardSurfaceUncovered: Bool,
+        isCardSurfaceVisible: Binding<Bool>,
+        planningAction: @escaping () -> Void,
+        navigation: LocationsView.Navigation,
+        cardVariant: WhereStylesheet.CardStyle.Variant,
+    ) {
+        self.report = report
+        self.cardPresentation = cardPresentation
+        self.tilt = tilt
+        self.calendarTransition = calendarTransition
+        self.isCardSurfaceUncovered = isCardSurfaceUncovered
+        _isCardSurfaceVisible = isCardSurfaceVisible
+        self.planningAction = planningAction
+        self.navigation = navigation
+        self.cardVariant = cardVariant
+        _position = BScrollPosition(
+            Self.self,
+            role: ScrollRole.browse,
+            context: { report.selectedYear },
+            idType: Region.self,
+        )
+    }
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -107,17 +139,16 @@ struct LocationsCardsView: View {
         }
         .defaultScrollAnchor(.top, for: .initialOffset)
         .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
-        .scrollPosition($navigation.scrollPosition)
-        .onScrollTargetVisibilityChange(idType: Region.self, threshold: 0.01) { regions in
-            guard navigation.scrollPosition.isPositionedByUser else { return }
-            navigation.visibleRegion = presentedCards.first { regions.contains($0.region) }?.region
+        .scrollPosition($position)
+        .onChange(of: report.selectedYear, initial: true) {
+            _position.initialize(edge: .top)
         }
         .scrollBounceBehavior(.basedOnSize)
         // The card normally stays clipped to the scrolling viewport. Reveal
         // overflow only while the authored arc, scale, and rotation need it.
         .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
-        .onAppear { isCardSurfaceVisible = true; navigation.restoreBrowsePosition() }
+        .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }
         // Count, order, flourish, persistence, and haptic all share this one
         // visibility-aware delayed reconciliation.

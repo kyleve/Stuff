@@ -5,9 +5,9 @@ import SwiftUI
 /// Matching uses viewport rectangles, so moving tiles cannot alter scroll-target layout.
 @MainActor
 @Observable
-final class CalendarZoomTransitionModel {
-    typealias Mode = CalendarPresentationModel.Mode
-    typealias Target = CalendarPresentationModel.Target
+final class CalendarZoomTransitionState {
+    typealias Mode = CalendarPresentationState.Mode
+    typealias Target = CalendarPresentationState.Target
 
     /// Points: ignore subpixel rounding in viewport sizes and scroll-edge alignment.
     private nonisolated static let geometryTolerance: CGFloat = 1
@@ -26,6 +26,7 @@ final class CalendarZoomTransitionModel {
         let measurement: Measurement
         let destination: Mode
         let focus: Target?
+        let alignment: UnitPoint
 
         var visibleFrames: [Target: CGRect] {
             measurement.frames.filter { $0.value.intersects(measurement.viewport) }
@@ -76,7 +77,12 @@ final class CalendarZoomTransitionModel {
         if let measurement { resolve(destination: measurement) }
     }
 
-    func begin(from measurement: Measurement, to destination: Mode, focus: Target?) {
+    func begin(
+        from measurement: Measurement,
+        to destination: Mode,
+        focus: Target?,
+        alignment: UnitPoint = .top,
+    ) {
         guard phase == nil, measurement.mode != destination,
               measurement.frames.values.contains(where: { $0.intersects(measurement.viewport) })
         else { return }
@@ -86,6 +92,7 @@ final class CalendarZoomTransitionModel {
             measurement: measurement,
             destination: destination,
             focus: focus,
+            alignment: alignment,
         ))
     }
 
@@ -109,7 +116,12 @@ final class CalendarZoomTransitionModel {
             case .detail:
                 guard let focus = source.focus, let frame = destination.frames[focus],
                       frame.intersects(destination.viewport),
-                      abs(frame.minY) < Self.geometryTolerance
+                      abs(frame
+                          .minY -
+                          (destination.viewport
+                              .minY + (destination.viewport.height - frame.height) * source
+                              .alignment.y)) <
+                      Self.geometryTolerance
                       || destination.content.maxY <= destination.viewport.maxY + Self
                       .geometryTolerance
                 else { return }

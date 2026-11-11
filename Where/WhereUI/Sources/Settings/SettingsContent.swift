@@ -19,7 +19,7 @@ extension EnvironmentValues {
 struct SettingsContent: View {
     let report: YearReportModel
     let recordingWarning: RecordingConfigurationWarningModel
-    @State private var navigation: SceneNavigationModel.Settings
+    @State private var navigation: SettingsView.Navigation
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(WhereSession.self) private var session
     @Environment(WhereModel.self) private var model
@@ -30,13 +30,13 @@ struct SettingsContent: View {
     init(
         report: YearReportModel,
         recordingWarning: RecordingConfigurationWarningModel? = nil,
-        navigation: SceneNavigationModel.Settings? = nil,
+        navigation: SettingsView.Navigation? = nil,
     ) {
         self.report = report
         self
             .recordingWarning = recordingWarning ??
             RecordingConfigurationWarningModel(preferences: report.preferences)
-        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Settings())
+        _navigation = State(initialValue: navigation ?? SettingsView.Navigation())
     }
 
     private var searchQuery: String {

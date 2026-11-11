@@ -64,7 +64,8 @@ struct CalendarContentViewTests {
     }
 
     private func element(_ prefix: String, in view: UIView) -> NSObject? {
-        accessibilityObjects(in: view).first { $0.accessibilityLabel?.hasPrefix(prefix) == true }
+        HostedAccessibility.objects(in: view)
+            .first { $0.accessibilityLabel?.hasPrefix(prefix) == true }
     }
 
     private func isEnabled(_ label: String, in view: UIView) -> Bool {
@@ -99,162 +100,341 @@ struct CalendarContentViewTests {
         }
     }
 
-    private func accessibilityObjects(in root: NSObject) -> [NSObject] {
-        var visited: Set<ObjectIdentifier> = []
-        func visit(_ object: NSObject) -> [NSObject] {
-            guard visited.insert(ObjectIdentifier(object)).inserted else { return [] }
-            var result = [object]
-            if let view = object as? UIView {
-                result += view.subviews.flatMap(visit)
+    @Test func overviewAndTabletopDoNotReplaceTheForecastAnchor() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let fixture = CalendarPresentationFixture()
+        let history = HistorySelectionModel()
+        let host = UIHostingController(rootView: CalendarPresentationHarness(
+            fixture: fixture,
+            report: report,
+            history: history,
+        ))
+        try await show(host) { controller in
+            controller.view.window?.layer.speed = 1
+            try await waitForCalendar("initial forecast") {
+                guard let frame = element("Planned stays", in: host.view)?.accessibilityFrame
+                else { return false }
+                let bottom = host.view.convert(host.view.safeAreaLayoutGuide.layoutFrame, to: nil)
+                    .maxY
+                    - WhereStylesheet.default.locationForecast.padding
+                return abs(frame.maxY - bottom) < 1
             }
-            let count = object.accessibilityElementCount()
-            if count > 0, count < 10000 {
-                for index in 0 ..< count {
-                    if let child = object.accessibilityElement(at: index) as? NSObject {
-                        result += visit(child)
-                    }
+            let initialBottom = try #require(element("Planned stays", in: host.view)?
+                .accessibilityFrame.maxY)
+            try activate(#require(element("Show Year", in: host.view)))
+            try await waitForCalendar("overview transition starts") {
+                element("Show Months", in: host.view)?.accessibilityTraits
+                    .contains(.notEnabled) == true
+            }
+            try await waitForCalendar("overview") {
+                isEnabled("Show Months", in: host.view) && isVisible(
+                    "July",
+                    in: host.view,
+                    expanded: false,
+                )
+            }
+            try activate(#require(element("Show Months", in: host.view)))
+            try await waitForCalendar("detail transition starts") {
+                element("Show Year", in: host.view)?.accessibilityTraits
+                    .contains(.notEnabled) == true
+            }
+            do {
+                try await waitForCalendar("forecast after overview") {
+                    isEnabled("Show Year", in: host.view) && element("Planned stays", in: host.view)
+                        .map { abs($0.accessibilityFrame.maxY - initialBottom) < 1 } == true
+                }
+            } catch {
+                throw TestHostError(
+                    "\(error); expectedBottom=\(initialBottom), frame=\(String(describing: element("Planned stays", in: host.view)?.accessibilityFrame)), enabled=\(isEnabled("Show Year", in: host.view))",
+                )
+            }
+            fixture.showsTabletop = true
+            try await waitForCalendar("tabletop month") { isVisible(
+                "July",
+                in: host.view,
+                expanded: true,
+            ) && element("Planned stays", in: host.view) == nil }
+            fixture.showsTabletop = false
+            try await waitForCalendar("forecast after tabletop") { element(
+                "Planned stays",
+                in: host.view,
+            ).map { abs($0.accessibilityFrame.maxY - initialBottom) < 1 } == true }
+        }
+    }
+
+    @Test func theUnselectedLocationsCalendarKeepsItsSessionOnlyZoomMode() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let state = AdaptiveHistoryHostState()
+        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+            LocationsView(report: report)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            try await AdaptiveHistoryTestSupport.resize(
+                controller,
+                state: state,
+                to: .innerLandscape,
+            )
+            try await waitForCalendar("unselected detail calendar") { isEnabled(
+                "Show Year",
+                in: host.view,
+            ) }
+            try activate(#require(element("Show Year", in: host.view)))
+            try await waitForCalendar("session-only overview") { isEnabled(
+                "Show Months",
+                in: host.view,
+            ) }
+            try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: .tabletop)
+            try await waitForCalendar("tabletop calendar") { isVisible(
+                "July",
+                in: host.view,
+                expanded: true,
+            ) }
+            try await AdaptiveHistoryTestSupport.resize(
+                controller,
+                state: state,
+                to: .innerLandscape,
+            )
+            try await waitForCalendar("session-only overview after folding") { isEnabled(
+                "Show Months",
+                in: host.view,
+            ) }
+            #expect(report.preferences.calendarOverview(forKey: .year) == nil)
+        }
+    }
+
+    @Test func changingRegionsResetsTheAnchorButKeepsEachZoomPreference() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        report.preferences.setCalendarOverview(true, forKey: .region(.california))
+        report.preferences.setCalendarOverview(false, forKey: .region(.newYork))
+        let navigation = LocationsView.Navigation()
+        navigation.select(region: .california)
+        let state = AdaptiveHistoryHostState()
+        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+            LocationsView(report: report, navigation: navigation)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            try await AdaptiveHistoryTestSupport.resize(
+                controller,
+                state: state,
+                to: .innerLandscape,
+            )
+            try await waitForCalendar("California overview") { isEnabled(
+                "Show Months",
+                in: host.view,
+            ) }
+            try activate(#require(element("March", in: host.view)))
+            try await waitForCalendar("California March") {
+                isEnabled("Show Year", in: host.view) && isVisible(
+                    "March",
+                    in: host.view,
+                    expanded: true,
+                )
+            }
+            try activate(#require(element("Show Year", in: host.view)))
+            try await waitForCalendar("saved California overview") { isEnabled(
+                "Show Months",
+                in: host.view,
+            ) }
+            navigation.select(region: .newYork)
+            try await waitForCalendar("New York detail") {
+                isEnabled("Show Year", in: host.view) && isVisible(
+                    "July",
+                    in: host.view,
+                    expanded: true,
+                )
+            }
+            navigation.select(region: .california)
+            try await waitForCalendar("restored California overview preference") { isEnabled(
+                "Show Months",
+                in: host.view,
+            ) }
+            try activate(#require(element("Show Months", in: host.view)))
+            try await waitForCalendar("fresh California context") { isEnabled(
+                "Show Year",
+                in: host.view,
+            ) && isVisible("July", in: host.view, expanded: true) && !isVisible(
+                "March",
+                in: host.view,
+                expanded: true,
+            ) }
+        }
+    }
+
+    @Test func removingTheForecastFallsBackToTheInitialMonth() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let host = UIHostingController(rootView: CalendarContentView(report: report)
+            .whereBroadwayRoot().bScrollRestorationScope())
+        try await show(host) { _ in
+            try await waitForCalendar("initial forecast") {
+                element("Planned stays", in: host.view) != nil
+            }
+            try await report.setEstimatedTimeAndPlanningEnabled(false)
+            try await waitForCalendar("fallback after forecast removal") { element(
+                "Planned stays",
+                in: host.view,
+            ) == nil && isVisible("July", in: host.view, expanded: true) }
+        }
+    }
+
+    @Test func aRevealWaitsForDelayedCalendarData() async throws {
+        let store = try TestStore()
+        let report = PlanningTestSupport.report(store: store)
+        let history = HistorySelectionModel()
+        let month = CalendarDay(year: report.selectedYear, month: 2, day: 1)
+        history.select(month: month, dateCalendar: report.calendar)
+        await store.enableFirstSamplesGate()
+        let load = Task { await report.refresh() }
+        await store.awaitFirstSamplesCall()
+        let host = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            history: history,
+        ).whereBroadwayRoot().bScrollRestorationScope())
+        do {
+            try await show(host) { _ in
+                #expect(history.pendingRequest(for: .calendar) != nil)
+                await store.releaseFirstSamplesCall()
+                await load.value
+                try await waitForCalendar("delayed February reveal") {
+                    history.pendingRequest(for: .calendar) == nil && isVisible(
+                        "February",
+                        in: host.view,
+                        expanded: true,
+                    )
                 }
             }
-            return result
+        } catch {
+            await store.releaseFirstSamplesCall()
+            await load.value
+            throw error
         }
-        return visit(root)
     }
 
     @Test func repeatedLinkedSelectionExpandsOverviewAndKeepsMonthTarget() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let history = HistoryNavigationModel()
-        let presentation = history.calendar.presentation(
-            report: report,
-            initialMode: .overview,
-            persistenceKey: .year,
-        )
+        let history = HistorySelectionModel()
         let month = CalendarDay(year: report.selectedYear, month: 2, day: 1)
-        let host = UIHostingController(rootView: CalendarContentView(
-            report: report,
-            history: history,
-            persistenceKey: .year,
-        ).whereBroadwayRoot())
+        let host = UIHostingController(rootView: NavigationStack {
+            CalendarContentView(
+                report: report,
+                history: history,
+                initialMode: .overview,
+                persistenceKey: .year,
+            )
+        }.whereBroadwayRoot().bScrollRestorationScope())
         try await show(host) { _ in
-            try await waitForAsync { presentation.year == report.selectedYear }
+            try await waitForCalendar("overview to load") { isEnabled("Show Months", in: host.view)
+            }
             for _ in 0 ..< 2 {
                 history.select(month: month, dateCalendar: report.calendar)
-                try await waitForAsync {
-                    history.calendar.pendingReveal == nil && presentation.mode == .detail
+                try await waitForCalendar("explicit February reveal") {
+                    history.pendingRequest(for: .calendar) == nil
                         && isVisible("February", in: host.view, expanded: true)
+                        && isEnabled("Show Year", in: host.view)
                 }
-                presentation.toggle()
-                #expect(presentation.mode == .overview)
+                try activate(#require(element("Show Year", in: host.view)))
+                try await waitForCalendar("overview after reveal") { isEnabled(
+                    "Show Months",
+                    in: host.view,
+                ) }
             }
         }
     }
 
-    @Test func regionZoomPreferencesRemainIndependentInRetainedNavigation() {
-        let report = PreviewSupport.loadedYearReportModel()
-        let navigation = CalendarNavigationModel()
-        let california = navigation.presentation(
-            report: report,
-            initialMode: .detail,
-            persistenceKey: .region(.california),
-        )
-        let newYork = navigation.presentation(
-            report: report,
-            initialMode: .detail,
-            persistenceKey: .region(.newYork),
-        )
-        california.toggle()
-        #expect(california.mode == .overview)
-        #expect(newYork.mode == .detail)
-        #expect(navigation.presentation(
-            report: report,
-            initialMode: .detail,
-            persistenceKey: .region(.california),
-        ) === california)
-    }
-
     @Test func mountedCalendarPositionsAfterTheNewYearsMonthsArrive() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let navigation = CalendarNavigationModel()
+        let history = HistorySelectionModel()
         let host = UIHostingController(rootView: CalendarContentView(
             report: report,
-            navigation: navigation,
+            history: history,
         )
-        .whereBroadwayRoot())
+        .whereBroadwayRoot().bScrollRestorationScope())
         try await show(host) { _ in
-            try await waitForAsync { navigation.initiallyPositionedYear == report.selectedYear }
-            let previousYear = report.selectedYear - 1
-            await report.select(year: previousYear)
-            try await waitForAsync {
-                navigation.initiallyPositionedYear == previousYear
-                    && isVisible("December", in: host.view, expanded: true)
+            try await waitForCalendar("initial forecast") {
+                element("Planned stays", in: host.view) != nil
             }
-            #expect(navigation.scrollPosition.viewID(type: CalendarDay.self) == CalendarDay(
-                year: previousYear,
-                month: 12,
-                day: 1,
-            ))
+            history.select(
+                month: CalendarDay(year: report.selectedYear, month: 2, day: 1),
+                dateCalendar: report.calendar,
+            )
+            try await waitForCalendar("February before year change") { isVisible(
+                "February",
+                in: host.view,
+                expanded: true,
+            ) }
+            await report.select(year: report.selectedYear - 1)
+            try await waitForCalendar("December after year change") { isVisible(
+                "December",
+                in: host.view,
+                expanded: true,
+            ) }
         }
     }
 
     @Test func aRemountedCalendarPreservesTheInitialEstimateAlignment() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let navigation = CalendarNavigationModel()
-        let first = UIHostingController(rootView: CalendarContentView(
-            report: report,
-            navigation: navigation,
-        ).whereBroadwayRoot())
+        let store = BScrollRestorationStore()
+        let first = UIHostingController(rootView: CalendarContentView(report: report)
+            .whereBroadwayRoot().bScrollRestorationScope(store))
         var initialBottom: CGFloat?
         try await show(first) { _ in
             try await waitForCalendar("initial estimate to reach the viewport bottom") {
                 guard let frame = element("Planned stays", in: first.view)?.accessibilityFrame
                 else { return false }
-                let viewport = first.view.convert(first.view.bounds, to: nil)
-                return viewport.contains(frame) && frame.minY > viewport.midY
+                let bottom = first.view.convert(first.view.safeAreaLayoutGuide.layoutFrame, to: nil)
+                    .maxY
+                    - WhereStylesheet.default.locationForecast.padding
+                return abs(frame.maxY - bottom) < 1
             }
             initialBottom = element("Planned stays", in: first.view)?.accessibilityFrame.maxY
         }
         let expectedBottom = try #require(initialBottom)
-        let second = UIHostingController(rootView: CalendarContentView(
-            report: report,
-            navigation: navigation,
-        ).whereBroadwayRoot())
+        let second = UIHostingController(rootView: CalendarContentView(report: report)
+            .whereBroadwayRoot().bScrollRestorationScope(store))
         try await show(second) { _ in
             try await waitForCalendar("remounted estimate to retain its bottom alignment") {
                 guard let bottom = element("Planned stays", in: second.view)?.accessibilityFrame
-                    .maxY
-                else { return false }
+                    .maxY else { return false }
                 return abs(bottom - expectedBottom) <= 1
             }
         }
     }
 
-    @Test func aRemountedCalendarUsesTheSceneAnchor() async throws {
+    @Test func aRemountedCalendarUsesItsRenderedMonthAnchor() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let scene = SceneNavigationModel()
-        let navigation = scene.year.calendar
-        let browsed = CalendarDay(year: report.selectedYear, month: 2, day: 1)
+        let history = HistorySelectionModel()
+        let store = BScrollRestorationStore()
         let first = UIHostingController(rootView: CalendarContentView(
             report: report,
-            navigation: navigation,
+            history: history,
         )
-        .whereBroadwayRoot())
+        .whereBroadwayRoot().bScrollRestorationScope(store))
         try await show(first) { _ in
-            try await waitForAsync {
-                navigation.initiallyPositionedYear == report.selectedYear
-            }
+            try await waitForCalendar("initial forecast") { element(
+                "Planned stays",
+                in: first.view,
+            ) != nil }
+            history.select(
+                month: CalendarDay(year: report.selectedYear, month: 2, day: 1),
+                dateCalendar: report.calendar,
+            )
+            try await waitForCalendar("rendered February anchor") { isVisible(
+                "February",
+                in: first.view,
+                expanded: true,
+            ) }
         }
-        navigation.recordVisibleMonths([browsed])
-        navigation.presentation(report: report, initialMode: .detail, persistenceKey: nil)
-            .remember(.month(browsed))
-        let second = UIHostingController(rootView: CalendarContentView(
-            report: report,
-            navigation: navigation,
-        )
-        .whereBroadwayRoot())
+        // A new coordinator has no reveal request: only the retained native position can restore
+        // February.
+        let second = UIHostingController(rootView: CalendarContentView(report: report)
+            .whereBroadwayRoot().bScrollRestorationScope(store))
         try await show(second) { _ in
-            try await waitForAsync {
-                isVisible("February", in: second.view, expanded: true)
-            }
-            #expect(scene.locations.calendar.initiallyPositionedYear == nil)
+            try await waitForCalendar("restored February anchor") { isVisible(
+                "February",
+                in: second.view,
+                expanded: true,
+            ) }
         }
     }
 }

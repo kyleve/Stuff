@@ -11,8 +11,6 @@
             case failed(Error)
         }
 
-        var pose = AdaptiveHistoryPose.outerPortrait
-        let navigation = SceneNavigationModel()
         private(set) var state = State.idle
         private(set) var request = 0
 

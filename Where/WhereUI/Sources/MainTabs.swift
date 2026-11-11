@@ -1,6 +1,7 @@
 #if DEBUG
     @_spi(Testing) import InstallerKitUI
 #endif
+import BroadwayUI
 import InstallerKit
 import RegionKit
 import SFSafeSymbols
@@ -21,7 +22,7 @@ import SwiftUI
 /// checked wiring); the always-on `WhereSession` coordinator stays in the
 /// environment.
 struct MainTabs: View {
-    private typealias TabID = SceneNavigationModel.TabID
+    typealias TabID = MainTabSelection.TabID
 
     private struct WelcomeTaskID: Hashable {
         let isActive: Bool
@@ -32,7 +33,10 @@ struct MainTabs: View {
     @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var welcome: LocationWelcomeModel
     @State private var planningDestination: PlannedStaysDestination?
-    @State private var navigation = SceneNavigationModel()
+    @State private var selection = MainTabSelection()
+    private var initialRegion: Region?
+    private var initialSettingsRoute: SettingsRoute?
+    private var initialHistory: HistorySelectionModel?
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
@@ -65,8 +69,7 @@ struct MainTabs: View {
     }
 
     var body: some View {
-        @Bindable var navigation = navigation
-        TabView(selection: $navigation.selectedTab) {
+        TabView(selection: $selection.selected) {
             Tab(
                 String(localized: .tabLocations),
                 systemSymbol: .locationFill,
@@ -74,8 +77,8 @@ struct MainTabs: View {
             ) {
                 LocationsView(
                     report: report,
-                    navigation: navigation.locations,
-                    openElsewhere: { navigation.selectedTab = .elsewhere },
+                    initialRegion: initialRegion,
+                    openElsewhere: { selection.selected = .elsewhere },
                 )
                 .reportingDeveloperTabBarInset()
             }
@@ -86,13 +89,13 @@ struct MainTabs: View {
                     systemSymbol: .globeAmericas,
                     value: TabID.elsewhere,
                 ) {
-                    ElsewhereView(report: report, isSelected: navigation.selectedTab == .elsewhere)
+                    ElsewhereView(report: report, isSelected: selection.selected == .elsewhere)
                         .reportingDeveloperTabBarInset()
                 }
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
-                YearView(report: report, navigation: navigation.year)
+                YearView(report: report, history: initialHistory)
                     .reportingDeveloperTabBarInset()
             }
 
@@ -100,7 +103,7 @@ struct MainTabs: View {
                 SettingsView(
                     report: report,
                     recordingWarning: recordingWarning,
-                    navigation: navigation.settings,
+                    initialRoute: initialSettingsRoute,
                 )
                 .reportingDeveloperTabBarInset()
             } label: {
@@ -113,9 +116,10 @@ struct MainTabs: View {
             .badge((recordingWarning.isPresented ? 1 : 0) +
                 ((!isInDemoMode && updates?.needsAttention == true) ? 1 : 0))
         }
+        .bScrollRestorationScope()
         .accessibilityHidden(welcomePresentation != nil)
         .onChange(of: report.hasElsewhere, initial: true) { _, hasElsewhere in
-            navigation.reconcile(hasElsewhere: hasElsewhere)
+            selection.reconcile(hasElsewhere: hasElsewhere)
         }
         .tabViewBottomAccessory(isEnabled: welcomeAccessory != nil) {
             if let welcomeAccessory {
@@ -214,11 +218,17 @@ struct MainTabs: View {
                 preferences: recordingWarningSource.preferences,
             ))
             _welcome = State(initialValue: welcome)
-            _navigation = State(initialValue: SceneNavigationModel(selectedTab: selection))
+            _selection = State(initialValue: MainTabSelection(selected: selection))
         }
 
         /// Retains the production shell around a separately built in-memory lab world.
-        init(world: WhereFlyoverWorld, navigation: SceneNavigationModel) {
+        init(
+            world: WhereFlyoverWorld,
+            tab: TabID = .locations,
+            region: Region? = nil,
+            settingsRoute: SettingsRoute? = nil,
+            history: HistorySelectionModel? = nil,
+        ) {
             self.init(
                 session: world.session,
                 report: world.report,
@@ -227,9 +237,11 @@ struct MainTabs: View {
                     preferences: world.scope.preferences,
                     now: world.session.now,
                 ),
-                selection: navigation.selectedTab,
+                selection: tab,
             )
-            _navigation = State(initialValue: navigation)
+            initialRegion = region
+            initialSettingsRoute = settingsRoute
+            initialHistory = history
         }
     #endif
 }
@@ -337,9 +349,9 @@ struct MainTabs: View {
         /// Viewport composition supplements the full-content Locations, calendar, timeline,
         /// and Settings matrices. Synthetic regions exercise the production layout policy.
         private static var adaptiveSnapshots: [SnapshotCase] {
-            let tabs: [SceneNavigationModel.TabID] = [.locations, .year, .settings]
+            let tabs: [MainTabSelection.TabID] = [.locations, .year, .settings]
             var cases = tabs.flatMap { tab in
-                AdaptiveHistoryPose.allCases.map { pose in
+                SnapshotConfiguration.Pose.allCases.map { pose in
                     adaptiveSnapshot(
                         tab: tab,
                         pose: pose,
@@ -349,7 +361,7 @@ struct MainTabs: View {
                 }
             }
             for tab in tabs {
-                let pose = AdaptiveHistoryPose.innerPortrait
+                let pose = SnapshotConfiguration.Pose.innerPortrait
                 let configurations = [
                     SnapshotConfiguration(colorScheme: .dark, device: pose.frame),
                     SnapshotConfiguration(dynamicType: .accessibility5, device: pose.frame),
@@ -366,7 +378,7 @@ struct MainTabs: View {
                     )
                 }
             }
-            for pose in [AdaptiveHistoryPose.innerPortrait, .tabletop, .book] {
+            for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop, .book] {
                 cases.append(adaptiveSnapshot(
                     tab: .locations,
                     pose: pose,
@@ -397,8 +409,8 @@ struct MainTabs: View {
         }
 
         private static func adaptiveSnapshot(
-            tab: SceneNavigationModel.TabID,
-            pose: AdaptiveHistoryPose,
+            tab: MainTabSelection.TabID,
+            pose: SnapshotConfiguration.Pose,
             configuration: SnapshotConfiguration,
             selection: AdaptiveHistorySnapshotFixture.Selection,
         ) -> SnapshotCase {
@@ -422,11 +434,7 @@ struct MainTabs: View {
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: {
                     await fixture.prepare()
-                    // Request the fixture's starting position after demo preparation;
-                    // native navigation insets can change while the shell appears.
-                    if tab == .locations {
-                        fixture.model.navigation.locations.scrollPosition.scrollTo(edge: .top)
-                    }
+
                 },
             ) {
                 AdaptiveHistorySnapshotScene(fixture: fixture, pose: pose)

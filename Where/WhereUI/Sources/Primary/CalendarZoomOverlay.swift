@@ -2,16 +2,16 @@ import SwiftUI
 
 /// Moves fixed-layout copies of the visible tiles while the real scroll view stays positioned.
 struct CalendarZoomOverlay<TileContent: View>: View {
-    let phase: CalendarZoomTransitionModel.Phase
-    let content: (CalendarPresentationModel.Target, CalendarPresentationModel.Mode) -> TileContent
-    let completion: (CalendarZoomTransitionModel.ID) -> Void
+    let phase: CalendarZoomTransitionState.Phase
+    let content: (CalendarPresentationState.Target, CalendarPresentationState.Mode) -> TileContent
+    let completion: (CalendarZoomTransitionState.ID) -> Void
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             switch phase {
                 case let .preparing(source):
                     ForEach(
-                        source.visibleFrames.keys.sorted(by: CalendarZoomTransitionModel.ordered),
+                        source.visibleFrames.keys.sorted(by: CalendarZoomTransitionState.ordered),
                         id: \.self,
                     ) { target in
                         if let frame = source.visibleFrames[target] {
@@ -33,9 +33,9 @@ struct CalendarZoomOverlay<TileContent: View>: View {
 }
 
 private struct CalendarZoomFlight<TileContent: View>: View {
-    let plan: CalendarZoomTransitionModel.Plan
-    let content: (CalendarPresentationModel.Target, CalendarPresentationModel.Mode) -> TileContent
-    let completion: (CalendarZoomTransitionModel.ID) -> Void
+    let plan: CalendarZoomTransitionState.Plan
+    let content: (CalendarPresentationState.Target, CalendarPresentationState.Mode) -> TileContent
+    let completion: (CalendarZoomTransitionState.ID) -> Void
     @Environment(\.stylesheet) private var stylesheet
     @State private var arrived = false
 
@@ -91,7 +91,7 @@ private struct CalendarZoomFlight<TileContent: View>: View {
         }
     }
 
-    private func cornerRadius(for target: CalendarPresentationModel.Target) -> CGFloat {
+    private func cornerRadius(for target: CalendarPresentationState.Target) -> CGFloat {
         switch target {
             case .month:
                 let mode = arrived ? plan.source.destination : plan.source.measurement.mode
@@ -102,7 +102,7 @@ private struct CalendarZoomFlight<TileContent: View>: View {
         }
     }
 
-    private func backgroundOpacity(for visibility: CalendarZoomTransitionModel.Tile.Visibility)
+    private func backgroundOpacity(for visibility: CalendarZoomTransitionState.Tile.Visibility)
         -> Double
     {
         switch visibility {
@@ -114,8 +114,8 @@ private struct CalendarZoomFlight<TileContent: View>: View {
 }
 
 struct CalendarZoomFrames: PreferenceKey {
-    typealias Mode = CalendarPresentationModel.Mode
-    typealias Target = CalendarPresentationModel.Target
+    typealias Mode = CalendarPresentationState.Mode
+    typealias Target = CalendarPresentationState.Target
     enum Frame: Hashable {
         case content
         case tile(Target)
@@ -128,7 +128,7 @@ struct CalendarZoomFrames: PreferenceKey {
         in proxy: GeometryProxy,
         mode: Mode,
         scrollOffset: CGPoint,
-    ) -> CalendarZoomTransitionModel.Measurement? {
+    ) -> CalendarZoomTransitionState.Measurement? {
         guard let content = anchors[.content] else { return nil }
         let contentFrame = proxy[content]
         // Resolve anchors relative to their content, then apply the current scroll

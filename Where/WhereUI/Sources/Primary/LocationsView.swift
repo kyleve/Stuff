@@ -1,4 +1,5 @@
 import BroadwayUI
+import Observation
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
@@ -8,9 +9,38 @@ import WhereCore
 
 /// Stable destination ownership around native browse/detail and current-history tabletop layouts.
 struct LocationsView: View {
+    @MainActor @Observable
+    final class Navigation {
+        enum Destination: Hashable {
+            case flight(GPSCorrectionReview)
+        }
+
+        var selectedRegion: Region?
+        var compactColumn = NavigationSplitViewColumn.sidebar
+        var browsePath = NavigationPath()
+        var detailPath = NavigationPath()
+
+        var showingResolution = false
+        var planningDestination: PlannedStaysDestination?
+
+        func select(region: Region) {
+            guard selectedRegion != region || compactColumn != .detail else { return }
+            if selectedRegion != region { detailPath = NavigationPath() }
+            selectedRegion = region
+            compactColumn = .detail
+        }
+
+        func open(_ destination: Destination) {
+            browsePath.append(destination)
+            compactColumn = .sidebar
+        }
+    }
+
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
-    @State private var navigation: SceneNavigationModel.Locations
+    @State private var navigation: LocationsView.Navigation
+    @State private var history = HistorySelectionModel()
+    @State private var calendarPresentation: CalendarPresentationState
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt = TiltProvider()
     @Namespace private var calendarTransition
@@ -18,12 +48,19 @@ struct LocationsView: View {
 
     init(
         report: YearReportModel,
-        navigation: SceneNavigationModel.Locations? = nil,
+        navigation: LocationsView.Navigation? = nil,
+        initialRegion: Region? = nil,
         openElsewhere: (() -> Void)? = nil,
     ) {
         self.report = report
         self.openElsewhere = openElsewhere
-        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Locations())
+        let navigation = navigation ?? LocationsView.Navigation()
+        if let initialRegion { navigation.select(region: initialRegion) }
+        _navigation = State(initialValue: navigation)
+        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
+            report: report,
+            persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
+        ).isOverview(fallback: false) ? .overview : .detail))
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -40,7 +77,12 @@ struct LocationsView: View {
                     NavigationStack {
                         browseContent
                             .safeAreaInset(edge: .top, spacing: 0) {
-                                HistoryMonthControls(report: report, history: navigation.history)
+                                HistoryMonthControls(
+                                    report: report,
+                                    history: history,
+                                    region: navigation.selectedRegion,
+                                    scrollRole: .locations,
+                                )
                             }
                     }
                 }
@@ -80,7 +122,18 @@ struct LocationsView: View {
         .sheet(isPresented: $navigation.showingResolution) {
             ResolutionView(report: report)
         }
-        .modifier(PlanningPresentation(report: report, navigation: navigation.history.planning))
+        .modifier(PlanningPresentation(
+            report: report,
+            destination: $navigation.planningDestination,
+        ))
+        .onChange(of: navigation.selectedRegion) {
+            history.reset()
+            calendarPresentation = CalendarPresentationState(mode: CalendarModel(
+                report: report,
+                persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
+            ).isOverview(fallback: false) ? .overview : .detail)
+        }
+        .onChange(of: report.selectedYear) { history.reset() }
     }
 
     private var browseContent: some View {
@@ -99,7 +152,7 @@ struct LocationsView: View {
     private func tabletopPanes(for arrangement: AdaptiveHistoryArrangement)
         -> AdaptiveHistoryArrangement.Panes?
     {
-        guard navigation.browsePath.isEmpty,
+        guard navigation.browsePath.isEmpty, navigation.detailPath.isEmpty,
               case let .tabletop(panes) = arrangement else { return nil }
         return panes
     }
@@ -113,9 +166,12 @@ struct LocationsView: View {
             CalendarContentView(
                 focusedRegion: navigation.selectedRegion,
                 report: report,
-                history: navigation.history,
+                history: history,
+                presentationState: calendarPresentation,
                 presentation: presentation,
                 persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
+                scrollRole: .locations,
+                planningDestination: $navigation.planningDestination,
             )
             .id(navigation.selectedRegion)
             .navigationTitle(navigation.selectedRegion.map {
@@ -148,7 +204,7 @@ private struct RegionCalendarTransition: ViewModifier {
 struct LocationsBrowsePane: View {
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
-    @State private var navigation: SceneNavigationModel.Locations
+    @State private var navigation: LocationsView.Navigation
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt: TiltProvider
     @Namespace private var localTransition
@@ -157,7 +213,7 @@ struct LocationsBrowsePane: View {
 
     init(
         report: YearReportModel,
-        navigation: SceneNavigationModel.Locations? = nil,
+        navigation: LocationsView.Navigation? = nil,
         cardPresentation: LocationCardsPresentationModel? = nil,
         tilt: TiltProvider? = nil,
         calendarTransition: Namespace.ID? = nil,
@@ -166,7 +222,7 @@ struct LocationsBrowsePane: View {
     ) {
         self.report = report
         self.openElsewhere = openElsewhere
-        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Locations())
+        _navigation = State(initialValue: navigation ?? LocationsView.Navigation())
         _cardPresentation = State(initialValue: cardPresentation ?? LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -188,11 +244,10 @@ struct LocationsBrowsePane: View {
                 cardVariant: cardVariant,
                 openElsewhere: openElsewhere,
             )
-            .navigationDestination(for: SceneNavigationModel.Locations.Destination
+            .navigationDestination(for: LocationsView.Navigation.Destination
                 .self)
             { destination in
                 switch destination {
-                    case .elsewhere: ElsewhereView(report: report)
                     case let .flight(review): FlightDayDetailView(
                             review: review,
                             report: report,
@@ -212,7 +267,7 @@ struct LocationsContent: View {
     var openElsewhere: (() -> Void)?
     let cardVariant: WhereStylesheet.CardStyle.Variant
 
-    @State private var navigation: SceneNavigationModel.Locations
+    @State private var navigation: LocationsView.Navigation
     @State private var isCardSurfaceVisible = false
     @State private var cardPresentation: LocationCardsPresentationModel
 
@@ -239,14 +294,14 @@ struct LocationsContent: View {
 
     init(
         report: YearReportModel,
-        navigation: SceneNavigationModel.Locations? = nil,
+        navigation: LocationsView.Navigation? = nil,
         cardPresentation: LocationCardsPresentationModel? = nil,
         tilt: TiltProvider? = nil,
         calendarTransition: Namespace.ID? = nil,
         cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
         openElsewhere: (() -> Void)? = nil,
     ) {
-        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Locations())
+        _navigation = State(initialValue: navigation ?? LocationsView.Navigation())
         self.report = report
         self.openElsewhere = openElsewhere
         self.cardVariant = cardVariant
