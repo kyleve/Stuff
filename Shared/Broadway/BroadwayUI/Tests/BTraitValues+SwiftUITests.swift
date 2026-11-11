@@ -28,3 +28,14 @@ struct BContentSizeCategorySwiftUIMappingTests {
         #expect(BContentSizeCategory(.accessibility5) == .accessibilityExtraExtraExtraLarge)
     }
 }
+
+struct BSizeClassSwiftUIMappingTests {
+    @Test func mapsSizeClassesAndDefaultsToCompact() {
+        #expect(BHorizontalSizeClass(UserInterfaceSizeClass.compact) == .compact)
+        #expect(BHorizontalSizeClass(UserInterfaceSizeClass.regular) == .regular)
+        #expect(BHorizontalSizeClass(nil) == .compact)
+        #expect(BVerticalSizeClass(UserInterfaceSizeClass.compact) == .compact)
+        #expect(BVerticalSizeClass(UserInterfaceSizeClass.regular) == .regular)
+        #expect(BVerticalSizeClass(nil) == .compact)
+    }
+}

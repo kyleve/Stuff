@@ -27,6 +27,8 @@ public struct BTraits: Equatable, Hashable, @unchecked Sendable {
         traits.register(BAccessibility.self)
         traits.register(BMode.self)
         traits.register(BContentSizeCategory.self)
+        traits.register(BHorizontalSizeClass.self)
+        traits.register(BVerticalSizeClass.self)
 
         return traits
     }

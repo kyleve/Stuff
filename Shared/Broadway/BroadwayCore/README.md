@@ -26,6 +26,10 @@ let opacity = BModeVarying(light: 0.14, dark: 0.3)
 let resolvedOpacity = opacity[context.traits.mode]
 ```
 
+`BHorizontalSizeClass` and `BVerticalSizeClass` expose only compact and regular values.
+Both default to compact. Their UIKit initializers map unspecified and unknown values to compact, so styling consumers need only two cases.
+`BTraits.system` registers both for live UIKit observation. Scoped overrides use the matching properties on `BTraits.Overrides`.
+
 ## How it works
 
 `BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).

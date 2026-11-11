@@ -9,9 +9,10 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 - **Keep shared components here only.** Put app-specific views in BroadwayCatalog.
 - **Defer `BRootViewController` setup** until the controller enters a valid hierarchy (`viewIsAppearing`). Before then, `context` is `nil`.
 - **The controller publishes context to descendants through `traitOverrides.bContext`.**
-- **Do not add `BTraitsObserver` to `BRootView`.** SwiftUI re-evaluates `body` on color-scheme and Dynamic Type changes.
+- **Do not add `BTraitsObserver` to `BRootView`.** SwiftUI re-evaluates `body` on color-scheme, Dynamic Type, and size-class changes.
 - **A `.task` mirrors `BAccessibility.changes()` into state.** Both rebuild the injected `BContext`.
 - **Context-building lives in `BRootContext.make(...)`.** That makes the trait mapping testable without a host.
+- **Map unavailable SwiftUI size classes to compact on both axes.** Keep this consistent with BroadwayCore's UIKit mapping.
 - **Make `\.bContext` prefer a synchronous SwiftUI value, and mirror to UIKit.**
 - **`BContext+SwiftUI` stores a SwiftUI-set context in a pure-SwiftUI `EnvironmentKey`.** That covers `BRootView`, `broadwayRoot`, and `bTraitOverrides`.
 - **Read it synchronously.** Do not round-trip through `UITraitCollection`. Do not accept first-frame lag.
