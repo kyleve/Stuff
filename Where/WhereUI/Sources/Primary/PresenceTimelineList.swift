@@ -146,7 +146,10 @@ struct PresenceTimelineList: View {
                             }
                         }
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
-                        .padding(.top, pinsOverview ? 0 : stylesheet.spacing.large)
+                        .padding(
+                            .top,
+                            pinsOverview || presentation == .linked ? 0 : stylesheet.spacing.large,
+                        )
                         .padding(.bottom, stylesheet.spacing.large)
                     }
                     .scrollPosition($position)
@@ -260,6 +263,12 @@ struct PresenceTimelineList: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
+            // Include the content's leading gap in its first semantic target.
+            .padding(
+                .top,
+                presentation == .linked && item.id == recordedItems.first?.id
+                    ? stylesheet.spacing.large : 0,
+            )
             .id(HistorySelectionModel.Item(item))
         }
         ForEach(plannedItems) { item in
@@ -294,6 +303,11 @@ struct PresenceTimelineList: View {
                         edit(item)
                     }
                 }
+                .padding(
+                    .top,
+                    presentation == .linked && recordedItems.isEmpty
+                        && item.id == plannedItems.first?.id ? stylesheet.spacing.large : 0,
+                )
                 .id(HistorySelectionModel.Item.planned(item.id))
             } else {
                 row
