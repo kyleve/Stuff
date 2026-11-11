@@ -3,15 +3,6 @@ import SwiftSyntax
 
 let whereProjectRules = RuleSet {
     Rules.constructionOwnership(
-        "SceneNavigationModel",
-        allowed: RuleScope.files([
-            "Where/WhereUI/Sources/MainTabs.swift",
-            "Where/WhereUI/Sources/Developer/AdaptiveHistory/AdaptiveHistoryLabModel.swift",
-        ])
-        .union(nonWhereProductionScope),
-        id: "where.scene_navigation_ownership",
-    )
-    Rules.constructionOwnership(
         "WhereServices",
         allowed: whereServicesConstructionScope.union(nonWhereProductionScope),
         id: "where.services_composition_ownership",

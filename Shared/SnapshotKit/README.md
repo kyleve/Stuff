@@ -226,6 +226,12 @@ Re-measurement on the native 27.2 Duo runtime remains pending; see [native relea
 Synthetic captures on the current runtime verify layout against these recorded profiles, not current native geometry.
 All four profiles use 3× scale and the phone idiom.
 
+`SnapshotConfiguration.Pose` composes these frames into seven synthetic poses for
+previews, captures, and hosted tests. It supplies typed reserved regions and their
+activation state. Tabletop and book activate the same divisions as their flat
+counterparts without changing frame identifiers. Consumers own localized labels
+and adapt the generic regions to their production geometry seam.
+
 | Frame | Bounds (points) | Horizontal / vertical size class | Insets (top, left, bottom, right) |
 | --- | --- | --- | --- |
 | `duoOuterPortrait` | 466 × 678 | compact / regular | 0, 0, 34, 84 |

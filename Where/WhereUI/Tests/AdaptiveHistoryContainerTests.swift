@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -18,7 +19,7 @@ struct AdaptiveHistoryContainerTests {
         try await show(host) { controller in
             for _ in 0 ..< 2 {
                 for pose in [
-                    AdaptiveHistoryPose.outerPortrait,
+                    SnapshotConfiguration.Pose.outerPortrait,
                     .innerPortrait,
                     .tabletop,
                     .book,

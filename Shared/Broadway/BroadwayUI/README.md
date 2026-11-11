@@ -36,6 +36,27 @@ Later explicit values update the context normally.
 `bHorizontalSizeClass(_:)` and `bVerticalSizeClass(_:)` scope Broadway layout policies to a subtree.
 These overrides affect stylesheets; native container traits remain under system control.
 
+## Scroll restoration
+
+`BScrollPosition` exposes a native `ScrollPosition` binding. Add
+`.bScrollRestorationScope()` to a stable ancestor to retain positions when its
+descendants are replaced. A caller-owned `BScrollRestorationStore` can also be
+supplied to the modifier. Without a scope, positions remain local to the view.
+
+Initialize the wrapper with the view type, a typed role, a context token, and the
+scroll target ID type. Independent panes need independent roles or scopes.
+Changing context (for example, region or year) discards the previous position;
+returning to that context starts fresh. Old bindings retain their detached entry
+and cannot overwrite its replacement. Stores belong to one scene/session.
+
+Views choose initial anchors, wait for content, and handle missing targets.
+Call `_position.initialize(ScrollPosition(id: target, anchor: .top))` after content
+is ready. This applies the initial policy once per context, even if native layout
+already reported a provisional first item. Later calls preserve the retained position.
+The store neither interprets application data nor synchronizes separate panes.
+Use identified content and alignment for restoration; pixel offsets are not a
+cross-layout restoration contract. Guards: `BScrollPositionTests`.
+
 ## Install
 
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift) (depends on BroadwayCore): `.package(product: "BroadwayUI")`.

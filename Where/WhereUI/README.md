@@ -702,10 +702,11 @@ cases keep their device traits, content clearance, and full-content sizing.
 
 ## Adaptive history foundations
 
-`SceneNavigationModel` groups navigation by destination. `HistoryNavigationModel`
-connects explicit month and stay selections. Calendar and timeline models retain
-typed scroll anchors without coupling their scroll offsets. A consumed month reveal
-keeps its request identity, so repeated selections remain observable.
+Stable destination views own navigation and presentation state. `HistorySelectionModel`
+connects explicit month and stay selections through requests consumed independently
+by each pane. BroadwayUI retains scroll positions for the current context only.
+Changing region or year discards the old position; ordinary scrolling never selects
+or moves a companion pane. Synthetic pose geometry comes from `SnapshotConfiguration.Pose`.
 
 `AdaptiveHistoryGeometry` maps safe areas and reserved regions into physical
 container coordinates. `AdaptiveHistoryArrangement` applies the stylesheet's pane
@@ -713,4 +714,4 @@ limits. `AdaptiveHistoryContainer` hosts compact, columns, and tabletop arrangem
 The DEBUG Testing SPI supplies synthetic reserved regions to the same adapter.
 
 This foundation does not replace the current destination containers. The dependent
-app integration installs scene ownership and presents these arrangements.
+app integration installs view-owned state and presents these arrangements.

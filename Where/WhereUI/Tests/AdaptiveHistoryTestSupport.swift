@@ -1,5 +1,6 @@
 import CoreGraphics
 import Observation
+import SnapshotKit
 import SwiftUI
 import TestHostSupport
 @_spi(Testing) @testable import WhereUI
@@ -32,7 +33,7 @@ enum AdaptiveHistoryTestSupport {
 
 @MainActor @Observable
 final class AdaptiveHistoryHostState {
-    var pose = AdaptiveHistoryPose.outerPortrait
+    var pose = SnapshotConfiguration.Pose.outerPortrait
     var renderedSize: CGSize = .zero
     var panes = WhereStylesheet.AdaptiveHistoryStyle.Panes.single
     var arrangement: AdaptiveHistoryArrangement?
@@ -68,7 +69,7 @@ extension AdaptiveHistoryTestSupport {
     @MainActor static func resize(
         _ controller: UIViewController,
         state: AdaptiveHistoryHostState,
-        to pose: AdaptiveHistoryPose,
+        to pose: SnapshotConfiguration.Pose,
     ) async throws {
         state.pose = pose
         controller.view.frame = CGRect(origin: .zero, size: pose.size)
