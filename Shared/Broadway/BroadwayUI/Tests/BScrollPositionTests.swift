@@ -242,7 +242,7 @@ private struct ScrollProbe: View {
     let role: ScrollRole
     let context: Int
     let redraw: Int
-    @BScrollPosition<Int> private var position: ScrollPosition
+    @BScrollPosition<Int, Int> private var position: ScrollPosition
 
     init(fixture: ScrollFixture, role: ScrollRole, context: Int, redraw: Int) {
         self.fixture = fixture
@@ -293,7 +293,7 @@ private struct NativeScrollHarness: View {
 
 private struct NativeScrollProbe: View {
     let fixture: NativeScrollFixture
-    @BScrollPosition<Int> private var position: ScrollPosition
+    @BScrollPosition<Int, Int> private var position: ScrollPosition
 
     init(fixture: NativeScrollFixture) {
         self.fixture = fixture

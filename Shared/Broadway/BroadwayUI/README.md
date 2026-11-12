@@ -60,7 +60,10 @@ explicit commands. These retain alignment, which `ScrollPosition` does not expos
 for reading. The native binding still supports immediate scrolling, but commands
 through that binding cannot retain non-default alignment. User scrolling adopts
 top alignment. The read-only `anchor` property supplies transition geometry.
+The wrapper retains the concrete context type until the heterogeneous store boundary.
 A context closure can read a live observable input when the owning view updates.
+Reading an unmounted wrapper asserts in debug builds; release builds use an isolated
+fallback that cannot access or replace a mounted scope entry.
 The store neither interprets application data nor synchronizes separate panes.
 Use identified content and alignment for restoration; pixel offsets are not a
 cross-layout restoration contract. Guards: `BScrollPositionTests`.

@@ -4,13 +4,18 @@ import SwiftUI
 /// Use distinct roles for independent panes. Context changes discard the previous position.
 @MainActor
 @propertyWrapper
-public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProperty {
+public struct BScrollPosition<
+    ID: Hashable & Sendable,
+    Context: Hashable,
+>: @MainActor DynamicProperty {
     @Environment(\.bScrollRestorationStore) private var sharedStore
     @State private var localStore = BScrollRestorationStore()
     private let key: BScrollRestorationStore.Key
-    private let context: () -> AnyHashable
+    private let context: () -> Context
     @State private var mount = Mount()
     private var resolvedAttachment: Attachment?
+    /// Unmounted access never joins a scope. Copies of this wrapper retain the same fallback.
+    private let unmountedAttachment = Attachment(entry: .init())
 
     private struct Restoration {
         let position: ScrollPosition
@@ -32,20 +37,20 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
     @MainActor
     private final class Mount {
         private var store: BScrollRestorationStore?
-        private var context: AnyHashable?
+        private var context: Context?
         private var key: BScrollRestorationStore.Key?
         private var attachment: Attachment?
 
         func resolve(
             store: BScrollRestorationStore,
             key: BScrollRestorationStore.Key,
-            context: AnyHashable,
+            context: Context,
         ) -> Attachment {
             if self.store === store, self.key == key, self.context == context,
                let attachment { return attachment }
             let attachment = Attachment(entry: store.entry(
                 for: key,
-                context: context,
+                context: AnyHashable(context),
                 idType: ID.self,
             ))
             self.store = store
@@ -59,7 +64,7 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
     public init(
         _ view: (some View).Type,
         role: some Hashable,
-        context: some Hashable,
+        context: Context,
         idType: ID.Type,
     ) {
         key = .init(
@@ -67,14 +72,14 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
             role: AnyHashable(role),
             content: ObjectIdentifier(idType),
         )
-        self.context = { AnyHashable(context) }
+        self.context = { context }
     }
 
     /// Resolve a context supplied by an observable input when the owning view updates.
     public init(
         _ view: (some View).Type,
         role: some Hashable,
-        context: @escaping @MainActor () -> some Hashable,
+        context: @escaping @MainActor () -> Context,
         idType: ID.Type,
     ) {
         key = .init(
@@ -82,7 +87,7 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
             role: AnyHashable(role),
             content: ObjectIdentifier(idType),
         )
-        self.context = { AnyHashable(context()) }
+        self.context = context
     }
 
     public mutating func update() {
@@ -97,7 +102,8 @@ public struct BScrollPosition<ID: Hashable & Sendable>: @MainActor DynamicProper
 
     private var attachment: Attachment {
         guard let resolvedAttachment else {
-            preconditionFailure("BScrollPosition must be read from a mounted view")
+            assertionFailure("BScrollPosition must be read from a mounted view")
+            return unmountedAttachment
         }
         return resolvedAttachment
     }
