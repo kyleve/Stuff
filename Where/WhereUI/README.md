@@ -702,11 +702,11 @@ cases keep their device traits, content clearance, and full-content sizing.
 
 ## Adaptive pane foundations
 
-Stable destination views own navigation and presentation state. `PresenceSelectionModel`
-connects explicit month and stay selections through requests consumed independently
-by each pane. BroadwayUI retains scroll positions for the current context only.
-Changing region or year discards the old position; ordinary scrolling never selects
-or moves a companion pane. Synthetic pose geometry comes from `SnapshotConfiguration.Pose`.
+Stable destination views own navigation and presentation state. BroadwayUI retains
+scroll positions for the current context only. Changing region or year discards
+the old position. Explicit reveal requests belong to their consuming views;
+ordinary scrolling does not select or move another pane. Synthetic pose geometry
+and localized labels come from `SnapshotConfiguration.DuoPose`.
 
 `AdaptivePaneGeometry` maps safe areas and reserved regions into physical
 container coordinates. `AdaptivePaneArrangement` applies the stylesheet's pane
