@@ -98,6 +98,7 @@ struct LocationsView: View {
                         tilt: tilt,
                         calendarTransition: calendarTransition,
                         cardVariant: arrangement == .compact ? .regular : .column,
+                        showsSelection: arrangement != .compact,
                         openElsewhere: openElsewhere,
                     )
                     .navigationSplitViewColumnWidth(
@@ -143,6 +144,7 @@ struct LocationsView: View {
             cardPresentation: cardPresentation,
             tilt: tilt,
             calendarTransition: calendarTransition,
+            showsSelection: true,
             openElsewhere: openElsewhere,
         )
     }
@@ -210,6 +212,7 @@ struct LocationsBrowsePane: View {
     @Namespace private var localTransition
     private let transition: Namespace.ID?
     let cardVariant: WhereStylesheet.CardStyle.Variant
+    let showsSelection: Bool
 
     init(
         report: YearReportModel,
@@ -218,6 +221,7 @@ struct LocationsBrowsePane: View {
         tilt: TiltProvider? = nil,
         calendarTransition: Namespace.ID? = nil,
         cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+        showsSelection: Bool = false,
         openElsewhere: (() -> Void)? = nil,
     ) {
         self.report = report
@@ -230,6 +234,7 @@ struct LocationsBrowsePane: View {
         _tilt = State(initialValue: tilt ?? TiltProvider())
         transition = calendarTransition
         self.cardVariant = cardVariant
+        self.showsSelection = showsSelection
     }
 
     var body: some View {
@@ -242,6 +247,7 @@ struct LocationsBrowsePane: View {
                 tilt: tilt,
                 calendarTransition: transition ?? localTransition,
                 cardVariant: cardVariant,
+                showsSelection: showsSelection,
                 openElsewhere: openElsewhere,
             )
             .navigationDestination(for: LocationsView.Navigation.Destination
@@ -266,6 +272,7 @@ struct LocationsContent: View {
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
     let cardVariant: WhereStylesheet.CardStyle.Variant
+    let showsSelection: Bool
 
     @State private var navigation: LocationsView.Navigation
     @State private var isCardSurfaceVisible = false
@@ -299,12 +306,14 @@ struct LocationsContent: View {
         tilt: TiltProvider? = nil,
         calendarTransition: Namespace.ID? = nil,
         cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+        showsSelection: Bool = false,
         openElsewhere: (() -> Void)? = nil,
     ) {
         _navigation = State(initialValue: navigation ?? LocationsView.Navigation())
         self.report = report
         self.openElsewhere = openElsewhere
         self.cardVariant = cardVariant
+        self.showsSelection = showsSelection
         transition = calendarTransition
         _tilt = State(initialValue: tilt ?? TiltProvider())
         _cardPresentation = State(initialValue: cardPresentation ?? LocationCardsPresentationModel(
@@ -379,6 +388,7 @@ struct LocationsContent: View {
                         planningAction: openPlanning,
                         navigation: navigation,
                         cardVariant: cardVariant,
+                        showsSelection: showsSelection,
                     )
                 }
         }
@@ -453,6 +463,12 @@ private struct ResolveToolbarLabel: View {
                 configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
                         .browseColumn)],
                 cardVariant: .column,
+            )
+            artworkSnapshot(
+                name: "ReturnedFromCalendar",
+                report: PreviewSupport.loadedYearReportModel(),
+                configurations: .fullContentPhoneLightDark,
+                selectedRegion: .california,
             )
             artworkSnapshot(
                 name: "Itinerary",
@@ -551,6 +567,7 @@ private struct ResolveToolbarLabel: View {
             theme: WhereTheme = .standard,
             reduceTransparency: Bool = false,
             cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+            selectedRegion: Region? = nil,
             openElsewhere _: (() -> Void)? = nil,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
@@ -571,15 +588,21 @@ private struct ResolveToolbarLabel: View {
                     }
                 },
             ) {
-                LocationsBrowsePane(report: report, cardVariant: cardVariant)
-                    .environment(\.regionOutlinePathCache, cache)
-                    .bTraitOverrides { traits, overrides in
-                        if reduceTransparency {
-                            var accessibility = traits.accessibility
-                            accessibility.isReduceTransparencyEnabled = true
-                            overrides.accessibility = accessibility
-                        }
+                let navigation = LocationsView.Navigation()
+                let _ = navigation.selectedRegion = selectedRegion
+                LocationsBrowsePane(
+                    report: report,
+                    navigation: navigation,
+                    cardVariant: cardVariant,
+                )
+                .environment(\.regionOutlinePathCache, cache)
+                .bTraitOverrides { traits, overrides in
+                    if reduceTransparency {
+                        var accessibility = traits.accessibility
+                        accessibility.isReduceTransparencyEnabled = true
+                        overrides.accessibility = accessibility
                     }
+                }
             }
         }
 

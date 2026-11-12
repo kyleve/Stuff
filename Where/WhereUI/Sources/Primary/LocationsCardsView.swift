@@ -15,6 +15,7 @@ struct LocationsCardsView: View {
     let planningAction: () -> Void
     @Bindable var navigation: LocationsView.Navigation
     let cardVariant: WhereStylesheet.CardStyle.Variant
+    let showsSelection: Bool
 
     @BScrollPosition<Region> private var position: ScrollPosition
     enum ScrollRole: Hashable { case browse }
@@ -29,6 +30,7 @@ struct LocationsCardsView: View {
         planningAction: @escaping () -> Void,
         navigation: LocationsView.Navigation,
         cardVariant: WhereStylesheet.CardStyle.Variant,
+        showsSelection: Bool,
     ) {
         self.report = report
         self.cardPresentation = cardPresentation
@@ -39,6 +41,7 @@ struct LocationsCardsView: View {
         self.planningAction = planningAction
         self.navigation = navigation
         self.cardVariant = cardVariant
+        self.showsSelection = showsSelection
         _position = BScrollPosition(
             Self.self,
             role: ScrollRole.browse,
@@ -124,7 +127,7 @@ struct LocationsCardsView: View {
                         .locationCardRankingRegion(item.region)
                         .id(item.region)
                         .presenceSelection(
-                            navigation.selectedRegion == item.region,
+                            showsSelection && navigation.selectedRegion == item.region,
                             cornerRadius: stylesheet.card[cardVariant].cornerRadius,
                         )
                     }
