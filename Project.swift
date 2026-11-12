@@ -772,7 +772,7 @@ let project = Project(
             productDependency: "WhereUI",
             sources: [
                 "Where/WhereUI/SnapshotTests/**",
-                "Where/WhereUI/Tests/Support/AdaptiveHistoryLoadFixture.swift",
+                "Where/WhereUI/Tests/Support/AdaptivePaneLoadFixture.swift",
                 "Where/WhereUI/Tests/Support/TestStore.swift",
             ],
             extraPackageProducts: ["SnapshotKitTesting"],

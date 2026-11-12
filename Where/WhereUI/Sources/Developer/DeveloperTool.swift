@@ -12,7 +12,7 @@
         case logs
         case openSpans
         case regionMap
-        case adaptiveHistory
+        case duoLayoutLab
 
         var id: Self {
             self
@@ -28,7 +28,7 @@
                     String(localized: .developerOpenSpansLink)
                 case .regionMap:
                     String(localized: .developerRegionMapLink)
-                case .adaptiveHistory:
+                case .duoLayoutLab:
                     String(localized: .developerDuoTitle)
             }
         }
@@ -39,7 +39,7 @@
                 case .logs: .ladybug
                 case .openSpans: .timer
                 case .regionMap: .map
-                case .adaptiveHistory: .rectangleSplit2x1
+                case .duoLayoutLab: .rectangleSplit2x1
             }
         }
     }

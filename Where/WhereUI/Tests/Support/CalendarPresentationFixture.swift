@@ -15,7 +15,7 @@ final class CalendarPresentationFixture {
 struct CalendarPresentationHarness: View {
     let fixture: CalendarPresentationFixture
     let report: YearReportModel
-    let history: HistorySelectionModel
+    let history: PresenceSelectionModel
 
     var body: some View {
         NavigationStack {

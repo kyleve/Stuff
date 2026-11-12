@@ -42,17 +42,17 @@ struct LocationsViewTestsDuo {
             controller.traitOverrides.horizontalSizeClass = .compact
             controller.view.layoutIfNeeded()
             try await waitForStage("initial scroll content") {
-                AdaptiveHistoryTestSupport.descendants(
+                AdaptivePaneTestSupport.descendants(
                     of: controller.view,
                     matching: UIScrollView.self,
                 ).contains { $0.contentSize.height > $0.bounds.height }
             }
-            var scroll = try #require(AdaptiveHistoryTestSupport.descendants(
+            var scroll = try #require(AdaptivePaneTestSupport.descendants(
                 of: controller.view,
                 matching: UIScrollView.self,
             ).first { $0.contentSize.height > $0.bounds.height })
             @MainActor func currentScroll() -> UIScrollView? {
-                AdaptiveHistoryTestSupport.descendants(
+                AdaptivePaneTestSupport.descendants(
                     of: controller.view,
                     matching: UIScrollView.self,
                 )
@@ -92,7 +92,7 @@ struct LocationsViewTestsDuo {
             controller.view.frame = CGRect(x: 0, y: 0, width: 466, height: 678)
             controller.view.layoutIfNeeded()
             try await waitForStage("restored California after pane replacement") {
-                AdaptiveHistoryTestSupport.descendants(
+                AdaptivePaneTestSupport.descendants(
                     of: controller.view,
                     matching: UIScrollView.self,
                 )
@@ -107,8 +107,8 @@ struct LocationsViewTestsDuo {
     @Test func aPushedBrowseStackRemainsMountedThroughTabletop() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             LocationsView(report: world.report, navigation: navigation)
                 .environment(world.session).environment(world.model)
         }.bScrollRestorationScope())
@@ -118,7 +118,7 @@ struct LocationsViewTestsDuo {
         }
         try await show(host) { controller in
             controller.view.window?.layer.speed = 1
-            try await AdaptiveHistoryTestSupport.resize(
+            try await AdaptivePaneTestSupport.resize(
                 controller,
                 state: state,
                 to: .outerPortrait,
@@ -142,7 +142,7 @@ struct LocationsViewTestsDuo {
                 .first { $0.viewControllers.count > 1 })
             let pushed = try #require(stack.topViewController)
             for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop, .outerPortrait] {
-                try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                 #expect(navigation.browsePath.count == 1)
                 #expect(controllers(controller).contains { $0 === pushed })
             }
@@ -173,8 +173,8 @@ struct LocationsViewTestsDuo {
         await store.awaitFirstSamplesCall()
         let navigation = LocationsView.Navigation()
         navigation.select(region: .california)
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             LocationsView(report: report, navigation: navigation)
         })
         host.safeAreaRegions = []
@@ -187,14 +187,14 @@ struct LocationsViewTestsDuo {
                     .tabletop,
                     .outerPortrait,
                 ] {
-                    try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                    try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                     #expect(await store.sampleReadCount == readsBeforeFolding)
                     #expect(report.loadState == .loading)
                 }
                 await report.select(year: 2026)
                 let readsAfterYearChange = await store.sampleReadCount
                 for pose in [SnapshotConfiguration.Pose.innerLandscape, .tabletop, .outerPortrait] {
-                    try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                    try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                     #expect(await store.sampleReadCount == readsAfterYearChange)
                 }
                 await store.releaseFirstSamplesCall()

@@ -37,7 +37,7 @@
                 .tool(.logs),
                 .tool(.openSpans),
                 .flyover,
-                .tool(.adaptiveHistory),
+                .tool(.duoLayoutLab),
                 .tool(.regionMap),
                 .tool(.crashTesting),
             ]

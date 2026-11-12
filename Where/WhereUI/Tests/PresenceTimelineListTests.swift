@@ -25,7 +25,7 @@ struct PresenceTimelineListTests {
             calendar: report.calendar,
         )
         let original = try #require(before.first)
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         history.select(
             month: CalendarDay(year: report.selectedYear, month: 2, day: 1),
             dateCalendar: report.calendar,
@@ -59,7 +59,7 @@ struct PresenceTimelineListTests {
     @Test func selectingTheSameMonthAgainRevealsItAfterIndependentBrowsing() async throws {
         let world = try await WhereFlyoverWorld.build()
         let report = try #require(world.report.report)
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let month = CalendarDay(year: report.year, month: 5, day: 1)
         let end = CalendarDay(year: report.year, month: 5, day: 31)
         let stints = PresenceTimeline.stints(from: report, calendar: world.report.calendar)
@@ -109,7 +109,7 @@ struct PresenceTimelineListTests {
                 PresenceTimelineList.self,
                 role: PresenceTimelineList.ScrollRole.timeline,
                 context: report.year,
-                idType: HistorySelectionModel.Item.self,
+                idType: PresenceSelectionModel.Item.self,
                 capture: capture,
             )
         }.whereBroadwayRoot().bScrollRestorationScope())
@@ -119,22 +119,22 @@ struct PresenceTimelineListTests {
                 history.select(month: month, dateCalendar: world.report.calendar)
                 try await waitForAsync {
                     capture.binding?.wrappedValue
-                        .viewID(type: HistorySelectionModel.Item.self) == .recorded(expected.id)
+                        .viewID(type: PresenceSelectionModel.Item.self) == .recorded(expected.id)
                         && HostedAccessibility.isVisible(expectedLabel, in: host.view)
                 }
                 #expect(history.pendingRequest(for: .timeline) == nil)
                 let selectedInterval = history.selection
                 capture.binding?.wrappedValue.scrollTo(
-                    id: HistorySelectionModel.Item.recorded(browsed.id),
+                    id: PresenceSelectionModel.Item.recorded(browsed.id),
                     anchor: .top,
                 )
                 try await waitForAsync {
                     capture.binding?.wrappedValue
-                        .viewID(type: HistorySelectionModel.Item.self) == .recorded(browsed.id)
+                        .viewID(type: PresenceSelectionModel.Item.self) == .recorded(browsed.id)
                         && HostedAccessibility.isVisible(browsedLabel, in: host.view)
                 }
                 #expect(capture.binding?.wrappedValue
-                    .viewID(type: HistorySelectionModel.Item.self) == .recorded(browsed.id))
+                    .viewID(type: PresenceSelectionModel.Item.self) == .recorded(browsed.id))
                 #expect(history.selection == selectedInterval)
             }
         }

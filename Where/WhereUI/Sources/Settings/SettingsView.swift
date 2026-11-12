@@ -74,7 +74,7 @@ struct SettingsView: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        AdaptiveHistoryContainer { arrangement in
+        AdaptivePaneContainer { arrangement in
             NavigationSplitView(
                 columnVisibility: .constant(.all),
                 preferredCompactColumn: $navigation.compactColumn,
@@ -85,8 +85,8 @@ struct SettingsView: View {
                     navigation: navigation,
                 )
                 .navigationSplitViewColumnWidth(
-                    min: stylesheet.adaptiveHistory.minimumControlsWidth,
-                    ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                    min: stylesheet.adaptivePane.minimumControlsWidth,
+                    ideal: stylesheet.adaptivePane.minimumDetailWidth,
                 )
             } detail: {
                 NavigationStack(path: $navigation.path) {
@@ -105,8 +105,8 @@ struct SettingsView: View {
                     }
                 }
                 .navigationSplitViewColumnWidth(
-                    min: stylesheet.adaptiveHistory.minimumHistoryWidth,
-                    ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                    min: stylesheet.adaptivePane.minimumDetailWidth,
+                    ideal: stylesheet.adaptivePane.minimumDetailWidth,
                 )
             }
             .navigationSplitViewStyle(.balanced)
@@ -237,7 +237,7 @@ private struct SettingsDestinationView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "BrowseColumn",
-                configurations: [SnapshotConfiguration(device: AdaptiveHistorySnapshotFixture
+                configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
                         .browseColumn)],
             ) {
                 snapshotList(report: PreviewSupport.loadedYearReportModel())

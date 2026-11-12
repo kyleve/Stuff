@@ -39,7 +39,7 @@ struct LocationsView: View {
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
     @State private var navigation: LocationsView.Navigation
-    @State private var history = HistorySelectionModel()
+    @State private var history = PresenceSelectionModel()
     @State private var calendarPresentation: CalendarPresentationState
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt = TiltProvider()
@@ -69,15 +69,15 @@ struct LocationsView: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        AdaptiveHistoryContainer { arrangement in
+        AdaptivePaneContainer { arrangement in
             if let panes = tabletopPanes(for: arrangement) {
-                TabletopHistoryLayout(panes: panes) {
+                TabletopPaneLayout(panes: panes) {
                     calendar(presentation: .month, usesZoomTransition: false)
                 } controls: {
                     NavigationStack {
                         browseContent
                             .safeAreaInset(edge: .top, spacing: 0) {
-                                HistoryMonthControls(
+                                MonthNavigationControls(
                                     report: report,
                                     history: history,
                                     region: navigation.selectedRegion,
@@ -101,8 +101,8 @@ struct LocationsView: View {
                         openElsewhere: openElsewhere,
                     )
                     .navigationSplitViewColumnWidth(
-                        min: stylesheet.adaptiveHistory.minimumControlsWidth,
-                        ideal: stylesheet.adaptiveHistory.minimumControlsWidth,
+                        min: stylesheet.adaptivePane.minimumControlsWidth,
+                        ideal: stylesheet.adaptivePane.minimumControlsWidth,
                     )
                 } detail: {
                     calendar(
@@ -110,8 +110,8 @@ struct LocationsView: View {
                         usesZoomTransition: arrangement == .compact,
                     )
                     .navigationSplitViewColumnWidth(
-                        min: stylesheet.adaptiveHistory.minimumHistoryWidth,
-                        ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                        min: stylesheet.adaptivePane.minimumDetailWidth,
+                        ideal: stylesheet.adaptivePane.minimumDetailWidth,
                     )
                 }
                 .navigationSplitViewStyle(.balanced)
@@ -149,8 +149,8 @@ struct LocationsView: View {
 
     /// Drill-ins keep their native stack mounted while their local editors are open.
     /// The custom tabletop composition belongs to the top-level history surface.
-    private func tabletopPanes(for arrangement: AdaptiveHistoryArrangement)
-        -> AdaptiveHistoryArrangement.Panes?
+    private func tabletopPanes(for arrangement: AdaptivePaneArrangement)
+        -> AdaptivePaneArrangement.Panes?
     {
         guard navigation.browsePath.isEmpty, navigation.detailPath.isEmpty,
               case let .tabletop(panes) = arrangement else { return nil }
@@ -450,7 +450,7 @@ private struct ResolveToolbarLabel: View {
             artworkSnapshot(
                 name: "BrowseColumn",
                 report: PreviewSupport.loadedYearReportModel(),
-                configurations: [SnapshotConfiguration(device: AdaptiveHistorySnapshotFixture
+                configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
                         .browseColumn)],
                 cardVariant: .column,
             )

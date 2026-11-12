@@ -36,7 +36,7 @@ struct MainTabs: View {
     @State private var selection = MainTabSelection()
     private var initialRegion: Region?
     private var initialSettingsRoute: SettingsRoute?
-    private var initialHistory: HistorySelectionModel?
+    private var initialHistory: PresenceSelectionModel?
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
@@ -227,7 +227,7 @@ struct MainTabs: View {
             tab: TabID = .locations,
             region: Region? = nil,
             settingsRoute: SettingsRoute? = nil,
-            history: HistorySelectionModel? = nil,
+            history: PresenceSelectionModel? = nil,
         ) {
             self.init(
                 session: world.session,
@@ -412,7 +412,7 @@ struct MainTabs: View {
             tab: MainTabSelection.TabID,
             pose: SnapshotConfiguration.Pose,
             configuration: SnapshotConfiguration,
-            selection: AdaptiveHistorySnapshotFixture.Selection,
+            selection: DuoLayoutSnapshotFixture.Selection,
         ) -> SnapshotCase {
             let tabName = switch tab {
                 case .locations: "Locations"
@@ -420,7 +420,7 @@ struct MainTabs: View {
                 case .year: "Year"
                 case .settings: "Settings"
             }
-            let fixture = AdaptiveHistorySnapshotFixture(tab: tab, selection: selection)
+            let fixture = DuoLayoutSnapshotFixture(tab: tab, selection: selection)
             let selectionName = switch selection {
                 case .none: ""
                 case .region, .stay, .settings: "-Selected"
@@ -437,7 +437,7 @@ struct MainTabs: View {
 
                 },
             ) {
-                AdaptiveHistorySnapshotScene(fixture: fixture, pose: pose)
+                DuoLayoutSnapshotScene(fixture: fixture, pose: pose)
             }
         }
 

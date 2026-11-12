@@ -13,8 +13,8 @@ struct PlannedStayEditorTests {
         let report = PlanningTestSupport.report(store: store)
         await report.refresh()
         let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: .california))
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             PlannedStayEditor(model: model)
         })
         host.safeAreaRegions = []
@@ -31,7 +31,7 @@ struct PlannedStayEditorTests {
                     .tabletop,
                     .outerPortrait,
                 ] {
-                    try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                    try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                     #expect(model.isSaving)
                     #expect(model.region == .california)
                     #expect(await store.plannedStayWriteCount == 1)

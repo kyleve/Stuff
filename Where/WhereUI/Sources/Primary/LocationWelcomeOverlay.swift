@@ -22,7 +22,7 @@ struct LocationWelcomeOverlay: View {
                     .transition(.opacity)
                     .zIndex(0)
 
-                AdaptiveHistoryGeometryReader { geometry in
+                AdaptivePaneGeometryReader { geometry in
                     let area = geometry.unobstructedBounds(near: CGPoint(
                         x: geometry.contentBounds.midX,
                         y: geometry.contentBounds.maxY,

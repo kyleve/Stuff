@@ -3,7 +3,7 @@
 
     /// Builds one separate demo world and retains its scene through every synthetic pose.
     @MainActor @Observable
-    final class AdaptiveHistoryLabModel {
+    final class DuoLayoutLabModel {
         enum State {
             case idle
             case loading

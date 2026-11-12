@@ -11,7 +11,7 @@ struct YearView: View {
     let report: YearReportModel
 
     @State private var mode: YearMode
-    @State private var history: HistorySelectionModel
+    @State private var history: PresenceSelectionModel
     @State private var planningDestination: PlannedStaysDestination?
     @State private var calendarPresentation: CalendarPresentationState
 
@@ -20,11 +20,11 @@ struct YearView: View {
     init(
         report: YearReportModel,
         initialMode: YearMode = .calendar,
-        history: HistorySelectionModel? = nil,
+        history: PresenceSelectionModel? = nil,
     ) {
         self.report = report
         _mode = State(initialValue: initialMode)
-        _history = State(initialValue: history ?? HistorySelectionModel())
+        _history = State(initialValue: history ?? PresenceSelectionModel())
         _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
             report: report,
             persistenceKey: .year,
@@ -32,7 +32,7 @@ struct YearView: View {
     }
 
     var body: some View {
-        AdaptiveHistoryContainer { arrangement in
+        AdaptivePaneContainer { arrangement in
             switch arrangement {
                 case .compact:
                     YearCompactContent(
@@ -46,25 +46,25 @@ struct YearView: View {
                     NavigationSplitView(columnVisibility: .constant(.all)) {
                         timeline(presentation: .linked)
                             .navigationSplitViewColumnWidth(
-                                min: stylesheet.adaptiveHistory.minimumControlsWidth,
-                                ideal: stylesheet.adaptiveHistory.minimumControlsWidth,
+                                min: stylesheet.adaptivePane.minimumControlsWidth,
+                                ideal: stylesheet.adaptivePane.minimumControlsWidth,
                             )
                     } detail: {
                         calendar(presentation: .year)
                             .navigationSplitViewColumnWidth(
-                                min: stylesheet.adaptiveHistory.minimumHistoryWidth,
-                                ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                                min: stylesheet.adaptivePane.minimumDetailWidth,
+                                ideal: stylesheet.adaptivePane.minimumDetailWidth,
                             )
                     }
                     .navigationSplitViewStyle(.balanced)
                 case let .tabletop(panes):
-                    TabletopHistoryLayout(panes: panes) {
+                    TabletopPaneLayout(panes: panes) {
                         NavigationStack { calendar(presentation: .month) }
                     } controls: {
                         NavigationStack {
                             timeline(presentation: .linked)
                                 .safeAreaInset(edge: .top, spacing: 0) {
-                                    HistoryMonthControls(
+                                    MonthNavigationControls(
                                         report: report,
                                         history: history,
                                     )
@@ -107,7 +107,7 @@ struct YearView: View {
 struct YearCompactView: View {
     let report: YearReportModel
     @State private var mode = YearMode.calendar
-    @State private var history = HistorySelectionModel()
+    @State private var history = PresenceSelectionModel()
     @State private var planningDestination: PlannedStaysDestination?
     @State private var calendarPresentation: CalendarPresentationState
 
@@ -135,7 +135,7 @@ struct YearCompactView: View {
 private struct YearCompactContent: View {
     let report: YearReportModel
     @Binding var mode: YearMode
-    let history: HistorySelectionModel
+    let history: PresenceSelectionModel
     let calendarPresentation: CalendarPresentationState
     @Binding var planningDestination: PlannedStaysDestination?
     @Environment(\.stylesheet) private var stylesheet

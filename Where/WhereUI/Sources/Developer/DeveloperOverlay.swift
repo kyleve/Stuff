@@ -58,7 +58,7 @@
         }
 
         var body: some View {
-            AdaptiveHistoryGeometryReader { geometry in
+            AdaptivePaneGeometryReader { geometry in
                 let leadingIsLeft = layoutDirection == .leftToRight
                 let preferred = CGPoint(
                     x: model.corner.isLeading == leadingIsLeft ? geometry.contentBounds

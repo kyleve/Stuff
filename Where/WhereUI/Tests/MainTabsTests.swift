@@ -79,8 +79,8 @@ struct MainTabsTests {
 struct MainTabsTestsDuo {
     @Test func settingsSearchStaysVisibleAcrossFoldLayouts() async throws {
         let world = try await WhereFlyoverWorld.build()
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             MainTabs(world: world, tab: .settings)
                 .environment(world.model)
                 .environment(world.session)
@@ -96,10 +96,10 @@ struct MainTabsTestsDuo {
                 .book,
                 .outerPortrait,
             ] {
-                try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
+                try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                 let window = try #require(controller.view.window)
                 try await waitForAsync {
-                    AdaptiveHistoryTestSupport.descendants(
+                    AdaptivePaneTestSupport.descendants(
                         of: window,
                         matching: UISearchTextField.self,
                     )
@@ -114,7 +114,7 @@ struct MainTabsTestsDuo {
                             .contains(frame)
                     }
                 }
-                let field = try #require(AdaptiveHistoryTestSupport.descendants(
+                let field = try #require(AdaptivePaneTestSupport.descendants(
                     of: window,
                     matching: UISearchTextField.self,
                 ).first { !$0.isHidden && $0.window != nil })
@@ -131,8 +131,8 @@ struct MainTabsTestsDuo {
     @Test func foldingKeepsOnePresentedEditorAndItsUnsavedDate() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             LocationsView(report: world.report, navigation: navigation)
                 .bScrollRestorationScope()
                 .environment(world.model)
@@ -141,7 +141,7 @@ struct MainTabsTestsDuo {
         })
         host.safeAreaRegions = []
         try await show(host) { controller in
-            try await AdaptiveHistoryTestSupport.resize(
+            try await AdaptivePaneTestSupport.resize(
                 controller,
                 state: state,
                 to: .outerPortrait,
@@ -150,15 +150,15 @@ struct MainTabsTestsDuo {
             navigation.planningDestination = .new(.california)
             let root = try #require(controller.view.window?.rootViewController)
             try await waitForAsync {
-                AdaptiveHistoryTestSupport.presentedController(from: root) != nil
+                AdaptivePaneTestSupport.presentedController(from: root) != nil
             }
-            let editor = try #require(AdaptiveHistoryTestSupport.presentedController(from: root))
+            let editor = try #require(AdaptivePaneTestSupport.presentedController(from: root))
             defer { editor.dismiss(animated: false) }
             try await waitForAsync {
-                !AdaptiveHistoryTestSupport
+                !AdaptivePaneTestSupport
                     .descendants(of: editor.view, matching: UIDatePicker.self).isEmpty
             }
-            let picker = try #require(AdaptiveHistoryTestSupport.descendants(
+            let picker = try #require(AdaptivePaneTestSupport.descendants(
                 of: editor.view,
                 matching: UIDatePicker.self,
             ).first)
@@ -173,10 +173,10 @@ struct MainTabsTestsDuo {
                 .innerLandscape,
                 .outerPortrait,
             ] {
-                try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
-                #expect(AdaptiveHistoryTestSupport.presentedController(from: root) === editor)
+                try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
+                #expect(AdaptivePaneTestSupport.presentedController(from: root) === editor)
                 #expect(navigation.selectedRegion == .california)
-                #expect(AdaptiveHistoryTestSupport.descendants(
+                #expect(AdaptivePaneTestSupport.descendants(
                     of: editor.view,
                     matching: UIDatePicker.self,
                 ).contains {
