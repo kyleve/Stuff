@@ -2853,50 +2853,6 @@
         }
       }
     },
-    "developer.duo.book" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Book"
-          }
-        }
-      }
-    },
-    "developer.duo.innerLandscape" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open · Landscape"
-          }
-        }
-      }
-    },
-    "developer.duo.innerPortrait" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open · Portrait"
-          }
-        }
-      }
-    },
-    "developer.duo.narrow" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Narrow window"
-          }
-        }
-      }
-    },
     "developer.duo.note" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2904,28 +2860,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Synthetic layouts using measured simulator bounds. System bars and physical folding still require native validation."
-          }
-        }
-      }
-    },
-    "developer.duo.outerLandscape" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Closed · Landscape"
-          }
-        }
-      }
-    },
-    "developer.duo.outerPortrait" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Closed · Portrait"
           }
         }
       }
@@ -2948,17 +2882,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try Again"
-          }
-        }
-      }
-    },
-    "developer.duo.tabletop" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tabletop"
           }
         }
       }

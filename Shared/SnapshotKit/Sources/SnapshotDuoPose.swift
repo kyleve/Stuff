@@ -1,18 +1,40 @@
 import CoreGraphics
+import Foundation
 
 extension SnapshotConfiguration {
     /// Synthetic container geometry for adaptive previews, captures, and hosted tests.
     /// These profiles do not change the simulator's native folding pose.
-    public enum Pose: String, CaseIterable, Identifiable, Sendable {
-        case outerPortrait, outerLandscape, innerPortrait, innerLandscape
-        case tabletop, book, narrow
+    public enum DuoPose: String, CaseIterable, Identifiable, Sendable {
+        case outerPortrait
+        case outerLandscape
+        case innerPortrait
+        case innerLandscape
+        case tabletop
+        case book
+        case narrow
+
+        public var title: String {
+            switch self {
+                case .outerPortrait: String(localized: .duoOuterPortrait)
+                case .outerLandscape: String(localized: .duoOuterLandscape)
+                case .innerPortrait: String(localized: .duoInnerPortrait)
+                case .innerLandscape: String(localized: .duoInnerLandscape)
+                case .tabletop: String(localized: .duoTabletop)
+                case .book: String(localized: .duoBook)
+                case .narrow: String(localized: .duoNarrow)
+            }
+        }
 
         public var id: Self {
             self
         }
 
         public struct ReservedRegion: Hashable, Sendable {
-            public enum Kind: Hashable, Sendable { case division, occlusion }
+            public enum Kind: Hashable, Sendable {
+                case division
+                case occlusion
+            }
+
             public let kind: Kind
             public let frame: CGRect
             public let isActive: Bool

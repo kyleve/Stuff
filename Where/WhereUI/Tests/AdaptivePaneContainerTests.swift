@@ -19,7 +19,7 @@ struct AdaptivePaneContainerTests {
         try await show(host) { controller in
             for _ in 0 ..< 2 {
                 for pose in [
-                    SnapshotConfiguration.Pose.outerPortrait,
+                    SnapshotConfiguration.DuoPose.outerPortrait,
                     .innerPortrait,
                     .tabletop,
                     .book,

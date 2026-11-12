@@ -52,7 +52,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Keep scene retention explicit.** Use `Frame.scenePolicy = .retained` only for subjects that require native scene-backed chrome. Preserve truthful traits, configured insets, and full-content sizing. This policy keeps identifiers unchanged; name variants explicitly if both policies appear in one matrix. Preview rendering does not guarantee retained-scene fidelity.
 - **Source Duo frames from native measurements.** Re-measure the presets when the runtime pin changes and update the provenance in `README.md`. Synthetic frames do not change native pose or bar arrangement.
 - **Create a separate case and model for each new adaptive configuration.** Readiness hooks must target that configuration's model.
-- **Share synthetic pose geometry through `SnapshotConfiguration.Pose`.** Keep app labels and production geometry adapters in consumers. Preserve the existing frame identifiers when adding fold-region fixtures.
+- **Share synthetic pose geometry through `SnapshotConfiguration.DuoPose`.** Keep localized pose labels here and production geometry adapters in consumers. Preserve the existing frame identifiers when adding fold-region fixtures.
 - **Use two-axis full-content frames only for spatial canvases.** Choose `.iPhoneFullContent2D`, `.iPadFullContent2D`, or an explicit `.fullContent2D` when the production subject intentionally scrolls in both dimensions.
 - **Keep ordinary screen presets fixed-width.** Guard: `SnapshotConfigurationTests`.
 - **Measurement readiness never replaces capture readiness.**

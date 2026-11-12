@@ -33,7 +33,7 @@ enum AdaptivePaneTestSupport {
 
 @MainActor @Observable
 final class AdaptivePaneHostState {
-    var pose = SnapshotConfiguration.Pose.outerPortrait
+    var pose = SnapshotConfiguration.DuoPose.outerPortrait
     var renderedSize: CGSize = .zero
     var panes = WhereStylesheet.AdaptivePaneStyle.Panes.single
     var arrangement: AdaptivePaneArrangement?
@@ -69,7 +69,7 @@ extension AdaptivePaneTestSupport {
     @MainActor static func resize(
         _ controller: UIViewController,
         state: AdaptivePaneHostState,
-        to pose: SnapshotConfiguration.Pose,
+        to pose: SnapshotConfiguration.DuoPose,
     ) async throws {
         state.pose = pose
         controller.view.frame = CGRect(origin: .zero, size: pose.size)
