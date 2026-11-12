@@ -4,13 +4,13 @@
     import SwiftUI
 
     /// A DEBUG-only mounted production scene. Pose controls change geometry, never its models.
-    struct AdaptiveHistoryLabView: View {
-        @State private var model: AdaptiveHistoryLabModel
+    struct DuoLayoutLabView: View {
+        @State private var model: DuoLayoutLabModel
         @State private var pose: SnapshotConfiguration.Pose
         private let initialRegion: Region?
 
         init(
-            model: AdaptiveHistoryLabModel = AdaptiveHistoryLabModel(),
+            model: DuoLayoutLabModel = DuoLayoutLabModel(),
             pose: SnapshotConfiguration.Pose = .outerPortrait,
             initialRegion: Region? = nil,
         ) {
@@ -81,7 +81,7 @@
                     ))
                     .frame(width: pose.size.width, height: pose.size.height)
                     .background(.background)
-                    .adaptiveHistoryReservedRegions(pose.regions)
+                    .adaptivePaneReservedRegions(pose.regions)
                     .whereBroadwayRoot()
                     .snapshotTraits(SnapshotConfiguration(device: pose.frame))
                     .frame(width: pose.size.width, height: pose.size.height)
@@ -92,10 +92,10 @@
         }
     }
 
-    extension AdaptiveHistoryLabView: SnapshotProviding {
+    extension DuoLayoutLabView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [SnapshotConfiguration.Pose.outerPortrait, .tabletop].map { pose in
-                let fixture = AdaptiveHistorySnapshotFixture(tab: .locations, selection: .region)
+                let fixture = DuoLayoutSnapshotFixture(tab: .locations, selection: .region)
                 return whereSnapshot(
                     name: pose.rawValue,
                     configurations: [SnapshotConfiguration(device: .viewport(
@@ -110,7 +110,7 @@
                     ))],
                     onReadyToSnapshot: { await fixture.prepare() },
                 ) {
-                    AdaptiveHistoryLabView(
+                    DuoLayoutLabView(
                         model: fixture.model,
                         pose: pose,
                         initialRegion: .california,
@@ -121,15 +121,15 @@
         }
     }
 
-    #Preview { AdaptiveHistoryLabView.snapshotPreviews }
+    #Preview { DuoLayoutLabView.snapshotPreviews }
 
-    extension AdaptiveHistoryLabView: WhereFlyoverProviding {
+    extension DuoLayoutLabView: WhereFlyoverProviding {
         static let flyoverData = WhereFlyoverData.hosted(
-            AdaptiveHistoryLabView.self,
+            DuoLayoutLabView.self,
             title: "Duo Layout Lab",
             navigationContainer: .none,
         ) { _ in
-            AdaptiveHistoryLabView()
+            DuoLayoutLabView()
         }
     }
 #endif

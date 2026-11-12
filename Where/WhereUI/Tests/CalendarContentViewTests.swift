@@ -103,7 +103,7 @@ struct CalendarContentViewTests {
     @Test func overviewAndTabletopDoNotReplaceTheForecastAnchor() async throws {
         let report = PreviewSupport.loadedYearReportModel()
         let fixture = CalendarPresentationFixture()
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let host = UIHostingController(rootView: CalendarPresentationHarness(
             fixture: fixture,
             report: report,
@@ -164,13 +164,13 @@ struct CalendarContentViewTests {
 
     @Test func theUnselectedLocationsCalendarKeepsItsSessionOnlyZoomMode() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             LocationsView(report: report)
         }.bScrollRestorationScope())
         host.safeAreaRegions = []
         try await show(host) { controller in
-            try await AdaptiveHistoryTestSupport.resize(
+            try await AdaptivePaneTestSupport.resize(
                 controller,
                 state: state,
                 to: .innerLandscape,
@@ -184,13 +184,13 @@ struct CalendarContentViewTests {
                 "Show Months",
                 in: host.view,
             ) }
-            try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: .tabletop)
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .tabletop)
             try await waitForCalendar("tabletop calendar") { isVisible(
                 "July",
                 in: host.view,
                 expanded: true,
             ) }
-            try await AdaptiveHistoryTestSupport.resize(
+            try await AdaptivePaneTestSupport.resize(
                 controller,
                 state: state,
                 to: .innerLandscape,
@@ -209,13 +209,13 @@ struct CalendarContentViewTests {
         report.preferences.setCalendarOverview(false, forKey: .region(.newYork))
         let navigation = LocationsView.Navigation()
         navigation.select(region: .california)
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             LocationsView(report: report, navigation: navigation)
         }.bScrollRestorationScope())
         host.safeAreaRegions = []
         try await show(host) { controller in
-            try await AdaptiveHistoryTestSupport.resize(
+            try await AdaptivePaneTestSupport.resize(
                 controller,
                 state: state,
                 to: .innerLandscape,
@@ -281,7 +281,7 @@ struct CalendarContentViewTests {
     @Test func aRevealWaitsForDelayedCalendarData() async throws {
         let store = try TestStore()
         let report = PlanningTestSupport.report(store: store)
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let month = CalendarDay(year: report.selectedYear, month: 2, day: 1)
         history.select(month: month, dateCalendar: report.calendar)
         await store.enableFirstSamplesGate()
@@ -313,7 +313,7 @@ struct CalendarContentViewTests {
 
     @Test func repeatedLinkedSelectionExpandsOverviewAndKeepsMonthTarget() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let month = CalendarDay(year: report.selectedYear, month: 2, day: 1)
         let host = UIHostingController(rootView: NavigationStack {
             CalendarContentView(
@@ -344,7 +344,7 @@ struct CalendarContentViewTests {
 
     @Test func mountedCalendarPositionsAfterTheNewYearsMonthsArrive() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let host = UIHostingController(rootView: CalendarContentView(
             report: report,
             history: history,
@@ -403,7 +403,7 @@ struct CalendarContentViewTests {
 
     @Test func aRemountedCalendarUsesItsRenderedMonthAnchor() async throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let store = BScrollRestorationStore()
         let first = UIHostingController(rootView: CalendarContentView(
             report: report,

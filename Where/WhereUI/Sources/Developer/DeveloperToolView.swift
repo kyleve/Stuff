@@ -20,7 +20,7 @@ import SFSafeSymbols
         @Environment(WhereModel.self) private var model: WhereModel?
 
         var body: some View {
-            if tool == .adaptiveHistory {
+            if tool == .duoLayoutLab {
                 toolContent
             } else {
                 NavigationStack { toolContent }
@@ -71,8 +71,8 @@ import SFSafeSymbols
                 case .regionMap:
                     RegionMapView()
 
-                case .adaptiveHistory:
-                    AdaptiveHistoryLabView()
+                case .duoLayoutLab:
+                    DuoLayoutLabView()
             }
         }
     }

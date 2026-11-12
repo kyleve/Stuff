@@ -10,12 +10,12 @@ struct YearViewSnapshotTests {
     }
 
     @Test func adaptiveLoadStates() async throws {
-        for state in AdaptiveHistoryLoadFixture.State.allCases {
+        for state in AdaptivePaneLoadFixture.State.allCases {
             for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop] {
-                let fixture = try await AdaptiveHistoryLoadFixture(state: state)
+                let fixture = try await AdaptivePaneLoadFixture(state: state)
                 await assertSnapshots(
                     of: YearView(report: fixture.report)
-                        .adaptiveHistoryReservedRegions(pose.regions)
+                        .adaptivePaneReservedRegions(pose.regions)
                         .whereBroadwayRoot(),
                     named: "Adaptive-" + state.rawValue + "-" + pose.rawValue,
                     configurations: [SnapshotConfiguration(device: pose.frame)],

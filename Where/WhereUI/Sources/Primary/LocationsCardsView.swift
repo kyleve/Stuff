@@ -123,7 +123,7 @@ struct LocationsCardsView: View {
                         )
                         .locationCardRankingRegion(item.region)
                         .id(item.region)
-                        .historySelection(
+                        .presenceSelection(
                             navigation.selectedRegion == item.region,
                             cornerRadius: stylesheet.card[cardVariant].cornerRadius,
                         )

@@ -5,13 +5,13 @@ import SwiftUI
 import WhereCore
 
 /// Explicit month browsing controls shared by both tabletop destinations.
-struct HistoryMonthControls: View {
+struct MonthNavigationControls: View {
     let report: YearReportModel
-    let history: HistorySelectionModel
+    let history: PresenceSelectionModel
     @BScrollPosition<CalendarPresentationState.Target> private var position: ScrollPosition
     init(
         report: YearReportModel,
-        history: HistorySelectionModel,
+        history: PresenceSelectionModel,
         region: Region? = nil,
         scrollRole: CalendarContentView.ScrollRole = .year,
     ) {
@@ -89,9 +89,9 @@ struct HistoryMonthControls: View {
 
 #if DEBUG
     #Preview {
-        HistoryMonthControls(
+        MonthNavigationControls(
             report: PreviewSupport.loadedYearReportModel(),
-            history: HistorySelectionModel(),
+            history: PresenceSelectionModel(),
         )
         .whereBroadwayRoot()
     }

@@ -13,7 +13,7 @@ import SwiftUI
 /// it — region-focused, with a title — as the zoom destination of a tapped card.
 struct CalendarContentView: View {
     enum Presentation: Equatable { case year, month }
-    let history: HistorySelectionModel?
+    let history: PresenceSelectionModel?
     let displayMode: Presentation
     enum ScrollRole: Hashable { case standalone, locations, year }
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
@@ -67,7 +67,7 @@ struct CalendarContentView: View {
     init(
         focusedRegion: Region? = nil,
         report: YearReportModel,
-        history: HistorySelectionModel? = nil,
+        history: PresenceSelectionModel? = nil,
         presentationState: CalendarPresentationState? = nil,
         presentation: Presentation = .year,
         initialMode: CalendarPresentationState.Mode = .detail,
@@ -774,7 +774,7 @@ private struct MonthGridView: View {
                                 compact: compact,
                                 isAvailable: isAvailable,
                             )
-                            .historySelection(selectedInterval?.contains(CalendarDay(
+                            .presenceSelection(selectedInterval?.contains(CalendarDay(
                                 from: month.days[index].date,
                                 in: dateCalendar,
                             )) == true)
@@ -1175,7 +1175,7 @@ private struct DayCell: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "HistoryColumn",
-                configurations: [SnapshotConfiguration(device: AdaptiveHistorySnapshotFixture
+                configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
                         .historyColumn)],
             ) {
                 NavigationStack {

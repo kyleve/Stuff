@@ -96,13 +96,13 @@ Settings keeps its native search field visible in the navigation drawer across c
 Narrow windows and accessibility text sizes use one pane. The compact calendar/timeline choice remains stored while both panes are visible.
 Theme choices stack when the available pane cannot fit two readable card specimens.
 
-`AdaptiveHistoryGeometry` reads independent edge insets and the system's reserved regions.
-`AdaptiveHistoryArrangement` combines that geometry with the stylesheet's pane limits.
+`AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
+`AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
 An active horizontal division places the selected month above the hinge and browsing controls below it.
 A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
 The adapter uses container geometry, without device-name or hinge-angle checks.
 
-`HistorySelectionModel` links explicit month and stay selections through typed day intervals.
+`PresenceSelectionModel` links explicit month and stay selections through typed day intervals.
 It highlights the interval and reveals it in the companion pane. Scroll observations only retain local anchors.
 Each month reveal has a typed request identity. Consuming it preserves that identity, so repeated selections work without an observer feedback loop.
 Planning sheets sit above the changing containers, with one shared presentation owner per destination.

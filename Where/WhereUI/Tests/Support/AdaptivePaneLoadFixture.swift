@@ -5,7 +5,7 @@ import SnapshotKit
 
 /// Drives the real report through controlled store reads. No presentation state is injected.
 @MainActor
-final class AdaptiveHistoryLoadFixture {
+final class AdaptivePaneLoadFixture {
     enum State: String, CaseIterable {
         case loading
         case empty

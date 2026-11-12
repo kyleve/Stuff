@@ -5,10 +5,10 @@
 
     /// Each capture configuration gets its own demo world, navigation, and artwork readiness.
     @MainActor
-    final class AdaptiveHistorySnapshotFixture {
+    final class DuoLayoutSnapshotFixture {
         static let browseColumn = SnapshotConfiguration.Frame.fullContent(
             name: "browseColumn",
-            width: WhereStylesheet.default.adaptiveHistory.minimumControlsWidth,
+            width: WhereStylesheet.default.adaptivePane.minimumControlsWidth,
             minimumHeight: 669,
             layoutTraits: .init(
                 horizontalSizeClass: .regular,
@@ -18,7 +18,7 @@
         )
         static let historyColumn = SnapshotConfiguration.Frame.fullContent(
             name: "historyColumn",
-            width: WhereStylesheet.default.adaptiveHistory.minimumHistoryWidth,
+            width: WhereStylesheet.default.adaptivePane.minimumDetailWidth,
             minimumHeight: 669,
             layoutTraits: .init(
                 horizontalSizeClass: .regular,
@@ -35,10 +35,10 @@
             case settings
         }
 
-        let model = AdaptiveHistoryLabModel()
+        let model = DuoLayoutLabModel()
         let artwork = RegionOutlinePathCache()
         let tab: MainTabSelection.TabID
-        let history = HistorySelectionModel()
+        let history = PresenceSelectionModel()
         let selection: Selection
         private var didSelect = false
 
@@ -90,16 +90,16 @@
     }
 
     #Preview {
-        AdaptiveHistorySnapshotScene(
-            fixture: AdaptiveHistorySnapshotFixture(tab: .locations, selection: .region),
+        DuoLayoutSnapshotScene(
+            fixture: DuoLayoutSnapshotFixture(tab: .locations, selection: .region),
             pose: .innerPortrait,
         )
         .whereBroadwayRoot()
         .snapshotTraits(SnapshotConfiguration(device: .duoInnerPortrait))
     }
 
-    struct AdaptiveHistorySnapshotScene: View {
-        let fixture: AdaptiveHistorySnapshotFixture
+    struct DuoLayoutSnapshotScene: View {
+        let fixture: DuoLayoutSnapshotFixture
         let pose: SnapshotConfiguration.Pose
 
         var body: some View {
@@ -129,7 +129,7 @@
                         )
                 }
             }
-            .adaptiveHistoryReservedRegions(pose.regions)
+            .adaptivePaneReservedRegions(pose.regions)
             .task { await fixture.prepare() }
         }
     }

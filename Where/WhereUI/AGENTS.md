@@ -298,7 +298,7 @@ Hosted tests that traverse SwiftUI accessibility must link and import
 `AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
 runtime. Guard: `CalendarContentViewTests`.
 
-`Tests/Support/TestStore.swift` and `AdaptiveHistoryLoadFixture.swift` are shared by the unit and image bundles through `Project.swift`.
+`Tests/Support/TestStore.swift` and `AdaptivePaneLoadFixture.swift` are shared by the unit and image bundles through `Project.swift`.
 Keep support fixtures outside `SnapshotTests/`, whose Swift files each declare one matching suite. Use the store's read gates and failures for adaptive loading snapshots. Keep fixture setup and completion independent for each configuration.
 
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
