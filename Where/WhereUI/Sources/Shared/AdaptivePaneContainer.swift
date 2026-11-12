@@ -17,7 +17,8 @@ struct AdaptivePaneContainer<Content: View>: View {
     }
 }
 
-/// Shares the native/injected coordinate mapping with custom chrome above the destinations.
+/// Shares physical container geometry with pane layout, the welcome overlay, and developer
+/// overlays.
 struct AdaptivePaneGeometryReader<Content: View>: View {
     // Physical reserved-region coordinates require the live direction at this container.
     @Environment(\.layoutDirection) private var layoutDirection
