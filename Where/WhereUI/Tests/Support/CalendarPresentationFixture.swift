@@ -15,7 +15,7 @@ final class CalendarPresentationFixture {
 struct CalendarPresentationHarness: View {
     let fixture: CalendarPresentationFixture
     let report: YearReportModel
-    let history: PresenceSelectionModel
+    let reveals: CalendarRevealTestSupport
 
     var body: some View {
         NavigationStack {
@@ -24,7 +24,7 @@ struct CalendarPresentationHarness: View {
                     CalendarContentView(
                         focusedRegion: fixture.region,
                         report: report,
-                        history: history,
+                        monthReveal: reveals.binding,
                         presentation: .month,
                         persistenceKey: fixture.region.map(CalendarZoomKey.region),
                     )
@@ -32,7 +32,7 @@ struct CalendarPresentationHarness: View {
                     CalendarContentView(
                         focusedRegion: fixture.region,
                         report: report,
-                        history: history,
+                        monthReveal: reveals.binding,
                         persistenceKey: fixture.region.map(CalendarZoomKey.region),
                     )
                 }

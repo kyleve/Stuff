@@ -18,7 +18,7 @@ struct YearViewTests {
         try await show(host) { controller in
             controller.view.window?.layer.speed = 1
             var retainedMode = YearMode.calendar
-            for pose in SnapshotConfiguration.Pose.allCases + [.outerPortrait] {
+            for pose in SnapshotConfiguration.DuoPose.allCases + [.outerPortrait] {
                 try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                 try await waitForAsync {
                     button(retainedMode, in: controller.view)?.accessibilityTraits

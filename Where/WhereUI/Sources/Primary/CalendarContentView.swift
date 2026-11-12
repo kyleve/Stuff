@@ -13,7 +13,9 @@ import SwiftUI
 /// it — region-focused, with a title — as the zoom destination of a tapped card.
 struct CalendarContentView: View {
     enum Presentation: Equatable { case year, month }
-    let history: PresenceSelectionModel?
+    @Binding private var monthReveal: CalendarMonthReveal?
+    private let allowsMonthSelection: Bool
+
     let displayMode: Presentation
     enum ScrollRole: Hashable { case standalone, locations, year }
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
@@ -41,7 +43,10 @@ struct CalendarContentView: View {
 
     @AccessibilityFocusState private var focusedTarget: CalendarPresentationState.Target?
     @State private var zoom = CalendarZoomTransitionState()
-    @BScrollPosition<CalendarPresentationState.Target> private var detailPosition: ScrollPosition
+    @BScrollPosition<
+        CalendarPresentationState.Target,
+        CalendarContentView.ScrollContext
+    > private var detailPosition: ScrollPosition
     @State private var overviewPosition = ScrollPosition(
         idType: CalendarPresentationState.Target.self,
         edge: .top,
@@ -67,7 +72,7 @@ struct CalendarContentView: View {
     init(
         focusedRegion: Region? = nil,
         report: YearReportModel,
-        history: PresenceSelectionModel? = nil,
+        monthReveal: Binding<CalendarMonthReveal?>? = nil,
         presentationState: CalendarPresentationState? = nil,
         presentation: Presentation = .year,
         initialMode: CalendarPresentationState.Mode = .detail,
@@ -77,7 +82,8 @@ struct CalendarContentView: View {
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
-        self.history = history
+        _monthReveal = monthReveal ?? .constant(nil)
+        allowsMonthSelection = monthReveal != nil
         suppliedPresentation = presentationState
         displayMode = presentation
         suppliedPlanningDestination = planningDestination
@@ -346,7 +352,7 @@ struct CalendarContentView: View {
                 )
             }
         }
-        .onChange(of: history?.requestID, initial: true) { _ = applyReveal() }
+        .onChange(of: monthReveal?.id, initial: true) { _ = applyReveal() }
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
             Color.clear
                 .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
@@ -378,7 +384,7 @@ struct CalendarContentView: View {
 
     @discardableResult
     private func applyReveal() -> Bool {
-        guard let history, let request = history.pendingRequest(for: .calendar),
+        guard let request = monthReveal, request.isPending,
               request.month.year == report.selectedYear,
               presentation.year == report.selectedYear,
               presentation.isAvailable(.month(request.month))
@@ -388,14 +394,23 @@ struct CalendarContentView: View {
         if displayMode == .year { _ = presentation.expand(target) }
         _detailPosition.scrollTo(id: target, anchor: .top)
         tabletopPosition.scrollTo(id: target, anchor: .top)
-        history.consume(request.id, by: .calendar)
+        monthReveal?.isPending = false
         return true
     }
 
     private var selectedMonth: CalendarDay? {
-        guard let day = history?.selectedInterval(in: report.selectedYear)?.lowerBound
+        guard let month = monthReveal?.month, month.year == report.selectedYear else { return nil }
+        return month
+    }
+
+    private var selectedInterval: ClosedRange<CalendarDay>? {
+        guard let month = selectedMonth,
+              let interval = report.calendar.dateInterval(
+                  of: .month,
+                  for: month.startOfDay(in: report.calendar),
+              )
         else { return nil }
-        return CalendarDay(year: day.year, month: day.month, day: 1)
+        return month ... CalendarDay(from: interval.end, in: report.calendar).adding(days: -1)
     }
 
     private func expand(_ target: CalendarPresentationState.Target) {
@@ -515,9 +530,9 @@ struct CalendarContentView: View {
             compact: compact,
             isAvailable: isAvailable,
             displayMode: displayMode,
-            selectedInterval: history?.selectedInterval(in: report.selectedYear),
-            selectMonth: compact ? nil : history.map { history in
-                { history.select(month: monthKey(month), dateCalendar: report.calendar) }
+            selectedInterval: selectedInterval,
+            selectMonth: compact || !allowsMonthSelection ? nil : {
+                monthReveal = CalendarMonthReveal(month: monthKey(month))
             },
         )
     }

@@ -90,7 +90,7 @@ struct MainTabsTestsDuo {
         try await show(host) { controller in
             var enteredQuery = false
             for pose in [
-                SnapshotConfiguration.Pose.outerPortrait,
+                SnapshotConfiguration.DuoPose.outerPortrait,
                 .innerPortrait,
                 .tabletop,
                 .book,
@@ -167,7 +167,7 @@ struct MainTabsTestsDuo {
             picker.date = draft
             picker.sendActions(for: .valueChanged)
             for pose in [
-                SnapshotConfiguration.Pose.innerPortrait,
+                SnapshotConfiguration.DuoPose.innerPortrait,
                 .tabletop,
                 .outerPortrait,
                 .innerLandscape,

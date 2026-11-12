@@ -70,7 +70,7 @@
 
     struct DuoLayoutSnapshotScene: View {
         let fixture: DuoLayoutSnapshotFixture
-        let pose: SnapshotConfiguration.Pose
+        let pose: SnapshotConfiguration.DuoPose
 
         var body: some View {
             Group {

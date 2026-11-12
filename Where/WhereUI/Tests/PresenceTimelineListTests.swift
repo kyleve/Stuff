@@ -8,134 +8,102 @@ import WhereCore
 
 @MainActor
 struct PresenceTimelineListTests {
-    @Test func aPendingRevealRetriesWhenAStayExtendsWithoutChangingIdentity() async throws {
-        let store = try TestStore()
-        let report = PlanningTestSupport.report(store: store)
-        for day in 20 ... 31 {
-            try await report.services.journal.addManualDay(
-                date: CalendarDay(year: report.selectedYear, month: 1, day: day)
-                    .startOfDay(in: report.calendar),
-                regions: [.california],
-                audit: nil,
-            )
-        }
-        await report.refresh()
-        let before = try PresenceTimeline.stints(
-            from: #require(report.report),
-            calendar: report.calendar,
-        )
-        let original = try #require(before.first)
-        let history = PresenceSelectionModel()
-        history.select(
-            month: CalendarDay(year: report.selectedYear, month: 2, day: 1),
-            dateCalendar: report.calendar,
-        )
-        let host = UIHostingController(rootView: PresenceTimelineList(
-            report: report,
-            presentation: .linked,
-            history: history,
-        ).whereBroadwayRoot().bScrollRestorationScope())
-        try await show(host) { _ in
-            #expect(history.pendingRequest(for: .timeline) != nil)
-            for day in 1 ... 3 {
-                try await report.services.journal.addManualDay(
-                    date: CalendarDay(year: report.selectedYear, month: 2, day: day)
-                        .startOfDay(in: report.calendar),
-                    regions: [.california],
-                    audit: nil,
-                )
-            }
-            await report.refresh()
-            let updatedReport = try #require(report.report)
-            let extended = try #require(PresenceTimeline.stints(
-                from: updatedReport,
-                calendar: report.calendar,
-            ).first)
-            #expect(extended.id == original.id)
-            try await waitForAsync { history.pendingRequest(for: .timeline) == nil }
-        }
-    }
-
-    @Test func selectingTheSameMonthAgainRevealsItAfterIndependentBrowsing() async throws {
+    @Test func aRemountedTimelineRestoresItsBrowsedRowWithoutSelectionState() async throws {
         let world = try await WhereFlyoverWorld.build()
         let report = try #require(world.report.report)
-        let history = PresenceSelectionModel()
-        let month = CalendarDay(year: report.year, month: 5, day: 1)
-        let end = CalendarDay(year: report.year, month: 5, day: 31)
-        let stints = PresenceTimeline.stints(from: report, calendar: world.report.calendar)
         let items = PresenceJourneyItem.items(
-            stints: stints,
+            stints: PresenceTimeline.stints(from: report, calendar: world.report.calendar),
             flights: world.report.completedFlights,
             year: report.year,
             calendar: world.report.calendar,
         )
-        let displayedStints = items.compactMap { item -> RegionStint? in
+        let stint = try #require(items.compactMap { item -> RegionStint? in
             if case let .stay(stint) = item { return stint }
             return nil
-        }
-        let expected = try #require(displayedStints.first {
-            CalendarDay(from: $0.start, in: world.report.calendar) <= end
-                && CalendarDay(from: $0.end, in: world.report.calendar) >= month
-        })
-        let browsed = try #require(displayedStints.last)
-        #expect(expected.id != browsed.id)
-        let expectedLabel = WhereFormat.timelineRowAccessibility(
-            region: expected.region.localizedName,
-            range: DateRangeFormatting
-                .abbreviated(
-                    start: expected.start,
-                    end: expected.end,
-                    calendar: world.report.calendar,
-                ),
-            days: expected.dayCount,
+        }.first)
+        let target = PresenceTimelineList.RowID.recorded(stint.id)
+        let label = WhereFormat.timelineRowAccessibility(
+            region: stint.region.localizedName,
+            range: DateRangeFormatting.abbreviated(
+                start: stint.start,
+                end: stint.end,
+                calendar: world.report.calendar,
+            ),
+            days: stint.dayCount,
         )
-        let browsedLabel = WhereFormat.timelineRowAccessibility(
-            region: browsed.region.localizedName,
-            range: DateRangeFormatting
-                .abbreviated(
-                    start: browsed.start,
-                    end: browsed.end,
-                    calendar: world.report.calendar,
-                ),
-            days: browsed.dayCount,
-        )
+        let store = BScrollRestorationStore()
         let capture = ScrollPositionCapture()
-        let host = UIHostingController(rootView: PresenceTimelineList(
-            report: world.report,
-            presentation: .linked,
-            history: history,
-        ).overlay {
-            ScrollPositionProbe(
-                PresenceTimelineList.self,
-                role: PresenceTimelineList.ScrollRole.timeline,
-                context: report.year,
-                idType: PresenceSelectionModel.Item.self,
-                capture: capture,
-            )
-        }.whereBroadwayRoot().bScrollRestorationScope())
-
-        try await show(host) { _ in
-            for _ in 0 ..< 4 {
-                history.select(month: month, dateCalendar: world.report.calendar)
-                try await waitForAsync {
-                    capture.binding?.wrappedValue
-                        .viewID(type: PresenceSelectionModel.Item.self) == .recorded(expected.id)
-                        && HostedAccessibility.isVisible(expectedLabel, in: host.view)
+        func timeline() -> some View {
+            PresenceTimelineList(report: world.report)
+                .overlay {
+                    ScrollPositionProbe(
+                        PresenceTimelineList.self,
+                        role: PresenceTimelineList.ScrollRole.timeline,
+                        context: report.year,
+                        idType: PresenceTimelineList.RowID.self,
+                        capture: capture,
+                    )
                 }
-                #expect(history.pendingRequest(for: .timeline) == nil)
-                let selectedInterval = history.selection
-                capture.binding?.wrappedValue.scrollTo(
-                    id: PresenceSelectionModel.Item.recorded(browsed.id),
-                    anchor: .top,
+                .whereBroadwayRoot()
+                .bScrollRestorationScope(store)
+        }
+        func waitForTimeline(
+            _ stage: String,
+            in view: UIView,
+            until condition: () -> Bool,
+        ) async throws {
+            do {
+                try await waitForAsync { condition() }
+            } catch {
+                let scrolls = AdaptivePaneTestSupport.descendants(
+                    of: view,
+                    matching: UIScrollView.self,
                 )
-                try await waitForAsync {
-                    capture.binding?.wrappedValue
-                        .viewID(type: PresenceSelectionModel.Item.self) == .recorded(browsed.id)
-                        && HostedAccessibility.isVisible(browsedLabel, in: host.view)
+                let geometry = scrolls.map {
+                    "offset=\($0.contentOffset), size=\($0.contentSize), bounds=\($0.bounds), insets=\($0.adjustedContentInset)"
                 }
-                #expect(capture.binding?.wrappedValue
-                    .viewID(type: PresenceSelectionModel.Item.self) == .recorded(browsed.id))
-                #expect(history.selection == selectedInterval)
+                throw TestHostError(
+                    "Timeline \(stage): \(error); target=\(String(describing: capture.binding?.wrappedValue.viewID(type: PresenceTimelineList.RowID.self))); \(geometry)",
+                )
+            }
+        }
+        let first = UIHostingController(rootView: timeline())
+        try await show(first) { _ in
+            // Native scrolling can clear ScrollPosition.edge after reaching the bottom.
+            // Wait for the rendered offset, not for the transient command to remain stored.
+            try await waitForTimeline("initial bottom", in: first.view) {
+                guard capture.binding != nil,
+                      let scroll = AdaptivePaneTestSupport.descendants(
+                          of: first.view,
+                          matching: UIScrollView.self,
+                      )
+                      .first(where: { $0.contentSize.height > $0.bounds.height })
+                else { return false }
+                let bottom = scroll.contentSize.height - scroll.bounds.height + scroll
+                    .adjustedContentInset.bottom
+                return abs(scroll.contentOffset.y - bottom) < 1
+            }
+            capture.binding?.wrappedValue.scrollTo(id: target, anchor: .top)
+            try await waitForTimeline("browsed row", in: first.view) {
+                HostedAccessibility.isVisible(
+                    label,
+                    in: first.view,
+                )
+            }
+            #expect(capture.binding?.wrappedValue
+                .viewID(type: PresenceTimelineList.RowID.self) == target)
+            let row = try #require(HostedAccessibility.objects(in: first.view).first {
+                $0.accessibilityLabel == label
+            })
+            #expect(row.accessibilityTraits.contains(.button) == false)
+            #expect(row.accessibilityTraits.contains(.selected) == false)
+        }
+        let second = UIHostingController(rootView: timeline())
+        try await show(second) { _ in
+            try await waitForTimeline("restored row", in: second.view) {
+                capture.binding?.wrappedValue
+                    .viewID(type: PresenceTimelineList.RowID.self) == target
+                    && HostedAccessibility.isVisible(label, in: second.view)
             }
         }
     }

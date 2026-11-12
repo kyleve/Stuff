@@ -17,7 +17,7 @@ struct LocationsCardsView: View {
     let cardVariant: WhereStylesheet.CardStyle.Variant
     let showsSelection: Bool
 
-    @BScrollPosition<Region> private var position: ScrollPosition
+    @BScrollPosition<Region, Int> private var position: ScrollPosition
     enum ScrollRole: Hashable { case browse }
 
     init(

@@ -6,12 +6,12 @@
     /// A DEBUG-only mounted production scene. Pose controls change geometry, never its models.
     struct DuoLayoutLabView: View {
         @State private var model: DuoLayoutLabModel
-        @State private var pose: SnapshotConfiguration.Pose
+        @State private var pose: SnapshotConfiguration.DuoPose
         private let initialRegion: Region?
 
         init(
             model: DuoLayoutLabModel = DuoLayoutLabModel(),
-            pose: SnapshotConfiguration.Pose = .outerPortrait,
+            pose: SnapshotConfiguration.DuoPose = .outerPortrait,
             initialRegion: Region? = nil,
         ) {
             _model = State(initialValue: model)
@@ -26,7 +26,7 @@
                 Text(String(localized: .developerDuoTitle))
                     .font(.headline)
                 Picker(String(localized: .developerDuoPose), selection: $pose) {
-                    ForEach(SnapshotConfiguration.Pose.allCases) { pose in
+                    ForEach(SnapshotConfiguration.DuoPose.allCases) { pose in
                         Text(pose.title).tag(pose)
                     }
                 }
@@ -94,7 +94,7 @@
 
     extension DuoLayoutLabView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            [SnapshotConfiguration.Pose.outerPortrait, .tabletop].map { pose in
+            [SnapshotConfiguration.DuoPose.outerPortrait, .tabletop].map { pose in
                 let fixture = DuoLayoutSnapshotFixture(tab: .locations, selection: .region)
                 return whereSnapshot(
                     name: pose.rawValue,
