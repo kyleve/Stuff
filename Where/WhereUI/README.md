@@ -699,3 +699,19 @@ also avoids blank trailing space from lazy estimates in its bottom-anchored scro
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
+
+## Adaptive pane foundations
+
+Stable destination views own navigation and presentation state. BroadwayUI retains
+scroll positions for the current context only. Changing region or year discards
+the old position. Explicit reveal requests belong to their consuming views;
+ordinary scrolling does not select or move another pane. Synthetic pose geometry
+and localized labels come from `SnapshotConfiguration.DuoPose`.
+
+`AdaptivePaneGeometry` maps safe areas and reserved regions into physical
+container coordinates. `AdaptivePaneArrangement` applies the stylesheet's pane
+limits. `AdaptivePaneContainer` hosts compact, columns, and tabletop arrangements.
+The DEBUG Testing SPI supplies synthetic reserved regions to the same adapter.
+
+This foundation does not replace the current destination containers. The dependent
+app integration installs view-owned state and presents these arrangements.

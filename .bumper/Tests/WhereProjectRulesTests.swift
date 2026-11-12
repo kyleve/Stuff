@@ -4,6 +4,23 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `system reserved regions use one geometry adapter`() throws {
+        let source = "let regions = proxy.reservedRegions(kind: .division, options: .includeInactive, layoutDirectionBehavior: .fixed)"
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/Shared/AdaptivePaneGeometry.swift",
+            component: .whereUI,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Primary/LocationsView.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.reserved_region_layout_ownership"])
+    }
+
+    @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",

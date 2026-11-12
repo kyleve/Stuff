@@ -613,7 +613,12 @@ private struct ArcText: View {
 
     extension RegionSummaryCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            for variant in [WhereStylesheet.CardStyle.Variant.regular, .compact, .elsewhere] {
+            for variant in [
+                WhereStylesheet.CardStyle.Variant.regular,
+                .compact,
+                .column,
+                .elsewhere,
+            ] {
                 themedSnapshot(variant: variant, reduceTransparency: false)
                 themedSnapshot(variant: variant, reduceTransparency: true)
             }
@@ -627,6 +632,7 @@ private struct ArcText: View {
             let name = switch variant {
                 case .regular: "Regular"
                 case .compact: "Compact"
+                case .column: "Column"
                 case .elsewhere: "Elsewhere"
             }
             return whereThemeSnapshot(
