@@ -4,19 +4,22 @@ import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
-/// Explicit month browsing controls shared by both tabletop destinations.
+/// Explicit month browsing controls for the Locations tabletop calendar.
 struct MonthNavigationControls: View {
     let report: YearReportModel
-    let history: PresenceSelectionModel
-    @BScrollPosition<CalendarPresentationState.Target> private var position: ScrollPosition
+    @Binding var monthReveal: CalendarMonthReveal?
+    @BScrollPosition<
+        CalendarPresentationState.Target,
+        CalendarContentView.ScrollContext
+    > private var position: ScrollPosition
     init(
         report: YearReportModel,
-        history: PresenceSelectionModel,
+        monthReveal: Binding<CalendarMonthReveal?>,
         region: Region? = nil,
         scrollRole: CalendarContentView.ScrollRole = .year,
     ) {
         self.report = report
-        self.history = history
+        _monthReveal = monthReveal
         _position = BScrollPosition(
             CalendarContentView.self,
             role: scrollRole,
@@ -29,7 +32,7 @@ struct MonthNavigationControls: View {
     @Environment(\.stylesheet) private var stylesheet
 
     private var month: CalendarDay {
-        if let day = history.selectedInterval(in: report.selectedYear)?.lowerBound ?? position
+        if let day = monthReveal?.month ?? position
             .viewID(type: CalendarPresentationState.Target.self)?.month
         {
             return CalendarDay(year: day.year, month: day.month, day: 1)
@@ -80,9 +83,8 @@ struct MonthNavigationControls: View {
     }
 
     private func select(_ month: Int) {
-        history.select(
+        monthReveal = CalendarMonthReveal(
             month: CalendarDay(year: report.selectedYear, month: month, day: 1),
-            dateCalendar: report.calendar,
         )
     }
 }
@@ -91,7 +93,7 @@ struct MonthNavigationControls: View {
     #Preview {
         MonthNavigationControls(
             report: PreviewSupport.loadedYearReportModel(),
-            history: PresenceSelectionModel(),
+            monthReveal: .constant(nil),
         )
         .whereBroadwayRoot()
     }

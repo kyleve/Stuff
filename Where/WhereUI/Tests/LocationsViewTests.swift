@@ -32,7 +32,7 @@ struct LocationsViewTestsDuo {
             // Returning to browsing retains the selected region for the next unfold.
             navigation.compactColumn = .sidebar
             for pose in [
-                SnapshotConfiguration.Pose.outerPortrait,
+                SnapshotConfiguration.DuoPose.outerPortrait,
                 .innerLandscape,
                 .tabletop,
                 .outerPortrait,
@@ -184,7 +184,7 @@ struct LocationsViewTestsDuo {
                 .compactMap { $0 as? UINavigationController }
                 .first { $0.viewControllers.count > 1 })
             let pushed = try #require(stack.topViewController)
-            for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop, .outerPortrait] {
+            for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop, .outerPortrait] {
                 try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                 #expect(navigation.browsePath.count == 1)
                 #expect(controllers(controller).contains { $0 === pushed })
@@ -225,7 +225,7 @@ struct LocationsViewTestsDuo {
             try await show(host) { controller in
                 let readsBeforeFolding = await store.sampleReadCount
                 for pose in [
-                    SnapshotConfiguration.Pose.outerPortrait,
+                    SnapshotConfiguration.DuoPose.outerPortrait,
                     .innerPortrait,
                     .tabletop,
                     .outerPortrait,
@@ -236,7 +236,11 @@ struct LocationsViewTestsDuo {
                 }
                 await report.select(year: 2026)
                 let readsAfterYearChange = await store.sampleReadCount
-                for pose in [SnapshotConfiguration.Pose.innerLandscape, .tabletop, .outerPortrait] {
+                for pose in [
+                    SnapshotConfiguration.DuoPose.innerLandscape,
+                    .tabletop,
+                    .outerPortrait,
+                ] {
                     try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                     #expect(await store.sampleReadCount == readsAfterYearChange)
                 }

@@ -39,7 +39,7 @@ struct LocationsView: View {
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
     @State private var navigation: LocationsView.Navigation
-    @State private var history = PresenceSelectionModel()
+    @State private var monthReveal: CalendarMonthReveal?
     @State private var calendarPresentation: CalendarPresentationState
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt = TiltProvider()
@@ -79,7 +79,7 @@ struct LocationsView: View {
                             .safeAreaInset(edge: .top, spacing: 0) {
                                 MonthNavigationControls(
                                     report: report,
-                                    history: history,
+                                    monthReveal: $monthReveal,
                                     region: navigation.selectedRegion,
                                     scrollRole: .locations,
                                 )
@@ -128,13 +128,13 @@ struct LocationsView: View {
             destination: $navigation.planningDestination,
         ))
         .onChange(of: navigation.selectedRegion) {
-            history.reset()
+            monthReveal = nil
             calendarPresentation = CalendarPresentationState(mode: CalendarModel(
                 report: report,
                 persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
             ).isOverview(fallback: false) ? .overview : .detail)
         }
-        .onChange(of: report.selectedYear) { history.reset() }
+        .onChange(of: report.selectedYear) { monthReveal = nil }
     }
 
     private var browseContent: some View {
@@ -168,7 +168,7 @@ struct LocationsView: View {
             CalendarContentView(
                 focusedRegion: navigation.selectedRegion,
                 report: report,
-                history: history,
+                monthReveal: $monthReveal,
                 presentationState: calendarPresentation,
                 presentation: presentation,
                 persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),

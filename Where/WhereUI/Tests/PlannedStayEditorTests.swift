@@ -26,7 +26,7 @@ struct PlannedStayEditorTests {
             await gate.waitUntilReached()
             do {
                 for pose in [
-                    SnapshotConfiguration.Pose.outerPortrait,
+                    SnapshotConfiguration.DuoPose.outerPortrait,
                     .innerPortrait,
                     .tabletop,
                     .outerPortrait,

@@ -351,7 +351,7 @@ struct MainTabs: View {
         private static var adaptiveSnapshots: [SnapshotCase] {
             let tabs: [MainTabSelection.TabID] = [.locations, .year, .settings]
             var cases = tabs.flatMap { tab in
-                SnapshotConfiguration.Pose.allCases.map { pose in
+                SnapshotConfiguration.DuoPose.allCases.map { pose in
                     adaptiveSnapshot(
                         tab: tab,
                         pose: pose,
@@ -361,7 +361,7 @@ struct MainTabs: View {
                 }
             }
             for tab in tabs {
-                let pose = SnapshotConfiguration.Pose.innerPortrait
+                let pose = SnapshotConfiguration.DuoPose.innerPortrait
                 let configurations = [
                     SnapshotConfiguration(colorScheme: .dark, device: pose.frame),
                     SnapshotConfiguration(dynamicType: .accessibility5, device: pose.frame),
@@ -378,7 +378,7 @@ struct MainTabs: View {
                     )
                 }
             }
-            for pose in [SnapshotConfiguration.Pose.innerPortrait, .tabletop, .book] {
+            for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop, .book] {
                 cases.append(adaptiveSnapshot(
                     tab: .locations,
                     pose: pose,
@@ -403,7 +403,7 @@ struct MainTabs: View {
 
         private static func adaptiveSnapshot(
             tab: MainTabSelection.TabID,
-            pose: SnapshotConfiguration.Pose,
+            pose: SnapshotConfiguration.DuoPose,
             configuration: SnapshotConfiguration,
             selection: DuoLayoutSnapshotFixture.Selection,
         ) -> SnapshotCase {

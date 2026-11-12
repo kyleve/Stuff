@@ -7,14 +7,14 @@ final class ScrollPositionCapture {
     var binding: Binding<ScrollPosition>?
 }
 
-struct ScrollPositionProbe<ID: Hashable & Sendable>: View {
+struct ScrollPositionProbe<ID: Hashable & Sendable, Context: Hashable>: View {
     let capture: ScrollPositionCapture
-    @BScrollPosition<ID> private var position: ScrollPosition
+    @BScrollPosition<ID, Context> private var position: ScrollPosition
 
     init(
         _ view: (some View).Type,
         role: some Hashable,
-        context: some Hashable,
+        context: Context,
         idType: ID.Type,
         capture: ScrollPositionCapture,
     ) {

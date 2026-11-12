@@ -103,15 +103,20 @@ In Locations, an active horizontal division places the selected month above the 
 A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
 The adapter uses container geometry, without device-name or hinge-angle checks.
 
-`PresenceSelectionModel` links explicit month and stay selections through typed day intervals.
-It highlights the interval and reveals it in the companion pane. Scroll observations only retain local anchors.
-Each month reveal has a typed request identity. Consuming it preserves that identity, so repeated selections work without an observer feedback loop.
-Planning sheets sit above the changing containers, with one shared presentation owner per destination.
-The developer overlay and welcome overlay use the same geometry adapter to find clear space.
+Locations owns an optional `CalendarMonthReveal` value. Month controls create a new
+request identity even when the destination is unchanged. Calendar applies the request
+once its content is ready and retains the consumed month for tabletop display.
+Calendar detail scroll restoration remains authoritative; entering overview or
+tabletop does not overwrite a saved forecast anchor. Timeline owns its typed row IDs
+and restores browsing independently, without calendar-to-timeline selection machinery.
 
-The DEBUG **Duo Layout Lab** retains one production demo world while its pose control changes bounds, traits, and synthetic regions.
-Embedded demo tools omit the session's Exit Demo action. The containing tool owns dismissal.
-Synthetic poses come from `SnapshotConfiguration.Pose`; see the measurement provenance in [SnapshotKit](../../Shared/SnapshotKit/README.md). Native runtime geometry validation remains pending.
+Planning sheets remain above changing containers, with one owner per destination.
+The welcome and developer overlays share the geometry adapter to find clear space.
+The DEBUG **Duo Layout Lab** retains one production demo world while its pose control
+changes bounds, traits, and synthetic regions. Embedded demo tools leave dismissal
+to their containing tool.
+
+Synthetic poses come from `SnapshotConfiguration.DuoPose`; see the measurement provenance in [SnapshotKit](../../Shared/SnapshotKit/README.md). Native runtime geometry validation remains pending.
 Viewport shell captures supplement full-content captures of the shared scrolling panes.
 Views apply their initial position once the corresponding content is ready.
 Synthetic layouts do not validate system bars, camera activation, or physical folding. Those require native-device checks.

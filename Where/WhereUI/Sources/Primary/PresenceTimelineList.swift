@@ -15,27 +15,37 @@ import WhereCore
 struct PresenceTimelineList: View {
     enum Presentation {
         case full
-        case linked
         case excerpt
+    }
+
+    enum RowID: Hashable {
+        case recorded(RegionStint.ID)
+        case flight(FlightAssessment.ID)
+        case planned(PlanningTimelineItem.ID)
+
+        init(_ item: PresenceJourneyItem) {
+            self = switch item {
+                case let .stay(stint): .recorded(stint.id)
+                case let .flight(flight): .flight(flight.id)
+            }
+        }
     }
 
     let report: YearReportModel
     let presentation: Presentation
     private let suppliedPlanningDestination: Binding<PlannedStaysDestination?>?
     @State private var localPlanningDestination: PlannedStaysDestination?
-    @BScrollPosition<PresenceSelectionModel.Item> private var position: ScrollPosition
+    @BScrollPosition<RowID, Int> private var position: ScrollPosition
     enum ScrollRole: Hashable { case timeline }
     private var planningDestination: Binding<PlannedStaysDestination?> {
         suppliedPlanningDestination ?? $localPlanningDestination
     }
 
     @Environment(\.stylesheet) private var stylesheet
-    @State private var history: PresenceSelectionModel
 
     init(
         report: YearReportModel,
         presentation: Presentation = .full,
-        history: PresenceSelectionModel? = nil,
         planningDestination: Binding<PlannedStaysDestination?>? = nil,
     ) {
         self.report = report
@@ -45,9 +55,8 @@ struct PresenceTimelineList: View {
             Self.self,
             role: ScrollRole.timeline,
             context: { report.selectedYear },
-            idType: PresenceSelectionModel.Item.self,
+            idType: RowID.self,
         )
-        _history = State(initialValue: history ?? PresenceSelectionModel())
     }
 
     var body: some View {
@@ -67,7 +76,7 @@ struct PresenceTimelineList: View {
                 today: report.forecasts.today,
             )
             : []
-        let rowIDs = recordedItems.map(PresenceSelectionModel.Item.init)
+        let rowIDs = recordedItems.map(RowID.init)
             + plannedItems.map { .planned($0.id) }
 
         Group {
@@ -148,7 +157,7 @@ struct PresenceTimelineList: View {
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
                         .padding(
                             .top,
-                            pinsOverview || presentation == .linked ? 0 : stylesheet.spacing.large,
+                            pinsOverview ? 0 : stylesheet.spacing.large,
                         )
                         .padding(.bottom, stylesheet.spacing.large)
                     }
@@ -157,34 +166,16 @@ struct PresenceTimelineList: View {
                         year: report.selectedYear,
                         recordedItems: recordedItems,
                         plannedItems: plannedItems,
-                        request: history.requestID,
                     )) {
                         guard !Task.isCancelled else { return }
-                        let initial = presentation == .linked ? recordedItems.last
-                            .map(PresenceSelectionModel.Item.init) : nil
-                        if let initial { _position.initialize(id: initial, anchor: .top) }
-                        else { _position.initialize(edge: .bottom) }
-                        if let target = position.viewID(type: PresenceSelectionModel.Item.self),
+                        _position.initialize(edge: .bottom)
+                        if let target = position.viewID(type: RowID.self),
                            !rowIDs.contains(target)
                         {
-                            if let initial { _position.scrollTo(id: initial, anchor: .top) }
-                            else { _position.scrollTo(edge: .bottom) }
-                        }
-                        if let request = history.pendingRequest(for: .timeline),
-                           let target = history.timelineTarget(
-                               recordedItems: recordedItems,
-                               plannedItems: plannedItems,
-                               calendar: report.calendar,
-                           )
-                        {
-                            _position.scrollTo(id: target, anchor: .top)
-                            history.consume(request.id, by: .timeline)
+                            _position.scrollTo(edge: .bottom)
                         }
                     }
-                    .defaultScrollAnchor(
-                        presentation == .linked ? .top : .bottom,
-                        for: .initialOffset,
-                    )
+                    .defaultScrollAnchor(.bottom, for: .initialOffset)
                     .id(report.selectedYear)
                 }
             }
@@ -212,7 +203,6 @@ struct PresenceTimelineList: View {
         let year: Int
         let recordedItems: [PresenceJourneyItem]
         let plannedItems: [PlanningTimelineItem]
-        let request: PresenceSelectionModel.Request.ID?
     }
 
     /// Both presentations share recorded and planned row rendering.
@@ -239,20 +229,7 @@ struct PresenceTimelineList: View {
                             cardPosition: joinsRecorded && item.id == recordedItems.last?.id
                                 ? .top : .standalone,
                         )
-                        if presentation == .excerpt {
-                            row
-                        } else {
-                            Button {
-                                history.select(stint: stint, dateCalendar: report.calendar)
-                            } label: {
-                                row.presenceSelection(isSelected(
-                                    start: CalendarDay(from: stint.start, in: report.calendar),
-                                    end: CalendarDay(from: stint.end, in: report.calendar),
-                                    region: stint.region,
-                                ))
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        row
                     case let .flight(flight):
                         FlightJourneyRow(
                             flight: flight,
@@ -263,13 +240,7 @@ struct PresenceTimelineList: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
-            // Include the content's leading gap in its first semantic target.
-            .padding(
-                .top,
-                presentation == .linked && item.id == recordedItems.first?.id
-                    ? stylesheet.spacing.large : 0,
-            )
-            .id(PresenceSelectionModel.Item(item))
+            .id(RowID(item))
         }
         ForEach(plannedItems) { item in
             let row = PlannedPresenceJourneyRow(
@@ -285,14 +256,9 @@ struct PresenceTimelineList: View {
 
             if presentation != .excerpt {
                 Button {
-                    history.select(plannedItem: item)
-                    if presentation == .full { edit(item) }
+                    edit(item)
                 } label: {
-                    row.presenceSelection(isSelected(
-                        start: item.start,
-                        end: item.end,
-                        region: item.region,
-                    ))
+                    row
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -303,12 +269,7 @@ struct PresenceTimelineList: View {
                         edit(item)
                     }
                 }
-                .padding(
-                    .top,
-                    presentation == .linked && recordedItems.isEmpty
-                        && item.id == plannedItems.first?.id ? stylesheet.spacing.large : 0,
-                )
-                .id(PresenceSelectionModel.Item.planned(item.id))
+                .id(RowID.planned(item.id))
             } else {
                 row
             }
@@ -323,13 +284,6 @@ struct PresenceTimelineList: View {
         } else {
             planningDestination.wrappedValue = .list
         }
-    }
-
-    private func isSelected(start: CalendarDay, end: CalendarDay, region: Region) -> Bool {
-        guard let selection = history.selection,
-              selection.region == nil || selection.region == region
-        else { return false }
-        return selection.interval.overlaps(start ... end)
     }
 
     private var showsForecast: Bool {
@@ -354,18 +308,6 @@ struct PresenceTimelineList: View {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .interruptedStayYearReportModel())
-                    }
-                },
-                whereSnapshot(
-                    name: "BrowseColumn",
-                    configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
-                            .browseColumn)],
-                ) {
-                    NavigationStack {
-                        PresenceTimelineList(
-                            report: PreviewSupport.loadedYearReportModel(),
-                            presentation: .linked,
-                        )
                     }
                 },
                 whereSnapshot(name: "Flights", configurations: .fullContentScreenRepresentative) {
