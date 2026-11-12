@@ -18,7 +18,7 @@ import WhereCore
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
 /// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene injects its report.
-/// This view owns the backup and reminders models above the adaptive container;
+/// This view owns the backup and reminders models above the native navigation container;
 /// the `WhereSession` coordinator (recording/location) and
 /// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
@@ -74,45 +74,47 @@ struct SettingsView: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        AdaptivePaneContainer { arrangement in
-            NavigationSplitView(
-                columnVisibility: .constant(.all),
-                preferredCompactColumn: $navigation.compactColumn,
-            ) {
-                SettingsContent(
-                    report: report,
-                    recordingWarning: recordingWarning,
-                    navigation: navigation,
-                )
-                .navigationSplitViewColumnWidth(
-                    min: stylesheet.adaptivePane.minimumControlsWidth,
-                    ideal: stylesheet.adaptivePane.minimumDetailWidth,
-                )
-            } detail: {
-                NavigationStack(path: $navigation.path) {
-                    Group {
-                        if let route = navigation.selectedRoute {
-                            destination(for: route)
-                        } else {
-                            ContentUnavailableView(
-                                String(localized: .settingsTitle),
-                                systemSymbol: .gearshape,
-                            )
-                        }
-                    }
-                    .navigationDestination(for: SettingsRoute.self) { route in
+        NavigationSplitView(
+            columnVisibility: .constant(.all),
+            preferredCompactColumn: $navigation.compactColumn,
+        ) {
+            SettingsContent(
+                report: report,
+                recordingWarning: recordingWarning,
+                navigation: navigation,
+            )
+            .navigationSplitViewColumnWidth(
+                min: stylesheet.adaptivePane.minimumControlsWidth,
+                ideal: stylesheet.adaptivePane.minimumDetailWidth,
+            )
+        } detail: {
+            NavigationStack(path: $navigation.path) {
+                Group {
+                    if let route = navigation.selectedRoute {
                         destination(for: route)
+                    } else {
+                        ContentUnavailableView(
+                            String(localized: .settingsTitle),
+                            systemSymbol: .gearshape,
+                        )
                     }
                 }
-                .navigationSplitViewColumnWidth(
-                    min: stylesheet.adaptivePane.minimumDetailWidth,
-                    ideal: stylesheet.adaptivePane.minimumDetailWidth,
-                )
+                .navigationDestination(for: SettingsRoute.self) { route in
+                    destination(for: route)
+                }
             }
-            .navigationSplitViewStyle(.balanced)
-            .environment(\.horizontalSizeClass, arrangement == .compact ? .compact : .regular)
-            .bHorizontalSizeClass(arrangement == .compact ? .compact : .regular)
+            .navigationSplitViewColumnWidth(
+                min: stylesheet.adaptivePane.minimumDetailWidth,
+                ideal: stylesheet.adaptivePane.minimumDetailWidth,
+            )
         }
+        .navigationSplitViewStyle(.balanced)
+        .environment(
+            \.horizontalSizeClass,
+            stylesheet.adaptivePane.panes == .single ? .compact : .regular,
+        )
+        .bHorizontalSizeClass(stylesheet.adaptivePane.panes == .single ? .compact : .regular)
+        .background(.background)
         .sheet(isPresented: $navigation.showRegions) {
             RegionsSettingsView(usedThisYear: regionsUsedThisYear)
         }
