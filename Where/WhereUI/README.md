@@ -109,6 +109,8 @@ once its content is ready and retains the consumed month for tabletop display.
 Calendar detail scroll restoration remains authoritative; entering overview or
 tabletop does not overwrite a saved forecast anchor. Timeline owns its typed row IDs
 and restores browsing independently, without calendar-to-timeline selection machinery.
+Settings uses native split navigation and the stylesheet's compact-layout policy;
+it does not consult Locations' tabletop geometry.
 
 Planning sheets remain above changing containers, with one owner per destination.
 The welcome and developer overlays share the geometry adapter to find clear space.
@@ -752,4 +754,3 @@ also avoids blank trailing space from lazy estimates in its bottom-anchored scro
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
-
