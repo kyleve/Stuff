@@ -5,7 +5,7 @@ import WhereCore
 
 /// Connects explicit selections to displayed history data. It owns no scroll or presentation state.
 @MainActor @Observable
-final class HistorySelectionModel {
+final class PresenceSelectionModel {
     enum Pane: Hashable { case calendar, timeline }
 
     struct Selection: Equatable {

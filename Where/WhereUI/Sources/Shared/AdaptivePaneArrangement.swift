@@ -2,9 +2,9 @@ import CoreGraphics
 
 /// Chooses a layout from available space and active reserved regions, without device or angle
 /// checks.
-enum AdaptiveHistoryArrangement: Equatable {
+enum AdaptivePaneArrangement: Equatable {
     struct Panes: Equatable {
-        var history: CGRect
+        var detail: CGRect
         var controls: CGRect
     }
 
@@ -13,12 +13,12 @@ enum AdaptiveHistoryArrangement: Equatable {
     case tabletop(Panes)
 
     static func resolve(
-        geometry: AdaptiveHistoryGeometry,
-        style: WhereStylesheet.AdaptiveHistoryStyle,
+        geometry: AdaptivePaneGeometry,
+        style: WhereStylesheet.AdaptivePaneStyle,
     ) -> Self {
         guard style.panes == .multiple else { return .compact }
         let content = geometry.contentBounds
-        guard content.width >= style.minimumHistoryWidth,
+        guard content.width >= style.minimumDetailWidth,
               content.height >= style.minimumPaneHeight
         else { return .compact }
 
@@ -28,7 +28,7 @@ enum AdaptiveHistoryArrangement: Equatable {
         guard divisions.count <= 1 else { return .compact }
         if let division = divisions.first(where: { $0.frame.width > $0.frame.height }) {
             let gap = division.frame.intersection(content)
-            let history = avoidingOcclusions(
+            let detail = avoidingOcclusions(
                 CGRect(
                     x: content.minX,
                     y: content.minY,
@@ -46,25 +46,25 @@ enum AdaptiveHistoryArrangement: Equatable {
                 ),
                 geometry: geometry,
             )
-            guard history.height >= style.minimumPaneHeight,
+            guard detail.height >= style.minimumPaneHeight,
                   controls.height >= style.minimumPaneHeight,
-                  history.width >= style.minimumHistoryWidth,
+                  detail.width >= style.minimumDetailWidth,
                   controls.width >= style.minimumControlsWidth
             else { return .compact }
-            return .tabletop(Panes(history: history, controls: controls))
+            return .tabletop(Panes(detail: detail, controls: controls))
         }
 
         if let division = divisions.first {
             let gap = division.frame.intersection(content)
             let controlsWidth = geometry.layoutDirection == .leftToRight
                 ? gap.minX - content.minX : content.maxX - gap.maxX
-            let historyWidth = geometry.layoutDirection == .leftToRight
+            let detailWidth = geometry.layoutDirection == .leftToRight
                 ? content.maxX - gap.maxX : gap.minX - content.minX
             guard controlsWidth >= style.minimumControlsWidth,
-                  historyWidth >= style.minimumHistoryWidth
+                  detailWidth >= style.minimumDetailWidth
             else { return .compact }
         } else {
-            guard content.width >= style.minimumControlsWidth + style.minimumHistoryWidth
+            guard content.width >= style.minimumControlsWidth + style.minimumDetailWidth
             else { return .compact }
         }
         return .columns
@@ -74,7 +74,7 @@ enum AdaptiveHistoryArrangement: Equatable {
     /// Edge occlusions already outside the content safe area do not reduce it again.
     private static func avoidingOcclusions(
         _ pane: CGRect,
-        geometry: AdaptiveHistoryGeometry,
+        geometry: AdaptivePaneGeometry,
     ) -> CGRect {
         geometry.regions.reduce(pane) { available, region in
             guard region.isActive, region.kind == .occlusion,

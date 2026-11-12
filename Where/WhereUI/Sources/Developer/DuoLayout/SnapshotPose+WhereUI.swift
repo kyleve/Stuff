@@ -15,9 +15,9 @@
             }
         }
 
-        var regions: [AdaptiveHistoryReservedRegion] {
+        var regions: [AdaptivePaneReservedRegion] {
             reservedRegions.map { region in
-                let kind: AdaptiveHistoryReservedRegion.Kind = switch region.kind {
+                let kind: AdaptivePaneReservedRegion.Kind = switch region.kind {
                     case .division: .division
                     case .occlusion: .occlusion
                 }

@@ -161,9 +161,9 @@ Layering, localization, preview, and testing conventions live in the feature
   interrupted, while warm resumes never replay it.
 - Measure calendar month sections, day rows, and Timeline rows eagerly so full-content measurement and scroll restoration use their actual heights. Guards: `CalendarContentViewSnapshotTests`, `PresenceTimelineListSnapshotTests`.
 - Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep active drill-in stacks mounted while folding; defer tabletop composition until returning.
-- Read system reserved regions only in `AdaptiveHistoryGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
-- Link explicit month and stay selections through `HistorySelectionModel`. Keep domain identities typed. Use BroadwayUI scroll restoration for current-context anchors; scrolling must not select or move a companion pane.
-- Give each explicit month reveal a typed request identity and retain it when consumed. Resolve anchors against displayed stay segments and flight IDs. Guard: `HistorySelectionModelTests`.
+- Read system reserved regions only in `AdaptivePaneGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
+- Link explicit month and stay selections through `PresenceSelectionModel`. Keep domain identities typed. Use BroadwayUI scroll restoration for current-context anchors; scrolling must not select or move a companion pane.
+- Give each explicit month reveal a typed request identity and retain it when consumed. Resolve anchors against displayed stay segments and flight IDs. Guard: `PresenceSelectionModelTests`.
 - Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.

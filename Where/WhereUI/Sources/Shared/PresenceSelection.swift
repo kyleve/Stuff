@@ -1,6 +1,6 @@
 import SwiftUI
 
-private struct HistorySelection: ViewModifier {
+private struct PresenceSelection: ViewModifier {
     let isSelected: Bool
     let cornerRadius: CGFloat?
     @Environment(\.stylesheet) private var stylesheet
@@ -9,7 +9,7 @@ private struct HistorySelection: ViewModifier {
         content
             .overlay {
                 if isSelected {
-                    let style = stylesheet.adaptiveHistory.selection
+                    let style = stylesheet.adaptivePane.selection
                     RoundedRectangle(cornerRadius: cornerRadius ?? style.cornerRadius)
                         .strokeBorder(style.border, lineWidth: style.borderWidth)
                         .allowsHitTesting(false)
@@ -20,7 +20,7 @@ private struct HistorySelection: ViewModifier {
 }
 
 extension View {
-    func historySelection(_ isSelected: Bool, cornerRadius: CGFloat? = nil) -> some View {
-        modifier(HistorySelection(isSelected: isSelected, cornerRadius: cornerRadius))
+    func presenceSelection(_ isSelected: Bool, cornerRadius: CGFloat? = nil) -> some View {
+        modifier(PresenceSelection(isSelected: isSelected, cornerRadius: cornerRadius))
     }
 }

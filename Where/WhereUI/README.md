@@ -700,17 +700,17 @@ Developer Overlay snapshots retain their scene for native glass rendering. Detac
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
 
-## Adaptive history foundations
+## Adaptive pane foundations
 
-Stable destination views own navigation and presentation state. `HistorySelectionModel`
+Stable destination views own navigation and presentation state. `PresenceSelectionModel`
 connects explicit month and stay selections through requests consumed independently
 by each pane. BroadwayUI retains scroll positions for the current context only.
 Changing region or year discards the old position; ordinary scrolling never selects
 or moves a companion pane. Synthetic pose geometry comes from `SnapshotConfiguration.Pose`.
 
-`AdaptiveHistoryGeometry` maps safe areas and reserved regions into physical
-container coordinates. `AdaptiveHistoryArrangement` applies the stylesheet's pane
-limits. `AdaptiveHistoryContainer` hosts compact, columns, and tabletop arrangements.
+`AdaptivePaneGeometry` maps safe areas and reserved regions into physical
+container coordinates. `AdaptivePaneArrangement` applies the stylesheet's pane
+limits. `AdaptivePaneContainer` hosts compact, columns, and tabletop arrangements.
 The DEBUG Testing SPI supplies synthetic reserved regions to the same adapter.
 
 This foundation does not replace the current destination containers. The dependent

@@ -2,11 +2,11 @@ import SwiftUI
 import Testing
 @testable import WhereUI
 
-struct AdaptiveHistoryStyleTests {
-    @Test func defaultsRequireEnoughRoomForReadableHistoryAndControls() {
-        let style = WhereStylesheet.default.adaptiveHistory
+struct AdaptivePaneStyleTests {
+    @Test func defaultsRequireEnoughRoomForReadableDetailAndControls() {
+        let style = WhereStylesheet.default.adaptivePane
         #expect(style.panes == .single)
-        #expect(style.minimumHistoryWidth == 320)
+        #expect(style.minimumDetailWidth == 320)
         #expect(style.minimumControlsWidth == 280)
         #expect(style.minimumPaneHeight == 220)
         #expect(style.selection.cornerRadius == 8)

@@ -5,11 +5,11 @@ import Testing
 @_spi(Testing) @testable import WhereUI
 
 @MainActor
-struct AdaptiveHistoryContainerTests {
+struct AdaptivePaneContainerTests {
     @Test func oneMountedContainerRespondsToBoundsTraitsAndReservedRegions() async throws {
-        let state = AdaptiveHistoryHostState()
-        let host = UIHostingController(rootView: AdaptiveHistoryHostedSurface(state: state) {
-            AdaptiveHistoryContainer { arrangement in
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
+            AdaptivePaneContainer { arrangement in
                 Color.clear.onChange(of: arrangement, initial: true) { _, value in
                     state.arrangement = value
                 }
@@ -26,12 +26,12 @@ struct AdaptiveHistoryContainerTests {
                     .narrow,
                     .outerPortrait,
                 ] {
-                    try await AdaptiveHistoryTestSupport.resize(controller, state: state, to: pose)
-                    let expected: AdaptiveHistoryArrangement = switch pose {
+                    try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
+                    let expected: AdaptivePaneArrangement = switch pose {
                         case .outerPortrait, .outerLandscape, .narrow: .compact
                         case .innerPortrait, .innerLandscape, .book: .columns
                         case .tabletop: .tabletop(.init(
-                                history: CGRect(x: 0, y: 0, width: 669, height: 455.5),
+                                detail: CGRect(x: 0, y: 0, width: 669, height: 455.5),
                                 controls: CGRect(x: 0, y: 495.5, width: 669, height: 455.5),
                             ))
                     }
@@ -39,7 +39,7 @@ struct AdaptiveHistoryContainerTests {
                         state.arrangement == expected
                     }
                     if case let .tabletop(panes) = state.arrangement {
-                        #expect(panes.history.maxY == 455.5)
+                        #expect(panes.detail.maxY == 455.5)
                         #expect(panes.controls.minY == 495.5)
                     }
                 }

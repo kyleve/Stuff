@@ -5,10 +5,10 @@ import SwiftUI
 import TestHostSupport
 @_spi(Testing) @testable import WhereUI
 
-enum AdaptiveHistoryTestSupport {
+enum AdaptivePaneTestSupport {
     /// Native inner-portrait measurements; frames include reserved-region margins.
-    static var portrait: AdaptiveHistoryGeometry {
-        AdaptiveHistoryGeometry(
+    static var portrait: AdaptivePaneGeometry {
+        AdaptivePaneGeometry(
             bounds: CGRect(x: 0, y: 0, width: 669, height: 951),
             insets: .init(top: 82, left: 0, bottom: 34, right: 0),
             regions: [],
@@ -16,7 +16,7 @@ enum AdaptiveHistoryTestSupport {
         )
     }
 
-    static var horizontalDivision: AdaptiveHistoryGeometry.Region {
+    static var horizontalDivision: AdaptivePaneGeometry.Region {
         .init(
             kind: .division,
             frame: CGRect(x: 0, y: 455.5, width: 669, height: 40),
@@ -24,51 +24,51 @@ enum AdaptiveHistoryTestSupport {
         )
     }
 
-    static var multiplePaneStyle: WhereStylesheet.AdaptiveHistoryStyle {
-        var style = WhereStylesheet.AdaptiveHistoryStyle()
+    static var multiplePaneStyle: WhereStylesheet.AdaptivePaneStyle {
+        var style = WhereStylesheet.AdaptivePaneStyle()
         style.panes = .multiple
         return style
     }
 }
 
 @MainActor @Observable
-final class AdaptiveHistoryHostState {
+final class AdaptivePaneHostState {
     var pose = SnapshotConfiguration.Pose.outerPortrait
     var renderedSize: CGSize = .zero
-    var panes = WhereStylesheet.AdaptiveHistoryStyle.Panes.single
-    var arrangement: AdaptiveHistoryArrangement?
+    var panes = WhereStylesheet.AdaptivePaneStyle.Panes.single
+    var arrangement: AdaptivePaneArrangement?
 }
 
-struct AdaptiveHistoryHostedSurface<Content: View>: View {
-    let state: AdaptiveHistoryHostState
+struct AdaptivePaneHostedSurface<Content: View>: View {
+    let state: AdaptivePaneHostState
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         content()
-            .adaptiveHistoryReservedRegions(state.pose.regions)
-            .overlay { AdaptiveHistoryPolicyProbe(state: state) }
+            .adaptivePaneReservedRegions(state.pose.regions)
+            .overlay { AdaptivePanePolicyProbe(state: state) }
             .whereBroadwayRoot()
             .onGeometryChange(for: CGSize.self) { $0.size } action: { state.renderedSize = $0 }
     }
 }
 
-private struct AdaptiveHistoryPolicyProbe: View {
-    let state: AdaptiveHistoryHostState
+private struct AdaptivePanePolicyProbe: View {
+    let state: AdaptivePaneHostState
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         Color.clear
             .allowsHitTesting(false)
-            .onChange(of: stylesheet.adaptiveHistory.panes, initial: true) { _, panes in
+            .onChange(of: stylesheet.adaptivePane.panes, initial: true) { _, panes in
                 state.panes = panes
             }
     }
 }
 
-extension AdaptiveHistoryTestSupport {
+extension AdaptivePaneTestSupport {
     @MainActor static func resize(
         _ controller: UIViewController,
-        state: AdaptiveHistoryHostState,
+        state: AdaptivePaneHostState,
         to pose: SnapshotConfiguration.Pose,
     ) async throws {
         state.pose = pose

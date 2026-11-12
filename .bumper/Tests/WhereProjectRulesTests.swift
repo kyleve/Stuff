@@ -7,7 +7,7 @@ struct WhereProjectRulesTests {
     func `system reserved regions use one geometry adapter`() throws {
         let source = "let regions = proxy.reservedRegions(kind: .division, options: .includeInactive, layoutDirectionBehavior: .fixed)"
         let allowed = try evaluate(
-            path: "Where/WhereUI/Sources/Shared/AdaptiveHistoryGeometry.swift",
+            path: "Where/WhereUI/Sources/Shared/AdaptivePaneGeometry.swift",
             component: .whereUI,
             source: source,
         )

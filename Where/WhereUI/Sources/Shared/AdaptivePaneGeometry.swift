@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Container geometry in one coordinate space. Insets belong to independent physical edges.
 /// Reserved-region frames already include the system's margins.
-struct AdaptiveHistoryGeometry: Equatable {
+struct AdaptivePaneGeometry: Equatable {
     struct Insets: Equatable {
         var top: CGFloat
         var left: CGFloat

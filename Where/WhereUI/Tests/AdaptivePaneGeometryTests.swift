@@ -2,9 +2,9 @@ import CoreGraphics
 import Testing
 @testable import WhereUI
 
-struct AdaptiveHistoryGeometryTests {
+struct AdaptivePaneGeometryTests {
     @Test func independentInsetsRetainTheContainersCoordinateSpace() {
-        let geometry = AdaptiveHistoryGeometry(
+        let geometry = AdaptivePaneGeometry(
             bounds: CGRect(x: 20, y: 30, width: 800, height: 600),
             insets: .init(top: 20, left: 50, bottom: 30, right: 80),
             regions: [],
@@ -14,7 +14,7 @@ struct AdaptiveHistoryGeometryTests {
     }
 
     @Test func insetsNeverProduceNegativePaneDimensions() {
-        var geometry = AdaptiveHistoryTestSupport.portrait
+        var geometry = AdaptivePaneTestSupport.portrait
         geometry.bounds.size = CGSize(width: 20, height: 20)
         geometry.insets.left = 30
         #expect(geometry.contentBounds.width == 0)
@@ -22,8 +22,8 @@ struct AdaptiveHistoryGeometryTests {
     }
 
     @Test func floatingControlsChooseTheirSideOfAnActiveHinge() {
-        var geometry = AdaptiveHistoryTestSupport.portrait
-        geometry.regions = [AdaptiveHistoryTestSupport.horizontalDivision]
+        var geometry = AdaptivePaneTestSupport.portrait
+        geometry.regions = [AdaptivePaneTestSupport.horizontalDivision]
         let lower = geometry.unobstructedBounds(near: CGPoint(x: 669, y: 917))
         #expect(lower.minY == 495.5)
         #expect(lower.maxY == 917)
@@ -34,9 +34,9 @@ struct AdaptiveHistoryGeometryTests {
     }
 
     @Test func floatingControlsAvoidAnActiveCameraWithoutMirroringRTL() {
-        var geometry = AdaptiveHistoryTestSupport.portrait
+        var geometry = AdaptivePaneTestSupport.portrait
         geometry.layoutDirection = .rightToLeft
-        let camera = AdaptiveHistoryGeometry.Region(
+        let camera = AdaptivePaneGeometry.Region(
             kind: .occlusion,
             frame: CGRect(x: 600, y: 820, width: 69, height: 97),
             isActive: true,

@@ -57,9 +57,9 @@ struct WhereStylesheetTests {
         context.traitOverrides.verticalSizeClass = BVerticalSizeClass(vertical)
         context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.large)
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
-        let expected: WhereStylesheet.AdaptiveHistoryStyle.Panes =
+        let expected: WhereStylesheet.AdaptivePaneStyle.Panes =
             horizontal == .regular && vertical == .regular ? .multiple : .single
-        #expect(sheet.adaptiveHistory.panes == expected)
+        #expect(sheet.adaptivePane.panes == expected)
     }
 
     @MainActor
@@ -68,12 +68,12 @@ struct WhereStylesheetTests {
         context.traitOverrides.horizontalSizeClass = .regular
         context.traitOverrides.verticalSizeClass = .regular
         context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.large)
-        let regular = try context.stylesheets.get(WhereStylesheet.self).adaptiveHistory
+        let regular = try context.stylesheets.get(WhereStylesheet.self).adaptivePane
         #expect(regular.panes == .multiple)
         context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.accessibility1)
-        let accessible = try context.stylesheets.get(WhereStylesheet.self).adaptiveHistory
+        let accessible = try context.stylesheets.get(WhereStylesheet.self).adaptivePane
         #expect(accessible.panes == .single)
-        #expect(accessible.minimumHistoryWidth == regular.minimumHistoryWidth)
+        #expect(accessible.minimumDetailWidth == regular.minimumDetailWidth)
         #expect(accessible.minimumControlsWidth == regular.minimumControlsWidth)
     }
 

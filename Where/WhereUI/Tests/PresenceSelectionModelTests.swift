@@ -3,11 +3,11 @@ import WhereCore
 @testable import WhereUI
 
 @MainActor
-struct HistorySelectionModelTests {
+struct PresenceSelectionModelTests {
     private let calendar = HistoryNavigationTestSupport.calendar
 
     @Test func eachPaneConsumesItsRequestIndependentlyAndRepeatedSelectionGetsANewID() throws {
-        let model = HistorySelectionModel()
+        let model = PresenceSelectionModel()
         let month = CalendarDay(year: 2026, month: 3, day: 1)
         model.select(month: month, dateCalendar: calendar)
         let first = try #require(model.pendingRequest(for: .calendar))
@@ -27,7 +27,7 @@ struct HistorySelectionModelTests {
     }
 
     @Test func aPendingMonthResolvesWhenAnOverlappingStayArrivesOrExtends() {
-        let model = HistorySelectionModel()
+        let model = PresenceSelectionModel()
         let january = CalendarDay(year: 2026, month: 1, day: 20)
         let february = CalendarDay(year: 2026, month: 2, day: 1)
         model.select(month: february, dateCalendar: calendar)
@@ -56,7 +56,7 @@ struct HistorySelectionModelTests {
     }
 
     @Test func resolvesDisplayedSegmentsAndCrossMonthFlights() throws {
-        let model = HistorySelectionModel()
+        let model = PresenceSelectionModel()
         let january = CalendarDay(year: 2026, month: 1, day: 1)
         let february = CalendarDay(year: 2026, month: 2, day: 1)
         let stint = HistoryNavigationTestSupport.stint(
@@ -75,10 +75,10 @@ struct HistorySelectionModelTests {
         )
         let displayed = try #require(items.last)
         model.select(month: february, dateCalendar: calendar)
-        #expect(HistorySelectionModel.Item(displayed) != .recorded(stint.id))
+        #expect(PresenceSelectionModel.Item(displayed) != .recorded(stint.id))
         #expect(model
             .timelineTarget(recordedItems: items, plannedItems: [], calendar: calendar) ==
-            HistorySelectionModel.Item(displayed))
+            PresenceSelectionModel.Item(displayed))
         let crossing = HistoryNavigationTestSupport.flight(
             from: february.adding(days: -1),
             through: february,
@@ -91,7 +91,7 @@ struct HistorySelectionModelTests {
     }
 
     @Test func explicitStaySelectionRetainsTypedIdentityAndInterval() {
-        let model = HistorySelectionModel()
+        let model = PresenceSelectionModel()
         let start = CalendarDay(year: 2026, month: 2, day: 27)
         let end = CalendarDay(year: 2026, month: 3, day: 5)
         let stint = HistoryNavigationTestSupport.stint(from: start, through: end)

@@ -36,7 +36,7 @@ struct WhereStylesheet: BStylesheet {
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
     var loggedDay = LoggedDayStyle()
-    var adaptiveHistory = AdaptiveHistoryStyle()
+    var adaptivePane = AdaptivePaneStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -58,7 +58,7 @@ struct WhereStylesheet: BStylesheet {
            traits.verticalSizeClass == .regular,
            !traits.contentSizeCategory.isAccessibilitySize
         {
-            adaptiveHistory.panes = .multiple
+            adaptivePane.panes = .multiple
         }
 
         developerOverlay.launcher.diameter = BScaledDimension.value(

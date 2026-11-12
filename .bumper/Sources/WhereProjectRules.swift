@@ -314,7 +314,7 @@ private let reservedRegionLayoutOwnershipRule = Rules.files(
     summary: "WhereUI reads system reserved regions through its shared geometry adapter.",
     scope: .component(WhereComponent.whereUI),
 ) { file in
-    guard file.path.rawValue != "Where/WhereUI/Sources/Shared/AdaptiveHistoryGeometry.swift"
+    guard file.path.rawValue != "Where/WhereUI/Sources/Shared/AdaptivePaneGeometry.swift"
     else { return [] }
     return functionCalls()
         .filter { match in
@@ -323,10 +323,10 @@ private let reservedRegionLayoutOwnershipRule = Rules.files(
         .matches(in: file)
         .map { match in
             match.failure(
-                message: "Reserved regions are read outside AdaptiveHistoryGeometry.",
+                message: "Reserved regions are read outside AdaptivePaneGeometry.",
                 evidence: ViolationEvidence(
                     observed: file.path.rawValue,
-                    expectation: "use AdaptiveHistoryGeometry or AdaptiveHistoryContainer",
+                    expectation: "use AdaptivePaneGeometry or AdaptivePaneContainer",
                 ),
             )
         }

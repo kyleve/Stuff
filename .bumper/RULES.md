@@ -94,8 +94,8 @@ its documented observation-task lifecycle.
 
 ## Reserved-region layout ownership
 
-`where.reserved_region_layout_ownership` permits `reservedRegions` calls only in `AdaptiveHistoryGeometry` within WhereUI.
-Views use that adapter or `AdaptiveHistoryContainer`. Keep the system margins and physical coordinate mapping there.
+`where.reserved_region_layout_ownership` permits `reservedRegions` calls only in `AdaptivePaneGeometry` within WhereUI.
+Views use that adapter or `AdaptivePaneContainer`. Keep the system margins and physical coordinate mapping there.
 The syntax guard checks member-call spelling; it does not resolve aliases or function references.
 `WhereProjectRulesTests` covers direct member-call mutations.
 
