@@ -1,3 +1,4 @@
+import AccessibilitySnapshotParser
 import BroadwayUI
 import RegionKit
 import SnapshotKit
@@ -17,6 +18,43 @@ struct LocationsViewTests {
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
+    @Test func selectedRegionIsIndicatedOnlyBesideItsCalendar() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        let navigation = LocationsView.Navigation()
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
+            LocationsView(report: world.report, navigation: navigation)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            controller.view.window?.layer.speed = 1
+            navigation.select(region: .california)
+            // Returning to browsing retains the selected region for the next unfold.
+            navigation.compactColumn = .sidebar
+            for pose in [
+                SnapshotConfiguration.Pose.outerPortrait,
+                .innerLandscape,
+                .tabletop,
+                .outerPortrait,
+            ] {
+                try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
+                try await waitForStage("California card after \(pose)") {
+                    HostedAccessibility.objects(in: controller.view).contains {
+                        $0.accessibilityLabel?.hasPrefix("California:") == true
+                            && $0.accessibilityTraits.contains(.button)
+                            && $0.accessibilityFrame.intersects(controller.view.convert(
+                                controller.view.bounds,
+                                to: nil,
+                            ))
+                            && $0.accessibilityTraits
+                            .contains(.selected) == (pose != .outerPortrait)
+                    }
+                }
+                #expect(navigation.selectedRegion == .california)
+            }
+        }
+    }
+
     @Test func initialBrowsePositionFollowsInsetsUntilARegionIsRestored() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()
@@ -60,10 +98,15 @@ struct LocationsViewTestsDuo {
             }
             for topInset in [CGFloat(82), 0, 56, 0] {
                 let previousInset = scroll.adjustedContentInset.top
+                let previousHostInset = controller.view.safeAreaInsets.top
                 controller.additionalSafeAreaInsets.top = topInset
                 controller.view.setNeedsLayout()
-                controller.view.window?.layoutIfNeeded()
+                // Lay out the host whose safe area changed, not only its window.
+                controller.view.layoutIfNeeded()
                 do {
+                    try await waitForStage("host safe area after requested inset \(topInset)") {
+                        abs(controller.view.safeAreaInsets.top - previousHostInset) > 1
+                    }
                     try await waitForStage(
                         "top anchoring after inset \(previousInset) -> requested \(topInset)",
                     ) {
@@ -73,7 +116,7 @@ struct LocationsViewTestsDuo {
                     }
                 } catch {
                     throw TestHostError(
-                        "\(error); adjusted=\(scroll.adjustedContentInset), offset=\(scroll.contentOffset), bounds=\(scroll.bounds), content=\(scroll.contentSize), attached=\(scroll.window != nil), current=\(String(describing: currentScroll()))",
+                        "\(error); requested=\(controller.additionalSafeAreaInsets), hostSafeArea=\(controller.view.safeAreaInsets), scrollSafeArea=\(scroll.safeAreaInsets), adjusted=\(scroll.adjustedContentInset), offset=\(scroll.contentOffset), bounds=\(scroll.bounds), content=\(scroll.contentSize), attached=\(scroll.window != nil), current=\(String(describing: currentScroll()))",
                     )
                 }
                 let current = try #require(currentScroll())
