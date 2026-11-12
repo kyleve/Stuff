@@ -30,17 +30,14 @@
         enum Selection: Equatable {
             case none
             case region
-            case stay
-            case month(CalendarDay)
+            case timeline
             case settings
         }
 
         let model = DuoLayoutLabModel()
         let artwork = RegionOutlinePathCache()
         let tab: MainTabSelection.TabID
-        let history = PresenceSelectionModel()
         let selection: Selection
-        private var didSelect = false
 
         init(tab: MainTabSelection.TabID, selection: Selection) {
             self.tab = tab
@@ -54,33 +51,6 @@
                 await Task.yield()
             }
             guard case let .loaded(world) = model.state else { return }
-            if !didSelect {
-                didSelect = true
-                switch selection {
-                    case .none: break
-                    case .region:
-                        break
-                    case .stay:
-                        if let report = world.report.report,
-                           let stint = PresenceTimeline.stints(
-                               from: report,
-                               calendar: world.report.calendar,
-                           ).first
-                        {
-                            history.select(
-                                stint: stint,
-                                dateCalendar: world.report.calendar,
-                            )
-                        }
-                    case let .month(month):
-                        history.select(
-                            month: month,
-                            dateCalendar: world.report.calendar,
-                        )
-                    case .settings:
-                        break
-                }
-            }
             for region in LocationsBackgroundArtwork.regions(in: world.report.ranking) {
                 _ = await artwork.path(for: region, resolution: .small)
                 _ = await artwork.path(for: region, resolution: .medium)
@@ -114,7 +84,7 @@
                             region: fixture.selection == .region ? .california : nil,
                             settingsRoute: fixture
                                 .selection == .settings ? SettingsRoute(.appearance) : nil,
-                            history: fixture.history,
+                            yearMode: fixture.selection == .timeline ? .timeline : .calendar,
                         )
                         .environment(world.model)
                         .environment(world.session)

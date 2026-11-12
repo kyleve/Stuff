@@ -160,6 +160,8 @@ Layering, localization, preview, and testing conventions live in the feature
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
 - Measure calendar month sections, day rows, and Timeline rows eagerly so full-content measurement and scroll restoration use their actual heights. Guards: `CalendarContentViewSnapshotTests`, `PresenceTimelineListSnapshotTests`.
+- Keep Your Year in one navigation stack with its bottom calendar/timeline selector at every size. Guard: `YearViewTests`.
+- Show Locations selection indicators only when browsing and calendar panes are displayed together. Guard: `LocationsViewTestsDuo.selectedRegionIsIndicatedOnlyBesideItsCalendar`.
 - Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep active drill-in stacks mounted while folding; defer tabletop composition until returning.
 - Read system reserved regions only in `AdaptivePaneGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
 - Keep explicit reveal requests in the owning view, with typed request identities distinct from content identities. Use BroadwayUI scroll restoration for current-context anchors; scrolling must not select or move another pane.

@@ -11,7 +11,6 @@ struct YearView: View {
     let report: YearReportModel
 
     @State private var mode: YearMode
-    @State private var history: PresenceSelectionModel
     @State private var planningDestination: PlannedStaysDestination?
     @State private var calendarPresentation: CalendarPresentationState
 
@@ -20,125 +19,14 @@ struct YearView: View {
     init(
         report: YearReportModel,
         initialMode: YearMode = .calendar,
-        history: PresenceSelectionModel? = nil,
     ) {
         self.report = report
         _mode = State(initialValue: initialMode)
-        _history = State(initialValue: history ?? PresenceSelectionModel())
         _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
             report: report,
             persistenceKey: .year,
         ).isOverview(fallback: false) ? .overview : .detail))
     }
-
-    var body: some View {
-        AdaptivePaneContainer { arrangement in
-            switch arrangement {
-                case .compact:
-                    YearCompactContent(
-                        report: report,
-                        mode: $mode,
-                        history: history,
-                        calendarPresentation: calendarPresentation,
-                        planningDestination: $planningDestination,
-                    )
-                case .columns:
-                    NavigationSplitView(columnVisibility: .constant(.all)) {
-                        timeline(presentation: .linked)
-                            .navigationSplitViewColumnWidth(
-                                min: stylesheet.adaptivePane.minimumControlsWidth,
-                                ideal: stylesheet.adaptivePane.minimumControlsWidth,
-                            )
-                    } detail: {
-                        calendar(presentation: .year)
-                            .navigationSplitViewColumnWidth(
-                                min: stylesheet.adaptivePane.minimumDetailWidth,
-                                ideal: stylesheet.adaptivePane.minimumDetailWidth,
-                            )
-                    }
-                    .navigationSplitViewStyle(.balanced)
-                case let .tabletop(panes):
-                    TabletopPaneLayout(panes: panes) {
-                        NavigationStack { calendar(presentation: .month) }
-                    } controls: {
-                        NavigationStack {
-                            timeline(presentation: .linked)
-                                .safeAreaInset(edge: .top, spacing: 0) {
-                                    MonthNavigationControls(
-                                        report: report,
-                                        history: history,
-                                    )
-                                }
-                        }
-                    }
-            }
-        }
-        .modifier(PlanningPresentation(report: report, destination: $planningDestination))
-        .onChange(of: report.selectedYear) { history.reset() }
-    }
-
-    private func calendar(presentation: CalendarContentView.Presentation) -> some View {
-        CalendarContentView(
-            report: report,
-            history: history,
-            presentationState: calendarPresentation,
-            presentation: presentation,
-            persistenceKey: .year,
-            scrollRole: .year,
-            planningDestination: $planningDestination,
-        )
-        .navigationTitle(String(localized: .primaryCalendar))
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func timeline(presentation: PresenceTimelineList.Presentation) -> some View {
-        PresenceTimelineList(
-            report: report,
-            presentation: presentation,
-            history: history,
-            planningDestination: $planningDestination,
-        )
-        .navigationTitle(String(localized: .primaryTimeline))
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-/// The single-pane production presentation, also captured in full for content completeness.
-struct YearCompactView: View {
-    let report: YearReportModel
-    @State private var mode = YearMode.calendar
-    @State private var history = PresenceSelectionModel()
-    @State private var planningDestination: PlannedStaysDestination?
-    @State private var calendarPresentation: CalendarPresentationState
-
-    init(report: YearReportModel) {
-        self.report = report
-        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
-            report: report,
-            persistenceKey: .year,
-        ).isOverview(fallback: false) ? .overview : .detail))
-    }
-
-    var body: some View {
-        YearCompactContent(
-            report: report,
-            mode: $mode,
-            history: history,
-            calendarPresentation: calendarPresentation,
-            planningDestination: $planningDestination,
-        )
-        .bScrollRestorationScope()
-        .modifier(PlanningPresentation(report: report, destination: $planningDestination))
-    }
-}
-
-private struct YearCompactContent: View {
-    let report: YearReportModel
-    @Binding var mode: YearMode
-    let history: PresenceSelectionModel
-    let calendarPresentation: CalendarPresentationState
-    @Binding var planningDestination: PlannedStaysDestination?
-    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         NavigationStack {
@@ -147,7 +35,6 @@ private struct YearCompactContent: View {
                     case .calendar:
                         CalendarContentView(
                             report: report,
-                            history: history,
                             presentationState: calendarPresentation,
                             persistenceKey: .year,
                             scrollRole: .year,
@@ -156,7 +43,6 @@ private struct YearCompactContent: View {
                     case .timeline:
                         PresenceTimelineList(
                             report: report,
-                            history: history,
                             planningDestination: $planningDestination,
                         )
                 }
@@ -175,6 +61,7 @@ private struct YearCompactContent: View {
                     .padding(.bottom, stylesheet.spacing.xLarge)
             }
         }
+        .modifier(PlanningPresentation(report: report, destination: $planningDestination))
     }
 }
 
@@ -268,14 +155,14 @@ private struct YearModePicker: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                YearCompactView(report: PreviewSupport.loadedYearReportModel())
+                YearView(report: PreviewSupport.loadedYearReportModel())
             }
             whereSnapshot(
                 name: "Empty",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                YearCompactView(report: PreviewSupport.emptyYearReportModel())
+                YearView(report: PreviewSupport.emptyYearReportModel())
             }
             whereSnapshot(
                 name: "RestoredOverview",
