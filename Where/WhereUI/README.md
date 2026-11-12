@@ -86,19 +86,20 @@ A report-year change waits for matching data before positioning. Stale visibilit
 Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
 The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
 Timeline stays also measure eagerly so resizing cannot shift the content origin.
-Timeline anchors refer to displayed stay segments or flight identities. Month
-selection reveals the first overlapping displayed entry.
+Timeline anchors refer to displayed stay segments or flight identities.
+Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
 Without a region selection, the detail pane shows the year calendar.
-Your Year shows the calendar and timeline together. Settings uses native list and detail navigation.
+Your Year uses one navigation stack and the bottom calendar/timeline selector at every window size.
+Settings uses native list and detail navigation.
 Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
-Narrow windows and accessibility text sizes use one pane. The compact calendar/timeline choice remains stored while both panes are visible.
+Narrow windows and accessibility text sizes use one pane. Locations marks the selected region only while its browsing and calendar panes are shown together.
 Theme choices stack when the available pane cannot fit two readable card specimens.
 
 `AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
 `AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
-An active horizontal division places the selected month above the hinge and browsing controls below it.
+In Locations, an active horizontal division places the selected month above the hinge and browsing controls below it.
 A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
 The adapter uses container geometry, without device-name or hinge-angle checks.
 

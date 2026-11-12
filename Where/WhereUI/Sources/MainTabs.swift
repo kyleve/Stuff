@@ -36,7 +36,7 @@ struct MainTabs: View {
     @State private var selection = MainTabSelection()
     private var initialRegion: Region?
     private var initialSettingsRoute: SettingsRoute?
-    private var initialHistory: PresenceSelectionModel?
+    private var initialYearMode: YearMode = .calendar
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
@@ -95,7 +95,7 @@ struct MainTabs: View {
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
-                YearView(report: report, history: initialHistory)
+                YearView(report: report, initialMode: initialYearMode)
                     .reportingDeveloperTabBarInset()
             }
 
@@ -227,7 +227,7 @@ struct MainTabs: View {
             tab: TabID = .locations,
             region: Region? = nil,
             settingsRoute: SettingsRoute? = nil,
-            history: PresenceSelectionModel? = nil,
+            yearMode: YearMode = .calendar,
         ) {
             self.init(
                 session: world.session,
@@ -241,7 +241,7 @@ struct MainTabs: View {
             )
             initialRegion = region
             initialSettingsRoute = settingsRoute
-            initialHistory = history
+            initialYearMode = yearMode
         }
     #endif
 }
@@ -389,7 +389,7 @@ struct MainTabs: View {
                     tab: .year,
                     pose: pose,
                     configuration: SnapshotConfiguration(device: pose.frame),
-                    selection: .stay,
+                    selection: .timeline,
                 ))
             }
             cases.append(adaptiveSnapshot(
@@ -397,13 +397,6 @@ struct MainTabs: View {
                 pose: .innerPortrait,
                 configuration: SnapshotConfiguration(device: .duoInnerPortrait),
                 selection: .settings,
-            ))
-            // May 2026 occupies six rows in the demo's Sunday-first calendar.
-            cases.append(adaptiveSnapshot(
-                tab: .year,
-                pose: .tabletop,
-                configuration: SnapshotConfiguration(device: .duoInnerPortrait),
-                selection: .month(CalendarDay(year: PreviewSupport.year, month: 5, day: 1)),
             ))
             return cases
         }
@@ -423,8 +416,8 @@ struct MainTabs: View {
             let fixture = DuoLayoutSnapshotFixture(tab: tab, selection: selection)
             let selectionName = switch selection {
                 case .none: ""
-                case .region, .stay, .settings: "-Selected"
-                case .month: "-Month"
+                case .region, .settings: "-Selected"
+                case .timeline: "-Timeline"
             }
             return whereSnapshot(
                 name: "Adaptive-" + tabName + "-" + pose.rawValue + selectionName,
