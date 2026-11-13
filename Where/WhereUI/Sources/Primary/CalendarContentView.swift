@@ -17,6 +17,7 @@ struct CalendarContentView: View {
     private let allowsMonthSelection: Bool
 
     let displayMode: Presentation
+    private let showsEstimateCard: Bool
     enum ScrollRole: Hashable { case standalone, locations, year }
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
     private let model: CalendarModel
@@ -72,6 +73,7 @@ struct CalendarContentView: View {
     init(
         focusedRegion: Region? = nil,
         report: YearReportModel,
+        showsEstimateCard: Bool = true,
         monthReveal: Binding<CalendarMonthReveal?>? = nil,
         presentationState: CalendarPresentationState? = nil,
         presentation: Presentation = .year,
@@ -82,6 +84,7 @@ struct CalendarContentView: View {
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
+        self.showsEstimateCard = showsEstimateCard
         _monthReveal = monthReveal ?? .constant(nil)
         allowsMonthSelection = monthReveal != nil
         suppliedPresentation = presentationState
@@ -571,7 +574,7 @@ struct CalendarContentView: View {
     }
 
     private func showsForecast(after month: CalendarMonth) -> Bool {
-        report.showsEstimatedTimeAndPlanning
+        showsEstimateCard && report.showsEstimatedTimeAndPlanning
             && month.isCurrentMonth
             && !calendarForecasts.isEmpty
     }
@@ -1194,7 +1197,10 @@ private struct DayCell: View {
                         .historyColumn)],
             ) {
                 NavigationStack {
-                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                    CalendarContentView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        showsEstimateCard: false,
+                    )
                 }
             }
             whereSnapshot(

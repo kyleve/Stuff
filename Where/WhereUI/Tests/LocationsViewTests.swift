@@ -18,6 +18,63 @@ struct LocationsViewTests {
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
+    @Test func estimateCardAppearsOnlyInTheBrowsePane() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        let navigation = LocationsView.Navigation()
+        navigation.select(region: .california)
+        let state = AdaptivePaneHostState()
+        let browse = ScrollPositionCapture()
+        let calendar = ScrollPositionCapture()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
+            LocationsView(report: world.report, navigation: navigation)
+                .overlay {
+                    ScrollPositionProbe(
+                        LocationsCardsView.self,
+                        role: LocationsCardsView.ScrollRole.browse,
+                        context: world.report.selectedYear,
+                        idType: Region.self,
+                        capture: browse,
+                    )
+                    ScrollPositionProbe(
+                        CalendarContentView.self,
+                        role: CalendarContentView.ScrollRole.locations,
+                        context: CalendarContentView.ScrollContext(
+                            region: .california,
+                            year: world.report.selectedYear,
+                        ),
+                        idType: CalendarPresentationState.Target.self,
+                        capture: calendar,
+                    )
+                }
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .innerLandscape)
+            try await waitForStage("secondary calendar starts at a month") {
+                guard let target = calendar.binding?.wrappedValue
+                    .viewID(type: CalendarPresentationState.Target.self)
+                else { return false }
+                if case .month = target { return true }
+                return false
+            }
+            let position = try #require(browse.binding)
+            position.wrappedValue.scrollTo(edge: .bottom)
+            try await waitForStage("primary estimate visible") {
+                HostedAccessibility.objects(in: controller.view).contains {
+                    $0.accessibilityLabel?.hasPrefix("Estimated Time") == true
+                        && $0.accessibilityFrame.intersects(controller.view.convert(
+                            controller.view.bounds,
+                            to: nil,
+                        ))
+                }
+            }
+            #expect(HostedAccessibility.objects(in: controller.view).count(where: {
+                $0.accessibilityLabel?.hasPrefix("Estimated Time") == true
+            }) == 1)
+            #expect(world.report.showsEstimatedTimeAndPlanning)
+        }
+    }
+
     @Test func selectedRegionIsIndicatedOnlyBesideItsCalendar() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()
