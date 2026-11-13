@@ -262,6 +262,38 @@ struct CalendarContentViewTests {
         }
     }
 
+    @Test func hidingTheEstimateCardReplacesItsRetainedAnchorWithoutDisablingPlanning(
+    ) async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let store = BScrollRestorationStore()
+        let first = UIHostingController(rootView: CalendarContentView(report: report)
+            .whereBroadwayRoot().bScrollRestorationScope(store))
+        try await show(first) { host in
+            try await waitForCalendar("initial estimate card") {
+                element("Planned stays", in: host.view)?.accessibilityFrame
+                    .intersects(host.view.convert(host.view.bounds, to: nil)) == true
+            }
+        }
+        let second = UIHostingController(rootView: NavigationStack {
+            CalendarContentView(report: report, showsEstimateCard: false)
+        }.whereBroadwayRoot().bScrollRestorationScope(store))
+        try await show(second) { host in
+            host.view.window?.layer.speed = 1
+            try await waitForCalendar("month fallback with estimate card hidden") {
+                isVisible("July", in: host.view, expanded: true)
+            }
+            #expect(element("Estimated Time", in: host.view) == nil)
+            #expect(report.showsEstimatedTimeAndPlanning)
+            try activate(#require(element("Show Year", in: host.view)))
+            try await waitForCalendar("overview without an estimate card") {
+                isEnabled("Show Months", in: host.view)
+                    && isVisible("July", in: host.view, expanded: false)
+            }
+            #expect(element("Estimated Time", in: host.view) == nil)
+            #expect(report.showsEstimatedTimeAndPlanning)
+        }
+    }
+
     @Test func removingTheForecastFallsBackToTheInitialMonth() async throws {
         let report = PreviewSupport.loadedYearReportModel()
         let host = UIHostingController(rootView: CalendarContentView(report: report)

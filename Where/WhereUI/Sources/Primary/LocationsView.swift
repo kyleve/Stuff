@@ -168,6 +168,7 @@ struct LocationsView: View {
             CalendarContentView(
                 focusedRegion: navigation.selectedRegion,
                 report: report,
+                showsEstimateCard: false,
                 monthReveal: $monthReveal,
                 presentationState: calendarPresentation,
                 presentation: presentation,
