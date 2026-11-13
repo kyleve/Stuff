@@ -1,7 +1,7 @@
 import CoreGraphics
 
 /// Limits expensive live screen trees while preserving a complete canvas.
-struct FlyoverCanvasRenderPlan<ScreenID: Hashable> {
+struct FlyoverCanvasRenderPlan<ScreenID: Hashable>: Equatable {
     static var maximumLiveScreenCount: Int {
         6
     }

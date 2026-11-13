@@ -127,11 +127,14 @@ Registered screen content keeps the isolated styling environment supplied by its
 Overview content deliberately ignores hit testing so dozens of embedded navigation stacks cannot compete with the canvas.
 Its controls stay live.
 Open a card's inspector for native scrolling, navigation, buttons, and forms.
-The canvas live-loads the six visible frames nearest its viewport center and unloads them as they leave that set.
+The canvas live-loads the six visible frames nearest its viewport center after 200 milliseconds without viewport movement.
+Existing previews remain live while they stay in that set. Departed previews unload immediately.
+Panning and zooming defer replacement previews until movement settles, which limits repeated view and model construction.
 Other cards remain lightweight placeholders.
 Requesting one manually replaces automatic loading with that single pinned preview until it is paused.
 Opening the focused inspector unloads the underlying canvas previews.
 Variant builders are deferred and serialized, with a render opportunity between builds, so expensive preview-model construction cannot accumulate in one SwiftUI update.
+Cancelled queued requests finish without waiting for the active builder. Cancellation does not release another request's loading slot.
 The canvas also tracks the latest nonempty set of visible variant/generation loads.
 Snapshot capture awaits that production loading signal before intrinsic measurement, so a slow runner cannot size or capture a partially loaded canvas.
 Viewport or variant changes supersede stale completions.

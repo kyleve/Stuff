@@ -22,6 +22,24 @@ final class FlyoverModel<ScreenID: Hashable> {
     let previewReadiness = FlyoverPreviewReadiness<ScreenID>()
     private let frameStates: [ScreenID: FlyoverFrameState]
     private(set) var hasAppliedInitialCanvasZoom = false
+    @ObservationIgnored private var canvasSettlingOperation: @MainActor () async throws -> Void = {
+        // Wait for 200 ms without viewport movement before constructing replacement trees.
+        try await Task.sleep(for: .milliseconds(200))
+    }
+
+    func waitForCanvasToSettle() async throws {
+        try await canvasSettlingOperation()
+        try Task.checkCancellation()
+    }
+
+    #if DEBUG
+        @_spi(Testing)
+        public func setCanvasSettlingOperation(
+            _ operation: @escaping @MainActor () async throws -> Void,
+        ) {
+            canvasSettlingOperation = operation
+        }
+    #endif
 
     init(catalog: FlyoverCatalog<ScreenID>) {
         frameStates = catalog.screens.reduce(into: [:]) { states, screen in

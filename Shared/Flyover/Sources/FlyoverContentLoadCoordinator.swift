@@ -1,11 +1,24 @@
-/// Serializes expensive screen construction so the main actor can render between previews.
+import Foundation
+
+/// Serializes expensive screen construction and releases cancelled queued requests promptly.
 @MainActor
 final class FlyoverContentLoadCoordinator {
+    private struct Waiter {
+        struct ID: Hashable {
+            let rawValue = UUID()
+        }
+
+        let id: ID
+        let continuation: CheckedContinuation<Bool, Never>
+    }
+
     private var isLoading = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [Waiter] = []
 
     func perform(_ operation: @MainActor () async -> Void) async {
-        await acquire()
+        guard await acquire() else {
+            return
+        }
         defer { release() }
         guard Task.isCancelled == false else {
             return
@@ -18,12 +31,35 @@ final class FlyoverContentLoadCoordinator {
         await Task.yield()
     }
 
-    private func acquire() async {
+    private func acquire() async -> Bool {
+        guard Task.isCancelled == false else {
+            return false
+        }
         guard isLoading else {
             isLoading = true
+            return true
+        }
+        let waiterID = Waiter.ID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard Task.isCancelled == false else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                waiters.append(Waiter(id: waiterID, continuation: continuation))
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.cancel(waiterID)
+            }
+        }
+    }
+
+    private func cancel(_ waiterID: Waiter.ID) {
+        guard let index = waiters.firstIndex(where: { $0.id == waiterID }) else {
             return
         }
-        await withCheckedContinuation { waiters.append($0) }
+        waiters.remove(at: index).continuation.resume(returning: false)
     }
 
     private func release() {
@@ -31,6 +67,6 @@ final class FlyoverContentLoadCoordinator {
             isLoading = false
             return
         }
-        waiters.removeFirst().resume()
+        waiters.removeFirst().continuation.resume(returning: true)
     }
 }
