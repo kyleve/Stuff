@@ -5,10 +5,10 @@
 - Updated: 2026-11-14; repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`.
 - Operation: Create a plan. Product implementation is not requested.
 - Requested scope and source: The user's 2026-11-14 chat request and answers to [Q-01–Q-07](#questions-and-resolutions).
-- Stage: Publication.
-- Completed: Product discovery, repository inspection, primary-source API research, and Linear duplicate search. Created [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) for this planning work.
-- Pending: Publish the reviewed plan PR and update the Linear link. Later technical decisions remain in Q-08–Q-12.
-- Next action: Publish this documentation change, then await an execution or refinement request. The first execution resume point is [01](01-review-state-foundation.md#resume-point).
+- Stage: Handoff; plan published for review.
+- Completed: Product discovery, repository inspection, primary-source API research, Linear duplicate search, and review of all eight plan files. Published [PR #497](https://github.com/kyleve/Stuff/pull/497); [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) is In Review and links the plan and PR.
+- Pending: PR review and merge. Later technical decisions remain in Q-08–Q-12 at their recorded refinement gates. Product execution has not been requested.
+- Next action: Await a request to execute 01 or refine a named outline; inspect current PR feedback and repository state when resuming. The first execution resume point is [01](01-review-state-foundation.md#resume-point).
 
 ## Outcome and scope
 
@@ -289,10 +289,10 @@ All user answers below came from this chat on 2026-11-14. Each was integrated an
 
 ## Review and delivery
 
-- Plan review: Publication pending.
+- Plan review: [PR #497](https://github.com/kyleve/Stuff/pull/497), ready for review. [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) remains In Review until merge and acceptance verification.
 - Implementation: Not requested or started.
 - Review focus: Checkpoint semantics; shared work versus local windows; incomplete coverage and lost history; sync as a release gate.
 
 ## Outcome
 
-The product direction is established. The series is being prepared for review; execution awaits a new request.
+The reviewed series is published. Plan 01 is ready; 02–07 remain outlines. Execution awaits a new request.
