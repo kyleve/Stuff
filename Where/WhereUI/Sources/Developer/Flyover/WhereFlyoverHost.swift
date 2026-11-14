@@ -11,6 +11,7 @@
                 .environment(world.model)
                 .environment(world.session)
                 .environment(\.isInDemoMode, true)
+                .environment(\.demoExitPresentation, .embedded)
                 .whereBroadwayRoot(regionStyles: world.session.regionStyles)
         }
     }

@@ -4,24 +4,24 @@ import WhereCore
 @testable import WhereUI
 
 @MainActor
-struct CalendarZoomTransitionModelTests {
+struct CalendarZoomTransitionStateTests {
     private let viewport = CGRect(x: 0, y: 0, width: 402, height: 800)
     private let content = CGRect(x: 0, y: 0, width: 402, height: 2000)
     private let compact = CGRect(x: 140, y: 420, width: 120, height: 100)
     private let expanded = CGRect(x: 16, y: 0, width: 370, height: 360)
-    private let november = CalendarPresentationModel.Target.month(CalendarDay(
+    private let november = CalendarPresentationState.Target.month(CalendarDay(
         year: 2026,
         month: 11,
         day: 1,
     ))
-    private let december = CalendarPresentationModel.Target.month(CalendarDay(
+    private let december = CalendarPresentationState.Target.month(CalendarDay(
         year: 2026,
         month: 12,
         day: 1,
     ))
 
     @Test func waitsForTheSelectedMonthToFinishScrollingBeforeMatching() throws {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         model.begin(
             from: .init(
                 mode: .overview,
@@ -61,8 +61,31 @@ struct CalendarZoomTransitionModelTests {
         #expect(tile.destination == expanded)
     }
 
+    @Test func aRestoredCenteredAnchorCanFinishTheTransition() throws {
+        let state = CalendarZoomTransitionState()
+        state.begin(
+            from: .init(
+                mode: .overview,
+                frames: [november: compact],
+                viewport: viewport,
+                content: content,
+            ),
+            to: .detail,
+            focus: november,
+            alignment: .center,
+        )
+        let centered = expanded.offsetBy(dx: 0, dy: (viewport.height - expanded.height) / 2)
+        state.resolve(destination: .init(
+            mode: .detail,
+            frames: [november: centered],
+            viewport: viewport,
+            content: content,
+        ))
+        #expect(try movingPlan(state).tiles.first?.destination == centered)
+    }
+
     @Test func matchesBothVisibleMonthsWhenZoomingOut() throws {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         let decemberDetail = expanded.offsetBy(dx: 0, dy: 376)
         let decemberOverview = compact.offsetBy(dx: 128, dy: 0)
         model.begin(
@@ -90,23 +113,23 @@ struct CalendarZoomTransitionModelTests {
         #expect(plan.tiles.allSatisfy { $0.visibility == .both })
     }
 
-    @Test(arguments: [CalendarPresentationModel.Mode.detail, .overview])
-    func projectedFramesCannotIntroduceAnOffscreenMonth(destinationMode: CalendarPresentationModel
+    @Test(arguments: [CalendarPresentationState.Mode.detail, .overview])
+    func projectedFramesCannotIntroduceAnOffscreenMonth(destinationMode: CalendarPresentationState
         .Mode)
         throws
     {
-        let august = CalendarPresentationModel.Target.month(CalendarDay(
+        let august = CalendarPresentationState.Target.month(CalendarDay(
             year: 2026,
             month: 8,
             day: 1,
         ))
-        let overview = CalendarZoomTransitionModel.Measurement(
+        let overview = CalendarZoomTransitionState.Measurement(
             mode: .overview,
             frames: [november: compact, august: compact.offsetBy(dx: 0, dy: -108)],
             viewport: viewport,
             content: content,
         )
-        let detail = CalendarZoomTransitionModel.Measurement(
+        let detail = CalendarZoomTransitionState.Measurement(
             mode: .detail,
             frames: [
                 november: expanded.offsetBy(dx: 0, dy: 400),
@@ -115,7 +138,7 @@ struct CalendarZoomTransitionModelTests {
             viewport: viewport,
             content: content.offsetBy(dx: 0, dy: -1200),
         )
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         model.begin(
             from: destinationMode == .detail ? overview : detail,
             to: destinationMode,
@@ -132,7 +155,7 @@ struct CalendarZoomTransitionModelTests {
     func offscreenCounterpartsContinueTheSelectedMonthsScaleAndTranslation(
         hasOffscreenFrame: Bool,
     ) throws {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         let decemberOverview = compact.offsetBy(dx: 128, dy: 0)
         model.begin(
             from: .init(
@@ -161,8 +184,8 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func estimateCanSettleAgainstTheBottomInsteadOfTheTop() throws {
-        let model = CalendarZoomTransitionModel()
-        let estimate = CalendarPresentationModel.Target.estimate(CalendarDay(
+        let model = CalendarZoomTransitionState()
+        let estimate = CalendarPresentationState.Target.estimate(CalendarDay(
             year: 2026,
             month: 7,
             day: 1,
@@ -194,8 +217,8 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func staleCompletionCannotEndANewerTransition() throws {
-        let model = CalendarZoomTransitionModel()
-        let measurement = CalendarZoomTransitionModel.Measurement(
+        let model = CalendarZoomTransitionState()
+        let measurement = CalendarZoomTransitionState.Measurement(
             mode: .overview,
             frames: [november: compact],
             viewport: viewport,
@@ -214,7 +237,7 @@ struct CalendarZoomTransitionModelTests {
 
     @Test(arguments: [false, true])
     func resizingCancelsInsteadOfAnimatingStaleCoordinates(alreadyMoving: Bool) {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         model.begin(
             from: .init(
                 mode: .overview,
@@ -247,7 +270,7 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func disjointLazyLayoutsReleaseTheOverlay() {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         model.begin(
             from: .init(
                 mode: .detail,
@@ -270,8 +293,8 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func unrelatedLayoutCallbacksCannotStartTheFlight() {
-        let model = CalendarZoomTransitionModel()
-        let overview = CalendarZoomTransitionModel.Measurement(
+        let model = CalendarZoomTransitionState()
+        let overview = CalendarZoomTransitionState.Measurement(
             mode: .overview,
             frames: [november: compact],
             viewport: viewport,
@@ -286,7 +309,7 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func subpixelViewportRoundingDoesNotCancelMatching() throws {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         model.begin(
             from: .init(
                 mode: .overview,
@@ -311,7 +334,7 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func waitsForIncomingMeasurementsAfterOutgoingAnchorsDisappear() {
-        let model = CalendarZoomTransitionModel()
+        let model = CalendarZoomTransitionState()
         model.begin(
             from: .init(
                 mode: .detail,
@@ -332,8 +355,8 @@ struct CalendarZoomTransitionModelTests {
     }
 
     @Test func offscreenEstimateEntersAtFullWidthBelowTheGrid() throws {
-        let model = CalendarZoomTransitionModel()
-        let estimate = CalendarPresentationModel.Target.estimate(CalendarDay(
+        let model = CalendarZoomTransitionState()
+        let estimate = CalendarPresentationState.Target.estimate(CalendarDay(
             year: 2026,
             month: 7,
             day: 1,
@@ -364,10 +387,10 @@ struct CalendarZoomTransitionModelTests {
         #expect(tile.destination == destination)
     }
 
-    private func movingPlan(_ model: CalendarZoomTransitionModel) throws
-        -> CalendarZoomTransitionModel.Plan
+    private func movingPlan(_ model: CalendarZoomTransitionState) throws
+        -> CalendarZoomTransitionState.Plan
     {
-        try #require({ () -> CalendarZoomTransitionModel.Plan? in
+        try #require({ () -> CalendarZoomTransitionState.Plan? in
             guard case let .moving(plan) = model.phase else { return nil }
             return plan
         }())

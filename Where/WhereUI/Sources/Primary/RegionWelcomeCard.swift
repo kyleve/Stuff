@@ -1,5 +1,6 @@
 import RegionKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 
 /// A passport-inspired acknowledgement of the user's current tracked region.

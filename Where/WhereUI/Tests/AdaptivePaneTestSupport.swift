@@ -24,6 +24,20 @@ enum AdaptivePaneTestSupport {
         )
     }
 
+    /// Synthetic landscape container with enough height for two independent panes.
+    static var landscapeTabletop: AdaptivePaneGeometry {
+        AdaptivePaneGeometry(
+            bounds: CGRect(x: 0, y: 0, width: 951, height: 669),
+            insets: .init(top: 0, left: 0, bottom: 34, right: 0),
+            regions: [.init(
+                kind: .division,
+                frame: CGRect(x: 0, y: 314.5, width: 951, height: 40),
+                isActive: true,
+            )],
+            layoutDirection: .leftToRight,
+        )
+    }
+
     static var multiplePaneStyle: WhereStylesheet.AdaptivePaneStyle {
         var style = WhereStylesheet.AdaptivePaneStyle()
         style.panes = .multiple

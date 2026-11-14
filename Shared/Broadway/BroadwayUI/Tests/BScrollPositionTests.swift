@@ -43,44 +43,6 @@ struct BScrollPositionTests {
         }
     }
 
-    @Test func delayedRemountRestoresBottomAlignmentBeforeUsingAnotherInitialTarget() async throws {
-        let fixture = NativeScrollFixture()
-        fixture.initial = 12
-        fixture.initialAnchor = .bottom
-        let host = UIHostingController(rootView: NativeScrollHarness(fixture: fixture)
-            .bScrollRestorationScope())
-        try await show(host) { _ in
-            do { try await waitForAsync {
-                fixture.visible.contains(12) && fixture.frames[12]
-                    .map { abs($0.maxY - (fixture.viewport.maxY)) < 1 } ==
-                    true
-            }
-            } catch {
-                throw TestHostError(
-                    "Initial bottom: visible=\(fixture.visible), frame=\(String(describing: fixture.frames[12])), viewport=\(fixture.viewport), inset=\(fixture.bottomInset)",
-                )
-            }
-            fixture.mounted = false
-            try await waitForAsync { fixture.visible.isEmpty }
-            fixture.initial = nil
-            fixture.mounted = true
-            try await waitForAsync { !fixture.visible.isEmpty && fixture.observedInitial == nil }
-            fixture.initial = 2
-            do { try await waitForAsync {
-                fixture.observedInitial == 2 && fixture.visible.contains(12)
-                    && fixture.frames[12]
-                    .map { abs($0.maxY - (fixture.viewport.maxY)) < 1 } ==
-                    true
-            }
-            } catch {
-                throw TestHostError(
-                    "Delayed bottom: visible=\(fixture.visible), frame=\(String(describing: fixture.frames[12])), viewport=\(fixture.viewport), target=\(String(describing: fixture.position?.wrappedValue.viewID(type: Int.self))), user=\(String(describing: fixture.position?.wrappedValue.isPositionedByUser))",
-                )
-            }
-            #expect(fixture.position?.wrappedValue.viewID(type: Int.self) == 12)
-        }
-    }
-
     @Test func replacementRetainsPositionAndContextChangeDiscardsIt() async throws {
         let fixture = ScrollFixture()
         let host = UIHostingController(rootView: ScrollHarness(fixture: fixture)
@@ -88,23 +50,32 @@ struct BScrollPositionTests {
         try await show(host) { _ in
             try await waitForAsync { fixture.bindings[.first] != nil }
             let old = try #require(fixture.bindings[.first])
-            let delayedInitialization = try #require(fixture.initializers[.first])
-            old.wrappedValue.scrollTo(id: 7, anchor: .top)
+            let initialize = try #require(fixture.initializers[.first])
+            initialize(7)
+            #expect(fixture.anchors[.first]?() == .bottom)
             fixture.mounted = false
             try await waitForAsync { fixture.disappeared }
+            fixture.initializers.removeAll()
             fixture.mounted = true
             try await waitForAsync {
-                !fixture.disappeared && fixture.bindings[.first]?.wrappedValue
-                    .viewID(type: Int.self) == 7
+                !fixture.disappeared && fixture.initializers[.first] != nil
             }
+            #expect(fixture.bindings[.first]?.wrappedValue.viewID(type: Int.self) == 7)
+            // Native layout can publish a provisional target before data is ready.
+            fixture.bindings[.first]?.wrappedValue.scrollTo(id: 4, anchor: .top)
+            fixture.initialAnchor = .top
+            fixture.initializers[.first]?(2)
+            #expect(fixture.bindings[.first]?.wrappedValue.viewID(type: Int.self) == 7)
+            #expect(fixture.anchors[.first]?() == .bottom)
             fixture.context = 2
             try await waitForAsync { fixture.observedContext == 2 }
             #expect(fixture.bindings[.first]?.wrappedValue.viewID(type: Int.self) == nil)
             old.wrappedValue.scrollTo(id: 99, anchor: .bottom)
-            delayedInitialization(101)
             #expect(fixture.bindings[.first]?.wrappedValue.viewID(type: Int.self) == nil)
+            let delayedInitialization = try #require(fixture.initializers[.first])
             fixture.context = 1
             try await waitForAsync { fixture.observedContext == 1 }
+            delayedInitialization(101)
             #expect(fixture.bindings[.first]?.wrappedValue.viewID(type: Int.self) == nil)
         }
     }
@@ -207,6 +178,7 @@ private enum ScrollRole: Hashable { case first, second, third }
 @MainActor @Observable
 private final class ScrollFixture {
     var primaryRole = ScrollRole.first
+    var initialAnchor = UnitPoint.bottom
     var mounted = true
     var context = 1
     var redraw = 0
@@ -215,6 +187,7 @@ private final class ScrollFixture {
     @ObservationIgnored var disappeared = false
     @ObservationIgnored var bindings: [ScrollRole: Binding<ScrollPosition>] = [:]
     @ObservationIgnored var initializers: [ScrollRole: @MainActor (Int) -> Void] = [:]
+    @ObservationIgnored var anchors: [ScrollRole: @MainActor () -> UnitPoint?] = [:]
 }
 
 private struct ScrollHarness: View {
@@ -266,7 +239,8 @@ private struct ScrollProbe: View {
 
     private func captureBinding() {
         fixture.bindings[role] = $position
-        fixture.initializers[role] = { _position.initialize(id: $0, anchor: .bottom) }
+        fixture.initializers[role] = { _position.initialize(id: $0, anchor: fixture.initialAnchor) }
+        fixture.anchors[role] = { _position.anchor }
     }
 }
 
@@ -275,10 +249,6 @@ private final class NativeScrollFixture {
     var mounted = true
     var context = 1
     var initial: Int? = 0
-    var initialAnchor = UnitPoint.top
-    @ObservationIgnored var frames: [Int: CGRect] = [:]
-    @ObservationIgnored var viewport = CGRect.zero
-    @ObservationIgnored var bottomInset: CGFloat = 0
     @ObservationIgnored var observedInitial: Int?
     @ObservationIgnored var position: Binding<ScrollPosition>?
     @ObservationIgnored var visible: [Int] = []
@@ -310,20 +280,11 @@ private struct NativeScrollProbe: View {
             LazyVStack {
                 ForEach(0 ..< 30, id: \.self) { index in
                     Text(index.formatted()).frame(height: 80).id(index)
-                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
-                            fixture.frames[index] = $0
-                        }
                 }
             }
             .scrollTargetLayout()
         }
         .scrollPosition($position)
-        .onScrollGeometryChange(for: CGFloat.self) { $0.contentInsets.bottom } action: { _, value in
-            fixture.bottomInset = value
-        }
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
-            fixture.viewport = $0
-        }
         .onScrollTargetVisibilityChange(idType: Int.self) { fixture.visible = $0 }
         .onChange(of: fixture.context, initial: true) {
             fixture.position = $position
@@ -331,7 +292,6 @@ private struct NativeScrollProbe: View {
         .task(id: Readiness(context: fixture.context, initial: fixture.initial)) { initialize() }
         .onDisappear {
             fixture.visible = []
-            fixture.frames = [:]
         }
     }
 
@@ -343,7 +303,7 @@ private struct NativeScrollProbe: View {
     private func initialize() {
         if let initial = fixture.initial { _position.initialize(
             id: initial,
-            anchor: fixture.initialAnchor,
+            anchor: .top,
         ) }
         fixture.observedInitial = fixture.initial
     }

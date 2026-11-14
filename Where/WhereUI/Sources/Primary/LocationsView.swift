@@ -1,4 +1,5 @@
 import BroadwayUI
+import Observation
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
@@ -6,14 +7,238 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Locations tab: configured primary regions with recorded days in the selected
-/// year, ranked by day count, plus planning and data-resolution actions.
+/// Stable selection and sheet ownership around native browse/detail navigation.
 struct LocationsView: View {
+    @MainActor @Observable
+    final class Navigation {
+        var selectedRegion: Region?
+        var compactColumn = NavigationSplitViewColumn.sidebar
+        var flightReview: GPSCorrectionReview?
+
+        var showingResolution = false
+        var planningDestination: PlannedStaysDestination?
+
+        func select(region: Region) {
+            guard selectedRegion != region || compactColumn != .detail else { return }
+            selectedRegion = region
+            compactColumn = .detail
+        }
+    }
+
+    enum ScrollRole: Hashable { case calendar }
+
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
+    @State private var navigation: LocationsView.Navigation
+    @State private var calendarPresentation: CalendarPresentationState
+    @State private var cardPresentation: LocationCardsPresentationModel
+    @State private var tilt = TiltProvider()
+    @Namespace private var calendarTransition
+    @Environment(\.stylesheet) private var stylesheet
 
-    @State private var showingResolution = false
-    @State private var planningDestination: PlannedStaysDestination?
+    init(
+        report: YearReportModel,
+        navigation: LocationsView.Navigation? = nil,
+        initialRegion: Region? = nil,
+        openElsewhere: (() -> Void)? = nil,
+    ) {
+        self.report = report
+        self.openElsewhere = openElsewhere
+        let navigation = navigation ?? LocationsView.Navigation()
+        if let initialRegion { navigation.select(region: initialRegion) }
+        _navigation = State(initialValue: navigation)
+        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
+            report: report,
+            persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
+        ).isOverview(fallback: false) ? .overview : .detail))
+        _cardPresentation = State(initialValue: LocationCardsPresentationModel(
+            preferences: report.preferences,
+            year: report.selectedYear,
+        ))
+    }
+
+    var body: some View {
+        @Bindable var navigation = navigation
+        AdaptivePaneContainer { arrangement in
+            if report.report == nil {
+                LocationsBrowsePane(
+                    report: report,
+                    navigation: navigation,
+                    cardPresentation: cardPresentation,
+                    tilt: tilt,
+                    calendarTransition: calendarTransition,
+                    openElsewhere: openElsewhere,
+                )
+            } else {
+                NavigationSplitView(
+                    columnVisibility: .constant(.all),
+                    preferredCompactColumn: $navigation.compactColumn,
+                ) {
+                    LocationsBrowsePane(
+                        report: report,
+                        navigation: navigation,
+                        cardPresentation: cardPresentation,
+                        tilt: tilt,
+                        calendarTransition: calendarTransition,
+                        cardVariant: arrangement == .compact ? .regular : .column,
+                        showsSelection: arrangement != .compact,
+                        showsToolbarActions: arrangement == .compact,
+                        openElsewhere: openElsewhere,
+                    )
+                    .toolbar(removing: .sidebarToggle)
+                    .navigationSplitViewColumnWidth(
+                        min: stylesheet.adaptivePane.minimumControlsWidth,
+                        ideal: stylesheet.adaptivePane.minimumControlsWidth,
+                    )
+                } detail: {
+                    calendar(
+                        showsEstimateCard: arrangement == .compact,
+                        usesZoomTransition: arrangement == .compact,
+                    )
+                    .navigationSplitViewColumnWidth(
+                        min: stylesheet.adaptivePane.minimumDetailWidth,
+                        ideal: stylesheet.adaptivePane.minimumDetailWidth,
+                    )
+                }
+                .navigationSplitViewStyle(.balanced)
+                .environment(\.horizontalSizeClass, arrangement == .compact ? .compact : .regular)
+                .bHorizontalSizeClass(arrangement == .compact ? .compact : .regular)
+            }
+        }
+        .sheet(item: $navigation.flightReview) { review in
+            NavigationStack {
+                FlightDayDetailView(review: review, report: report)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .commonDone)) { navigation.flightReview = nil }
+                    } }
+            }
+        }
+        .sheet(isPresented: $navigation.showingResolution) {
+            ResolutionView(report: report)
+        }
+        .modifier(PlanningPresentation(
+            report: report,
+            destination: $navigation.planningDestination,
+        ))
+        .onChange(of: navigation.selectedRegion) {
+            calendarPresentation = CalendarPresentationState(mode: CalendarModel(
+                report: report,
+                persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
+            ).isOverview(fallback: false) ? .overview : .detail)
+        }
+    }
+
+    private func calendar(
+        showsEstimateCard: Bool,
+        usesZoomTransition: Bool,
+    ) -> some View {
+        @Bindable var navigation = navigation
+        return NavigationStack {
+            CalendarContentView(
+                focusedRegion: navigation.selectedRegion,
+                report: report,
+                showsEstimateCard: showsEstimateCard,
+                showsPlanningAction: false,
+                presentationState: calendarPresentation,
+                persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
+                scrollRole: ScrollRole.calendar,
+                planningDestination: $navigation.planningDestination,
+            )
+            .toolbar { LocationsToolbar(report: report, navigation: navigation) }
+            .id(navigation.selectedRegion)
+            .navigationTitle(navigation.selectedRegion.map {
+                WhereFormat.calendarRegionTitle(region: $0, year: report.selectedYear)
+            } ?? String(localized: .primaryCalendar))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .modifier(RegionCalendarTransition(
+            region: usesZoomTransition ? navigation.selectedRegion : nil,
+            namespace: calendarTransition,
+        ))
+    }
+}
+
+/// Native split navigation uses the same card zoom when its detail collapses to a push.
+private struct RegionCalendarTransition: ViewModifier {
+    let region: Region?
+    let namespace: Namespace.ID
+
+    func body(content: Content) -> some View {
+        if let region {
+            content.navigationTransition(.zoom(sourceID: region, in: namespace))
+        } else {
+            content
+        }
+    }
+}
+
+/// The stable browse stack. Pushed flows retain their native navigation and draft state.
+struct LocationsBrowsePane: View {
+    let report: YearReportModel
+    var openElsewhere: (() -> Void)?
+    @State private var navigation: LocationsView.Navigation
+    @State private var cardPresentation: LocationCardsPresentationModel
+    @State private var tilt: TiltProvider
+    @Namespace private var localTransition
+    private let transition: Namespace.ID?
+    let cardVariant: WhereStylesheet.CardStyle.Variant
+    let showsSelection: Bool
+    let showsToolbarActions: Bool
+
+    init(
+        report: YearReportModel,
+        navigation: LocationsView.Navigation? = nil,
+        cardPresentation: LocationCardsPresentationModel? = nil,
+        tilt: TiltProvider? = nil,
+        calendarTransition: Namespace.ID? = nil,
+        cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+        showsSelection: Bool = false,
+        showsToolbarActions: Bool = true,
+        openElsewhere: (() -> Void)? = nil,
+    ) {
+        self.report = report
+        self.openElsewhere = openElsewhere
+        _navigation = State(initialValue: navigation ?? LocationsView.Navigation())
+        _cardPresentation = State(initialValue: cardPresentation ?? LocationCardsPresentationModel(
+            preferences: report.preferences,
+            year: report.selectedYear,
+        ))
+        _tilt = State(initialValue: tilt ?? TiltProvider())
+        transition = calendarTransition
+        self.cardVariant = cardVariant
+        self.showsSelection = showsSelection
+        self.showsToolbarActions = showsToolbarActions
+    }
+
+    var body: some View {
+        NavigationStack {
+            LocationsContent(
+                report: report,
+                navigation: navigation,
+                cardPresentation: cardPresentation,
+                tilt: tilt,
+                calendarTransition: transition ?? localTransition,
+                cardVariant: cardVariant,
+                showsSelection: showsSelection,
+                showsToolbarActions: showsToolbarActions,
+                openElsewhere: openElsewhere,
+            )
+        }
+    }
+}
+
+/// Locations tab: the regions you spend the most days in for the selected year,
+/// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
+/// at the bottom (only when there are secondary regions), plus toolbar actions
+/// for planned stays and any data issues that need resolution.
+struct LocationsContent: View {
+    let report: YearReportModel
+    var openElsewhere: (() -> Void)?
+    let cardVariant: WhereStylesheet.CardStyle.Variant
+    let showsSelection: Bool
+    let showsToolbarActions: Bool
+
+    @State private var navigation: LocationsView.Navigation
     @State private var isCardSurfaceVisible = false
     @State private var cardPresentation: LocationCardsPresentationModel
 
@@ -24,88 +249,79 @@ struct LocationsView: View {
     /// Pairs a tapped card with its pushed calendar so the navigation uses a
     /// matched-geometry zoom (the card expands into the calendar) rather than a
     /// plain slide.
-    @Namespace private var calendarTransition
+    @Namespace private var localCalendarTransition
+    private let transition: Namespace.ID?
+    private var calendarTransition: Namespace.ID {
+        transition ?? localCalendarTransition
+    }
 
     @Environment(\.stylesheet.card.regular.surface) private var cardSurface
 
     private var isCardSurfaceUncovered: Bool {
         isCardSurfaceVisible
-            && !showingResolution
-            && planningDestination == nil
+            && navigation.flightReview == nil
+            && !navigation.showingResolution
+            && navigation.planningDestination == nil
     }
 
-    init(report: YearReportModel, openElsewhere: (() -> Void)? = nil) {
+    init(
+        report: YearReportModel,
+        navigation: LocationsView.Navigation? = nil,
+        cardPresentation: LocationCardsPresentationModel? = nil,
+        tilt: TiltProvider? = nil,
+        calendarTransition: Namespace.ID? = nil,
+        cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+        showsSelection: Bool = false,
+        showsToolbarActions: Bool = true,
+        openElsewhere: (() -> Void)? = nil,
+    ) {
+        _navigation = State(initialValue: navigation ?? LocationsView.Navigation())
         self.report = report
         self.openElsewhere = openElsewhere
-        _cardPresentation = State(initialValue: LocationCardsPresentationModel(
+        self.cardVariant = cardVariant
+        self.showsSelection = showsSelection
+        self.showsToolbarActions = showsToolbarActions
+        transition = calendarTransition
+        _tilt = State(initialValue: tilt ?? TiltProvider())
+        _cardPresentation = State(initialValue: cardPresentation ?? LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
         ))
     }
 
     var body: some View {
-        NavigationStack {
-            screen
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background {
-                    LocationsBackground(regions: backgroundRegions)
-                        .ignoresSafeArea()
+        screen
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background {
+                LocationsBackground(regions: backgroundRegions)
+                    .ignoresSafeArea()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if showsToolbarActions {
+                    LocationsToolbar(report: report, navigation: navigation)
                 }
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        // Pending reviews remain accessible without increasing
-                        // the actionable issue badge.
-                        if report.dataIssueCount > 0 || report.hasCorrectionReviews {
-                            Button {
-                                showingResolution = true
-                            } label: {
-                                ResolveToolbarLabel(count: report.dataIssueCount)
-                            }
-                            .accessibilityIdentifier("where_resolution_button")
-                        }
-
-                        if showsPlanningMenu {
-                            Button(
-                                String(localized: .plannedStaysTitle),
-                                systemSymbol: .calendarBadgeClock,
-                            ) {
-                                planningDestination = .list
-                            }
-                            .accessibilityIdentifier("where_planning_menu")
-                        }
-                    }
-                }
-        }
-        .observesTilt(
-            tilt,
-            enabled: isCardSurfaceUncovered && cardSurface.usesReflection,
-        )
-        .sheet(isPresented: $showingResolution) {
-            ResolutionView(report: report)
-        }
-        .sheet(item: $planningDestination) { destination in
-            PlannedStaysDestinationView(destination: destination, report: report)
-        }
-        // Log View Mode: reveal an inspect badge for the year-report events
-        // backing this screen. A no-op in release.
-        .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
+            }
+            .observesTilt(tilt, enabled: isCardSurfaceUncovered && cardSurface.usesReflection)
+            .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
 
     @ViewBuilder
     private var screen: some View {
         switch report.loadState {
-            case .loading where report.report == nil, .failed:
+            case .loading where report.report == nil, .failed where report.report == nil:
                 LocationsStateView(
                     report: report,
                     planningAction: openPlanning,
+                    openReview: { navigation.flightReview = $0 },
                     openElsewhere: openElsewhere,
                 )
-            case .idle, .loaded, .loading:
+            case .idle, .loaded, .loading, .failed:
                 if report.locationRegions.isEmpty {
                     LocationsStateView(
                         report: report,
                         planningAction: openPlanning,
+                        openReview: { navigation.flightReview = $0 },
                         openElsewhere: openElsewhere,
                     )
                 } else {
@@ -117,26 +333,20 @@ struct LocationsView: View {
                         isCardSurfaceUncovered: isCardSurfaceUncovered,
                         isCardSurfaceVisible: $isCardSurfaceVisible,
                         planningAction: openPlanning,
+                        navigation: navigation,
+                        cardVariant: cardVariant,
+                        showsSelection: showsSelection,
                     )
                 }
         }
     }
 
     private var backgroundRegions: [Region] {
-        switch report.loadState {
-            case .failed:
-                []
-            case .idle, .loaded, .loading:
-                LocationsBackgroundArtwork.regions(in: report.ranking)
-        }
-    }
-
-    private var showsPlanningMenu: Bool {
-        report.showsEstimatedTimeAndPlanning
+        LocationsBackgroundArtwork.regions(in: report.ranking)
     }
 
     private func openPlanning() {
-        planningDestination = .list
+        navigation.planningDestination = .list
     }
 }
 
@@ -186,6 +396,13 @@ private struct ResolveToolbarLabel: View {
                 )
             }
             artworkSnapshot(
+                name: "BrowseColumn",
+                report: PreviewSupport.loadedYearReportModel(),
+                configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
+                        .browseColumn)],
+                cardVariant: .column,
+            )
+            artworkSnapshot(
                 name: "Itinerary",
                 report: PreviewSupport.itineraryYearReportModel(),
                 configurations: .fullContentPhoneLightDark,
@@ -208,7 +425,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(report: PreviewSupport.plannedStayYearReportModel())
+                LocationsBrowsePane(report: PreviewSupport.plannedStayYearReportModel())
             }
             whereSnapshot(
                 name: "ForecastsHidden",
@@ -216,7 +433,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(report: forecastsHiddenReport())
+                LocationsBrowsePane(report: forecastsHiddenReport())
             }
             whereSnapshot(
                 name: "Empty",
@@ -224,7 +441,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(report: PreviewSupport.emptyYearReportModel())
+                LocationsBrowsePane(report: PreviewSupport.emptyYearReportModel())
             }
             whereSnapshot(
                 name: "MissingDays",
@@ -232,7 +449,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(report: PreviewSupport.missingDaysYearReportModel())
+                LocationsBrowsePane(report: PreviewSupport.missingDaysYearReportModel())
             }
             whereSnapshot(
                 name: "ElsewhereOnly",
@@ -260,7 +477,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(
+                LocationsBrowsePane(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
@@ -281,6 +498,9 @@ private struct ResolveToolbarLabel: View {
             configurations: [SnapshotConfiguration],
             theme: WhereTheme = .standard,
             reduceTransparency: Bool = false,
+            cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+            selectedRegion: Region? = nil,
+            openElsewhere _: (() -> Void)? = nil,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
             let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
@@ -300,15 +520,21 @@ private struct ResolveToolbarLabel: View {
                     }
                 },
             ) {
-                LocationsView(report: report)
-                    .environment(\.regionOutlinePathCache, cache)
-                    .bTraitOverrides { traits, overrides in
-                        if reduceTransparency {
-                            var accessibility = traits.accessibility
-                            accessibility.isReduceTransparencyEnabled = true
-                            overrides.accessibility = accessibility
-                        }
+                let navigation = LocationsView.Navigation()
+                let _ = navigation.selectedRegion = selectedRegion
+                LocationsBrowsePane(
+                    report: report,
+                    navigation: navigation,
+                    cardVariant: cardVariant,
+                )
+                .environment(\.regionOutlinePathCache, cache)
+                .bTraitOverrides { traits, overrides in
+                    if reduceTransparency {
+                        var accessibility = traits.accessibility
+                        accessibility.isReduceTransparencyEnabled = true
+                        overrides.accessibility = accessibility
                     }
+                }
             }
         }
 
@@ -361,3 +587,34 @@ private struct ResolveToolbarLabel: View {
         }
     }
 #endif
+
+/// Shared screen actions appear in the trailing column, or on the visible compact screen.
+private struct LocationsToolbar: ToolbarContent {
+    let report: YearReportModel
+    let navigation: LocationsView.Navigation
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            // Pending reviews remain accessible without increasing
+            // the actionable issue badge.
+            if report.dataIssueCount > 0 || report.hasCorrectionReviews {
+                Button {
+                    navigation.showingResolution = true
+                } label: {
+                    ResolveToolbarLabel(count: report.dataIssueCount)
+                }
+                .accessibilityIdentifier("where_resolution_button")
+            }
+
+            if report.showsEstimatedTimeAndPlanning {
+                Button(
+                    String(localized: .plannedStaysTitle),
+                    systemSymbol: .calendarBadgeClock,
+                ) {
+                    navigation.planningDestination = .list
+                }
+                .accessibilityIdentifier("where_planning_menu")
+            }
+        }
+    }
+}

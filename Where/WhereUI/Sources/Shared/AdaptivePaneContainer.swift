@@ -47,28 +47,6 @@ struct AdaptivePaneGeometryReader<Content: View>: View {
     }
 }
 
-/// Detail precedes controls in both source and accessibility order. Frames are physical,
-/// so RTL changes content direction without mirroring the hinge or camera clearance.
-struct TabletopPaneLayout<Detail: View, Controls: View>: View {
-    let panes: AdaptivePaneArrangement.Panes
-    @ViewBuilder var detail: () -> Detail
-    @ViewBuilder var controls: () -> Controls
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            detail()
-                .frame(width: panes.detail.width, height: panes.detail.height)
-                .clipped()
-                .position(x: panes.detail.midX, y: panes.detail.midY)
-            controls()
-                .frame(width: panes.controls.width, height: panes.controls.height)
-                .clipped()
-                .position(x: panes.controls.midX, y: panes.controls.midY)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 private struct AdaptivePaneRegions {
     let regions: [AdaptivePaneGeometry.Region]
     let coordinateSpace: Namespace.ID
@@ -135,8 +113,6 @@ extension EnvironmentValues {
             switch arrangement {
                 case .compact: Color.blue
                 case .columns: HStack { Color.blue; Color.green }
-                case let .tabletop(panes):
-                    TabletopPaneLayout(panes: panes) { Color.blue } controls: { Color.green }
             }
         }
         .whereBroadwayRoot()
