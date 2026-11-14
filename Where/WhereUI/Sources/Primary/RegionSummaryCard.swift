@@ -432,7 +432,9 @@ struct RegionSummaryCard: View {
 
     private var componentRole: WhereThemeComponents.Role {
         switch variant {
-            case .regular: .regularCard; case .compact: .compactCard; case .elsewhere: .elsewhereCard
+            case .regular, .column: .regularCard
+            case .compact: .compactCard
+            case .elsewhere: .elsewhereCard
         }
     }
 
@@ -696,7 +698,7 @@ private struct ArcText: View {
                 case .elsewhere: "Elsewhere"
             }
             let role: WhereThemeComponents.Role = switch variant {
-                case .regular: .regularCard
+                case .regular, .column: .regularCard
                 case .compact: .compactCard
                 case .elsewhere: .elsewhereCard
             }

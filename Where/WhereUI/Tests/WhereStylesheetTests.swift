@@ -191,7 +191,7 @@ struct WhereStylesheetTests {
         #expect(style.privacyPassportCard.disclosure.layout == .inline)
         #expect(style.themePicker == .init())
         #expect(style.themePicker.spacing == 12)
-        #expect(style.themePicker.minimumInlineWidth == 364)
+        #expect(style.themePicker.minimumOptionWidth == 180)
         #expect(style.loggedDay.layout == .inline)
         #expect(style.openSourceStamp.layout == .inline)
         #expect(style.plannedStayWarningStamp.layout == .inline)
