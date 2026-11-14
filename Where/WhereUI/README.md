@@ -38,7 +38,7 @@ The calendar initially opens at full size. It remembers the last zoom level sepa
 `CalendarContentView` accepts an optional `CalendarZoomKey`; `nil` keeps zoom in memory without reading or writing preferences.
 Pinch inward or tap Show Year to see all twelve months in a three-column overview.
 Tap an available month or pinch outward over it to return to full size. The full-size estimate panel sits below the overview grid. Tapping it opens its position in the detailed calendar.
-Visible months move and scale between their measured positions in each zoom level. The estimate panel moves at full size. `CalendarZoomTransitionModel` holds the outgoing tiles until the destination scroll position settles; `CalendarZoomOverlay` animates fixed-layout copies without changing the scroll layout. Reduce Motion uses a crossfade.
+Visible months move and scale between their measured positions in each zoom level. The estimate panel moves at full size. `CalendarZoomTransitionState` holds the outgoing tiles until the destination scroll position settles; `CalendarZoomOverlay` animates fixed-layout copies without changing the scroll layout. Reduce Motion uses a crossfade.
 Gray month titles and day numbers mark months unavailable in the full-size view. Their region and projection colors remain visible. Activating one gives a light haptic and a brief shake.
 The overview uses stronger region fills, with extra opacity in dark mode. Future plans retain diagonal stripes; possible dates retain hollow dots and dashed outlines.
 Month cards are transparent in both zoom levels, so the screen background shows through. The current month uses an accent outline and title.
@@ -68,6 +68,64 @@ Manual checks retry immediately; errors retain the last successful result.
 An automatic check that can reuse Core's cache preserves an active manual check and its loading state.
 Demo mode hides this surface and performs no update checks.
 
+
+`MainTabs` owns the report and its tab selection. Locations, Year, and Settings own
+presentation state above adaptive layout branches. Their paths, search, and sheets
+remain local to those screens. Active Locations drill-ins keep their native stack
+mounted and defer tabletop composition until the user returns.
+
+An explicit BroadwayUI restoration scope retains each pane's native `ScrollPosition`.
+Entries use the view type and a typed role; region/year changes replace the current
+entry. There is no historical cache, persistence, or pixel-offset restoration.
+The detail calendar retains typed month and forecast targets with their alignment.
+Overview has a separate local position. Tabletop reads the selected month or detail
+anchor without replacing a saved forecast target.
+`CalendarModel` interprets available months and accesses existing zoom preferences.
+View-owned helpers handle mode, gestures, rejection feedback, and transition geometry.
+A report-year change waits for matching data before positioning. Stale visibility callbacks cannot replace the new year's anchor.
+Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
+The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
+Timeline stays also measure eagerly so resizing cannot shift the content origin.
+Timeline anchors refer to displayed stay segments or flight identities.
+Switching between the calendar and timeline restores each view independently.
+
+On a wide window, Locations shows cards beside the selected region's calendar.
+Without a region selection, the detail pane shows the year calendar.
+When Locations displays both panes, only browsing shows the estimate card.
+The compact calendar push retains its estimate card in detail and overview.
+Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
+Your Year uses one navigation stack and the bottom calendar/timeline selector at every window size.
+Settings uses native list and detail navigation.
+Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
+Narrow windows and accessibility text sizes use one pane. Locations marks the selected region only while its browsing and calendar panes are shown together.
+Theme choices stack when the available pane cannot fit two readable card specimens.
+
+`AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
+`AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
+In Locations, an active horizontal division places the selected month above the hinge and browsing controls below it.
+A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
+The adapter uses container geometry, without device-name or hinge-angle checks.
+
+Locations owns an optional `CalendarMonthReveal` value. Month controls create a new
+request identity even when the destination is unchanged. Calendar applies the request
+once its content is ready and retains the consumed month for tabletop display.
+Calendar detail scroll restoration remains authoritative; entering overview or
+tabletop does not overwrite a saved forecast anchor. Timeline owns its typed row IDs
+and restores browsing independently, without calendar-to-timeline selection machinery.
+Settings uses native split navigation and the stylesheet's compact-layout policy;
+it does not consult Locations' tabletop geometry.
+
+Planning sheets remain above changing containers, with one owner per destination.
+The welcome and developer overlays share the geometry adapter to find clear space.
+The DEBUG **Duo Layout Lab** retains one production demo world while its pose control
+changes bounds, traits, and synthetic regions. Embedded demo tools leave dismissal
+to their containing tool.
+
+Synthetic poses come from `SnapshotConfiguration.DuoPose`; see the measurement provenance in [SnapshotKit](../../Shared/SnapshotKit/README.md). Native runtime geometry validation remains pending.
+Viewport shell captures supplement full-content captures of the shared scrolling panes.
+Views apply their initial position once the corresponding content is ready.
+Synthetic layouts do not validate system bars, camera activation, or physical folding. Those require native-device checks.
+The reusable panes also support iPad layouts. There is no HomeView target.
 
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
@@ -699,19 +757,3 @@ also avoids blank trailing space from lazy estimates in its bottom-anchored scro
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
-
-## Adaptive pane foundations
-
-Stable destination views own navigation and presentation state. BroadwayUI retains
-scroll positions for the current context only. Changing region or year discards
-the old position. Explicit reveal requests belong to their consuming views;
-ordinary scrolling does not select or move another pane. Synthetic pose geometry
-and localized labels come from `SnapshotConfiguration.DuoPose`.
-
-`AdaptivePaneGeometry` maps safe areas and reserved regions into physical
-container coordinates. `AdaptivePaneArrangement` applies the stylesheet's pane
-limits. `AdaptivePaneContainer` hosts compact, columns, and tabletop arrangements.
-The DEBUG Testing SPI supplies synthetic reserved regions to the same adapter.
-
-This foundation does not replace the current destination containers. The dependent
-app integration installs view-owned state and presents these arrangements.

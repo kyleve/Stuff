@@ -1,3 +1,4 @@
+import BroadwayUI
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
@@ -11,6 +12,21 @@ import SwiftUI
 /// navigation: the Your Year tab embeds it inline, and the Locations tab pushes
 /// it — region-focused, with a title — as the zoom destination of a tapped card.
 struct CalendarContentView: View {
+    enum Presentation: Equatable { case year, month }
+    @Binding private var monthReveal: CalendarMonthReveal?
+    private let allowsMonthSelection: Bool
+
+    let displayMode: Presentation
+    private let showsEstimateCard: Bool
+    enum ScrollRole: Hashable { case standalone, locations, year }
+    struct ScrollContext: Hashable { let region: Region?; let year: Int }
+    private let model: CalendarModel
+    private let suppliedPlanningDestination: Binding<PlannedStaysDestination?>?
+    @State private var localPlanningDestination: PlannedStaysDestination?
+    private var planningDestination: Binding<PlannedStaysDestination?> {
+        suppliedPlanningDestination ?? $localPlanningDestination
+    }
+
     /// When set, the day grid only shows dots for this region (so it reads as
     /// "just the days I spent here"); the per-month footer still lists every
     /// region. `nil` shows every region's dots.
@@ -20,42 +36,74 @@ struct CalendarContentView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
-    @State private var planningDestination: PlannedStaysDestination?
-    @State private var presentation: CalendarPresentationModel
-    @AccessibilityFocusState private var focusedTarget: CalendarPresentationModel.Target?
-    @State private var zoom = CalendarZoomTransitionModel()
+    @State private var localPresentation: CalendarPresentationState
+    private let suppliedPresentation: CalendarPresentationState?
+    private var presentation: CalendarPresentationState {
+        suppliedPresentation ?? localPresentation
+    }
+
+    @AccessibilityFocusState private var focusedTarget: CalendarPresentationState.Target?
+    @State private var zoom = CalendarZoomTransitionState()
+    @BScrollPosition<
+        CalendarPresentationState.Target,
+        CalendarContentView.ScrollContext
+    > private var detailPosition: ScrollPosition
+    @State private var overviewPosition = ScrollPosition(
+        idType: CalendarPresentationState.Target.self,
+        edge: .top,
+    )
+    @State private var tabletopPosition = ScrollPosition(
+        idType: CalendarPresentationState.Target.self,
+        edge: .top,
+    )
+    private var detailTarget: CalendarPresentationState
+        .Target?
+    {
+        detailPosition.viewID(type: CalendarPresentationState.Target.self)
+    }
+
+    private var calendarPosition: Binding<ScrollPosition> {
+        if displayMode == .month { return $tabletopPosition }
+        return presentation.mode == .overview ? $overviewPosition : $detailPosition
+    }
+
     @State private var scrollOffset = CGPoint.zero
 
     /// A nil persistence key keeps zoom session-only, including in previews.
     init(
         focusedRegion: Region? = nil,
         report: YearReportModel,
-        initialMode: CalendarPresentationModel.Mode = .detail,
+        showsEstimateCard: Bool = true,
+        monthReveal: Binding<CalendarMonthReveal?>? = nil,
+        presentationState: CalendarPresentationState? = nil,
+        presentation: Presentation = .year,
+        initialMode: CalendarPresentationState.Mode = .detail,
         persistenceKey: CalendarZoomKey? = nil,
+        scrollRole: ScrollRole = .standalone,
+        planningDestination: Binding<PlannedStaysDestination?>? = nil,
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
-        _presentation = State(initialValue: CalendarPresentationModel(
-            mode: initialMode,
-            preferences: report.preferences,
-            persistenceKey: persistenceKey,
-        ))
+        self.showsEstimateCard = showsEstimateCard
+        _monthReveal = monthReveal ?? .constant(nil)
+        allowsMonthSelection = monthReveal != nil
+        suppliedPresentation = presentationState
+        displayMode = presentation
+        suppliedPlanningDestination = planningDestination
+        let model = CalendarModel(report: report, persistenceKey: persistenceKey)
+        self.model = model
+        _localPresentation =
+            State(initialValue: CalendarPresentationState(mode: model
+                    .isOverview(fallback: initialMode == .overview) ? .overview : .detail))
+        _detailPosition = BScrollPosition(
+            Self.self,
+            role: scrollRole,
+            context: { ScrollContext(region: focusedRegion, year: report.selectedYear) },
+            idType: CalendarPresentationState.Target.self,
+        )
     }
-
-    @State private var scrollPosition = ScrollPosition(idType: CalendarPresentationModel.Target
-        .self)
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
-
-    /// Inputs that invalidate a cached month grid.
-    private struct CalendarLoadID: Equatable {
-        let report: YearReport
-        let missingDayKeys: Set<CalendarDay>
-        let evidenceDayKeys: Set<CalendarDay>
-        let flightDayKeys: Set<CalendarDay>
-        let referenceDay: Date
-        let focusedRegion: Region?
-    }
 
     var body: some View {
         Group {
@@ -70,9 +118,9 @@ struct CalendarContentView: View {
                             AppIconLoadingView(caption: String(localized: .primaryLoading))
                     }
                 }
-                .task(id: calendarLoadID(report: yearReport)) {
+                .task(id: model.loadID(for: yearReport, focusedRegion: focusedRegion)) {
                     zoom.cancel()
-                    let result = loadCalendarMonths(from: yearReport)
+                    let result = model.months(from: yearReport, focusedRegion: focusedRegion)
                     guard !Task.isCancelled else { return }
                     monthsLoad = result
                 }
@@ -109,23 +157,28 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
-        .sheet(item: $planningDestination) { destination in
-            PlannedStaysDestinationView(destination: destination, report: report)
-        }
+        .modifier(PlanningPresentation(
+            report: report,
+            destination: planningDestination,
+            isEnabled: suppliedPlanningDestination == nil,
+        ))
+        .toolbar(displayMode == .month ? .hidden : .automatic, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    changeZoom { presentation.toggle() }
-                } label: {
-                    Label(
-                        presentation
-                            .mode == .detail ? String(localized: .calendarShowYear) :
-                            String(localized: .calendarShowMonths),
-                        systemSymbol: presentation
-                            .mode == .detail ? .squareGrid3x3 : .rectangleGrid1x2,
-                    )
+            if displayMode == .year {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        changeZoom { toggleZoom() }
+                    } label: {
+                        Label(
+                            presentation
+                                .mode == .detail ? String(localized: .calendarShowYear) :
+                                String(localized: .calendarShowMonths),
+                            systemSymbol: presentation
+                                .mode == .detail ? .squareGrid3x3 : .rectangleGrid1x2,
+                        )
+                    }
+                    .disabled(monthsLoad == nil || zoom.phase != nil)
                 }
-                .disabled(monthsLoad == nil || zoom.phase != nil)
             }
             if report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -133,38 +186,15 @@ struct CalendarContentView: View {
                         String(localized: .plannedStaysTitle),
                         systemSymbol: .calendarBadgeClock,
                     ) {
-                        planningDestination = .list
+                        planningDestination.wrappedValue = .list
                     }
                 }
             }
         }
         .onChange(of: report.selectedYear) { zoom.cancel() }
+        .onChange(of: presentation.mode) { model.setOverview(presentation.mode == .overview) }
         .onChange(of: stylesheet.calendar.overview.usesSpatialMotion) { zoom.cancel() }
         .onDisappear { zoom.cancel() }
-    }
-
-    private func calendarLoadID(report yearReport: YearReport) -> CalendarLoadID {
-        CalendarLoadID(
-            report: yearReport,
-            missingDayKeys: report.missingDayKeys,
-            evidenceDayKeys: report.evidenceDayKeys,
-            flightDayKeys: report.flightDayKeys,
-            referenceDay: report.calendar.startOfDay(for: report.referenceDate),
-            focusedRegion: focusedRegion,
-        )
-    }
-
-    private func loadCalendarMonths(from yearReport: YearReport) -> Result<[CalendarMonth], Error> {
-        Result {
-            try yearReport.calendarMonths(
-                calendar: report.calendar,
-                referenceDate: report.referenceDate,
-                missingDates: report.missingDayKeys,
-                evidenceDays: report.evidenceDayKeys,
-                flightDays: report.flightDayKeys,
-                focusedRegion: focusedRegion,
-            )
-        }
     }
 
     private func calendarLayoutError(_ error: Error) -> some View {
@@ -181,14 +211,19 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        let visibleMonths = CalendarPresentationModel.visibleMonths(
+        let availableMonths = CalendarModel.visibleMonths(
             months,
             report: report,
             focusedRegion: focusedRegion,
         )
         let currentMonth = months.first(where: \.isCurrentMonth)
         let estimateMonth = months.first(where: showsForecast(after:))
-        let overview = presentation.mode == .overview
+        let visibleMonths = displayMode == .year ? availableMonths : months.filter {
+            monthKey($0) ==
+                (selectedMonth ?? detailTarget?.month ?? currentMonth
+                    .map(monthKey) ?? availableMonths.last.map(monthKey))
+        }
+        let overview = displayMode == .year && presentation.mode == .overview
 
         return ScrollView {
             Group {
@@ -221,17 +256,17 @@ struct CalendarContentView: View {
                                 }
                                 .id(target(for: month))
                                 .accessibilityFocused($focusedTarget, equals: target(for: month))
-                            if showsForecast(after: month) {
+                            if displayMode == .year, showsForecast(after: month) {
                                 LocationForecastPanel(
                                     forecasts: calendarForecasts,
                                     microprintRegions: report.ranking.primary.map(\.region),
                                     homeRegion: report.forecasts.planning.homeRegion,
-                                    planningAction: { planningDestination = .list },
+                                    planningAction: { planningDestination.wrappedValue = .list },
                                 )
                                 .anchorPreference(key: CalendarZoomFrames.self, value: .bounds) {
                                     [.detail: [.tile(.estimate(monthKey(month))): $0]]
                                 }
-                                .id(CalendarPresentationModel.Target.estimate(monthKey(month)))
+                                .id(CalendarPresentationState.Target.estimate(monthKey(month)))
                                 .accessibilityFocused(
                                     $focusedTarget,
                                     equals: .estimate(monthKey(month)),
@@ -250,9 +285,10 @@ struct CalendarContentView: View {
                 frames[overview ? .overview : .detail, default: [:]][.content] = content
             }
         }
+        // Each mode keeps its own binding while outgoing content finishes its transition.
+        .scrollPosition(calendarPosition)
         .id(presentation.mode)
         .transition(stylesheet.calendar.overview.transition)
-        .scrollPosition($scrollPosition)
         .onScrollGeometryChange(for: CGPoint.self) {
             CGPoint(
                 x: $0.contentOffset.x + $0.contentInsets.leading,
@@ -260,10 +296,6 @@ struct CalendarContentView: View {
             )
         } action: { _, value in
             scrollOffset = value
-        }
-        .onScrollTargetVisibilityChange(idType: CalendarPresentationModel.Target.self) { targets in
-            if zoom.phase == nil, scrollPosition.isPositionedByUser,
-               let first = targets.first { presentation.remember(first) }
         }
         .simultaneousGesture(MagnifyGesture().onEnded { value in
             let viewportSize = zoom.measurement?.viewport.size ?? .zero
@@ -275,8 +307,9 @@ struct CalendarContentView: View {
                 .first(where: {
                     $0.key.month.year == report.selectedYear && $0.value.contains(point)
                 })?.key
+            guard displayMode == .year else { return }
             changeZoom {
-                presentation.finishPinch(
+                finishPinch(
                     magnification: value.magnification,
                     destination: destination,
                 )
@@ -290,49 +323,52 @@ struct CalendarContentView: View {
         .task(id: CalendarLayoutID(
             year: report.selectedYear,
             mode: presentation.mode,
-            availableMonths: visibleMonths.map(monthKey),
+            displayMode: displayMode,
+            availableMonths: availableMonths.map(monthKey),
             estimateMonth: estimateMonth.map(monthKey),
         )) {
             guard !Task.isCancelled else { return }
-            let isInitial = presentation.year == nil
             presentation.reconcile(
                 year: report.selectedYear,
-                availableMonths: visibleMonths.map(monthKey),
-                currentMonth: currentMonth.map(monthKey),
+                availableMonths: (displayMode == .month ? months : availableMonths).map(monthKey),
                 estimateMonth: estimateMonth.map(monthKey),
             )
-            if !overview, let target = presentation.target {
-                let initialTarget = isInitial ? estimateMonth
-                    .map { CalendarPresentationModel.Target.estimate(monthKey($0)) } ?? target :
-                    target
-                if zoom.phase == nil {
-                    scrollPosition.scrollTo(id: initialTarget, anchor: isInitial ? .bottom : .top)
-                    if !isInitial { focusedTarget = target }
+            let initialTarget = estimateMonth
+                .map { CalendarPresentationState.Target.estimate(monthKey($0)) }
+                ?? (currentMonth ?? availableMonths.last)
+                .map { CalendarPresentationState.Target.month(monthKey($0)) }
+            if let initialTarget {
+                _detailPosition.initialize(id: initialTarget, anchor: .bottom)
+                if let target = detailTarget, !presentation.isAvailable(target) {
+                    _detailPosition.scrollTo(id: initialTarget, anchor: .bottom)
                 }
-            } else {
-                scrollPosition.scrollTo(edge: .top)
+            }
+            if applyReveal() { return }
+            if displayMode == .year, presentation.mode == .detail, let target = detailTarget {
+                // A new native scroll view must receive the command after its content mounts.
+                _detailPosition.scrollTo(id: target, anchor: _detailPosition.anchor ?? .top)
+            }
+            if displayMode == .month, let month = selectedMonth ?? detailTarget?.month {
+                tabletopPosition.scrollTo(
+                    id: CalendarPresentationState.Target.month(month),
+                    anchor: .top,
+                )
             }
         }
+        .onChange(of: monthReveal?.id, initial: true) { _ = applyReveal() }
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
-            GeometryReader { proxy in
-                let measured = CalendarZoomFrames.measure(
-                    anchors[overview ? .overview : .detail] ?? [:],
-                    in: proxy,
-                    mode: overview ? .overview : .detail,
-                    scrollOffset: scrollOffset,
-                )
-                Color.clear
-                    .onChange(of: measured, initial: true) { _, value in
-                        zoom.updateMeasurement(value)
-                        if case .preparing = zoom.phase,
-                           let value, value.mode == .detail,
-                           let target = presentation.target, value.frames[target] != nil
-                        {
-                            scrollPosition.scrollTo(id: target, anchor: .top)
-                        }
-                    }
-            }
-            .allowsHitTesting(false)
+            Color.clear
+                .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
+                    CalendarZoomFrames.measure(
+                        anchors[overview ? .overview : .detail] ?? [:],
+                        in: proxy,
+                        mode: overview ? .overview : .detail,
+                        scrollOffset: scrollOffset,
+                    )
+                } action: { value in
+                    zoom.updateMeasurement(value)
+                }
+                .allowsHitTesting(false)
         }
         .allowsHitTesting(zoom.phase == nil)
         .accessibilityHidden(zoom.phase != nil)
@@ -342,16 +378,76 @@ struct CalendarContentView: View {
                     zoomTile(target, mode: mode, months: months)
                 }, completion: { id in
                     guard zoom.finish(id) else { return }
-                    if presentation.mode == .detail { focusedTarget = presentation.target }
+                    if presentation.mode == .detail { focusedTarget = detailTarget }
                 })
                 .background(stylesheet.calendar.overview.zoomBackground)
             }
         }
     }
 
+    @discardableResult
+    private func applyReveal() -> Bool {
+        guard let request = monthReveal, request.isPending,
+              request.month.year == report.selectedYear,
+              presentation.year == report.selectedYear,
+              presentation.isAvailable(.month(request.month))
+        else { return false }
+        zoom.cancel()
+        let target = CalendarPresentationState.Target.month(request.month)
+        if displayMode == .year { _ = presentation.expand(target) }
+        _detailPosition.scrollTo(id: target, anchor: .top)
+        tabletopPosition.scrollTo(id: target, anchor: .top)
+        monthReveal?.isPending = false
+        return true
+    }
+
+    private var selectedMonth: CalendarDay? {
+        guard let month = monthReveal?.month, month.year == report.selectedYear else { return nil }
+        return month
+    }
+
+    private var selectedInterval: ClosedRange<CalendarDay>? {
+        guard let month = selectedMonth,
+              let interval = report.calendar.dateInterval(
+                  of: .month,
+                  for: month.startOfDay(in: report.calendar),
+              )
+        else { return nil }
+        return month ... CalendarDay(from: interval.end, in: report.calendar).adding(days: -1)
+    }
+
+    private func expand(_ target: CalendarPresentationState.Target) {
+        guard presentation.expand(target) else { return }
+        _detailPosition.scrollTo(id: target, anchor: .top)
+    }
+
+    private func toggleZoom() {
+        switch presentation.mode {
+            case .detail: presentation.mode = .overview
+            case .overview:
+                guard let target = detailTarget else { return }
+                _ = presentation.expand(target)
+        }
+    }
+
+    private func finishPinch(
+        magnification: CGFloat,
+        destination: CalendarPresentationState.Target?,
+    ) {
+        switch presentation.mode {
+            case .detail:
+                if magnification <= CalendarPresentationState
+                    .overviewThreshold { presentation.mode = .overview }
+            case .overview:
+                if magnification >= CalendarPresentationState.detailThreshold,
+                   let destination { expand(destination) }
+        }
+    }
+
     private struct CalendarLayoutID: Equatable {
         let year: Int
-        let mode: CalendarPresentationModel.Mode
+        let mode: CalendarPresentationState.Mode
+        let displayMode: Presentation
         let availableMonths: [CalendarDay]
         let estimateMonth: CalendarDay?
     }
@@ -371,30 +467,27 @@ struct CalendarContentView: View {
             if stylesheet.calendar.overview.usesSpatialMotion, let source,
                source.mode == previousMode
             {
-                zoom.begin(from: source, to: presentation.mode, focus: presentation.target)
+                zoom.begin(
+                    from: source,
+                    to: presentation.mode,
+                    focus: detailTarget,
+                    alignment: _detailPosition.anchor ?? .top,
+                )
             }
             zoom.updateMeasurement(nil)
-            switch presentation.mode {
-                case .overview:
-                    scrollPosition = ScrollPosition(
-                        idType: CalendarPresentationModel.Target.self,
-                        edge: .top,
-                    )
-                case .detail:
-                    if zoom.phase != nil {
-                        scrollPosition = ScrollPosition(idType: CalendarPresentationModel.Target
-                            .self)
-                    } else if let target = presentation.target {
-                        scrollPosition = ScrollPosition(id: target, anchor: .top)
-                    }
+            if presentation.mode == .overview {
+                overviewPosition = ScrollPosition(
+                    idType: CalendarPresentationState.Target.self,
+                    edge: .top,
+                )
             }
         }
     }
 
     @ViewBuilder
     private func zoomTile(
-        _ target: CalendarPresentationModel.Target,
-        mode: CalendarPresentationModel.Mode,
+        _ target: CalendarPresentationState.Target,
+        mode: CalendarPresentationState.Mode,
         months: [CalendarMonth],
     ) -> some View {
         switch target {
@@ -411,7 +504,8 @@ struct CalendarContentView: View {
                     forecasts: calendarForecasts,
                     microprintRegions: report.ranking.primary.map(\.region),
                     homeRegion: report.forecasts.planning.homeRegion,
-                    planningAction: mode == .detail ? { planningDestination = .list } : nil,
+                    planningAction: mode == .detail ? { planningDestination.wrappedValue = .list } :
+                        nil,
                 )
         }
     }
@@ -420,7 +514,7 @@ struct CalendarContentView: View {
         CalendarDay(year: month.year, month: month.month, day: 1)
     }
 
-    private func target(for month: CalendarMonth) -> CalendarPresentationModel.Target {
+    private func target(for month: CalendarMonth) -> CalendarPresentationState.Target {
         .month(monthKey(month))
     }
 
@@ -438,12 +532,17 @@ struct CalendarContentView: View {
                 .plannedRegionSummaries(in: month) : [],
             compact: compact,
             isAvailable: isAvailable,
+            displayMode: displayMode,
+            selectedInterval: selectedInterval,
+            selectMonth: compact || !allowsMonthSelection ? nil : {
+                monthReveal = CalendarMonthReveal(month: monthKey(month))
+            },
         )
     }
 
     private func overviewMonth(_ month: CalendarMonth, available: Bool) -> some View {
         let destination = target(for: month)
-        return Button { changeZoom { presentation.expand(destination) } } label: {
+        return Button { changeZoom { expand(destination) } } label: {
             monthView(month, compact: true, isAvailable: available)
         }
         .buttonStyle(.plain)
@@ -459,8 +558,8 @@ struct CalendarContentView: View {
     }
 
     private func overviewEstimate(_ month: CalendarMonth) -> some View {
-        let destination = CalendarPresentationModel.Target.estimate(monthKey(month))
-        return Button { changeZoom { presentation.expand(destination) } } label: {
+        let destination = CalendarPresentationState.Target.estimate(monthKey(month))
+        return Button { changeZoom { expand(destination) } } label: {
             LocationForecastPanel(
                 forecasts: calendarForecasts,
                 microprintRegions: report.ranking.primary.map(\.region),
@@ -475,7 +574,7 @@ struct CalendarContentView: View {
     }
 
     private func showsForecast(after month: CalendarMonth) -> Bool {
-        report.showsEstimatedTimeAndPlanning
+        showsEstimateCard && report.showsEstimatedTimeAndPlanning
             && month.isCurrentMonth
             && !calendarForecasts.isEmpty
     }
@@ -494,6 +593,21 @@ struct CalendarContentView: View {
     }
 }
 
+/// Adds default activation while preserving the month card's full accessibility frame.
+private struct MonthSelectionAccessibility: ViewModifier {
+    let action: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let action {
+            content
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { action() }
+        } else {
+            content
+        }
+    }
+}
+
 /// One month section: weekday header row, a day grid, and a footer tallying the
 /// days spent in each region that month.
 private struct MonthGridView: View {
@@ -505,6 +619,10 @@ private struct MonthGridView: View {
     let planningSummary: [PlanningRegionSummary]
     var compact = false
     var isAvailable = true
+
+    var displayMode: CalendarContentView.Presentation = .year
+    var selectedInterval: ClosedRange<CalendarDay>?
+    var selectMonth: (() -> Void)?
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -548,17 +666,68 @@ private struct MonthGridView: View {
     var body: some View {
         let monthAccessibility = accessibility
 
-        VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
-            Text(monthName)
-                .font(compact ? .system(size: calendar.overview.titleFontSize, weight: .semibold) :
-                    .title.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(isAvailable ? card.foreground : calendar.overview
-                    .unavailableForeground)
+        Group {
+            if displayMode == .month {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: calendar.month.summarySpacing) {
+                        VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+                            monthHeading; monthSummary
+                        }
+                        .frame(width: calendar.month.summaryWidth)
+                        dayGrid.frame(minWidth: calendar.month.minimumGridWidth)
+                    }
+                    VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+                        monthHeading; dayGrid; monthSummary
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+                    monthHeading; dayGrid; monthSummary
+                }
+            }
+        }
+        .padding(calendar.month.padding)
+        .foregroundStyle(card.foreground)
+        .background {
+            // Transparent month cards share the screen background. The current
+            // month stands out through its accent text and heavier border.
+            cardShape
+                .fill(card.fill)
+                .overlay {
+                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
+                }
+        }
+        .contentShape(cardShape)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthAccessibility.label)
+        .accessibilityValue(monthAccessibility.value)
+        .modifier(MonthSelectionAccessibility(action: selectMonth))
+    }
 
-            dayGrid
+    private var monthHeading: some View {
+        Group {
+            if let selectMonth { Button(monthName, action: selectMonth).buttonStyle(.plain) }
+            else { Text(monthName) }
+        }
+        .font(compact ? .system(size: calendar.overview.titleFontSize, weight: .semibold) :
+            .title.weight(.semibold))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundStyle(isAvailable ? card.foreground : calendar.overview
+            .unavailableForeground)
+    }
 
-            if !compact, !month.regionTotals.isEmpty {
+    private var monthSummary: some View {
+        Group {
+            if displayMode == .month, let focusedRegion {
+                MonthFooter(
+                    totals: [month.regionTotals
+                        .first { $0.region == focusedRegion } ?? RegionDayTally(
+                            region: focusedRegion,
+                            days: 0,
+                        )],
+                    focusedRegion: focusedRegion,
+                )
+            } else if !compact, !month.regionTotals.isEmpty {
                 MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
             }
             ForEach(
@@ -589,21 +758,6 @@ private struct MonthGridView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .padding(calendar.month.padding)
-        .foregroundStyle(card.foreground)
-        .background {
-            // Transparent month cards share the screen background. The current
-            // month stands out through its accent text and heavier border.
-            cardShape
-                .fill(card.fill)
-                .overlay {
-                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
-                }
-        }
-        .contentShape(cardShape)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(monthAccessibility.label)
-        .accessibilityValue(monthAccessibility.value)
     }
 
     /// A month has at most six weeks. Eager rows keep its intrinsic height exact
@@ -614,7 +768,8 @@ private struct MonthGridView: View {
             .weekdayCount
         return Grid(
             horizontalSpacing: calendar.month.gridSpacing,
-            verticalSpacing: calendar.month.gridSpacing,
+            verticalSpacing: displayMode == .month ? calendar.month.tabletopGridSpacing : calendar
+                .month.gridSpacing,
         ) {
             GridRow {
                 ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
@@ -637,6 +792,10 @@ private struct MonthGridView: View {
                                 compact: compact,
                                 isAvailable: isAvailable,
                             )
+                            .presenceSelection(selectedInterval?.contains(CalendarDay(
+                                from: month.days[index].date,
+                                in: dateCalendar,
+                            )) == true)
                         } else {
                             Color.clear
                                 .frame(height: calendar.day.minHeight)
@@ -1032,6 +1191,18 @@ private struct DayCell: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "HistoryColumn",
+                configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
+                        .historyColumn)],
+            ) {
+                NavigationStack {
+                    CalendarContentView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        showsEstimateCard: false,
+                    )
+                }
+            }
             whereSnapshot(
                 name: "FlightAndEvidenceBadges",
                 configurations: .componentRepresentative,

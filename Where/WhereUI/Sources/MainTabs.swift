@@ -1,6 +1,7 @@
 #if DEBUG
     @_spi(Testing) import InstallerKitUI
 #endif
+import BroadwayUI
 import InstallerKit
 import RegionKit
 import SFSafeSymbols
@@ -21,8 +22,7 @@ import SwiftUI
 /// checked wiring); the always-on `WhereSession` coordinator stays in the
 /// environment.
 struct MainTabs: View {
-    /// Identity for the tab-bar selection.
-    private typealias TabID = MainTabSelection.TabID
+    typealias TabID = MainTabSelection.TabID
 
     private struct WelcomeTaskID: Hashable {
         let isActive: Bool
@@ -34,6 +34,9 @@ struct MainTabs: View {
     @State private var welcome: LocationWelcomeModel
     @State private var planningDestination: PlannedStaysDestination?
     @State private var selection = MainTabSelection()
+    private var initialRegion: Region?
+    private var initialSettingsRoute: SettingsRoute?
+    private var initialYearMode: YearMode = .calendar
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
@@ -72,8 +75,12 @@ struct MainTabs: View {
                 systemSymbol: .locationFill,
                 value: TabID.locations,
             ) {
-                LocationsView(report: report, openElsewhere: { selection.selected = .elsewhere })
-                    .reportingDeveloperTabBarInset()
+                LocationsView(
+                    report: report,
+                    initialRegion: initialRegion,
+                    openElsewhere: { selection.selected = .elsewhere },
+                )
+                .reportingDeveloperTabBarInset()
             }
 
             if report.hasElsewhere {
@@ -88,13 +95,17 @@ struct MainTabs: View {
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
-                YearView(report: report)
+                YearView(report: report, initialMode: initialYearMode)
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(value: TabID.settings) {
-                SettingsView(report: report, recordingWarning: recordingWarning)
-                    .reportingDeveloperTabBarInset()
+                SettingsView(
+                    report: report,
+                    recordingWarning: recordingWarning,
+                    initialRoute: initialSettingsRoute,
+                )
+                .reportingDeveloperTabBarInset()
             } label: {
                 RecordingConfigurationWarningTabLabel(
                     model: recordingWarning,
@@ -105,6 +116,7 @@ struct MainTabs: View {
             .badge((recordingWarning.isPresented ? 1 : 0) +
                 ((!isInDemoMode && updates?.needsAttention == true) ? 1 : 0))
         }
+        .bScrollRestorationScope()
         .accessibilityHidden(welcomePresentation != nil)
         .onChange(of: report.hasElsewhere, initial: true) { _, hasElsewhere in
             selection.reconcile(hasElsewhere: hasElsewhere)
@@ -208,6 +220,29 @@ struct MainTabs: View {
             _welcome = State(initialValue: welcome)
             _selection = State(initialValue: MainTabSelection(selected: selection))
         }
+
+        /// Retains the production shell around a separately built in-memory lab world.
+        init(
+            world: WhereFlyoverWorld,
+            tab: TabID = .locations,
+            region: Region? = nil,
+            settingsRoute: SettingsRoute? = nil,
+            yearMode: YearMode = .calendar,
+        ) {
+            self.init(
+                session: world.session,
+                report: world.report,
+                welcome: LocationWelcomeModel(
+                    services: world.scope.services,
+                    preferences: world.scope.preferences,
+                    now: world.session.now,
+                ),
+                selection: tab,
+            )
+            initialRegion = region
+            initialSettingsRoute = settingsRoute
+            initialYearMode = yearMode
+        }
     #endif
 }
 
@@ -227,7 +262,7 @@ struct MainTabs: View {
                     configurations: [configuration],
                     settle: .settledAtLeast(minDuration: 1.0),
                 )
-            } + [elsewhereSnapshot(), elsewhereSnapshot(theme: .alternate)]
+            } + [elsewhereSnapshot(), elsewhereSnapshot(theme: .alternate)] + adaptiveSnapshots
         }
 
         private static func elsewhereSnapshot(theme: WhereTheme = .standard) -> SnapshotCase {
@@ -308,6 +343,94 @@ struct MainTabs: View {
                 } else {
                     ProgressView()
                 }
+            }
+        }
+
+        /// Viewport composition supplements the full-content Locations, calendar, timeline,
+        /// and Settings matrices. Synthetic regions exercise the production layout policy.
+        private static var adaptiveSnapshots: [SnapshotCase] {
+            let tabs: [MainTabSelection.TabID] = [.locations, .year, .settings]
+            var cases = tabs.flatMap { tab in
+                SnapshotConfiguration.DuoPose.allCases.map { pose in
+                    adaptiveSnapshot(
+                        tab: tab,
+                        pose: pose,
+                        configuration: SnapshotConfiguration(device: pose.frame),
+                        selection: .none,
+                    )
+                }
+            }
+            for tab in tabs {
+                let pose = SnapshotConfiguration.DuoPose.innerPortrait
+                let configurations = [
+                    SnapshotConfiguration(colorScheme: .dark, device: pose.frame),
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: pose.frame),
+                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: pose.frame),
+                    SnapshotConfiguration(contrast: .increased, device: pose.frame),
+                    SnapshotConfiguration(device: pose.frame, snapshotType: .accessibility),
+                ]
+                cases += configurations.map { configuration in
+                    adaptiveSnapshot(
+                        tab: tab,
+                        pose: pose,
+                        configuration: configuration,
+                        selection: .none,
+                    )
+                }
+            }
+            for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop, .book] {
+                cases.append(adaptiveSnapshot(
+                    tab: .locations,
+                    pose: pose,
+                    configuration: SnapshotConfiguration(device: pose.frame),
+                    selection: .region,
+                ))
+                cases.append(adaptiveSnapshot(
+                    tab: .year,
+                    pose: pose,
+                    configuration: SnapshotConfiguration(device: pose.frame),
+                    selection: .timeline,
+                ))
+            }
+            cases.append(adaptiveSnapshot(
+                tab: .settings,
+                pose: .innerPortrait,
+                configuration: SnapshotConfiguration(device: .duoInnerPortrait),
+                selection: .settings,
+            ))
+            return cases
+        }
+
+        private static func adaptiveSnapshot(
+            tab: MainTabSelection.TabID,
+            pose: SnapshotConfiguration.DuoPose,
+            configuration: SnapshotConfiguration,
+            selection: DuoLayoutSnapshotFixture.Selection,
+        ) -> SnapshotCase {
+            let tabName = switch tab {
+                case .locations: "Locations"
+                case .elsewhere: "Elsewhere"
+                case .year: "Year"
+                case .settings: "Settings"
+            }
+            let fixture = DuoLayoutSnapshotFixture(tab: tab, selection: selection)
+            let selectionName = switch selection {
+                case .none: ""
+                case .region, .settings: "-Selected"
+                case .timeline: "-Timeline"
+            }
+            return whereSnapshot(
+                name: "Adaptive-" + tabName + "-" + pose.rawValue + selectionName,
+                configurations: [configuration],
+                // Native glass can retain its light material after the async
+                // shell appears; match the measured Appearance/About floor.
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: {
+                    await fixture.prepare()
+
+                },
+            ) {
+                DuoLayoutSnapshotScene(fixture: fixture, pose: pose)
             }
         }
 

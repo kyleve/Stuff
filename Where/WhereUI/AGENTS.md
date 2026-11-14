@@ -114,9 +114,9 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
-- Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
-- Inject the calendar zoom key at each entry point. Persist mode changes through `WherePreferences`; a nil key must not read or write preferences. Guard: `CalendarPresentationModelTests`.
-- Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
+- Keep overview availability derived from the full-size calendar visibility rule in `CalendarModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarModelTests`.
+- Inject the calendar zoom key at each entry point. Persist mode changes through `CalendarModel` and the existing `WherePreferences` keys; a nil key must not read or write preferences. Guard: `CalendarModelTests`.
+- Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionStateTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
@@ -160,9 +160,14 @@ Layering, localization, preview, and testing conventions live in the feature
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
 - Measure calendar month sections, day rows, and Timeline rows eagerly so full-content measurement and scroll restoration use their actual heights. Guards: `CalendarContentViewSnapshotTests`, `PresenceTimelineListSnapshotTests`.
+- Keep Your Year in one navigation stack with its bottom calendar/timeline selector at every size. Guard: `YearViewTests`.
+- Hide the Locations calendar estimate only when browsing and calendar panes are displayed together. Keep it in the compact calendar push, without disabling planned-day content or other calendars. Guard: `LocationsViewTestsDuo.estimateCardFollowsVisibleLocationsPanes`.
+- Show Locations selection indicators only when browsing and calendar panes are displayed together. Guard: `LocationsViewTestsDuo.selectedRegionIsIndicatedOnlyBesideItsCalendar`.
 - Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep active drill-in stacks mounted while folding; defer tabletop composition until returning.
 - Read system reserved regions only in `AdaptivePaneGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
 - Keep explicit reveal requests in the owning view, with typed request identities distinct from content identities. Use BroadwayUI scroll restoration for current-context anchors; scrolling must not select or move another pane.
+- Keep rendered calendar anchors typed as `CalendarPresentationState.Target`, preserving month and estimate destinations. Detail owns the retained native scroll position; overview and tabletop must not overwrite it without an explicit reveal.
+- Keep reusable pane content outside native navigation shells. Present planning sheets above changing branches. Embedded demo tools use `demoExitPresentation = .embedded`.
 - Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
@@ -295,6 +300,9 @@ Keep Developer Overlay snapshots scene-backed so native glass retains its scene 
 Hosted tests that traverse SwiftUI accessibility must link and import
 `AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
 runtime. Guard: `CalendarContentViewTests`.
+
+`Tests/Support/TestStore.swift` and `AdaptivePaneLoadFixture.swift` are shared by the unit and image bundles through `Project.swift`.
+Keep support fixtures outside `SnapshotTests/`, whose Swift files each declare one matching suite. Use the store's read gates and failures for adaptive loading snapshots. Keep fixture setup and completion independent for each configuration.
 
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`

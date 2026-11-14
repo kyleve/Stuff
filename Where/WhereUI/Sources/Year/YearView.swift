@@ -1,3 +1,4 @@
+import BroadwayUI
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -10,12 +11,21 @@ struct YearView: View {
     let report: YearReportModel
 
     @State private var mode: YearMode
+    @State private var planningDestination: PlannedStaysDestination?
+    @State private var calendarPresentation: CalendarPresentationState
 
     @Environment(\.stylesheet) private var stylesheet
 
-    init(report: YearReportModel, initialMode: YearMode = .calendar) {
+    init(
+        report: YearReportModel,
+        initialMode: YearMode = .calendar,
+    ) {
         self.report = report
         _mode = State(initialValue: initialMode)
+        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
+            report: report,
+            persistenceKey: .year,
+        ).isOverview(fallback: false) ? .overview : .detail))
     }
 
     var body: some View {
@@ -23,9 +33,18 @@ struct YearView: View {
             Group {
                 switch mode {
                     case .calendar:
-                        CalendarContentView(report: report, persistenceKey: .year)
+                        CalendarContentView(
+                            report: report,
+                            presentationState: calendarPresentation,
+                            persistenceKey: .year,
+                            scrollRole: .year,
+                            planningDestination: $planningDestination,
+                        )
                     case .timeline:
-                        PresenceTimelineList(report: report)
+                        PresenceTimelineList(
+                            report: report,
+                            planningDestination: $planningDestination,
+                        )
                 }
             }
             // Crossfade between the two views rather than hard-cutting.
@@ -42,6 +61,7 @@ struct YearView: View {
                     .padding(.bottom, stylesheet.spacing.xLarge)
             }
         }
+        .modifier(PlanningPresentation(report: report, destination: $planningDestination))
     }
 }
 

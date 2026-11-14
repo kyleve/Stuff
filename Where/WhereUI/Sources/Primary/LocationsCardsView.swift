@@ -1,3 +1,4 @@
+import BroadwayUI
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -12,6 +13,42 @@ struct LocationsCardsView: View {
     let isCardSurfaceUncovered: Bool
     @Binding var isCardSurfaceVisible: Bool
     let planningAction: () -> Void
+    @Bindable var navigation: LocationsView.Navigation
+    let cardVariant: WhereStylesheet.CardStyle.Variant
+    let showsSelection: Bool
+
+    @BScrollPosition<Region, Int> private var position: ScrollPosition
+    enum ScrollRole: Hashable { case browse }
+
+    init(
+        report: YearReportModel,
+        cardPresentation: LocationCardsPresentationModel,
+        tilt: TiltProvider,
+        calendarTransition: Namespace.ID,
+        isCardSurfaceUncovered: Bool,
+        isCardSurfaceVisible: Binding<Bool>,
+        planningAction: @escaping () -> Void,
+        navigation: LocationsView.Navigation,
+        cardVariant: WhereStylesheet.CardStyle.Variant,
+        showsSelection: Bool,
+    ) {
+        self.report = report
+        self.cardPresentation = cardPresentation
+        self.tilt = tilt
+        self.calendarTransition = calendarTransition
+        self.isCardSurfaceUncovered = isCardSurfaceUncovered
+        _isCardSurfaceVisible = isCardSurfaceVisible
+        self.planningAction = planningAction
+        self.navigation = navigation
+        self.cardVariant = cardVariant
+        self.showsSelection = showsSelection
+        _position = BScrollPosition(
+            Self.self,
+            role: ScrollRole.browse,
+            context: { report.selectedYear },
+            idType: Region.self,
+        )
+    }
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -23,7 +60,7 @@ struct LocationsCardsView: View {
         // a short card list retains its centered presentation.
         return ScrollView {
             VStack(spacing: stylesheet.spacing.xxLarge) {
-                LocationsFlightNotice(report: report)
+                LocationsFlightNotice(report: report, openReview: { navigation.open(.flight($0)) })
 
                 LocationCardRankingStack(
                     spacing: stylesheet.spacing.xxLarge,
@@ -31,11 +68,12 @@ struct LocationsCardsView: View {
                     motion: stylesheet.locationCardStack.overtake,
                 ) {
                     ForEach(presentedCards) { item in
-                        NavigationLink {
-                            calendarDestination(item.region)
+                        Button {
+                            navigation.select(region: item.region)
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
+                                variant: cardVariant,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
                                 estimatedDays: estimatedDays(for: item.region),
@@ -47,7 +85,7 @@ struct LocationsCardsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        .buttonStyle(stylesheet.card.regular.buttonStyle(
+                        .buttonStyle(stylesheet.card[cardVariant].buttonStyle(
                             tint: regionStyles.style(for: item.region).tint,
                         ))
                         // The card is the zoom source: tapping it expands the
@@ -60,7 +98,7 @@ struct LocationsCardsView: View {
                             id: item.region,
                             in: calendarTransition,
                         ) { source in
-                            let card = stylesheet.card.regular
+                            let card = stylesheet.card[cardVariant]
                             let tint = regionStyles.style(for: item.region).tint
                             let elevation = card.transitionElevation(tint: tint)
                             return source
@@ -87,15 +125,27 @@ struct LocationsCardsView: View {
                             motion: stylesheet.locationCardStack.overtake,
                         )
                         .locationCardRankingRegion(item.region)
+                        .id(item.region)
+                        .presenceSelection(
+                            showsSelection && navigation.selectedRegion == item.region,
+                            cornerRadius: stylesheet.card[cardVariant].cornerRadius,
+                        )
                     }
                 }
+
+                .scrollTargetLayout()
 
                 LocationsEstimatePanel(report: report, planningAction: planningAction)
             }
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top)
+        .defaultScrollAnchor(.top, for: .initialOffset)
+        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
+        .scrollPosition($position)
+        .onChange(of: report.selectedYear, initial: true) {
+            _position.initialize(edge: .top)
+        }
         .scrollBounceBehavior(.basedOnSize)
         // The card normally stays clipped to the scrolling viewport. Reveal
         // overflow only while the authored arc, scale, and rotation need it.
@@ -117,18 +167,6 @@ struct LocationsCardsView: View {
     private func estimatedDays(for region: Region) -> DayBounds? {
         guard report.showsEstimatedTimeAndPlanning else { return nil }
         return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
-    }
-
-    /// The region's calendar, pushed as a nested view. It's the zoom
-    /// destination: the tapped card expands into it via matched geometry, and the
-    /// stack's back gesture collapses it again.
-    private func calendarDestination(_ region: Region) -> some View {
-        CalendarContentView(focusedRegion: region, report: report, persistenceKey: .region(region))
-            .navigationTitle(
-                WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
     }
 }
 
