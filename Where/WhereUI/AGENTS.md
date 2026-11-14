@@ -168,7 +168,7 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep Locations in native browse/detail columns across folds when both panes fit; use compact navigation otherwise. Guard: `AdaptivePaneArrangementTests.portraitTabletopRetainsBrowseAndDetailColumns`.
 - Use BroadwayUI scroll restoration for current-context anchors with caller-owned typed roles; scrolling must not select or move another pane.
 - Keep rendered calendar anchors typed as `CalendarPresentationState.Target`, preserving month and estimate destinations. Detail owns the retained native scroll position; overview must not overwrite it.
-- Show one initial loading or failure surface before Locations has a report. Keep its index visible in expanded navigation and put shared toolbar actions only in the trailing pane. Guards: `LocationsSplitInteractionTests`, `LocationsViewSnapshotTests`.
+- Show one initial loading or failure surface before Locations has a report. Remove the sidebar toggle through SwiftUI and leave split gestures to the system. Put shared toolbar actions only in the trailing pane when expanded. Guard: `LocationsViewSnapshotTests`.
 - Keep reusable pane content outside native navigation shells. Present planning sheets above changing branches. Embedded demo tools use `demoExitPresentation = .embedded`.
 - Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.

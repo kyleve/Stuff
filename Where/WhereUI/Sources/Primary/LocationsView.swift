@@ -86,7 +86,6 @@ struct LocationsView: View {
                         openElsewhere: openElsewhere,
                     )
                     .toolbar(removing: .sidebarToggle)
-                    .background(LocationsSplitInteraction())
                     .navigationSplitViewColumnWidth(
                         min: stylesheet.adaptivePane.minimumControlsWidth,
                         ideal: stylesheet.adaptivePane.minimumControlsWidth,

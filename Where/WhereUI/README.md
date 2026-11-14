@@ -107,7 +107,8 @@ system-bar placement. The adapter uses container geometry, without device-name
 or hinge-angle checks.
 
 Locations shows one initial loading or failure surface before a report arrives.
-Once loaded, its expanded index stays visible beside the calendar. Shared planning
+Once loaded, its expanded layout shows the index beside the calendar. SwiftUI
+removes the sidebar toggle; native split gestures retain their system behavior. Shared planning
 and review actions appear in the trailing pane; compact navigation keeps them on
 the visible screen. Calendar receives a caller-owned typed restoration role rather
 than knowing which tab hosts it. Timeline restores its own typed row IDs independently.
