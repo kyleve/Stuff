@@ -1,9 +1,9 @@
 #if DEBUG
     import Observation
 
-    /// Builds one separate demo world and retains its scene through every synthetic pose.
+    /// Builds one separate demo world and retains its scene across synthetic layout changes.
     @MainActor @Observable
-    final class DuoLayoutLabModel {
+    final class WhereDemoWorldModel {
         enum State {
             case idle
             case loading

@@ -20,7 +20,11 @@ import SFSafeSymbols
         @Environment(WhereModel.self) private var model: WhereModel?
 
         var body: some View {
-            NavigationStack { toolContent }
+            if tool == .deviceLayoutLab {
+                toolContent
+            } else {
+                NavigationStack { toolContent }
+            }
         }
 
         @ViewBuilder
@@ -66,6 +70,9 @@ import SFSafeSymbols
 
                 case .regionMap:
                     RegionMapView()
+
+                case .deviceLayoutLab:
+                    DeviceLayoutLabView()
             }
         }
     }

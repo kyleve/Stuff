@@ -1,0 +1,180 @@
+#if DEBUG
+    import RegionKit
+    import SnapshotKit
+    import SwiftUI
+
+    /// A DEBUG-only mounted production scene. Layout controls keep the demo world; Reset Demo
+    /// replaces it.
+    struct DeviceLayoutLabView: View {
+        @State private var state: DeviceLayoutLabState
+        private let initialRegion: Region?
+
+        init(
+            state: DeviceLayoutLabState = DeviceLayoutLabState(),
+            initialRegion: Region? = nil,
+        ) {
+            _state = State(initialValue: state)
+            self.initialRegion = initialRegion
+        }
+
+        @Environment(\.stylesheet) private var stylesheet
+
+        var body: some View {
+            VStack(spacing: stylesheet.spacing.medium) {
+                HStack {
+                    Text(String(localized: .developerDeviceTitle))
+                        .font(.headline)
+                    Spacer()
+                    Button(String(localized: .developerDeviceReset), action: state.reset)
+                        .buttonStyle(.bordered)
+                }
+                Picker(String(localized: .developerDeviceLayout), selection: $state.configuration) {
+                    Section(String(localized: .developerDevicesPhone)) {
+                        deviceOptions(idiom: .phone)
+                    }
+                    Section(String(localized: .developerDevicesTablet)) {
+                        deviceOptions(idiom: .pad)
+                    }
+                    Section(String(localized: .developerDevicesDuo)) {
+                        ForEach(SnapshotConfiguration.DuoPose.allCases) { pose in
+                            Text(pose.title).tag(DeviceLayoutConfiguration.duo(pose))
+                        }
+                    }
+                }
+                .pickerStyle(.menu)
+                Group {
+                    switch state.model.state {
+                        case .idle, .loading:
+                            ProgressView(String(localized: .primaryLoading))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        case let .loaded(world):
+                            preview(world: world)
+                                .id(ObjectIdentifier(state.model))
+                        case let .failed(error):
+                            ContentUnavailableView {
+                                Label(
+                                    String(localized: .commonLoadErrorTitle),
+                                    systemSymbol: .exclamationmarkTriangle,
+                                )
+                            } description: {
+                                Text(error.localizedDescription)
+                            } actions: {
+                                Button(
+                                    String(localized: .developerDeviceRetry),
+                                    action: state.model.retry,
+                                )
+                            }
+                    }
+                }
+                Text(String(localized: .developerDeviceNote))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(stylesheet.spacing.medium)
+            .background(.background)
+            .task(id: state.loadID) { await state.model.load() }
+        }
+
+        private func deviceOptions(idiom: SnapshotConfiguration.Frame.LayoutTraits
+            .InterfaceIdiom) -> some View
+        {
+            ForEach(SnapshotConfiguration.DeviceProfile.allCases
+                .filter { $0.idiom == idiom })
+            { profile in
+                ForEach(SnapshotConfiguration.DeviceProfile.Orientation
+                    .allCases)
+                { orientation in
+                    let configuration = DeviceLayoutConfiguration.device(profile, orientation)
+                    Text(configuration.title).tag(configuration)
+                }
+            }
+        }
+
+        private func preview(world: WhereFlyoverWorld) -> some View {
+            GeometryReader { proxy in
+                let configuration = state.configuration
+                let insets = configuration.frame.safeAreaInsets
+                let scale = min(
+                    1,
+                    min(
+                        proxy.size.width / configuration.size.width,
+                        proxy.size.height / configuration.size.height,
+                    ),
+                )
+                MainTabs(world: world, region: initialRegion)
+                    .environment(world.model)
+                    .environment(world.session)
+                    .environment(\.isInDemoMode, true)
+                    .environment(\.demoExitPresentation, .embedded)
+                    .safeAreaPadding(EdgeInsets(
+                        top: insets.top,
+                        leading: insets.leading,
+                        bottom: insets.bottom,
+                        trailing: insets.trailing,
+                    ))
+                    .frame(width: configuration.size.width, height: configuration.size.height)
+                    .background(.background)
+                    .adaptivePaneReservedRegions(configuration.regions)
+                    .whereBroadwayRoot()
+                    .snapshotTraits(SnapshotConfiguration(device: configuration.frame))
+                    .frame(width: configuration.size.width, height: configuration.size.height)
+                    .scaleEffect(scale, anchor: .top)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                    .clipped()
+            }
+        }
+    }
+
+    extension DeviceLayoutLabView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            [
+                DeviceLayoutConfiguration.device(.iPhone17, .portrait),
+                .device(.iPadPro13, .landscape),
+                .duo(.outerPortrait),
+                .duo(.tabletop),
+            ].map { configuration in
+                let fixture = DuoLayoutSnapshotFixture(tab: .locations, selection: .region)
+                let name = switch configuration {
+                    case .device: configuration.frame.name
+                    case let .duo(pose): "duo-" + pose.rawValue
+                }
+                return whereSnapshot(
+                    name: name,
+                    configurations: [SnapshotConfiguration(device: .viewport(
+                        name: "iPad",
+                        size: CGSize(width: 834, height: 1194),
+                        layoutTraits: .init(
+                            horizontalSizeClass: .regular,
+                            verticalSizeClass: .regular,
+                            interfaceIdiom: .pad,
+                        ),
+                        scenePolicy: .retained,
+                    ))],
+                    onReadyToSnapshot: { await fixture.prepare() },
+                ) {
+                    DeviceLayoutLabView(
+                        state: DeviceLayoutLabState(
+                            model: fixture.model,
+                            configuration: configuration,
+                        ),
+                        initialRegion: .california,
+                    )
+                    .environment(\.regionOutlinePathCache, fixture.artwork)
+                }
+            }
+        }
+    }
+
+    #Preview { DeviceLayoutLabView.snapshotPreviews }
+
+    extension DeviceLayoutLabView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            DeviceLayoutLabView.self,
+            title: "Device Layout Lab",
+            navigationContainer: .none,
+        ) { _ in
+            DeviceLayoutLabView()
+        }
+    }
+#endif
