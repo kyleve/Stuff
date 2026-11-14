@@ -10,6 +10,7 @@
                         .tool(.logs),
                         .tool(.openSpans),
                         .flyover,
+                        .tool(.deviceLayoutLab),
                         .tool(.regionMap),
                         .tool(.crashTesting),
                     ],

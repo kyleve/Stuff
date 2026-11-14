@@ -244,3 +244,17 @@ The division is active when partially folded. Flat layouts must ignore inactive 
 Use current region geometry in production; the measurements describe specific simulator poses.
 
 Explicit configuration layout traits override frame traits and retain their identifier tokens. With no explicit override, previews and captures use the frame’s measured traits.
+
+### Ordinary device layout fixtures
+
+`SnapshotConfiguration.DeviceProfile` provides portrait and landscape viewports
+for iPhone SE (3rd generation), iPhone 17, iPhone 17 Pro Max, iPad mini (A17 Pro),
+and iPad Pro 11-inch and 13-inch (M5). Point dimensions come from the installed
+CoreSimulator `capabilities.plist` display width/height divided by display scale
+(Xcode 27.2 profiles). Insets and size classes are authored synthetic layout
+fixtures, not measured native safe areas. Modern phone portrait margins reuse
+`Frame.iPhoneNotched`; existing frame names and capture identifiers are unchanged.
+
+Use these fixtures for bounded previews and shell captures, with full-content
+coverage for scrolling panes. They do not emulate system bars, keyboards, or
+physical hardware. Duo measurement provenance remains separate.

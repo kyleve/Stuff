@@ -2841,30 +2841,18 @@
         }
       }
     },
-    "developer.dragHandle" : {
-      "comment" : "Accessibility label for the handle that drags the floating developer window.",
+    "developer.device.configuration" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move developer window"
+            "value" : "%1$@ · %2$@"
           }
         }
       }
     },
-    "developer.duo.note" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synthetic layouts using measured simulator bounds. System bars and physical folding still require native validation."
-          }
-        }
-      }
-    },
-    "developer.duo.pose" : {
+    "developer.device.layout" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -2875,7 +2863,29 @@
         }
       }
     },
-    "developer.duo.retry" : {
+    "developer.device.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synthetic layouts. Safe areas, system bars, keyboard behavior, and physical folding still require native validation."
+          }
+        }
+      }
+    },
+    "developer.device.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Demo"
+          }
+        }
+      }
+    },
+    "developer.device.retry" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -2886,13 +2896,58 @@
         }
       }
     },
-    "developer.duo.title" : {
+    "developer.device.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Duo Layout Lab"
+            "value" : "Device Layout Lab"
+          }
+        }
+      }
+    },
+    "developer.devices.duo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duo"
+          }
+        }
+      }
+    },
+    "developer.devices.phone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone"
+          }
+        }
+      }
+    },
+    "developer.devices.tablet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPad"
+          }
+        }
+      }
+    },
+    "developer.dragHandle" : {
+      "comment" : "Accessibility label for the handle that drags the floating developer window.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move developer window"
           }
         }
       }
