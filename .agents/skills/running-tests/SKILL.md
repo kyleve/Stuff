@@ -122,7 +122,7 @@ Use `--no-generate` only while project-generation inputs remain unchanged.
   ([capture contract](../../../Shared/SnapshotKitTesting/AGENTS.md)).
 - Green locally / red on CI → compare the provider's tested revision,
   toolchain, and selected suites through
-  [`github-workflow`](../github-workflow/SKILL.md#merging-main-and-other-branches).
+  [`github-workflow`](../github-workflow/references/merging.md#merging-main-and-other-branches).
   Do not infer a branch conflict from a failing check alone.
 
 Report the suites and test/image counts that actually ran. A successful build,
@@ -156,7 +156,7 @@ Raw one-off `xcodebuild` (rare):
   does run: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`,
   `mise exec -- ./sync-agents`, and the retained Python tool tests
   (`python3 -m unittest discover -s Tools/Tests -p 'test_*.py'`). See the Linux
-  table in the root [`AGENTS.md`](../../../AGENTS.md#what-works-on-linux) for the
+  table in the root [`AGENTS.md`](../../references/environments.md#what-works-on-linux) for the
   three macOS-coupled carve-outs among those.
 
 ## Broad local iOS and macOS validation

@@ -221,9 +221,13 @@ Shared/             Shared modules (Broadway, Periscope, LifecycleKit, …) — 
 Where/              The Where app, its modules, and its tests — same shape
 ```
 
+## Work with agents
+
+See the [prompting guide](.agents/README.md) for task prompts and guidance ownership.
+
 ## Acknowledgements
 
-The Where module bundles offline region polygons under [`Where/RegionKit/Sources/Resources/regions/`](Where/RegionKit/Sources/Resources/regions/).
+The Where module bundles offline region polygons under [`Where/RegionKit/Sources/Resources/regions/`](Where/RegionKit/Sources/Resources/regions).
 US state boundaries come from [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/) (`gz_2010_us_040_00_5m.json`), converted from the [US Census Bureau Cartographic Boundary Files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html).
 US Government works are in the public domain.
 See [`Where/RegionKit/README.md`](Where/RegionKit/README.md) for per-file provenance.

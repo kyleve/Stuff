@@ -20,7 +20,7 @@ Hosted tests resolve `Bundle.module` through `PACKAGE_RESOURCE_BUNDLE_PATH`. Acc
 
 If a resource is missing, do not add a product here. The embed breaks String Catalog symbol generation under beta 4.
 
-If a resource is missing, do not add a product that `WhereUI` already embeds to a test bundle's `extraPackageProducts`. That mints duplicate type metadata. The root [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries) double-linking rule exists to prevent that.
+If a resource is missing, do not add a product that `WhereUI` already embeds to a test bundle's `extraPackageProducts`. That mints duplicate type metadata. The root [`AGENTS.md`](../../.agents/references/targets.md#never-double-link-a-product-whereui-already-carries) double-linking rule exists to prevent that.
 
 ## Testing
 

@@ -63,7 +63,7 @@ Rules the code enforces and agents must preserve:
   `externalID` with the object's `store://` identity. RegionKit's parallel
   scheme is `region://` (see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md)).
 - **Spans measure work and declare what "too slow" means.** See
-  [Spans](#spans).
+  [Spans](Guidance/logging.md#spans).
 - **Location comes through the `LocationSource` protocol.**
   `CoreLocationSource` runs in production. `ScriptedLocationSource` runs in
   tests/previews. The bounded one-shot `requestCurrentLocation()` returns a
@@ -82,179 +82,20 @@ Rules the code enforces and agents must preserve:
   take an explicit `audit:` (no default). An additive backfill must not downgrade
   an authoritative row's regions. The newer audit always wins.
 
-## Spans
 
-Anything plausibly expensive is measured. Use `logger.measure(.name, budget:)`
-on the owning type's `*Log`. Then the [Periscope](../Shared/Periscope) span
-history can say which work is slow on a real device. It does not only say that
-a screen felt slow.
+## Required task guidance
 
-- **Names are a typed `enum SpanName`** nested on the `*Log`. Never use a raw
-  string. When a name carries a value, give it `CustomStringConvertible`. Then
-  the history buckets by something readable — `step(resolve-scope)`,
-  `loadRegion(us-CA)`, `detect(border-drift)` — not the Swift case's shape.
-- **The budget is the promise, and it lives next to the work.** Overrunning it
-  emits a `SpanOverdue` warning while the span keeps running. A budget is a
-  claim about this specific call ("a widget publish must not take 2s"). It is
-  not a timeout. Omit it only where no ceiling is meaningful — user-driven
-  backup export/import, which scales with the archive.
-- **Launch and reset steps declare a budget, not a `measure` call.** Every step
-  in `WhereLaunch`'s plans conforms to `BudgetedLaunchStep`. It joins the plan
-  through `.measured()`, which wraps it in `MeasuredStep`. A new step is
-  spanned by declaring `budget`. `MeasuredStep` pointedly is not itself
-  budgeted. Nothing can be measured twice into nested duplicate spans. Gates
-  are exempt. The onboarding gate parks on the user. It has nothing to promise.
-- **Span the work, not the property.** Composite orchestration that reflects
-  user-perceived latency is worth a span even when its callees have their own
-  (`WhereSession.appBecameActive`, `YearReportModel.refreshAll`, an intent's
-  `perform`). A SwiftUI computed property re-evaluated per `body` pass is not.
-  It would emit continuously and bury the real signal.
-- **If a type needs spans but has no events,** declare an `@LogScope` enum
-  with its nested `SpanName` and no `@LogEvent` members. See `ReportReaderLog`,
-  `DataIssueScannerLog`, and `PresenceCalendarLog`. Derive its logger through
-  the owning `WhereLog` group.
-- **Spans emitted before a scope's durable store attaches are
-  half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog.
-  The `SpanEnded` lands in the store. Durations survive but the pair does not.
-  That gap is Periscope's to close (P0 in its
-  [Periscope backlog](https://linear.app/kve/view/c0511a6281eb)). Do not work around it here.
+Read the matching instructions before changing or reviewing that behavior, including its tests and callers outside this directory.
+Read only the rows relevant to the task. These references preserve required contracts.
 
-## Scopes and the launch
-
-- **A `WhereScope` is what the app is logged in *to*.** It is one open store's
-  `WhereServices`, the `WherePreferences` driving it, and the durable log store
-  they record into. It is created whole. `WhereSession` is built from one. A
-  surface must not read one world's store against another's preferences.
-- **Onboarding may prepare the real store only for recording-authority
-  discovery.** Retain that exact store for scope resolution. Do not construct
-  services, expose App Intents, start GPS, or open the log store until the
-  user finishes choosing a world.
-- **At most one scope is active and log-routing at a time.** Logging out — a
-  reset, or leaving a demo — releases and tears down the scope. Logging back in
-  builds a fresh one. Flyover is the narrow exception to "one open world". It
-  may retain one separately built, in-memory demo scope beside the active app
-  scope. It never activates or log-routes it. It never opens a second copy of
-  the real store. Guards:
-  `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
-  `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
-- **The onboarding gate declares `modes: .all`,** not the `.foreground`
-  default. Parking a headless launch is the point. Keep recording confirmation
-  in the backup-excluded installation sidecar. Then restoring backed-up
-  `hasOnboarded` onto another device parks at the final choice page.
-- **A gate carries no value.** A choice made *at* it reaches `resolve-scope`
-  through `WhereModel`. That is the one step that reads model state rather than
-  the trunk.
-- **Ambient log sources start at process launch. The durable sink is a
-  scope's.** Records emitted before a scope exists reach OSLog only.
-- **Publish durable-log bring-up through `WhereModel.logStoreState`.** The
-  active scope owns the store. The process model mirrors opening, ready,
-  unavailable, and failed states for the DEBUG developer surface. Guards:
-  `WhereModelTests`.
-
-### Demo mode
-
-- **Demo mode is a second scope, not a flag.** It uses an in-memory store
-  seeded by `DemoDataBuilder`, in-memory preferences and log store, noop
-  schedulers, outbox, and widget refresher. Enter from the onboarding intro.
-  Leave from the first block of Settings (`WhereLaunch.exitDemoPlan`). Quitting
-  mid-demo needs no teardown.
-- **A demo leaves no mark on the device.** Anything that writes outside its own
-  store is injected as a no-op or skipped at the call site (Spotlight indexing
-  in `AppDelegate`). Settings hides the groups that would reach past it
-  (`SettingsDestination.isAvailableInDemoMode`). A new persisting surface needs
-  the same treatment.
-- **`WhereModel` decides when a scope routes its logs.** A scope holds its log
-  store from birth and routes only while active. One that opens while shadowed
-  is remembered rather than attached. Guard:
-  `DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope`.
-- **Flyover builds but never activates its demo scope.** Its frames share that
-  one in-memory world while the real app keeps its current scope. Dismissing
-  Flyover releases the sibling. The process-global `WhereLog` facade remains a
-  known exception tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
-- **The logging system is injected, not global.** `WhereModel.logSystem` has no
-  default. A test must not silently attach sinks to `Periscope.shared`. (The
-  `WhereLog` facade still emits into `.shared`. Pre-existing.)
-- **Demo mode asks for no permission and presents a granted user.** The
-  scripted location source reports `.always`. The noop schedulers are built
-  `authorized: true`. No surface nags about a permission the demo cannot obtain.
-  Guard: `DemoModeTests.demoPresentsAFullyGrantedUser`.
-- **Views branch on `\.isInDemoMode`.** Seed once at `RootView` via
-  `demoMode(of:)`. Guard: `DemoModeEnvironmentTests`.
-- App Intents answer from the demo store while it is active. That is
-  process-scoped and self-correcting on exit. It is accepted rather than
-  special-cased (#150).
-
-## Navigation
-
-The logged-in shell is `MainTabs`. Its tabs are Locations, optional Elsewhere,
-Your Year, and Settings, in that order. Show Elsewhere only when the selected
-year has visits outside the configured primary set. Keep it available during
-same-year refreshes; return to Locations if its last visit disappears. New
-screens use a pushed destination, a sheet, or a Settings row inside this shape. `MainTabs` passes the
-scene-scoped `YearReportModel` by explicit init injection. The always-on
-`WhereSession` coordinator travels in the environment. Settings is a
-typed-route list (`SettingsSearch.swift`. Every switch is exhaustive). A
-new drill-in is a set of compile errors to fill in. About stays the last
-block. The demo-mode exit is the first.
-
-Data, Privacy & Diagnostics, and About lead with the shared privacy passport.
-Derive its detail from process-effective reporting channels, not saved pending
-choices. Hide the persisted diagnostics destination in demo mode. About still
-discloses the real process state.
-The About screen renders three live sources. They are the generated attribution
-report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo`.
-Never hard-code a list in the view. A missing report or unstamped build
-renders an honest empty state. Shipped libraries stay a separate section
-from development tools. Keep its final passport sign-off linked to the public
-project repository. Design and rationale: PR #140.
-
-## Localization
-
-All user-facing copy resolves through each module's `Localizable.xcstrings`
-via Xcode's generated `LocalizedStringResource` symbols. A typo'd or removed
-key is a compile error. Add a key as a **manual** entry first (so its symbol
-generates). Then reference `.thatSymbol`. Never use a raw
-`String(localized: "literal.key")`, a hand-maintained key facade, or an
-English literal in `Text` / `errorDescription`.
-
-- **WhereUI:** reference symbols directly. Composition, pluralization, and
-  number/coordinate formatting go through
-  [`WhereFormat`](WhereUI/Sources/Shared/WhereFormat.swift).
-- **RegionKit:** region names resolve dynamically from `regions.json`
-  (+ optional `localizationKey`). That is the one deliberate exception to static
-  symbols (see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md)).
-- **Extensions** use their own generated symbols for chrome and WhereUI's
-  public helpers for shared copy. **DEBUG-only UI** is still localized.
-- The catalogs carry a few value-less **auto-extracted** entries (`""`,
-  `%lld`). They are Xcode's, not ours. An IDE build re-adds a deleted one. Remove
-  the *source* literal instead. Catalogs stay byte-identical to Xcode's own
-  serialization (root [Formatting](../AGENTS.md#formatting)).
-
-## Dates
-
-- **A logical day is a `CalendarDay` (Y-M-D), not a `Date`.** See
-  [`WhereCore/AGENTS.md`](WhereCore/AGENTS.md). Never persist a day as an
-  absolute instant.
-- **Year bounds are half-open. Day ranges are inclusive**
-  (`Date.calendarDays(through:in:)`, `CalendarDay.days(through:)`).
-- **The app is Gregorian-only. Never use `Calendar.current`.** A non-Gregorian
-  device calendar silently mismatches the stored reports. Use the calendar the
-  owning type vends, or a fresh `Calendar(identifier: .gregorian)` with the
-  current time zone (see `Calendar.whereIntents`).
-- **Inject `Calendar`. Do not reach for globals.** Prefer calendar APIs over
-  hardcoded day/weekday counts (`Calendar.dayCount(ofYear:)`).
-- **Core layout APIs throw on failure.** Views surface
-  `ContentUnavailableView` + log. Never use `!`.
-- Shared date-range copy lives in `DateRangeFormatting`. WhereUI composition
-  and value formatting go through `WhereFormat`.
-
-## UI construction
-
-Load the repo [`building-ui`](../.agents/skills/building-ui/SKILL.md) skill for
-view/model placement, reuse, Broadway styling, layout, accessibility,
-localization, previews, and image coverage. WhereUI previews use
-[`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift). Use
-synchronous, in-memory fixtures. Never use disk, CloudKit, or CoreLocation.
+| Task | Required guidance |
+| --- | --- |
+| Logging, performance, or launch budgets | [Spans](Guidance/logging.md) |
+| Scopes, startup, onboarding, reset, demo, or Flyover ownership | [Launch and demo](Guidance/launch.md) |
+| UI, navigation, localization, or previews | [Presentation](Guidance/presentation.md) |
+| Dates, calendars, ranges, or day persistence | [Dates](Guidance/dates.md) |
+| Physical-device installation, archives, or signing | [Installation](Guidance/installation.md) |
+| Any Where test or fixture change | [Testing](Guidance/testing.md) |
 
 ## Adding things
 
@@ -266,44 +107,5 @@ synchronous, in-memory fixtures. Never use disk, CloudKit, or CoreLocation.
 - **New evidence kind / sample source:** add the case. Follow the compile
   errors through the exhaustive switches.
 - **New app icon:** run `./icons --add` (root
-  [`AGENTS.md`](../AGENTS.md#managing-app-icons)). Never hand-edit the
+  [`AGENTS.md`](../.agents/references/build-system.md#managing-app-icons)). Never hand-edit the
   catalogs or manifest.
-
-## Installing to a device
-
-`./Where/install` builds, signs, and installs the app onto a connected iPhone
-from the CLI — macOS-only, one-time `./ide --team-id <id>` setup. It defaults
-to the **Where Development** scheme with compiler optimizations forced on, so
-DEBUG-only developer surfaces survive at near-Release speed. Pass
-`--configuration Beta` for the TestFlight-style production identity or
-`--configuration Release` for the App Store audience. Options:
-`./Where/install --help`.
-
-`./Where/archive` exports the same optimized Development audience for ad hoc
-distribution. [DISTRIBUTION.md](DISTRIBUTION.md) owns account setup and operation.
-Keep CI profile overrides scoped to the Development device configuration in
-`Project.swift`; validate all three profiles against generated target settings
-before archiving. Sign the app and extensions during archive, not only export.
-Shared publication rules live in [Tools/InstallerKit/AGENTS.md](../Tools/InstallerKit/AGENTS.md#publication).
-Where's archive and signing guards are `Tools/Tests/test_signing_profiles.py`,
-`test_where_archive.py`, and `test_where_signing_command.py`.
-
-## Testing
-
-Root [testing conventions](../AGENTS.md#testing) apply. What is specific here:
-
-- **Formal protocol specs** live under [`Specifications/`](Specifications/README.md). Run them locally with [`./tla-check`](../tla-check) (opt-in, not CI). PlusCal is the editable model source. The checker translates an isolated copy under `.build/tla/runs/` before running TLC. Each concern also holds TLC configs, a `manifest.json`, and a README tying the model to production code and cited Swift tests.
-- Test bundles run in `StuffTestHost` via the `unitTests` helper in
-  `Project.swift`. They link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
-- Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` for consumer tests.
-  Test `CoreLocationSource` only through its injected fake request driver.
-  Never use live location requests or the user’s on-disk/CloudKit store.
-  Consumer remote-import tests use the `@_spi(Testing)`
-  `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource` seam;
-  production-source history tests use isolated temporary on-disk containers
-  without CloudKit (`StoreRemoteChangeSourceTests`).
-- How screens render is pinned by the image snapshots in
-  `WhereUI/SnapshotTests/` (the `WhereUISnapshotTests` bundle, run from the
-  shared `StuffSnapshotTests` scheme + CI job, not `Stuff-iOS-Tests`). See
-  [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md#testing). Do not add "hosts without
-  crashing" smoke tests for surfaces those suites cover.
