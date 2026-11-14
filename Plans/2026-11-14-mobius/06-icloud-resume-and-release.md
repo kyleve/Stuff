@@ -1,0 +1,86 @@
+# 06 — iCloud resume and first-release acceptance
+
+- Status: outline
+- Depends on: [01](01-review-state-foundation.md), [02](02-application-workspace.md), [03](03-github-and-revision-comparison.md), [04](04-repository-exploration.md), [05](05-review-feedback.md).
+- Shared context: [Overview](README.md).
+
+## Intended outcome
+
+Start reviews on one device and continue them on another using private iCloud under the same Apple ID. Workspace documents, personal checkpoints/receipts, and drafts converge without losing user work or taking over another device's window focus. Each device authenticates its own GitHub account before retrieving protected source.
+
+This deliverable is required for the first release. Demonstrate an iPhone-to-iPad-to-Mac handoff, concurrent edits, offline work, reconnect, account transitions, and a complete GitHub review flow. A local-only app or simulator-only sync demonstration does not satisfy it.
+
+## User stories and requirements
+
+| Story | Requirement | Intended contribution |
+| --- | --- | --- |
+| US-02, US-06 | R-03, R-07 | Private cross-device continuity of semantic workspace state and drafts. |
+| US-07 | R-08, R-09 | Conflict preservation, account isolation, visible sync state, and non-replayed publication intents. |
+| US-01, US-04, US-06 | R-01, R-10 | Final device/window/input/accessibility acceptance. |
+| Supporting | R-11 | Platform CI/runtime coverage, signing/distribution decision, and release evidence. |
+
+X-05 and X-06 apply. No custom workspace-sync backend, different-Apple-ID continuity, or full repository/credential sync. Reopening on another device may require GitHub sign-in and fetching uncached source. That limitation must be visible rather than hidden behind a successful workspace-metadata sync badge.
+
+## Known design and assumptions
+
+The candidate transport is `CKSyncEngine` over a dedicated private CloudKit database/container. The app owns local atomic persistence, pending record changes, serialized engine state, conflict policy, and account transitions. Keep the Core store's accepted-state interface; measure whether record projection requires a different internal persistence implementation.
+
+Use stable per-entity records instead of a single last-writer-wins workspace blob. Design tombstones and deterministic merge rules for document membership/order, checkpoints, receipts, and draft revisions. Preserve competing draft texts. Explicitly distinguish opening a new document from an old offline device replaying a deleted document. Wall-clock order alone must not discard user-authored content.
+
+```mermaid
+flowchart LR
+    Local["WorkspaceStore from 01"] <-->|typed records and local commits| Adapter["Proposed WorkspaceSync"]
+    Adapter <-->|engine events and saved state| Engine["Existing CKSyncEngine candidate"]
+    Engine <-->|private changes| Cloud["Private iCloud database"]
+    Adapter -->|sync status| UI["Workspace UI from 02"]
+    Cloud <-->|same Apple ID| Other["Another Mobius device"]
+```
+
+```swift
+// Proposed boundary, not a final CloudKit schema.
+protocol WorkspaceSynchronizing: Sendable {
+    func synchronize() async throws
+}
+// The implementation projects persisted entities through stable record IDs.
+// It does not publish GitHub feedback or copy authentication credentials.
+```
+
+Native window bounds, selected panes, focus, and local scene IDs remain device-local. Restored workspace content must fit the receiving device. Preserve semantic reading anchors; do not promise identical pixel offsets. Remote work becomes available without unexpectedly opening windows or closing a focused local document during an edit.
+
+Account changes must stop the prior sync scope and isolate its files/records before any new scope starts. iCloud sign-out must not silently upload one account's drafts into another account. GitHub sign-out/revocation must prevent protected fetches and display, with an explicit policy for retained private drafts and caches. Preserve recoverable user work while resolving access; never infer fresh access from stale credentials.
+
+## Questions and learning needed
+
+- [Q-09](README.md#q-09) blocks readiness: exact schema, tombstone retention, draft conflicts, metadata migration/recovery, account changes, and cross-device publication ownership. Use controlled two-replica tests and actual CKSyncEngine events; do not infer a transactional guarantee between CloudKit and GitHub.
+- [Q-11](README.md#q-11) blocks release delivery: confirm the supported Catalyst CI/test route, signed app identities, iCloud entitlements/container, and distribution audience. The existing iOS installer system does not establish Mac distribution support.
+- Resolve remaining performance/accessibility findings from Q-10 against real workloads. Avoid adding product telemetry of private code or comments to gather these measurements.
+
+## Refinement trigger
+
+- Trigger: The standalone review loop works and its persistent entities/publication receipts are stable enough to design sync.
+- Evidence needed: Record/merge specification, synthetic concurrent-edit cases, selected signing/container configuration, a real-device/Mac test environment, and explicit platform build/runtime commands.
+- Next action: Expand this file before adding CloudKit behavior. Run bounded merge/account experiments, revise earlier schemas where necessary, then implement and validate. Missing device/container access blocks real sync acceptance; it is not a passing inconclusive product result.
+
+## First-release demonstration
+
+The executable refinement must preserve this sequence:
+
+1. Open two PRs and repository context on iPhone; explicitly mark part of one review and save feedback text.
+2. Resume on iPad; open a second window and follow a search result without losing either review.
+3. Change the test PR; verify the since-checkpoint comparison and unchanged-file receipts on Mac, including menu/keyboard navigation.
+4. Make competing offline draft edits on two devices; reconnect and recover both texts. Exercise document close/reopen and account switching.
+5. Submit feedback once through an explicit user action; interrupt the response and prove recovery does not blindly replay the write from either device.
+6. Verify the same workflow with accessibility text sizes and VoiceOver, and inspect the platform-specific CI/runtime evidence.
+
+This is a planned acceptance flow, not a measured result. Refine exact assertions and data before execution.
+
+## Decisions and revisions
+
+| Date | Decision | Source |
+| --- | --- | --- |
+| 2026-11-14 | Private iCloud continuity is in the first release and uses the same Apple ID. | Q-05/Q-07. |
+| 2026-11-14 | Sync semantic workspace metadata/drafts, retaining native presentation and source caches locally. | Overview design proposal. |
+
+## Resume point
+
+After 01–05, resolve Q-09/Q-11 and refine this file. Do not call the first release complete before its cross-device and all-platform acceptance passes.
