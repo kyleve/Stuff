@@ -18,7 +18,7 @@ struct LocationsViewTests {
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
-    @Test func estimateCardAppearsOnlyInTheBrowsePane() async throws {
+    @Test func estimateCardFollowsVisibleLocationsPanes() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()
         navigation.select(region: .california)
@@ -49,6 +49,25 @@ struct LocationsViewTestsDuo {
         }.bScrollRestorationScope())
         host.safeAreaRegions = []
         try await show(host) { controller in
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .outerPortrait)
+            try await waitForStage("folded calendar starts at its estimate") {
+                guard let target = calendar.binding?.wrappedValue
+                    .viewID(type: CalendarPresentationState.Target.self)
+                else { return false }
+                if case .estimate = target { return true }
+                return false
+            }
+            let estimate = try #require(calendar.binding?.wrappedValue
+                .viewID(type: CalendarPresentationState.Target.self))
+            try await waitForStage("folded calendar estimate visible") {
+                HostedAccessibility.objects(in: controller.view).contains {
+                    $0.accessibilityLabel?.hasPrefix("Estimated Time") == true
+                        && $0.accessibilityFrame.intersects(controller.view.convert(
+                            controller.view.bounds,
+                            to: nil,
+                        ))
+                }
+            }
             try await AdaptivePaneTestSupport.resize(controller, state: state, to: .innerLandscape)
             try await waitForStage("secondary calendar starts at a month") {
                 guard let target = calendar.binding?.wrappedValue
@@ -72,6 +91,18 @@ struct LocationsViewTestsDuo {
                 $0.accessibilityLabel?.hasPrefix("Estimated Time") == true
             }) == 1)
             #expect(world.report.showsEstimatedTimeAndPlanning)
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .outerPortrait)
+            let detailPosition = try #require(calendar.binding)
+            detailPosition.wrappedValue.scrollTo(id: estimate, anchor: .bottom)
+            try await waitForStage("calendar estimate available after folding again") {
+                HostedAccessibility.objects(in: controller.view).contains {
+                    $0.accessibilityLabel?.hasPrefix("Estimated Time") == true
+                        && $0.accessibilityFrame.intersects(controller.view.convert(
+                            controller.view.bounds,
+                            to: nil,
+                        ))
+                }
+            }
         }
     }
 

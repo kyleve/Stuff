@@ -91,9 +91,9 @@ Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
 Without a region selection, the detail pane shows the year calendar.
-Locations shows the estimate card only in its browsing pane. Its secondary calendar
-omits that card in detail and overview, including when collapsed to a phone push;
-planned-day markings and summaries remain. Other calendars retain their estimate card.
+When Locations displays both panes, only browsing shows the estimate card.
+The compact calendar push retains its estimate card in detail and overview.
+Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
 Your Year uses one navigation stack and the bottom calendar/timeline selector at every window size.
 Settings uses native list and detail navigation.
 Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
