@@ -71,7 +71,13 @@
                     }
                     #expect(current.report === world.report)
                 }
-                state.reset()
+                let reset = try #require(HostedAccessibility.objects(in: controller.view)
+                    .first { $0.accessibilityLabel == "Reset Demo" })
+                if let control = reset as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                } else {
+                    try #require(reset.accessibilityActivate())
+                }
                 try await waitForStage("Reset Demo", in: controller.view) {
                     guard case let .loaded(replacement) = state.model.state else { return false }
                     return replacement.report !== world.report

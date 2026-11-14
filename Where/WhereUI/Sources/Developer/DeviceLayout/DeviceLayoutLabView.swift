@@ -95,11 +95,19 @@
             GeometryReader { proxy in
                 let configuration = state.configuration
                 let insets = configuration.frame.safeAreaInsets
+                let chrome = stylesheet.deviceLayoutLab
+                let deviceSize = CGSize(
+                    width: configuration.size.width + chrome.bezelWidth * 2,
+                    height: configuration.size.height + chrome.bezelWidth * 2,
+                )
+                let deviceShape = RoundedRectangle(
+                    cornerRadius: chrome.screenCornerRadius + chrome.bezelWidth,
+                )
                 let scale = min(
                     1,
                     min(
-                        proxy.size.width / configuration.size.width,
-                        proxy.size.height / configuration.size.height,
+                        proxy.size.width / deviceSize.width,
+                        proxy.size.height / deviceSize.height,
                     ),
                 )
                 MainTabs(world: world, region: initialRegion)
@@ -119,8 +127,16 @@
                     .whereBroadwayRoot()
                     .snapshotTraits(SnapshotConfiguration(device: configuration.frame))
                     .frame(width: configuration.size.width, height: configuration.size.height)
-                    .scaleEffect(scale, anchor: .top)
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                    .clipShape(RoundedRectangle(cornerRadius: chrome.screenCornerRadius))
+                    .padding(chrome.bezelWidth)
+                    .background(chrome.bezelColor, in: deviceShape)
+                    .overlay {
+                        deviceShape.strokeBorder(.secondary, lineWidth: chrome.outlineWidth)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                    .scaleEffect(scale)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                     .clipped()
             }
         }

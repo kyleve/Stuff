@@ -4,7 +4,7 @@ import SFSafeSymbols
     import SwiftUI
     import WhereCore
 
-    /// Hosts one selected developer tool as the root of its own navigation stack.
+    /// Hosts developer tools in native navigation, except the lab’s independent app scene.
     ///
     /// The lightweight accordion owns routing; this surface owns only the ambient
     /// stack each tool expects. Making the selected tool the stack root removes
@@ -21,6 +21,7 @@ import SFSafeSymbols
 
         var body: some View {
             if tool == .deviceLayoutLab {
+                // An ancestor stack suppresses the embedded app's navigation content.
                 toolContent
             } else {
                 NavigationStack { toolContent }

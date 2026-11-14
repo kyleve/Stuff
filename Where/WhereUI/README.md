@@ -119,8 +119,11 @@ The welcome and developer overlays share the geometry adapter to find clear spac
 The DEBUG **Device Layout Lab** retains one production demo scene while switching
 between iPhone SE, iPhone 17, Pro Max, iPad mini, 11-inch and 13-inch iPad profiles,
 and all Duo poses. Ordinary profiles support portrait and landscape. Reset Demo
-creates a fresh world without changing the selected layout. Embedded demo tools
-leave dismissal to their containing tool.
+creates a fresh world without changing the selected layout. A centered, illustrative
+bezel surrounds the synthetic screen without changing its dimensions or traits.
+The lab remains outside the developer tool's navigation stack because an ancestor
+stack suppresses the embedded app's navigation content. Its layout picker and Reset
+remain in the lab header. Embedded demo tools leave dismissal to their containing tool.
 
 `SnapshotConfiguration.DeviceProfile` supplies ordinary device dimensions and
 traits; `DuoPose` supplies fold geometry. Device safe areas and size classes are
