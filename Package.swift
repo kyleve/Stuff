@@ -145,6 +145,7 @@ let package = Package(
         .target(
             name: "SnapshotKit",
             path: "Shared/SnapshotKit/Sources",
+            resources: [.process("Resources")],
         ),
         .target(
             name: "SnapshotKitTesting",
