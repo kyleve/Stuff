@@ -42,30 +42,8 @@
                     }
                 }
                 .pickerStyle(.menu)
-                Group {
-                    switch state.model.state {
-                        case .idle, .loading:
-                            ProgressView(String(localized: .primaryLoading))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        case let .loaded(world):
-                            preview(world: world)
-                                .id(ObjectIdentifier(state.model))
-                        case let .failed(error):
-                            ContentUnavailableView {
-                                Label(
-                                    String(localized: .commonLoadErrorTitle),
-                                    systemSymbol: .exclamationmarkTriangle,
-                                )
-                            } description: {
-                                Text(error.localizedDescription)
-                            } actions: {
-                                Button(
-                                    String(localized: .developerDeviceRetry),
-                                    action: state.model.retry,
-                                )
-                            }
-                    }
-                }
+                preview
+                    .id(ObjectIdentifier(state.model))
                 Text(String(localized: .developerDeviceNote))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -91,7 +69,36 @@
             }
         }
 
-        private func preview(world: WhereFlyoverWorld) -> some View {
+        @ViewBuilder
+        private var screen: some View {
+            switch state.model.state {
+                case .idle, .loading:
+                    ProgressView(String(localized: .primaryLoading))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case let .loaded(world):
+                    MainTabs(world: world, region: initialRegion)
+                        .environment(world.model)
+                        .environment(world.session)
+                        .environment(\.isInDemoMode, true)
+                        .environment(\.demoExitPresentation, .embedded)
+                case let .failed(error):
+                    ContentUnavailableView {
+                        Label(
+                            String(localized: .commonLoadErrorTitle),
+                            systemSymbol: .exclamationmarkTriangle,
+                        )
+                    } description: {
+                        Text(error.localizedDescription)
+                    } actions: {
+                        Button(
+                            String(localized: .developerDeviceRetry),
+                            action: state.model.retry,
+                        )
+                    }
+            }
+        }
+
+        private var preview: some View {
             GeometryReader { proxy in
                 let configuration = state.configuration
                 let insets = configuration.frame.safeAreaInsets
@@ -110,11 +117,7 @@
                         proxy.size.height / deviceSize.height,
                     ),
                 )
-                MainTabs(world: world, region: initialRegion)
-                    .environment(world.model)
-                    .environment(world.session)
-                    .environment(\.isInDemoMode, true)
-                    .environment(\.demoExitPresentation, .embedded)
+                screen
                     .safeAreaPadding(EdgeInsets(
                         top: insets.top,
                         leading: insets.leading,
