@@ -163,11 +163,12 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep Your Year in one navigation stack with its bottom calendar/timeline selector at every size. Guard: `YearViewTests`.
 - Hide the Locations calendar estimate only when browsing and calendar panes are displayed together. Keep it in the compact calendar push, without disabling planned-day content or other calendars. Guard: `LocationsViewTestsDuo.estimateCardFollowsVisibleLocationsPanes`.
 - Show Locations selection indicators only when browsing and calendar panes are displayed together. Guard: `LocationsViewTestsDuo.selectedRegionIsIndicatedOnlyBesideItsCalendar`.
-- Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep active drill-in stacks mounted while folding; defer tabletop composition until returning.
+- Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep presented editors mounted while folding. Present Locations flight reviews in a sheet.
 - Read system reserved regions only in `AdaptivePaneGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
-- Keep portrait Locations in native browse/detail columns across horizontal folds when both panes fit. Stacked tabletop composition is landscape-only. Guard: `AdaptivePaneArrangementTests.portraitTabletopRetainsBrowseAndDetailColumns`.
-- Keep explicit reveal requests in the owning view, with typed request identities distinct from content identities. Use BroadwayUI scroll restoration for current-context anchors; scrolling must not select or move another pane.
-- Keep rendered calendar anchors typed as `CalendarPresentationState.Target`, preserving month and estimate destinations. Detail owns the retained native scroll position; overview and tabletop must not overwrite it without an explicit reveal.
+- Keep Locations in native browse/detail columns across folds when both panes fit; use compact navigation otherwise. Guard: `AdaptivePaneArrangementTests.portraitTabletopRetainsBrowseAndDetailColumns`.
+- Use BroadwayUI scroll restoration for current-context anchors with caller-owned typed roles; scrolling must not select or move another pane.
+- Keep rendered calendar anchors typed as `CalendarPresentationState.Target`, preserving month and estimate destinations. Detail owns the retained native scroll position; overview must not overwrite it.
+- Show one initial loading or failure surface before Locations has a report. Keep its index visible in expanded navigation and put shared toolbar actions only in the trailing pane. Guards: `LocationsSplitInteractionTests`, `LocationsViewSnapshotTests`.
 - Keep reusable pane content outside native navigation shells. Present planning sheets above changing branches. Embedded demo tools use `demoExitPresentation = .embedded`.
 - Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.

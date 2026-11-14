@@ -8,6 +8,8 @@ import WhereCore
 /// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
 /// calendar (month detail) and the timeline (year overview).
 struct YearView: View {
+    enum ScrollRole: Hashable { case calendar }
+
     let report: YearReportModel
 
     @State private var mode: YearMode
@@ -37,7 +39,7 @@ struct YearView: View {
                             report: report,
                             presentationState: calendarPresentation,
                             persistenceKey: .year,
-                            scrollRole: .year,
+                            scrollRole: ScrollRole.calendar,
                             planningDestination: $planningDestination,
                         )
                     case .timeline:

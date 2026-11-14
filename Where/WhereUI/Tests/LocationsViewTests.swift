@@ -37,7 +37,7 @@ struct LocationsViewTestsDuo {
                     )
                     ScrollPositionProbe(
                         CalendarContentView.self,
-                        role: CalendarContentView.ScrollRole.locations,
+                        role: LocationsView.ScrollRole.calendar,
                         context: CalendarContentView.ScrollContext(
                             region: .california,
                             year: world.report.selectedYear,
@@ -235,12 +235,14 @@ struct LocationsViewTestsDuo {
         }
     }
 
-    @Test func aPushedBrowseStackRemainsMountedThroughTabletop() async throws {
+    @Test func aFlightReviewSheetRemainsMountedAcrossFolds() async throws {
         let world = try await WhereFlyoverWorld.build()
+        let report = PreviewSupport.flightYearReportModel(state: .ready)
+        _ = try #require(report.liveFlightReview)
         let navigation = LocationsView.Navigation()
         let state = AdaptivePaneHostState()
         let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
-            LocationsView(report: world.report, navigation: navigation)
+            LocationsView(report: report, navigation: navigation)
                 .environment(world.session).environment(world.model)
         }.bScrollRestorationScope())
         host.safeAreaRegions = []
@@ -257,25 +259,36 @@ struct LocationsViewTestsDuo {
             try await waitForStage("browse stack to mount") {
                 controllers(controller).contains { $0 is UINavigationController }
             }
-            navigation.open(.flight(PreviewSupport.flightReview(state: .ready)))
-            do {
-                try await waitForStage("flight detail push") {
-                    controllers(controller).compactMap { $0 as? UINavigationController }
-                        .contains { $0.viewControllers.count > 1 }
-                }
-            } catch {
-                throw TestHostError(
-                    "\(error); path=\(navigation.browsePath.count); controllers=\(controllers(controller).map { String(describing: type(of: $0)) + ":" + (($0 as? UINavigationController)?.navigationBar.topItem?.title ?? $0.title ?? "nil") + ":" + String(($0 as? UINavigationController)?.viewControllers.count ?? 0) })",
-                )
+            try await waitForStage("flight banner") {
+                HostedAccessibility.objects(in: controller.view)
+                    .contains {
+                        $0.accessibilityHint == String(localized: .flightStatusOpenReview)
+                    }
             }
-            let stack = try #require(controllers(controller)
-                .compactMap { $0 as? UINavigationController }
-                .first { $0.viewControllers.count > 1 })
-            let pushed = try #require(stack.topViewController)
+            let banner = try #require(HostedAccessibility.objects(in: controller.view)
+                .first {
+                    $0.accessibilityHint == String(localized: .flightStatusOpenReview)
+                })
+            if let control = banner as? UIControl { control.sendActions(for: .touchUpInside) }
+            else { try #require(banner.accessibilityActivate()) }
+            try await waitForStage("flight review sheet") {
+                controller.presentedViewController != nil
+            }
+            let sheet = try #require(controller.presentedViewController)
+            try await waitForStage("flight presentation completes before folding") {
+                !sheet.isBeingPresented && sheet.transitionCoordinator == nil
+            }
             for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop, .outerPortrait] {
                 try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
-                #expect(navigation.browsePath.count == 1)
-                #expect(controllers(controller).contains { $0 === pushed })
+                #expect(navigation.flightReview != nil)
+                #expect(controller.presentedViewController === sheet)
+            }
+            let done = try #require(HostedAccessibility.objects(in: sheet.view)
+                .first { $0.accessibilityLabel == "Done" })
+            if let control = done as? UIControl { control.sendActions(for: .touchUpInside) }
+            else { try #require(done.accessibilityActivate()) }
+            try await waitForStage("return from flight review") {
+                controller.presentedViewController == nil
             }
         }
     }

@@ -71,15 +71,13 @@ Demo mode hides this surface and performs no update checks.
 
 `MainTabs` owns the report and its tab selection. Locations, Year, and Settings own
 presentation state above adaptive layout branches. Their paths, search, and sheets
-remain local to those screens. Active Locations drill-ins keep their native stack
-mounted and defer tabletop composition until the user returns.
+remain local to those screens. Locations flight reviews and planning editors use sheets that stay mounted through resizing.
 
 An explicit BroadwayUI restoration scope retains each pane's native `ScrollPosition`.
 Entries use the view type and a typed role; region/year changes replace the current
 entry. There is no historical cache, persistence, or pixel-offset restoration.
 The detail calendar retains typed month and forecast targets with their alignment.
-Overview has a separate local position. Tabletop reads the selected month or detail
-anchor without replacing a saved forecast target.
+Overview has a separate local position and does not replace the detail anchor.
 `CalendarModel` interprets available months and accesses existing zoom preferences.
 View-owned helpers handle mode, gestures, rejection feedback, and transition geometry.
 A report-year change waits for matching data before positioning. Stale visibility callbacks cannot replace the new year's anchor.
@@ -102,19 +100,18 @@ Theme choices stack when the available pane cannot fit two readable card specime
 
 `AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
 `AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
-Portrait Locations keeps native browse/detail columns when a horizontal division becomes active.
-In landscape containers with enough room, an active horizontal division places the selected month above the hinge and browsing controls below it.
-A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
-The adapter uses container geometry, without device-name or hinge-angle checks.
+Locations keeps native browse/detail columns across horizontal and vertical folds when
+both panes fit. Narrow layouts use the same split view's compact navigation.
+There is no separate tabletop calendar or navigation tree. Native containers own
+system-bar placement. The adapter uses container geometry, without device-name
+or hinge-angle checks.
 
-Locations owns an optional `CalendarMonthReveal` value. Month controls create a new
-request identity even when the destination is unchanged. Calendar applies the request
-once its content is ready and retains the consumed month for tabletop display.
-Calendar detail scroll restoration remains authoritative; entering overview or
-tabletop does not overwrite a saved forecast anchor. Timeline owns its typed row IDs
-and restores browsing independently, without calendar-to-timeline selection machinery.
-Settings uses native split navigation and the stylesheet's compact-layout policy;
-it does not consult Locations' tabletop geometry.
+Locations shows one initial loading or failure surface before a report arrives.
+Once loaded, its expanded index stays visible beside the calendar. Shared planning
+and review actions appear in the trailing pane; compact navigation keeps them on
+the visible screen. Calendar receives a caller-owned typed restoration role rather
+than knowing which tab hosts it. Timeline restores its own typed row IDs independently.
+Settings uses native split navigation and the stylesheet's compact-layout policy.
 
 Planning sheets remain above changing containers, with one owner per destination.
 The welcome and developer overlays share the geometry adapter to find clear space.

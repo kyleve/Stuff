@@ -60,7 +60,7 @@ struct LocationsCardsView: View {
         // a short card list retains its centered presentation.
         return ScrollView {
             VStack(spacing: stylesheet.spacing.xxLarge) {
-                LocationsFlightNotice(report: report, openReview: { navigation.open(.flight($0)) })
+                LocationsFlightNotice(report: report, openReview: { navigation.flightReview = $0 })
 
                 LocationCardRankingStack(
                     spacing: stylesheet.spacing.xxLarge,

@@ -569,10 +569,6 @@ struct WhereStylesheetTests {
 
         let month = calendar.month
         #expect(month.sectionSpacing == 8)
-        #expect(month.minimumGridWidth == 320)
-        #expect(month.summaryWidth == 180)
-        #expect(month.summarySpacing == 16)
-        #expect(month.tabletopGridSpacing == 4)
         #expect(month.gridSpacing == 6)
         #expect(month.weekdayFontSize == 11)
         #expect(month.stacksFooter == false)

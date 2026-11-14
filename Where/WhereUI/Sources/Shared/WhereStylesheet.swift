@@ -1508,12 +1508,6 @@ extension WhereStylesheet {
         /// Style for one month section: the header/grid/footer stack, its
         /// current-month highlight, and the tally footer.
         struct MonthStyle: Equatable {
-            /// A tabletop month puts its totals beside the grid when both fit.
-            var minimumGridWidth: CGFloat = 320
-            var summaryWidth: CGFloat = 180
-            var summarySpacing: CGFloat = 16
-            /// Leaves six weeks readable above a horizontal division without shrinking dates.
-            var tabletopGridSpacing: CGFloat = 4
             /// Spacing between the month header, day grid, and footer.
             var sectionSpacing: CGFloat
             /// Spacing between day cells in the grid (both axes).

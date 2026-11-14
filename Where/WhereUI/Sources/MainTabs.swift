@@ -34,9 +34,15 @@ struct MainTabs: View {
     @State private var welcome: LocationWelcomeModel
     @State private var planningDestination: PlannedStaysDestination?
     @State private var selection = MainTabSelection()
-    private var initialRegion: Region?
-    private var initialSettingsRoute: SettingsRoute?
-    private var initialYearMode: YearMode = .calendar
+    private var previewConfiguration = PreviewConfiguration()
+
+    /// Initial tab content for lab and snapshot fixtures; each tab owns its live state.
+    private struct PreviewConfiguration {
+        var region: Region?
+        var settingsRoute: SettingsRoute?
+        var yearMode: YearMode = .calendar
+    }
+
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
@@ -77,7 +83,7 @@ struct MainTabs: View {
             ) {
                 LocationsView(
                     report: report,
-                    initialRegion: initialRegion,
+                    initialRegion: previewConfiguration.region,
                     openElsewhere: { selection.selected = .elsewhere },
                 )
                 .reportingDeveloperTabBarInset()
@@ -95,7 +101,7 @@ struct MainTabs: View {
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
-                YearView(report: report, initialMode: initialYearMode)
+                YearView(report: report, initialMode: previewConfiguration.yearMode)
                     .reportingDeveloperTabBarInset()
             }
 
@@ -103,7 +109,7 @@ struct MainTabs: View {
                 SettingsView(
                     report: report,
                     recordingWarning: recordingWarning,
-                    initialRoute: initialSettingsRoute,
+                    initialRoute: previewConfiguration.settingsRoute,
                 )
                 .reportingDeveloperTabBarInset()
             } label: {
@@ -239,9 +245,11 @@ struct MainTabs: View {
                 ),
                 selection: tab,
             )
-            initialRegion = region
-            initialSettingsRoute = settingsRoute
-            initialYearMode = yearMode
+            previewConfiguration = PreviewConfiguration(
+                region: region,
+                settingsRoute: settingsRoute,
+                yearMode: yearMode,
+            )
         }
     #endif
 }

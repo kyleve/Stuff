@@ -26,7 +26,7 @@ public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: WhereModel
     #if DEBUG
-        /// The logged-in tab bar's measured height, reported up from `MainTabs` and
+        /// The logged-in tab bar's measured edge insets, reported up from `MainTabs` and
         /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
         /// tab bar. Zero when logged out (no tab bar in the tree).
         @State private var developerTabBarInset = EdgeInsets()
