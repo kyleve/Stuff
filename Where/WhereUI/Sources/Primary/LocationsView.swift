@@ -72,7 +72,11 @@ struct LocationsView: View {
         AdaptivePaneContainer { arrangement in
             if let panes = tabletopPanes(for: arrangement) {
                 TabletopPaneLayout(panes: panes) {
-                    calendar(presentation: .month, usesZoomTransition: false)
+                    calendar(
+                        presentation: .month,
+                        showsEstimateCard: false,
+                        usesZoomTransition: false,
+                    )
                 } controls: {
                     NavigationStack {
                         browseContent
@@ -108,6 +112,7 @@ struct LocationsView: View {
                 } detail: {
                     calendar(
                         presentation: .year,
+                        showsEstimateCard: arrangement == .compact,
                         usesZoomTransition: arrangement == .compact,
                     )
                     .navigationSplitViewColumnWidth(
@@ -161,6 +166,7 @@ struct LocationsView: View {
 
     private func calendar(
         presentation: CalendarContentView.Presentation,
+        showsEstimateCard: Bool,
         usesZoomTransition: Bool,
     ) -> some View {
         @Bindable var navigation = navigation
@@ -168,7 +174,7 @@ struct LocationsView: View {
             CalendarContentView(
                 focusedRegion: navigation.selectedRegion,
                 report: report,
-                showsEstimateCard: false,
+                showsEstimateCard: showsEstimateCard,
                 monthReveal: $monthReveal,
                 presentationState: calendarPresentation,
                 presentation: presentation,
