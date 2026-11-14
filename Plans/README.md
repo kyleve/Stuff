@@ -54,6 +54,13 @@ The whole series receives a scope and dependency review. Executable detail is re
 A later question blocks earlier work only when its answer affects that work's implementation or acceptance.
 Questions awaiting later selected work link to the outline and its refinement trigger. Work outside the series stays in Linear.
 
+## Experiment deliverables
+
+An early deliverable can be a bounded experiment that answers a feasibility question.
+Use the executable template's optional Experiment design section to define its method, bounds, evidence, and artifact handling.
+Evidence that rules out an approach can complete the experiment. Dependent product plans still need a supported design and acceptance criteria.
+The agent records the conclusion and revises affected plans before advancing the horizon.
+
 ## Review on GitHub
 
 The plan PR links the overview and numbered files.

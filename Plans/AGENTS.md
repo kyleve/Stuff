@@ -46,6 +46,16 @@ Later uncertainty blocks an earlier plan only when it affects that plan's implem
 Refinement preserves reviewed filenames, IDs, decisions, and completed history.
 Changing the horizon does not expand implementation authorization or remove agreed requirements and exclusions.
 
+## Experiment deliverables
+
+An experiment uses the same plan lifecycle and records evidence for a decision rather than promising a product capability.
+Define its question, method, bounded effort, evidence criteria, and prototype cleanup or retention before readiness.
+A supported negative result can complete an experiment. An inconclusive result completes it only if its acceptance criteria allow that outcome.
+The unknown being investigated does not block the experiment when its method and execution prerequisites are ready.
+Record the result, limitations, and resulting decision before refining dependent work.
+An experiment's completion does not establish feasibility or satisfy downstream product requirements by itself.
+Keep affected questions and plans unresolved until the evidence supports their required decisions.
+
 ## Planning checkpoint
 
 Keep a checkpoint in the overview before substantial discovery or research, even when numbered plans do not exist yet.

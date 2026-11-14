@@ -10,6 +10,7 @@
 ## Intended outcome
 
 [Describe the user-visible result and what would demonstrate success.]
+[For an experiment, describe the decision it must inform and the evidence needed instead of promising a product capability.]
 
 ## User stories and requirements
 

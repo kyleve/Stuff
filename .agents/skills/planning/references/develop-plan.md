@@ -56,7 +56,9 @@ Planning can produce drafts and later outlines for discussion. Readiness require
 4. When meaningful alternatives exist, compare them against requirements, exclusions, integration cost, and maintenance burden.
    Record the selected approach and why alternatives were rejected in Shared decisions.
    Do not manufacture alternatives for routine choices.
-5. If feasibility needs a prototype, describe a bounded experiment with a question and success criterion.
+5. If feasibility needs a prototype, plan an [experiment deliverable](../../../../Plans/AGENTS.md#experiment-deliverables).
+   Define the question, method, effort bound, evidence criteria, and artifact cleanup or retention in the plan template.
+   Separate experiment acceptance from the product behavior that later plans must deliver.
    Perform only experiments covered by the current authorization.
    Otherwise include the experiment as an explicit planned step and retain the feasibility gap.
    Do not start product implementation merely to finish a planning request.
@@ -111,6 +113,7 @@ Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#que
 3. List plans in execution order and give each plan explicit dependency links.
    Map every requirement to an implementing plan, including outlines.
    Record intended success for outlines and concrete acceptance criteria for plans in the current horizon.
+   For experiments, map the supporting requirement and decision question to the evidence the experiment must produce.
    Prefer sequential execution unless independent work materially benefits from parallel execution.
    Follow the session's delegation rules.
 4. Within the current horizon, write concrete steps with affected paths, interfaces, and observable results.
@@ -143,6 +146,7 @@ Apply this distinction to direct feedback and GitHub revisions too.
    Inspect relevant failure, cancellation, persistence, and recovery paths.
 5. Verify that acceptance criteria distinguish success from failure and cover material constraints.
    Verify that each deliverable can be demonstrated with the proposed commands or procedures.
+   For experiments, verify that acceptance measures the investigation and evidence, without requiring the hypothesis to succeed.
    If a renderer is available, verify Mermaid syntax and rendering.
    Otherwise record the rendering limit.
    Treat Swift pseudocode as a design sketch, not compilation evidence.
@@ -171,6 +175,7 @@ After initial plan development finishes, return to [Create a plan](../SKILL.md#c
 Use this checkpoint after a completed deliverable, when an outline's refinement trigger occurs, or when the user requests refinement.
 
 1. Read actual outcomes, verification evidence, source changes, and relevant feedback from the completed work.
+   For experiments, use the recorded conclusion and limitations to decide which dependent plans can proceed or need revision.
    Record new learning in the overview and reopen questions whose answers or deferrals no longer hold.
 2. Reconsider upcoming deliverables, their order, dependencies, and assumptions within the authorized scope.
    Preserve agreed requirements and exclusions. Record scope changes that need a user decision.

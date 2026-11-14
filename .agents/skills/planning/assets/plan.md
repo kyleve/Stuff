@@ -12,6 +12,18 @@
 
 [Describe the observable result of this plan and its scope.]
 
+## Experiment design
+
+<!-- Keep this section only for an experiment deliverable. It uses the same status and execution sections as other plans. -->
+
+- Question: [Decision to resolve, with a Q-ID link in the overview]
+- Method and bounds: [Investigation or prototype, representative inputs, and effort or resource limit]
+- Evidence criteria: [Measurements or observations that support or reject the approach]
+- Inconclusive outcome: [Whether acceptance permits it, required evidence, and how the unresolved decision will be retained]
+- Artifacts: [What to retain as evidence, what to remove, and any explicitly authorized production changes]
+
+<!-- Put experiment completion criteria in Acceptance and verification. A negative result can satisfy them. -->
+
 ## User stories and requirements
 
 | Story | Requirement | Behavior delivered by this plan |
@@ -107,3 +119,4 @@ struct ProposedFeature {
 ## Outcome
 
 [Not started. At completion, describe the result and link any deferred backlog items.]
+[For an experiment, record the conclusion, supporting evidence, limitations, and resulting decision. Link affected questions and dependent plan revisions.]

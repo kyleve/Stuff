@@ -101,6 +101,7 @@ If resuming planning or revision, recover the recorded state and use that operat
    Record the actual command, result, and relevant revision or artifact.
    Keep concise evidence in tracked files rather than relying on ignored logs or chat history.
 6. If source findings require a plan change, revise the affected files before continuing dependent work.
+   For experiment results, use the question loop to integrate supported conclusions and retain unresolved questions with their next action.
    Resolve routine details within scope and record the decision.
    If progress needs an external answer, record `blocked`, the blocker, and the next action.
 7. Mark a plan `complete` only after its acceptance criteria pass and required review and publication finish.
