@@ -21,6 +21,13 @@ internal shape.
 
 ## Shape & invariants
 
+- Keep compatibility metadata outside SwiftData. Inject one process-owned coordinator before every production store open.
+  Only local recording On with Always permission can advance the shared version. Never lower a server or receipt version.
+  Keep the receipt atomic, account-bound, App Group-specific, and excluded from backups.
+  Guards: `DataCompatibilityCoordinatorTests`, `DataCompatibilityReceiptTests`, `DataModelVersionTests`.
+- Retire ingestion before joining recording operations. A retired scope must never restart GPS, including after an import completes.
+  Preserve consent and the durable location outbox. Guards: `LocationIngestorTests`, `DeviceRecordingControllerTests`.
+
 - Use InstallerKit for local and published build identity, feed validation, and cache policy.
   Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
   installer identity only for the Development audience.

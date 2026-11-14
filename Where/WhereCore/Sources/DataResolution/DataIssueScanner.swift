@@ -74,6 +74,11 @@ public actor DataIssueScanner {
         invalidationTask?.cancel()
     }
 
+    func stopObserving() async {
+        invalidationTask?.cancel()
+        await invalidationTask?.value
+    }
+
     public func issues(
         year: Int,
         primaryRegions: [Region],

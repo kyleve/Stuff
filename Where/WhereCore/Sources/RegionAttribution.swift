@@ -80,6 +80,11 @@ final class RegionAttribution: RegionAttributing {
         observer?.cancel()
     }
 
+    func stop() async {
+        observer?.cancel()
+        await observer?.value
+    }
+
     private var current: RegionAttributor {
         state.withLock { $0.attributor }
     }

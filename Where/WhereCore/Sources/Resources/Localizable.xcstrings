@@ -78,6 +78,50 @@
         }
       }
     },
+    "compatibility.error.permission" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Always location access on your recording device, then open Where."
+          }
+        }
+      }
+    },
+    "compatibility.error.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the latest Where on your recording device before using this version."
+          }
+        }
+      }
+    },
+    "compatibility.error.update" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Where to open data used by a newer version."
+          }
+        }
+      }
+    },
+    "compatibility.error.verify" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where and connect to iCloud to verify data compatibility."
+          }
+        }
+      }
+    },
     "dataIssues.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

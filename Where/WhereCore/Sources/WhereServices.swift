@@ -102,6 +102,20 @@ public struct WhereServices: Sendable {
     let installationContext: InstallationRecordingContext
     /// Owns the remote-import observation task for this service lifetime.
     private let remoteDataChangeReconciler: RemoteDataChangeReconciler
+
+    /// Lifecycle observation only; consumers do not use this as a second data read path.
+    public func remoteDataChangeUpdates() -> AsyncStream<Void> {
+        store.remoteChanges()
+    }
+
+    /// Retire owned loops and GPS without erasing user data or the durable retry outbox.
+    public func shutdown() async {
+        await recording.shutdown()
+        await remoteDataChangeReconciler.stop()
+        await (attributor as? RegionAttribution)?.stop()
+        await resolution.stopObserving()
+    }
+
     /// Synchronous assembly with an explicitly-provided `attributor` (default:
     /// the historical four via `RegionAttributor.shared`). For **tests and
     /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without

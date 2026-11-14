@@ -16,6 +16,24 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 ## What you get
 
+### Data compatibility
+
+`DataCompatibilityCoordinator` decides whether the app can open history before SwiftData starts.
+`DataModelVersion.current` describes data semantics independently of the app version. Version 1 also covers data from builds without this gate.
+The private CloudKit control record lives outside SwiftData's zone. Conditional saves only advance its version.
+Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
+Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
+A newer shared version requires an app update.
+
+The atomic App Group receipt preserves the highest observed version and excludes itself from backups.
+Transient failures permit offline access only after the same account and version passed verification.
+CloudKit must still identify that account. Missing, corrupt, unreadable, or blocked receipts do not grant offline access.
+The share extension checks this receipt before opening its local store. It does not contact CloudKit.
+
+`WhereServices.shutdown()` permanently stops recording and drains owned observation tasks without erasing data, consent, or pending location samples.
+The app discards that service scope. Recovery creates a fresh scope after verification succeeds.
+This is a scope boundary: operations already in flight can finish, and existing data APIs have no new per-operation checks.
+
 `WhereServices` is a small struct of focused collaborators — add behavior to the
 one it belongs to rather than to a god-object:
 
