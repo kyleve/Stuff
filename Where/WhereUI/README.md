@@ -117,9 +117,8 @@ it does not consult Locations' tabletop geometry.
 
 Planning sheets remain above changing containers, with one owner per destination.
 The welcome and developer overlays share the geometry adapter to find clear space.
-The DEBUG **Duo Layout Lab** retains one production demo world while its pose control
-changes bounds, traits, and synthetic regions. Embedded demo tools leave dismissal
-to their containing tool.
+Embedded demo tools leave dismissal to their containing tool. Duo capture fixtures
+retain their demo-world loader independently of the interactive developer lab.
 
 Synthetic poses come from `SnapshotConfiguration.DuoPose`; see the measurement provenance in [SnapshotKit](../../Shared/SnapshotKit/README.md). Native runtime geometry validation remains pending.
 Viewport shell captures supplement full-content captures of the shared scrolling panes.

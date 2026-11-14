@@ -12,7 +12,6 @@
         case logs
         case openSpans
         case regionMap
-        case duoLayoutLab
 
         var id: Self {
             self
@@ -28,8 +27,6 @@
                     String(localized: .developerOpenSpansLink)
                 case .regionMap:
                     String(localized: .developerRegionMapLink)
-                case .duoLayoutLab:
-                    String(localized: .developerDuoTitle)
             }
         }
 
@@ -39,7 +36,6 @@
                 case .logs: .ladybug
                 case .openSpans: .timer
                 case .regionMap: .map
-                case .duoLayoutLab: .rectangleSplit2x1
             }
         }
     }

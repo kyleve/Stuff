@@ -120,7 +120,6 @@
                 WhereFlyoverLogView.flyoverData,
                 OpenSpansView.flyoverData,
                 RegionMapView.flyoverData,
-                DuoLayoutLabView.flyoverData,
             ]
         }
 
