@@ -5,16 +5,25 @@ import Testing
 struct AdaptivePaneArrangementTests {
     private let style = AdaptivePaneTestSupport.multiplePaneStyle
 
-    @Test func anActiveHorizontalDivisionSeparatesDetailAndControls() {
+    @Test func portraitTabletopRetainsBrowseAndDetailColumns() {
         var geometry = AdaptivePaneTestSupport.portrait
         geometry.regions = [AdaptivePaneTestSupport.horizontalDivision]
+        #expect(AdaptivePaneArrangement.resolve(geometry: geometry, style: style) == .columns)
+        geometry.layoutDirection = .rightToLeft
+        #expect(AdaptivePaneArrangement.resolve(geometry: geometry, style: style) == .columns)
+        geometry.bounds.size.width = style.minimumControlsWidth + style.minimumDetailWidth - 1
+        #expect(AdaptivePaneArrangement.resolve(geometry: geometry, style: style) == .compact)
+    }
+
+    @Test func aLandscapeHorizontalDivisionSeparatesDetailAndControls() {
+        let geometry = AdaptivePaneTestSupport.landscapeTabletop
         let arrangement = AdaptivePaneArrangement.resolve(geometry: geometry, style: style)
         guard case let .tabletop(panes) = arrangement else {
             Issue.record("A usable horizontal division must choose tabletop.")
             return
         }
-        #expect(panes.detail == CGRect(x: 0, y: 82, width: 669, height: 373.5))
-        #expect(panes.controls == CGRect(x: 0, y: 495.5, width: 669, height: 421.5))
+        #expect(panes.detail == CGRect(x: 0, y: 0, width: 951, height: 314.5))
+        #expect(panes.controls == CGRect(x: 0, y: 354.5, width: 951, height: 280.5))
         #expect(panes.controls.minY - panes.detail.maxY == 40)
     }
 
@@ -49,6 +58,7 @@ struct AdaptivePaneArrangementTests {
         var single = style
         single.panes = .single
         #expect(AdaptivePaneArrangement.resolve(geometry: geometry, style: single) == .compact)
+        geometry = AdaptivePaneTestSupport.landscapeTabletop
         geometry.regions[0].frame.origin.y = 200
         #expect(AdaptivePaneArrangement.resolve(geometry: geometry, style: style) == .compact)
     }
@@ -75,12 +85,9 @@ struct AdaptivePaneArrangementTests {
 
     @Test(arguments: [true, false])
     func tabletopAvoidsOnlyActiveOcclusions(isActive: Bool) {
-        var geometry = AdaptivePaneTestSupport.portrait
+        var geometry = AdaptivePaneTestSupport.landscapeTabletop
         let camera = CGRect(x: 21, y: 210, width: 37, height: 58)
-        geometry.regions = [
-            AdaptivePaneTestSupport.horizontalDivision,
-            .init(kind: .occlusion, frame: camera, isActive: isActive),
-        ]
+        geometry.regions.append(.init(kind: .occlusion, frame: camera, isActive: isActive))
         guard case let .tabletop(panes) = AdaptivePaneArrangement.resolve(
             geometry: geometry,
             style: style,

@@ -102,7 +102,8 @@ Theme choices stack when the available pane cannot fit two readable card specime
 
 `AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
 `AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
-In Locations, an active horizontal division places the selected month above the hinge and browsing controls below it.
+Portrait Locations keeps native browse/detail columns when a horizontal division becomes active.
+In landscape containers with enough room, an active horizontal division places the selected month above the hinge and browsing controls below it.
 A vertical division retains native browse/detail navigation. Native containers own system-bar placement.
 The adapter uses container geometry, without device-name or hinge-angle checks.
 

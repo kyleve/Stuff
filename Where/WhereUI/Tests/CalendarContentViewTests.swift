@@ -185,10 +185,13 @@ struct CalendarContentViewTests {
                 in: host.view,
             ) }
             try await AdaptivePaneTestSupport.resize(controller, state: state, to: .tabletop)
-            try await waitForCalendar("tabletop calendar") { isVisible(
+            try await waitForCalendar("portrait tabletop keeps the year overview") { isEnabled(
+                "Show Months",
+                in: host.view,
+            ) && isVisible(
                 "July",
                 in: host.view,
-                expanded: true,
+                expanded: false,
             ) }
             try await AdaptivePaneTestSupport.resize(
                 controller,

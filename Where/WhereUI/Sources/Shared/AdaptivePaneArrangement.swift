@@ -26,7 +26,10 @@ enum AdaptivePaneArrangement: Equatable {
             $0.isActive && $0.kind == .division && $0.frame.intersects(content)
         }
         guard divisions.count <= 1 else { return .compact }
-        if let division = divisions.first(where: { $0.frame.width > $0.frame.height }) {
+        // Portrait containers keep the native browse/detail columns through a horizontal fold.
+        if geometry.bounds.width > geometry.bounds.height,
+           let division = divisions.first(where: { $0.frame.width > $0.frame.height })
+        {
             let gap = division.frame.intersection(content)
             let detail = avoidingOcclusions(
                 CGRect(
@@ -54,7 +57,7 @@ enum AdaptivePaneArrangement: Equatable {
             return .tabletop(Panes(detail: detail, controls: controls))
         }
 
-        if let division = divisions.first {
+        if let division = divisions.first(where: { $0.frame.height >= $0.frame.width }) {
             let gap = division.frame.intersection(content)
             let controlsWidth = geometry.layoutDirection == .leftToRight
                 ? gap.minX - content.minX : content.maxX - gap.maxX
