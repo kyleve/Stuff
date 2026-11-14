@@ -22,10 +22,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Give every screen a `NavigationStack` by default** so its navigation chrome renders in the frame. Use `.none` only for self-contained navigation roots and non-screen surfaces.
 - Adapt snapshot cases with `FlyoverVariant.snapshots`. Keep each cutsheet panel in its own variant with a stable panel-derived ID.
 - **Keep variant content builders lazy.** Catalog construction must not instantiate off-screen views or their models.
-- **Load the canvas from the viewport.** Keep at most six automatic screen trees live. A manually requested preview replaces that set with one tree. Presenting the focused inspector suspends the canvas set.
+- **Load the canvas from the settled viewport.** Keep at most six automatic screen trees live. Unload departed previews immediately. Defer replacements until viewport movement settles. A manually requested preview replaces that set with one tree. Presenting the focused inspector suspends the canvas set. Guard: `FlyoverCanvasViewTests`.
 - **Open the canvas fitted to its first group's width.** Reserve whole-graph framing for the explicit Fit All action.
 - **Cap automatic graph-depth stacks at the stylesheet row limit.** Spill overflow right inside one labeled depth band while preserving explicit `FlyoverPosition` values exactly.
-- **Invoke variant builders through the serial deferred load coordinator.** Never invoke them synchronously from a SwiftUI `body`. Preview fixtures may open expensive in-memory stores.
+- **Invoke variant builders through the serial deferred load coordinator.** Never invoke them synchronously from a SwiftUI `body`. Cancelled queued requests must finish without waiting for the active operation or releasing its slot. Guard: `FlyoverContentLoadCoordinatorTests`.
 - **Canvas preview readiness is the latest nonempty visible-load expectation.** Variant or generation changes supersede stale completions. Cancelled waiters must resume. `FlyoverSnapshotTests` awaits it before full-content measurement.
 - **Keep global traits session-only.** Apply them to registered content, not Flyover chrome.
 - **Apply device layout traits to device-sized previews.** Phone orientation selects compact/regular or compact/compact; tablet uses regular/regular. Fixed components inherit host layout traits. Guard: `FlyoverModelTests.devicePreviewsApplyTheirOwnLayoutTraits`.

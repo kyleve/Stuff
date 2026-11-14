@@ -17,6 +17,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
     @State private var zoomChangeBehavior = ZoomChangeBehavior.preserveViewportCenter
     @State private var scrollPosition = ScrollPosition()
     @State private var visibleRect = CGRect.zero
+    @State private var settledLiveScreenIDs: Set<ScreenID> = []
     @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
@@ -29,18 +30,21 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             visibleRect: visibleRect,
             screenFrames: layout.screenFrames,
         )
-        let liveScreenIDs: Set<ScreenID> = if model.focusedSelection != nil {
+        let desiredLiveScreenIDs: Set<ScreenID> = if model.focusedSelection != nil {
             []
         } else if let previewedScreenID = model.previewedScreenID {
             Set([previewedScreenID])
         } else {
             renderPlan.liveScreenIDs
         }
+        let liveScreenIDs = model.previewedScreenID == nil
+            ? settledLiveScreenIDs.intersection(desiredLiveScreenIDs)
+            : desiredLiveScreenIDs
         let expectedPreviewLoads: Set<FlyoverPreviewReadiness<ScreenID>.LoadKey> = if model
             .hasAppliedInitialCanvasZoom
         {
             Set(catalog.screens.compactMap { screen in
-                liveScreenIDs.contains(screen.id) ? model.previewLoadKey(for: screen) : nil
+                desiredLiveScreenIDs.contains(screen.id) ? model.previewLoadKey(for: screen) : nil
             })
         } else {
             []
@@ -94,6 +98,9 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             } action: { _, newValue in
                 visibleRect = newValue
             }
+            .onChange(of: renderPlan) { _, newPlan in
+                settledLiveScreenIDs.formIntersection(newPlan.liveScreenIDs)
+            }
             .onChange(of: model.zoom) { oldZoom, newZoom in
                 switch zoomChangeBehavior {
                     case .preserveViewportCenter:
@@ -117,6 +124,19 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             }
             .task {
                 applyInitialGroupWidthFit(layout: layout, in: proxy.size)
+            }
+            .task(id: renderPlan) {
+                // Pan and zoom change the viewport every frame. Keep surviving previews,
+                // but construct replacements only after movement pauses for 200 ms.
+                do {
+                    try await model.waitForCanvasToSettle()
+                } catch is CancellationError {
+                    return
+                } catch {
+                    assertionFailure("Unexpected preview settling failure: \(error)")
+                    return
+                }
+                settledLiveScreenIDs = renderPlan.liveScreenIDs
             }
             .task(id: expectedPreviewLoads) {
                 model.previewReadiness.expect(expectedPreviewLoads)
