@@ -31,6 +31,20 @@ import WhereCore
 @MainActor
 @Observable
 public final class WhereSession {
+    var onDeviceRemoved: @MainActor (RecordingDeviceID) -> Void = { _ in }
+
+    func shutdown() async {
+        let observers = [authorizationTask, recordingConfigurationTask, regionStyleTask]
+        observers.forEach { $0?.cancel() }
+        authorizationTask = nil
+        recordingConfigurationTask = nil
+        regionStyleTask = nil
+        await services.shutdown()
+        for observer in observers {
+            await observer?.value
+        }
+    }
+
     /// A process-unique, monotonically increasing identity for this session.
     /// `RootView` keys `MainTabs` (and thus the scene-scoped `YearReportModel`) on
     /// it, so a reset that rebuilds the session forces a fresh scene. Unlike an
@@ -410,6 +424,7 @@ public final class WhereSession {
             didRegisterRecordingDevice = false
         } else if case .removed = update.state {
             didRegisterRecordingDevice = false
+            onDeviceRemoved(services.recording.currentDevice.id)
         }
     }
 

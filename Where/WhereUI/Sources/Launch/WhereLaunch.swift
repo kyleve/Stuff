@@ -16,6 +16,8 @@ public enum LaunchStepID: String, Sendable {
     /// opened. Applies to every launch reason — a headless launch parks here
     /// rather than opening the user's store unseen.
     case onboarding
+    case compatibility
+    case suspendCompatibility = "suspend-compatibility"
     /// Resolve the scope the launch runs against, opening the user's real
     /// store if they onboarded on an earlier launch — the trunk's logged-in
     /// scope. The splash's slow-launch caption most often shows here.
@@ -134,6 +136,7 @@ public enum WhereLaunch {
         // records them on its observable `detachedFailures`, which nothing
         // renders — without this a throwing detached step would fail with no
         // trace in logs.
+        model.compatibility.bind(model: model, launcher: runner)
         DetachedFailureReporter.observe(runner)
         return runner
     }
@@ -164,6 +167,7 @@ public enum WhereLaunch {
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
         LaunchPlan(ActivateLaunchDemoStep(model: model).measured())
+            .gate(CompatibilityGate(model: model))
             .gate(OnboardingGate(model: model))
             .then(ResolveScopeStep(model: model).measured())
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
@@ -205,6 +209,12 @@ public enum WhereLaunch {
         LaunchPlan(ExitDemoStep(model: model).measured())
     }
 
+    public static func compatibilityTeardown(for model: WhereModel)
+        -> LaunchPlan<LaunchStepID, Void, Void>
+    {
+        LaunchPlan(SuspendCompatibilityStep(model: model).measured())
+    }
+
     public static func rejoinPlan(for model: WhereModel)
         -> LaunchPlan<LaunchStepID, WhereSession, Void>
     {
@@ -226,6 +236,10 @@ public protocol WhereScopeAssembling {
     /// Install the location manager without touching the store. Idempotent,
     /// and cheap enough to run on the synchronous launch path.
     func prepareLocation()
+    func currentLocationAuthorization() async -> LocationAuthorizationStatus
+    func requestLocationPermission() async throws
+    func stopLocation() async
+    func shutdown() async
 
     /// Open the store and assemble the services over it. The app process's
     /// **one** store open.
@@ -240,6 +254,18 @@ public protocol WhereScopeAssembling {
     /// through the in-memory pipeline and must leave no sink attached to the
     /// process-wide one.
     func makeLogStore() async throws -> PeriscopeStore?
+}
+
+extension WhereScopeAssembling {
+    public func currentLocationAuthorization() async
+        -> LocationAuthorizationStatus
+    {
+        .notDetermined
+    }
+
+    public func requestLocationPermission() async throws {}
+    public func stopLocation() async {}
+    public func shutdown() async {}
 }
 
 /// Owns the assembly of the user's real world, so `WhereScope` and
@@ -262,17 +288,22 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
     private var preparedStore: SwiftDataStore?
+    private var storeOpening: Task<SwiftDataStore, any Error>?
+    private var isShutDown = false
+    private let compatibility: DataCompatibilityCoordinator
 
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
         storeStorage: SwiftDataStore.Storage,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox,
+        compatibility: DataCompatibilityCoordinator,
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
         self.widgetRefresher = widgetRefresher
         self.locationOutbox = locationOutbox
+        self.compatibility = compatibility
     }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
@@ -300,7 +331,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// anywhere.
     public func makeServices() async throws -> WhereServices {
         let source = locationSource ?? CoreLocationSource()
-        locationSource = nil
+        locationSource = source
         do {
             let installationContext = try installationContextStore.resolve()
             precondition(
@@ -344,13 +375,53 @@ public final class WhereBootstrap: WhereScopeAssembling {
     }
 
     private func prepareStore() async throws -> SwiftDataStore {
+        try compatibility.requireAccess()
+        guard !isShutDown else { throw CancellationError() }
         if let preparedStore { return preparedStore }
+        if let storeOpening {
+            let store = try await storeOpening.value
+            try compatibility.requireAccess()
+            guard !isShutDown else { throw CancellationError() }
+            return store
+        }
         let storeStorage = storeStorage
-        let store = try await Task.detached(priority: .userInitiated) {
+        let opening = Task.detached(priority: .userInitiated) {
             try SwiftDataStore.make(storage: storeStorage)
-        }.value
+        }
+        storeOpening = opening
+        defer { storeOpening = nil }
+        let store = try await opening.value
+        try compatibility.requireAccess()
+        guard !isShutDown else { throw CancellationError() }
         preparedStore = store
         return store
+    }
+
+    public func currentLocationAuthorization() async -> LocationAuthorizationStatus {
+        prepareLocation()
+        guard let locationSource else { return .notDetermined }
+        return await locationSource.currentAuthorization()
+    }
+
+    public func requestLocationPermission() async throws {
+        prepareLocation()
+        try await locationSource?.requestPermission()
+    }
+
+    public func stopLocation() async {
+        await locationSource?.stop()
+    }
+
+    public func shutdown() async {
+        isShutDown = true
+        if let storeOpening {
+            // Opening cannot be interrupted inside SwiftData; discard it after it returns.
+            do { _ = try await storeOpening.value }
+            catch { Self.logger.servicesAssemblyFailed(error: .restricted(.errorDetails, error)) }
+        }
+        preparedStore = nil
+        await locationSource?.stop()
+        locationSource = nil
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this

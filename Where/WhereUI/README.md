@@ -54,6 +54,13 @@ These indicators have no separate action and remain visible after correction dis
 
 ### App shell & view models
 
+- **`WhereCompatibilityModel` / `DataCompatibilityView`** — process-owned monitoring and a history-free lockout screen.
+  Verification precedes onboarding discovery, import recovery, and scope construction, including headless launches.
+  Foreground entry, a 60-second foreground poll, CloudKit pushes, remote imports, and Retry refresh the decision.
+  A lockout hides history immediately, stops recording, and tears down the old scope through the launch runner.
+  Recovery passes the compatibility gate and creates one fresh scope. The installation's consent and onboarding state remain intact.
+  New installations can choose recording before opening history. Established viewers cannot enable recording from the lockout screen.
+
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.
 Local builds can browse remote builds without an automatic update badge.
 **Other Builds** opens the shared Main/PR browser and retained build history.
@@ -145,8 +152,7 @@ Demo mode hides this surface and performs no update checks.
   plan through `.measured()`, so each run is one Periscope span named after
   the step (`step(resolve-scope)`) that warns while it overruns its budget — 
   the launch's cost breaks down per step instead of arriving as one slow
-  splash. (The onboarding gate is the one unmeasured node: it parks on the
-  user.)
+  splash. The onboarding and compatibility gates are unmeasured while they wait for recovery or user input.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -261,7 +267,7 @@ journal intent.
   there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
-  choice. The final page opens the real store in a dormant state to inspect recent synced advisory
+  choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
   other installation recently reported recording. Tablets, other devices, and explicit rejoins
   recommend Off. Only an enabled confirmation requests location permission. A restored device can

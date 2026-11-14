@@ -4,6 +4,26 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `compatibility transport belongs to the regular runtime`() throws {
+        let source = "func assemble() { _ = CloudKitDataCompatibilityTransport(containerIdentifier: \"test\") }"
+        let allowed = try evaluate(
+            path: "Where/Where/Sources/RegularApplicationRuntime.swift",
+            component: .app,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Model/CompetingCompatibilityOwner.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        let violation = try #require(rejected.violations.first)
+        #expect(rejected.violations.count == 1)
+        #expect(violation.rule.id == "where.compatibility_transport_ownership")
+        #expect(violation.rule.severity == .error)
+    }
+
+    @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",

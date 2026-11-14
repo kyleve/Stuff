@@ -42,15 +42,18 @@ final class ShareEvidenceModel {
     /// Storage the extension opens; injectable so a future test can point it at
     /// an in-memory store instead of the shared container.
     private let storage: SwiftDataStore.Storage
+    private let compatibilityReceipts: (any DataCompatibilityReceiptStoring)?
     private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     init(
         items: [NSExtensionItem],
         storage: SwiftDataStore.Storage,
+        compatibilityReceipts: (any DataCompatibilityReceiptStoring)?,
         now: @Sendable () -> Date = { Date() },
     ) {
         self.items = items
         self.storage = storage
+        self.compatibilityReceipts = compatibilityReceipts
         capturedAt = now()
     }
 
@@ -91,6 +94,17 @@ final class ShareEvidenceModel {
     /// the write error.
     func save() async -> Bool {
         phase = .saving
+        if let compatibilityReceipts {
+            do {
+                guard let receipt = try compatibilityReceipts.load()
+                else { throw DataCompatibilityFailure.recordingDeviceRequired }
+                try receipt.requireAccess(version: .current)
+            } catch {
+                phase = .failed(String(localized: .shareCompatibilityOpenWhere))
+                Self.logger.saveFailed(error: .restricted(.errorDetails, error))
+                return false
+            }
+        }
         let pending = buildPendingEvidence()
         do {
             let store = try SwiftDataStore.make(storage: storage)

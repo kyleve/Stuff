@@ -34,7 +34,13 @@ public actor IntentServices {
         let theme: WhereTheme
     }
 
-    private var installed: Context?
+    private enum Availability {
+        case waiting
+        case installed(Context)
+        case blocked(DataCompatibilityFailure)
+    }
+
+    private var availability = Availability.waiting
 
     /// Intents parked in `current()` awaiting installation, keyed so a
     /// cancelled waiter can remove exactly itself.
@@ -54,7 +60,7 @@ public actor IntentServices {
     /// cached one.
     public func install(_ services: WhereServices, theme: WhereTheme) {
         let context = Context(services: services, theme: theme)
-        installed = context
+        availability = .installed(context)
         let parked = waiters
         waiters = [:]
         for continuation in parked.values {
@@ -65,8 +71,8 @@ public actor IntentServices {
     /// Replace only the presentation identity while retaining the current
     /// store-sharing service stack.
     public func updateTheme(_ theme: WhereTheme) {
-        guard let installed else { return }
-        self.installed = Context(services: installed.services, theme: theme)
+        guard case let .installed(installed) = availability else { return }
+        availability = .installed(Context(services: installed.services, theme: theme))
     }
 
     /// Release the installed stack, so nothing here keeps the app's store alive
@@ -77,12 +83,20 @@ public actor IntentServices {
     /// first install — the alternative is answering from a store the app has
     /// abandoned, which is worse than waiting for the one it opens next.
     public func clear() {
-        installed = nil
+        availability = .waiting
     }
 
-    /// The installed stack, suspending until the launch installs one. Throws
-    /// only `CancellationError`, when the awaiting intent's task is cancelled
-    /// while parked.
+    public func block(_ failure: DataCompatibilityFailure) {
+        availability = .blocked(failure)
+        let parked = waiters
+        waiters = [:]
+        for continuation in parked.values {
+            continuation.resume(throwing: failure)
+        }
+    }
+
+    /// The installed stack, suspending until the launch installs one. Cancellation and
+    /// compatibility lockout fail the wait without opening an independent store.
     ///
     /// Only the parking path is timed: the span's duration is how long an intent
     /// waited on the launch, which is the whole question a Siri-racing-startup
@@ -94,8 +108,10 @@ public actor IntentServices {
 
     /// Resolve services and theme atomically for snippet presentation.
     func currentContext() async throws -> Context {
-        if let installed {
-            return installed
+        switch availability {
+            case let .installed(context): return context
+            case let .blocked(error): throw error
+            case .waiting: break
         }
         return try await WhereIntentsLog.logger.measure(.awaitServices) {
             try await park()
@@ -115,7 +131,11 @@ public actor IntentServices {
                 if Task.isCancelled {
                     continuation.resume(throwing: CancellationError())
                 } else {
-                    waiters[id] = continuation
+                    switch availability {
+                        case let .installed(context): continuation.resume(returning: context)
+                        case let .blocked(error): continuation.resume(throwing: error)
+                        case .waiting: waiters[id] = continuation
+                    }
                 }
             }
         } onCancel: {

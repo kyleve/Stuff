@@ -121,6 +121,10 @@ a screen felt slow.
 
 ## Scopes and the launch
 
+- Verify data compatibility before onboarding discovery, interrupted import recovery, or production scope construction.
+  Keep the compatibility gate active for foreground and headless launches. Local-only and demo worlds bypass CloudKit verification.
+  A live lockout stops recording and retires the whole scope. Guards: `WhereCompatibilityModelTests` and `WhereLaunchTests`.
+
 - **A `WhereScope` is what the app is logged in *to*.** It is one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. It is created whole. `WhereSession` is built from one. A

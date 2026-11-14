@@ -160,6 +160,7 @@ struct WhereLaunchTests {
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
             .activateDemo,
+            .compatibility,
             .onboarding,
             .resolveScope,
             .startSession,

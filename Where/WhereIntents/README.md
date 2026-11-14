@@ -10,8 +10,8 @@ device-local `WhereTheme` atomically through the `@Dependency`-injected
 `AppDependencyManager`. The launch installs a stack built with
 [`WhereServices.forIntents(sharingStoreOf:)`](../WhereCore/Sources/WhereServices+Intents.swift)
 over the same `SwiftDataStore` it opened. An intent that fires earlier waits
-for that install rather than opening its own store. No GPS starts via
-`WhereCore`'s `IdleLocationSource`). They do read/write through the existing
+for that install rather than opening its own store. The handoff shares the app's exact services;
+intent handlers never start GPS). They do read/write through the existing
 collaborators (`reports`, `journal`) using a Gregorian calendar
 (`Calendar.whereIntents`, matching the domain's aggregation so year/day math
 lines up). They render with [`WhereUI`](../WhereUI/) snippet views. The
@@ -22,6 +22,9 @@ always discovers it.
 The host injects its audience-specific App Group through `IntentServices`.
 `TodayRegionsIntent` uses that group for the optional widget-snapshot fast path
 and logs an App Group-open failure before falling back to the store report.
+
+A compatibility lockout releases installed services and fails pending and new intents with an actionable error.
+An intent that already resolved services can finish. The next verified session installs fresh services for later intents.
 
 ## Intents
 

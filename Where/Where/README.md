@@ -90,6 +90,32 @@ report the build/install/launch plan without performing it.
 
 ## CloudKit rollout and device validation
 
+The regular runtime verifies a separate compatibility record before opening SwiftData.
+Local-only Development builds and demo scopes bypass this protocol.
+The control record uses the private `WhereStoreCompatibility` zone and record type, with `requiredVersion` (Int64) and `accountID` (String).
+Its `where-store-compatibility` zone subscription requests silent notifications. Notifications are advisory; foreground polling also refreshes the decision.
+
+Before the first incompatible release:
+
+1. Use a recording-enabled validation build with Always permission to create the control record in the Development CloudKit environment.
+2. Deploy its record schema to Production through CloudKit Console before distributing the cloud-enabled build.
+3. Ship `DataModelVersion.current == 1` and the compatibility gate to all supported installations.
+4. Increase `DataModelVersion.current` only when a later release changes data incompatibly.
+
+Builds that predate the gate cannot obey it. A version increase does not make an existing unsupported build safe.
+The protocol stops the entire session after detection. It does not make metadata and SwiftData synchronization atomic across devices.
+
+Compatibility acceptance on two devices:
+
+1. Keep one recording device on version 1. Install a version-2 validation build on a viewer and verify that it waits without opening history.
+2. Install version 2 on the recording device. Verify that it publishes before opening history and that the viewer recovers.
+3. Keep a version-1 device open during that publication. Verify that it hides history, stops GPS, and releases its scope.
+4. Repeat through foreground entry, a control-record push, a remote import, and Retry after a network outage.
+5. After successful verification, test offline relaunch on the same account and version. CloudKit must still resolve the account identity.
+6. Test an unverified upgrade, account change, missing permission, and malformed receipt. Each must remain blocked.
+7. During lockout, invoke an intent and save from the share sheet. Verify an actionable error and no new store open.
+8. Restore network access and the matching version. Verify one fresh scope, preserved consent, and the retained location outbox.
+
 The app target owns `iCloud.com.stuff.where`, the Push Notifications
 entitlement, and the remote-notification background mode. Widgets and the share
 extension intentionally have only the App Group entitlement: they write/read

@@ -127,7 +127,7 @@ struct ShareEvidenceView: View {
 #if DEBUG
     #Preview {
         ShareEvidenceView(
-            model: ShareEvidenceModel(items: [], storage: .inMemory),
+            model: ShareEvidenceModel(items: [], storage: .inMemory, compatibilityReceipts: nil),
             onSave: {},
             onCancel: {},
         )

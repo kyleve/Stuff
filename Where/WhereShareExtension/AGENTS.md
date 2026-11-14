@@ -24,6 +24,11 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Invariants
 
+- Before a production-cloud store opens locally, require the app's verified receipt for this exact data version.
+  Missing, unreadable, blocked, or mismatched receipts show Open Where and must not open history.
+  Keep the receipt read local. Development local-only storage bypasses this gate.
+  Guard: `DataCompatibilityReceiptTests` in WhereCore.
+
 - **Writes directly through `SwiftDataStore.perform { write(evidence:blob:) }`,
   not `WhereServices`/`DayJournal`.** A short-lived share process must not spin
   up the GPS ingestor, notifiers, or widget publisher; the store commit's

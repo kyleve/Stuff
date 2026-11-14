@@ -36,6 +36,11 @@ layering, and the domain rules this target merely starts up.
 
 ## Invariants
 
+- Construct the CloudKit compatibility transport only in the regular runtime. Inject its coordinator into the model and every bootstrap.
+  Local-only and demo worlds must not verify or publish CloudKit metadata.
+  Forward compatibility subscription notifications to the process-owned monitor, including headless launches.
+  Guard: `where.compatibility_transport_ownership`.
+
 - Construct InstallerKit’s update service and model once in the regular runtime.
   Require the Development audience, valid local or published InstallerKit metadata, and a non-test
   process. Inject through `RootView`; foreground UI owns checking.

@@ -18,6 +18,12 @@ let whereProjectRules = RuleSet {
         owner: whereLoggingScope.union(nonWhereProductionScope),
         id: "where.logging_type_ownership",
     )
+    Rules.constructionOwnership(
+        "CloudKitDataCompatibilityTransport",
+        allowed: RuleScope.files(["Where/Where/Sources/RegularApplicationRuntime.swift"])
+            .union(nonWhereProductionScope),
+        id: "where.compatibility_transport_ownership",
+    )
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule

@@ -14,5 +14,16 @@ protocol WhereApplicationRuntime: AnyObject {
         options: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool
 
+    func didReceiveRemoteNotification(_ userInfo: [AnyHashable: Any]) async
+        -> UIBackgroundFetchResult
+
     func makeRootView() -> AnyView
+}
+
+extension WhereApplicationRuntime {
+    func didReceiveRemoteNotification(_: [AnyHashable: Any]) async
+        -> UIBackgroundFetchResult
+    {
+        .noData
+    }
 }

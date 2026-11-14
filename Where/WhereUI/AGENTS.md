@@ -13,6 +13,11 @@ Layering, localization, preview, and testing conventions live in the feature
 
 ## Scope & dependencies
 
+- Keep compatibility monitoring outside disposable scopes. Gate discovery, import recovery, and scope creation before any store open.
+  Mask blocked history before teardown. Stop GPS before waiting for launch work or output cleanup.
+  Own onboarding completion as one process-model task and drain it during compatibility retirement.
+  Guards: `WhereCompatibilityModelTests`, `WhereLaunchTests`, `OnboardingImportRecoveryModelTests`.
+
 - Keep InstallerKit’s `UpdateModel` process-owned and inject it at `RootView`.
   Poll only from a foreground, non-demo app surface. Keep the last successful
   result visible on failure. Keep App Updates first in Settings for eligible builds,

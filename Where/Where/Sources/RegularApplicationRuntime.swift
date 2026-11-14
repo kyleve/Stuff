@@ -1,4 +1,5 @@
 import AppIntents
+import CloudKit
 import InstallerKit
 import LifecycleKit
 import PeriscopeCore
@@ -114,6 +115,17 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
+        let coordinator = storeStorage.usesCloudKit
+            ? DataCompatibilityCoordinator(
+                transport: CloudKitDataCompatibilityTransport(
+                    containerIdentifier: "iCloud.com.stuff.where",
+                ),
+                receipts: AppGroupDataCompatibilityReceipt(appGroupIdentifier: buildEnvironment
+                    .appGroupIdentifier),
+                version: .current,
+            )
+            : DataCompatibilityCoordinator()
+        let compatibility = WhereCompatibilityModel(coordinator: coordinator)
         return WhereModel(
             preferences: preferences,
             installationContextStore: installationContextStore,
@@ -123,23 +135,39 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                     storeStorage: storeStorage,
                     widgetRefresher: buildEnvironment.makeWidgetRefresher(),
                     locationOutbox: locationOutbox,
+                    compatibility: coordinator,
                 )
             },
             logSystem: .shared,
+            compatibility: compatibility,
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )
     }
 
     func didFinishLaunching(
-        application _: UIApplication,
+        application: UIApplication,
         options _: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool {
         AppDependencyManager.shared
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
 
         WhereLaunch.startAmbientLogging(on: .shared)
-        model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.compatibility
+            .onBlocked = { [intentServices] failure in await intentServices.block(failure) }
+        model.onLoggedOut = { [intentServices, weak compatibility = model.compatibility] in
+            if case let .blocked(failure) = compatibility?.coordinator.state {
+                await intentServices.block(failure)
+            } else { await intentServices.clear() }
+        }
+        #if DEBUG
+            let usesCloudKit = buildEnvironment.storage(
+                forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
+            ).usesCloudKit
+        #else
+            let usesCloudKit = buildEnvironment.storage.usesCloudKit
+        #endif
+        if usesCloudKit { application.registerForRemoteNotifications() }
         model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
             await widgetPresentationPublisher.publish(theme)
             guard !Task.isCancelled else { return }
@@ -160,6 +188,15 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
         return true
+    }
+
+    func didReceiveRemoteNotification(_ userInfo: [AnyHashable: Any]) async
+        -> UIBackgroundFetchResult
+    {
+        guard CKNotification(fromRemoteNotificationDictionary: userInfo)?.subscriptionID
+            == CloudKitDataCompatibilityTransport.subscriptionID else { return .noData }
+        await model.compatibility.refresh(model: model)
+        return .newData
     }
 
     func makeRootView() -> AnyView {

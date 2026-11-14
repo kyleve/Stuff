@@ -17,12 +17,22 @@ import PeriscopeCore
 ///
 /// **Nothing is opened until the user asks for it.** The launch parks on the
 /// onboarding gate before any scope exists, so an install the user never
-/// finishes onboarding creates no store file and contacts no CloudKit; the
+/// finishes onboarding creates no store file. Independent compatibility metadata can use CloudKit;
+/// the
 /// real scope is built the moment they choose to use the app for real (see
 /// ``resolveScope()``).
 @MainActor
 @Observable
 public final class WhereModel {
+    public let compatibility: WhereCompatibilityModel
+    private var scopeEpoch: UInt64 = 0
+    private var scopeOpening: Task<WhereScope, any Error>?
+    private var onboardingTask: Task<Void, Never>?
+
+    var isCompletingOnboarding: Bool {
+        onboardingTask != nil
+    }
+
     /// Observable bring-up state for the active scope's durable log store.
     ///
     /// The developer surface must not infer a failed asynchronous open from a
@@ -94,6 +104,14 @@ public final class WhereModel {
     }
 
     private var launchDemoState = LaunchDemoState.inactive
+
+    var bypassesCompatibility: Bool {
+        if isInDemoMode { return true }
+        switch launchDemoState {
+            case .inactive: return false
+            case .pending, .building: return true
+        }
+    }
 
     /// Whether the cold-launch splash is currently building a requested demo.
     var isBuildingLaunchDemo: Bool {
@@ -225,6 +243,8 @@ public final class WhereModel {
                 now: now(),
             )
         }
+        await compatibility.refresh(model: self)
+        try compatibility.coordinator.requireAccess()
         return try await RecordingOnboardingRecommendation(
             for: context.currentDevice,
             devices: bootstrap.discoverRecordingDevices(),
@@ -355,12 +375,16 @@ public final class WhereModel {
             any InstallationRecordingContextStoring,
         ) -> any WhereScopeAssembling,
         logSystem: Periscope,
+        compatibility: WhereCompatibilityModel? = nil,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
         },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        self
+            .compatibility = compatibility ??
+            WhereCompatibilityModel(coordinator: DataCompatibilityCoordinator())
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
@@ -396,6 +420,7 @@ public final class WhereModel {
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        compatibility: WhereCompatibilityModel? = nil,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -411,6 +436,9 @@ public final class WhereModel {
             logSystem: logSystem,
         )
         scopeState = .real(scope)
+        self
+            .compatibility = compatibility ??
+            WhereCompatibilityModel(coordinator: DataCompatibilityCoordinator())
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
@@ -477,22 +505,49 @@ public final class WhereModel {
     /// Throws if the store can't be opened, leaving the model logged out so a
     /// later attempt can try again.
     public func resolveScope() async throws -> WhereScope {
+        if !isInDemoMode {
+            await compatibility.refresh(model: self)
+            try compatibility.coordinator.requireAccess()
+        }
+        let openingEpoch = scopeEpoch
         switch scopeState {
             case let .real(scope), let .demo(scope):
                 return scope
             case let .loggedOut(bootstrap):
-                let scope = try await WhereScope.real(
-                    bootstrap: bootstrap,
-                    preferences: preferences,
-                    logSystem: logSystem,
-                    onLogStoreStateChange: { [weak self] scope, state in
-                        guard self?.activeScope === scope else { return }
-                        self?.logStoreState = state
-                    },
-                )
+                let opening: Task<WhereScope, any Error>
+                if let scopeOpening {
+                    opening = scopeOpening
+                } else {
+                    let task = Task { @MainActor [preferences, logSystem, weak self] in
+                        try await WhereScope.real(
+                            bootstrap: bootstrap,
+                            preferences: preferences,
+                            logSystem: logSystem,
+                            onLogStoreStateChange: { [weak self] scope, state in
+                                guard self?.activeScope === scope else { return }
+                                self?.logStoreState = state
+                            },
+                        )
+                    }
+                    scopeOpening = task
+                    opening = task
+                }
+                defer { if openingEpoch == scopeEpoch { scopeOpening = nil } }
+                let scope = try await opening.value
                 // Replacing the state releases the bootstrap: it has handed
                 // over its location source and opened its store, and the next
                 // login gets a fresh one.
+                guard openingEpoch == scopeEpoch else {
+                    await scope.services.shutdown()
+                    await scope.stopLogRouting()
+                    throw CancellationError()
+                }
+                do { try compatibility.coordinator.requireAccess() }
+                catch {
+                    await scope.services.shutdown()
+                    await scope.stopLogRouting()
+                    throw error
+                }
                 scopeState = .real(scope)
                 logStoreState = scope.logStoreState
                 Self.logger.openedRealScope()
@@ -597,6 +652,12 @@ public final class WhereModel {
             now: scope.sessionNow ?? now,
         )
         self.session = session
+        if scope.kind == .real {
+            compatibility.observeRemoteChanges(services: scope.services, model: self)
+            session.onDeviceRemoved = { [weak compatibility] deviceID in
+                compatibility?.coordinator.recordRemoval(of: deviceID)
+            }
+        }
         Self.logger.startedSession(
             year: .restricted(.domainValue, initialSelectedYear),
         )
@@ -607,6 +668,49 @@ public final class WhereModel {
     /// teardown after `eraseAllData()` and when onboarding abandons a failed
     /// restore attempt: the next login builds a fresh scope over a newly-opened
     /// store and the installation context current at that attempt.
+    func currentLocationAuthorization() async -> LocationAuthorizationStatus {
+        if let session { return await session.services.ingestor.authorizationStatus() }
+        if case let .loggedOut(bootstrap) = scopeState {
+            return await bootstrap.currentLocationAuthorization()
+        }
+        return .notDetermined
+    }
+
+    func requestLocationPermissionBeforeOpening() async throws {
+        if case let .loggedOut(bootstrap) = scopeState {
+            try await bootstrap.requestLocationPermission()
+        }
+    }
+
+    func shutdownForCompatibility() async {
+        scopeEpoch &+= 1
+        let onboarding = onboardingTask
+        onboarding?.cancel()
+        if let session { await session.shutdown() }
+        else if let scope = activeScope { await scope.services.shutdown() }
+        if case let .loggedOut(bootstrap) = scopeState { await bootstrap.shutdown() }
+        await onboarding?.value
+        onboardingTask = nil
+        await logOut()
+    }
+
+    func stopRecordingForCompatibility() async {
+        if let scope = activeScope {
+            await scope.services.recording.shutdown()
+        } else if case let .loggedOut(bootstrap) = scopeState {
+            await bootstrap.stopLocation()
+        }
+    }
+
+    /// Own the onboarding work independently of the view that a lockout replaces.
+    func performOnboarding(_ operation: @escaping @MainActor () async -> Void) {
+        guard onboardingTask == nil else { return }
+        onboardingTask = Task {
+            await operation()
+            onboardingTask = nil
+        }
+    }
+
     public func endSession() async {
         await logOut()
         Self.logger.endedSession()
@@ -627,6 +731,9 @@ public final class WhereModel {
     /// false or unset, so the relaunch parks for the user before anything
     /// re-opens. The old container is long gone by the time they answer.
     private func logOut() async {
+        scopeEpoch &+= 1
+        scopeOpening = nil
+        compatibility.stopScopeObservation()
         await activeScope?.stopLogRouting()
         session = nil
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
