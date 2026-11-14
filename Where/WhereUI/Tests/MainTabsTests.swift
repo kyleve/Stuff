@@ -154,8 +154,11 @@ struct MainTabsTestsDuo {
             }
             let editor = try #require(AdaptivePaneTestSupport.presentedController(from: root))
             defer { editor.dismiss(animated: false) }
+            // A picker can exist before native presentation finishes. Fold the mounted editor
+            // after that transition, rather than forcing layout during sheet installation.
             try await waitForAsync {
-                !AdaptivePaneTestSupport
+                !editor.isBeingPresented && editor.transitionCoordinator == nil
+                    && !AdaptivePaneTestSupport
                     .descendants(of: editor.view, matching: UIDatePicker.self).isEmpty
             }
             let picker = try #require(AdaptivePaneTestSupport.descendants(
