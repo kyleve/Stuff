@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let destinations: Destinations = [.iPhone, .iPad]
-let deployment: DeploymentTargets = .iOS("27.0")
+let deployment: DeploymentTargets = .iOS("27.1")
 
 /// Local Swift package (see root `Package.swift`) for the library products
 /// (WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).

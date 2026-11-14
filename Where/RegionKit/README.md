@@ -167,5 +167,5 @@ reached via `@testable import RegionKit`.
 **GeoJSON *decoding* is not covered** — there is no `GeoJSONTests.swift`, so the
 unsupported-geometry throw and the malformed-coordinate drop are unexercised, and
 `RegionCatalog`'s degrade-to-empty-catalog path is asserted only at the log-event
-level. Filed in [`Where/TODOs.md`](../TODOs.md). This paragraph goes away when it
+level. Filed in [Where backlog](https://linear.app/kve/view/1cdf347a9c54). This paragraph goes away when it
 closes.

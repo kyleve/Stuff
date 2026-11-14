@@ -19,7 +19,7 @@ It returns updated plans and unresolved questions to its caller. It does not pub
    For a question answer, link its question record rather than duplicating the answer history.
    If a request is declined, record the reason.
    For later selected work, link its outline and refinement trigger.
-   For work outside the series, link the owning `TODOs.md` item.
+   For work outside the series, file or update a Linear issue through [todo-triage](../../todo-triage/SKILL.md) and link it.
 5. If the revision invalidates earlier verification, label that evidence stale and identify the checks that must repeat.
    Reset affected progress checkboxes and status to reflect remaining work.
    Preserve the earlier execution record.

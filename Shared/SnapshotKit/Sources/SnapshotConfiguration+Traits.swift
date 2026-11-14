@@ -2,13 +2,10 @@ import SwiftUI
 import UIKit
 
 extension SnapshotConfiguration {
-    /// A `UITraitCollection` expressing this configuration's appearance axes —
-    /// interface style, content size category, contrast, layout direction,
-    /// legibility weight, and any explicit device-adaptive traits. Used both by
-    /// the preview cutsheet's trait override and by the test runner to configure
-    /// the capture, so the two stay in lockstep.
+    /// A `UITraitCollection` expressing this configuration's appearance and optional layout
+    /// traits. Preview and capture hosts share this mapping.
     public var uiTraitCollection: UITraitCollection {
-        var traits = [
+        var collections = [
             UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light),
             UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicType)),
             UITraitCollection(accessibilityContrast: contrast == .increased ? .high : .normal),
@@ -19,31 +16,33 @@ extension SnapshotConfiguration {
                 legibilityWeight: legibilityWeight == .bold ? .bold : .regular,
             ),
         ]
-        if let layoutTraits {
-            traits.append(contentsOf: [
-                UITraitCollection(userInterfaceIdiom: layoutTraits.interfaceIdiom.uiValue),
-                UITraitCollection(horizontalSizeClass: layoutTraits.horizontalSizeClass.uiValue),
-                UITraitCollection(verticalSizeClass: layoutTraits.verticalSizeClass.uiValue),
-            ])
+        if let traits = resolvedLayoutTraits {
+            collections += [
+                UITraitCollection(horizontalSizeClass: traits.horizontalSizeClass.uiSizeClass),
+                UITraitCollection(verticalSizeClass: traits.verticalSizeClass.uiSizeClass),
+                UITraitCollection(userInterfaceIdiom: traits.interfaceIdiom.uiIdiom),
+            ]
         }
-        return UITraitCollection(traitsFrom: traits)
+        return UITraitCollection(traitsFrom: collections)
     }
-}
 
-extension SnapshotConfiguration.LayoutTraits.InterfaceIdiom {
-    fileprivate var uiValue: UIUserInterfaceIdiom {
-        switch self {
-            case .phone: .phone
-            case .tablet: .pad
-        }
-    }
-}
-
-extension SnapshotConfiguration.LayoutTraits.SizeClass {
-    fileprivate var uiValue: UIUserInterfaceSizeClass {
-        switch self {
-            case .compact: .compact
-            case .regular: .regular
+    /// Applies the same UIKit traits to preview and test hosts, before mounting content.
+    @MainActor
+    public func applyTraits(to host: UIViewController) {
+        let traits = uiTraitCollection
+        host.traitOverrides.userInterfaceStyle = traits.userInterfaceStyle
+        host.traitOverrides.preferredContentSizeCategory = traits.preferredContentSizeCategory
+        host.traitOverrides.accessibilityContrast = traits.accessibilityContrast
+        host.traitOverrides.layoutDirection = traits.layoutDirection
+        host.traitOverrides.legibilityWeight = traits.legibilityWeight
+        if let layoutTraits = resolvedLayoutTraits {
+            host.traitOverrides.horizontalSizeClass = layoutTraits.horizontalSizeClass.uiSizeClass
+            host.traitOverrides.verticalSizeClass = layoutTraits.verticalSizeClass.uiSizeClass
+            host.traitOverrides.userInterfaceIdiom = layoutTraits.interfaceIdiom.uiIdiom
+        } else {
+            host.traitOverrides.remove(UITraitHorizontalSizeClass.self)
+            host.traitOverrides.remove(UITraitVerticalSizeClass.self)
+            host.traitOverrides.remove(UITraitUserInterfaceIdiom.self)
         }
     }
 }

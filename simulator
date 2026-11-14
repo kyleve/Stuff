@@ -209,7 +209,9 @@ create_device() { # <name> -> udid on stdout
     fi
 
     echo "==> Creating $1 ($DEVICE / iOS $OS) for $checkout" >&2
-    udid="$(xcrun simctl create "$1" "$type_id" "$runtime_key" | tr -d '[:space:]')"
+    # Bash clears errexit in command substitutions. Preserve a failed create
+    # even when simctl writes its error description to stdout.
+    udid="$(xcrun simctl create "$1" "$type_id" "$runtime_key" | tr -d '[:space:]')" || return $?
     if [ -z "$udid" ]; then
         echo "error: simctl create returned no UDID for '$1'." >&2
         exit 1

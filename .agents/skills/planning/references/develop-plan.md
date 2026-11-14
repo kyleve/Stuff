@@ -8,6 +8,10 @@ Planning can produce drafts and later outlines for discussion. Readiness require
 
 1. Read the request, supplied references, and existing related plans or backlog items.
    Use existing session answers and authorization.
+   Find or create the corresponding Linear issue through [todo-triage](../../todo-triage/SKILL.md), using BACKLOG.md's duplicate-search rules.
+   Link the issue and plan in both directions without copying execution detail into the issue.
+   If Linear access is unavailable, preserve the unsent link or issue work in the checkpoint and report the limitation.
+   Continue independent planning without creating local TODO files or claiming issue updates succeeded.
 2. Create `Plans/YYYY-MM-DD-<topic>/` using the user's local date.
    If that path already exists, inspect it before selecting another unique name.
    Copy [the overview template](../assets/overview.md) to the series `README.md`.
@@ -81,7 +85,7 @@ Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#que
    If the question no longer applies, record the reason and relevant scope decision before closing it.
 6. For intentional deferral, record the reason, revisit condition, and next action.
    For later selected work, link the affected outline and refinement trigger.
-   For work outside the series, link the owning backlog item.
+   For work outside the series, link the Linear issue filed through todo-triage.
    Mark the question `deferred` without treating it as answered.
    State which plans it blocks and when the answer is needed.
    Keep affected plans in the current horizon blocked. Later plans can remain outlines until refinement is due.

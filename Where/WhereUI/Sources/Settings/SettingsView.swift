@@ -374,7 +374,6 @@ struct SettingsView: View {
                         device: .iPhoneFullContent,
                     ),
                 ],
-                measurementReadiness: .immediate,
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
@@ -383,7 +382,6 @@ struct SettingsView: View {
             whereSnapshot(
                 name: "UpdateAvailable",
                 configurations: .fullContentPhoneLightDark,
-                measurementReadiness: .immediate,
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
@@ -393,7 +391,6 @@ struct SettingsView: View {
             whereSnapshot(
                 name: "LocalBuild",
                 configurations: .fullContentPhoneLightDark,
-                measurementReadiness: .immediate,
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
@@ -405,7 +402,6 @@ struct SettingsView: View {
             whereSnapshot(
                 name: "DemoMode",
                 configurations: .fullContentPhoneLightDark,
-                measurementReadiness: .immediate,
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
@@ -415,7 +411,6 @@ struct SettingsView: View {
             whereSnapshot(
                 name: "RecordingConfigurationWarning",
                 configurations: .fullContentPhoneLightDark,
-                measurementReadiness: .immediate,
             ) {
                 SettingsView(
                     report: PreviewSupport.loadedYearReportModel(),

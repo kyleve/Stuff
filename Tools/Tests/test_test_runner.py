@@ -91,6 +91,40 @@ class TestRunnerTests(unittest.TestCase):
 
             self.assertIn("1 images", output.getvalue())
 
+    def test_progress_counts_named_parameterized_and_known_issue_tests_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            counts = Path(directory) / "counts.json"
+            reporter = ProgressReporter(
+                heartbeat=0,
+                status_path=None,
+                counts_path=counts,
+                scheme="Unit",
+                is_terminal=False,
+                count_images=False,
+                output=output,
+                clock=Clock(),
+            )
+            reporter.run(
+                [
+                    '◇ Suite "Readable suite" started.',
+                    '◇ Test "Stores the wrapped value" started.',
+                    '✔ Test "Stores the wrapped value" passed after 0.001 seconds.',
+                    "\u200b✔ Test values(_:) with 200 test cases passed after 0.064 seconds.",
+                    "━ Test expectedIssue() passed after 0.075 seconds with 1 known issue.",
+                    "\u200b━ Test retry(_:) with 2 test cases passed after 0.069 seconds with 2 known issues.",
+                    '✘ Test "Reports a failure" failed after 0.001 seconds.',
+                    '\u200b➜ Test manualProbe() skipped: "Opt-in probe."',
+                    "✔ Test run with 6 tests in 1 suite passed after 0.2 seconds.",
+                ]
+            )
+
+            self.assertEqual(reporter.tests, 5)
+            self.assertEqual(reporter.failures, 1)
+            self.assertIn('"Readable suite"/"Reports a failure"', output.getvalue())
+            self.assertIn("5 tests", output.getvalue())
+            self.assertEqual(json.loads(counts.read_text()), {"tests": 5, "images": 0})
+
     def test_retry_diagnostics_are_visible_without_counting_as_tests_or_images(self):
         with tempfile.TemporaryDirectory() as directory:
             output = io.StringIO()

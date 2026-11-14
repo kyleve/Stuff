@@ -159,6 +159,11 @@ Layering, localization, preview, and testing conventions live in the feature
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
+- Measure calendar month sections, day rows, and Timeline rows eagerly so full-content measurement and scroll restoration use their actual heights. Guards: `CalendarContentViewSnapshotTests`, `PresenceTimelineListSnapshotTests`.
+- Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep active drill-in stacks mounted while folding; defer tabletop composition until returning.
+- Read system reserved regions only in `AdaptivePaneGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
+- Keep explicit reveal requests in the owning view, with typed request identities distinct from content identities. Use BroadwayUI scroll restoration for current-context anchors; scrolling must not select or move another pane.
+- Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
   Complete the latest started read when its requesting sheet disappears; keep older results from replacing it.
@@ -284,6 +289,8 @@ Use process-effective diagnostics for privacy claims. Hide gallery links whose d
 Use the [`update-explore-features`](../../.agents/skills/update-explore-features/SKILL.md) skill for periodic coverage updates.
 
 ## Testing
+
+Keep Developer Overlay snapshots scene-backed so native glass retains its scene geometry. Guard: `DeveloperOverlaySnapshotTests`.
 
 Hosted tests that traverse SwiftUI accessibility must link and import
 `AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility

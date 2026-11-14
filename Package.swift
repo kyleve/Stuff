@@ -6,7 +6,7 @@ let package = Package(
     name: "Stuff",
     defaultLocalization: "en",
     platforms: [
-        .iOS("27.0"),
+        .iOS("27.1"),
         .macOS(.v26),
     ],
     products: [
@@ -145,6 +145,7 @@ let package = Package(
         .target(
             name: "SnapshotKit",
             path: "Shared/SnapshotKit/Sources",
+            resources: [.process("Resources")],
         ),
         .target(
             name: "SnapshotKitTesting",

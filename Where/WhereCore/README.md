@@ -68,7 +68,7 @@ one it belongs to rather than to a god-object:
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
   dismissals. Writes await reminder/issue reconciliation and widget publication
   after committing. The local fan-out does not yet refresh daily summaries;
-  that gap is tracked in [`../TODOs.md`](../TODOs.md).
+  that gap is tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 - **`PlannedStayCoordinator`** — stores independent travel plans and an optional forecast home
   region. Each plan has a stable identity and inclusive arrival and departure windows.
   `create(_:)`, `update(_:)`, and `delete(stayID:)` affect one plan. Completed plans remain
@@ -451,7 +451,7 @@ rotates to a Reset child generation, and discards the retry queue only after com
 - **Failures surface.** Store methods are `async throws`. Errors are logged via
   `WhereLog`. Most callers propagate failure or retain honest failed state.
   The reminder badge still logs a failed scan and returns zero; that exception
-  is tracked in [`../TODOs.md`](../TODOs.md).
+  is tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.

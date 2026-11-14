@@ -353,7 +353,7 @@ process launch and `add(sink:)` — early launch steps, ambient start-up
 snapshots — reach neither the store nor a journal. They survive only in the
 recent buffer and OSLog. Closing that window (a bootstrap journal from
 process start, ingested when the store attaches) is tracked in
-[`TODOs.md`](../TODOs.md). At the
+[Periscope backlog](https://linear.app/kve/view/c0511a6281eb). At the
 next launch the store ingests prior journals before the session starts:
 undelivered records persist (deduplicated by event ID), recovered span
 begans join the orphan sweep, a `.notice` marks the recovery, and the

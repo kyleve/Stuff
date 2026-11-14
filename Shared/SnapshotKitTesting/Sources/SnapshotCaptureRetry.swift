@@ -17,12 +17,20 @@ import UIKit
             return try await capture(controller)
         }
 
+        return try await Self.capture(named: name, operation: attempt, report: report)
+    }
+
+    public static func capture<Output>(
+        named name: String,
+        operation: () async throws -> Output,
+        report: (String) -> Void,
+    ) async throws -> Output {
         let maximumAttempts = 3
         var attemptNumber = 1
         while true {
             try Task.checkCancellation()
             do {
-                let result = try await attempt()
+                let result = try await operation()
                 try Task.checkCancellation()
                 if attemptNumber > 1 {
                     report(

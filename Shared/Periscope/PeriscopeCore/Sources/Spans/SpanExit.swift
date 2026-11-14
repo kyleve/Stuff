@@ -85,6 +85,6 @@ public enum SpanRelaunchPolicy: String, CaseIterable, Codable, Sendable {
     case endsWithProcess
     /// The next launch leaves it open. (Resuming — re-seeding the open-span
     /// registry with wall-clock durations — is staged work; see
-    /// `Shared/Periscope/TODOs.md`.)
+    /// [STU-36](https://linear.app/kve/issue/STU-36).)
     case survivesRelaunch
 }

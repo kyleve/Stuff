@@ -20,7 +20,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   generated `LocalizedStringResource` symbols.
 - No test bundle. The store write contract is covered from **WhereCore** store
   tests. This target's own compose/save model (`ShareEvidenceModel`) is
-  untested. Tracked in [`Where/TODOs.md`](../TODOs.md).
+  untested. Tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 
 ## Invariants
 

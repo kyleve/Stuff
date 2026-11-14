@@ -1,4 +1,6 @@
 import Foundation
+import TestHostSupport
+import UIKit
 
 /// Serializes snapshot captures process-wide.
 ///
@@ -27,11 +29,12 @@ enum SnapshotCaptureLock {
 
     @TaskLocal private static var taskHoldsLock = false
 
-    /// Runs `operation` while holding the process-wide capture lock, waiting
-    /// (FIFO) for any in-flight capture to finish first.
-    static func withLock<Output>(
-        _ operation: @MainActor () async throws -> Output,
-    ) async rethrows -> Output {
+    /// Resolves the marked window after acquiring the capture lock. Synthetic
+    /// captures detach it from its scene, so discovery and width-dependent
+    /// hosting must wait until the previous capture restores it.
+    static func withHost<Output>(
+        _ operation: @MainActor (UIWindow) async throws -> Output,
+    ) async throws -> Output {
         precondition(
             !taskHoldsLock,
             """
@@ -43,7 +46,12 @@ enum SnapshotCaptureLock {
         await acquire()
         defer { release() }
         return try await $taskHoldsLock.withValue(true) {
-            try await operation()
+            try Task.checkCancellation()
+            try waitFor { hostKeyWindow()?.rootViewController != nil }
+            guard let window = hostKeyWindow() else {
+                preconditionFailure("SnapshotKitTesting requires the StuffTestHost key window.")
+            }
+            return try await operation(window)
         }
     }
 

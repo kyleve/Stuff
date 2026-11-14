@@ -38,9 +38,12 @@ These rules also apply when changing a root command or installer that calls this
   Guards: [test_worktree_cleanup.py](Tests/test_worktree_cleanup.py) and [test_worktree_command.py](Tests/test_worktree_command.py).
 - Keep dry runs free of the mutations they preview. Test the public command
   with fake processes and temporary destinations, not developer devices or installed apps.
+- Propagate simulator creation failures before recording ownership, including failures that write diagnostics to stdout.
+  Guard: `SimulatorCommandTest#test_interrupted_creation_never_records_an_owner`.
 
 ## Snapshot shard plans
 
+- Discover each snapshot source root from its owning target's literal source array, including multiline arrays with shared support files. Reject unsupported declarations without borrowing the next target's sources. Guard: `test_snapshot_shards.py`.
 - Keep measured timings in balance reports, not the persisted execution plan.
 - Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
   Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).
@@ -97,6 +100,9 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 
 ## Validation
 
+- Use `xcode_results.test_duration` for profiler and JUnit execution totals.
+  Sum argument and repetition durations instead of Xcode's parent averages or rounded display durations.
+  Guards: `test_xcode_results.py`, `test_profile_results.py`, and `.circleci/Tests/test_xcresult_to_junit.py`.
 - For policy changes, exercise both the policy and its public command boundary.
   Assert exit status, stdout, stderr, and resulting filesystem or process operations.
   Do not rely only on helper return values.

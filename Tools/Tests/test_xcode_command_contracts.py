@@ -212,6 +212,9 @@ case "${XCODE_OUTPUT:-passing}" in
     printf '✘ Test fails() failed after 0.001 seconds\\n'
     ;;
   zero) printf '** TEST SUCCEEDED **\\n' ;;
+  parameterized)
+    /usr/bin/python3 -c 'print("\\u200b✔ Test values(_:) with 5 test cases passed after 0.2 seconds.")'
+    ;;
   invalid-bytes)
     /usr/bin/printf '\\377split output\\n'
     printf '◇ Test works() started\\n'
@@ -560,6 +563,22 @@ class XcodeCommandContractTests(unittest.TestCase):
 
         self.assertEqual(1, result.returncode, result.stdout + result.stderr)
         self.assertIn("this run matched no tests", result.stdout)
+
+    def test_parameterized_only_selection_is_not_reported_as_empty(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            XCODE_OUTPUT="parameterized",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("1 tests", result.stdout)
+        self.assertNotIn("this run matched no tests", result.stdout)
 
     def test_test_tolerates_unexpected_output_bytes_without_losing_test_counts(self):
         fixture = self.fixture()

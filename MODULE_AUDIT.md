@@ -1,296 +1,174 @@
 # Swift Module Audit Report
 
-**Date:** October 26, 2026 (America/New_York; refreshed after the later main merges)
-**Reviewed source:** `123272e3f2361a9fa2d23879d654eede6d90b072` (PR #449), fetched from `origin/main`.
-**Prior audit:** October 19, 2026, merged in PR #401 (`f8ad52b9e`), with full source coverage through `2d686c95d` (PR #391).
+**Date:** November 9, 2026 (America/New_York)
+**Reviewed source:** `bbe90c4c58d9d458382335418a18a5dccb434e87` (PR #485), fetched from `origin/main`.
+**Prior audit:** November 4, 2026, source cutoff `a22b6095254d391cb70a2dbed61943647ecbdeab`, report merged in PR #479 on November 6.
 
-This report is derived from all 12 `TODOs.md` files and carries no actionable
-items. The root [`TODOs.md`](TODOs.md) owns their format and placement. It is
-true as of the header date and reviewed source, not as of later HEADs.
+This report was verified against 11 Markdown backlog files at its header date. It carries no actionable items.
+[BACKLOG.md](BACKLOG.md) now owns the Linear workflow. Links below were migrated without changing this report’s verification date.
+The report describes the header date and reviewed source, not later HEADs.
 
-**Post-audit removal (October 26, 2026):** This branch removes Ledger and LedgerCore.
-Their rows and counts below describe the audited revision; the documentation links
-are pinned to that revision. Their retired backlog remains in the root
-[`TODOs.md`](TODOs.md#completed-issues). This note does not extend the audit cutoff.
+## Method and backlog reconciliation
 
-## Method and changes since the previous audit
+The pass read the open area backlogs, checked cited source locations, and compared implementations and tests with the previous cutoff.
+All Swift source, tests, manifests, and reference images are unchanged in this window.
+Those unchanged blobs support retaining prior findings; this was not a fresh review of every source line.
+Runtime, visual, and design acceptance requirements remain open.
+Existing priorities, human origins, and completed history remain intact.
 
-Every open area backlog was rechecked against current source, test mechanisms,
-and the week's diff. Unchanged areas were checked at their cited seams; this is
-not a fresh line-by-line review of all 914 source files. Tracked source,
-test/support, image-suite and reference files were recounted against the
-manifests. Test presence is not a claim that the tests ran this week.
+At this audit’s date, the former Markdown inbox had no open notes. Nothing required promotion or a decline verdict.
+No implementation item met its full closure condition. No new independent defect was established.
+The previous triage PR #479 merged on November 6; no unfinished matching triage PR existed at branch creation.
 
-`INBOX.md` has no open notes, so no promotion or decline was needed. Existing
-priorities, human origins and completed history are preserved. Two terse existing
-human requests now have source context: a domain raw-data browser and translator
-comments. No additional independent defect was established beyond the existing
-backlog; changed implementations sharpened those entries instead of creating
-duplicates.
+| Backlog | Result of this pass |
+|---|---|
+| [Root](https://linear.app/kve/view/df229f7aa2f4) | Corrected architecture/tool-job citations and LFS hydration ownership after the CI split. Retained publication races, parser, portability, calendar, distribution, and documentation requirements. |
+| [Where](https://linear.app/kve/view/1cdf347a9c54) | Source locations and unchanged implementation support retaining reconciliation, attribution, recording, localization, test, performance, and visual requirements. |
+| [Broadway](https://linear.app/kve/view/44ec91d450b2) | Placeholder app/test, missing root, unconditional observer, invalidation, and cache gaps remain in unchanged source. |
+| [CreditKit](https://linear.app/kve/view/835453b822e9) | The permissive GitHub-slug expression remains at lines 97–98. |
+| [Flyover](https://linear.app/kve/view/2292471484f2) | Web and native sources are unchanged. Shortcut, group-filter, drawer, error-preservation, and native interaction findings remain open. |
+| [Inspector](https://linear.app/kve/view/83c3c45cf416) | Relationship branch, silent fetches, image gaps, and intermittent search-width quarantine remain. |
+| [JournalKit](https://linear.app/kve/view/0ea46c42ff5f) | Concurrent append still discards original errors; full-sync coverage remains one append. |
+| [LifecycleKit](https://linear.app/kve/view/b4bc9780ee5f) | Duplicate-input preconditions and the missing trap tests remain unchanged. |
+| [Periscope](https://linear.app/kve/view/c0511a6281eb) | Modeling, hierarchy, journal, resume, query, density, handoff, and hosting-coverage requirements remain open. |
+| [SnapshotKit](https://linear.app/kve/view/c1d3e2053ada) | Ordinary content still builds once before the configuration loop. Cutsheet isolation does not close this item. |
+| [SnapshotKitTesting](https://linear.app/kve/view/82d7e3ada668) | Parse traps, pipeline coverage, and duplicate inline identities remain. Removed the claim that old timings establish current phase costs. |
 
-The reviewed window is `2d686c95d..123272e3f`, 51 merged commits.
-The initial pass ended at `820030f68`; this follow-up reconciles 14 additional
-merges against the audit and backlog. It traces changed publication, guard and
-fixture contracts, not every line of the newly extracted browser implementation.
-The full window includes #392/#369, which the prior report covered only as merge reconciliation. Dates
-below are GitHub merge dates (UTC), not earlier branch commit dates.
+## Changes since the prior audit
 
-| Merged | PRs | Surface reviewed |
-|---|---|---|
-| October 19 | #392, #369, #401 | Host-check split; reference groups and settling noise; previous audit |
-| October 20 | #404, #407, #402, #405 | Bounded settling retries; backup sharing; Flat; typed style overrides |
-| October 22 | #403, #409, #375, #394, #412, #396, #397, #398, #408, #414, #358 | Elsewhere and Locations stack; sparse flights and uncertain arrival; capture memory; generated journeys and evidence fixtures/replay; coordinate exports; generic Flyover exporter |
-| October 23 | #359, #361, #423, #416, #421 | Flyover web viewer/hosted adapter; sheet backgrounds; estimates and Timeline |
-| October 24 | #426, #427, #429, #428, #430, #431, #432, #433 | Installer asset validation, refresh lifetime, preparation pages, PR titles, site snapshots, multi-app catalog and PR signing |
-| October 26 | #422, #434, #400, #435, #362, #436 | Calendar overview; shard rebalance; feed bootstrap; explicit snapshot matrices; transactional Flyover atlas; comparison sheets |
-| October 26 | #438, #439, #270, #442, #415, #417, #419, #420, #440, #443, #444 | Reduced screen matrices and focused presets; shard rebalance; local/LAN atlas preview; shared Astro tooling; typed browser modules and accessibility; publication recovery; daily hosting and quality gates |
-| October 27 UTC (October 26 Eastern) | #446, #450, #449 | Python/CSS formatting; atlas retention; code-review procedure and architecture mutation guards |
+The window `a22b6095..bbe90c4c` contains five merged commits. All five PRs merged on November 6, UTC.
+Open PRs, including CI consolidation #484 and snapshot optimization #486, are not shipped evidence.
 
-Open compatibility/IdentifierKit and other unmerged work is not shipped evidence.
-Backup remains v7; later branch proposals do not change this audit's cutoff.
+| PR | Surface checked |
+|---|---|
+| #469 | Shared documentation classifier, Linux CircleCI selection, continuation jobs, required GitHub job names, and early publication failure after setup failure. |
+| #478 | Review guidance for default transport adapters and filesystem cleanup ownership; no executable change. |
+| #477 | DayRelabelView suite moved from shard 3 to shard 1. Suite membership and reference inventory remain unchanged. |
+| #479 | Previous audit and backlog reconciliation; documentary baseline for this pass. |
+| #485 | Dated CI timing/cost report distinguishes production from the unmerged consolidation proposal. No current price or billing verification performed. |
 
-| Area | October 19 report | October 26 state |
-|---|---|---|
-| Source / test-support / leaf image-suite files | 851 / 474 / 65 | **914 / 528 / 69** |
-| Leaf modules with both docs | 30 | **30** |
-| Additional tool image suites | 1 | **1**; 70 suite files total |
-| WhereCore | 161 / 112 | **169 / 126** source / test-support |
-| WhereUI | 335 / 134 / 57 | **360 / 151 / 61** |
-| Reference PNGs | 1,043 | **885**, including 744 WhereUI, 106 InstallerKitUI and 24 Tools |
-| Test bundles | 29 Tuist + host macro bundle | **Unchanged** |
-| Shard assignment counts | 13 / 15 / 18 / 18 + 2 intake | **13 / 18 / 17 / 22 + 0 intake** |
-| Raised-floor configurations | 82 | **84**; 106 before #438; no new timing measurement |
-| Backlog closure | Feed bootstrap was proposed | **Bootstrap archived; graph-mutation closure from #449 retained** |
+**CI selection:** the classifier checks the complete merge-base diff, including deleted paths and both sides of renames.
+Executable Markdown, symlinks, rendered-content paths, empty diffs, and unavailable history select full CI.
+Main, manual, and publication events retain full checks. Focused tests exercise these boundaries and continuation request redaction.
+Workflow tests check required names, selection conditions, and setup/continuation parameter parity.
+These local checks do not execute the hosted providers.
 
-Comparison sheets store several independent panel captures in one PNG. Reference
-count is therefore no longer capture count. Representative matrices, retries and
-memory changes also invalidate extrapolation from old timing samples; the
-SnapshotKitTesting performance entry retains that measurement limit.
+**Publication polling:** the shared controller now stops when setup fails before the requested workflow exists.
+The installer and Flyover command tests exercise this failure through their command boundaries.
+No signed archive, site publication, or remote artifact mutation occurred during this pass.
 
-The bootstrap closure covers the signing-independent publication dependency,
-empty-branch handling and preservation of existing catalog/manifests. It does
-not close signed-device installation or update acceptance. A published Where IPA
-now makes the original signing-setup blocker historical; device acceptance stays
-open. Calendar positioning now names #422's layout-keyed reconciliation and zoom tests while retaining the
-original app-shell runtime requirement. Elsewhere naming now runs sequentially
-through a protocol, but the production namer's shared-task cancellation/cache
-gaps remain. Ordinary snapshots still share captured models across configurations;
-#436's fresh panel builders narrow that claim without closing it.
+**Backlog corrections:** snapshot workers hydrate references at `.circleci/continue.yml:520`; the shared builder does not.
+The LFS cache item now names that owner and preserves the missing cold/warm benchmark requirement.
+Suite durations and job costs do not establish the current settle/render/compare breakdown.
+The snapshot performance item now treats both its old measurements and its optimization conclusion as historical.
 
-## New-surface review
+**Documentation:** Tools README/AGENTS and root guidance already describe the new CI selection flow.
+SnapshotKitTesting guidance points to the continuation file for serial worker configuration.
+No additional module API or architecture documentation mismatch was established in this window.
+The existing missing Where group README remains filed. Agent mirrors were synchronized.
 
-**Flights, history and evidence:** sparse endpoint corroboration is bounded by
-travel evidence, positional uncertainty and ground vetoes. Arrival is represented
-as observed ground or uncertain timing; supported flight intervals, rather than
-silence through the arrival window, drive completed-day coverage. Historical and
-correction replay preserve these distinctions. Source fixtures cover sparse,
-misleading and boundary evidence. The generator defaults to 1,000 seeds across
-12 profiles (12,000 synthetic journeys). Those Swift tests were not executed
-in this documentation pass.
-Backup sharing owns a prepared archive through its presentation lifetime; the
-backup format remains v7. JSON/coordinate export remains distinct from bundled
-polygon display detail.
+## Inventory changes
 
-**Where presentation:** Flat shares region/year data with the existing card
-surfaces. ElsewhereModel publishes only current request results and separates
-Home presentation from historical gaps. Locations delegates cards and state
-presentation to child views. CalendarPresentationModel holds overview/month
-presentation state, while measured frames gate zoom transitions; loading/failure
-and initial app-shell positioning acceptance remain separate. Timeline presentation
-splits at interior visit starts and flight departures while retaining each region-day
-once; one-day cards use their own sizing policy. The new tests and snapshot cases
-are evidence of declared coverage, not a live gesture or visual review by this audit.
+| Inventory | November 4 cutoff | November 9 cutoff |
+|---|---:|---:|
+| Leaf modules, each with README and AGENTS | 28 | 28 |
+| Source Swift files | 890 | 890 |
+| Test/support Swift files | 514 | 514 |
+| Leaf image-suite Swift files | 69 | 69 |
+| Additional tool image suites | 1 | 1 |
+| Reference PNGs | 885 | 885 |
+| Area backlog files | 11 | 11 |
 
-**Installer:** Pages now runs on trusted main without a signed archive. A missing
-publication branch yields an empty schema-3 catalog; an existing branch with a
-missing catalog or failed read still fails honestly. The deployed catalog and
-exact-build manifests are preserved. The initial 50 feed/site tests and the merged tree's 43 tests cover these
-paths, including multi-app and retired history. Draft-release validation checks
-available asset names; preparation pages retain typed app/channel links; optional
-PR titles flow through the feed/UI. UpdatePageRefresh cancels replaced and
-abandoned work, with source tests controlling superseded results. Signing setup
-keeps registered app identity and PR source selection explicit. Release metadata confirms a published `app.ipa` at
-`installer-where-main-40428575955-1`. No credential change, release publication,
-Pages deployment, signing or device operation was performed by this audit.
-
-**Flyover:** the web viewer now uses the shared root npm workspace, typed client
-modules and component CSS layers. Browser tests exercise URL restoration,
-keyboard/focus behavior, failed-image recovery, touch input, axe scans and image
-budgets. Those browser tests were inspected but not rerun in this follow-up.
-The native manifest/profile/export changes preserve schema-1 compatibility
-while supplying numeric viewport sizes and a shared cross-language fixture.
-
-Local/LAN preview validates and privately copies generated artifacts. Tool policy,
-pure validation, descriptor-based file access and publication recovery now have
-separate owners. Daily capture uses registered unsigned simulator adapters and
-skips shared executable caches; shared Pages includes validated release bundles.
-Retention runs only after deployment, protects the deployed/newest bundles and
-seven days of history, and excludes drafts/unrelated releases. The 91 retained
-Flyover tests passed on this merged tree; no live publication or deletion ran.
-
-The newer root backlog records two reproduced publication races: installing over
-an empty competing directory and restoring the old atlas after the committed
-directory moves. The audit therefore makes no general rollback-safety claim.
-New Flyover findings also retain capture-focused shortcuts, group-ID collision,
-drawer bounds and original-error loss; Where retains eager Elsewhere descriptors.
-These findings arrived in #449 and remain open. Synthetic span capture still does
-not reroute WhereLog's process-global facade.
-
-**Capture, Broadway and CI:** BModeVarying selects authored values by explicit
-mode; WhereThemeOverrides resolves typed optional fields against the trait-adjusted
-base, preserving zero as an override and nil as inheritance. Explicit representative
-and compact matrices replace broad default selection. Comparison sheets validate panel identity and metadata, then
-compare independently captured panels through the shared reference path. Bounded
-retries apply to settling failures, not mismatches or cancellation; readiness
-hooks remain repeatable. Normalized image/pixel lifetime changes and the current
-70-suite shard plan were inspected. Plan validation passes; no fresh timing,
-image capture or memory measurement is claimed.
-
-**Documentation:** root guidance now describes the shared npm workspace, lint
-gates, daily Flyover publication and the new code-review procedure. SnapshotKit's
-README and AGENTS now distinguish ordinary-case model sharing from fresh cutsheet
-panel builders and retry reuse. The week's other owning docs already describe
-the new flight/arrival, Flat/Elsewhere, calendar, installer and export contracts.
-Agent mirrors were synchronized. This audit changes no executable code, target,
-dependency, concurrency contract, matrix, reference or product copy.
-
-## Top findings
-
-Pointers only; evidence and proposed fixes live in the owning backlog.
-
-| Area | Finding | Backlog |
-|---|---|---|
-| Bumper | Gregorian rule misses implicit `.current` | [Root P0](TODOs.md) |
-| WhereCore | Daily summary absent from local fan-out | [Where P0](Where/TODOs.md) |
-| PeriscopeCore | Pre-store-attach records absent from durable log | [Periscope P0](Shared/Periscope/TODOs.md) |
-| Installer / tooling | Live signed distribution and update verification | [Root P1](TODOs.md) |
-| WhereCore / WhereUI | Residency requirements and remaining-day display | [Where P1](Where/TODOs.md) |
-| WhereUI | Four production Gregorian defaults/helpers remain | [Where P1](Where/TODOs.md) |
-| WhereCore | Picker fan-out, hard-delete attribution, report/history reads | [Where P1](Where/TODOs.md) |
-| WhereUI | Timeline acceptance and shared report-load gate | [Where P1](Where/TODOs.md) |
-| WhereUI | Launch-time notification permission prompt | [Where P1](Where/TODOs.md) |
-| SnapshotKit | Ordinary captured models shared across configurations | [SnapshotKit P1](Shared/SnapshotKit/TODOs.md) |
-| WhereUI | Calendar initial positioning and geocoding cancellation | [Where P2](Where/TODOs.md) |
-| Scripts | Atlas publication ownership and commit-state races | [Root P1](TODOs.md) |
-| Flyover | Browser controls/filtering and error preservation | [Flyover P2](Shared/Flyover/TODOs.md) |
-| Scripts / docs | Linux portability and missing feature-group docs | [Root P1](TODOs.md) |
-
-`gh repo view` confirms the benchmark repository still exists and is not archived
-on October 26. Billing, the scheduled downgrade and installed integrations remain
-unverified. No destructive or billing action was taken.
-
-## Cross-cutting themes
-
-- **Evidence and presentation are different contracts.** Supported flight time,
-  uncertain arrival, Home assumptions and planned bounds retain distinct meaning.
-- **Partial improvements need narrow closure criteria.** Bootstrap tests close a
-  publication dependency; new calendar transitions do not prove initial scroll
-  reachability, and a caller seam does not test the production geocoder.
-- **More capture forms require explicit fixture ownership.** Ordinary content,
-  comparison panels and retries have different construction lifetimes. A lower
-  PNG count says little about total captures or cost.
-- **Validation and filesystem ownership need separate guards.** Validated atlas
-  contents do not prevent a competing rename or prove that cleanup preserves a
-  committed installation. Those races remain filed despite passing ordinary tests.
-- **Existing write fan-out gaps survive UI growth.** New presentation consumes
-  more shared state without repairing missing local notification reconciliation.
+The shard plan now assigns 70 suites across **14 / 18 / 16 / 22**, with zero intake suites.
+The prior plan assigned 13 / 18 / 17 / 22. Reference count does not equal capture count because sheets contain independent panels.
 
 ## Module inventory and Verified OK
 
-Counts are tracked `.swift` files under each leaf module's `Sources/`, `Tests/`,
-and `SnapshotTests/`; tests include support files and do not equal test cases.
-All **30 leaf modules** have both README.md and AGENTS.md. Results below are
-static unless explicitly identified as executed.
+Counts cover tracked `.swift` files under each leaf's `Sources/`, `Tests/`, and `SnapshotTests/`.
+Test counts include support files, not test cases. Every row has both module documents.
+The bounded results below retain the prior source conclusions after checking unchanged implementation and test blobs.
+They are not new runtime results. No Swift source, test, manifest, or PNG changed since the prior cutoff.
 
 | Module | Source | Test/support | Image suite | Verified OK / bounded result |
 |---|---:|---:|---:|---|
-| [Ledger](https://github.com/kyleve/Stuff/blob/123272e3f2361a9fa2d23879d654eede6d90b072/Ledger/Ledger/README.md) | 8 | 0 | — | Native macOS app and hostless LedgerCore scheme remain separate from iOS; app has no test bundle by design. |
-| [LedgerCore](https://github.com/kyleve/Stuff/blob/123272e3f2361a9fa2d23879d654eede6d90b072/Ledger/LedgerCore/README.md) | 16 | 14 | — | Refresh-generation guards and scripted API/Keychain seams are unchanged; 14 test/support files remain, with the three namesake gaps still filed. |
-| [BroadwayCatalog](Shared/Broadway/BroadwayCatalog/README.md) | 2 | 1 | — | Catalog target is in the iOS scheme; its placeholder and empty test are still accurately filed, not counted as behavior coverage. |
-| [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 19 | 13 | — | BModeVarying selects authored light/dark values from an explicit mode and has namesake tests. Category metrics remain explicit; cache and unchanged-value gaps are still filed. |
-| [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 6 | 4 | — | Depends downward on BroadwayCore; nested-observer TODO remains at the cited source. |
-| [CreditKit](Shared/CreditKit/README.md) | 2 | 3 | — | Foundation-only value layer and manifest-derived reachability remain; attribution passes with 29 credits. The malformed GitHub-slug parser remains filed. |
-| [Flyover](Shared/Flyover/README.md) | 66 | 19 | 1 | Generic web export validates capture policy, resets screens per profile, and checks cancellation before publishing. Numeric viewport sizes have a shared wire fixture; browser checks are separate from the five native references. The four new browser/error findings remain filed. |
-| [Inspector](Shared/Inspector/README.md) | 23 | 14 | 1 | One image suite has four references; relationship branch and three silent fetch defaults still match the backlog. |
-| [InstallerKit](Shared/InstallerKit/README.md) | 10 | 11 | — | App/bundle selection, exact manifest paths, release ordering and last-good cache guards remain. Optional PR-title metadata preserves older feed decoding; no live server or device check was performed. |
-| [InstallerKitUI](Shared/InstallerKitUI/README.md) | 27 | 8 | 5 | UpdatePageRefresh owns replacement/disappearance cancellation and has focused supersession tests. Typed channel destinations and localized failure descriptions remain; five suites contain 106 references. |
-| [JournalKit](Shared/JournalKit/README.md) | 2 | 3 | — | Concurrent append test checks recovered count, uniqueness, and writer order; swallowed error diagnostic is the actual remaining gap. |
-| [LifecycleKit](Shared/LifecycleKit/README.md) | 8 | 10 | — | Duplicate-ID precondition is present; existing test files still cover typed launch and cancellation. Duplicate-ID exit-test gap remains. |
-| [LifecycleKitUI](Shared/LifecycleKitUI/README.md) | 6 | 4 | — | Gate-registration uniqueness guard remains present; view-level splash ownership is unchanged. |
-| [PeriscopeCore](Shared/Periscope/PeriscopeCore/README.md) | 53 | 49 | — | Source and tests are unchanged in this window. Span identity remains computed by downcast; store attachment and category-filter mechanisms still match the filed durability/filtering gaps. |
-| [PeriscopeMacros](Shared/Periscope/PeriscopeMacros/README.md) | 6 | 4 | — | Build-host-only target and four test files are unchanged; generated classification rules remain outside shipping runtime dependencies. |
-| [PeriscopeTools](Shared/Periscope/PeriscopeTools/README.md) | 27 | 27 | 1 | Hierarchy count/query asymmetry is explicitly pinned; 20 hosting-only assertions across 10 files and two image references remain. |
-| [PeriscopeUI](Shared/Periscope/PeriscopeUI/README.md) | 1 | 2 | — | Single SwiftUI environment adapter imports only PeriscopeCore and SwiftUI; test/support inventory unchanged. |
-| [SnapshotKit](Shared/SnapshotKit/README.md) | 13 | 9 | — | Focused AX5/annotation presets preserve explicit configuration identity and order, with source assertions for each preset. Single-view and cutsheet subjects are mutually exclusive; empty sheets and duplicate panel IDs are rejected. |
-| [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md) | 30 | 30 | — | Single views and cutsheets share configured capture/reference helpers. Panels are freshly built per configuration; retries reuse supplied model objects. Tests cover metadata geometry, panel comparison, settling retries and normalized memory handling; ordinary model isolation remains open. |
-| [StuffTestHost](Shared/StuffTestHost/README.md) | 2 | 0 | — | UIKit shell delegates test-window setup to TestHostSupport; no WhereCore import or new source. |
-| [TestHostSupport](Shared/TestHostSupport/README.md) | 1 | 0 | — | UIKit/Objective-C hosting seam remains app-independent; host smoke contract is exercised from LifecycleKit tests. |
-| [RegionKit](Where/RegionKit/README.md) | 15 | 10 | — | Geometry behavior and tests are unchanged; decoding throws for unsupported geometry and logs restricted original errors. Documentation now distinguishes coordinate evidence from bundled polygon display detail. |
-| [RegionViewer](Where/RegionViewer/README.md) | 1 | 0 | — | Bundled per-region data description remains correct; missing Broadway root is still filed in Where. |
-| [Where](Where/Where/README.md) | 9 | 5 | — | Regular runtime owns one optional UpdateModel, constructed from Development-only identity with ephemeral networking and injected preferences. Other audiences and Inspector retain their separate runtime paths. |
-| [WhereCore](Where/WhereCore/README.md) | 169 | 126 | — | Sparse-flight inference distinguishes supported flight intervals from uncertain arrival timing. Ground vetoes and positional uncertainty remain explicit. Historical/correction replay and generated journeys have source tests; backup remains v7. |
-| [WhereCrashReporting](Where/WhereCrashReporting/README.md) | 3 | 2 | — | Capture SDK stays behind the dedicated adapter target; no source, dependency, or test changes in this window. |
-| [WhereIntents](Where/WhereIntents/README.md) | 15 | 9 | — | Injected audience group reaches the snapshot reader; App Group-open failure is logged before report fallback. README states the perform-glue testing limitation. |
-| [WhereShareExtension](Where/WhereShareExtension/README.md) | 6 | 0 | — | Extension validates its audience and uses local-only storage in that audience’s App Group. Pending-evidence construction and the filed form/testing gaps are unchanged. |
-| [WhereUI](Where/WhereUI/README.md) | 360 | 151 | 61 | Flat/Elsewhere and calendar overview use shared report inputs and guarded publication. New zoom tests exercise transitions; they do not establish original MainTabs positioning or Timeline live year-switch acceptance. Flyover uses a synthetic export world. |
-| [WhereWidgets](Where/WhereWidgets/README.md) | 8 | 0 | — | Audience-specific group is injected into both snapshot and presentation stores; provider retains the midnight reload policy without opening the app’s SwiftData store. |
+| [BroadwayCatalog](Shared/Broadway/BroadwayCatalog/README.md) | 2 | 1 | 0 | Target and iOS scheme still include the placeholder app and empty test. Neither is behavior coverage; the backlog retains both gaps. |
+| [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 19 | 13 | 0 | Context mutations still update the stylesheet key. Cache sharing remains explicit; unchanged-value and eviction gaps remain filed. |
+| [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 6 | 4 | 0 | Dependency points downward to BroadwayCore. The nested-observer TODO remains beside unconditional observer creation. |
+| [CreditKit](Shared/CreditKit/README.md) | 2 | 3 | 0 | Foundation-only values and manifest-derived attribution ownership remain. The GitHub-slug parsing gap remains reproducible from source. |
+| [Flyover](Shared/Flyover/README.md) | 66 | 19 | 1 | Thumbnail metadata reaches native export, Python validation, and browser selection. Device previews supply layout traits; native interaction gaps remain open. |
+| [Inspector](Shared/Inspector/README.md) | 23 | 14 | 1 | The four-reference suite retains its intermittent search-width quarantine. Bare-identifier and silent-fetch gaps still match source. |
+| [InstallerKit](Shared/InstallerKit/README.md) | 10 | 11 | 0 | Host-injected fetch/preferences and app/bundle selection remain. No package source changed in this window; device acceptance remains open. |
+| [InstallerKitUI](Shared/InstallerKitUI/README.md) | 27 | 8 | 5 | Page-owned refresh and typed destinations remain unchanged. The shared five-suite matrix retains 106 references. |
+| [JournalKit](Shared/JournalKit/README.md) | 2 | 3 | 0 | Concurrent append still checks count, uniqueness, and per-writer order. The remaining swallowed-error claim concerns diagnostics, not missing-record detection. |
+| [LifecycleKit](Shared/LifecycleKit/README.md) | 8 | 10 | 0 | Duplicate-node precondition remains. No duplicate-ID exit test was found; typed launch and cancellation test files remain. |
+| [LifecycleKitUI](Shared/LifecycleKitUI/README.md) | 6 | 4 | 0 | Duplicate gate registrations still trap at construction. View rendering remains separate from the launch engine. |
+| [PeriscopeCore](Shared/Periscope/PeriscopeCore/README.md) | 53 | 49 | 0 | Span identity remains a computed downcast. Journal attachment still requires a store sink; the pre-attach durability gap remains open. |
+| [PeriscopeMacros](Shared/Periscope/PeriscopeMacros/README.md) | 6 | 4 | 0 | The unchanged macro target imports SwiftSyntax without PeriscopeCore. It remains separate from shipping runtime dependencies. |
+| [PeriscopeTools](Shared/Periscope/PeriscopeTools/README.md) | 27 | 27 | 1 | Primary-only hierarchy counts remain explicitly tested. Twenty window-only assertions across ten files remain; no conversion to per-view image coverage shipped. |
+| [PeriscopeUI](Shared/Periscope/PeriscopeUI/README.md) | 1 | 2 | 0 | The unchanged environment adapter depends on SwiftUI and PeriscopeCore; group guidance retains linked-context semantics. |
+| [SnapshotKit](Shared/SnapshotKit/README.md) | 13 | 9 | 0 | Ordinary descriptors retain lazy builders. The runner still evaluates ordinary content once per case; cutsheet panel builders remain separate. |
+| [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md) | 30 | 30 | 0 | The ordinary runner reuses its supplied view across configurations. Parse traps and the inline duplicate-ID gap remain; intentional failure probes are not quarantines. |
+| [StuffTestHost](Shared/StuffTestHost/README.md) | 2 | 0 | 0 | The UIKit shell marks its test window and depends on TestHostSupport. It does not embed WhereCore. |
+| [TestHostSupport](Shared/TestHostSupport/README.md) | 1 | 0 | 0 | Window lookup uses the host marker. The shared resource-path configuration remains in Project.swift. |
+| [RegionKit](Where/RegionKit/README.md) | 15 | 10 | 0 | GeoJSON still throws for unsupported geometry. The missing namesake decoding test remains; the raw Other localization key is unchanged. |
+| [RegionViewer](Where/RegionViewer/README.md) | 1 | 0 | 0 | The thin NavigationStack host remains. Its missing Broadway root stays in the Where backlog. |
+| [Where](Where/Where/README.md) | 9 | 5 | 0 | The regular runtime remains the composition root. Ledger removal did not add another Where store owner or change audience selection. |
+| [WhereCore](Where/WhereCore/README.md) | 169 | 126 | 0 | Local summary and picker fan-out gaps remain. Backup format is still v7; raw-GPS attribution and widget read-error gaps remain open. |
+| [WhereCrashReporting](Where/WhereCrashReporting/README.md) | 3 | 2 | 0 | The adapter target, test-process gate, source count, and dependencies are unchanged. No live reporting was invoked. |
+| [WhereIntents](Where/WhereIntents/README.md) | 15 | 9 | 0 | The injected services handoff and audience-specific widget-store fallback remain. Spotlight and perform-glue verification gaps remain explicit. |
+| [WhereShareExtension](Where/WhereShareExtension/README.md) | 6 | 0 | 0 | The extension still composes pending evidence and writes through a local-only store. No extension-specific test bundle was added. |
+| [WhereUI](Where/WhereUI/README.md) | 360 | 151 | 61 | Timeline loading/error branches and layout-keyed calendar positioning remain. Initial app-shell reachability, live maps, and visual acceptance stay open. |
+| [WhereWidgets](Where/WhereWidgets/README.md) | 8 | 0 | 0 | The provider still requests the next midnight without opening SwiftData. Its scheduling coverage gap remains open. |
 
-**Leaf totals:** 914 source, 528 test/support and 69 image-suite Swift files.
-Tools adds one `InstallerSiteSnapshotTests.swift` suite and 24 PNG references.
-Inventory excludes two unwired journal benchmark sources, seven Bumper source/test
-files, and CreditKit's Swift manifest fixture under its Ruby-tool tests.
-`Package.swift` has 22 library targets plus one macro and one host test target.
-`Project.swift` has seven app/extension families and 29 test bundles: 22 iOS unit
-bundles, LedgerCoreTests and six image bundles. The macro test bundle is additional
-and runs on the host through `./test`.
+**Leaf totals:** 890 source, 514 test/support, and 69 image-suite Swift files.
+Tools adds one image-suite file. The unwired journal benchmark, Bumper implementation/tests, and CreditKit's manifest fixture are outside these totals.
+`Package.swift` retains 21 library targets, one macro target, and its host test target.
+`Project.swift` retains 28 test bundles: 22 iOS unit bundles and six image bundles.
+Audience-generated app and extension targets remain declared in the same manifest.
 
-**References:** 744 WhereUI, 106 InstallerKitUI, 24 Tools, five Flyover,
-four Inspector and two PeriscopeTools: 885 total. WhereCore's basename proxy is
-73 of 169 sources without a namesake test, previously 70 of 161. This is not a
-count of untested behaviors.
+**References:** 744 WhereUI, 106 InstallerKitUI, 24 Tools, five Flyover, four Inspector, and two PeriscopeTools: 885 total.
+WhereCore still has 73 of 169 sources without a namesake test; this is a convention proxy, not an untested-behavior count.
+The WhereUI catalog still contains 1,021 keys, including 818 without a nonempty comment.
+Broadway and Periscope have group docs; Where still lacks its group README.
 
-**Group docs:** Broadway and Periscope have both docs; Where lacks its group
-README and Ledger lacks both group docs. The existing root item remains open.
+## Cross-cutting themes and top findings
 
-**Bumper:** the explicit Calendar filter still misses 11 implicit sites: four
-production and seven DEBUG fixtures. The mutation fixture uses explicit
-`Calendar.current`. PR #449 now exercises duplicate ownership, declared cycles
-and duplicate-module rejection using the production graph and retained rule settings.
-The Gregorian implicit-member gap remains separate.
+- Unchanged implementation preserves open acceptance requirements; green documentation checks cannot close runtime defects.
+- Suite timings, capture-phase timings, and provider costs answer different performance questions.
+- CI configuration now has a selection entry point and a continuation file; job citations must name their current owner.
+- Filesystem ownership and pre-attach durability remain independent of this week's CI improvements.
+
+Pointers only; the owning backlogs contain evidence and proposed work.
+
+| Area | Finding | Backlog |
+|---|---|---|
+| Bumper | Gregorian lint misses implicit `.current` | [Root P0](https://linear.app/kve/view/df229f7aa2f4) |
+| WhereCore | Daily-summary reconciliation absent from local fan-out | [Where P0](https://linear.app/kve/view/1cdf347a9c54) |
+| PeriscopeCore | Pre-store-attach events lack durable journaling | [Periscope P0](https://linear.app/kve/view/c0511a6281eb) |
+| Scripts | Atlas replacement and committed-install recovery races | [Root P1](https://linear.app/kve/view/df229f7aa2f4) |
+| WhereCore / WhereUI | Residency requirements, attribution, picker fan-out, and display calendars | [Where P1](https://linear.app/kve/view/1cdf347a9c54) |
+| Installer | Signed-device and update-flow acceptance | [Root P1](https://linear.app/kve/view/df229f7aa2f4) |
+| Snapshot infrastructure | Captured-model isolation and accessibility parse failures | [SnapshotKit](https://linear.app/kve/view/c1d3e2053ada), [SnapshotKitTesting](https://linear.app/kve/view/82d7e3ada668) |
+| Flyover | Focused shortcuts, group identity, drawer bounds, and original errors | [Flyover P2](https://linear.app/kve/view/2292471484f2) |
 
 ## Verification and limitations
 
-The original pass at `820030f68` passed SwiftFormat, ShellCheck, attribution,
-symbol/catalog lint, shard validation, 50 feed/site tests, agent sync and diff/link
-checks. Its old PR head also passed GitHub and CircleCI CI before this refresh.
-Those results are historical and do not establish the new head's CI result.
+This run used **macOS with Xcode 27.2 (27B52)**, not the Linux environment assumed by the skill.
+The resulting diff changes documentation only.
 
-Follow-up checks on the merged `123272e3f` source:
+Executed at the reviewed source:
 
-- `mise exec -- npm ci` installed the root workspace lockfile.
-- `mise exec -- npm run lint` passed Ruff, typed ESLint/Astro, Stylelint and
-  formatting (213 Python files). `npm run test:lint` passed eight failing-input
-  and valid-exception probes.
-- `mise exec -- npm run check` passed both sites: 25 installer and 38 Flyover
-  files, zero diagnostics.
-- `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tools/Tests -p 'test_flyover*.py'`
-  passed **91 tests**. Controllers, retention and publication use test doubles or
-  temporary directories; this did not publish or delete remote artifacts.
-- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_installer_update_feed test_installer_update_site`
-  passed **43 tests** after the shared-site extraction.
-- `./attribution --check` passed with 29 credits; ShellCheck and SF Symbol lint passed.
-- `./snapshot-shards check` passed: 70 suites, assignments 13 / 18 / 17 / 22 + 0 intake.
-- `./test --architecture-only` passed configuration validation, **28 rule tests**
-  and architecture lint, including the new graph mutation guards.
-- `./sync-agents`, complete-branch diff checks, Markdown links, tracked inventory
-  and preservation of main's new backlog entries and completed history passed.
+- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_ci_changes test_ci_circleci test_ci_workflows test_circleci_pipeline test_circleci_distribution test_flyover_distribution test_flyover_workflows test_snapshot_shards test_test_runner` — **116 tests passed**.
+- `./snapshot-shards check` — valid, 70 suites with the assignments above.
+- `./sync-agents` — passed; only ignored mirrors generated.
+- Recounted tracked module files and PNGs; checked source citations, unchanged implementation blobs, and the complete documentation diff.
+- Local Markdown targets and `git diff --check` checked before publication.
 
-This host is macOS. The pass remains a focused static audit plus the checks above;
-the skill's Linux/Tuist/Xcode/simulator limitation remains explicit. The final PR
-changes only Markdown relative to its new main base. No new app rendering,
-VoiceOver, navigation, scroll reachability, device/signing, CloudKit or timing
-validation is claimed. The browser implementation was reviewed at its changed
-contracts and filed-finding seams; this is not an exhaustive review of every new
-TypeScript/CSS line. Browser end-to-end and Swift UI/image suites were not rerun.
-Linux portability findings remain open. New main findings and completed history
-are preserved, and unmerged work remains outside the cutoff.
+`./test`, SwiftFormat, architecture execution, simulator captures, and browser execution were skipped for this documentation-only diff.
+No live VoiceOver, physical-device installation, CloudKit, Linux portability, or new performance result is claimed.
+Visual findings retain their earlier evidence dates; this pass did not inspect rendered references or exercise scroll reachability.
+The earlier publication-race probes remain historical evidence against unchanged code; this pass did not rerun those probes.
+
+GitHub confirms that `kve-stuff/Stuff-CI-Benchmark` still exists and is not archived on November 9.
+Billing, downgrade, and installed-integration state remain unverified.
+CI results for the publication commit belong to its PR. Documentation skips do not establish runtime coverage.

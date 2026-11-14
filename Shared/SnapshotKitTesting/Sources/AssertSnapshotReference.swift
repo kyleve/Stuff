@@ -2,12 +2,11 @@ import Foundation
 import SnapshotKit
 import SnapshotTesting
 import Testing
-import UIKit
 
 /// Captured subjects remain separate until their panel verdicts are collected.
 @MainActor
 enum SnapshotReferenceSubject {
-    case image(UIImage)
+    case imagePNG(Data)
     case panels([SnapshotPanelCapture])
 }
 
@@ -33,14 +32,13 @@ func assertSnapshotReference(
         configuration: configuration,
         referenceGroup: referenceGroup,
     )
-    let capture: SnapshotImageReference
     let png: Data
     let panelFailure: SnapshotImageReference.ComparisonFailure?
     do {
         switch subject {
-            case let .image(image):
+            case let .imagePNG(data):
                 panelFailure = nil
-                capture = SnapshotImageReference(image: image, layout: nil)
+                png = data
             case let .panels(panels):
                 if FileManager.default.fileExists(atPath: reference.path) {
                     panelFailure = try autoreleasepool {
@@ -52,9 +50,9 @@ func assertSnapshotReference(
                 } else {
                     panelFailure = nil // The shared recorder handles missing references.
                 }
-                capture = try await SnapshotImageGrid.capture(panels: panels, named: identifier)
+                let capture = try await SnapshotImageGrid.capture(panels: panels, named: identifier)
+                png = try autoreleasepool { try capture.pngData() }
         }
-        png = try autoreleasepool { try capture.pngData() }
     } catch is CancellationError {
         return
     } catch {

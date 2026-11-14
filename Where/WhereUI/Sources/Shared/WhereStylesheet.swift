@@ -35,6 +35,8 @@ struct WhereStylesheet: BStylesheet {
     var typography = Typography.standard
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
+    var loggedDay = LoggedDayStyle()
+    var adaptivePane = AdaptivePaneStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -52,6 +54,13 @@ struct WhereStylesheet: BStylesheet {
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
 
+        if traits.horizontalSizeClass == .regular,
+           traits.verticalSizeClass == .regular,
+           !traits.contentSizeCategory.isAccessibilitySize
+        {
+            adaptivePane.panes = .multiple
+        }
+
         developerOverlay.launcher.diameter = BScaledDimension.value(
             developerOverlay.launcher.diameter,
             relativeTo: .title2,
@@ -68,6 +77,7 @@ struct WhereStylesheet: BStylesheet {
             privacyPassportCard.disclosure.layout = .stacked
             themePicker.layout = .stacked
             yearModePicker.layout = .stacked
+            loggedDay.layout = .stacked
             openSourceStamp.layout = .stacked
             plannedStayWarningStamp.layout = .stacked
             featureDiscovery.appIcon.layout = .stacked
@@ -781,6 +791,7 @@ extension WhereStylesheet {
             case regular
             case compact
             case elsewhere
+            case column
         }
 
         var cornerRadius: CGFloat
@@ -1284,6 +1295,7 @@ extension WhereStylesheet {
             switch variant {
                 case .regular: return regular
                 case .compact: return compact
+                case .column: return column
                 case .elsewhere:
                     var card = compact
                     card.paper = elsewherePaper
@@ -1293,6 +1305,20 @@ extension WhereStylesheet {
                     card.contentTint = elsewherePaper.contentTint
                     return card
             }
+        }
+
+        /// Retains the Locations artwork while fitting a browse column.
+        private var column: CardStyle {
+            var style = regular
+            style.padding = compact.padding
+            style.contentSpacing = compact.contentSpacing
+            style.progressBarHeight = compact.progressBarHeight
+            style.entryStamp = compact.entryStamp
+            style.regionNameTypography = compact.regionNameTypography
+            style.regionNameTracking = compact.regionNameTracking
+            style.heroNumberTypography = compact.heroNumberTypography
+            style.dayUnitTypography = compact.dayUnitTypography
+            return style
         }
 
         /// The fixed card geometry, migrated from the former split
@@ -1482,6 +1508,12 @@ extension WhereStylesheet {
         /// Style for one month section: the header/grid/footer stack, its
         /// current-month highlight, and the tally footer.
         struct MonthStyle: Equatable {
+            /// A tabletop month puts its totals beside the grid when both fit.
+            var minimumGridWidth: CGFloat = 320
+            var summaryWidth: CGFloat = 180
+            var summarySpacing: CGFloat = 16
+            /// Leaves six weeks readable above a horizontal division without shrinking dates.
+            var tabletopGridSpacing: CGFloat = 4
             /// Spacing between the month header, day grid, and footer.
             var sectionSpacing: CGFloat
             /// Spacing between day cells in the grid (both axes).
@@ -2831,8 +2863,14 @@ extension WhereStylesheet {
         var layout = ContentLayout.inline
     }
 
+    struct LoggedDayStyle: Equatable {
+        var layout = ContentLayout.inline
+    }
+
     struct ThemePickerStyle: Equatable {
         var layout = ContentLayout.inline
         var spacing: CGFloat = 12
+        /// Two 176-point specimens plus their gap keep counts readable in a narrow pane.
+        var minimumInlineWidth: CGFloat = 364
     }
 }

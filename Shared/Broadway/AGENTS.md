@@ -20,4 +20,4 @@ Libraries live in [`Package.swift`](../../Package.swift). The app and hosted tes
 
 ## Testing
 
-Run `./test BroadwayCoreTests`, `./test BroadwayUITests`, or `./test BroadwayCatalogTests`. The Catalog bundle is currently hosted by the **BroadwayCatalog** app itself. That deviates from the shared-host convention. Track it in [`TODOs.md`](TODOs.md). Use 1:1 test files per the root rules.
+Run `./test BroadwayCoreTests`, `./test BroadwayUITests`, or `./test BroadwayCatalogTests`. The Catalog bundle is currently hosted by the **BroadwayCatalog** app itself. That deviates from the shared-host convention. Track it in [Broadway backlog](https://linear.app/kve/view/44ec91d450b2). Use 1:1 test files per the root rules.

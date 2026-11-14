@@ -17,7 +17,7 @@ Use the [planning skill](../.agents/skills/planning/SKILL.md) to create, revise,
 - When scope changes, preserve completed history.
   Add a linked follow-up plan for new work after completion.
   If a completion claim was incorrect, reopen the plan and record why.
-- Keep work deferred outside the series in the owning `TODOs.md` and link it from the plan.
+- Link selected work and work deferred outside the series to Linear issues under [BACKLOG.md](../BACKLOG.md).
   Plans describe execution of selected work, not a second backlog.
 
 ## Status
@@ -28,6 +28,8 @@ Use `outline`, `draft`, `ready`, `executing`, `blocked`, `complete`, or `superse
 `ready` means that the plan is executable, not that the user authorized implementation.
 `blocked` requires a recorded blocker and next action.
 `complete` requires acceptance evidence and the required review and publication.
+Plan completion records delivery of the plan, not closure of its Linear issue.
+An open implementation PR keeps its issue In Review. Issue closure follows [BACKLOG.md](../BACKLOG.md#state-and-closure).
 `superseded` requires a replacement link or a recorded cancellation reason.
 Implementation requires a current plan review and status `ready` or `executing`.
 
@@ -37,7 +39,7 @@ The overview identifies the planning horizon: the selected plans to detail now, 
 Later numbered outlines retain intended outcomes, known requirements, exclusions, dependencies, assumptions, question links, and refinement triggers.
 Each outline states what evidence will support refinement and what would demonstrate the intended outcome.
 Distinguish agreed requirements from provisional design choices.
-An outline is selected work within the series. Unselected possibilities belong in `TODOs.md`.
+An outline is selected work within the series. Unselected possibilities belong in Linear.
 Detailed steps, interfaces, recovery instructions, and verification procedures are required before readiness, not for every later outline.
 Review the whole series for scope and dependency consistency, and the current horizon for executable detail.
 Later uncertainty blocks an earlier plan only when it affects that plan's implementation or acceptance.
@@ -65,7 +67,7 @@ Keep a question register in the overview with stable `Q-NN` IDs and these status
 
 Record each question's affected requirements or plans, blocking impact, answer source, and resolution history.
 For deferred questions within selected work, link the affected plan and its refinement trigger.
-Link work deferred outside the series to its owning `TODOs.md` item.
+Link work deferred outside the series to its Linear issue.
 Keep closed questions and their IDs. If new evidence invalidates a resolution, reopen the same question and preserve its history.
 Deferral does not remove a blocker. An `answered` blocking question remains blocking until its resolution is integrated.
 Question closure does not authorize resolution of its GitHub review thread.

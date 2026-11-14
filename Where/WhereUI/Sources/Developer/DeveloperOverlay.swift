@@ -401,26 +401,40 @@
 
     extension DeveloperOverlay: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Collapsed", configurations: .phoneLightDark) {
+            whereSnapshot(name: "Collapsed", configurations: retainingScene(.phoneLightDark)) {
                 DeveloperOverlayPreview(presentation: .collapsed)
             }
             whereSnapshot(
                 name: "MenuBottomTrailing",
-                configurations: .fullContentPhoneLightDark,
+                configurations: retainingScene(.fullContentPhoneLightDark),
             ) {
                 DeveloperOverlayPreview(presentation: .menu)
             }
             whereSnapshot(
                 name: "MenuTopLeading",
-                configurations: SnapshotConfiguration.combinations(devices: [.iPhoneFullContent]),
+                configurations: retainingScene(SnapshotConfiguration
+                    .combinations(devices: [.iPhoneFullContent])),
             ) {
                 DeveloperOverlayPreview(presentation: .menu, corner: .topLeading)
             }
             whereSnapshot(
                 name: "SelectedTool",
-                configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
+                configurations: retainingScene(SnapshotConfiguration
+                    .combinations(devices: [.iPhone])),
             ) {
                 DeveloperOverlayPreview(presentation: .floating(.openSpans))
+            }
+        }
+
+        /// Retain the scene for native glass; detached windows produce material bands
+        /// and clipping in the menu captures.
+        private static func retainingScene(
+            _ configurations: [SnapshotConfiguration],
+        ) -> [SnapshotConfiguration] {
+            configurations.map { configuration in
+                var configuration = configuration
+                configuration.device.scenePolicy = .retained
+                return configuration
             }
         }
     }

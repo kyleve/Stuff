@@ -46,7 +46,7 @@
 ## Context
 
 [Describe the current behavior and relevant repository paths.]
-[If a source backlog item exists, link it. Otherwise state that this is a direct request.]
+[Link the corresponding Linear issue and original request. If access is unavailable, record pending issue work in the checkpoint.]
 
 ## Discovery
 

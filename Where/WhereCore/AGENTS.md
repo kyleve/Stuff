@@ -114,7 +114,7 @@ internal shape.
   state. The one-time reshape path is backup **export → transform
   ([`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb)) →
   replace-import**. Deliberate pre-release. The durable successor
-  (per-entity schema versioning) is filed in [`../TODOs.md`](../TODOs.md).
+  (per-entity schema versioning) is filed in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 - **Writes await their side effects.** `DayJournal` commits. Then it awaits
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
@@ -124,7 +124,7 @@ internal shape.
 - **Route new writes through the existing reconciliation seams.** Use
   `DayJournal.reconcileAfterDayDataChange()` or `reconcileIssueState()`.
   Do not copy the incomplete `setPrimaryRegions` or summary fan-out paths
-  tracked in [`../TODOs.md`](../TODOs.md).
+  tracked in [Where backlog](https://linear.app/kve/view/1cdf347a9c54).
 - Follow the scoped [data-resolution rules](Sources/DataResolution/AGENTS.md)
   for GPS reviews, sample corrections, and scan publication.
 - **Use `LocationHistoryReader.projection` for every user-facing location read.**

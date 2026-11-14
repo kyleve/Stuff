@@ -20,11 +20,15 @@ struct BRootContextTests {
         let context = BRootContext.make(
             colorScheme: .dark,
             dynamicTypeSize: .accessibility3,
+            horizontalSizeClass: .regular,
+            verticalSizeClass: .compact,
             accessibility: BAccessibility(isVoiceOverRunning: true),
             themes: themes,
         )
 
         #expect(context.traits.mode == .dark)
+        #expect(context.traits.horizontalSizeClass == .regular)
+        #expect(context.traits.verticalSizeClass == .compact)
         #expect(context.traits.contentSizeCategory == .accessibilityExtraLarge)
         #expect(context.traits.accessibility == BAccessibility(isVoiceOverRunning: true))
         #expect(context.themes[Marker.self] == .b)
@@ -33,6 +37,22 @@ struct BRootContextTests {
 
 @MainActor
 struct BRootViewHostingTests {
+    @Test("A mounted root follows repeated size-class changes without replacing content")
+    func followsResizing() throws {
+        let box = ContextBox()
+        let host = UIHostingController(rootView: BRootView { ContextProbe(box: box) })
+        try show(host) { controller in
+            for sizeClass in [UIUserInterfaceSizeClass.compact, .regular, .compact] {
+                controller.traitOverrides.horizontalSizeClass = sizeClass
+                controller.traitOverrides.verticalSizeClass = .regular
+                try waitFor {
+                    box.value?.traits.horizontalSizeClass == BHorizontalSizeClass(sizeClass)
+                        && box.value?.traits.verticalSizeClass == .regular
+                }
+            }
+        }
+    }
+
     @Test("Root injects its themes into the descendant environment")
     func injectsThemes() throws {
         var themes = BThemes()
@@ -63,6 +83,6 @@ private struct ContextProbe: View {
     @Environment(\.bContext) private var context
 
     var body: some View {
-        Color.clear.onAppear { box.value = context }
+        Color.clear.onChange(of: context, initial: true) { _, value in box.value = value }
     }
 }

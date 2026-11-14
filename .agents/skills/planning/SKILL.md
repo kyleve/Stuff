@@ -6,6 +6,7 @@ description: Create, revise, execute, and resume durable repository plans in Pla
 # Planning
 
 Read the root [AGENTS.md](../../../AGENTS.md) and [Plans contract](../../../Plans/AGENTS.md).
+Use [BACKLOG.md](../../../BACKLOG.md) for Linear access, issue ownership, and closure rules.
 Use repository files as the durable record for planning and execution.
 Treat any in-session task list as a view of those files.
 
@@ -104,7 +105,7 @@ If resuming planning or revision, recover the recorded state and use that operat
    If progress needs an external answer, record `blocked`, the blocker, and the next action.
 7. Mark a plan `complete` only after its acceptance criteria pass and required review and publication finish.
    Record the outcome and implementation PR link, or the requested local-only handoff.
-   Reconcile linked backlog items under the root TODO rules.
+   Reconcile linked Linear issues through [github-workflow's issue lifecycle](../github-workflow/SKILL.md#linear-issue-lifecycle).
 8. Use [Advance the planning horizon](references/develop-plan.md#advance-the-planning-horizon) before selecting the next plan.
    Continue through the authorized plans without asking for confirmation between steps.
    At a stopping point, record partial work and the exact next action.

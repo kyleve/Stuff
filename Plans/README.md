@@ -52,7 +52,7 @@ GitHub comments can refine either detailed plans or outlines without changing th
 
 The whole series receives a scope and dependency review. Executable detail is required for plans that must be ready now.
 A later question blocks earlier work only when its answer affects that work's implementation or acceptance.
-Questions awaiting later selected work link to the outline and its refinement trigger. Work outside the series stays in `TODOs.md`.
+Questions awaiting later selected work link to the outline and its refinement trigger. Work outside the series stays in Linear.
 
 ## Review on GitHub
 
@@ -79,6 +79,7 @@ Completed plans remain available at their original paths.
 
 ## Backlog
 
-The owning `TODOs.md` retains backlog items and links to their execution plans.
-A direct request can start a plan without creating a duplicate backlog item.
-Work deferred outside the series belongs in `TODOs.md`, with a link from the plan.
+Linear owns actionable issues under [BACKLOG.md](../BACKLOG.md), with links to their execution plans.
+The agent searches existing issues before creating one for a direct request.
+Work deferred outside the series belongs in Linear, with a link from the plan.
+A completed plan can have an open implementation PR. Its Linear issue stays In Review until merged acceptance conditions are verified.

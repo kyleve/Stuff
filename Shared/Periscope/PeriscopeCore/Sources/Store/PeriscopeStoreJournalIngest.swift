@@ -15,7 +15,7 @@ extension PeriscopeStore {
     /// not eat the live app's journal. The app's next launch ingests
     /// everyone's. (Full multi-process coordination — the reverse case of
     /// an app launch during a live extension session — is tracked in
-    /// `Shared/Periscope/TODOs.md`.)
+    /// [STU-39](https://linear.app/kve/issue/STU-39).)
     private static let isAppExtension = Bundle.main.bundleURL.pathExtension == "appex"
 
     /// Ingest every prior session's journal under `Periscope-Journals/`.

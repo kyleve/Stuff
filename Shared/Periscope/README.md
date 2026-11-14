@@ -29,4 +29,4 @@ Run `./test PeriscopeCoreTests`, `./test PeriscopeUITests`, or `./test Periscope
 
 ## Open work
 
-Cross-module design and follow-up work for the whole stack is tracked in one place: [`TODOs.md`](TODOs.md).
+Cross-module design and follow-up work for the whole stack is tracked in one place: [Periscope backlog](https://linear.app/kve/view/c0511a6281eb).
