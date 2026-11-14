@@ -21,8 +21,8 @@ struct MainTabsSnapshotTests {
             .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
             .init(contrast: .increased, device: .iPhoneFullContent),
             .init(device: .iPhoneFullContent, snapshotType: .accessibility),
-            .init(device: .iPadFullContent),
-            .init(colorScheme: .dark, device: .iPadFullContent),
+            .init(device: .duoInnerPortrait),
+            .init(colorScheme: .dark, device: .duoInnerPortrait),
         ]))
     }
 
@@ -31,7 +31,7 @@ struct MainTabsSnapshotTests {
             let snapshot = try await MainTabs.halloweenSnapshot(selection: selection)
             await assertThemeSnapshot(snapshot.withThemeConfigurations([
                 .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
-                .init(device: .iPadFullContent),
+                .init(device: selection == .settings ? .duoInnerPortrait : .iPadFullContent),
             ]))
         }
     }

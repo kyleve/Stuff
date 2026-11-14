@@ -22,12 +22,6 @@ struct LocationsViewSnapshotTests {
             testName: "locations()",
         )
     }
-}
-
-extension LocationsView: WhereThemeSnapshotGate {
-    static var lightDarkCases: Set<String> {
-        ["Loaded", "FlatLoaded"]
-    }
 
     @Test(arguments: [AdaptivePaneLoadFixture.State.loading, .failed])
     func initialStateHasOneNavigationBarAndOneTopInset(state: AdaptivePaneLoadFixture
@@ -76,5 +70,11 @@ extension LocationsView: WhereThemeSnapshotGate {
                 await fixture.finish()
             }
         }
+    }
+}
+
+extension LocationsView: WhereThemeSnapshotGate {
+    static var lightDarkCases: Set<String> {
+        ["Loaded", "FlatLoaded"]
     }
 }
