@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-14",
+  "artifact": "index.html",
+  "sha256": "d244168a2f0ecd53c4be04d6516a5a5c3366360b7a032db61557b084d486d2bc",
+  "tooling": {
+    "playwright": "1.64.1",
+    "axePlaywright": "4.14.0",
+    "chromium": "156.0.8078.4"
+  },
+  "method": "Ad hoc Playwright browser interaction through visible controls; prepared fixtures, not Git algorithm tests.",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "errors": [],
+      "externalRequests": [],
+      "violations": [],
+      "result": "scenario passed"
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1112,
+      "errors": [],
+      "externalRequests": [],
+      "violations": [],
+      "result": "scenario passed"
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "errors": [],
+      "externalRequests": [],
+      "violations": [],
+      "result": "scenario passed"
+    }
+  ],
+  "additionalPassedChecks": [
+    "PR43 reviewed Store v1 to v2 uses savedSearches in incremental and full comparisons",
+    "Post-push and saved-draft axe WCAG 2/2.1 A/AA scans at all three viewports",
+    "Keyboard Enter on Mark reviewed focuses the resulting document",
+    "Phone drawer comparison change followed by Escape restores the file-list opener",
+    "Standalone file URL load and mark-reviewed interaction",
+    "No document-level horizontal overflow; long code scrolls inside its pane"
+  ],
+  "review": "Fresh independent subagent review; supported parsing, fixture consistency, focus, contrast and accessible-name findings corrected and rechecked.",
+  "limits": [
+    "User evaluation pending",
+    "No native or VoiceOver testing",
+    "No persistence, provider, Git algorithm or sync validation",
+    "Automated accessibility scans are not a complete accessibility audit"
+  ]
+}

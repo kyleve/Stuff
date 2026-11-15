@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Mobius — a place for every review</title>
+<style>
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #252831; background: #ecece8; --ink: #252831; --muted: #626773; --line: #e2e3e7; --accent: #5841b7; --tint: #eeeafb; --green: #237354; }
+* { box-sizing: border-box; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+body { margin: 0; }
+button, input, textarea, select { font: inherit; }
+button { color: inherit; cursor: pointer; }
+button:disabled { cursor: default; opacity: .55; }
+button, select { touch-action: manipulation; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #8b75d8; outline-offset: 3px; }
+button { border: 0; background: none; }
+svg { width: 18px; height: 18px; flex-shrink: 0; vertical-align: middle; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+h1, h2, h3, p { margin: 0; }
+button .label { pointer-events: none; }
+.lab { max-width: 1536px; margin: auto; padding: 18px 24px 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.lab-title { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #565b64; }
+.lab-title strong { color: var(--ink); font-size: 15px; letter-spacing: -.3px; }
+.sample { border: 1px solid #cdced4; border-radius: 5px; padding: 3px 6px; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+.lab-controls { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+.lab-controls select { border: 1px solid #c8cad1; background: #f9f9f7; border-radius: 6px; padding: 6px; max-width: 128px; }
+.lab-controls button { min-height: 36px; color: #555b65; text-decoration: underline; text-underline-offset: 3px; }
+.stage { width: calc(100% - 48px); max-width: 1488px; margin: 0 auto; container-type: inline-size; transition: max-width .2s; }
+.stage[data-size="phone"] { max-width: 390px; }
+.stage[data-size="tablet"] { max-width: 834px; }
+.stage[data-size="desktop"] { max-width: 1440px; }
+.shell { height: calc(100dvh - 115px); min-height: 520px; max-height: 1120px; background: #fff; border: 1px solid #d7d8dc; border-radius: 13px; box-shadow: 0 10px 35px #2c314010; overflow: hidden; display: flex; }
+.workspace-nav { width: 226px; flex-shrink: 0; background: #f6f6f8; border-right: 1px solid var(--line); padding: 20px 12px 14px; display: flex; flex-direction: column; }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 21px; letter-spacing: -.8px; font-weight: 650; padding: 0 8px 28px; }
+.brand-mark { display: inline-grid; place-items: center; color: var(--accent); width: 28px; font-size: 39px; font-weight: 400; line-height: 24px; }
+.overline { color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; }
+.nav-heading { display: flex; justify-content: space-between; padding: 0 10px 10px; }
+.workspace-card { width: 100%; text-align: left; padding: 13px 11px; border-radius: 9px; margin-bottom: 6px; border: 1px solid transparent; }
+.workspace-card.active { background: white; border-color: #dfdce9; box-shadow: 0 2px 5px #25243e07; }
+.workspace-card:hover { background: #eeedf3; }
+.workspace-card.active:hover { background: white; }
+.workspace-number { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #626773; margin-bottom: 7px; }
+.workspace-number svg { width: 14px; height: 14px; color: #337857; }
+.workspace-card strong { display: block; font-size: 13px; line-height: 1.5; font-weight: 600; letter-spacing: -.1px; }
+.workspace-card small { display: block; margin-top: 8px; color: #626773; font-size: 11px; }
+.workspace-card.active small { color: var(--accent); }
+.nav-footer { margin-top: auto; padding: 18px 9px 0; border-top: 1px solid var(--line); display: flex; gap: 9px; align-items: center; color: #626773; font-size: 11px; line-height: 1.5; }
+.avatar { width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: #e5dfd2; color: #5d5340; }
+.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.workspace-header { padding: 21px 25px 18px; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.breadcrumb { color: var(--muted); font-size: 11px; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+.breadcrumb .slash { color: #a4a7ae; }
+h1 { font-size: 21px; line-height: 1.25; font-weight: 630; letter-spacing: -.6px; }
+.pr-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 11px; color: var(--muted); font-size: 11px; }
+.open-pill { display: inline-flex; align-items: center; gap: 5px; color: #24694b; background: #e9f4ee; padding: 3px 7px; border-radius: 10px; }
+.open-pill svg { width: 12px; height: 12px; }
+.branch { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; }
+.header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #dcdde3; border-radius: 7px; padding: 7px 11px; background: #fff; font-size: 12px; font-weight: 550; white-space: nowrap; }
+.button:hover { background: #f4f3f8; }
+.button.primary { color: #fff; border-color: var(--accent); background: var(--accent); }
+.button.primary:hover { background: #483397; }
+.button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+.icon-button { display: inline-grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 6px; color: var(--muted); }
+.icon-button:hover { background: #eeedf3; }
+.workspace-toggle { display: none; }
+.tabs { display: flex; align-items: stretch; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafafb; min-height: 45px; overflow-x: auto; padding: 0 18px; gap: 5px; flex-shrink: 0; }
+.document-tab { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; border-bottom: 2px solid transparent; white-space: nowrap; padding: 0 12px; }
+.document-tab svg { width: 15px; height: 15px; }
+.document-tab.active { border-bottom-color: var(--accent); color: var(--accent); }
+.tab-spacer { flex: 1; }
+.tabs .icon-button { margin: 4px 0; }
+.content { min-height: 0; flex: 1; display: flex; }
+.file-nav { width: 222px; flex-shrink: 0; background: #fcfcfd; border-right: 1px solid var(--line); padding: 18px 12px; overflow: auto; }
+.segmented { display: flex; padding: 3px; border: 1px solid #e0e0e6; border-radius: 7px; background: #f0f0f4; }
+.segmented button { flex: 1; padding: 7px 5px; border-radius: 4px; font-size: 11px; color: #606574; white-space: nowrap; }
+.segmented button[aria-pressed="true"] { background: #fff; color: #292c36; box-shadow: 0 1px 3px #25243e17; }
+.file-summary { display: flex; justify-content: space-between; align-items: center; padding: 23px 5px 12px; font-size: 10px; color: var(--muted); }
+.file-path { color: #626773; font-size: 10px; margin: 3px 7px 10px; }
+.file-item { width: 100%; text-align: left; display: flex; align-items: flex-start; gap: 8px; padding: 11px 9px; border-radius: 7px; margin-bottom: 4px; }
+.file-item.active { background: var(--tint); }
+.file-item:hover { background: #f0eef7; }
+.file-item svg { margin-top: 2px; width: 15px; height: 15px; color: #858992; }
+.file-item.active svg { color: var(--accent); }
+.file-item strong { display: block; font-size: 12px; font-weight: 550; }
+.file-item small { display: block; font-size: 10px; color: #626773; margin-top: 5px; }
+.file-item .new { color: var(--accent); }
+.file-item .done { color: var(--green); }
+.file-note { margin: 18px 7px; color: #626773; font-size: 11px; line-height: 1.65; }
+.all-clear { margin: 8px 5px 20px; padding: 13px; color: #347657; font-size: 12px; line-height: 1.6; border: 1px solid #dcece3; border-radius: 7px; background: #f4faf6; }
+.context-link { width: 100%; text-align: left; border-top: 1px solid var(--line); margin-top: 15px; padding: 17px 7px; display: flex; gap: 7px; font-size: 11px; color: #626773; }
+.context-link svg { width: 14px; height: 14px; }
+.document { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.document-toolbar { min-height: 63px; padding: 13px 22px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); }
+.file-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.file-title svg { color: #787c86; width: 16px; height: 16px; }
+.file-subtitle { margin-top: 5px; font-size: 10px; color: var(--muted); }
+.toolbar-actions { display: flex; align-items: center; gap: 6px; }
+.reviewed-label { font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 5px; min-height: 36px; }
+.reviewed-label svg { width: 14px; height: 14px; }
+.files-toggle { display: none; }
+.comparison { padding: 11px 22px; min-height: 44px; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #faf9fd; border-bottom: 1px solid #ece9f6; font-size: 11px; color: #635780; }
+.comparison strong { font-weight: 550; }
+.comparison button { padding: 4px 0; color: var(--accent); font-size: 11px; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+.diff-scroll { overflow: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
+.diff-meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 22px; color: #626773; font-size: 10px; }
+.diff-stats { color: #28714e; font-family: ui-monospace, SFMono-Regular, monospace; white-space: nowrap; }
+.diff-table { width: 100%; border-collapse: collapse; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; line-height: 24px; }
+.diff-table td { vertical-align: top; padding: 0; height: 24px; }
+.diff-table .num { min-width: 38px; width: 38px; text-align: right; padding: 0 8px; color: #626773; font-size: 10px; user-select: none; }
+.diff-table .sign { min-width: 24px; width: 24px; text-align: center; user-select: none; }
+.diff-table .code { white-space: pre; padding-right: 24px; }
+.diff-table .add { background: #eef8f1; color: #285f42; }
+.diff-table .delete { background: #fff0ee; color: #8c4541; }
+.diff-table .add .num { background: #e3f1e7; color: #4c705b; }
+.diff-table .delete .num { background: #f9e5e2; color: #875e5a; }
+.diff-table .context .code { color: #4e5564; }
+.diff-table .comment { color: #626773; }
+.code-end { padding: 24px 22px 48px; font-size: 10px; color: #626773; }
+.empty-state { padding: 70px 24px; text-align: center; max-width: 420px; margin: auto; }
+.check-circle { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: #eaf5ee; color: #2d8057; margin: 0 auto 16px; }
+.empty-state h2 { font-size: 17px; font-weight: 600; letter-spacing: -.3px; margin-bottom: 9px; }
+.empty-state p { color: var(--muted); font-size: 12px; line-height: 1.8; margin-bottom: 19px; }
+.status-bar { display: flex; justify-content: space-between; align-items: center; min-height: 33px; border-top: 1px solid var(--line); padding: 0 20px; gap: 12px; font-size: 10px; color: #626773; background: #fff; }
+.status-bar span { display: flex; align-items: center; gap: 6px; }
+.status-bar svg { width: 12px; height: 12px; }
+.lab-note { max-width: 1488px; margin: auto; padding: 11px 24px; font-size: 11px; color: #626773; display: flex; justify-content: space-between; gap: 18px; line-height: 1.6; }
+.lab-note strong { color: #404652; font-weight: 550; }
+.search-pane { padding: 24px; overflow: auto; }
+.search-pane h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; margin-bottom: 8px; }
+.search-pane p { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.search-form { display: flex; align-items: center; gap: 8px; margin: 22px 0; }
+.search-form input { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #cbc8d8; border-radius: 7px; font-size: 13px; }
+.search-result { display: flex; flex-direction: column; text-align: left; gap: 8px; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 12px 0; }
+.search-result:hover { background: #faf9fd; }
+.search-result strong { font-size: 12px; font-weight: 550; }
+.search-result code { font-size: 11px; color: #626773; white-space: pre-wrap; }
+.search-help { font-size: 11px; color: #626773; margin-top: 16px; }
+.search-help button { color: var(--accent); text-decoration: underline; padding: 9px 5px; }
+.source-callout { font-size: 11px; color: #626773; padding: 14px 22px; border-bottom: 1px solid var(--line); background: #fafafb; line-height: 1.6; }
+dialog { padding: 24px; border: 1px solid #d9d9e2; border-radius: 13px; color: var(--ink); box-shadow: 0 20px 90px #27203f3b; width: min(480px, calc(100% - 32px)); }
+dialog::backdrop { background: #27283855; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+dialog h2 { font-size: 18px; letter-spacing: -.4px; }
+dialog p { font-size: 12px; color: var(--muted); line-height: 1.7; }
+dialog label { display: block; font-size: 12px; margin: 22px 0 8px; }
+dialog textarea { width: 100%; min-height: 145px; resize: vertical; font-size: 13px; line-height: 1.7; border: 1px solid #ccc9d8; border-radius: 7px; padding: 12px; }
+.dialog-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; font-size: 11px; color: var(--muted); }
+.drawer { padding: 0; max-height: calc(100dvh - 40px); width: min(340px, calc(100% - 32px)); }
+.drawer .dialog-heading { padding: 18px 18px 0; }
+.drawer-body { padding: 12px; overflow: auto; }
+.drawer .file-summary { padding-top: 16px; }
+.drawer .workspace-card.active { border-color: #cfc6e5; background: #f4f1fc; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); border-radius: 9px; padding: 12px 18px; background: #2b2935; box-shadow: 0 4px 18px #16151c20; color: white; font-size: 12px; z-index: 10; pointer-events: none; }
+.toast:empty { display: none; }
+@container (max-width: 1090px) {
+ .workspace-nav { display: none; }
+ .workspace-toggle { display: inline-grid; margin-right: 2px; }
+ .title-group { display: flex; align-items: flex-start; gap: 7px; min-width: 0; }
+ .workspace-header { padding: 18px; }
+ .workspace-toggle { margin-top: -2px; }
+ h1 { font-size: 19px; }
+ .file-nav { width: 210px; }
+ .document-toolbar { padding-left: 18px; padding-right: 18px; }
+}
+@container (max-width: 620px) {
+ .workspace-header { padding: 16px 12px; gap: 6px; align-items: flex-start; }
+ .title-group { gap: 3px; }
+ h1 { font-size: 17px; line-height: 1.35; }
+ .breadcrumb { font-size: 10px; margin-top: 1px; margin-bottom: 6px; }
+ .pr-meta { gap: 7px; margin-top: 9px; }
+ .branch { display: none; }
+ .header-actions .button { width: 40px; min-height: 44px; padding: 8px; }
+ .header-actions .button .label { display: none; }
+ .header-actions .refresh { display: none; }
+ .workspace-toggle { width: 34px; height: 44px; }
+ .tabs { padding: 0 8px; gap: 0; }
+ .document-tab { padding: 0 11px; }
+ .file-nav { display: none; }
+ .files-toggle { display: inline-grid; }
+ .document-toolbar { padding: 10px 12px 10px 6px; min-height: 68px; gap: 4px; }
+ .file-title { font-size: 12px; }
+ .file-subtitle { font-size: 10px; }
+ .file-heading { display: flex; align-items: center; gap: 3px; min-width: 0; }
+ .file-heading > .files-toggle { height: 44px; width: 34px; }
+ .file-title > svg { display: none; }
+ .toolbar-actions .button { min-height: 44px; padding: 7px 10px; font-size: 11px; }
+ .toolbar-actions .button svg { display: none; }
+ .comparison { padding: 10px 15px; gap: 6px; font-size: 10px; }
+ .comparison button { min-height: 44px; font-size: 10px; }
+ .diff-meta { padding: 14px 15px; font-size: 9px; }
+ .diff-table { font-size: 10px; line-height: 25px; }
+ .diff-table .num { min-width: 27px; width: 27px; padding: 0 5px; font-size: 9px; }
+ .diff-table .sign { min-width: 18px; width: 18px; }
+ .status-bar { padding: 0 14px; font-size: 9px; }
+ .status-extra { display: none !important; }
+ .search-pane { padding: 20px 16px; }
+ .source-callout { padding: 12px 16px; }
+ .button, .icon-button { min-height: 44px; }
+ .tabs .icon-button { margin: 0; }
+}
+@media (max-width: 650px) {
+ .lab { padding: 12px 12px 10px; gap: 6px; }
+ .lab-title { gap: 6px; }
+ .lab-title > span:not(.sample), .lab-controls label { display: none; }
+ .lab-controls { gap: 7px; font-size: 11px; flex-shrink: 0; }
+ .lab-title .sample { font-size: 8px; padding: 3px 4px; letter-spacing: .04em; }
+ .lab-controls select { max-width: 77px; }
+ .lab-controls button { min-height: 36px; white-space: nowrap; }
+ .stage { width: 100%; }
+ .shell { border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 129px); min-height: 440px; }
+ .lab-note { padding: 9px 13px; font-size: 10px; }
+ .lab-note > span:last-child { display: none; }
+ .toast { bottom: 70px; }
+}
+@media (prefers-reduced-motion: reduce) { .stage { transition: none; } }
+</style>
+</head>
+<body>
+<header class="lab">
+ <div class="lab-title"><strong>Mobius</strong><span>/ Interaction study</span><span class="sample">Sample data</span></div>
+ <div class="lab-controls"><label for="viewport">Canvas</label><select id="viewport" aria-label="Preview width"><option value="auto">Responsive</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><button data-action="push" id="push">Simulate push</button><button data-action="reset">Reset</button></div>
+</header>
+<main id="stage" class="stage" data-size="auto" aria-label="Mobius interactive prototype"><div id="app" class="shell"></div></main>
+<footer class="lab-note"><span><strong>Try the return visit.</strong> Mark Parser + Stable reviewed, then simulate a push. Switch PRs to resume your work.</span><span>In-memory mockup · layout hypotheses · v0.1</span></footer>
+<dialog id="drawer" class="drawer" aria-labelledby="drawer-title"></dialog>
+<dialog id="draft-dialog" aria-labelledby="draft-title">
+ <div class="dialog-heading"><h2 id="draft-title">Review draft</h2><button class="icon-button" data-action="close-draft" aria-label="Close draft">×</button></div>
+ <p id="draft-context"></p><label for="draft">A thought to come back to</label><textarea id="draft" placeholder="Leave yourself a review note…"></textarea>
+ <div class="dialog-footer"><span>Kept in this sample session</span><button class="button primary" data-action="close-draft">Keep draft</button></div>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+// Deliberately small, prepared fixtures. This is not a Git engine or a production state schema.
+const icons = {
+ pr: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><path d="M6 7v10M14 3l-3 3 3 3M11 6h3a4 4 0 0 1 4 4v7"/><circle cx="18" cy="19" r="2"/>',
+ file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M8 13h8M8 17h5"/>',
+ search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
+ sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+ check: '<path d="m5 12 4 4L19 6"/>',
+ comment: '<path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+ refresh: '<path d="M20 7a8 8 0 1 0 0 10M20 3v4h-4"/>',
+ plus: '<path d="M12 5v14M5 12h14"/>',
+ link: '<path d="m10 13 4-4M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(1 0) scale(.9)"/>',
+ folder: '<path d="M3 7V5h6l2 2h10v13H3z"/>',
+ chevron: '<path d="m9 5 7 7-7 7"/>'
+};
+const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
+const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const rows = text => text.replace(/^\n|\n$/g, '').split('\n').map(line => ({kind: line[0] === '+' ? 'add' : line[0] === '-' ? 'delete' : 'context', text: line.slice(1)}));
+const parserFull = version => rows(`
+ import Foundation
+ 
+ struct Parser {
+     struct Query {
+         let terms: [String]
++        let scope: SearchScope
+     }
+ 
+-    func parse(_ input: String) -> Query {
++    func parse(_ input: String, in scope: SearchScope) -> Query {
+         let normalized = input.trimmingCharacters(in: .whitespaces)
+         let terms = normalized.split(separator: " ").map(String.init)
+ 
+-        return Query(terms: terms)
++        return Query(
++            terms: ${version === 2 ? 'terms.filter { !$0.isEmpty }' : 'terms'},
++            scope: scope
++        )
+     }
+ 
+     func suggestions(for query: Query) -> [String] {
+         guard let first = query.terms.first else {
+             return []
+         }
+ 
+         return [first, first.lowercased()]
+     }
+ }
+ 
++extension Parser.Query {
++    var description: String {
++        terms.joined(separator: " ")
++    }
++
++    var isEmpty: Bool {
++        terms.isEmpty
++    }
++
++    var scopeLabel: String {
++        switch scope {
++        case .repository:
++            return "Entire repository"
++        case .workspace:
++            return "This workspace"
++        }
++    }
++}
+ 
+ // Search stays with the pull request that opened it.
+ // Navigating to a reference does not mark a file reviewed.
+`);
+const parserNew = rows(`
+         return Query(
+-            terms: terms,
++            terms: terms.filter { !$0.isEmpty },
+             scope: scope
+         )
+`);
+const storeFull = version => rows(`
+ import Foundation
+ 
+ struct Store {
+-    var search: Search?
++    var searches: [WorkspaceID: Search] = [:]
+ 
+-    mutating func save(_ search: Search) {
+-        self.search = search
++    mutating func save(_ search: Search, for workspace: WorkspaceID) {
++        searches[workspace] = search
+     }
+ 
++    func search(for workspace: WorkspaceID) -> Search? {
++        searches[workspace]
++    }
+${version === 2 ? '+\n+    mutating func removeSearch(for workspace: WorkspaceID) {\n+        searches.removeValue(forKey: workspace)\n+    }' : ' '}
+ }
+`);
+const storeNew = rows(`
+     func search(for workspace: WorkspaceID) -> Search? {
+         searches[workspace]
+     }
++
++    mutating func removeSearch(for workspace: WorkspaceID) {
++        searches.removeValue(forKey: workspace)
++    }
+`);
+const stableFull = rows(`
+ import Foundation
+ 
++enum SearchScope {
++    case repository
++    case workspace
++}
++
+ struct Stable {
+     let name: String
+ }
+`);
+const referenceSource = `// Supporting source, unchanged by this pull request.
+// Sample code for exploring context within a workspace.
+
+struct WorkspaceID: Hashable {
+    let number: Int
+}
+
+struct Search {
+    let query: Parser.Query
+    let results: [SearchResult]
+}
+
+struct SearchResult {
+    let path: String
+    let line: Int
+    let excerpt: String
+}
+
+// Every search belongs to its originating PR workspace.
+// Opening this file leaves review progress untouched.`;
+const fixtures = {
+ 42: {title: 'Keep searches in their review workspace', branch: 'workspace-search', author: 'Maya Chen', initials: 'MC'},
+ 43: {title: 'Restore a search when you return', branch: 'restore-search', author: 'Alex Rivera', initials: 'AR'}
+};
+const files = ['Parser.swift', 'Store.swift', 'Stable.swift'];
+function newWorkspace(number) {
+ return {number, version: 1, reviewed: Object.fromEntries(files.map(file => [file, null])), lastFile: 'Parser.swift', mode: 'remaining', tabs: ['review'], activeTab: 'review', query: '', searched: false, draft: ''};
+}
+let workspaces = {42: newWorkspace(42), 43: newWorkspace(43)};
+let currentNumber = 42;
+let drawerKind = null;
+let drawerReturnAction = null;
+let toastTimer;
+const current = () => workspaces[currentNumber];
+function fileState(workspace, file) {
+ const baseline = workspace.reviewed[file];
+ if (baseline === null) return 'unreviewed';
+ if (baseline === workspace.version || file === 'Stable.swift') return 'reviewed';
+ return 'changed';
+}
+const remainingCount = workspace => files.filter(file => fileState(workspace, file) !== 'reviewed').length;
+function workspaceCards() {
+ return Object.values(workspaces).map(workspace => `<button class="workspace-card ${workspace.number === currentNumber ? 'active' : ''}" data-action="workspace" data-number="${workspace.number}" ${workspace.number === currentNumber ? 'aria-current="true"' : ''}><span class="workspace-number">${icon('pr')} northstar / #${workspace.number}</span><strong>${fixtures[workspace.number].title}</strong><small>${remainingCount(workspace)} files remaining${workspace.draft ? ' · Draft' : ''} · v${workspace.version}</small></button>`).join('');
+}
+function fileNavigation() {
+ const workspace = current();
+ const remaining = remainingCount(workspace);
+ const listed = files.filter(file => workspace.mode === 'full' || fileState(workspace, file) !== 'reviewed');
+ return `<div class="segmented" aria-label="Comparison view"><button data-action="mode" data-mode="remaining" aria-pressed="${workspace.mode === 'remaining'}">Remaining <span aria-hidden="true">${remaining}</span></button><button data-action="mode" data-mode="full" aria-pressed="${workspace.mode === 'full'}">Full PR diff</button></div><div class="file-summary"><span class="overline">${workspace.mode === 'remaining' ? 'To review' : 'Changed files'}</span><span>${listed.length} files</span></div><div class="file-path">Sources / Search</div>${listed.map(file => {const state = fileState(workspace, file); return `<button class="file-item ${workspace.lastFile === file ? 'active' : ''}" data-action="file" data-file="${file}" ${workspace.lastFile === file ? 'aria-current="true"' : ''}>${icon(state === 'reviewed' ? 'check' : 'file')}<span><strong>${file}</strong><small class="${state === 'changed' ? 'new' : state === 'reviewed' ? 'done' : ''}">${state === 'changed' ? `New edits since v${workspace.reviewed[file]}` : state === 'reviewed' ? 'Reviewed · no new edits' : 'Not yet reviewed'}</small></span></button>`;}).join('')}${!listed.length ? '<div class="all-clear">You’re caught up.<br>New pushes will appear here.</div>' : ''}<p class="file-note">${workspace.mode === 'remaining' ? 'New edits in reviewed files.<br>Full changes in unreviewed files.' : 'Every file in this pull request.<br>Your review progress stays with it.'}</p><button class="context-link" data-action="source">${icon('folder')} Browse supporting source ${icon('chevron')}</button>`;
+}
+function adaptFixture(workspace, prepared) {
+ return workspace.number === 43
+  ? prepared.map(row => ({...row, text: row.text.replaceAll('suggestions', 'restoredTerms').replaceAll('searches', 'savedSearches')}))
+  : prepared;
+}
+function allDiffRows(workspace, file) {
+ const prepared = file === 'Parser.swift' ? parserFull(workspace.version) : file === 'Store.swift' ? storeFull(workspace.version) : stableFull;
+ // PR 43 deliberately shares paths, but uses its own fixture and review state.
+ return adaptFixture(workspace, prepared);
+}
+function diffTable(prepared, offset = 1) {
+ let oldLine = offset;
+ let newLine = offset;
+ return `<table class="diff-table" aria-label="Code comparison"><thead class="sr-only"><tr><th>Old line</th><th>New line</th><th>Change</th><th>Code</th></tr></thead><tbody>${prepared.map(row => `<tr class="${row.kind}"><td class="num">${row.kind === 'add' ? '' : oldLine++}</td><td class="num">${row.kind === 'delete' ? '' : newLine++}</td><td class="sign">${row.kind === 'add' ? '+' : row.kind === 'delete' ? '−' : ''}</td><td class="code">${escapeHTML(row.text) || ' '}</td></tr>`).join('')}</tbody></table>`;
+}
+function renderReview() {
+ const workspace = current();
+ const file = workspace.lastFile;
+ const state = fileState(workspace, file);
+ const incremental = workspace.mode === 'remaining' && state === 'changed';
+ const upToDate = workspace.mode === 'remaining' && state === 'reviewed';
+ const prepared = incremental ? adaptFixture(workspace, file === 'Parser.swift' ? parserNew : storeNew) : allDiffRows(workspace, file);
+ const added = prepared.filter(row => row.kind === 'add').length;
+ const removed = prepared.filter(row => row.kind === 'delete').length;
+ const label = incremental ? `New edits since v${workspace.reviewed[file]}` : upToDate ? 'No remaining changes' : 'Full PR diff';
+ return `<div class="document-toolbar"><div class="file-heading"><button class="icon-button files-toggle" data-action="files" aria-label="Choose review file">${icon('sidebar')}</button><div><div class="file-title">${icon('file')}${file}</div><div class="file-subtitle">Sources / Search · version ${workspace.version}</div></div></div><div class="toolbar-actions">${state === 'reviewed' ? `<span class="reviewed-label">${icon('check')} Reviewed</span>` : `<button class="button primary" data-action="review">${icon('check')} Mark reviewed</button>`}</div></div><div class="comparison"><span><strong>${label}</strong>${state === 'unreviewed' ? ' · unreviewed' : incremental ? ` → v${workspace.version}` : state === 'reviewed' ? ` · last marked v${workspace.reviewed[file]}` : ''}</span><button data-action="mode" data-mode="${workspace.mode === 'full' ? 'remaining' : 'full'}">${workspace.mode === 'full' ? 'Remaining work' : 'View full PR diff'}</button></div><div class="diff-scroll" id="review-scroll" tabindex="0" aria-label="${file} diff">${upToDate ? `<div class="empty-state"><div class="check-circle">${icon('check')}</div><h2>${file} is caught up</h2><p>You’ve reviewed all of this file’s current changes. It stays here until you choose another file.</p><button class="button" data-action="mode" data-mode="full">View full PR diff</button></div>` : `<div class="diff-meta"><span>${incremental ? `Reviewed version ${workspace.reviewed[file]} → current version ${workspace.version}` : `PR base → current version ${workspace.version}`}</span><span class="diff-stats">+${added} <span style="color:#9d544d">−${removed}</span></span></div>${diffTable(prepared, incremental ? (file === 'Parser.swift' ? 13 : 10) : 1)}<div class="code-end">End of ${incremental ? 'new edits' : 'file'} · prepared sample comparison</div>`}</div>`;
+}
+function renderSource() {
+ return `<div class="document-toolbar"><div><div class="file-title">${icon('file')}Reference.swift</div><div class="file-subtitle">Sources / Search · PR #${currentNumber}</div></div><button class="button" data-action="tab" data-tab="review">Back to review</button></div><p class="source-callout">Supporting source at version ${current().version}. Reading here doesn’t change review progress.</p><div class="diff-scroll" tabindex="0" aria-label="Reference.swift source">${diffTable(referenceSource.split('\n').map(text => ({kind:'context', text})))}<div class="code-end">End of supporting source</div></div>`;
+}
+function searchResults(workspace) {
+ if (!workspace.searched) return '<p class="search-help">Try <button data-action="example-search">WorkspaceID</button> to find supporting source.</p>';
+ const query = workspace.query.toLowerCase().trim();
+ if (!query) return '<p>Enter a term to search the sample source.</p>';
+ const documents = [...files.map(file => ({file, text: allDiffRows(workspace, file).filter(row => row.kind !== 'delete').map(row => row.text).join('\n')})), {file:'Reference.swift', text:referenceSource}];
+ const matches = documents.filter(document => document.text.toLowerCase().includes(query) || document.file.toLowerCase().includes(query));
+ return `<p>${matches.length} ${matches.length === 1 ? 'file' : 'files'} in this workspace’s sample source</p>${matches.map(document => `<button class="search-result" data-action="search-result" data-file="${document.file}"><strong>${icon('file')} ${document.file}</strong><code>${escapeHTML(document.text.split('\n').find(line => line.toLowerCase().includes(query)) || 'Sources / Search')}</code></button>`).join('')}`;
+}
+function renderSearch() {
+ const workspace = current();
+ return `<section class="search-pane"><h2>Explore without leaving your review</h2><p>Search the sample source for PR #${currentNumber}. This tab and its query stay with this workspace.</p><form class="search-form" id="search-form"><input aria-label="Search repository" placeholder="Search the sample repository…" value="${escapeHTML(workspace.query)}"><button class="button primary" type="submit">Search</button></form><div id="search-results">${searchResults(workspace)}</div></section>`;
+}
+// Rendering replaces a small mockup tree. Carry keyboard focus to the equivalent
+// control, or the resulting document when an action removes its own control.
+function rememberFocus(container) {
+ const active = document.activeElement;
+ if (!container.contains(active)) return null;
+ return active.matches('button[data-action]') ? {data: {...active.dataset}} : {id: active.id};
+}
+function restoreFocus(container, saved) {
+ if (!saved) return;
+ const target = saved.data
+  ? [...container.querySelectorAll('button[data-action]')].find(button => button.getClientRects().length > 0 && Object.entries(saved.data).every(([key, value]) => button.dataset[key] === value))
+  : saved.id ? container.querySelector(`[id="${saved.id}"]`) : null;
+ const fallback = container.querySelector('.document') || container.querySelector('.search-pane') || container.querySelector('button');
+ (target || fallback)?.focus({preventScroll: true});
+}
+function render() {
+ const app = document.getElementById('app');
+ const focused = rememberFocus(app);
+ const workspace = current();
+ const fixture = fixtures[currentNumber];
+ app.innerHTML = `<nav class="workspace-nav" aria-label="PR workspaces"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><div class="nav-heading"><span class="overline">Your workspaces</span><span class="overline">2</span></div>${workspaceCards()}<div class="nav-footer"><span class="avatar">JD</span><span>Jamie Davis<br>Personal review space</span></div></nav><section class="workspace" aria-label="PR ${currentNumber} workspace"><header class="workspace-header"><div class="title-group"><button class="icon-button workspace-toggle" data-action="workspaces" aria-label="Switch workspace">${icon('sidebar')}</button><div><div class="breadcrumb">northstar <span class="slash">/</span> SearchKit <span class="slash">/</span> #${currentNumber}</div><h1>${fixture.title}</h1><div class="pr-meta"><span class="open-pill">${icon('pr')} Open</span><span>${fixture.author}</span><span>·</span><span>v${workspace.version}</span><span class="branch">${fixture.branch} → main</span></div></div></div><div class="header-actions"><button class="icon-button refresh" data-action="refresh" aria-label="Refresh sample PR">${icon('refresh')}</button><button class="button" data-action="draft" aria-label="${workspace.draft ? 'Draft saved. ' : ''}Open review draft">${icon('comment')}<span class="label">${workspace.draft ? 'Draft saved' : 'Review draft'}</span></button></div></header><nav class="tabs" aria-label="Workspace documents">${workspace.tabs.map(tab => `<button class="document-tab ${workspace.activeTab === tab ? 'active' : ''}" data-action="tab" data-tab="${tab}" ${workspace.activeTab === tab ? 'aria-current="page"' : ''}>${icon(tab === 'review' ? 'pr' : tab === 'search' ? 'search' : 'file')}${tab === 'review' ? 'Review' : tab === 'search' ? 'Search' : 'Reference.swift'}</button>`).join('')}<span class="tab-spacer"></span><button class="icon-button" data-action="search" aria-label="Open repository search">${icon('search')}</button></nav><div class="content">${workspace.activeTab === 'review' ? `<nav class="file-nav" aria-label="Review files">${fileNavigation()}</nav>` : ''}<section class="document" aria-label="Current document" tabindex="-1">${workspace.activeTab === 'review' ? renderReview() : workspace.activeTab === 'source' ? renderSource() : renderSearch()}</section></div><footer class="status-bar"><span>${icon('check')} ${3 - remainingCount(workspace)} of 3 files up to date</span><span class="status-extra">${workspace.draft ? '1 private draft · ' : ''}PR #${currentNumber} · independent workspace</span><span>Sample session</span></footer></section>`;
+ restoreFocus(app, focused);
+ const push = document.getElementById('push');
+ push.disabled = workspace.version === 2;
+ push.textContent = workspace.version === 2 ? 'Push applied' : 'Simulate push';
+ push.setAttribute('aria-label', `${workspace.version === 2 ? 'Push applied' : 'Simulate push'} for PR ${currentNumber}`);
+}
+function toast(message) {
+ clearTimeout(toastTimer);
+ document.getElementById('toast').textContent = message;
+ toastTimer = setTimeout(() => { document.getElementById('toast').textContent = ''; }, 3500);
+}
+function openTab(tab) {
+ const workspace = current();
+ if (!workspace.tabs.includes(tab)) workspace.tabs.push(tab);
+ workspace.activeTab = tab;
+ render();
+}
+function showDrawer(kind) {
+ drawerKind = kind;
+ const drawer = document.getElementById('drawer');
+ const focused = rememberFocus(drawer);
+ drawer.innerHTML = `<div class="dialog-heading"><h2 id="drawer-title">${kind === 'workspaces' ? 'Your workspaces' : 'Review files'}</h2><button class="icon-button" data-action="close-drawer" aria-label="Close ${kind === 'workspaces' ? 'workspaces' : 'files'}">×</button></div><div class="drawer-body">${kind === 'workspaces' ? workspaceCards() : fileNavigation()}</div>`;
+ if (!drawer.open) {
+  drawerReturnAction = kind;
+  drawer.showModal();
+ }
+ else restoreFocus(drawer, focused);
+}
+function closeDrawer() {
+ document.getElementById('drawer').close();
+ drawerKind = null;
+}
+function selectFile(file) {
+ const workspace = current();
+ workspace.lastFile = file;
+ workspace.activeTab = 'review';
+ // A reviewed file remains inspectable when reached through repository search.
+ if (fileState(workspace, file) === 'reviewed') workspace.mode = 'full';
+ closeDrawer();
+ render();
+}
+document.addEventListener('click', event => {
+ const button = event.target.closest('button[data-action]');
+ if (!button || button.disabled) return;
+ const workspace = current();
+ switch (button.dataset.action) {
+ case 'workspace':
+  currentNumber = Number(button.dataset.number);
+  current().activeTab = 'review';
+  closeDrawer(); render();
+  toast(`PR #${currentNumber} · resumed ${current().lastFile} from the top`);
+  break;
+ case 'file': selectFile(button.dataset.file); break;
+ case 'mode':
+  workspace.mode = button.dataset.mode; workspace.activeTab = 'review'; render();
+  if (drawerKind === 'files') showDrawer('files');
+  break;
+ case 'review':
+  workspace.reviewed[workspace.lastFile] = workspace.version;
+  render(); toast(`${workspace.lastFile} marked reviewed at v${workspace.version}`);
+  break;
+ case 'push':
+  workspace.version = 2; render();
+  toast(`PR #${currentNumber} · new edits in Parser.swift and Store.swift`);
+  break;
+ case 'reset':
+  workspaces = {42:newWorkspace(42), 43:newWorkspace(43)}; currentNumber = 42;
+  closeDrawer(); render(); toast('Sample session reset to version 1');
+  break;
+ case 'tab': openTab(button.dataset.tab); break;
+ case 'source': closeDrawer(); openTab('source'); break;
+ case 'search': openTab('search'); break;
+ case 'search-result': button.dataset.file === 'Reference.swift' ? openTab('source') : selectFile(button.dataset.file); break;
+ case 'example-search': workspace.query = 'WorkspaceID'; workspace.searched = true; render(); break;
+ case 'workspaces': showDrawer('workspaces'); break;
+ case 'files': showDrawer('files'); break;
+ case 'close-drawer': closeDrawer(); break;
+ case 'refresh': toast(`PR #${currentNumber} is current · review progress unchanged`); break;
+ case 'draft':
+  document.getElementById('draft-context').textContent = `Private draft for PR #${currentNumber}. Nothing is sent to GitHub.`;
+  document.getElementById('draft').value = workspace.draft;
+  document.getElementById('draft-dialog').showModal();
+  break;
+ case 'close-draft': document.getElementById('draft-dialog').close(); render(); break;
+ }
+});
+document.getElementById('drawer').addEventListener('close', () => {
+ drawerKind = null;
+ const opener = [...document.querySelectorAll(`button[data-action="${drawerReturnAction}"]`)].find(button => button.getClientRects().length > 0);
+ (opener || document.querySelector('.document'))?.focus({preventScroll: true});
+ drawerReturnAction = null;
+});
+document.getElementById('draft-dialog').addEventListener('close', () => render());
+document.getElementById('draft').addEventListener('input', event => { current().draft = event.target.value; });
+document.addEventListener('input', event => {
+ if (event.target.matches('#search-form input')) current().query = event.target.value;
+});
+document.addEventListener('submit', event => {
+ if (event.target.id !== 'search-form') return;
+ event.preventDefault(); current().searched = true;
+ document.getElementById('search-results').innerHTML = searchResults(current());
+});
+document.getElementById('viewport').addEventListener('change', event => { document.getElementById('stage').dataset.size = event.target.value; });
+render();
+</script>
+</body>
+</html>
