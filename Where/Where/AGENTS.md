@@ -21,14 +21,14 @@ layering, and the domain rules this target merely starts up.
   are the repo-root executables). Today that is
   [`stamp-build-info.sh`](Scripts/stamp-build-info.sh). It stamps the commit
   and the Swift compiler settings into the built Info.plist. See [Version and
-  build metadata](../../AGENTS.md#version-and-build-metadata) for the
+  build metadata](../../.agents/references/build-system.md#version-and-build-metadata) for the
   constraints on it.
 - `Resources/AppIcon.xcassets` is managed by `./icons` (see the root
-  [`AGENTS.md`](../../AGENTS.md#managing-app-icons)). Never hand-edit it.
+  [`AGENTS.md`](../../.agents/references/build-system.md#managing-app-icons)). Never hand-edit it.
 - `Resources/attribution.json` is the app's generated attribution report.
   `attribution-sources.json` at this module's root declares where it reads
   from. Both are `./attribution`'s
-  ([Attribution](../../AGENTS.md#attribution)). Never hand-edit the report.
+  ([Attribution](../../.agents/references/build-system.md#attribution)). Never hand-edit the report.
   Only this bundle carries one. `AppAttributionTests` lives in this
   target's test bundle (the one hosted by `Where.app`, where `Bundle.main` is
   the shipping bundle). `./attribution --check` in CI covers the report still
@@ -71,7 +71,7 @@ layering, and the domain rules this target merely starts up.
 - **The regular runtime owns exactly one of each shared thing** — one
   `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher. Create them here and inject down, per
-  [Composition](../../AGENTS.md#composition-create-once-inject-down). The
+  [Composition](../../.agents/references/swift-conventions.md#composition-create-once-inject-down). The
   launch's `resolve-scope` step is the process's only store open. It runs
   *behind* the onboarding gate. This target opens nothing at startup. The
   intents stack derives from whatever scope the launch resolves, in the
@@ -89,7 +89,7 @@ layering, and the domain rules this target merely starts up.
   data waits for `.ready` and checks what it got. The Spotlight indexing after
   `launcher.run()` skips a demo session. Demo data must not reach an index that
   outlives the process. See [Scopes and the
-  launch](../AGENTS.md#scopes-and-the-launch).
+  launch](../Guidance/launch.md#scopes-and-the-launch).
 - **Register the App Intents dependency before anything async.** The
   `AppDependencyManager.shared.add(...)` call must stay at the top of
   `didFinishLaunching`. Then `@Dependency` always resolves once the system starts

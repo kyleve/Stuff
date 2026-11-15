@@ -3,20 +3,16 @@
 #
 # sync-agents — keep AI agent configuration in sync across tools.
 #
-# AGENTS.md is the source of truth. Cursor and Codex read it natively;
-# Claude Code needs CLAUDE.md and .claude/skills/. This script bridges
-# the gap.
+# AGENTS.md is shared directly. Claude skill folders link to .agents/skills/.
+# Legacy generated instructions and matching skill copies are migrated safely.
 #
 # Commands:
-#   ./sync-agents                        Generate CLAUDE.md files from
-#                                        AGENTS.md and sync local skills
-#                                        to .claude/skills/. Incremental:
-#                                        skips files that are already up
-#                                        to date.
+#   ./sync-agents                        Remove generated CLAUDE.md files
+#                                        and link canonical skill folders.
 #
 #   ./sync-agents --install              Fetch external skills listed in
 #                                        .agents/external-skills.json.
-#                                        Skips skills already present.
+#                                        Repairs invalid installations.
 #                                        Run automatically by ./ide.
 #
 #   ./sync-agents --add <url> [name]     Add an external skill from a
@@ -38,79 +34,53 @@ require "fileutils"
 require "json"
 require "tmpdir"
 require "open3"
+require_relative "Tools/repository"
+require_relative "Tools/agent_skill_installer"
+require_relative "Tools/agent_guidance"
+require_relative "Tools/agent_compatibility"
 
-REPO_ROOT = File.expand_path("..", __FILE__)
-MARKER = "<!-- Generated from AGENTS.md — do not edit directly -->"
-
-EXCLUDED_DIRS = %w[Derived .build .git .cursor .claude].freeze
+REPO_ROOT = Repository.root(__FILE__)
 
 class SyncAgents
   def initialize(repository_root: REPO_ROOT)
     @repository_root = File.expand_path(repository_root)
     @skills_directory = File.join(@repository_root, ".agents", "skills")
-    @claude_skills_directory = File.join(@repository_root, ".claude", "skills")
     @manifest_path = File.join(@repository_root, ".agents", "external-skills.json")
     @changed_files = []
   end
 
   def run(args)
-    if args.include?("--add")
-      idx = args.index("--add")
-      url = args[idx + 1]
-      name = args[idx + 2]
-      abort "Usage: sync-agents --add <github-url> [skill-name]" unless url
-      add_skill(url, name)
-    elsif args.include?("--install")
-      install_skills
-    elsif args.include?("--update")
-      update_skills
+    if args == ["--check"]
+      checker = AgentGuidance.new(@repository_root)
+      valid = checker.check
+      checker.report(output: $stdout, diagnostics: $stderr)
+      return valid
     end
+    load_manifest.each { |name, entry| AgentSkill.new(name, entry) }
+    if (index = args.index("--add"))
+      url = args[index + 1]
+      name = args[index + 2] unless args[index + 2]&.start_with?("-")
+      abort "Usage: sync-agents --add <github-url> [skill-name]" unless url
+      repo = parse_github_repo(url)
+      abort "Could not parse GitHub repo from: #{url}" unless repo
+      AgentSkill.new(name, { "repo" => repo, "path" => name, "ref" => "HEAD" }) if name
+    end
+    AgentCompatibility.new(@repository_root).sync do
+      if repo
+        add_skill(repo, name)
+      elsif args.include?("--install")
+        install_skills
+      elsif args.include?("--update")
+        update_skills
+      end
 
-    sync_claude_md
-    update_skills_gitignore
-    sync_skills
+      update_skills_gitignore
+    end
 
     stage_files if args.include?("--git-add") && !@changed_files.empty?
   end
 
   private
-
-  # --- CLAUDE.md sync ---
-
-  def sync_claude_md
-    expected = []
-
-    find_files("AGENTS.md", exclude: EXCLUDED_DIRS).each do |agents_file|
-      claude_path = File.join(File.dirname(agents_file), "CLAUDE.md")
-      content = "#{MARKER}\n\n#{File.read(agents_file, encoding: "UTF-8")}"
-      write_if_changed(claude_path, content)
-      expected << claude_path
-    end
-
-    find_files("CLAUDE.md", exclude: %w[Derived .build .git]).each do |claude_file|
-      next if expected.include?(claude_file)
-      first_line = File.open(claude_file, encoding: "UTF-8", &:readline).chomp rescue next
-      remove_if_exists(claude_file) if first_line == MARKER
-    end
-  end
-
-  # --- Skills sync ---
-
-  def sync_skills
-    if Dir.exist?(@skills_directory)
-      FileUtils.mkdir_p(@claude_skills_directory)
-      unless dirs_equal?(@skills_directory, @claude_skills_directory)
-        FileUtils.rm_rf(@claude_skills_directory)
-        FileUtils.cp_r(@skills_directory, @claude_skills_directory)
-        puts "Synced .agents/skills/ → .claude/skills/"
-        @changed_files << @claude_skills_directory
-      end
-    elsif Dir.exist?(@claude_skills_directory)
-      FileUtils.rm_rf(@claude_skills_directory)
-      puts "Removed .claude/skills/"
-      @changed_files << @claude_skills_directory
-    end
-  end
 
   # --- Gitignore management for external skills ---
 
@@ -130,10 +100,7 @@ class SyncAgents
 
   # --- Add a new external skill ---
 
-  def add_skill(url, name)
-    repo = parse_github_repo(url)
-    abort "Could not parse GitHub repo from: #{url}" unless repo
-
+  def add_skill(repo, name)
     Dir.mktmpdir do |tmpdir|
       clone_default_branch(repo, tmpdir)
 
@@ -149,25 +116,20 @@ class SyncAgents
         when 0 then abort "No skills found in #{repo}"
         when 1 then name = available.first
         else abort "Multiple skills in #{repo}: #{available.join(", ")}\n" \
-                    "Specify one: ./sync-agents --add #{url} <name>"
+                    "Specify one: ./sync-agents --add https://github.com/#{repo} <name>"
         end
-        skill_src = File.join(tmpdir, name)
       end
 
-      dest = File.join(@skills_directory, name)
-      FileUtils.rm_rf(dest)
-      FileUtils.mkdir_p(@skills_directory)
-      FileUtils.cp_r(skill_src, dest)
       sha = head_sha(tmpdir)
-      puts "Added #{name} from #{repo}@#{sha[0..7]}"
-
       manifest = load_manifest
       manifest[name] = { "repo" => repo, "path" => name, "ref" => sha }
-      save_manifest(manifest)
+      skill = AgentSkill.new(name, manifest.fetch(name))
+      install_skill(skill, tmpdir, manifest: manifest)
+      puts "Added #{name} from #{repo}@#{sha[0..7]}"
     end
   end
 
-  # --- Install all external skills from manifest (skip if present) ---
+  # --- Install external skills from manifest, repairing invalid layouts ---
 
   def install_skills
     manifest = load_manifest
@@ -176,28 +138,16 @@ class SyncAgents
       return
     end
 
-    manifest.each do |name, entry|
+    skills = manifest.map { |name, entry| AgentSkill.new(name, entry) }
+    skills.each do |skill|
+      name = skill.name
       dest = File.join(@skills_directory, name)
-      if Dir.exist?(dest) && File.exist?(File.join(dest, "SKILL.md"))
-        next
-      end
-
-      repo = entry["repo"]
-      path = entry["path"]
-      ref = entry["ref"] || "main"
+      next if skill.installed?(dest)
 
       Dir.mktmpdir do |tmpdir|
-        clone_repo(repo, ref, tmpdir)
-
-        skill_src = File.join(tmpdir, path)
-        unless Dir.exist?(skill_src)
-          warn "Warning: '#{path}' not found in #{repo}@#{ref}, skipping #{name}"
-          next
-        end
-
-        FileUtils.mkdir_p(@skills_directory)
-        FileUtils.cp_r(skill_src, dest)
-        puts "Installed #{name} from #{repo}@#{ref}"
+        clone_repo(skill.repository, skill.revision, tmpdir)
+        install_skill(skill, tmpdir)
+        puts "Installed #{name} from #{skill.repository}@#{skill.revision}"
       end
     end
   end
@@ -211,36 +161,34 @@ class SyncAgents
       return
     end
 
-    changed = false
-    manifest.each do |name, entry|
-      repo = entry["repo"]
-      path = entry["path"]
-
+    skills = manifest.map { |name, entry| AgentSkill.new(name, entry) }
+    skills.each do |skill|
+      name = skill.name
       Dir.mktmpdir do |tmpdir|
-        clone_default_branch(repo, tmpdir)
+        clone_default_branch(skill.repository, tmpdir)
         sha = head_sha(tmpdir)
 
-        if sha == entry["ref"]
+        if sha == skill.revision && skill.installed?(File.join(@skills_directory, name))
           puts "#{name} already at #{sha[0..7]}"
           next
         end
 
-        skill_src = File.join(tmpdir, path)
-        unless Dir.exist?(skill_src)
-          warn "Warning: '#{path}' not found in #{repo}@#{sha[0..7]}, skipping #{name}"
-          next
-        end
-
-        dest = File.join(@skills_directory, name)
-        FileUtils.rm_rf(dest)
-        FileUtils.cp_r(skill_src, dest)
-        entry["ref"] = sha
-        changed = true
-        puts "Updated #{name} from #{repo}@#{sha[0..7]}"
+        updated = manifest.merge(name => manifest.fetch(name).merge("ref" => sha))
+        install_skill(AgentSkill.new(name, updated.fetch(name)), tmpdir, manifest: updated)
+        manifest = updated
+        puts "Updated #{name} from #{skill.repository}@#{sha[0..7]}"
       end
     end
+  end
 
-    save_manifest(manifest) if changed
+  def install_skill(skill, checkout, manifest: nil)
+    update = if manifest
+      AgentSkillInstaller::ManifestUpdate.new(path: @manifest_path, content: JSON.pretty_generate(manifest) + "\n")
+    end
+    AgentSkillInstaller.new.install(
+      skill, checkout: checkout, destination: File.join(@skills_directory, skill.name), manifest_update: update,
+    )
+    @changed_files << @manifest_path if update
   end
 
   # --- Helpers ---
@@ -260,36 +208,10 @@ class SyncAgents
     @changed_files << path
   end
 
-  def find_files(name, exclude: [])
-    Dir.glob(File.join(@repository_root, "**", name)).reject do |f|
-      exclude.any? { |d| f.include?("/#{d}/") }
-    end
-  end
-
-  def dirs_equal?(a, b)
-    return false unless Dir.exist?(a) && Dir.exist?(b)
-    a_files = relative_entries(a)
-    b_files = relative_entries(b)
-    return false unless a_files == b_files
-    a_files.each do |rel|
-      af = File.join(a, rel)
-      bf = File.join(b, rel)
-      next if File.directory?(af)
-      return false unless File.read(af, encoding: "UTF-8") == File.read(bf, encoding: "UTF-8")
-    end
-    true
-  end
-
   def stage_files
     @changed_files.each do |file|
       system("git", "add", "-A", "--", file, err: File::NULL)
     end
-  end
-
-  def relative_entries(dir)
-    Dir.glob(File.join(dir, "**", "*"), File::FNM_DOTMATCH)
-      .map { |f| f.delete_prefix("#{dir}/") }
-      .sort
   end
 
   def parse_github_repo(url)
@@ -331,32 +253,34 @@ class SyncAgents
 
   def load_manifest
     return {} unless File.exist?(@manifest_path)
-    JSON.parse(File.read(@manifest_path))
-  end
-
-  def save_manifest(manifest)
-    FileUtils.mkdir_p(File.dirname(@manifest_path))
-    File.write(@manifest_path, JSON.pretty_generate(manifest) + "\n")
-    puts "Updated #{@manifest_path}"
+    result = JSON.parse(File.read(@manifest_path))
+    raise AgentSkill::Error, "external-skills.json must contain an object" unless result.is_a?(Hash)
+    result
   end
 end
 
 def usage(output = $stdout)
   output << <<~USAGE
     Usage: ./sync-agents [--install | --update | --add URL [NAME]] [--git-add]
+           ./sync-agents --check
 
-    Generate Claude configuration from AGENTS.md and synchronize agent skills.
+    Remove legacy instruction copies and link Claude skills to .agents/skills/.
 
     Options:
-      --install       Fetch missing external skills at their pinned revisions.
+      --check         Check guidance offline without writing, fetching, or staging.
+      --install       Fetch missing or invalid external skills at pinned revisions.
       --update        Refresh external skills and their pinned revisions.
       --add URL NAME  Add one external skill; NAME is optional for one-skill repos.
-      --git-add       Stage generated changes after synchronizing.
+      --git-add       Stage manifest and external-skill ignore changes.
       -h, --help      Show this help without changing files or using the network.
   USAGE
 end
 
 def validate_arguments(arguments)
+  if arguments.include?("--check")
+    abort "error: --check cannot be combined with other options" unless arguments == ["--check"]
+    return
+  end
   action_count = arguments.count { |argument| %w[--install --update --add].include?(argument) }
   abort "error: choose only one of --install, --update, or --add" if action_count > 1
 
@@ -380,5 +304,10 @@ if __FILE__ == $PROGRAM_NAME
     exit 0
   end
   validate_arguments(ARGV)
-  SyncAgents.new.run(ARGV)
+  begin
+    result = SyncAgents.new.run(ARGV)
+    exit 1 if ARGV == ["--check"] && !result
+  rescue AgentSkill::Error, FileTransaction::Error, JSON::ParserError, SystemCallError, IOError => error
+    abort "error: #{error.message}"
+  end
 end

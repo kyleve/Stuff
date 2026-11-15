@@ -11,7 +11,7 @@ exit 1
 script = "./worktree --check-main && ./ide --bootstrap --no-open"
 
 [setup.linux]
-script = "./worktree --check-main && ./.cursor/install.sh"
+script = "./worktree --check-main && ./Tools/setup-linux.sh"
 
 [cleanup]
 script = ""

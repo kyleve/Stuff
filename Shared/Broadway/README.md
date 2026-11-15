@@ -8,9 +8,9 @@ The shared iOS test host and build scaffolding are Stuff's.
 
 ## Modules
 
-- **BroadwayCore** ([BroadwayCore/](BroadwayCore/)) — foundation types: `BContext`, `BTraits`, `BThemes`, `BStylesheets`, `BAccessibility`, plus utilities (`AnyEquatable`, `CopyOnWrite`, `TypeIdentifier`). Foundation + UIKit.
-- **BroadwayUI** ([BroadwayUI/](BroadwayUI/)) — UIKit/SwiftUI components that own and propagate `BContext` (`BRootViewController` and its SwiftUI-native counterpart `BRootView` / `.broadwayRoot(themes:)`, `BTraitOverridesViewController`). Depends on BroadwayCore.
-- **BroadwayCatalog** ([BroadwayCatalog/](BroadwayCatalog/)) — a showcase app for BroadwayUI components.
+- **BroadwayCore** ([BroadwayCore/](BroadwayCore)) — foundation types: `BContext`, `BTraits`, `BThemes`, `BStylesheets`, `BAccessibility`, plus utilities (`AnyEquatable`, `CopyOnWrite`, `TypeIdentifier`). Foundation + UIKit.
+- **BroadwayUI** ([BroadwayUI/](BroadwayUI)) — UIKit/SwiftUI components that own and propagate `BContext` (`BRootViewController` and its SwiftUI-native counterpart `BRootView` / `.broadwayRoot(themes:)`, `BTraitOverridesViewController`). Depends on BroadwayCore.
+- **BroadwayCatalog** ([BroadwayCatalog/](BroadwayCatalog)) — a showcase app for BroadwayUI components.
 
 UIKit hosting helpers (`show`, `waitFor`, …) for Broadway's hosted Swift Testing bundles live in the shared [`TestHostSupport`](../TestHostSupport) module.
 

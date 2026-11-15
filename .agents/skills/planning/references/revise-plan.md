@@ -1,34 +1,15 @@
 # Apply a revision
 
-This procedure owns plan edits for direct feedback, GitHub feedback, question answers, and findings during execution.
-It returns updated plans and unresolved questions to its caller. It does not publish or start another question loop.
+This procedure integrates feedback, answers, and execution findings. Its caller owns question status, the checkpoint, publication, and GitHub replies.
 
-1. Read the current overview, affected plans, execution records, and relevant source.
-   Identify the proposed change and its source, such as a request, comment URL, or question ID.
-   If the change conflicts with user direction or expands scope, use existing authorization or return the missing decision.
-   Keep unrelated work moving where dependencies permit it.
-2. Determine which plans need revision, including dependent plans.
-   For completed plans, apply the follow-up or reopening rule in the [Plans contract](../../../../Plans/AGENTS.md#structure-and-ownership).
-   Preserve human edits, stable filenames, and story, requirement, exclusion, and question IDs.
-3. Update affected stories, requirements, exclusions, decisions, diagrams, Swift sketches, steps, and verification together.
-   Match detail to the planning horizon. Preserve deliberate uncertainty in later outlines.
-   If requirements or evidence change, revisit the affected discovery or research in [Develop an initial plan](develop-plan.md).
-   Do not implement product changes during a plan-only revision.
-4. Record the decision, reason, date, and source in the owning decision table.
-   Put series-wide decisions in the overview and link them from affected plans.
-   For a question answer, link its question record rather than duplicating the answer history.
-   If a request is declined, record the reason.
-   For later selected work, link its outline and refinement trigger.
-   For work outside the series, file or update a Linear issue through [todo-triage](../../todo-triage/SKILL.md) and link it.
-5. If the revision invalidates earlier verification, label that evidence stale and identify the checks that must repeat.
-   Reset affected progress checkboxes and status to reflect remaining work.
-   Preserve the earlier execution record.
-   Treat material design revisions as `draft` until reviewed, or `blocked` when a required answer is missing.
-   Keep later outlines as `outline` unless selected for refinement.
-6. Use [Review the plan](develop-plan.md#review-the-plan) to assess the revised series.
-   During early discovery, review integration into existing sections and record unfinished drafting work without claiming full plan readiness.
-   Return newly discovered questions to the caller instead of resolving them recursively.
-   Report which changes were integrated and reviewed, declined, deferred, or still need an answer.
-   Record unresolved decisions and their effect on execution.
-
-The caller owns question status, the operation checkpoint, publication, and GitHub replies.
+1. Read the overview, affected plans and dependencies, execution records, and relevant source.
+   Identify the change and its request, comment URL, or question ID. Return decisions that conflict with user direction or exceed existing authorization.
+2. Apply the [Plans contract](../../../../Plans/AGENTS.md#structure-and-ownership) for stable IDs, filenames, and completed history. Preserve human edits.
+3. Update affected requirements, exclusions, decisions, diagrams, sketches, steps, and acceptance together, at the appropriate planning horizon.
+   Revisit affected discovery or research in [Develop an initial plan](develop-plan.md). A plan-only revision does not authorize implementation.
+4. Record the decision, reason, date, and source at its owner; link shared decisions or question histories instead of copying them.
+   Record declined requests and reasons. Link deferred selected work to its outline/refinement trigger and outside work to an issue through [todo-triage](../../todo-triage/SKILL.md).
+5. Label invalidated verification stale and identify checks to repeat. Reset affected progress/status while retaining execution history.
+   Material revisions remain `draft` until reviewed, or `blocked` pending a required answer. Unselected outlines remain `outline`.
+6. [Review the plan](develop-plan.md#review-the-plan). During early discovery, review integration into existing sections and record unfinished drafting without claiming readiness.
+   Return integrated, declined, deferred, and unresolved changes with their execution impact. Do not recursively resolve new questions or publish here.

@@ -77,7 +77,7 @@ Do not turn a disputed review suggestion into repository policy.
 | Existing guidance missed | Repair its discovery, placement, or relevant workflow step. Consolidate duplicate instructions. |
 | Missing or ineffective guard | Prefer compiler constraints, lint, or regression tests for deterministic requirements. Verify that the guard rejects the observed failure. |
 | Obsolete or conflicting guidance | Remove or correct it against current source and the final decision. |
-| Recurring clarification caused by missing PR context | Add a conditional prompt to the relevant [PR body guidance](../github-workflow/SKILL.md#writing-the-pr-body). |
+| Recurring clarification caused by missing PR context | Add a conditional prompt to the relevant [PR body guidance](../github-workflow/references/pr-writing.md#writing-the-pr-body). |
 | No supported gap | Leave the guidance unchanged. Record why the evidence does not justify a change. |
 
 Read the owning module instructions before changing guidance or a guard.

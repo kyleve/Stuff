@@ -6,7 +6,7 @@ mise.local.toml
 .mise.local.toml
 .mise.*.local.toml
 
-## Generated agent files (re-create via ./sync-agents --install)
+## Local Claude instructions and skill links (./sync-agents --install)
 CLAUDE.md
 .claude/skills/
 

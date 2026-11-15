@@ -438,7 +438,7 @@ tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 `whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
 (WhereWidgets). With no root present, resolution falls back to `.default`.
 The rules for what may and may not live in the sheet are in
-[`AGENTS.md`](AGENTS.md#design-system--wherestylesheet).
+[`AGENTS.md`](Sources/Shared/AGENTS.md#design-system--wherestylesheet).
 
 ### Using tokens
 
