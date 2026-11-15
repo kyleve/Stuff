@@ -3,17 +3,19 @@
 ## Planning checkpoint
 
 - Updated: 2026-11-14; initial repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`; merged main through `96f5bf0f1685de259d7ff080842b8092f9a950d2` in `68477fe625784a1a1e68c0115d7e42cc63166692`.
-- Operation: Execute 01a in a background agent while continuing production-plan discussion here. Native implementation is not requested.
-- Requested scope and source: The user's 2026-11-14 request, Q-01–Q-21 discovery, and accepted feedback to reduce the prototype's headers and subheaders; see [question history](#questions-and-resolutions) and [presentation density](#presentation-density).
-- Stage: Third-iteration delivery handoff; user evaluation is the next product decision.
+- Operation: Revise the plan and run a bounded fourth prototype iteration for grouped, type-specific changes and explicit PR-local skipping. Native implementation is not requested.
+- Requested scope and source: The user's 2026-11-14 request, Q-01–Q-21 discovery, accepted compact chrome, and new feedback to distinguish localization, Markdown, Git LFS, and code changes; see [question history](#questions-and-resolutions) and [presentation density](#presentation-density).
+- Stage: Q-22–Q-24 integrated and reviewed; fourth-iteration method ready for the coordinated stack update and implementation.
 - Completed: The compact-chrome rebuild and matched captures are complete. Final-source browser scenarios pass at phone, tablet, and desktop sizes; fresh independent review has no actionable findings. The coordinator inspected the phone/desktop captures and verification record. [01a's iteration-3 record](https://github.com/kyleve/Stuff/blob/codex/mobius-prototype/Plans/2026-11-14-mobius/01a-workspace-prototype.md#iteration-3-implementation-and-evidence) owns the tested source hash, measurements, corrections, and publication details. Earlier iteration artifacts and evidence remain intact. [PR #497](https://github.com/kyleve/Stuff/pull/497)/[STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) track plan delivery; [PR #500](https://github.com/kyleve/Stuff/pull/500)/[STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) track the experiment.
-- Pending: Finish the coordinated publication/reporting handoff recorded in 01a, then collect third-round user evaluation; PR review and merge remain. Q-08–Q-12 retain their technical refinement gates. Browser verification does not establish product acceptance or native feasibility.
-- Execution authorization and ownership: The user approved the compact-chrome proposal and explicitly requested a subagent rebuild and completion notice. `/root/mobius_prototype` owns `Prototype/**` and 01a in `/Users/kve/.codex/worktrees/mobius-prototype/Stuff` on `codex/mobius-prototype`; the coordinating agent owns the overview, affected production outlines, and the user-facing completion message. Coordinate shared stack mutations at clean worktree points. Native implementation remains outside scope.
-- Next action: Complete the [01a delivery handoff](https://github.com/kyleve/Stuff/blob/codex/mobius-prototype/Plans/2026-11-14-mobius/01a-workspace-prototype.md#resume-point) and notify the user with the rebuilt demo and checks, then integrate their evaluation before refining 01. The 01a copy on the planning branch is its pre-execution baseline; the implementation branch owns subsequent method revisions and execution status. Native plans remain outlines.
+- Pending: Implement/validate the bounded mixed-change prototype and obtain fourth-round user evaluation. PR review and merge remain. Q-08–Q-12 retain their technical refinement gates. Browser verification does not establish product acceptance or native feasibility.
+- Execution authorization and ownership: The user's next addition requests type-specific change presentation, refined by Q-22–Q-24, within the ongoing prototype work. `/root/mobius_prototype` owns `Prototype/**` and 01a in `/Users/kve/.codex/worktrees/mobius-prototype/Stuff` on `codex/mobius-prototype`; the coordinating agent owns the overview, affected production outlines, and the requested completion notice. Coordinate shared stack mutations at clean worktree points. Native implementation remains outside scope.
+- Next action: Publish the integrated parent and reviewed [01a method](https://github.com/kyleve/Stuff/blob/codex/mobius-prototype/Plans/2026-11-14-mobius/01a-workspace-prototype.md#iteration-4-file-kinds-and-explicit-skip-method), then build and validate its fixture-backed behavior. The worker returns tested/published revisions, evidence, and any blocker; the coordinator verifies delivery and notifies the user. The 01a copy here is the pre-execution baseline; its implementation branch owns current methods/evidence. Native plans remain outlines.
 
 ## Outcome and scope
 
 Mobius keeps code review open as ongoing work. Each PR has its own logical workspace, which can be presented as a tab or a window. Inside it, reviewers can keep several windows open for review, source, research, and preview context. Returning restores that workspace's arrangement and last-focused window. Resuming a review window starts at the top of its selected file. A remaining-work view shows new edits in previously reviewed files and the full PR diff for unreviewed files; the full PR diff stays available for either. Each reviewed file has its own last-reviewed version. Nobody needs a temporary “got to here” GitHub comment.
+
+Changes are grouped by kind, with quieter groups collapsed and presentations suited to the underlying content. A reviewer can explicitly skip current changes for this PR without marking them reviewed. Skipped changes stay discoverable and undoable; new changes return to remaining work while unchanged skips persist. Skipping never advances the last actually reviewed version.
 
 PRs remain separate even when GitHub connects them in a stack. If a stack connection is shown, it is an informational link; it does not combine progress, drafts, comparison baselines, or submission actions. Stack discovery is not an additional first-release integration requirement.
 
@@ -33,17 +35,19 @@ Embedding the reviewer inside an owning app, with a possible live execution surf
 | US-06 | Resume the same work on iPhone, iPad, and Mac. |
 | US-07 | Trust progress and recover from failures without incomplete downloads or interrupted submissions appearing complete. |
 | US-08 | Learn whether embedding Mobius beside the running app can improve review with live context. |
+| US-09 | Scan changes by kind and inspect them in a useful form, so localization, documents, and assets do not overwhelm code review. |
+| US-10 | Set aside changes for this PR without claiming to have reviewed them, and see new changes when I return. |
 
 ## Requirements
 
-R-01–R-07 and R-12 derive from the user's product choices. R-08–R-11 support repository contracts and correctness; R-10 also incorporates the accepted presentation-density direction. Design details are proposals unless identified as user decisions.
+R-01–R-07 and R-12–R-14 derive from the user's product choices. R-08–R-11 support repository contracts and correctness; R-10 also incorporates the accepted presentation-density direction. Design details are proposals unless identified as user decisions.
 
 | ID | Required behavior or constraint | Story | Implementing plan |
 | --- | --- | --- | --- |
 | R-01 | Run on iPhone, iPad, and Mac Catalyst, with Mac windows, menus, and keyboard commands. | US-06 | [02](02-application-workspace.md), [06](06-icloud-resume-and-release.md) |
 | R-02 | Keep one independent logical workspace per PR, presentable as a tab or window. Each owns multiple child windows for review, source, and research, with room to investigate preview/live context. Support multiple views of the same kind with independent navigation. Switching PRs or outer presentation preserves their contents. Stack connections, if shown, are informational. | US-01, US-04 | [01a](01a-workspace-prototype.md) explores interaction and simulated previews; [01](01-review-state-foundation.md), [02](02-application-workspace.md), [04](04-repository-exploration.md) deliver the workspace; [07](07-embedded-review-experiment.md) investigates live context |
-| R-03 | Persist child-window identity/navigation, per-file reviewed versions, and drafts across relaunch. Returning restores the workspace arrangement and last-focused child. Resuming a review child starts at its selected file's top; precise in-file position and reviewed-range tracking are not required. Review progress belongs to the PR workspace; personal progress and submitted GitHub feedback remain separate facts. | US-02 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [02](02-application-workspace.md), [05](05-review-feedback.md) deliver it |
-| R-04 | Within one PR, remaining work combines new edits since each reviewed file's last-reviewed version with the full PR diff for unreviewed files. Let either file open its full PR diff. An explicit file-review action advances that file's baseline; navigation and refresh do not. | US-03 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [03](03-github-and-revision-comparison.md) deliver it |
+| R-03 | Persist child-window identity/navigation, per-file reviewed versions, current skip evidence, and drafts across relaunch. Returning restores the workspace arrangement and last-focused child. Resuming a review child starts at its selected file's top; precise in-file position and reviewed-range tracking are not required. Review progress belongs to the PR workspace; skipped, reviewed, and submitted GitHub feedback remain separate facts. | US-02, US-10 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [02](02-application-workspace.md), [05](05-review-feedback.md) deliver it |
+| R-04 | Within one PR, remaining work combines new edits since each reviewed file's last-reviewed version with the full PR diff for unreviewed files, excluding current explicit skips under R-14 while keeping them discoverable. Let every file open its full PR diff. An explicit file-review action advances that file's baseline; navigation, grouping, skipping, and refresh do not. | US-03, US-10 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [03](03-github-and-revision-comparison.md) deliver it |
 | R-05 | Browse files and search paths and text at an identified repository revision within Mobius. Open results in child windows without replacing the review and show search coverage. Independent views may inspect the same file or separate queries. | US-04 | [04](04-repository-exploration.md) |
 | R-06 | Read review discussion; compose and explicitly submit comments, approvals, and requests for changes with revision validation and recoverable drafts. | US-05 | [03](03-github-and-revision-comparison.md), [05](05-review-feedback.md) |
 | R-07 | Resume workspace contents, child-view navigation, progress, and draft work through private iCloud sync on the same Apple ID. Keep device window placement local and expose sync state; refine cross-device presentation policy under Q-09. | US-02, US-06 | [01](01-review-state-foundation.md) supplies identities; [06](06-icloud-resume-and-release.md) delivers sync |
@@ -52,6 +56,8 @@ R-01–R-07 and R-12 derive from the user's product choices. R-08–R-11 support
 | R-10 | Prioritize code and preview content with compact workspace/view controls and details on demand, while keeping identity, comparison meaning, immediate actions, and relevant warnings clear. Preserve readable text and accessible touch/keyboard/VoiceOver interaction, accessibility text sizes, long lines, and large diffs. Define measured rendering/indexing budgets before the corresponding plan becomes ready. | US-01, US-04, US-06 | [01a](01a-workspace-prototype.md) explores density; [02](02-application-workspace.md), [03](03-github-and-revision-comparison.md), [04](04-repository-exploration.md) deliver it |
 | R-11 | Integrate module docs, manifests, tests, architecture boundaries, attribution, and CI. Release acceptance requires evidence on all three destinations and real cross-device sync. | Supporting constraint | [01](01-review-state-foundation.md), [02](02-application-workspace.md), [06](06-icloud-resume-and-release.md) |
 | R-12 | Evaluate a host-injected embedded reviewer and bounded live-context action; report feasibility and limitations without promising arbitrary PR execution. | US-08 | [07](07-embedded-review-experiment.md) |
+| R-13 | Group changes by content kind with quieter groups collapsed, and use content-appropriate diff presentations with source/metadata access. Keep counts and changed files discoverable. Rendering limitations must remain explicit; grouping or a rich preview cannot imply review. The initial viewer set is a prototype hypothesis, not an exhaustive native format promise. | US-09 | [01a](01a-workspace-prototype.md) explores grouped mixed fixtures; [02](02-application-workspace.md), [03](03-github-and-revision-comparison.md) deliver the native experience |
+| R-14 | Allow explicit skip and undo for current changes within one PR, separately from reviewed. Skipping a group captures its currently remaining files; it does not reclassify reviewed files or exclude that kind from future updates. Changed/new files return to remaining work, unchanged skips persist, and reviewed baselines never advance on skip. Keep skipped counts distinct; zero remaining work must not be labeled all reviewed when skips exist. | US-10 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [02](02-application-workspace.md), [03](03-github-and-revision-comparison.md) deliver local behavior; [06](06-icloud-resume-and-release.md) carries personal skip evidence between devices |
 
 ## Not required and explicitly avoided
 
@@ -64,6 +70,7 @@ R-01–R-07 and R-12 derive from the user's product choices. R-08–R-11 support
 | X-05 | Explicitly avoided | Treating truncated data, missing history, ambiguous lineage, failed saves, or uncertain submissions as success. | Progress must remain trustworthy. |
 | X-06 | Not required | A Mobius service for workspace sync or sync across different Apple IDs. | Q-07 selected private iCloud. Authentication hosting remains an alternative in Q-08. |
 | X-07 | Explicitly avoided | Importing Where's product models or repurposing InstallerKit's catalog client as a GitHub client. | Mobius owns its domain; shared modules retain their contracts. |
+| X-08 | Not required | Remembered type exclusions across PRs, automatic review based on classification, or per-key/per-pixel review receipts. | Q-23 selected PR-local skipping; file-level reviewed evidence remains the model. |
 
 ## Context and discovery
 
@@ -89,6 +96,9 @@ Consulted 2026-11-14. External sources establish documented capabilities, not li
 | What native authentication is supported? | GitHub's [user-token flow](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app) documents PKCE and client credentials; [public-client guidance](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/best-practices-for-creating-an-oauth-app) addresses native clients. | Do not assume a secretless exchange or default to pasted personal tokens. Resolve Q-08. |
 | Can UIKit support the workspace on Mac? | Apple's [Catalyst guidance](https://developer.apple.com/videos/play/wwdc2021/10053/) covers scene-backed windows and menus; [multiple-window guidance](https://developer.apple.com/documentation/uikit/supporting-multiple-windows-on-ipad) separates scenes from shared data. | Share services; keep scene presentation independent. Phone tabs must not require multiple windows. |
 | Does CloudKit define merge behavior? | Apple's [CKSyncEngine guidance](https://developer.apple.com/videos/play/wwdc2023/10188/) assigns state persistence and conflict handling to the app. Its [sample](https://github.com/apple/sample-cloudkit-sync-engine) documents container, signing, and real-device/Mac prerequisites. | Define merge/account policies and obtain real two-device evidence. |
+| Is Git LFS a content kind? | GitHub documents LFS [pointers to separately stored content](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage). This repo's [.gitattributes](../../.gitattributes) assigns LFS to snapshot PNGs. | Classify the underlying asset for presentation and retain LFS as storage/availability metadata. Missing asset bytes do not imply an unchanged image. |
+| Can rich views replace all source evidence? | GitHub's [non-code diff guidance](https://docs.github.com/en/repositories/working-with-files/using-files/working-with-non-code-files) describes image comparisons, prose source/rendered views, and less visible attribute changes. | Candidate rich views need source/metadata access and honest coverage. The docs demonstrate precedents, not an implementation Mobius can assume exists. |
+| What localization structure exists here? | At `2c0926596`, [WhereUI's catalog](../../Where/WhereUI/Sources/Resources/Localizable.xcstrings) has source-language/string/version fields, 1,033 entries, and eight variation-bearing entries. | Explore key/locale/value changes rather than serialized JSON lines; plural/variation and metadata coverage still need native refinement. |
 
 ## Design overview
 
@@ -117,6 +127,25 @@ The user evaluated iteration 2 and accepted the following direction on 2026-11-1
 
 The target is a compact workspace bar and view toolbar with useful content immediately below. This is an information-priority decision, not a fixed pixel-height limit for native or accessibility layouts. Record comparable before/after content-space evidence across the three viewport sizes, and recheck reachability and focus for controls moved into disclosures. [02](02-application-workspace.md) carries this into native refinement; the prototype's exact controls remain subject to evaluation.
 
+### Changes by kind and explicit skipping
+
+Q-22 selects grouped changes with quieter groups collapsed. Q-23 adds explicit skip for this PR, separate from reviewed. Q-24 requires new changes to return to remaining work. Collapsing is presentation only; skipping records a deliberate choice about the current comparison without creating a review receipt.
+
+The next bounded mockup will investigate these candidate presentations, using prepared synthetic comparisons rather than claiming real parsers or provider integration:
+
+| Group | Candidate list summary | Candidate detail |
+| --- | --- | --- |
+| Code | Files and change counts | Existing line diff. |
+| Documents | Files or changed sections | Rendered Markdown/prose changes with source access, including changed link targets. |
+| Localization | Changed keys/locales, distinguished from file count | Key/value/locale changes and source access; a catalog remains one reviewable file. |
+| Snapshots/assets | Changed assets and thumbnails | Before/after images and dimensions/metadata; an LFS badge where applicable. Unavailable content stays explicit. |
+
+These are initial experiment defaults. Do not treat the filename extension alone as the whole classification policy, or promise an exhaustive native format catalog. Unknown/unsupported content needs an honest fallback. Exact supported formats and rendering/source coverage remain part of 03 and Q-10 refinement. The compact chrome from iteration 3 remains in force.
+
+An individual skip captures a currently remaining file's comparison. As a bounded interaction choice, the prototype's group action is “Skip remaining files”: it captures only that group's currently remaining files, leaving reviewed files and future members alone. Skipped files remain reachable through the group's summary/full-change view and can be unskipped. On a later push, only changed files or newly introduced files return; unchanged skipped files retain their disposition. A returning reviewed file still compares from its last actually reviewed version, including earlier skipped edits. A returning never-reviewed file shows its full PR diff. Both follow Q-15 because a skip is not a new baseline. Counts distinguish remaining, reviewed, and skipped; a fully skipped PR is not a fully reviewed PR.
+
+Each child retains independent selection/view mode; classification and skip/progress evidence refer to the owning PR/file. Opening a rich or source view, expanding a group, or applying a new push never marks content reviewed or submits GitHub feedback. Native refinement must preserve revision-bound source anchors for comments and mark unavailable or partial projections honestly.
+
 ### Product concepts
 
 - **Workspace:** the logical owner of one PR's child windows, progress, and drafts. Its identity does not depend on being presented as a workspace tab or outer window. Another PR has a separate workspace, including when the PRs belong to a stack.
@@ -126,6 +155,8 @@ The target is a compact workspace bar and view toolbar with useful content immed
 - **Resume file:** each review child's selected file. Resuming that review starts at its top; an exact scroll position is not durable review progress. Returning to a workspace need not focus a review child.
 - **Review receipt:** explicit evidence for a file comparison, including both sides, paths, modes, and content identities. A new head alone neither invalidates every receipt nor proves any one remains current.
 - **Per-file baseline:** the version last marked reviewed for that file. Remaining work compares against it; a file with no baseline shows its full PR diff. A separate manually captured PR-wide checkpoint is not required by the selected workflow.
+- **Skip evidence:** a PR-local choice to set aside the current file comparison, distinct from its last-reviewed baseline. A group action applies to currently remaining files. New changes invalidate the affected skip, not unrelated skips; undo restores remaining-work eligibility without advancing review progress.
+- **Change presentation:** a content-kind-specific list and diff projection over the same file/revision identity. LFS/storage availability and a snapshot's role are separate from its image format. Native classification and renderer interfaces remain provisional.
 - **Draft:** user text with its original revision/anchor. Draft, publishing, uncertain outcome, and confirmed publication remain distinct states.
 
 ### Proposed ownership
@@ -151,7 +182,7 @@ flowchart LR
     Publish -->|receipt or uncertain result| Store
 ```
 
-Credentials come from device-local Keychain and are omitted. Sync carries metadata and draft text, not full source caches. Identity/generation checks precede mutation after asynchronous work. A local save and a GitHub write are not one atomic transaction.
+Credentials come from device-local Keychain and are omitted. Sync carries metadata (including separate reviewed and skipped evidence) and draft text, not full source caches. Identity/generation checks precede mutation after asynchronous work. A local save and a GitHub write are not one atomic transaction.
 
 ```swift
 // Proposed ownership only; not compiled code or existing APIs.
@@ -200,7 +231,7 @@ actor WorkspaceStore {
 
 ## Planning horizon
 
-- Detail now: [01a](01a-workspace-prototype.md), selected in Q-16–Q-18 to explore all three layouts through a lightweight interactive mockup; the current iteration addresses the workspace/window feedback and Q-19–Q-21.
+- Detail now: [01a](01a-workspace-prototype.md), selected in Q-16–Q-18 to explore all three layouts through a lightweight interactive mockup. Iteration 4 adds grouped type-specific changes and explicit skip/undo under Q-22–Q-24 while preserving the workspace model and compact chrome from iterations 2/3.
 - Later selected work: 01–07 are outlines. The earlier claim that 01 was ready is superseded; its model must follow prototype learning.
 - Next horizon review: Record prototype observations and the user's feedback, integrate changed decisions, then refine 01 and reconsider 02/03. Technical decisions Q-08–Q-12 retain their recorded gates.
 - First-release gate: **01–06 together**, preceded by prototype learning. The mockup does not deliver or waive native platform, GitHub feedback, persistence, or sync requirements.
@@ -222,6 +253,9 @@ actor WorkspaceStore {
 | 2026-11-14 | Explore floating, tiled, docked, or tabbed arrangements where useful; choose a bounded set for the mockup without fixing every native platform's controls. | Q-20: “All of the above if needed.” |
 | 2026-11-14 | Return to the workspace's arrangement and last-focused child. File-top review resumption still applies when a review child is resumed. | Q-21; refines Q-14 without forcing review focus. |
 | 2026-11-14 | Use compact workspace/view chrome, details on demand, and collapsible prototype controls; retain comparison meaning, warnings, readable text, and accessible actions. | User's iteration-2 feedback and explicit acceptance of the [presentation-density proposal](#presentation-density). |
+| 2026-11-14 | Group changes by kind with quieter groups collapsed; investigate content-appropriate views in a bounded mixed-change prototype. | Q-22 and the user's type-aware diff request. |
+| 2026-11-14 | Skip current changes explicitly within this PR, separately from reviewed; new changes return while unchanged skips persist. Review baselines do not advance. | Q-23/Q-24; refines remaining-work eligibility while preserving Q-15's comparisons. |
+| 2026-11-14 | Prototype interaction choice: label group skipping “Skip remaining files” and snapshot only those current members, preserving reviewed files and future additions. | Coordinator's bounded implementation choice within Q-23/Q-24; evaluate alongside the grouped list. |
 | 2026-11-14 | Proposed: sync semantic workspace data and drafts; keep native geometry/focus and full code caches local. | R-07/R-09. |
 | 2026-11-14 | Proposed: atomic metadata storage, not a bounded journal as the only copy of user work. | JournalKit contract. |
 
@@ -250,8 +284,11 @@ actor WorkspaceStore {
 | [Q-19](#q-19) | closed | Does “fork” mean another view or an editable code copy? | R-02/R-05, X-02/X-04, 01a, 01, 02, 04, 07 | It was a typo for “view”; workspace/child distinction integrated without code authoring. |
 | [Q-20](#q-20) | closed | How should child windows be arranged? | R-02/R-10, 01a, 02 | All proposed modes may be useful; bounded experiment method reviewed. Native defaults await evidence. |
 | [Q-21](#q-21) | closed | Restore arrangement and last focus, or always bring review forward? | R-03/R-07, 01a, 01, 02, 04, 06 | Restore arrangement and last-focused child; file-top behavior applies when resuming a review child. |
+| [Q-22](#q-22) | closed | How should file kinds change the default change list and presentation? | R-10/R-13, 01a, 02, 03 | Group by kind with quieter groups collapsed; bounded typed views are prototype hypotheses, native coverage remains with Q-10. |
+| [Q-23](#q-23) | closed | Does lower attention mean collapsed detail, explicit skipping, or remembered exclusions? | R-03/R-04/R-14, 01a, 01–06 | Explicit current skip/undo is separate from reviewed; group action captures currently remaining files, with no cross-PR rule. |
+| [Q-24](#q-24) | closed | Do new changes to a skipped kind return to remaining work? | R-03/R-04/R-14, 01a, 01, 03, 06 | Changed/new files return, unchanged skips persist, and actual reviewed baselines remain intact. Integrated and method-reviewed. |
 
-User answers came from this chat on 2026-11-14. Q-13–Q-21 refine the original answers without reopening the selected platforms, provider, or iCloud scope. The current horizon is prototype evaluation; detailed navigation and layout remain hypotheses to explore through it.
+User answers came from this chat on 2026-11-14. Q-13–Q-24 refine the original answers without reopening the selected platforms, provider, or iCloud scope. The current horizon is prototype evaluation; concrete views and controls remain hypotheses to explore through it.
 
 ### Q-01
 
@@ -386,6 +423,34 @@ User answers came from this chat on 2026-11-14. Q-13–Q-21 refine the original 
 - Integration: R-03, discovery scenario, product concepts, 01/02/04/06, and 01a. A source, research, or preview child can remain focused on return. Q-14 still applies when the reviewer resumes a review child. Device-specific geometry/focus versus synced semantic state remains subject to Q-09's later policy refinement.
 - History: Answered 2026-11-14, integrated and closed after the resume-path consistency review below; no remaining product question blocks the revised browser method.
 
+### Q-22
+
+- Request/source: On 2026-11-14, after trying the compact prototype, the user asked to differentiate changes by type, naming localization, Git LFS, Markdown, and code, and to list them differently.
+- Current proposal: Specialized presentations and concise summaries could accompany grouping by content kind. Localization could show changed keys/translations, Markdown rendered changes, assets visual previews/metadata, and code line diffs. These examples are proposals, not a selected first-release renderer catalog.
+- Asked: For a mixed PR, group by kind with quieter groups collapsed, show code first followed by other changes, or retain one file list with specialized previews?
+- Blocking impact: Resolve the default organization and a bounded sample set before making a further 01a iteration executable. Later native classification/rendering belongs to 02/03 and Q-10. No new renderer implementation is authorized by this discovery record.
+- Answer/source: The user selected grouping by kind, with quieter groups collapsed, on 2026-11-14.
+- Integration: US-09/R-13, [candidate views](#changes-by-kind-and-explicit-skipping), 02/03 and dependent source/feedback paths in 04/05. The bounded 01a method covers four groups and prepared views, without selecting a final native format catalog.
+- History: Opened, answered, integrated, and closed 2026-11-14 after the iteration-4 consistency/readiness review below.
+
+### Q-23
+
+- Request/source: The user cares less about some change types, but has not specified how that preference changes review progress.
+- Asked: Collapse detail while leaving files unreviewed, allow an explicit skip for this PR distinct from reviewed, or remember personal exclusions across PRs?
+- Blocking impact: Integrate skip separately from R-03/R-04 review receipts. Visual prominence must not silently imply review. The new PR-local state affects 01/03 and later sync policy in 06.
+- Answer/source: The user selected explicit skip for this PR, separate from reviewed, on 2026-11-14. Remembered exclusions across PRs were not selected.
+- Integration: US-10/R-14 and R-03/R-04, skip evidence in 01/03, visible group actions/counts in 02, preserved source/drafts in 04/05, and later sync in 06. Group actions are explicitly scoped to currently remaining files as a prototype interaction choice. Q-24 supplies push behavior.
+- History: Opened, answered, integrated, and closed 2026-11-14 after the iteration-4 consistency/readiness review below.
+
+### Q-24
+
+- Asked: After skipping localization in one PR, do another push's localization changes return to remaining work, or does that kind stay skipped for the PR until undo?
+- Source: Follow-up to the user's Q-23 answer on 2026-11-14. The existing per-file reviewed baseline must remain separate from this new personal skip choice.
+- Blocking impact: Needed before fixing skip identities/state transitions or executing another prototype pass. Unrelated grouping/presentation discovery can continue.
+- Answer/source: The user selected bringing new changes back into remaining work on 2026-11-14.
+- Integration: R-14, [skip semantics](#changes-by-kind-and-explicit-skipping), 01/03/06 state and verification, and 01a's changed/unchanged/new fixture scenario. Skip never advances a reviewed baseline; production identity/conflict details remain at their existing refinement gates.
+- History: Opened, answered, integrated, and closed 2026-11-14 after the iteration-4 consistency/readiness review below.
+
 ## Plan review
 
 - Initial review: 2026-11-14 against `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`, covering the original eight files. Its readiness finding for 01 is superseded by Q-13–Q-18 and prototype-first sequencing.
@@ -393,17 +458,18 @@ User answers came from this chat on 2026-11-14. Q-13–Q-21 refine the original 
 - Revision review: Integrated Q-13–Q-18 across the nine-file series, including workspace isolation, file-top resumption, per-file baselines, and prototype-first dependencies. Reviewed 01a for executable experiment detail; 01–07 remain outlines.
 - Iteration-2 review: 2026-11-14 against parent `68477fe625` plus this revision and the implementation branch's 01a method at `68926adfd`. Reviewed all affected production outlines and the current experiment method against Q-19–Q-21. Corrected the conflation of workspace, outer presentation, and child identity; moved review-file selection into each child; separated return focus from review resumption; and kept preview execution and cross-device presentation policy at their existing refinement gates. Multiple views share PR review evidence without sharing navigation. No remaining consistency or browser-method readiness finding was identified.
 - Iteration-3 review: 2026-11-14 against parent `fcee86b3b`, iteration-2 artifact `e1c1059cf28`, and the revised 01a method on the implementation branch. The accepted information priorities are integrated into R-10, the shared decision, and 02's native refinement. The method preserves comparison truth and all existing capabilities, repeats moved-control/focus checks, and requires matched content-space evidence. Background ownership and completion reporting are explicit. No remaining consistency or browser-method readiness finding was identified; native implementation and third-round acceptance remain pending.
-- Readiness: 01a's implementation branch owns the reviewed iteration methods, status transitions, and evidence; its pre-execution copy here is historical. Iteration-2 checks and user evaluation are recorded. The compact-chrome correction requires another bounded iteration and evaluation before refining 01; native plans 01–07 remain outlines.
-- Verification: All 135 local Markdown links and anchors resolve across nine planning-branch files; fences are balanced; the unchanged eight-plan dependency graph is acyclic; all 12 requirements retain implementing owners; `git diff --check` passes. The revised 01a method was also inspected on its owning branch. These checks validate the plan, not the proposed app.
+- Iteration-4 review: 2026-11-14 against parent `2c0926596` plus this revision and child method `0ff008a05e668dea373800208d2d7a8fd049a63f`. Traced Q-22–Q-24 through R-13/R-14 and affected 01–06 outlines. Kept kind presentation independent from review/skip evidence; restricted group skip to currently remaining members; retained actual reviewed baselines and independent child navigation; distinguished LFS storage from content kind; and preserved source/metadata coverage and unavailable-state honesty. The method bounds seven v1/eight v2 files per PR, with changed/unchanged/new cases, raw/rich comparison checks, all prior regressions, independent review, and three-size captures. No remaining consistency or method-readiness finding was identified. Native schemas, format support, rendering budgets, and merge policy remain provisional.
+- Readiness: 01a's implementation branch owns reviewed methods, status transitions, and evidence; its pre-execution copy here is historical. Iterations 1–3 and their feedback are retained. Iteration 4's bounded method is ready for the authorized browser work; product acceptance and native plans 01–07 remain pending.
+- Verification: All 168 local Markdown links/anchors resolve across nine planning-branch files; fences are balanced; all 14 requirements have implementing owners; the eight-plan dependency graph is acyclic; `git diff --check` passes. The revised 01a method was inspected on its owning branch. These checks validate the plan, not the proposed app.
 - Iteration-3 delivery review: The recorded final HTML hash is `f2adc670df7668d0c99d79f3ac0d9abeea3df701f56a53e1373de331c2eb274f`. Matched review-pane heights increased from 413 to 765 CSS pixels on desktop, 535 to 877 on tablet, and 216 to 648 on phone. Code text increased from 10 to 12 CSS pixels. Browser checks cover the retained review/workspace behavior and newly disclosed controls; independent review rechecked focus, accessible-title, dialog-lifecycle, and stacking corrections. No actionable finding remains. Full evidence stays in 01a rather than being duplicated here.
-- Validation limits: Third-round user evaluation remains pending. No native device test, VoiceOver, product API write, real code execution, persistence, or sync experiment has run. Swift is pseudocode. Mermaid was inspected as source; no local renderer was found. `./test` and `./swiftformat --lint` were skipped for this planning revision because only Markdown changed; browser checks belong to the prototype branch.
+- Validation limits: Fourth-round implementation/evaluation remain pending. No native device test, VoiceOver, product API write, real code execution, persistence, or sync experiment has run. Swift is pseudocode. Mermaid was inspected as source; no local renderer was found. `./test` and `./swiftformat --lint` were skipped for this planning revision because only Markdown changed; browser checks belong to the prototype branch.
 
 ## Review and delivery
 
 - Plan review: [PR #497](https://github.com/kyleve/Stuff/pull/497), ready for review. [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) remains In Review until merge and acceptance verification.
-- Implementation: [PR #500](https://github.com/kyleve/Stuff/pull/500) and [STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) own 01a's artifact, current method, and evidence. The third iteration is built and verified; its delivery record owns publication and the explicit completion-reporting handoff. Native plans 01–07 have not started.
-- Review focus: Logical PR workspaces independent of outer tabs/windows; multiple child views with independent navigation; arrangement/last-focus restoration; per-file remaining work and full-diff access; file-top review resumption; prototype learning before the durable model; sync as a release gate.
+- Implementation: [PR #500](https://github.com/kyleve/Stuff/pull/500) and [STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) own 01a's artifact, current method, and evidence. Three iterations are published; the fourth adds grouped typed views and explicit skip/undo. The worker/coordinator handoff includes the requested completion notification. Native plans 01–07 have not started.
+- Review focus: Logical PR workspaces independent of outer tabs/windows; multiple child views with independent navigation; arrangement/last-focus restoration; grouped typed comparisons with source access; skip versus reviewed and changed-file resurfacing; per-file remaining work and full-diff access; file-top review resumption; prototype learning before the durable model; sync as a release gate.
 
 ## Outcome
 
-The third prototype iteration preserves the logical workspace/child model and reduces permanent chrome according to the accepted presentation-density decision. The rebuild passes its browser checks and independent review; the experiment remains open for user evaluation. Plans 01–07 remain outlines informed by that evaluation and further production discussion.
+The plan now includes grouped content-appropriate comparisons and explicit PR-local skipping, with new changes returning to remaining work and actual reviewed baselines preserved. Three prototype iterations are published; a bounded fourth iteration will evaluate these additions while retaining compact chrome and logical workspace/child ownership. Plans 01–07 remain outlines informed by that evaluation and further production discussion.

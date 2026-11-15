@@ -6,7 +6,7 @@
 
 ## Intended outcome
 
-Start reviews on one device and continue them on another using private iCloud under the same Apple ID. Independent logical PR workspaces, identified children and their navigation, per-file reviewed versions, and drafts converge without losing user work or taking over another device's window focus. Returning locally restores the workspace's arrangement and last-focused child; resuming a review child starts at the top of its selected file. Each device authenticates its own GitHub account before retrieving protected source.
+Start reviews on one device and continue them on another using private iCloud under the same Apple ID. Independent logical PR workspaces, identified children and their navigation, per-file reviewed versions, explicit current skips, and drafts converge without losing user work or taking over another device's window focus. Returning locally restores the workspace's arrangement and last-focused child; resuming a review child starts at the top of its selected file. Each device authenticates its own GitHub account before retrieving protected source.
 
 This deliverable is required for the first release. Demonstrate an iPhone-to-iPad-to-Mac handoff, concurrent edits, offline work, reconnect, account transitions, and a complete GitHub review flow. A local-only app or simulator-only sync demonstration does not satisfy it.
 
@@ -15,6 +15,7 @@ This deliverable is required for the first release. Demonstrate an iPhone-to-iPa
 | Story | Requirement | Intended contribution |
 | --- | --- | --- |
 | US-02, US-06 | R-03, R-07 | Private cross-device continuity of semantic workspace state and drafts. |
+| US-10 | R-14 | Sync PR/file skip and undo independently of reviewed versions; preserve changed/new-file eligibility. |
 | US-07 | R-08, R-09 | Conflict preservation, account isolation, visible sync state, and non-replayed publication intents. |
 | US-01, US-04, US-06 | R-01, R-10 | Final device/window/input/accessibility acceptance. |
 | Supporting | R-11 | Platform CI/runtime coverage, signing/distribution decision, and release evidence. |
@@ -26,6 +27,8 @@ X-05 and X-06 apply. No custom workspace-sync backend, different-Apple-ID contin
 The candidate transport is `CKSyncEngine` over a dedicated private CloudKit database/container. The app owns local atomic persistence, pending record changes, serialized engine state, conflict policy, and account transitions. Keep the Core store's accepted-state interface; measure whether record projection requires a different internal persistence implementation.
 
 Use stable per-entity records instead of a single last-writer-wins workspace blob. Design tombstones and deterministic merge rules for child membership, per-child semantic navigation including selected review files, per-file review evidence, and draft revisions. Two views of one file have distinct child IDs. Separate those identities from native scenes, outer presentation mode, and device arrangement. Preserve competing draft texts. Explicitly distinguish opening a new child from an old offline device replaying a deleted child. Wall-clock order alone must not discard user-authored content.
+
+Include [PR-local skip evidence](README.md#changes-by-kind-and-explicit-skipping) and explicit undo in the merge design, separately from reviewed baselines. A group action carries its current remaining files/comparisons, never a future category exclusion. On each device, changed/new files return while unchanged skips remain; stale skip delivery must not suppress newer content. Refine concurrent skip/undo/review and missing comparison history under Q-09 using two-replica cases. No cross-PR exclusion preference is implied. Group collapse and rich/source view preferences are presentation; decide their device/sync ownership during refinement instead of treating them as review evidence.
 
 ```mermaid
 flowchart LR
@@ -65,10 +68,10 @@ Account changes must stop the prior sync scope and isolate its files/records bef
 
 The executable refinement must preserve this sequence:
 
-1. Open two independent PR workspaces and several source/research/review children on iPhone; mark a file reviewed in one PR, leave another unreviewed, and save feedback text.
+1. Open two independent PR workspaces and several source/research/review children on iPhone; mark a file reviewed in one PR, leave another unreviewed, explicitly skip current files in a quieter group, and save feedback text. Confirm collapsed groups alone remain unreviewed.
 2. Make those workspaces and children available on iPad using its receiving-device presentation policy. Resume a review child at its selected file's top; open another child and follow a search result without losing either PR's context. Switch away and back to prove local arrangement and last focus are retained. Present a workspace as a tab or outer window without changing its contents.
-3. Change the test PR; on Mac, verify new edits against each reviewed file's baseline, the full PR diff for an unreviewed file, and full-diff access for either. Check menu/keyboard navigation and that the second PR's progress is unaffected.
-4. Make competing offline draft edits on two devices; reconnect and recover both texts. Exercise child close/reopen, independent navigation in same-kind children, and account switching without remote focus changes.
+3. Change the test PR; on Mac, verify new edits against each reviewed file's baseline, the full PR diff for an unreviewed file, and full-diff access for either. Changed/new files return after the skip while unchanged skips persist; separate counts must not claim everything was reviewed. Verify typed and source views use the same comparison. Check menu/keyboard navigation and that the second PR's progress is unaffected.
+4. Make competing offline draft edits on two devices; reconnect and recover both texts. Exercise skip/undo/review races without losing true reviewed baselines or suppressing new content, child close/reopen, independent navigation in same-kind children, and account switching without remote focus changes.
 5. Submit feedback once through an explicit user action; interrupt the response and prove recovery does not blindly replay the write from either device.
 6. Verify the same workflow with accessibility text sizes and VoiceOver, and inspect the platform-specific CI/runtime evidence.
 
@@ -82,6 +85,7 @@ This is a planned acceptance flow, not a measured result. Refine exact assertion
 | 2026-11-14 | Sync semantic workspace metadata/drafts, retaining native presentation and source caches locally. | Overview design proposal. |
 | 2026-11-14 | Sync independent PR workspaces, last-file identity, and per-file reviewed versions; resume at the file top. | Q-13–Q-15. |
 | 2026-11-14 | Restore local arrangement/last focus; sync semantic child identity/navigation separately from device presentation. Refine receiving-device defaults and concurrent navigation under Q-09. | [Q-19–Q-21](README.md#q-19), with sync mapping still provisional. |
+| 2026-11-14 | Carry explicit current skips across devices separately from reviewed evidence; stale skips cannot exclude newer changes. | [Q-23](README.md#q-23)/[Q-24](README.md#q-24); conflict/schema policy remains with Q-09. |
 
 ## Resume point
 

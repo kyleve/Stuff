@@ -17,6 +17,7 @@ Success is a native runtime demonstration with two independent PR workspaces, mu
 | US-01, US-02 | R-02, R-03 | Logical PR workspaces, outer tabs/windows, independent child navigation, arrangement/focus restoration, and file-top review resumption. |
 | US-06 | R-01 | iPhone/iPad app and Mac Catalyst windows, menus, and shortcuts. |
 | US-01, US-06 | R-10 | Accessible adaptive layout and keyboard/focus behavior. |
+| US-09, US-10 | R-13, R-14 | Grouped change navigation with quieter groups collapsed, distinct progress counts, and explicit skip/undo using fixtures. |
 | Supporting | R-11 | Host/UI targets, docs, unit/image coverage, and Catalyst validation. |
 
 See [definitions and exclusions](README.md#requirements). X-03 and X-07 apply. Do not build a single disposable PR-detail flow and defer the workspace model; concurrency of reviews is this deliverable's purpose. Do not add live provider or CloudKit behavior here.
@@ -30,6 +31,8 @@ Create the Core runtime once in the process composition root. Scene presentation
 Use 01a's evaluated interactions to distinguish switching PR workspaces from selecting, opening, or arranging children inside one PR. Q-20 allows floating, tiling, docking, or tabs where useful; choose native defaults and platform affordances during refinement. Layouts and labels from the mockup remain candidates until validated natively. Mac outer windows use system scene APIs, with app-specific menu and shortcut routing through the focused workspace to its focused child. Separate child closure, closing a native window, and deleting a workspace. Restore arrangement and last-focused child on return; resuming a review child starts its file at the top. Exact review offsets are not required.
 
 Apply the accepted [presentation-density decision](README.md#presentation-density): compact workspace identity and view controls, with full PR metadata and less frequent arrangement actions available on demand. Keep the active content title, actual comparison meaning, immediate review actions, and relevant warnings clear. On phone, a child selector can also provide the active view title. Reclaim space through fewer rows and repeated labels while preserving readable text, touch targets, accessible disclosures, keyboard commands, and focus return. Prototype-only Canvas/Reset/Simulate Push controls do not become production chrome.
+
+Integrate the evaluated [changes-by-kind interaction](README.md#changes-by-kind-and-explicit-skipping): group the file list, initially collapse quieter groups, and expose concise remaining/reviewed/skipped counts with reachable files and undo. Collapse never changes progress. Each child retains its own selection and presentation while skip/review evidence belongs to the workspace. The bounded prototype uses “Skip remaining files” for a group's current remaining members; preserve that explicit scope when refining native actions. Typed content views and their source/metadata access must preserve comparison meaning without recreating large teaching headers. Initial native UI may use prepared projections; real format support, classification, and unavailable-content coverage depend on 03/Q-10.
 
 ```mermaid
 flowchart LR
@@ -57,7 +60,7 @@ Declare Mobius's attribution inputs and bundled report through CreditKit's exist
 
 ## Questions and learning needed
 
-- [Q-10](README.md#q-10): Select the code-text substrate and layout after measuring long lines, many documents, accessibility sizes, selection, and VoiceOver. Identify real latency/memory budgets and fixture sizes before readiness.
+- [Q-10](README.md#q-10): Select the code-text substrate and layout after measuring long lines, many documents, accessibility sizes, selection, and VoiceOver. Include grouped lists and bounded rich/source projections without committing to the prototype's format catalog. Identify real latency/memory budgets and fixture sizes before readiness.
 - [Q-11](README.md#q-11): Specify CLI Catalyst compile coverage and a native window/menu smoke test. Existing `./test` cannot be assumed to target Catalyst. Extend repository tooling only where required, with its public-command tests and owning docs.
 - Integrate Q-13–Q-15 and Q-19–Q-21: logical workspaces, multiple identified children, outer presentation independent from contents, last-focus/arrangement restoration, and clear remaining-work/full-PR navigation. Existing scroll-restoration machinery does not establish a requirement to restore an exact review offset.
 - Refine close/detach/reopen behavior and any simultaneous presentations of one workspace before implementing them. The bounded mockup need not settle every native scene lifecycle rule.
@@ -65,7 +68,7 @@ Declare Mobius's attribution inputs and bundled report through CreditKit's exist
 ## Refinement trigger
 
 - Trigger: 01a's feedback is integrated and 01 supplies actual state/persistence interfaces.
-- Evidence needed: Working Core types, renderer/layout probe results, dependency closure, an explicit Catalyst build/runtime procedure, and an accessible tab/window interaction specification. Include usable content-space and moved-control reachability evidence at standard and accessibility layouts; a compact screenshot alone does not prove access to the hidden controls.
+- Evidence needed: Working Core types, renderer/layout probe results, dependency closure, an explicit Catalyst build/runtime procedure, and an accessible tab/window interaction specification. Include usable content-space and moved-control reachability evidence at standard and accessibility layouts; a compact screenshot alone does not prove access to the hidden controls. Demonstrate mixed-kind navigation, quiet-group disclosure, skip/undo with distinct counts, unchanged independent child selection, and access to source or honest unavailable metadata.
 - Next action: Read the applicable UI/module/tooling contracts, expand this file into executable steps and acceptance criteria, and review it before implementation. Keep the first runtime demo synthetic and repeatable.
 
 ## Decisions and revisions
@@ -77,6 +80,7 @@ Declare Mobius's attribution inputs and bundled report through CreditKit's exist
 | 2026-11-14 | Adopt per-PR grouping and file-top resumption after the lightweight mockup is evaluated. | Q-13/Q-14, Q-16–Q-18. |
 | 2026-11-14 | Restore logical workspaces with multiple child windows independently of outer tab/window presentation; retain arrangement and last focus. | First-artifact feedback and [Q-19–Q-21](README.md#q-19). |
 | 2026-11-14 | Prioritize useful content with compact workspace/view chrome and details on demand, preserving comparison meaning and accessible actions. | Accepted [iteration-2 density feedback](README.md#presentation-density); evaluated controls follow 01a iteration 3. |
+| 2026-11-14 | Group changes by kind and keep lower-attention groups collapsed; make skip/undo explicit and separate from reviewed. | [Q-22](README.md#q-22)–[Q-24](README.md#q-24); evaluate concrete views in 01a iteration 4. |
 
 ## Resume point
 

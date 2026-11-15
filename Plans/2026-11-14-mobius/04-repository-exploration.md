@@ -27,6 +27,8 @@ Use the immutable tree/blob provider from 03 and typed child identities/document
 
 Proposed search design: fast path/name matching over the enumerated tree, plus local text indexing of supported fetched blobs. Fetch missing content on a bounded, cancellable schedule, with explicit progress and coverage. Define file-size, storage, network, and indexing limits during Q-10 refinement. Keep useful partial results while distinguishing indexing, complete, incomplete, and failed states. Source/index cache eviction must not delete draft text, receipts, or workspace document identities.
 
+Source access from a [typed diff](README.md#changes-by-kind-and-explicit-skipping) stays inside the owning workspace and retains the requested file/revision. Opening it must not silently switch to current head or change another child's selection. Group collapse and PR-local skip affect review presentation/progress, not repository-search scope; skipped files remain discoverable. Eviction also preserves skip evidence. Native format and comparison coverage remain owned by 03.
+
 ```mermaid
 flowchart LR
     Route["Revision-bound repository route"] --> Tree["Provider from 03"]
@@ -57,7 +59,7 @@ GitHub's default-branch code-search endpoint is not the implementation of PR-rev
 ## Refinement trigger
 
 - Trigger: 03 supplies a tested revision-bound tree/blob API and 02 supplies document navigation.
-- Evidence needed: Representative repository trees, indexing measurements, explicit coverage/cancellation policy, and restored-query behavior.
+- Evidence needed: Representative repository trees, indexing measurements, explicit coverage/cancellation policy, and restored-query behavior. Include opening the exact source behind a typed diff without losing review context, and finding a skipped file without altering its disposition.
 - Next action: Define query/index/result contracts, choose a measured storage/index implementation, then write executable acceptance for same-path/different-revision and interrupted-index scenarios.
 
 ## Decisions and revisions
@@ -67,6 +69,7 @@ GitHub's default-branch code-search endpoint is not the implementation of PR-rev
 | 2026-11-14 | Repository exploration is part of the review workspace, with path and text search at an explicit revision. | Q-03, R-05. |
 | 2026-11-14 | Keep exploration documents with their PR when switching to another PR workspace. | Q-13. |
 | 2026-11-14 | Support multiple independent research/source children and restore their arrangement/focus on return. | First-artifact feedback and [Q-19–Q-21](README.md#q-19). |
+| 2026-11-14 | Keep typed-diff source access revision-bound; review grouping/skipping does not exclude repository search results. | [Q-22](README.md#q-22)/[Q-23](README.md#q-23) integration with R-05. |
 
 ## Resume point
 

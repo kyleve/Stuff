@@ -18,7 +18,7 @@ Demonstrate a multi-file draft, task switching, relaunch, a PR update while draf
 | US-03, US-07 | R-04, R-08 | Validate revision/line anchors; reconcile uncertain results without blind retries. |
 | US-07 | R-09 | Apply the selected account and permission scope; preserve private user text. |
 
-X-02, X-03, and X-05 apply. No automatic review publication on navigation, backgrounding, sync, or a “mark reviewed” action. Code-edit suggestions, merge, dismissal, thread resolution, and broader PR administration are not required for this deliverable.
+X-02, X-03, and X-05 apply. No automatic review publication on navigation, grouping, skip/undo, backgrounding, sync, or a “mark reviewed” action. Code-edit suggestions, merge, dismissal, thread resolution, and broader PR administration are not required for this deliverable.
 
 ## Known design and assumptions
 
@@ -27,6 +27,8 @@ Core owns `ReviewDraft`, anchor mapping, and a proposed `ReviewPublisher`. UI ow
 Several children may present the same PR's draft or different code revisions. Child navigation remains independent, while draft identity and publication ownership stay with the workspace. Closing or changing presentation must not implicitly publish or delete authored work. Refine same-draft editing and command routing across children before readiness, using [Q-19–Q-21](README.md#q-19) and Q-09's ownership rules.
 
 Read the current PR state before submission. If the head or comparison context changed, show the change and retain the draft until its target is revalidated. A comment authored while viewing a file's new edits since its reviewed version must map to a valid location in the PR review diff, or remain an unsubmitted draft with a useful explanation. Never attach a comment to the same line number in unrelated content. Submit an explicit commit ID where the API supports it; a preflight read does not make a later API write atomic with branch updates.
+
+The same rule applies to [content-specific projections](README.md#changes-by-kind-and-explicit-skipping): a rendered paragraph, localization key, or image region is not automatically a GitHub line anchor. Retain the underlying PR/file/revision and map supported inline actions to source; otherwise offer the appropriate general-comment path while keeping authored text. Switching rich/source view must not retarget drafts. Skipping a file neither deletes its drafts nor publishes them, and skipped counts cannot imply review approval.
 
 ```mermaid
 stateDiagram-v2
@@ -68,7 +70,7 @@ GitHub review/comment schemas are linked in [research](README.md#research-and-ev
 ## Refinement trigger
 
 - Trigger: 03 has real provider/account/revision contracts and 04 proves exploration preserves review state.
-- Evidence needed: Synthetic API fixtures for accepted, rejected, and response-lost writes; a supported remote reconciliation strategy; draft/submission persistence design; planned two-device conflict cases.
+- Evidence needed: Synthetic API fixtures for accepted, rejected, and response-lost writes; a supported remote reconciliation strategy; draft/submission persistence design; planned two-device conflict cases. Include rich/source view switching, unsupported inline anchors, and skip/undo preserving draft identity and text without any publication.
 - Next action: Expand the state machine into executable steps and failure/race tests. Live write verification during execution must use an explicitly selected test PR and account; planning itself posts no product review comments.
 
 ## Decisions and revisions
@@ -77,6 +79,7 @@ GitHub review/comment schemas are linked in [research](README.md#research-and-ev
 | --- | --- | --- |
 | 2026-11-14 | Submission is explicit; personal progress and GitHub review events remain separate. | Q-02/Q-03, R-03/R-06. |
 | 2026-11-14 | Preserve uncertain publication rather than claiming success or automatically duplicating a write. | R-08 and the external-effect boundary. |
+| 2026-11-14 | Typed views retain source-bound draft identity; skip/undo is private progress and never publishes or discards feedback. | [Q-22](README.md#q-22)–[Q-24](README.md#q-24) integration with R-03/R-06. |
 
 ## Resume point
 
