@@ -488,3 +488,11 @@ The dev server remains intentionally running under the prototype task (native ba
 
 
 LAN handoff clarification (2026-11-15): the machine’s LAN address changed after the successful recorded checks. The unchanged Astro daemon remained bound to `0.0.0.0` on port 4321, but native `dev status` continued printing its startup address. The coordinator inspected the current network interface and verified HTTP 200 from both localhost and the new LAN address, then supplied the corrected URL to the user. Earlier LAN evidence remains valid historical evidence; no enduring IP is promised. The README now requires a current-interface and HTTP check when sharing the demo. This follow-up changes documentation only; source/configuration/captures are unchanged, no broad runtime checks were repeated, and the intentional server remains running.
+
+### Shared prototype command adoption
+
+On 2026-11-15 the user reported [#503](https://github.com/kyleve/Stuff/pull/503) merged. `gh stack sync` brought the plan and prototype branches onto main `2193072f6a1c988f797c77c14c3b6cf0923d8ca0`, preserving the two-PR stack. The current [run instructions](Prototype/README.md#run-the-demo) use `./prototype` for start/status/logs/stop/check/build. Earlier raw Astro commands and receipts above remain historical evidence.
+
+The coordinator verified the synced prototype at `ee959e2dd84ee4018fa3f2779c0ccc6fe437dc95`: `./prototype status Plans/2026-11-14-mobius/Prototype` reports the existing PID 7013 on port 4321 and successful HTTP at the local and current network addresses. Check reports four files with zero errors/warnings/hints; build emits one static route. Source/configuration, archives and captures match the pre-sync artifact; only current instructions/checkpoint changed. Prior interaction and reload evidence is retained rather than claimed as a new browser run. Actual phone connectivity remains untested.
+
+The review server stays running under the coordinator. From this worktree's root, use `./prototype stop Plans/2026-11-14-mobius/Prototype` to stop it. The tool/skill work is delivered; experiment acceptance still awaits user evaluation, with 01a executing and STU-330 In Review.

@@ -7,30 +7,28 @@ This Astro mockup explores compact PR workspaces with independent review, source
 From the repository root, use the already pinned Node/Astro dependencies. If dependencies are missing, run `mise exec -- npm ci`; do not install another package tree in this directory.
 
 ```sh
-prototype_dir="$PWD/Plans/2026-11-14-mobius/Prototype"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev --root "$prototype_dir" --host 0.0.0.0 --port 4321 --background
+./prototype start Plans/2026-11-14-mobius/Prototype --lan
+./prototype status Plans/2026-11-14-mobius/Prototype
+./prototype logs Plans/2026-11-14-mobius/Prototype
+./prototype stop Plans/2026-11-14-mobius/Prototype
 ```
 
-Open the **Local** URL on this Mac or the current machine LAN URL on a phone connected to the same network. Astro’s startup output and `dev status` can retain an old Network address after the machine changes networks or receives a new address. Before sharing the demo, identify the current LAN address from the machine’s network interfaces and verify an HTTP response at that address; do not treat the printed startup address as permanent. The server uses port 4321 and fails if that port is occupied. The absolute `--root` is intentional: pinned Astro’s background child changes into the project directory before forwarding this option. A relative root can resolve twice and start without the page. See [Astro CLI background commands](https://docs.astro.build/en/reference/cli-reference/#--background).
+Open the **Local** URL on this Mac or the current **Network** URL on a phone connected to the same network. Run `status` again before sharing: it verifies HTTP responses at the current interface addresses instead of trusting Astro’s cached startup URLs. The command reuses this project's existing server; a new server defaults to port 4321. If that port is occupied, choose another with `--port NUMBER`.
 
-```sh
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev status --root "$prototype_dir"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev logs --root "$prototype_dir"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev stop --root "$prototype_dir"
-```
+The merged [prototype command](../../../prototype) owns pinned tooling, absolute project paths, server ownership and lifecycle. See its [tooling guide](../../../Tools/README.md#browser-prototypes) for details.
 
 The prototype is served through [src/pages/index.astro](src/pages/index.astro), which imports [styles.css](src/styles.css) and the bundled browser [app.js](src/app.js). Edit these sources: CSS hot-updates preserve the sample session; page or script changes automatically reload it and reset in-memory state. There is no `public/index.html` bypass. [astro.config.mjs](astro.config.mjs) scopes development file access and the ignored Vite cache to this directory. `.astro/` and `dist/` are already ignored by the repository.
 
 Check and build from the same repository root:
 
 ```sh
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro check --root "$prototype_dir"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro build --root "$prototype_dir"
+./prototype check Plans/2026-11-14-mobius/Prototype
+./prototype build Plans/2026-11-14-mobius/Prototype
 ```
 
 `dist/` is a local generated build, not a deployment. [pre-astro.html](pre-astro.html) is the byte-identical standalone archive from before this migration; open it directly only for historical comparison. It is not the live authoring entry.
 
-The evaluation server is intentionally left running by the prototype agent for the user’s requested phone access. The handoff provides its current URL and process identity; use the project-scoped `dev status`/`dev stop` above to inspect or stop that owned server. Machine-LAN HTTP is verified; an actual phone’s Wi-Fi path has not been tested.
+The evaluation server is intentionally left running by the coordinator for the user’s requested phone access. The handoff provides its current URL and process identity; use the project-scoped `status`/`stop` commands above to inspect or stop that owned server. Machine-LAN HTTP is verified; an actual phone’s Wi-Fi path has not been tested.
 
 ## Astro migration evidence
 
@@ -42,7 +40,7 @@ The [verification record](evidence/astro-dev/verification.json) pins the route, 
 | 834 × 1112 | [Tablet](evidence/astro-dev/tablet-before.png) | [Tablet](evidence/astro-dev/tablet-after.png) | [Tablet](evidence/astro-dev/tablet-review.png) |
 | 1440 × 1000 | [Desktop](evidence/astro-dev/desktop-before.png) | [Desktop](evidence/astro-dev/desktop-after.png) | [Desktop](evidence/astro-dev/desktop-review.png) |
 
-Astro check/build, scoped Astro/config ESLint and unchanged-script syntax checks pass. Actual CSS hot updates and page/script full reloads were observed without manual refresh. Eight observable scenarios at each size cover retained review/skip/draft state, independent views, close/reopen, comparisons, source/rich content, file-top resumption and title-bar drag/click/keyboard movement. Six selected WCAG scans pass. A fresh reviewer passes ten Chromium/WebKit dev/build cases with no actionable migration findings; four coordinator localhost/LAN cases pass. No page errors or document overflow occurred. The workflow is documented separately in [PR #503](https://github.com/kyleve/Stuff/pull/503).
+Astro check/build, scoped Astro/config ESLint and unchanged-script syntax checks pass. Actual CSS hot updates and page/script full reloads were observed without manual refresh. Eight observable scenarios at each size cover retained review/skip/draft state, independent views, close/reopen, comparisons, source/rich content, file-top resumption and title-bar drag/click/keyboard movement. Six selected WCAG scans pass. A fresh reviewer passes ten Chromium/WebKit dev/build cases with no actionable migration findings; four coordinator localhost/LAN cases pass. No page errors or document overflow occurred. The reusable command and planning guidance landed in [PR #503](https://github.com/kyleve/Stuff/pull/503); the Mobius stack now includes that merged main revision.
 
 A pre-existing WebKit mouse-focus observation is retained as a limit: closing an inactive workspace after typing in Research may move DOM focus to the body, while the same logical child remains focused. The archive, dev route and build behave alike; keyboard recovery and context restoration pass. These checks are ad hoc evidence, not native device validation or a complete accessibility audit. Earlier results below remain historical; user evaluation is pending.
 

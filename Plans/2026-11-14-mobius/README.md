@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-15; initial repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`; merged main through `96f5bf0f1685de259d7ff080842b8092f9a950d2` in `68477fe625784a1a1e68c0115d7e42cc63166692`.
-- Operation and source: The user requests using the repository’s Astro dependency for automatic reload and local-network phone access, plus a separate planning-skill PR documenting the proven workflow.
-- Stage: Astro migration reviewed and published at `eba910265`; live server and final receipt are ready for the coordinator completion notice. [01a](01a-workspace-prototype.md#astro-implementation-and-evidence) owns the bounded migration, checks, publication and running-server handoff.
-- Completed: Close/reopen is reviewed and published at `87886b922` with receipt `12e48303a`. Earlier evaluated artifacts, focused fixes, and evidence remain intact in 01a. Shared requirements/native outlines are unchanged. [PR #497](https://github.com/kyleve/Stuff/pull/497)/[STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) track the plan; [PR #500](https://github.com/kyleve/Stuff/pull/500)/[STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) track the experiment.
-- Pending: Coordinator completion notice and user evaluation. Live updates, LAN serving, three-size matched renders, fresh dev/build review and published-byte checks pass. The coordinator owns the separate [planning-skill PR #503](https://github.com/kyleve/Stuff/pull/503) and final completion notice.
-- Ownership: `/root/mobius_prototype` owns `Prototype/**`, 01a and this checkpoint on `codex/mobius-prototype`. Reuse root dependencies without changing root package/config or Tools; no parent rewrite or native work is needed.
-- Next action: Deliver the live demo, published receipt and separate workflow PR to the user through the coordinator, then integrate evaluation. Leave the intentional server running with explicit ownership and a stop command at handoff.
+- Updated: 2026-11-15; initial repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`. The stack is now based on main `2193072f6a1c988f797c77c14c3b6cf0923d8ca0`, including merged [PR #503](https://github.com/kyleve/Stuff/pull/503).
+- Operation and source: The user reported #503 merged after approving the shared prototype command. The coordinator synced the Mobius stack and adopted that command in the prototype's run/check/build instructions.
+- Stage: Astro migration and reusable tooling are delivered. The preview remains available for user evaluation; [01a](01a-workspace-prototype.md#astro-implementation-and-evidence) retains the implementation and verification history.
+- Completed: The stack sync preserves the prototype source/configuration, archived artifacts and capture bytes. The merged command verifies the existing server and current local/LAN URLs; check/build pass. [PR #497](https://github.com/kyleve/Stuff/pull/497)/[STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) track the plan; [PR #500](https://github.com/kyleve/Stuff/pull/500)/[STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) track the experiment.
+- Pending: User evaluation and integration of further product decisions. The prior completion notices and separate workflow PR are delivered; 01a remains executing and native plans 01–07 remain outlines.
+- Ownership: Coordinator `/root` owns the running preview and completion reporting in `/Users/kve/.codex/worktrees/mobius-prototype/Stuff` on `codex/mobius-prototype`; the background prototype implementation task has returned. [Run/status/stop commands](Prototype/README.md#run-the-demo) identify the owned project.
+- Next action: Continue product discussion and integrate evaluation before refining the next planning horizon. Keep the intentional review server running through handoff.
 
 ## Outcome and scope
 
