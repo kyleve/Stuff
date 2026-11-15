@@ -1,6 +1,6 @@
 # Remove guidance repeated in loaded context
 
-Status: executing. Depends on [06](06-native-claude.md). Baseline: `6a52313e8`.
+Status: complete. Depends on [06](06-native-claude.md). Baseline: `6a52313e8`.
 Authorization: Q-10 in the [overview](README.md). Scope: maintained guidance, with no tooling or application changes.
 
 Remove repeated rules across ancestor instructions, required references, and skills used together.
@@ -38,4 +38,4 @@ A fresh independent review found a missing authoring route to async capture read
 Both are corrected at their owners; independent re-review found no remaining actionable findings.
 `mise exec ruby -- ./sync-agents`, `mise exec ruby -- ./sync-agents --check`, and `git diff --check` pass: 57 instruction files and 13 owned skills.
 The bundled Python skill validator still cannot import PyYAML; repository frontmatter/link validation passes. No dependency download, app build, or live model evaluation was needed or performed.
-Implementation and review are complete; next action is commit, push, and update [PR #499](https://github.com/kyleve/Stuff/pull/499).
+Delivered in `c47b49c37`, pushed to [PR #499](https://github.com/kyleve/Stuff/pull/499). Its description includes the final reduction and review evidence; the PR remains open for review.

@@ -5,10 +5,10 @@
 - Updated: 2026-11-14; baseline `b629d56ac`.
 - Operation: remove duplication and unnecessary detail from guidance loaded together, as requested by the user.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: deliverables 01–06 are complete. [07 — Loaded duplication](07-loaded-duplication.md) is executing.
+- Stage: deliverables 01–07 are complete and published in PR #499.
 - Completed: original implementation, relocation verification, installer repair, offline validation, CI enforcement, focused checks, independent static review, reusable maintenance skill, and monthly schedule.
-- Pending: publish the verified guidance reduction. Linear linking remains unavailable.
-- Next action: commit and push deliverable 07, then update PR #499 with its reduction and review evidence.
+- Pending: no remaining guidance work. Linear linking remains unavailable.
+- Next action: PR review; the active monthly audit checks future growth.
 - Publication: user explicitly approved public publication on 2026-11-14. [PR #499](https://github.com/kyleve/Stuff/pull/499) is open and ready for review.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
@@ -115,7 +115,7 @@ These reviews were not live skill evaluations.
 
 R-01 through R-04 are implemented, verified, and published in [PR #499](https://github.com/kyleve/Stuff/pull/499).
 The newer main-branch Device Layout Lab invariant is preserved in its scoped owner. Native files remain identical to main.
-Deliverables 01–06 are complete. Deliverable 07 records the subsequent request to reduce maintained guidance.
+Deliverables 01–07 are complete. The retained-owner map and measured guidance reduction are recorded in [07](07-loaded-duplication.md).
 The normalization skill is implemented and verified; its monthly schedule is active with explicit user approval.
 The earlier automatic-review publication blocker was resolved by explicit user approval. Publication used the existing SSH credential because the OAuth credential lacked workflow scope.
 The full requirements, decisions, execution order, and review record were restored in deliverable 04 after an earlier publication update truncated this overview.
