@@ -91,7 +91,7 @@ Reset restores the known fixture; reload also starts a fresh session. Keep the p
 - [x] Create fixture and interactive artifact.
 - [x] Exercise all three layouts and capture evidence.
 - [ ] Collect and integrate user feedback.
-- [ ] Review and publish the artifact and evaluation record.
+- [x] Review and publish the artifact and evaluation record.
 
 Execution started on 2026-11-14 after the user requested the prototype in a background agent. Work is isolated in the `mobius-prototype` worktree on `codex/mobius-prototype`, initially based on `4e70677e7` and advanced to the `047706c26` planning checkpoint. PR #497 had no conversation, review, or inline comments when read at start. The implementation is tracked separately in STU-330; STU-329 remains the planning issue.
 
@@ -121,7 +121,9 @@ A fresh subagent reviewed the complete artifact against parent `047706c26`, then
 
 User evaluation is pending. Suggested discussion points are whether workspace/file navigation is discoverable on the phone, whether the comparison labels communicate the mixed remaining-work model, and whether retaining a just-reviewed file with a caught-up message is the right transition. These are evaluation prompts, not newly accepted requirements. The native state foundation remains an outline.
 
-Artifact publication is being coordinated with the latest parent plan branch. No product acceptance is claimed.
+Published [PR #500](https://github.com/kyleve/Stuff/pull/500), ready for review, above planning [PR #497](https://github.com/kyleve/Stuff/pull/497) in [stack #501](https://github.com/kyleve/Stuff/stack/501). The branch merges parent `68477fe625`, which includes main `96f5bf0f1`; integration preserves the verified HTML content. The stack reports no rebase needed. STU-330 remains In Review and this experiment remains executing for user feedback. No product acceptance is claimed.
+
+The owned loopback server is stopped after inspection; the artifact opens directly from disk. Local CUA browser use is disabled in Work settings, so the published PR could not be visually inspected through that UI. Published description/image-link checks use GitHub API and direct image responses; the local captures themselves were visually inspected.
 
 ## Resume point
 
