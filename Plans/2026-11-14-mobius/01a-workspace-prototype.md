@@ -363,8 +363,41 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-Deliver the completed correction and published receipt to the coordinator for the user completion notice. Evaluate whether the scoped PR-workspace and child-view controls now match the visible layouts, including narrow Float interactions. Keep fourth-round acceptance open until that feedback is integrated; native refinement remains gated.
+The title-bar follow-up is built and verified; return its clean tested commit for coordinator review, then publish the existing PR/evidence/issue and final receipt. Evaluate the corrected filename drag/click behavior with the user after delivery. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
-Four iterations are built, reviewed, and published with retained evidence. Fourth-round feedback identified a layout-options contradiction; Q-25 resolves the narrow Float policy and the focused correction is built, verified, and published; user reevaluation is next. The plan stays executing through the correction and subsequent user evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built and verified with fresh review; coordinator review/publication and user reevaluation remain. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+
+
+## Iteration 4 title-bar drag correction
+
+The next user evaluation reports that dragging a view title such as `Parser.swift` does not move it. At published receipt `7f89c2b5c` (HTML SHA-256 `93018f2f…`), isolated mouse gestures at 390 × 844, 834 × 1112, and 1440 × 1000 confirm an 18px/24px title-text drag produces 0px/0px movement; the adjacent icon moves the view by exactly 18px/24px. The prior movement probe exercised only the icon's `[data-drag]` hook, so it did not cover this expected title-bar affordance. Existing layout/type evidence remains historical and unchanged.
+
+### Title-bar method and readiness
+
+Bound this follow-up to the current floating-child pointer gesture. The eligible title bar includes the icon, filename/title, and surrounding header space; independent close, focus-layout, and source-review controls keep their own actions. Use a small named movement threshold to distinguish an intentional drag from stationary/slightly jittered filename clicks. A normal filename click still opens its chooser. A completed drag must not open the chooser or activate a control. Keep the existing keyboard icon/resize behavior, fitted-frame start, PR/child ownership, focus, and narrow-width policy.
+
+Track the initiating pointer, start capture only as needed without breaking native clicks, and clean up on release, cancellation, lost capture, and rerender. Verify the exact title-text path, header and icon, threshold boundaries, mouse/touch drag, stationary click/tap, excluded controls, cancellation and a subsequent gesture. Check narrow and wide geometry, resizing, keyboard movement, focus/placement continuity, and unchanged sibling/PR state. Keep evidence scoped to these paths; unrelated prepared diff/skip fixtures need not run again. Add focused results/captures under `Prototype/evidence/iteration-04-drag/`, preserve all prior evidence, and use a fresh independent review before a clean tested commit and coordinator review. Publish directly through the existing stack after that review; parent stays `8021dc5cc`.
+
+Readiness review (2026-11-14): status briefly returned to draft for the method revision, then ready after checking the user trigger, existing gesture/click ordering, ownership and recovery paths, fixture limits, review/publication sequence, and explicit authorization. No product question or execution blocker remains; status returns to executing for this focused correction. The coordinator delegated this branch's overview checkpoint update only; shared requirements and native outlines stay unchanged. User reevaluation remains required after delivery.
+
+- [x] Reproduce title text versus icon and review the bounded method.
+- [x] Implement and verify drag/click separation and cleanup at representative widths.
+- [x] Finish fresh independent review; no actionable findings.
+- [ ] Obtain coordinator review of the clean tested commit.
+- [ ] Publish the existing PR/evidence/issue and return completion to the coordinator.
+- [ ] Obtain user reevaluation; the experiment remains executing.
+
+Resume point: send the clean tested commit for coordinator review before publication. The earlier layout-correction publication remains valid historical evidence.
+
+
+### Title-bar implementation and evidence
+
+HTML SHA-256 `3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d` makes the eligible header, icon, and filename/title share the existing floating-frame gesture. A 5 CSS pixel distance threshold distinguishes movement from click/tap jitter. Capture stays on the original button so a stationary click remains native; a completed drag suppresses its resulting pointer click. Independent action controls and keyboard actions retain their paths. Matching pointer ownership, release/cancel/lost-capture cleanup, rerender teardown, and window blur prevent a stale gesture. Cancellation keeps the last applied placement and stops further movement; it does not synthesize an action.
+
+[Focused verification](Prototype/evidence/iteration-04-drag/verification.json) pins the final source, before reproduction, measurements, and reviews. Twelve author scenarios per size pass at 390 × 844, 834 × 1112, and 1440 × 1000. The exact `Parser.swift` mouse and touch gestures move +18/+24px with no chooser or size jump; stationary clicks/taps and 4px jitter open the chooser; 5px begins a drag. Header/icon movement, next click/Enter, excluded close/focus/source-review actions, foreign-pointer isolation, lost capture/touch cancellation/rerender, pointer/keyboard resizing, saved placement/focus, and sibling/PR continuity pass. Three selected WCAG scans report no violations and no browser/resource errors or external requests occurred.
+
+Fresh independent review found no actionable issues after 15 scenarios at each size plus five alternate-path checks, including drag-out-and-back suppression, preview title, narrow outer Windows ownership, and Tile preserving saved frames. The coordinator independently verified the exact filename drag (+32/+24), suppression, subsequent click, and Enter in Chromium 156.0.8078.4 and WebKit 27.2 via direct file loading. These targeted WebKit checks do not establish a full Safari/device matrix.
+
+Six visually inspected captures apply the same +36/+80px title-text gesture to matching PR42 v1 fixtures, light appearance, 1× scale: [phone before](Prototype/evidence/iteration-04-drag/phone-before.png)/[after](Prototype/evidence/iteration-04-drag/phone-after.png), [tablet before](Prototype/evidence/iteration-04-drag/tablet-before.png)/[after](Prototype/evidence/iteration-04-drag/tablet-after.png), [desktop before](Prototype/evidence/iteration-04-drag/desktop-before.png)/[after](Prototype/evidence/iteration-04-drag/desktop-after.png). Before is exact published source `7f89c2b5c` and stays still; after moves exactly as requested. Prior archives/evidence stay unchanged. The default lint excludes this HTML; native tests/snapshots/SwiftFormat and unrelated type/skip scenarios were not rerun. These are ad hoc synthetic browser checks, not live-user-browser, native/VoiceOver acceptance or retained CI guards. The experiment remains executing pending user reevaluation.

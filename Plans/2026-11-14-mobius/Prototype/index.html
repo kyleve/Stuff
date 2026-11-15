@@ -90,8 +90,9 @@ h1, h2, h3, p { margin: 0; }
 .child-title { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1; min-height: 36px; text-align: left; padding: 5px; border-radius: 4px; color: #4e5360; font-size: 13px; }
 .child-title strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .child-title .chevron-down { margin-left: 3px; }
-.child-canvas[data-layout="float"] [data-drag] { cursor: grab; touch-action: none; }
-.child-canvas[data-layout="float"] [data-drag]:active { cursor: grabbing; }
+.child-canvas[data-layout="float"] .child-titlebar { touch-action: none; user-select: none; }
+.child-canvas[data-layout="float"] :is(.child-titlebar,.child-title,[data-drag]) { cursor: grab; }
+.child-canvas[data-layout="float"] .child-titlebar[data-moving] :is(.child-title,[data-drag]), .child-canvas[data-layout="float"] .child-titlebar[data-moving] { cursor: grabbing; }
 .child-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 .child-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; gap: 8px; border-bottom: 1px solid var(--line); min-height: 48px; background: #fff; }
 .comparison-button { display: flex; align-items: center; gap: 7px; min-height: 36px; min-width: 0; padding: 5px 3px; text-align: left; color: #65577f; font-size: 12px; line-height: 1.35; }
@@ -232,7 +233,7 @@ dialog textarea { width: 100%; min-height: 130px; padding: 10px; border: 1px sol
 <header class="lab"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><details id="prototype-controls" class="prototype-controls"><summary><span class="sample">Sample data</span><span>Controls</span></summary><div class="prototype-panel"><h2>Prototype controls</h2><div class="prototype-row"><label for="viewport">Canvas</label><select id="viewport" aria-label="Canvas width"><option value="auto">Auto</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select></div><div class="prototype-row"><span>PR #42</span><button class="button" data-action="push" data-workspace="42" aria-label="Simulate push for PR 42">Simulate push</button></div><div class="prototype-row"><span>PR #43</span><button class="button" data-action="push" data-workspace="43" aria-label="Simulate push for PR 43">Simulate push</button></div><button class="button" data-action="reset">Reset</button><p>Offline sample session. Previews are simulated; no code is running.</p></div></details></header>
 <main id="stage" class="stage" data-size="auto" aria-label="Mobius workspace prototype"><div id="app" class="app"></div></main>
 <dialog id="modal" aria-labelledby="modal-title"></dialog>
-<p id="arrange-help" class="sr-only">In floating layout, drag a view icon to move it. Arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
+<p id="arrange-help" class="sr-only">In floating layout, drag the view title bar or icon to move it. Click a filename without dragging to choose a file. With the move icon focused, arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script>
 
@@ -566,6 +567,7 @@ function restoreFocus(saved) {
  (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`) || [...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length))?.focus({preventScroll:true});
 }
 function render() {
+ finishDrag();
  const saved=rememberFocus();rendering=true;
  const app=document.getElementById('app');app.dataset.presentation=presentation;
  app.innerHTML=`<header class="app-bar">${workspaceNavigation()}</header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
@@ -745,19 +747,48 @@ function applyFrame(workspace,view,frame) {
  if(Object.keys(next).every(key=>next[key]===current[key]))return;
  view.frame=next;paintFrame(view,next);
 }
-let drag=null;
+// CSS pixels: allow click/tap jitter before a title-bar gesture becomes a move.
+const moveThreshold=5;
+let drag=null,dragClickPointer=null;
+document.addEventListener('click',event=>{
+ if(event.detail===0||event.pointerId!==dragClickPointer)return;
+ dragClickPointer=null;event.preventDefault();event.stopImmediatePropagation();
+},true);
 document.addEventListener('pointerdown',event=>{
- const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || event.button!==0)return;
+ if(!event.isPrimary||event.button!==0||drag)return;
+ dragClickPointer=null;
+ const resize=event.target.closest('[data-resize]'),titlebar=event.target.closest('.child-titlebar');
+ if(!resize&&(!titlebar||event.target.closest('.child-controls')))return;
+ const handle=resize||event.target.closest('.child-title,[data-drag]')||titlebar;
  const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
- event.preventDefault();handle.focus({preventScroll:true});handle.setPointerCapture(event.pointerId);
- drag={workspace,view,handle,rect,resize:handle.hasAttribute('data-resize'),x:event.clientX,y:event.clientY,frame:fittedFrame(view.frame,rect)};
+ // Capturing the original button keeps its ordinary stationary click native.
+ // Header gaps capture the header; independent action buttons never enter here.
+ handle.setPointerCapture(event.pointerId);
+ if(resize){event.preventDefault();handle.focus({preventScroll:true});}
+ drag={workspace,view,handle,titlebar,rect,resize:!!resize,pointerId:event.pointerId,
+  started:false,x:event.clientX,y:event.clientY,frame:fittedFrame(view.frame,rect)};
 });
 document.addEventListener('pointermove',event=>{
- if(!drag)return;const dx=(event.clientX-drag.x)/drag.rect.width,dy=(event.clientY-drag.y)/drag.rect.height;
- applyFrame(drag.workspace,drag.view,{...drag.frame,...(drag.resize?{width:drag.frame.width+dx,height:drag.frame.height+dy}:{x:drag.frame.x+dx,y:drag.frame.y+dy})});
+ if(!drag||event.pointerId!==drag.pointerId)return;
+ const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+ if(!drag.started){
+  if(drag.resize?dx===0&&dy===0:Math.hypot(dx,dy)<moveThreshold)return;
+  drag.started=true;drag.titlebar?.setAttribute('data-moving','');
+ }
+ event.preventDefault();
+ applyFrame(drag.workspace,drag.view,{...drag.frame,...(drag.resize?
+  {width:drag.frame.width+dx/drag.rect.width,height:drag.frame.height+dy/drag.rect.height}:
+  {x:drag.frame.x+dx/drag.rect.width,y:drag.frame.y+dy/drag.rect.height})});
 });
-function finishDrag(){drag=null;}
-document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',finishDrag);
+function finishDrag(event) {
+ if(!drag||(event?.pointerId!==undefined&&event.pointerId!==drag.pointerId))return;
+ const finished=drag;drag=null;
+ if(finished.started)dragClickPointer=finished.pointerId;
+ finished.titlebar?.removeAttribute('data-moving');
+ if(finished.handle.hasPointerCapture(finished.pointerId))finished.handle.releasePointerCapture(finished.pointerId);
+}
+for(const type of ['pointerup','pointercancel','lostpointercapture'])document.addEventListener(type,finishDrag);
+window.addEventListener('blur',()=>finishDrag());
 document.addEventListener('keydown',event=>{
  const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
  const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;

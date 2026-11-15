@@ -19,7 +19,7 @@ Visit `http://127.0.0.1:8765`; stop the server when finished.
 - **Skip:** the comparison menu offers **Skip for this PR** for a remaining file. Group **Skip N remaining** captures only currently remaining members; **Undo** removes their active skips. Already-current reviewed files are excluded. A skipped file stays accessible under All, with Undo; explicit Mark reviewed is also available in its comparison menu when actual content exists.
 - **Content previews:** Documents show rendered Markdown plus exact changed link targets; Localization shows changed key/locale/value rows; Snapshots/assets show before/after fixture images and metadata. **Source** reveals the prepared raw diff. LFS is a badge, not a group. `Design.psd` has only pointer/metadata fallback and cannot be marked reviewed.
 - **Source:** use the filename control (or One view file selector) to browse sample source. **Review file** opens another review child for changed files. Research queries remain independent and results open new Source children.
-- **Float:** drag the kind icon at the left of a child's title bar, or use its resize corner. With the move icon focused, arrow keys move and Shift+arrow keys resize; the resize handle also supports arrow-key resizing.
+- **Float:** drag the title bar, including its filename/title or kind icon, or use its resize corner. A stationary filename click opens the chooser; the separate close/focus actions remain buttons. With the move icon focused, arrow keys move and Shift+arrow keys resize; the resize handle also supports arrow-key resizing.
 - **Sample controls:** expand **Sample data · Controls** above the workspace for Canvas width, each PR's **Simulate push**, and **Reset**. Escape closes the panel and returns focus. Preview content remains explicitly **Simulated**.
 
 Dialogs close through Escape or their close button. These controls and layouts are hypotheses to evaluate, not commitments for every native platform.
@@ -40,6 +40,14 @@ Dialogs close through Escape or their close button. These controls and layouts a
 3. Reset. Mark `Parser.swift` reviewed, then use Code **Skip 2 remaining** and Snapshots/assets **Skip 2 remaining**. Parser remains reviewed; only Store, Stable, SearchResults, and Design are skipped.
 4. Simulate the v2 push. Store and SearchResults return because their contents changed. New `EmptyResults.svg` was never skipped. Unchanged Stable and Design stay skipped. Parser shows edits since its actual v1 review. Counts read **6 remaining · 0 reviewed · 2 skipped**.
 5. Undo individual/group skips and confirm they do not create review receipts. Skip the changed Parser at v2: its actual reviewed version stays v1, and Undo restores that incremental comparison. Zero remaining with skips reports the skipped count separately.
+
+## Title-bar drag correction
+
+Drag the filename/title or surrounding header to move a floating view. A stationary click (or less than 5px jitter) keeps the file chooser; a completed drag does not open it. Separate close/focus/source-review buttons retain their actions, as do keyboard movement and resizing.
+
+The prior handler accepted only the icon. Matching +36/+80px title-text gestures now move the view at all three sizes: [phone before](evidence/iteration-04-drag/phone-before.png)/[after](evidence/iteration-04-drag/phone-after.png), [tablet before](evidence/iteration-04-drag/tablet-before.png)/[after](evidence/iteration-04-drag/tablet-after.png), [desktop before](evidence/iteration-04-drag/desktop-before.png)/[after](evidence/iteration-04-drag/desktop-after.png). Captures use PR42 v1, Float + Tabs, light appearance, 1× scale. Before uses published `7f89c2b5c`; after uses source SHA-256 `3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d`.
+
+[Focused verification](evidence/iteration-04-drag/verification.json) records three-size pointer/touch, threshold/click, independent-control, cancellation, keyboard/resize, and continuity checks; fresh independent review has no findings. The coordinator's scoped Chromium/WebKit checks also pass. Earlier layout/type evidence below is historical and retained unchanged. User reevaluation remains pending.
 
 ## Layout-options correction
 
