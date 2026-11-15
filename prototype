@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+"""Manage an Astro prototype using this checkout's pinned web tools."""
+
+import sys
+
+from Tools.prototype import main
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -11,6 +11,53 @@ The shared lint command checks formatting without changing files. Keep formattin
 CSS uses the standard Stylelint preset. The configuration preserves three Safari-prefixed properties without disabling the prefix rule.
 The standard duplicate-property rule permits different CSS syntaxes, but rejects repeated declarations with different values in the same syntax.
 
+## Browser prototypes
+
+`./prototype` manages an existing Astro project, usually beside its plan in `Plans/`.
+It reuses the root lockfile, installed dependencies, pinned Node, and `astro_site.py` launcher.
+Install missing dependencies once with `mise exec -- npm ci`; the command does not install or scaffold them.
+The project needs `astro.config.mjs` and a working route at `/`.
+For another route or Astro `base`, pass `--path /demo/` to both `start` and `status`.
+This selects the URL to verify/share; it does not change Astro configuration or persist a preference.
+Astro's server metadata omits its configured base, so the command does not infer it.
+
+```sh
+./prototype start Plans/YYYY-MM-DD-topic/Prototype --lan
+./prototype status Plans/YYYY-MM-DD-topic/Prototype
+./prototype logs Plans/YYYY-MM-DD-topic/Prototype
+./prototype check Plans/YYYY-MM-DD-topic/Prototype
+./prototype build Plans/YYYY-MM-DD-topic/Prototype
+./prototype stop Plans/YYYY-MM-DD-topic/Prototype
+```
+
+Paths resolve from the caller's directory; absolute paths work across checkouts.
+The command always selects tools from its own checkout. `start` defaults to port 4321,
+loopback only; `--lan` binds all IPv4 interfaces. Use `--port NUMBER` to choose another port.
+An existing owned server is reused. Changing its port or enabling LAN on a loopback server
+requires an explicit stop/start. Port conflicts fail without stopping another process.
+Use `vite.server.strictPort: true` in the prototype config to also reject a startup port race.
+
+Astro owns the daemon, `.astro/dev.json`, and `.astro/dev.log`.
+The wrapper serializes its start/stop operations with `.astro/prototype-command.lock`;
+use the wrapper consistently and keep project paths stable during lifecycle operations.
+Before reusing or stopping a live PID, it checks the Astro executable, absolute project argument,
+and working directory. It supports macOS and Linux; unusual manually launched commands are refused.
+Inspection errors and malformed records remain errors. `status` is read-only, including stale records;
+`logs` can read failure output after the server exits. `stop` is idempotent when nothing is running.
+
+`start` waits for Astro's bounded startup and then checks HTTP readiness.
+`status` checks HTTP again and reports currently reachable IPv4 interface URLs, ignoring cached
+startup addresses. These checks bypass proxies and do not follow redirects.
+Run status again before sharing a URL. Interface names distinguish local-network and VPN addresses;
+a successful host request does not establish physical-phone connectivity or browser live reload.
+A failed HTTP/LAN check leaves the server available for diagnosis through `logs` and `stop`.
+`status` exits 1 when absent or unhealthy; check/build and native lifecycle failures preserve child status.
+
+Keep `.astro/`, `dist/`, and Vite state ignored and local to the project.
+Keep source inside Astro's watched import graph and restrict `vite.server.fs.allow` to the
+prototype and required dependencies. The [planning guidance](../.agents/skills/planning/references/browser-prototypes.md)
+owns experiment design, browser verification, and handoff evidence.
+
 ## Daily Flyover publication
 
 `.github/flyover-apps.json` owns hosted capture registration. `flyover_apps.py` validates it before capture.

@@ -45,6 +45,7 @@ For executable refinement of an outline, [advance the planning horizon](referenc
 ## Execute or resume
 
 Resume the recorded operation. Resuming planning or revision does not mean starting implementation.
+For an authorized interactive browser prototype, read [Browser prototypes with Astro](references/browser-prototypes.md) before choosing its source layout, preview command, and handoff checks.
 
 1. Read the overview, selected plans, dependency records, and applicable repository instructions.
    Inspect the branch, working tree, commits, and actual source. For a linked PR, [read current plan feedback](references/github-review.md#read-the-feedback) and revise relevant changes within existing authorization.
