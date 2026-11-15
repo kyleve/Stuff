@@ -261,6 +261,9 @@ struct CalendarContentView: View {
                 }
             }
             .padding()
+            .whereContentRoot()
+            // Keep the content origin at the full scroll width so zoom measurements
+            // retain the centered column's horizontal offset.
             .transformAnchorPreference(
                 key: CalendarZoomFrames.self,
                 value: .bounds,
@@ -532,6 +535,24 @@ struct CalendarContentView: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            // A wide viewport distinguishes all inherited limits in both themes.
+            for theme in WhereTheme.allCases {
+                for width in WhereContentWidth.allCases {
+                    whereSnapshot(
+                        name: "ContentWidth-\(width)-\(theme.rawValue)",
+                        configurations: [ContentWidthSnapshotConfigurations.landscapeTablet],
+                        theme: theme,
+                    ) {
+                        NavigationStack {
+                            CalendarContentView(
+                                report: PreviewSupport.loadedYearReportModel(),
+                                initialMode: .overview,
+                            )
+                        }
+                        .whereContentWidth(width)
+                    }
+                }
+            }
             whereSnapshot(
                 name: "HistoryColumn",
                 configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture

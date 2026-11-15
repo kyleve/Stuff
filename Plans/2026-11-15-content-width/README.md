@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-15, source `2193072f6a1c988f797c77c14c3b6cf0923d8ca0`.
+- Updated: 2026-11-15, integrated base `ff3f9ec8df1d7901312624cba805be868f1f7345`.
 - Operation: Execute the approved plan on `codex/content-width`.
 - Requested scope: The user approved the main-screen rollout and requested implementation after selecting both modifiers.
-- Stage: Implementation.
-- Completed: Source discovery, product decisions, plan review, and verified modifier groundwork.
-- Pending: Screen integration, rendering checks, completed-diff review, and publication.
-- Next action: Integrate the selected screens in [01-content-width.md](01-content-width.md).
+- Stage: Publication.
+- Completed: Source discovery, product decisions, implementation, independent review, image review, and final assertions against the integrated base.
+- Pending: Rollout commit and publication.
+- Next action: Publish the verified rollout in [01-content-width.md](01-content-width.md).
 
 ## Outcome and scope
 
@@ -28,6 +28,7 @@ Each adaptive pane applies its own width limit. Native navigation, backgrounds, 
 | R-02 | `.whereContentWidth(_:)` selects regular (600 points), wide (900 points), or fluid (available width). Regular is the default. | US-02 | [01](01-content-width.md) |
 | R-03 | The nearest ancestor width override wins. Width changes retain view identity and scrolling state. | US-02 | [01](01-content-width.md) |
 | R-04 | The selected screens adopt regular width. Calendar zoom and Timeline header alignment remain correct. | US-01 | [01](01-content-width.md) |
+| R-05 | Nested roots assert in debug builds and pass through in release builds. Sibling roots remain independent. | US-02 | [01](01-content-width.md) |
 
 ## Exclusions
 
@@ -57,6 +58,8 @@ All answers came from the user in this conversation on 2026-11-15.
 | Q-03 | closed | Wide means 900 points. Fluid has no fixed cap. | R-02. |
 | Q-04 | closed | Width selection is inherited by descendant roots. | R-03. |
 | Q-05 | closed | Use `.whereContentRoot()` instead of a wrapper closure. | R-01. |
+| Q-06 | closed | Detect nested roots with a debug assertion and use an unconstrained pass-through for inner roots in release builds. | R-05. User requested an assertion and/or a silent fallback during implementation. |
+| Q-07 | closed | Accept one-pixel rendering differences from SwiftUI rounding. | The user accepted these differences during snapshot review. The simple two-frame modifier remains in use. |
 
 The existing horizontal padding counts toward each limit. Limits remain fixed across themes and text sizes.
 
@@ -77,4 +80,4 @@ Its API groundwork and screen adoption form two verified commits on the same bra
 
 - Linear: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies). Searched 328 issues, including archives, before filing this human request.
 - Implementation PR: Not published.
-- Outcome: In progress.
+- Outcome: Verified with 717 unit tests and 325 snapshot captures. Publication pending.

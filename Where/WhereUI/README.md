@@ -467,6 +467,11 @@ The nearest ancestor override wins. Each root also respects the width available 
 
 `WhereStylesheet.contentRoot` owns the limits. They stay fixed across themes and text sizes.
 The root modifier adds no padding, scrolling, clipping, or height limit. Apply it separately to pinned headers that must align with scrolling content.
+Nested roots assert in debug builds. In release builds, an inner root passes its content through, so only the outer root controls layout.
+Sibling roots remain independent. Width overrides can be nested without adding another root.
+
+Calendar, Elsewhere, Locations cards and states, and the full Timeline use regular width.
+Timeline's pinned ribbon uses the same limit as its rows. Calendar measures its full-width content anchor outside the modifier to preserve zoom offsets.
 
 ### Using tokens
 

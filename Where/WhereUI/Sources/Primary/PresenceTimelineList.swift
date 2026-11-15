@@ -123,6 +123,7 @@ struct PresenceTimelineList: View {
                         )
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
                         .padding(.vertical, stylesheet.spacing.large)
+                        .whereContentRoot()
                     }
                     ScrollView {
                         // Measure this year's overview, stays, and forecast together.
@@ -160,6 +161,7 @@ struct PresenceTimelineList: View {
                             pinsOverview ? 0 : stylesheet.spacing.large,
                         )
                         .padding(.bottom, stylesheet.spacing.large)
+                        .whereContentRoot()
                     }
                     .scrollPosition($position)
                     .task(id: TimelineLayoutID(
@@ -298,6 +300,20 @@ struct PresenceTimelineList: View {
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            for theme in WhereTheme.allCases {
+                for configuration in ContentWidthSnapshotConfigurations.wideScreens {
+                    whereSnapshot(
+                        name: "ContentWidth-\(theme.rawValue)-\(configuration.device.name)",
+                        configurations: [configuration],
+                        theme: theme,
+                        measurementReadiness: .immediate,
+                    ) {
+                        NavigationStack {
+                            PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                        }
+                    }
+                }
+            }
             // WithData and Flights own full layout coverage; uncertainty keeps focused
             // accessibility checks.
             [
