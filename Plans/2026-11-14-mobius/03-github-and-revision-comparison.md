@@ -51,6 +51,8 @@ GitHub PR-file/compare responses have documented limits; see [research](README.m
 
 Re-evaluate exact file comparison identities rather than resetting all progress on every new head. Retain prior review evidence when new edits appear. Only the explicit file-review action advances that file's baseline; navigation, full-diff viewing, and refresh do not. Since full caches do not sync, a new device may have to fetch old objects. Deleted/unreachable objects must produce a visible baseline gap with access to the current full PR diff, not fabricated equivalence or a claim that no work remains.
 
+Multiple review children in one workspace share that PR's receipts while retaining their own selected file and comparison view. An action must identify the immutable comparison actually inspected in its originating child. Refinement must cover two children showing different revisions, so advancing progress from one cannot falsely mark unseen content in another reviewed. This follows the workspace/child distinction in [Q-19–Q-21](README.md#q-19).
+
 Fixtures must include binary/non-text and oversized files, missing patches, CRLF/Unicode/long lines, submodules, rename/mode changes, missing pages, permission loss, cancellation, rate limiting, and superseded refreshes. Define supported rendering and indexing limits before readiness. Show unsupported content honestly without marking its review complete.
 
 ## Questions and learning needed

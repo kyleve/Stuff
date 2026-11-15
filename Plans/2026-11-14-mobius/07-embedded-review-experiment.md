@@ -21,6 +21,8 @@ X-04 applies: no downloaded PR execution, arbitrary native hot loading, or gener
 
 Use a synthetic test host with injected Mobius runtime and a precompiled demonstration action, such as opening a known sample screen with chosen fixture data. Reuse the production review presentation rather than copying it into a separate embedded UI. The host owns the action and supplies build identity; the reviewer compares that identity with the selected PR snapshot.
 
+Explore the live-context surface as an identified child inside the same logical PR workspace, beside review and research children. Its view-local navigation and focus must fit the workspace model from [Q-19–Q-21](README.md#q-19). The browser prototype's simulated preview demonstrates placement only; it neither runs the reviewed code nor proves host integration. Q-19 corrected “fork” to “view” and adds no code-copy or editing requirement.
+
 Bound the refined experiment to one host, one precompiled action, and matching/mismatching/unknown build identity cases. Proposed effort bound: two engineering days after prerequisites are ready; refine this bound before execution. Preserve a report and minimal repeatable harness if it proves useful. Remove unused prototype targets and keep experimental controls out of shipping host behavior.
 
 ```mermaid
@@ -58,6 +60,7 @@ Explore whether a built-in action provides enough context to be valuable. If use
 | --- | --- | --- |
 | 2026-11-14 | Investigate embedding/live context later within this series; do not promise it in the first release. | Q-06. |
 | 2026-11-14 | Use host-supplied compiled capabilities and truthful revision identity as the initial experiment boundary. | R-12 and X-04. |
+| 2026-11-14 | Investigate live context within a workspace child; keep browser preview/simulation fixtures separate from actual execution evidence. | First-artifact feedback and [Q-19](README.md#q-19). |
 
 ## Resume point
 

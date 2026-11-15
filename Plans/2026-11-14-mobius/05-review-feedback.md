@@ -24,6 +24,8 @@ X-02, X-03, and X-05 apply. No automatic review publication on navigation, backg
 
 Core owns `ReviewDraft`, anchor mapping, and a proposed `ReviewPublisher`. UI owns composition, confirmation, and recovery presentation. Scope publication by account, PR, and draft revision; one local owner serializes mutations for that draft. Record the original immutable file comparison and anchor when text is authored.
 
+Several children may present the same PR's draft or different code revisions. Child navigation remains independent, while draft identity and publication ownership stay with the workspace. Closing or changing presentation must not implicitly publish or delete authored work. Refine same-draft editing and command routing across children before readiness, using [Q-19–Q-21](README.md#q-19) and Q-09's ownership rules.
+
 Read the current PR state before submission. If the head or comparison context changed, show the change and retain the draft until its target is revalidated. A comment authored while viewing a file's new edits since its reviewed version must map to a valid location in the PR review diff, or remain an unsubmitted draft with a useful explanation. Never attach a comment to the same line number in unrelated content. Submit an explicit commit ID where the API supports it; a preflight read does not make a later API write atomic with branch updates.
 
 ```mermaid
