@@ -31,8 +31,50 @@ struct WhereStylesheetTests {
 
     private let style = WhereStylesheet.default
 
+    @Test func browseColumnCardsRetainTheirArtworkWithCompactTypography() {
+        let column = style.card[.column]
+        #expect(column.regionShape == style.card.regular.regionShape)
+        #expect(column.sheen == style.card.regular.sheen)
+        #expect(column.regionNameTypography == style.card.compact.regionNameTypography)
+        #expect(column.entryStamp == style.card.compact.entryStamp)
+    }
+
     @Test func yearModePickerDefaultsToInline() {
         #expect(style.yearModePicker.layout == .inline)
+    }
+
+    @MainActor
+    @Test(
+        arguments: [UIUserInterfaceSizeClass.unspecified, .compact, .regular],
+        [UIUserInterfaceSizeClass.unspecified, .compact, .regular],
+    )
+    func historyPanePolicyFollowsSystemSizeClasses(
+        horizontal: UIUserInterfaceSizeClass,
+        vertical: UIUserInterfaceSizeClass,
+    ) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.horizontalSizeClass = BHorizontalSizeClass(horizontal)
+        context.traitOverrides.verticalSizeClass = BVerticalSizeClass(vertical)
+        context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.large)
+        let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        let expected: WhereStylesheet.AdaptivePaneStyle.Panes =
+            horizontal == .regular && vertical == .regular ? .multiple : .single
+        #expect(sheet.adaptivePane.panes == expected)
+    }
+
+    @MainActor
+    @Test func accessibilityCollapsesHistoryWithoutChangingItsMeasuredLimits() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.horizontalSizeClass = .regular
+        context.traitOverrides.verticalSizeClass = .regular
+        context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.large)
+        let regular = try context.stylesheets.get(WhereStylesheet.self).adaptivePane
+        #expect(regular.panes == .multiple)
+        context.traitOverrides.contentSizeCategory = .init(DynamicTypeSize.accessibility1)
+        let accessible = try context.stylesheets.get(WhereStylesheet.self).adaptivePane
+        #expect(accessible.panes == .single)
+        #expect(accessible.minimumDetailWidth == regular.minimumDetailWidth)
+        #expect(accessible.minimumControlsWidth == regular.minimumControlsWidth)
     }
 
     @MainActor
@@ -1002,6 +1044,13 @@ struct WhereStylesheetTests {
         #expect(warning.outlineWidth == 1.5)
         #expect(warning.rosette == source.rosette)
         #expect(warning.ink == .standard)
+    }
+
+    @Test func deviceLayoutLabStyle() {
+        #expect(style.deviceLayoutLab.screenCornerRadius == 32)
+        #expect(style.deviceLayoutLab.bezelWidth == 8)
+        #expect(style.deviceLayoutLab.bezelColor == .black)
+        #expect(style.deviceLayoutLab.outlineWidth == 1)
     }
 
     @Test func developerOverlayStyle() {

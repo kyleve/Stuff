@@ -58,8 +58,22 @@ These rules also apply when changing a root command or installer that calls this
 - Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
   Keep main pushes, explicit full runs, and publication workflows outside the shortcut.
   Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
+- Validate guidance in Linux classification before the documentation shortcut and repeat it in required lint.
+  A guidance failure must fail classification and reach required lint through its failure fallback.
 - Stop publication polling when a setup workflow fails before the requested publication workflow exists.
   Guards: [test_circleci_pipeline.py](Tests/test_circleci_pipeline.py) and the installer and Flyover controller command tests.
+
+## Agent skills
+
+- Validate every manifest entry before installation. Exclusions are relative paths within the selected upstream skill directory.
+- Install exactly one root `SKILL.md` with the manifest name. Reject symlinks and nested entry points after exclusions.
+- Repair invalid installations at the pinned revision. Stage and validate each candidate before replacing its directory and manifest through `FileTransaction`.
+  Guards: [agent_skill_installer_test.rb](Tests/agent_skill_installer_test.rb), [sync_agents_test.rb](Tests/sync_agents_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
+- Keep Claude skills as relative links to canonical folders. Remove only marked generated instructions and replace only matching skill copies or recognized links.
+  Reject conflicting local content and linked parent directories before mutation. Guard: [agent_compatibility_test.rb](Tests/agent_compatibility_test.rb).
+- Keep `--check` read-only and offline. Allow absent external installations and skill links, but reject legacy copies and incorrect links.
+  Count UTF-8 bytes with directory override precedence. Check Markdown links from both canonical and Claude skill paths.
+  Guards: [agent_guidance_test.rb](Tests/agent_guidance_test.rb), [agent_markdown_test.rb](Tests/agent_markdown_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
 
 ## Installer publication
 

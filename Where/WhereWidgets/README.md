@@ -9,7 +9,7 @@ into its audience's shared App Group; this extension reads it via
 [`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
 The device-local theme is independently published through `WidgetPresentationStore`.
 An appearance change does not rebuild the data snapshot.
-All rendering lives in [`WhereUI`](../WhereUI/). This target only wires
+All rendering lives in [`WhereUI`](../WhereUI). This target only wires
 WidgetKit configuration, the timeline provider, and family-specific layout.
 
 ## Widgets
@@ -39,7 +39,7 @@ Appearance changes publish only that small value before reloading timelines.
 
 ## Localization
 
-- **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s `Localizable.xcstrings` (shared views and `WhereFormat`).
+- **In-widget copy** — resolved from [`WhereUI`](../WhereUI)'s `Localizable.xcstrings` (shared views and `WhereFormat`).
 - **Widget gallery name/description** — resolved from this extension's [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via its generated symbols (`String(localized: .widgetGalleryTodayName)`).
 
 ## Installation

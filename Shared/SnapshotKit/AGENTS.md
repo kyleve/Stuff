@@ -1,82 +1,54 @@
 # SnapshotKit – Module Shape
 
-SnapshotKit is the generic, shippable half of the snapshot-testing framework. It provides the appearance *matrix* (`SnapshotConfiguration` + presets + `combinations` + identifiers), the `SnapshotProviding` protocol, the `SnapshotCase` descriptor, and the `snapshotPreviews` cutsheet. It drives both SwiftUI previews and image snapshot tests from one source of truth. See [`README.md`](README.md).
-
-Read the root [`AGENTS.md`](../../AGENTS.md) first.
+SnapshotKit supplies shared preview and image-test cases and appearance matrices. See [README.md](README.md) for its API.
+Read the root [AGENTS.md](../../AGENTS.md) first.
 
 ## Scope & dependencies
 
-- **Use SwiftUI, Foundation, and UIKit only. Do not link a snapshot-comparison engine.** UI modules link SnapshotKit (including in release) to drive previews. It must never pull in `SnapshotTesting`/XCTest. The capture and comparison pipeline lives in [`SnapshotKitTesting`](../SnapshotKitTesting).
-- **Declare the library target in [`Package.swift`](../../Package.swift).** UI consumers listed in that manifest use it for previews. `SnapshotKitTesting` consumes it for the config→traits mapping. `SnapshotKitTests` covers pure logic.
+Use SwiftUI, Foundation, and UIKit only. Shipping UI modules link SnapshotKit for previews; never pull in SnapshotTesting, XCTest, Broadway, or WhereUI.
+Capture, comparison, and accessibility annotation rendering belong to test-only [SnapshotKitTesting](../SnapshotKitTesting/AGENTS.md).
+Consumer modules own design-system root wrapping.
 
 ## Invariants an agent can't re-derive
 
-- **Choose coverage per distinct layout, not per domain state.** Use a
-  `*Representative` matrix for representative layouts and the matching
-  `*LightDark` preset for additional states. Reuse the focused `WithAX5` and
-  `WithAnnotations` presets for repeated wrapping or annotation coverage;
-  AX5 and annotations are separate captures, not a Cartesian product.
-  Add individual configurations for exceptional contrast or tablet composition.
-  Document a repeated representative matrix at its declaration.
-- **Keep configuration selection explicit.** `SnapshotCase` and assertion APIs
-  must not supply a broad default matrix. Preserve configuration identifiers and
-  frame semantics when changing coverage. Guard: `SnapshotConfigurationTests`.
-- **`identifierParts` omit default axes.** Only non-default trait, frame, and type values appear in a config's `identifier`.
-- **Non-default values include `dark`, `xxxl`, `contrast`, `rtl`, `bold`, `accessibility`, and `iPad`.** The light/standard/default baseline stays empty.
-- **Reference-image filenames depend on this.** Treat omission rules as a wire format.
-- **When you add an axis, give it a default that is omitted.** That is how `layoutDirection`/`legibilityWeight` landed.
-- **Filter `.accessibility` configs out of previews.** `snapshotPreviews` drops them.
-- **Stuff keeps AccessibilitySnapshot's annotation renderer in the test-only `SnapshotKitTesting` product.** It does not link into shipping UI modules.
-- **Accessibility configs only render as snapshot tests.** Do not "fix" previews to include them without a preview-only dependency boundary.
-- **Keep `SnapshotCase` content builders lazy.** Constructing a provider's descriptor array must not instantiate every view or model.
-- **Do not assume captured models are isolated between configurations.** The current
-  runner invokes the content builder per configuration. Models captured outside
-  that builder and shared hooks still need independent cases. See [STU-114](https://linear.app/kve/issue/STU-114).
-- **Use `\.isCapturingSnapshot` for motion end-states only.** A view may read it only to freeze motion at a deterministic phase.
-- **Never use it to change layout, content, or behavior.**
-- **One carve-out (documented on the property):** content no settle window can make deterministic may substitute a placeholder of identical layout.
-- **That carve-out covers externally-loaded substrates, wall-clock-dependent system controls, and wall-clock timers.**
-- **It is a hybrid accessor:** pure-SwiftUI `EnvironmentKey` first, `UITraitBridgedEnvironmentKey` fallback. The setter mirrors into both.
-- **See mechanics and rationale on `SnapshotCaptureFlag.swift`.** Do not simplify it to a plain `@Entry`.
-- **Keep SnapshotKit design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI.
-- **The Broadway root wrap is a consumer concern** (`WhereUI`'s `whereSnapshot(...)`).
-- **Use full-content frames for scrollable subjects.**
-- **If a snapshot contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller, use a full-content frame preset.**
-- **That may be `.fullContentScreenRepresentative`, a consumer's matching compact preset, or an explicit `.fullContent` frame.**
-- **Device full-content presets keep their normal viewport height as a minimum.** They grow only when the settled content is taller.
-- **Custom full-content frames shrink-wrap unless given a minimum.**
-- **Capture the production screen including navigation, tab, sheet, search, and toolbar chrome when measurement converges.**
-- **If a container is intentionally bounded or greedy, snapshot its shared scrolling child directly.** Never add snapshot-only production layout.
-- **Fixed device frames are for non-scrolling subjects.** Use explicit `Frame.viewport` captures for bounded adaptive shells only with full-content pane coverage.
-- **Keep frame names stable when setting layout traits.** Presets carry truthful size classes and idioms; component frames inherit.
-- **Keep scene retention explicit.** Use `Frame.scenePolicy = .retained` only for subjects that require native scene-backed chrome. Preserve truthful traits, configured insets, and full-content sizing. This policy keeps identifiers unchanged; name variants explicitly if both policies appear in one matrix. Preview rendering does not guarantee retained-scene fidelity.
-- **Source Duo frames from native measurements.** Re-measure the presets when the runtime pin changes and update the provenance in `README.md`. Synthetic frames do not change native pose or bar arrangement.
-- **Create a separate case and model for each new adaptive configuration.** Readiness hooks must target that configuration's model.
-- **Use two-axis full-content frames only for spatial canvases.** Choose `.iPhoneFullContent2D`, `.iPadFullContent2D`, or an explicit `.fullContent2D` when the production subject intentionally scrolls in both dimensions.
-- **Keep ordinary screen presets fixed-width.** Guard: `SnapshotConfigurationTests`.
-- **Measurement readiness never replaces capture readiness.**
-- **Keep `measurementReadiness` at `.sameAsCapture` when async work can change ideal height.**
-- **Or await that work deterministically from `onReadyToMeasure` and use `.settled` for the probe.**
-- **Use `.immediate` only for synchronously sized fixtures.** The case's final `settle` remains independently load-bearing.
-- **A measurement hook is intrinsic/full-content-only.** Guards: `AsyncContentCaptureTests` and `LargeViewCaptureTests`.
+- Choose coverage per distinct layout, not per domain state. Use a `*Representative` matrix for representative layouts and matching `*LightDark` presets for additional states.
+  Use focused `WithAX5` and `WithAnnotations` presets separately, without a Cartesian product. Add individual configurations for exceptional contrast or tablet composition.
+  Document repeated representative matrices at their declarations.
+- Keep configuration selection explicit; case/assertion APIs must not supply a broad default matrix.
+  Treat identifiers as a reference-file wire format: omit default axes, preserve existing tokens and frame semantics, and omit a new axis's default. Guard: `SnapshotConfigurationTests`.
+- Filter `.accessibility` configurations out of previews. Including them requires a preview-only dependency boundary for the test-only renderer.
+- Keep content and panel builders lazy. Descriptor construction must not instantiate views/models.
+  Models captured outside a builder and shared hooks still require independent cases; per-configuration builder invocation does not isolate them. See [STU-114](https://linear.app/kve/issue/STU-114).
+- Use `\.isCapturingSnapshot` only to freeze motion at a deterministic phase. The exception is content no settle window can stabilize: externally loaded substrates or wall-clock controls/timers may use an identical-layout placeholder.
+  Otherwise never change layout, content, or behavior. Preserve the hybrid SwiftUI environment/trait-bridge accessor and mirrored setter in `SnapshotCaptureFlag.swift`; a plain `@Entry` breaks it.
+- Use full-content frames for `ScrollView`, `List`, `Form`, and equivalent UIKit scrollers.
+  Device presets retain viewport height as a minimum; custom frames shrink-wrap unless given a minimum.
+  Include production navigation, tab, sheet, search, and toolbar chrome when measurement converges. For intentionally bounded/greedy containers, capture the shared scrolling child without adding snapshot-only layout.
+  Fixed device frames are for non-scrolling subjects. Explicit `Frame.viewport` adaptive-shell captures require full-content pane coverage.
+- Preserve frame names when changing traits. Presets carry truthful traits; component frames inherit.
+  Explicit configuration traits override frame traits and retain identifier tokens; otherwise previews and captures use measured frame traits.
+- Use `.retained` scene policy only for subjects requiring native scene chrome. Preserve traits, configured insets, and full-content sizing.
+  Retention leaves identifiers unchanged, so name variants when both policies occur in a matrix. Previews do not establish retained-scene fidelity.
+- Source Duo frames from native measurements; re-measure after runtime-pin changes and update README provenance. Synthetic frames do not change native pose or bar arrangement.
+  Each new adaptive configuration needs its own case/model and matching readiness hooks.
+- Keep ordinary profiles in `SnapshotConfiguration.DeviceProfile`, deriving dimensions from simulator display profiles.
+  Distinguish authored insets/traits from measurements and preserve identifiers. Guard: `SnapshotDeviceProfileTests`.
+  Share synthetic pose geometry and localized labels through `DuoPose`; keep production geometry adapters in consumers.
+- Use two-axis full-content frames only for spatial canvases. Keep ordinary screen presets fixed-width. Guard: `SnapshotConfigurationTests`.
+- Pixel stability can still show a loading placeholder. Seed final content or await production completion through `onReadyToSnapshot`; height-changing work must complete through `onReadyToMeasure` before sizing.
+  A longer delay is not evidence of readiness.
+- Measurement readiness does not replace final capture settling. Keep `.sameAsCapture` if async work can change height, or await it in `onReadyToMeasure` and use a `.settled` probe.
+  Use `.immediate` only for synchronous final height. Measurement hooks apply only to intrinsic/full-content sizing. Guards: `AsyncContentCaptureTests`, `LargeViewCaptureTests`.
 
 ## Component comparisons and reference groups
 
-- Keep theme identities and ordering in the consumer. Accept generic labeled panels
-  and validated reference groups; never import a consumer's theme model.
-- Author independent captures with `SnapshotCase.cutsheet` and `SnapshotPanelBuilder`.
-  Keep single-view and cutsheet construction mutually exclusive. Reject empty sheets and duplicate panel identities.
-  Keep raw content and capture descriptors behind the `Capture` SPI.
-  Preview the same stored subject that the runner captures.
-- Keep panel builders lazy and require fresh fixture state on each invocation.
-  Preview panels at their normal width; allow horizontal scrolling for wide sheets.
-- Preserve reference filenames and configuration identifiers. Use structured case identity
-  so a reference group cannot collide with punctuation in a case name.
-- Keep capture, pixel geometry, reference metadata, and per-panel comparison in
-  [`SnapshotKitTesting`](../SnapshotKitTesting/AGENTS.md). Previews remain an approximation.
+- Consumers own theme identities and ordering; accept generic labeled panels and validated groups.
+- Use `SnapshotCase.cutsheet` and `SnapshotPanelBuilder` for independent panels with fresh fixture state per invocation.
+  Reject empty sheets and duplicate identities; keep single-view/cutsheet construction mutually exclusive and raw descriptors behind `Capture` SPI.
+- Previews must use the same stored subject as captures, at normal panel width with horizontal scrolling for wide sheets.
+- Preserve filenames and configuration identifiers. Structured case identity must prevent group/case-punctuation collisions.
+- [SnapshotKitTesting](../SnapshotKitTesting/AGENTS.md) owns capture geometry, metadata, and per-panel comparison. Previews remain an approximation.
 
 ## Testing
 
-`SnapshotKitTests` covers the matrix logic — `combinations` counts and `identifierParts` omission — as pure value assertions (no rendering). Consumers' snapshot bundles exercise the rendering pipeline through `SnapshotKitTesting`.
-
-Explicit configuration layout traits override frame traits and retain their identifier tokens. With no explicit override, previews and captures use the frame’s measured traits.
+`SnapshotKitTests` checks matrix combinations and identifier omission as pure values. Consumer image bundles exercise rendering through SnapshotKitTesting.

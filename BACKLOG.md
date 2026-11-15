@@ -7,6 +7,8 @@ Verified findings enter Backlog directly.
 
 The repository keeps architecture rules in `AGENTS.md` and a dated technical report in `MODULE_AUDIT.md`.
 The migration manifest is a historical receipt, not an editable backlog or a periodic export.
+Selected work can link to durable execution plans in [Plans/](Plans/README.md).
+Linear owns issue scope and disposition. Plans own design, execution detail, and evidence under the [Plans contract](Plans/AGENTS.md).
 
 ## Views
 

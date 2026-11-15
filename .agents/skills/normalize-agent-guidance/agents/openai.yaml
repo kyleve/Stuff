@@ -1,0 +1,3 @@
+interface:
+  display_name: "Normalize Agent Guidance"
+  short_description: "Audit guidance size, placement, and discovery drift"

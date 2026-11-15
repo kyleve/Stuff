@@ -24,6 +24,7 @@ let whereProjectRules = RuleSet {
             .union(nonWhereProductionScope),
         id: "where.compatibility_transport_ownership",
     )
+    reservedRegionLayoutOwnershipRule
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -310,4 +311,29 @@ private let previewCoverageRule = Rules.files(
             ),
         )
     }
+}
+
+/// Keep system geometry mapping in one adapter, shared by production and injected fixtures.
+private let reservedRegionLayoutOwnershipRule = Rules.files(
+    "where.reserved_region_layout_ownership",
+    severity: .error,
+    summary: "WhereUI reads system reserved regions through its shared geometry adapter.",
+    scope: .component(WhereComponent.whereUI),
+) { file in
+    guard file.path.rawValue != "Where/WhereUI/Sources/Shared/AdaptivePaneGeometry.swift"
+    else { return [] }
+    return functionCalls()
+        .filter { match in
+            match.node.calledExpression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == "reservedRegions"
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Reserved regions are read outside AdaptivePaneGeometry.",
+                evidence: ViolationEvidence(
+                    observed: file.path.rawValue,
+                    expectation: "use AdaptivePaneGeometry or AdaptivePaneContainer",
+                ),
+            )
+        }
 }

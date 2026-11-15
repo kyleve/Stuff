@@ -84,7 +84,7 @@ CloudKit). The manifest injects audience values into the app and extensions;
 only those host targets receive the matching `WHERE_*` compiler condition.
 Generate the workspace with `./ide --no-open`, or install to a connected iPhone
 from the command line with [`./Where/install`](../install) (macOS only, needs a
-signing team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+signing team — see [`Where/AGENTS.md`](../Guidance/installation.md#installing-to-a-device)).
 Use `./Where/install --dry-run` to resolve the exact paired physical device and
 report the build/install/launch plan without performing it.
 

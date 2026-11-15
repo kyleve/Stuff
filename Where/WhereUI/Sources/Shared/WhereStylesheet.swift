@@ -36,6 +36,7 @@ struct WhereStylesheet: BStylesheet {
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
     var loggedDay = LoggedDayStyle()
+    var adaptivePane = AdaptivePaneStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -43,6 +44,7 @@ struct WhereStylesheet: BStylesheet {
     var openSourceStamp = StampBannerStyle.openSource
     var plannedStayWarningStamp = StampBannerStyle.plannedStayWarning
     var developerOverlay = DeveloperOverlayStyle.standard
+    var deviceLayoutLab = DeviceLayoutLabStyle()
 
     init() {}
 
@@ -52,6 +54,13 @@ struct WhereStylesheet: BStylesheet {
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
+
+        if traits.horizontalSizeClass == .regular,
+           traits.verticalSizeClass == .regular,
+           !traits.contentSizeCategory.isAccessibilitySize
+        {
+            adaptivePane.panes = .multiple
+        }
 
         developerOverlay.launcher.diameter = BScaledDimension.value(
             developerOverlay.launcher.diameter,
@@ -624,6 +633,18 @@ extension WhereStylesheet {
     }
 }
 
+// MARK: - Developer tools
+
+extension WhereStylesheet {
+    /// Illustrative device chrome outside the lab's unchanged synthetic screen bounds.
+    struct DeviceLayoutLabStyle: Equatable {
+        var screenCornerRadius: CGFloat = 32
+        var bezelWidth: CGFloat = 8
+        var bezelColor: Color = .black
+        var outlineWidth: CGFloat = 1
+    }
+}
+
 // MARK: - Developer overlay
 
 extension WhereStylesheet {
@@ -783,6 +804,7 @@ extension WhereStylesheet {
             case regular
             case compact
             case elsewhere
+            case column
         }
 
         var cornerRadius: CGFloat
@@ -1286,6 +1308,7 @@ extension WhereStylesheet {
             switch variant {
                 case .regular: return regular
                 case .compact: return compact
+                case .column: return column
                 case .elsewhere:
                     var card = compact
                     card.paper = elsewherePaper
@@ -1295,6 +1318,20 @@ extension WhereStylesheet {
                     card.contentTint = elsewherePaper.contentTint
                     return card
             }
+        }
+
+        /// Retains the Locations artwork while fitting a browse column.
+        private var column: CardStyle {
+            var style = regular
+            style.padding = compact.padding
+            style.contentSpacing = compact.contentSpacing
+            style.progressBarHeight = compact.progressBarHeight
+            style.entryStamp = compact.entryStamp
+            style.regionNameTypography = compact.regionNameTypography
+            style.regionNameTracking = compact.regionNameTracking
+            style.heroNumberTypography = compact.heroNumberTypography
+            style.dayUnitTypography = compact.dayUnitTypography
+            return style
         }
 
         /// The fixed card geometry, migrated from the former split

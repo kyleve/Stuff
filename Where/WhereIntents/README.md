@@ -14,7 +14,7 @@ for that install rather than opening its own store. The handoff shares the app's
 intent handlers never start GPS). They do read/write through the existing
 collaborators (`reports`, `journal`) using a Gregorian calendar
 (`Calendar.whereIntents`, matching the domain's aggregation so year/day math
-lines up). They render with [`WhereUI`](../WhereUI/) snippet views. The
+lines up). They render with [`WhereUI`](../WhereUI) snippet views. The
 `AppShortcutsProvider` that gives Siri its spoken phrases lives in the **Where**
 app target (`WhereShortcuts`), not here, so App Intents metadata extraction
 always discovers it.

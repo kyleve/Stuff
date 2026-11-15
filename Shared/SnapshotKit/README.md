@@ -226,6 +226,12 @@ Re-measurement on the native 27.2 Duo runtime remains pending; see [native relea
 Synthetic captures on the current runtime verify layout against these recorded profiles, not current native geometry.
 All four profiles use 3× scale and the phone idiom.
 
+`SnapshotConfiguration.DuoPose` composes these frames into seven synthetic poses for
+previews, captures, and hosted tests. It supplies typed reserved regions and their
+activation state. Tabletop and book activate the same divisions as their flat
+counterparts without changing frame identifiers. It also owns the localized pose labels. Consumers adapt the generic regions to
+their production geometry seam.
+
 | Frame | Bounds (points) | Horizontal / vertical size class | Insets (top, left, bottom, right) |
 | --- | --- | --- | --- |
 | `duoOuterPortrait` | 466 × 678 | compact / regular | 0, 0, 34, 84 |
@@ -238,3 +244,17 @@ The division is active when partially folded. Flat layouts must ignore inactive 
 Use current region geometry in production; the measurements describe specific simulator poses.
 
 Explicit configuration layout traits override frame traits and retain their identifier tokens. With no explicit override, previews and captures use the frame’s measured traits.
+
+### Ordinary device layout fixtures
+
+`SnapshotConfiguration.DeviceProfile` provides portrait and landscape viewports
+for iPhone SE (3rd generation), iPhone 17, iPhone 17 Pro Max, iPad mini (A17 Pro),
+and iPad Pro 11-inch and 13-inch (M5). Point dimensions come from the installed
+CoreSimulator `capabilities.plist` display width/height divided by display scale
+(Xcode 27.2 profiles). Insets and size classes are authored synthetic layout
+fixtures, not measured native safe areas. Modern phone portrait margins reuse
+`Frame.iPhoneNotched`; existing frame names and capture identifiers are unchanged.
+
+Use these fixtures for bounded previews and shell captures, with full-content
+coverage for scrolling panes. They do not emulate system bars, keyboards, or
+physical hardware. Duo measurement provenance remains separate.

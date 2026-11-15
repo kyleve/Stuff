@@ -29,6 +29,6 @@ if [ -n "$staged" ]; then
       | xargs -0 git add
 fi
 
-# Sync AGENTS.md + .agents/skills → CLAUDE.md + .claude/skills.
+# Maintain canonical skill links and remove legacy generated Claude instructions.
 # Run under mise so the pinned Ruby is used regardless of shell activation.
 "$MISE" exec -- ./sync-agents --git-add

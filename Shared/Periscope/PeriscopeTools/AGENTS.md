@@ -19,7 +19,7 @@ Follow the repo [`building-ui`](../../../.agents/skills/building-ui/SKILL.md) sk
 - **The viewer seeds density from a `UserDefaults`-persisted preference** (`Density.load`/`save`, defaulting `compact`).
 - **Keep color decisions in `Palette`, not on `LogLevel` / `SpanExit.Mode`.** `tint(forLevel:)` bands by severity so custom levels inherit a color.
 - **PeriscopeTools seeds Broadway directly.** A consumer must not re-list `BroadwayCore`/`BroadwayUI` beside a product that already carries them.
-- **See the root [double-linking rule](../../../AGENTS.md#never-double-link-a-product-whereui-already-carries).**
+- **See the root [double-linking rule](../../../.agents/references/targets.md#never-double-link-a-product-whereui-already-carries).**
 
 ## Invariants
 

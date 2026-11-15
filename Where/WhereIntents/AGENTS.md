@@ -13,7 +13,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - Dependencies live in the root [`Package.swift`](../../Package.swift). It
   depends on **WhereUI** for its snippet cards. It must **not** link
   `BroadwayUI`/`BroadwayCore` directly (root
-  [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
+  [double-link rule](../../.agents/references/targets.md#never-double-link-a-product-whereui-already-carries)).
 - Intents stay **thin adapters**. They `await intentServices.current()` and
   delegate to that `WhereServices`' collaborators. Domain rules stay in
   `WhereCore`. Card bodies stay in `WhereUI`.

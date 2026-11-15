@@ -11,9 +11,9 @@ header comment in [`test`](../../../test).
 
 ## Documentation-only changes
 
-Pure documentation or comment-only changes can skip `./test`. Skip
-`./swiftformat --lint` when the changed files are outside the formatter's
-scope. Record skipped checks and the reason in the commit or PR validation.
+Pure documentation or comment-only changes can skip `./test`.
+When changed files are in the formatter's scope, run `./swiftformat --lint`. Otherwise, skip it.
+Record skipped checks and the reason in the commit or PR validation.
 
 Do not classify a semantic change to configuration, scripts, generator inputs,
 executable examples, or app-rendered copy as documentation-only. Run the
@@ -50,6 +50,13 @@ that sequence. Do not use this flag for normal local validation.
 
 Affected and unit-capable scopes run the backup-upgrader regression. A scope
 that contains only image bundles skips that host-side unit regression.
+
+`./test PeriscopeMacrosTests` runs the host-side macro suite without a simulator.
+`./test --all` and `./test --everything` include it. `./test --snapshots` alone does not.
+
+When another invocation owns the attribution, backup-upgrader, and macro tests, you can use `--skip-host-tests`.
+CircleCI delegates these checks to the required GitHub macOS job. Artifact consumers also skip host checks.
+Normal local runs retain their default checks.
 
 For retained scripts, also run the applicable direct and public-command tests
 from [`Tools/README.md`](../../../Tools/README.md#testing).
@@ -122,13 +129,15 @@ Use `--no-generate` only while project-generation inputs remain unchanged.
   ([capture contract](../../../Shared/SnapshotKitTesting/AGENTS.md)).
 - Green locally / red on CI → compare the provider's tested revision,
   toolchain, and selected suites through
-  [`github-workflow`](../github-workflow/SKILL.md#merging-main-and-other-branches).
+  [`github-workflow`](../github-workflow/references/merging.md#merging-main-and-other-branches).
   Do not infer a branch conflict from a failing check alone.
 
 Report the suites and test/image counts that actually ran. A successful build,
 empty selection, or skipped test does not establish behavior coverage.
 
 ## Simulator
+
+Development commands default to the iOS 27.2 Simulator runtime.
 
 `./test` resolves a UDID via [`./simulator`](../../../simulator). Do not pass a
 device *name* to `simctl`. Do not hand-roll a `-destination`.
@@ -156,7 +165,7 @@ Raw one-off `xcodebuild` (rare):
   does run: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`,
   `mise exec -- ./sync-agents`, and the retained Python tool tests
   (`python3 -m unittest discover -s Tools/Tests -p 'test_*.py'`). See the Linux
-  table in the root [`AGENTS.md`](../../../AGENTS.md#what-works-on-linux) for the
+  table in [Environments and CI](../../../.agents/references/environments.md#what-works-on-linux) for the
   three macOS-coupled carve-outs among those.
 
 ## Broad local iOS and macOS validation
