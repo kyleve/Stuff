@@ -5,10 +5,10 @@
 - Updated: 2026-11-14; baseline `b629d56ac`.
 - Operation: execute the user-approved plan.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: original implementation and reusable skill delivered; [monthly schedule activation](04-monthly-maintenance.md) blocked pending explicit approval.
-- Completed: all three deliverables, relocation verification, installer repair, offline validation, CI enforcement, focused checks, and independent static review.
-- Pending: explicit schedule activation approval, hosted CI, and PR review. Linear linking remains unavailable.
-- Next action: confirm cadence, destination, and recurring PR publication, then create the monthly schedule.
+- Stage: all four deliverables complete, including the [active monthly schedule](04-monthly-maintenance.md).
+- Completed: original implementation, relocation verification, installer repair, offline validation, CI enforcement, focused checks, independent static review, reusable maintenance skill, and monthly schedule.
+- Pending: hosted CI and PR review. Linear linking remains unavailable.
+- Next action: address PR feedback if requested. Monthly maintenance starts from current main after the skill and checker merge.
 - Publication: user explicitly approved public publication on 2026-11-14. [PR #499](https://github.com/kyleve/Stuff/pull/499) is open and ready for review.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
@@ -50,8 +50,8 @@ The current CI documentation shortcut skips the required lint job.
 | Q-02 | closed | User selected offline checks only on 2026-11-14. | R-04 and X-02 |
 | Q-03 | closed | User approved the proposed plan and requested implementation. | Deliverables 01–03 and this checkpoint |
 | Q-04 | closed | User explicitly approved public publication on 2026-11-14. | PR #499 |
-| Q-05 | closed | User requested a reusable monthly normalization skill after publication. | Deliverable 04; schedule destination is optional pending preference |
-| Q-06 | open | Automatic approval review requires explicit cadence, destination, and recurring PR publication approval. | Deliverable 04 schedule proposal; no automation created |
+| Q-05 | closed | User requested reusable monthly normalization and selected fresh Stuff tasks. | Deliverable 04 |
+| Q-06 | closed | User explicitly approved monthly fresh tasks at the proposed cadence and PRs for fixes, without merging. | Active automation normalize-agent-guidance; deliverable 04 |
 
 Preserve complete existing sections or invariant bullets when moving them. Record their new owners in the [relocation map](relocations.md).
 Use source-scoped instruction files for subsystem invariants and conditional references for procedures or measurement history.
@@ -87,6 +87,6 @@ No actionable findings remain in the reviewed scope. This review was not a live 
 
 R-01 through R-04 are implemented, verified, and published in [PR #499](https://github.com/kyleve/Stuff/pull/499).
 The newer main-branch Device Layout Lab invariant is preserved in its scoped owner. Native files remain identical to main.
-Deliverables 01–03 are complete. Deliverable 04's skill is implemented and verified; its monthly schedule awaits explicit activation approval.
+All four deliverables are complete. The normalization skill is implemented and verified; its monthly schedule is active with explicit user approval.
 The earlier automatic-review publication blocker was resolved by explicit user approval. Publication used the existing SSH credential because the OAuth credential lacked workflow scope.
 The full requirements, decisions, execution order, and review record were restored in deliverable 04 after an earlier publication update truncated this overview.
