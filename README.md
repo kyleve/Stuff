@@ -223,7 +223,7 @@ Where/              The Where app, its modules, and its tests — same shape
 
 ## Work with agents
 
-See the [prompting guide](.agents/README.md) for task prompts and guidance ownership.
+See [agent guidance](.agents/README.md) for ownership, maintenance, and official references.
 
 ## Acknowledgements
 
