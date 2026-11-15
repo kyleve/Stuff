@@ -9,6 +9,47 @@
     @MainActor
     @Suite(.serialized)
     struct DeviceLayoutLabViewTests {
+        @Test func snapshotAppearancesHaveDistinctPreviewIdentities() {
+            let snapshots = DeviceLayoutLabView.snapshots
+            #expect(Set(snapshots.map(\.id)).count == snapshots.count)
+        }
+
+        @Test func embeddedNavigationFollowsAppearanceChanges() async throws {
+            let model = WhereDemoWorldModel()
+            await model.load()
+            let state = DeviceLayoutLabState(model: model)
+            let host = UIHostingController(rootView: DeviceLayoutLabView(state: state)
+                .whereBroadwayRoot())
+            host.safeAreaRegions = []
+            host.overrideUserInterfaceStyle = .dark
+            try await show(host) { controller in
+                controller.view.frame = CGRect(x: 0, y: 0, width: 834, height: 1194)
+                controller.view.window?.layer.speed = 1
+                controller.view.layoutIfNeeded()
+                try await waitForStage("Embedded navigation", in: controller.view) {
+                    AdaptivePaneTestSupport.descendants(
+                        of: controller.view,
+                        matching: UINavigationBar.self,
+                    ).contains { $0.window != nil && $0.bounds.height > 0 }
+                }
+                let navigationBar = try #require(AdaptivePaneTestSupport.descendants(
+                    of: controller.view,
+                    matching: UINavigationBar.self,
+                ).first { $0.window != nil && $0.bounds.height > 0 })
+                for appearance in [UIUserInterfaceStyle.dark, .light, .dark] {
+                    controller.overrideUserInterfaceStyle = appearance
+                    try await waitForStage(
+                        "Appearance \(appearance.rawValue)",
+                        in: controller.view,
+                    ) {
+                        navigationBar.traitCollection.userInterfaceStyle == appearance
+                    }
+                    #expect(navigationBar.window != nil)
+                    #expect(state.model === model)
+                }
+            }
+        }
+
         @Test func changingDeviceLayoutsKeepsSearchUntilAnExplicitReset() async throws {
             let model = WhereDemoWorldModel()
             await model.load()
