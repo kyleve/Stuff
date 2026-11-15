@@ -5,10 +5,10 @@
 - Updated: 2026-11-14; baseline `b629d56ac`.
 - Operation: execute the user-approved deduplication follow-up.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: deliverables 01–04 complete; [05 — Deduplication](05-deduplication.md) is validated and awaits publication.
+- Stage: all five deliverables are complete, including [05 — Deduplication](05-deduplication.md).
 - Completed: original implementation, relocation verification, installer repair, offline validation, CI enforcement, focused checks, independent static review, reusable maintenance skill, and monthly schedule.
-- Pending: follow-up publication. Linear linking remains unavailable.
-- Next action: commit and push deliverable 05, then update PR #499.
+- Pending: hosted CI and PR review. Linear linking remains unavailable.
+- Next action: address PR feedback if requested. Monthly maintenance starts from current main after the skill and checker merge.
 - Publication: user explicitly approved public publication on 2026-11-14. [PR #499](https://github.com/kyleve/Stuff/pull/499) is open and ready for review.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
@@ -104,6 +104,6 @@ These reviews were not live skill evaluations.
 
 R-01 through R-04 are implemented, verified, and published in [PR #499](https://github.com/kyleve/Stuff/pull/499).
 The newer main-branch Device Layout Lab invariant is preserved in its scoped owner. Native files remain identical to main.
-The original four deliverables are complete. The normalization skill is implemented and verified; its monthly schedule is active with explicit user approval.
+All five deliverables are complete. The normalization skill is implemented and verified; its monthly schedule is active with explicit user approval.
 The earlier automatic-review publication blocker was resolved by explicit user approval. Publication used the existing SSH credential because the OAuth credential lacked workflow scope.
 The full requirements, decisions, execution order, and review record were restored in deliverable 04 after an earlier publication update truncated this overview.

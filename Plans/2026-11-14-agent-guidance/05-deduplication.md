@@ -1,6 +1,6 @@
 # Focused guidance deduplication
 
-Status: executing
+Status: complete
 Dependencies: [04](04-monthly-maintenance.md)
 Requirements: preserve R-01 through R-05 and X-01 through X-04 from the [overview](README.md).
 Authorization and review: Q-07; baseline `a650676ba`.
@@ -38,4 +38,5 @@ The checker passes after synchronization. Root: 6,673 bytes; largest chain: 27,6
 The affected synchronization suites pass: 10 tests, 82 assertions. Template routes, unchanged skill metadata, and whitespace checks pass.
 Static review restored explicit trait-read declaration requirements and PR architecture/compatibility clauses at their retained owners. No actionable findings remain.
 The Python skill validator still lacks PyYAML; repository validation covers metadata and links. Native tests and live model evaluations are outside scope.
-Next: commit and publish in PR #499. For incomplete consolidation, restore the baseline block and repeat affected checks.
+Published as `76aa17e62` in [PR #499](https://github.com/kyleve/Stuff/pull/499), with the description and validation evidence updated.
+Resume with PR feedback. For incomplete consolidation, restore the baseline block and repeat affected checks.
