@@ -6,7 +6,7 @@
 
 ## Intended outcome
 
-Browse the repository and search file paths and text while the current review stays open. Results open as additional workspace documents at a stated revision. Returning to the review preserves its location and progress.
+Browse the repository and search file paths and text while the current review stays open. Results belong to that PR's workspace and open at a stated revision. Switching PRs preserves each workspace's context; resuming the review returns to its last file at the top with progress preserved.
 
 Demonstrate a search from PR A, opening a file outside its diff, switching to PR B, and returning to A unchanged. Repeat at different revisions where the same path has different content. Partial indexing must not look like a complete “no results” response.
 
@@ -15,7 +15,7 @@ Demonstrate a search from PR A, opening a file outside its diff, switching to PR
 | Story | Requirement | Intended contribution |
 | --- | --- | --- |
 | US-01, US-04 | R-02, R-05 | Repository tree, path search, text search, and persistent source/search documents. |
-| US-02 | R-03 | Restore semantic queries and reading locations without replacing the active review. |
+| US-02 | R-03 | Restore semantic queries and the last review file within its PR workspace. |
 | US-07 | R-08, R-09 | Revision/coverage labels, account-isolated caches, and cancellation. |
 | US-04, US-06 | R-10 | Accessible results and bounded indexing/rendering workloads. |
 
@@ -65,6 +65,7 @@ GitHub's default-branch code-search endpoint is not the implementation of PR-rev
 | Date | Decision | Source |
 | --- | --- | --- |
 | 2026-11-14 | Repository exploration is part of the review workspace, with path and text search at an explicit revision. | Q-03, R-05. |
+| 2026-11-14 | Keep exploration documents with their PR when switching to another PR workspace. | Q-13. |
 
 ## Resume point
 

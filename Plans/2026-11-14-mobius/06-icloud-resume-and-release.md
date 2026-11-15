@@ -6,7 +6,7 @@
 
 ## Intended outcome
 
-Start reviews on one device and continue them on another using private iCloud under the same Apple ID. Workspace documents, personal checkpoints/receipts, and drafts converge without losing user work or taking over another device's window focus. Each device authenticates its own GitHub account before retrieving protected source.
+Start reviews on one device and continue them on another using private iCloud under the same Apple ID. Independent PR workspaces, documents, last review files, per-file reviewed versions, and drafts converge without losing user work or taking over another device's window focus. Reopening a review starts at the top of its last file. Each device authenticates its own GitHub account before retrieving protected source.
 
 This deliverable is required for the first release. Demonstrate an iPhone-to-iPad-to-Mac handoff, concurrent edits, offline work, reconnect, account transitions, and a complete GitHub review flow. A local-only app or simulator-only sync demonstration does not satisfy it.
 
@@ -25,7 +25,7 @@ X-05 and X-06 apply. No custom workspace-sync backend, different-Apple-ID contin
 
 The candidate transport is `CKSyncEngine` over a dedicated private CloudKit database/container. The app owns local atomic persistence, pending record changes, serialized engine state, conflict policy, and account transitions. Keep the Core store's accepted-state interface; measure whether record projection requires a different internal persistence implementation.
 
-Use stable per-entity records instead of a single last-writer-wins workspace blob. Design tombstones and deterministic merge rules for document membership/order, checkpoints, receipts, and draft revisions. Preserve competing draft texts. Explicitly distinguish opening a new document from an old offline device replaying a deleted document. Wall-clock order alone must not discard user-authored content.
+Use stable per-entity records instead of a single last-writer-wins workspace blob. Design tombstones and deterministic merge rules for document membership/order, last review file, per-file review evidence, and draft revisions. Preserve competing draft texts. Explicitly distinguish opening a new document from an old offline device replaying a deleted document. Wall-clock order alone must not discard user-authored content.
 
 ```mermaid
 flowchart LR
@@ -45,7 +45,7 @@ protocol WorkspaceSynchronizing: Sendable {
 // It does not publish GitHub feedback or copy authentication credentials.
 ```
 
-Native window bounds, selected panes, focus, and local scene IDs remain device-local. Restored workspace content must fit the receiving device. Preserve semantic reading anchors; do not promise identical pixel offsets. Remote work becomes available without unexpectedly opening windows or closing a focused local document during an edit.
+Native window bounds, selected panes, focus, and local scene IDs remain device-local. Restored workspace content must fit the receiving device. Preserve the semantic last-file identity and open a resumed review at its top; exact scroll offsets are not part of the continuity contract. Remote work becomes available without unexpectedly opening windows or closing a focused local document during an edit.
 
 Account changes must stop the prior sync scope and isolate its files/records before any new scope starts. iCloud sign-out must not silently upload one account's drafts into another account. GitHub sign-out/revocation must prevent protected fetches and display, with an explicit policy for retained private drafts and caches. Preserve recoverable user work while resolving access; never infer fresh access from stale credentials.
 
@@ -65,9 +65,9 @@ Account changes must stop the prior sync scope and isolate its files/records bef
 
 The executable refinement must preserve this sequence:
 
-1. Open two PRs and repository context on iPhone; explicitly mark part of one review and save feedback text.
-2. Resume on iPad; open a second window and follow a search result without losing either review.
-3. Change the test PR; verify the since-checkpoint comparison and unchanged-file receipts on Mac, including menu/keyboard navigation.
+1. Open two independent PR workspaces and their repository context on iPhone; mark a file reviewed in one PR, leave another unreviewed, and save feedback text.
+2. Resume on iPad at the top of the last review file; open a second window and follow a search result without losing either PR's context.
+3. Change the test PR; on Mac, verify new edits against each reviewed file's baseline, the full PR diff for an unreviewed file, and full-diff access for either. Check menu/keyboard navigation and that the second PR's progress is unaffected.
 4. Make competing offline draft edits on two devices; reconnect and recover both texts. Exercise document close/reopen and account switching.
 5. Submit feedback once through an explicit user action; interrupt the response and prove recovery does not blindly replay the write from either device.
 6. Verify the same workflow with accessibility text sizes and VoiceOver, and inspect the platform-specific CI/runtime evidence.
@@ -80,6 +80,7 @@ This is a planned acceptance flow, not a measured result. Refine exact assertion
 | --- | --- | --- |
 | 2026-11-14 | Private iCloud continuity is in the first release and uses the same Apple ID. | Q-05/Q-07. |
 | 2026-11-14 | Sync semantic workspace metadata/drafts, retaining native presentation and source caches locally. | Overview design proposal. |
+| 2026-11-14 | Sync independent PR workspaces, last-file identity, and per-file reviewed versions; resume at the file top. | Q-13–Q-15. |
 
 ## Resume point
 

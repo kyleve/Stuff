@@ -24,7 +24,7 @@ X-02, X-03, and X-05 apply. No automatic review publication on navigation, backg
 
 Core owns `ReviewDraft`, anchor mapping, and a proposed `ReviewPublisher`. UI owns composition, confirmation, and recovery presentation. Scope publication by account, PR, and draft revision; one local owner serializes mutations for that draft. Record the original immutable file comparison and anchor when text is authored.
 
-Read the current PR state before submission. If the head or comparison context changed, show the change and retain the draft until its target is revalidated. A comment authored while viewing a since-checkpoint comparison must map to a valid location in the PR review diff, or remain an unsubmitted draft with a useful explanation. Never attach a comment to the same line number in unrelated content. Submit an explicit commit ID where the API supports it; a preflight read does not make a later API write atomic with branch updates.
+Read the current PR state before submission. If the head or comparison context changed, show the change and retain the draft until its target is revalidated. A comment authored while viewing a file's new edits since its reviewed version must map to a valid location in the PR review diff, or remain an unsubmitted draft with a useful explanation. Never attach a comment to the same line number in unrelated content. Submit an explicit commit ID where the API supports it; a preflight read does not make a later API write atomic with branch updates.
 
 ```mermaid
 stateDiagram-v2
@@ -61,6 +61,7 @@ GitHub review/comment schemas are linked in [research](README.md#research-and-ev
 - Provider evidence from 03 must establish actual permission failures, pending-review constraints, line/range validation, and supported reply/review operations.
 - [Q-09](README.md#q-09): Define cross-device publication ownership before sync. Syncing a draft or an uncertain intent must not automatically send it. Manual concurrent submission of the same shared draft needs a concrete conflict policy; local serialization does not solve that race.
 - Draft conflict handling must preserve both authored texts. Publication receipts must identify which draft revision was sent so later edits are not falsely marked published.
+- Q-13/Q-15 keep feedback and per-file progress inside the owning PR workspace. A stack connection does not batch publication or advance another PR's progress.
 
 ## Refinement trigger
 

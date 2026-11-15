@@ -3,16 +3,18 @@
 ## Planning checkpoint
 
 - Updated: 2026-11-14; repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`.
-- Operation: Create a plan. Product implementation is not requested.
-- Requested scope and source: The user's 2026-11-14 chat request and answers to [Q-01–Q-07](#questions-and-resolutions).
-- Stage: Handoff; plan published for review.
-- Completed: Product discovery, repository inspection, primary-source API research, Linear duplicate search, and review of all eight plan files. Published [PR #497](https://github.com/kyleve/Stuff/pull/497); [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) is In Review and links the plan and PR.
-- Pending: PR review and merge. Later technical decisions remain in Q-08–Q-12 at their recorded refinement gates. Product execution has not been requested.
-- Next action: Await a request to execute 01 or refine a named outline; inspect current PR feedback and repository state when resuming. The first execution resume point is [01](01-review-state-foundation.md#resume-point).
+- Operation: Revise the plan following product discovery. Product implementation is not requested.
+- Requested scope and source: The user's 2026-11-14 request, Q-01–Q-07 answers, and Q-13–Q-18 follow-ups on review continuity and prototype priority; see [question history](#questions-and-resolutions).
+- Stage: Handoff; revised plan for review.
+- Completed: Initial research and publication in [PR #497](https://github.com/kyleve/Stuff/pull/497); integrated one workspace per PR, file-top resumption, per-file remaining work, and a lightweight mockup across all three layouts. [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) tracks plan delivery.
+- Pending: PR review and merge. Q-08–Q-12 remain at their technical refinement gates. The mockup must supply interaction evidence before the durable model becomes executable.
+- Next action: Await a request to execute [01a](01a-workspace-prototype.md#resume-point), then inspect current feedback and repository state. Choosing the first deliverable does not itself request its implementation.
 
 ## Outcome and scope
 
-Mobius keeps code review open as ongoing work. A reviewer can leave several pull requests, source files, and searches open, explore without losing a review, and resume on another device. Personal progress records which version was reviewed, so returning after a push reveals what needs another pass. Nobody needs a temporary “got to here” GitHub comment.
+Mobius keeps code review open as ongoing work. Each PR has its own workspace containing its review, reference files, and searches. Reviewers switch between those independent workspaces and resume at the top of the file they left. A remaining-work view shows new edits in previously reviewed files and the full PR diff for unreviewed files; the full PR diff stays available for either. Each reviewed file has its own last-reviewed version. Nobody needs a temporary “got to here” GitHub comment.
+
+PRs remain separate even when GitHub connects them in a stack. If a stack connection is shown, it is an informational link; it does not combine progress, drafts, comparison baselines, or submission actions. Stack discovery is not an additional first-release integration requirement.
 
 The first release targets **iPhone, iPad, and Mac Catalyst**, including Mac windows, menus, and shortcuts. It supports GitHub PR diffs, comments, approvals, and requests for changes. Private iCloud sync carries workspaces and personal progress between devices using the same Apple ID. These are first-release requirements even though implementation is divided into deliverables.
 
@@ -23,7 +25,7 @@ Embedding the reviewer inside an owning app, with a possible live execution surf
 | ID | Story |
 | --- | --- |
 | US-01 | Keep several reviews and reference documents open, so investigating one question does not discard another task. |
-| US-02 | Resume my place, drafts, and explicit progress without reconstructing my last session. |
+| US-02 | Resume my review file from its top, with drafts and progress preserved, without reconstructing my last session. |
 | US-03 | Distinguish unchanged reviewed work from new PR changes, so I can concentrate on what needs another pass. |
 | US-04 | Browse and search repository context without leaving the review workspace. |
 | US-05 | Comment, approve, or request changes against the code I inspected. |
@@ -38,9 +40,9 @@ R-01–R-07 and R-12 derive from the user's product choices. R-08–R-11 support
 | ID | Required behavior or constraint | Story | Implementing plan |
 | --- | --- | --- | --- |
 | R-01 | Run on iPhone, iPad, and Mac Catalyst, with Mac windows, menus, and keyboard commands. | US-06 | [02](02-application-workspace.md), [06](06-icloud-resume-and-release.md) |
-| R-02 | Keep multiple PRs, files, and searches open as workspace documents. Opening context preserves the existing review. | US-01, US-04 | [01](01-review-state-foundation.md), [02](02-application-workspace.md), [04](04-repository-exploration.md) |
-| R-03 | Persist documents, reading positions, personal review receipts, and drafts across relaunch. Reading position, explicit progress, and a submitted GitHub review are separate facts. | US-02 | [01](01-review-state-foundation.md), [02](02-application-workspace.md), [05](05-review-feedback.md) |
-| R-04 | Identify changes since an explicit personal checkpoint using immutable revisions. Distinguish current PR changes from changes since that checkpoint. Preserve unaffected progress without silently advancing the checkpoint. | US-03 | [01](01-review-state-foundation.md), [03](03-github-and-revision-comparison.md) |
+| R-02 | Keep one independent workspace per PR, with its reference files and searches. Switching PRs preserves each workspace. Stack connections, if shown, are informational. | US-01, US-04 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [02](02-application-workspace.md), [04](04-repository-exploration.md) deliver it |
+| R-03 | Persist workspace documents, the last review file, per-file reviewed versions, and drafts across relaunch. Resume the file from its top; precise in-file position and reviewed-range tracking are not required. Personal progress and submitted GitHub feedback remain separate facts. | US-02 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [02](02-application-workspace.md), [05](05-review-feedback.md) deliver it |
+| R-04 | Within one PR, remaining work combines new edits since each reviewed file's last-reviewed version with the full PR diff for unreviewed files. Let either file open its full PR diff. An explicit file-review action advances that file's baseline; navigation and refresh do not. | US-03 | [01a](01a-workspace-prototype.md) explores interaction; [01](01-review-state-foundation.md), [03](03-github-and-revision-comparison.md) deliver it |
 | R-05 | Browse files and search paths and text at an identified repository revision within Mobius. Open results without replacing the review and show search coverage. | US-04 | [04](04-repository-exploration.md) |
 | R-06 | Read review discussion; compose and explicitly submit comments, approvals, and requests for changes with revision validation and recoverable drafts. | US-05 | [03](03-github-and-revision-comparison.md), [05](05-review-feedback.md) |
 | R-07 | Resume documents, progress, and draft work through private iCloud sync on the same Apple ID. Keep device window placement local and expose sync state. | US-02, US-06 | [01](01-review-state-foundation.md) supplies identities; [06](06-icloud-resume-and-release.md) delivers sync |
@@ -89,13 +91,22 @@ Consulted 2026-11-14. External sources establish documented capabilities, not li
 
 ## Design overview
 
+### Discovery scenario
+
+PR 42 and PR 43 each have their own workspace. Opening a reference file or search from PR 42 retains it there when switching to PR 43. Returning to PR 42 restores its last review file at the top. A stack link between those PRs does not merge their work.
+
+Within PR 42, mark `Parser.swift` reviewed at version 1 and leave `Store.swift` unreviewed. A simulated push supplies version 2. Remaining work shows the version-1-to-version-2 edits for `Parser.swift` and the full current PR diff for `Store.swift`. Either can open its full PR diff. Marking `Parser.swift` reviewed again advances only its baseline. These are files within one PR, not three separate reviews.
+
+The first deliverable is a lightweight interactive mockup with phone, tablet, and desktop layouts. It will explore navigation, labels, and layout using synthetic PRs before native implementation or durable storage. See [01a](01a-workspace-prototype.md). A mockup result will not establish native platform, persistence, provider, or sync feasibility.
+
 ### Product concepts
 
-- **Workspace:** a durable collection of review, source, and search documents. Opening another task does not replace the current review.
+- **Workspace:** one PR's review, source, and search documents. Another PR has a separate workspace, including when the PRs belong to a stack.
 - **Document:** a typed route with account/repository identity and an explicit revision policy. Pinned source tabs must not silently follow moving branches.
 - **Window presentation:** device-local selection, panes, focus, and scene identity. Synced work becomes available to resume without stealing focus or automatically spawning windows.
+- **Resume file:** the last review file within that PR workspace. Reopening starts at its top; an exact scroll position is not durable review progress.
 - **Review receipt:** explicit evidence for a file comparison, including both sides, paths, modes, and content identities. A new head alone neither invalidates every receipt nor proves any one remains current.
-- **Checkpoint:** a deliberately captured PR revision and comparison context. “Changes since checkpoint” differs from “current PR changes.” Refresh does not advance the checkpoint.
+- **Per-file baseline:** the version last marked reviewed for that file. Remaining work compares against it; a file with no baseline shows its full PR diff. A separate manually captured PR-wide checkpoint is not required by the selected workflow.
 - **Draft:** user text with its original revision/anchor. Draft, publishing, uncertain outcome, and confirmed publication remain distinct states.
 
 ### Proposed ownership
@@ -104,7 +115,7 @@ Start with `MobiusCore`, `MobiusUI`, and a thin `Mobius` app host. These are pro
 
 Core owns typed values, revision/progress policy, local storage, provider protocols, GitHub transport, and sync policy in focused source directories. UI owns observable presentation, Broadway styling, code-rendering adapters, and navigation. The process composition root creates one runtime and injects it into each scene. Views do not open stores or create shared services.
 
-The initial store is a serial actor with an atomically replaced, versioned metadata file. Source blobs and indexes occupy an independently evictable cache. Stable entity IDs support later CloudKit record projection. Revisit storage technology if measured scale requires it; preserve accepted-data semantics and the store interface.
+The earlier candidate store is a serial actor with an atomically replaced, versioned metadata file, separate from evictable source blobs and indexes. Its concrete model and technology remain provisional until the mockup is evaluated. Stable identities, honest errors, and preservation of accepted user work remain constraints for later refinement.
 
 ```mermaid
 flowchart LR
@@ -149,26 +160,29 @@ actor WorkspaceStore {
 }
 ```
 
-[01](01-review-state-foundation.md) defines the initial value/persistence contracts. Network, sync, and renderer interfaces remain provisional until their outlines are refined. Authentication UI and native scene adapters are omitted.
+[01](01-review-state-foundation.md) will define production value/persistence contracts after the mockup. This ownership sketch is a candidate native design; the mockup does not implement these services. Network, sync, and renderer interfaces remain provisional until their outlines are refined. Authentication UI and native scene adapters are omitted.
 
 ## Execution order
 
 | Order | Plan | Deliverable |
 | --- | --- | --- |
-| 1 | [Review-state foundation](01-review-state-foundation.md) | Typed workspace/progress state, restart-safe local persistence, and deterministic guards. |
-| 2 | [Application workspace](02-application-workspace.md) | Fixture-backed app on all three destinations with tabs, scenes, restoration, and accessible navigation. |
-| 3 | [GitHub and revision comparison](03-github-and-revision-comparison.md) | Authenticated PR reading and trustworthy revision-aware diffs/progress. |
-| 4 | [Repository exploration](04-repository-exploration.md) | Revision-bound browsing and path/text search alongside reviews. |
-| 5 | [Review feedback](05-review-feedback.md) | Comments and reviews with retained drafts and uncertain-outcome recovery. |
-| 6 | [iCloud resume and release](06-icloud-resume-and-release.md) | Cross-device continuity and verified first-release acceptance. |
-| 7 | [Embedded review experiment](07-embedded-review-experiment.md) | Evidence and a recommendation for embedded review with bounded live context. |
+| 1 | [01a — Workspace prototype](01a-workspace-prototype.md) | Lightweight interactive mockup of separate PR workspaces and remaining work across phone, tablet, and desktop layouts. |
+| 2 | [01 — Review-state foundation](01-review-state-foundation.md) | Durable workspace/progress state informed by prototype evidence. |
+| 3 | [02 — Application workspace](02-application-workspace.md) | Native app with tabs, scenes, file-top resumption, and accessible navigation. |
+| 4 | [03 — GitHub and revision comparison](03-github-and-revision-comparison.md) | Authenticated PR reading and per-file remaining-work comparisons. |
+| 5 | [04 — Repository exploration](04-repository-exploration.md) | Revision-bound browsing and path/text search alongside each review. |
+| 6 | [05 — Review feedback](05-review-feedback.md) | Comments and reviews with retained drafts and uncertain-outcome recovery. |
+| 7 | [06 — iCloud resume and release](06-icloud-resume-and-release.md) | Cross-device continuity and verified first-release acceptance. |
+| 8 | [07 — Embedded review experiment](07-embedded-review-experiment.md) | Evidence and a recommendation for embedded review with bounded live context. |
+
+01a is an inserted prerequisite; the earlier reviewed filenames remain stable. This table defines execution order.
 
 ## Planning horizon
 
-- Detail now: [01](01-review-state-foundation.md). Synthetic immutable inputs suffice; no GitHub registration, CloudKit container, or renderer choice is required.
-- Later selected work: 02–07 remain outlines with refinement triggers, not executable plans.
-- Next horizon review: Use 01's actual model and persistence evidence to refine 02 and 03. Resolve Q-08/Q-10 then. Resolve the sync merge policy before 06 becomes executable; 01 preserves the IDs and revisions it needs.
-- First-release gate: **01–06 together**. A local foundation or fixture app does not waive sync or GitHub feedback.
+- Detail now: [01a](01a-workspace-prototype.md), selected in Q-16–Q-18 to explore all three layouts through a lightweight interactive mockup.
+- Later selected work: 01–07 are outlines. The earlier claim that 01 was ready is superseded; its model must follow prototype learning.
+- Next horizon review: Record prototype observations and the user's feedback, integrate changed decisions, then refine 01 and reconsider 02/03. Technical decisions Q-08–Q-12 retain their recorded gates.
+- First-release gate: **01–06 together**, preceded by prototype learning. The mockup does not deliver or waive native platform, GitHub feedback, persistence, or sync requirements.
 
 ## Shared decisions
 
@@ -179,7 +193,10 @@ actor WorkspaceStore {
 | 2026-11-14 | GitHub diffs, comments, approvals, and requests for changes in the first release. | Q-02. |
 | 2026-11-14 | Private iCloud continuity on the same Apple ID is a first-release requirement. | Q-05, Q-07. |
 | 2026-11-14 | Embedding/live context receives a later experiment. | Q-06. |
-| 2026-11-14 | Proposed: personal receipts and explicit checkpoints remain separate from submitted GitHub reviews. | R-03/R-04; immutable revision evidence. |
+| 2026-11-14 | One workspace per PR; stack connections are informational. | Q-13 and Q-15 clarification. |
+| 2026-11-14 | Resume at the top of the last review file. | Q-14 follow-up. |
+| 2026-11-14 | Remaining work uses each reviewed file's last-reviewed version and includes the full PR diff for unreviewed files. Full PR diffs remain available. | Q-15 follow-up; replaces the earlier PR-wide explicit-checkpoint proposal. |
+| 2026-11-14 | Start with a lightweight interactive mockup exploring phone, tablet, and desktop together. | Q-16–Q-18; replaces foundation-first sequencing. |
 | 2026-11-14 | Proposed: sync semantic workspace data and drafts; keep native geometry/focus and full code caches local. | R-07/R-09. |
 | 2026-11-14 | Proposed: atomic metadata storage, not a bounded journal as the only copy of user work. | JournalKit contract. |
 
@@ -199,8 +216,14 @@ actor WorkspaceStore {
 | [Q-10](#q-10) | deferred | Renderer and measured large-workspace budgets? | 02–04 | Blocks UI/diff readiness; benchmark fixtures during refinement. |
 | [Q-11](#q-11) | deferred | Catalyst validation and release distribution/signing? | 02, 06 | Specify compile/runtime validation in 02; resolve distribution in 06. |
 | [Q-12](#q-12) | deferred | What can an embedded reviewer prove about a build and PR? | 07 | Blocks a product promise; choose a synthetic host after standalone delivery. |
+| [Q-13](#q-13) | closed | How is concurrent review work grouped? | R-02, 01a, 01, 02, 04 | One independent workspace per PR. |
+| [Q-14](#q-14) | closed | What should resuming a review restore? | R-03, 01a, 01, 02, 06 | Return to the review file and start at its top. |
+| [Q-15](#q-15) | closed | How should new edits and unfinished work appear within one PR? | R-04, 01a, 01, 03, 05, 06 | Per-file last-reviewed versions; full PR diffs for unreviewed files and as an available alternate view. |
+| [Q-16](#q-16) | closed | What should the first deliverable validate? | Execution order, 01a, 01, 02 | Interactive prototype with sample PRs before durable state work. |
+| [Q-17](#q-17) | closed | Which layouts should the prototype explore? | 01a | Phone, tablet, and desktop together. |
+| [Q-18](#q-18) | closed | What form should the prototype take? | 01a | Lightweight interactive mockup for quick iteration. |
 
-All user answers below came from this chat on 2026-11-14. Each was integrated and reviewed for consistency on that date. No user question remains unanswered for the current horizon.
+User answers came from this chat on 2026-11-14. Q-13–Q-18 refine the original answers without reopening the selected platforms, provider, or iCloud scope. The current horizon is prototype evaluation; detailed navigation and layout are hypotheses to explore through it.
 
 ### Q-01
 
@@ -279,20 +302,57 @@ All user answers below came from this chat on 2026-11-14. Each was integrated an
 - Deferral: Select the host/method after reusable UI/services exist. Opening a PR does not make its code executable in the running binary.
 - History: Opened and deferred on 2026-11-14.
 
+### Q-13
+
+- Answer/source: The user selected a workspace per PR. The Q-15 clarification also establishes that separate PRs are separate reviews, with a stack connection largely an informational note.
+- Integration: R-02, product concepts, 01a, and the workspace ownership and navigation in 01/02/04/06.
+- History: Asked, answered, integrated, and closed after checking that documents and progress do not merge across PRs. This does not require implementing GitHub stack discovery.
+
+### Q-14
+
+- Answer/source: Initially uncertain between a point in a file and the file reached in order. The follow-up answer was to start from the top of the file.
+- Integration: R-03, resume-file concept, 01a/01/02/06. Precise in-file restoration and reviewed-range tracking are not first-release requirements.
+- History: Kept open after the tentative answer; closed after the file-top preference was integrated. Reading or returning to a file does not itself mark it reviewed.
+
+### Q-15
+
+- Answer/source: Initially uncertain and described as personal; suggested a diff since the last review and/or unreviewed files. An ambiguous A/B/C example prompted clarification that PRs must stay independent. A subsequent example explicitly used two files within one PR; the user accepted showing new edits in a reviewed file and the full PR diff in an unreviewed file, using each file's last-marked-reviewed version and keeping full PR diffs accessible.
+- Integration: R-04, per-file baseline concept, 01a/01/03/05/06. A manually captured PR-wide checkpoint is no longer the selected model.
+- History: Kept open through the tentative answer and scenario clarification; closed after the per-file proposal was accepted and integrated. No configurable collection of alternative baseline modes was requested.
+
+### Q-16
+
+- Answer/source: Interactive prototype with sample PRs as the first deliverable.
+- Integration: Inserted 01a before 01; returned 01 to outline and made prototype evidence its refinement prerequisite.
+- History: Asked, answered, integrated, and closed after dependency review. This selects the plan's first deliverable; implementation still requires an execution request.
+
+### Q-17
+
+- Answer/source: Explore all three layouts together.
+- Integration: 01a covers phone, tablet, and desktop viewports with the same synthetic workflow.
+- History: Asked, answered, integrated, and closed. Viewport demonstrations do not establish native iPhone/iPad/Catalyst behavior.
+
+### Q-18
+
+- Answer/source: Lightweight interactive mockup for quick iteration.
+- Integration: 01a produces a self-contained browser artifact; native UIKit targets, persistent stores, authentication, and CloudKit remain later work.
+- History: Asked, answered, integrated, and closed after checking prototype scope and acceptance. Browser technology is an implementation choice for the mockup, not the production app architecture.
+
 ## Plan review
 
-- Reviewed: 2026-11-14 against `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`, covering all eight files, requirement/exclusion traceability, dependency order, and executable detail for 01. User-answer integration was checked against the complete series.
-- Findings and disposition: Aligned the overview's store signature with 01's version-checked, non-reentrant save; corrected 02's claim that a runtime already comes from 01; made Core paths repository-relative; added cross-account/PR receipt tests and post-save/pre-acknowledgment recovery; assigned app attribution to 02. Brought Q-09's submission-ownership decision forward to 05 and added its definitive rejection transition. Later technical decisions remain explicitly deferred to their owners.
-- Readiness: 01 is ready for a subsequent execution request. No blocking finding remains in that horizon. 02–07 remain outlines and require refinement before execution.
-- Verification: All local Markdown links and anchors resolve; fences are balanced; the dependency graph is acyclic; `git diff --cached --check` passes. Requirements R-01–R-12 have implementing owners. These checks validate the plan, not the proposed app.
+- Initial review: 2026-11-14 against `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`, covering the original eight files. Its readiness finding for 01 is superseded by Q-13–Q-18 and prototype-first sequencing.
+- Initial findings and disposition (historical): Aligned the overview's store signature with 01's then-proposed version-checked save; corrected 02's runtime ownership claim; added receipt-isolation and persistence-recovery scenarios; assigned app attribution to 02. Brought Q-09's submission-ownership decision forward to 05 and added its definitive rejection transition. No implementation tests ran; 01's detailed design is now deferred until prototype evaluation.
+- Revision review: Integrated Q-13–Q-18 across the nine-file series, including workspace isolation, file-top resumption, per-file baselines, and prototype-first dependencies. Reviewed 01a for executable experiment detail; 01–07 remain outlines.
+- Readiness: 01a is ready for a subsequent execution request. Prototype interaction findings and user feedback are prerequisites to refining 01. A negative prototype result can lead to a revised design; it does not establish production feasibility.
+- Verification: All 118 local Markdown links and anchors resolve across nine files; fences are balanced; the eight-plan dependency graph is acyclic; all 12 requirements have implementing owners; `git diff --check` passes. These checks validate the plan, not the proposed app.
 - Validation limits: No prototype, device test, product API write, or sync experiment has run. Swift is pseudocode. Mermaid was inspected as source; no local renderer was found. `./test` and `./swiftformat --lint` were skipped because only planning Markdown changed.
 
 ## Review and delivery
 
 - Plan review: [PR #497](https://github.com/kyleve/Stuff/pull/497), ready for review. [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) remains In Review until merge and acceptance verification.
 - Implementation: Not requested or started.
-- Review focus: Checkpoint semantics; shared work versus local windows; incomplete coverage and lost history; sync as a release gate.
+- Review focus: Independent PR workspaces; per-file remaining work and full-diff access; file-top resumption; prototype learning before the durable model; sync as a release gate.
 
 ## Outcome
 
-The reviewed series is published. Plan 01 is ready; 02–07 remain outlines. Execution awaits a new request.
+The revised series starts with the lightweight, three-layout mockup in 01a. Plans 01–07 remain outlines informed by later evidence. Execution awaits a new request.
