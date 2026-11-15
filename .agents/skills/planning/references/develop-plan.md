@@ -32,6 +32,7 @@ Record sources, covered revisions/versions, implications, and unresolved claims 
 Compare meaningful alternatives against requirements, integration cost, and maintenance burden. Route unresolved product trade-offs through the question loop before selecting an approach.
 Record the decision source and why alternatives were rejected, without inventing alternatives for routine choices.
 If feasibility needs a prototype, plan an [experiment deliverable](../../../../Plans/AGENTS.md#experiment-deliverables); execute it only within existing authorization.
+For an interactive browser experiment, use [Browser prototypes with Astro](browser-prototypes.md) to specify the development loop and device-preview evidence.
 Stop when material decisions have enough evidence and remaining uncertainty is explicit. Record when repository evidence suffices without external research.
 
 ## Resolve questions
