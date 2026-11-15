@@ -32,6 +32,8 @@ Use 01a's evaluated interactions to distinguish switching PR workspaces from sel
 
 Apply the accepted [presentation-density decision](README.md#presentation-density): compact workspace identity and view controls, with full PR metadata and less frequent arrangement actions available on demand. Keep the active content title, actual comparison meaning, immediate review actions, and relevant warnings clear. On phone, a child selector can also provide the active view title. Reclaim space through fewer rows and repeated labels while preserving readable text, touch targets, accessible disclosures, keyboard commands, and focus return. Prototype-only Canvas/Reset/Simulate Push controls do not become production chrome.
 
+Presentation controls must state their scope: how PR workspaces are presented versus how views inside one named PR are arranged. Current selections must match the visible result. [Q-25](README.md#q-25) selects honoring explicit Float at narrow widths; narrowing a workspace must not silently replace the chosen arrangement. Keep view controls reachable and preserve navigation/placement across width and outer-presentation changes. Native refinement must test combined modes against actual geometry and visibility, since outer windows change the available width for their child arrangement. The browser's exact framing/scroll behavior remains a prototype choice to evaluate.
+
 Integrate the evaluated [changes-by-kind interaction](README.md#changes-by-kind-and-explicit-skipping): group the file list, initially collapse quieter groups, and expose concise remaining/reviewed/skipped counts with reachable files and undo. Collapse never changes progress. Each child retains its own selection and presentation while skip/review evidence belongs to the workspace. The bounded prototype uses “Skip remaining files” for a group's current remaining members; preserve that explicit scope when refining native actions. Typed content views and their source/metadata access must preserve comparison meaning without recreating large teaching headers. Initial native UI may use prepared projections; real format support, classification, and unavailable-content coverage depend on 03/Q-10.
 
 ```mermaid
@@ -81,6 +83,7 @@ Declare Mobius's attribution inputs and bundled report through CreditKit's exist
 | 2026-11-14 | Restore logical workspaces with multiple child windows independently of outer tab/window presentation; retain arrangement and last focus. | First-artifact feedback and [Q-19–Q-21](README.md#q-19). |
 | 2026-11-14 | Prioritize useful content with compact workspace/view chrome and details on demand, preserving comparison meaning and accessible actions. | Accepted [iteration-2 density feedback](README.md#presentation-density); evaluated controls follow 01a iteration 3. |
 | 2026-11-14 | Group changes by kind and keep lower-attention groups collapsed; make skip/undo explicit and separate from reviewed. | [Q-22](README.md#q-22)–[Q-24](README.md#q-24); evaluate concrete views in 01a iteration 4. |
+| 2026-11-14 | Keep explicit Float effective at narrow widths and make workspace versus child-view presentation scope clear; verify actual combined layouts. | Fourth-round prototype feedback and [Q-25](README.md#q-25). |
 
 ## Resume point
 
