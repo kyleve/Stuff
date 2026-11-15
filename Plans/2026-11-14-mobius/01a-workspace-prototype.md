@@ -12,7 +12,7 @@ A lightweight interactive mockup for evaluating logical PR workspaces, their ind
 
 Investigate whether the navigation and comparison labels make it clear which PR, file, version, and unfinished work the reviewer is seeing. The agreed behavior comes from Q-13–Q-15; layout and navigation details are hypotheses to evaluate, not final native UI decisions.
 
-The first pass was bounded to one self-contained browser artifact, two synthetic PR workspaces, two fixture revisions, three viewport layouts, and one feedback round. That evaluation identified a material correction: a workspace had been flattened into a document tab group. Iteration 2 retained the same fixture and browser scope and added the ownership/presentation experiment below. Its evaluation requested substantially less stacked chrome. Iteration 3 preserves the corrected ownership model and capabilities while testing compact workspace/view controls, ending with another user evaluation. None of these passes expands into native implementation or a complete window manager.
+The first pass was bounded to one self-contained browser artifact, two synthetic PR workspaces, two fixture revisions, three viewport layouts, and one feedback round. That evaluation identified a material correction: a workspace had been flattened into a document tab group. Iteration 2 retained the same fixture and browser scope and added the ownership/presentation experiment below. Its evaluation requested substantially less stacked chrome. Iteration 3 preserved the corrected ownership model while testing compact controls. Its evaluation requested file-kind grouping, suitable comparison presentations, and explicit PR-scoped skipping. Iteration 4 retains the compact shell and existing scenarios while investigating those decisions with additional synthetic fixtures. None of these passes expands into native implementation or a complete window manager.
 
 ## User stories and requirements
 
@@ -21,6 +21,7 @@ The first pass was bounded to one self-contained browser artifact, two synthetic
 | US-01, US-04 | R-02, R-05 | Logical PR workspaces own independently navigable child views; outer tab/window presentation does not copy or merge their contents. |
 | US-02 | R-03 | Restore the workspace arrangement and last-focused child. Resuming a review child starts its own selected file at the top. |
 | US-03 | R-04 | Reviewed files show new edits; unreviewed files show the full PR diff; either can open its full PR diff. |
+| US-03, US-04 | R-13, R-14 | Group kinds and evaluate content-specific comparisons with raw fallbacks; separate PR-local skip receipts from review history and resurface changed/new work. |
 | US-06 | R-01, R-10 | The same interaction is inspectable at phone, tablet, and desktop viewport sizes. This is not native platform acceptance. |
 
 The prototype supplies interaction evidence for these requirements; it does not complete their production acceptance. R-06/R-07 and the rest of the release requirements remain in later plans.
@@ -46,7 +47,7 @@ Proposed prototype structure, not a production schema:
 | Owner | Session-only responsibility |
 | --- | --- |
 | Mockup shell | Outer workspace tab/window presentation and active workspace identity. |
-| Logical PR workspace | Fixture revision, per-file reviewed versions, draft, child collection, arrangement, and last-focused child. |
+| Logical PR workspace | Fixture revision, per-file reviewed versions, draft, per-file skip receipts, child collection, arrangement, and last-focused child. |
 | Child view instance | Unique instance identity, kind, selected file/comparison or search query or simulated-preview state, and placement. Multiple children can have the same kind or file. |
 
 Use tiled children as an exploratory wide-screen default, a bounded freeform move/resize arrangement, and a focus-one-child presentation with a child selector for compact screens. Outer workspace windows remain simulated browser shells. Treat defaults and labels as evaluation hypotheses, not native platform commitments. Showing the same workspace through a different outer presentation must not create another logical workspace or reset its children.
@@ -71,6 +72,33 @@ Bound the pass to the existing two PRs/two revisions/four child kinds and state 
 
 Before/after evidence uses identical viewports and fixture states, including a review at the initial full comparison and a post-push incremental comparison. Record the content viewport's top position and usable height at phone, tablet, and desktop sizes, plus representative visually inspected captures. Exercise newly disclosed controls by keyboard and pointer, Escape/focus return, and navigation from the compact selector. Repeat the complete previous regression scenario against the final source, since moving controls can affect focus and reachability despite retaining the state model.
 
+## Iteration 4 file kinds and explicit skip method
+
+The user requested differentiated diffs/listing for localization, Git LFS files, Markdown, and code. Q-22–Q-24, resolved through the parent conversation on 2026-11-14, establish grouping with quieter kinds collapsed, explicit **Skip for this PR** separate from reviewed state, and resurfacing when a skipped file changes. This pass preserves the compact information hierarchy accepted for iteration 3. Shared requirements R-13 (kind grouping/presentations/fallbacks) and R-14 (PR-local skip/undo/resurfacing) are owned by the parent overview; this file owns the bounded browser method.
+
+Use the existing two PRs and two prepared revisions. Extend each PR from three code files to the following seven files at v1 and eight at v2; source navigation/search also retain the supporting `Reference.swift` fixture.
+
+| Group | Fixture | Prepared comparison and v2 behavior |
+| --- | --- | --- |
+| Code | `Parser.swift`, `Store.swift`, `Stable.swift` | Preserve original line diffs and remaining-work scenario. Parser/Store change at v2; Stable stays unchanged. |
+| Documents | `README.md` | Rendered Markdown before/after with source-diff access. A v2 link-target-only edit must remain identifiable even if rendered prose looks the same. |
+| Localization | `Localizable.xcstrings` | Changed key/locale/value rows with raw source-diff access. v2 changes a translation and adds a locale; receipts stay file-level. |
+| Snapshots/assets | `SearchResults.svg` | Embedded synthetic before/after images, metadata, and SVG source. Mark with an LFS attribute/badge; v2 changes the image. |
+| Snapshots/assets | `Design.psd` | Explicitly unavailable binary preview; prepared metadata and LFS pointer fallback. Its v1 PR change is unchanged at v2. Never display a fabricated clean comparison. |
+| Snapshots/assets | `EmptyResults.svg` | New file at v2, with explicit absent-before state, synthetic image, metadata, and source. This was not a member of any v1 group-skip snapshot. |
+
+These are candidate presentations, not native renderers or format parsers. All before/current/rendered/source/pointer data is deterministic and bundled. LFS is an attribute across content types, never a separate content group. No Git/LFS downloads, real parsing, network integration, additional account data, executable previews, or per-key review receipts are added.
+
+The existing file chooser becomes a grouped list. Code starts open; Documents, Localization, and Snapshots/assets start collapsed. Collapsed headers retain visible remaining/reviewed/skipped counts and explicit group actions. Per-child expansion and rendered/source selection are navigation state. They never advance a review baseline or skip a file. File-review actions retain their underlying PR/file/revision owner; the existing private draft remains PR-scoped. No per-key or fabricated submission anchors are added.
+
+Skip receipts are separate from review receipts. Individual skip applies only to a currently remaining file. A skip records only that PR/file's current prepared content version; **Skip remaining files** snapshots only currently remaining files present in the group when invoked. It does not configure a category exclusion or affect another PR. Current-file and group undo remove skip receipts without modifying actual review history. A content change invalidates the active skip and returns the file to Remaining; an unchanged skip persists. A new file has no skip receipt. Resurfaced reviewed files still compare from their last actually reviewed version; resurfaced unreviewed files show the full PR diff.
+
+Count/action policy was reconciled with the parent on 2026-11-14: remaining, currently reviewed, and actively skipped are distinct mutually exclusive dispositions. Already-current reviewed files are not eligible for individual/group skip. A now-changed remaining file may have an older reviewed receipt, which skipping preserves. Undo restores remaining unless actual review independently made it current. Explicit Mark reviewed can clear an active skip only when the actual comparison/content is available and the user deliberately invokes it. Missing binary bytes cannot be marked reviewed through a fabricated preview. Group undo applies to currently active skips in that group; neither group action creates a future category rule.
+
+Keep the selected file understandable when marking/skipping updates the chooser. A skipped selected file remains reachable with its status and Undo; full context/source remain accessible. When nothing remains but skips exist, say no remaining work and report skipped files separately, never all reviewed. Preview fallback names missing/unsupported content and exposes the raw source, pointer, or metadata that actually exists. Rendered Markdown must not conceal source-level details such as changed link targets or formatting.
+
+Bound effort to these groups/fixtures, existing four child kinds, the original interaction matrix, and one further evaluation. Retain [iteration 3's published artifact](https://github.com/kyleve/Stuff/blob/58c13ac56f87688548887172fef6f39e818bc819/Plans/2026-11-14-mobius/Prototype/index.html) as a byte-identical runnable archive and leave prior evidence untouched. Store separate captures, exact-source checks, and evaluation in `Prototype/evidence/iteration-04/`.
+
 ## Scenario and state flow
 
 Use synthetic PR 42 and PR 43. Each has a distinct workspace even if they share a file path. An optional stack-connection label links the PRs without combining their state.
@@ -89,12 +117,15 @@ Within PR 42, version 1 includes `Parser.swift`, `Store.swift`, and `Stable.swif
 flowchart LR
     Shell["Proposed outer tabs or workspace windows"] -->|presents by identity| Workspace["Logical PR workspace"]
     Workspace --> Progress["Shared per-file review baselines and draft"]
+    Workspace --> Skips["PR/file content-version skip receipts"]
     Workspace --> Placement["Child arrangement and last-focused child"]
     Workspace --> Children["Unique child view instances"]
     Children --> Review["Review: selected file and comparison"]
     Children --> Research["Source/search: independent navigation"]
     Children --> Preview["Explicitly simulated preview state"]
     Review -->|explicit mark only| Progress
+    Review -->|explicit file/group skip or undo| Skips
+    Fixtures -->|content change invalidates active skip| Skips
     Fixtures["Two synthetic PRs and prepared revisions"] --> Workspace
     Reset["Reset sample data"] --> Workspace
 ```
@@ -103,10 +134,10 @@ All components are proposed mockup state. Swift pseudocode does not apply to thi
 
 ## Steps
 
-1. **Preserve evaluated ownership and history.** Retain the first-pass artifact/evidence at `2e3653877` and iteration-2 artifact/evidence at `e1c1059cf28`, with their evaluations. Keep PR/file review baselines workspace-owned and unique child instances independently navigable. Retain the prepared fixture revisions.
-2. **Compact the presentation.** Apply the iteration-3 method above: combine workspace heading/tools, use concise child titles, compact the view toolbar, and disclose metadata/arrangement/prototype controls. Preserve all iteration-2 ownership, navigation, review, draft, preview, and arrangement capabilities. Layout details remain candidates for feedback.
+1. **Preserve evaluated ownership and history.** Retain the earlier artifact/evidence at `2e3653877`, `e1c1059cf28`, and `58c13ac56`, with their evaluations. Keep PR/file review baselines workspace-owned and unique child instances independently navigable. Retain the prepared fixture revisions.
+2. **Add grouped content and independent skip receipts.** Apply the iteration-4 method above while retaining compact workspace/view controls. Add the bounded kind fixtures, grouped chooser, explicit file/group skip/undo, content-version invalidation, truthful per-kind previews, and raw fallbacks. Preserve all earlier workspace, review, draft, navigation, and arrangement capabilities.
 3. **Exercise the return visit.** Run the scenario above at recorded phone, tablet, and desktop viewport sizes. Confirm child navigation is independent, shared review progress updates sibling review views, outer presentation preserves ownership, workspace return preserves arrangement/focus, a resumed review child starts its selected file at the top, and another PR's state is unaffected. Check both mouse/pointer and keyboard operation; inspect narrow-layout touch-target usability. Record what was actually exercised rather than claiming native device validation.
-4. **Collect evidence and feedback.** Deliver the artifact with the scenario, matched content-space measurements, and representative captures of the three layouts. Ask the user to evaluate the compact chrome and control discoverability alongside multiple same-kind child views, workspace return, simulated preview, and post-push remaining work. Record confusing transitions, requested changes, and whether to proceed, change, or run another bounded iteration.
+4. **Collect evidence and feedback.** Deliver matched grouped-list/type-comparison captures at all three sizes, plus skip/undo/new-push evidence and compact-shell continuity. Ask the user to evaluate group discoverability, skip meaning/resurfacing, comparison usefulness/raw access, and retained workspace return behavior. Record confusing transitions, requested changes, and whether to proceed, change, or run another bounded iteration.
 5. **Review and hand off.** Integrate supported feedback into the overview and affected outlines, retaining unresolved decisions. Review the changed artifact and plan through code-review, run relevant checks, then commit/push and publish through github-workflow. Do not refine the durable model until the required prototype feedback is recorded.
 
 For local browser inspection, a loopback-only static server can serve the artifact, for example `python3 -m http.server 8765 --bind 127.0.0.1 --directory Plans/2026-11-14-mobius/Prototype`. Use an available port and stop the owned server after inspection. If browser automation is unavailable, record the missing runtime evidence; source inspection alone does not establish interactive acceptance.
@@ -125,6 +156,11 @@ For local browser inspection, a loopback-only static server can serve the artifa
 | All three layouts can be evaluated. | Execute the scenario at recorded narrow, medium, and wide browser sizes. | Captures plus interaction notes identify each viewport and any usability failures. |
 | Compact chrome improves content space. | Compare the same fixture and viewport before/after at all three sizes. | More usable content height without smaller text/targets; workspace, child/file, actual comparison, and immediate review action stay understandable. |
 | Disclosed controls stay reachable. | Use metadata/arrangement, outer presentation, prototype controls, and compact child navigation by pointer and keyboard. | Every previous capability remains reachable; Escape/dismissal restores focus and leaves state unchanged unless an explicit action changes it. |
+| Groups stay discoverable. | Inspect Code and collapsed quiet groups at all three sizes; expand/collapse independently in two children. | Kind/count/skip status is visible, child navigation is independent, and no receipts change from disclosure. |
+| Skip is separate from reviewed. | Skip/undo a current file and group, including a now-changed file with a prior reviewed receipt; check that currently reviewed files are ineligible. | Only PR/file skip receipts change; actual review baselines remain unchanged, counts stay distinct, and undo restores the underlying disposition. |
+| New work resurfaces. | Skip assets at v1, push v2 with one changed, one unchanged, and one new asset; repeat with reviewed Parser and unreviewed Store. | Changed/new files return to Remaining; unchanged Design skip persists. Parser compares from actual review; Store remains a full PR diff. |
+| Type previews preserve comparison truth. | Compare rendered/source Markdown and localization plus image/metadata before/after under full and incremental modes. | Both representations use the same PR/file/baseline/current revision; link-only changes stay identifiable; receipts remain file-level. |
+| Missing previews remain honest. | Open Design and new EmptyResults. | Unavailable binary bytes and absent-before content are explicit; only available pointer/source/metadata is shown, never a fabricated clean diff. |
 | The experiment produces a decision. | Review the artifact with the user. | Recorded feedback supports proceeding, revising, or another bounded iteration. A supported negative result is valid; pending feedback leaves the experiment incomplete. |
 
 Inspect the browser console for runtime errors and verify all artifact resources load locally. Use `git diff --check` and review local plan links after updates. No app test suite or snapshot baseline is implied by this browser mockup; use proportionate browser interaction checks. Do not claim iPhone/iPad/Catalyst runtime, VoiceOver, persistence, provider, or sync validation from viewport captures.
@@ -222,7 +258,7 @@ Parent coordination rebased the unchanged first-pass artifact/readiness record o
 - [x] Repeat the three-size regression scenario and exercise disclosed controls.
 - [x] Record fresh independent review, content-space comparison, and iteration-3 captures.
 - [x] Publish the coordinated stack update and current issue evidence.
-- [ ] Collect and integrate third-round user feedback.
+- [x] Collect and integrate third-round user feedback: Q-22–Q-24 request grouped kinds, suitable previews, and explicit skip/resurfacing.
 
 ### Iteration 3 implementation and evidence
 
@@ -244,10 +280,25 @@ Fresh independent review confirmed three fixes: final-view dialog dismissal rest
 
 The parent readiness update was coordinated onto parent `4b5873d95` at child `3327973404` before UI edits. The verified artifact/evidence was committed at `ab37aeb347`, then rebased unchanged after the coordinator recorded the delivery checkpoint in parent `2c0926596`. Stable artifact/evidence revision [`58c13ac56f87688548887172fef6f39e818bc819`](https://github.com/kyleve/Stuff/commit/58c13ac56f87688548887172fef6f39e818bc819) is published through `gh stack push`. The artifact and this execution record were verified byte-identical through that rebase. [PR #500](https://github.com/kyleve/Stuff/pull/500), its [existing screenshot comment](https://github.com/kyleve/Stuff/pull/500#discussion_r4576427594), and STU-330 now describe iteration 3. GitHub-rendered HTML has the expected three inline images with descriptive alt text; all eleven pinned PNG responses exactly match the local captures. Published-PR visual browser inspection remains unavailable; local captures were visually inspected. The owned loopback server is stopped and direct file loading passed. Native behavior, VoiceOver, actual execution, provider/durability/sync, and third-round product acceptance remain unverified.
 
+## Iteration 4 readiness and execution
+
+- Status transition: `executing` → `draft` for grouped comparisons and separate skip receipts.
+- Source inspected: clean child `a45970c322b21d3646031f4ca93d9641625814af`; artifact `58c13ac56f87688548887172fef6f39e818bc819`. PR #500 contains the existing screen-evidence comment; the new product decisions come from the parent conversation.
+- Q-22–Q-24, R-13/R-14, and the bounded fixtures/method are integrated above. The parent resolved group skip as **Skip remaining files**, excluding currently reviewed/skipped files, and constrained actual review to available content. No material product question remains for this pass; native implementation remains excluded.
+- Readiness review, 2026-11-14: inspected the full revised method against `a45970c322`, the root/Plans contracts, current PR feedback, Q-13–Q-24 and R-13/R-14 supplied by the coordinator. The existing singleton three-file catalog and reviewed-only disposition need separate presence/content-revision and skip state; the method assigns those to the PR workspace while keeping expansion/format navigation child-owned. Prepared before/current/raw presentations share one underlying comparison selection, and unavailable binary bytes cannot imply review completion. New/changed/unchanged fixtures falsify future-category skipping and accidental baseline advancement. Original workspace/draft/focus/compact-chrome checks remain required. The parent owns consistent overview/native-outline integration before the coordinated rebase. All material method choices are answered or bounded prototype hypotheses; no readiness findings remain. The updated ownership diagram is source-reviewed, not renderer-validated.
+- Readiness disposition: `draft` → `ready` after review, then `ready` → `executing` under the explicit iteration-4 implementation request. Runtime evidence and fourth evaluation remain pending.
+
+- [x] Reconcile the bounded skip policy and review readiness.
+- [ ] Implement grouped fixtures, comparisons, and explicit skip/undo.
+- [ ] Repeat three-size regressions and skip/group/new-push truth scenarios.
+- [ ] Record fresh independent review and iteration-4 captures/evidence.
+- [ ] Publish coordinated PR, existing screenshot comment, and issue updates.
+- [ ] Collect and integrate fourth-round user evaluation.
+
 ## Resume point
 
-Return the published demo, evidence, tested/published revision, and remaining limits to the coordinator for the requested completion notification. Then collect and integrate third-round user feedback before refining or implementing the native foundation. Preserve earlier evidence and coordinate any further parent/child history mutations.
+Send the reviewed iteration-4 readiness commit to the coordinator for the parent cascade before UI edits. Then implement the bounded grouped comparisons and skip behavior. Preserve earlier evidence and coordinate parent/child Git mutations. Return the tested/published artifact, checks, limits or blocker for the coordinator's user completion notice.
 
 ## Outcome
 
-First-pass evidence is retained; its evaluation prompted the workspace-model correction. Iteration 2 is built, verified, and published; its evaluation now prompts compact chrome. Iteration 3 is built, browser-verified, independently reviewed, and published. Third-round user evaluation remains pending, so the plan stays `executing` and STU-330 stays In Review. The experiment remains incomplete until its required feedback is recorded. No native or product acceptance is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Three prior iterations are built, reviewed, and published with retained evidence. Third-round feedback now requests grouped content kinds and explicit PR-scoped skip semantics. Iteration 4 is ready and executing under explicit implementation authorization; product acceptance remains pending. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
