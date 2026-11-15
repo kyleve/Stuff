@@ -162,13 +162,13 @@ The owned loopback server is stopped after inspection; the artifact opens direct
 - Source inspected: `2e3653877`; working tree was clean. Current PR #500 feedback contains only the previously posted screen-evidence comment; the new product feedback comes from the user conversation.
 - Q-19–Q-21 are resolved above. Parent owns integration into shared requirements/overview and production outlines; this file owns the browser method and evidence.
 - Readiness review, 2026-11-14: inspected the complete revised method against source `2e3653877`, Q-13–Q-21, the root/Plans contracts, and current PR feedback. The existing singleton `lastFile`, `query`, and kind-deduplicated tabs cannot represent the requested child instances. The revised owner table, state flow, steps, and acceptance checks consistently put selection/query/preview state on child instances and review progress on the PR workspace. Q-19 excludes editing/forking; Q-20 delegates bounded layout exploration; Q-21 separates workspace focus restoration from per-review-child file-top resumption. All material choices needed for this browser pass have answers or explicit delegation. Defaults remain exploratory; native/platform/execution exclusions are preserved. No readiness findings remain. Mermaid was source-reviewed, not renderer-validated.
-- Readiness disposition: `draft` → `ready` after that review, then `ready` → `executing` under the user's explicit instruction to proceed with iteration 2. Implementation and second-round acceptance evidence are still pending.
+- Readiness disposition: `draft` → `ready` after that review, then `ready` → `executing` under the user's explicit instruction to proceed with iteration 2. Implementation and second-round acceptance evidence were pending at that readiness checkpoint.
 
 - [x] Review the revised bounded method and record readiness.
 - [x] Build independent workspace presentation and multiple child views.
 - [x] Exercise both ownership layers and original review behavior across three sizes.
 - [x] Record fresh independent review and second-iteration captures.
-- [ ] Publish the coordinated stack update.
+- [x] Publish the coordinated stack update.
 - [ ] Collect and integrate second-round user feedback.
 
 ### Iteration 2 implementation and evidence
@@ -189,11 +189,11 @@ Pointer and phone touch taps, keyboard search, and wide-layout pointer/keyboard 
 
 Fresh independent review found and rechecked floating z-order, background/inactive-workspace closure, empty-workspace focus recovery, keyboard scrolling in the preview, and Enter submission. The search change handler was rerendering a text input's form before implicit submission; restricting it to its owned select controls fixes that trigger. Modal dismissal now completes synchronously, preventing queued close callbacks from rerendering or stealing focus after another interaction begins. A final compact-selector correction keeps the focused child visible, including after PR/presentation changes. No actionable review findings remain. These checks do not establish native, VoiceOver, actual execution, persistence, provider, or sync behavior.
 
-Parent coordination rebased the unchanged first-pass artifact/readiness record onto parent `fcee86b3b0` at child `46d284bbafa` before implementation. Publication updates the existing PR #500 and its existing screen-evidence comment; STU-330 stays open. The next decision is the user's evaluation of this corrected workspace model, not readiness to implement native code.
+Parent coordination rebased the unchanged first-pass artifact/readiness record onto parent `fcee86b3b0` at child `46d284bbafa` before implementation. The revised artifact and evidence were committed at [`e1c1059cf28`](https://github.com/kyleve/Stuff/commit/e1c1059cf28a2954a0513d2514e7d0b7be9c34dd) and published through `gh stack push` to existing [PR #500](https://github.com/kyleve/Stuff/pull/500). Its description and [existing screen-evidence comment](https://github.com/kyleve/Stuff/pull/500#discussion_r4576427594) now describe iteration 2. GitHub-rendered HTML contains the expected images and captions; all four commit-pinned image responses match the local PNG bytes. Published-PR visual inspection remains unavailable because local CUA browser use is disabled. The owned loopback server is stopped; direct file loading remains usable. STU-330 stays In Review with current evidence. The next decision is the user's evaluation of this corrected workspace model, not readiness to implement native code.
 
 ## Resume point
 
-Publish the reviewed iteration-2 artifact and evidence in the coordinated stack, then obtain the second user evaluation. Coordinate parent/child stack mutations before publishing. Preserve first-pass evidence and collect second-round feedback before refining or implementing the native foundation.
+Obtain the second user evaluation of the published iteration-2 artifact. Focus on logical workspace ownership, independent child views, useful arrangements, and return behavior. Preserve first-pass evidence and integrate second-round feedback with the parent overview before refining or implementing the native foundation. Coordinate any further parent/child stack mutations.
 
 ## Outcome
 
