@@ -11,9 +11,10 @@ Consumer modules own design-system root wrapping.
 
 ## Invariants an agent can't re-derive
 
-- Choose coverage per distinct layout, not per domain state. Use a `*Representative` matrix for representative layouts and matching `*LightDark` presets for additional states.
-  Use focused `WithAX5` and `WithAnnotations` presets separately, without a Cartesian product. Add individual configurations for exceptional contrast or tablet composition.
-  Document repeated representative matrices at their declarations.
+- Choose the smallest explicit matrix that covers distinct layout and appearance risks. Use a preset only when its axes add useful coverage.
+  Cover shared rendering at its owning component; keep focused integration captures in wrappers.
+  Additional states can use one baseline. Repeat dark, AX5, contrast, tablet, or annotations for a specific state-dependent risk.
+  Use focused configurations without a Cartesian product. Document repeated representative matrices at their declarations.
 - Keep configuration selection explicit; case/assertion APIs must not supply a broad default matrix.
   Treat identifiers as a reference-file wire format: omit default axes, preserve existing tokens and frame semantics, and omit a new axis's default. Guard: `SnapshotConfigurationTests`.
 - Filter `.accessibility` configurations out of previews. Including them requires a preview-only dependency boundary for the test-only renderer.

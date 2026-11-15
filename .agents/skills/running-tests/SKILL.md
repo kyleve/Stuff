@@ -27,15 +27,17 @@ Pick the **narrowest tier that covers the change**:
 |------|---------|------|
 | Affected | `./test` | Default — bundles touched by your diff against `origin/main` |
 | One bundle | `./test WhereCoreTests` | You know exactly what you touched |
-| Unit suite | `./test --all` | Change spans modules; before a wide commit |
-| Image suite | `./test --snapshots` | Triggers below |
+| Selected suites | `./test --only Bundle/Suite` | Focused behavior or coverage changes; repeat `--only` for each affected suite |
+| Unit suite | `./test --all` | Shared behavior or integration risk spans the unit bundles |
+| Image suite | `./test --snapshots` | Shared renderer or appearance changes affect image coverage across modules |
 | Everything | `./test --everything` | All iOS unit and image bundles plus default host/architecture checks |
 
 Examples:
 
 - Edited `WhereCore` only → `./test` (or `./test WhereCoreTests` if you want to be explicit)
-- Edited `WhereCore` + `WhereUI` → `./test` or `./test --all` before committing
-- Changed a stylesheet token that renders → `./test --snapshots` (or `./test` if the graph already pulls snapshots in)
+- Edited `WhereCore` + `WhereUI` → `./test`; use `--all` for integration risks beyond the affected selection
+- Changed a component stylesheet token → its snapshot suite and relevant screen integration suites through `--only`
+- Changed a shared renderer or system-wide appearance → `./test --snapshots`
 
 Compare against a ref other than `origin/main`: `./test --base REF`.
 
@@ -64,11 +66,12 @@ Use `./shellcheck` for shell changes. `./test` does not replace these checks.
 
 ## Snapshots
 
-**Opt-in, not part of "done" by default.** Run `./test --snapshots` when the
-change touches a **view or its appearance**, a **stylesheet token**, a **string
-that renders**, **`SnapshotKit` / `SnapshotKitTesting`**, or a **reference
-image**. `./test` with no arguments already includes image bundles when the
-dependency graph says they're affected.
+Run affected snapshot suites for changes to rendered views, stylesheet tokens, displayed strings, or reference images.
+Use `./test --snapshots --only Bundle/Suite` for the owning component and relevant integration suites.
+Changes to SnapshotKit configuration or capture code need their regression suites and affected rendering coverage.
+Reserve the full image suite for changes whose effects span the shared renderer or application appearance.
+Documentation-only edits and test deletions do not automatically require every image bundle.
+`./test` with no arguments includes image bundles selected by the dependency graph.
 
 - **`--review`** — how each differing reference differs (pixel count, max delta,
   changed region); use to tell a broken render from antialiasing drift

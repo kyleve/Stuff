@@ -8,7 +8,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 
 - **Use SwiftUI, SFSafeSymbols, PeriscopeCore, PeriscopeUI, and BroadwayCore/BroadwayUI.** Do not import app code. App-specific wiring (which store, which alert handler) comes in through configuration.
 - **Target DEBUG and developer surfaces.** Consumers gate entry points behind `#if DEBUG`. Developer-facing strings are plain literals here.
-- **`Sources/` groups one directory per tool, plus `Components/` for shared display pieces and `Styling/` for the design system.** Tests stay flat, 1:1 with their source files.
+- **`Sources/` groups one directory per tool, plus `Components/` for shared display pieces and `Styling/` for the design system.** Tests stay flat.
 
 ## Design system — `PeriscopeStylesheet`
 

@@ -4,7 +4,8 @@
 
 - Put at least one `#Preview` in the represented view's source file under `#if DEBUG`.
   Use synchronous, in-memory, production-shaped fixtures for meaningful empty, loaded, failure, and edge states.
-- For SnapshotKit modules, colocate `SnapshotProviding` with the view and render `Self.snapshotPreviews`. Declare the matrix once and use one matching snapshot suite/file per view.
+- Add image references where a view owns distinct visual risk. Preview and Flyover states do not each require recorded references.
+- For views with SnapshotKit coverage, colocate `SnapshotProviding` and render `Self.snapshotPreviews`. Declare the matrix once and use a matching snapshot suite/file.
 - Read [SnapshotKit's contract](../../../../Shared/SnapshotKit/AGENTS.md) before authoring cases: it owns matrix selection, frames, motion substitutions, fixture isolation, and measurement/capture readiness.
   Explain coverage exceptions beside their declarations. Encapsulate permitted substitutions and static-motion helpers in shared components instead of scattering capture checks through callers.
 - Read the module's theme-coverage rules. Prefer comparison sheets for component appearance and full-screen variants for critical integration or materially different composition.

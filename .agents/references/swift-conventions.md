@@ -7,7 +7,12 @@ Module instructions add local contracts to these repository conventions.
 ### Testing
 
 - Use Swift Testing (`import Testing`) for unit tests.
-- Match test files to implementation files: `Foo.swift` → `FooTests.swift`. Split tests when splitting their source. Keep shared fixtures in support files.
+- Add tests for distinct behavior, compatibility contracts, or demonstrated regressions. Prefer assertions that distinguish a meaningful failure.
+- Do not add tests solely for synthesized equality, hashing, or ordinary stored-property mutation. Preserve custom behavior and persisted or wire-format identity checks.
+- Do not copy authored stylesheet constants into assertions. Follow [Broadway coverage guidance](../skills/building-ui/references/broadway.md) for styling tests.
+- Host views to verify behavior that needs the mounted hierarchy. A view-exists assertion adds no useful coverage to a snapshot-covered surface.
+- Name test files after the behavior or source they cover, such as `FooTests.swift`. A source file does not require a test file. Keep shared fixtures in support files.
+- Apply this coverage policy before generic skill advice about generating tests for every function or avoiding all hosted view tests.
 - Await observable conditions instead of fixed delays. For races, hold the dependency at its suspension point, apply the competing operation, then release it.
   Assert final state and side effects, including cancelled or superseded completions when an operation can restart.
 - Put test/preview-only hooks behind `@_spi(Testing)`, with `#if DEBUG` when release must exclude them. Use the corresponding SPI import.

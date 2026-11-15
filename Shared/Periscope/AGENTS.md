@@ -37,4 +37,4 @@ Durability sits below the stack in [`JournalKit`](../JournalKit). It is payload-
 
 ## Testing
 
-Hosted Swift Testing bundles (`PeriscopeCoreTests`, `PeriscopeUITests`, `PeriscopeToolsTests`) run in `StuffTestHost`. Use 1:1 test files per the root rules.
+Hosted Swift Testing bundles (`PeriscopeCoreTests`, `PeriscopeUITests`, `PeriscopeToolsTests`) run in `StuffTestHost`.

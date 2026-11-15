@@ -48,7 +48,8 @@ Do not invent a product feature to fill a documentation gap.
 ## Validate and report
 
 Use `running-tests` for affected unit and snapshot checks.
-Review full-content images for phone, tablet, dark mode, large text, and contrast.
+Review the selected full-content images under SnapshotKit's coverage policy.
+Keep shared gallery layout coverage and focused large-text checks for dense content. Do not repeat every device and trait per gallery.
 Verify search focus, navigation, demo behavior, and explicit edit boundaries.
 Run the applicable catalog, symbol, and formatting checks.
 Report changed pages, source-backed findings, test results, and unresolved decisions.

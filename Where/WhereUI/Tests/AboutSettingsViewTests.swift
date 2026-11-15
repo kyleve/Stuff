@@ -1,14 +1,9 @@
 import CreditKit
-import RegionKit
-import SwiftUI
-import TestHostSupport
+import Foundation
 import Testing
-@_spi(Testing) import WhereCore
 @testable import WhereUI
 
-/// Covers the About screen's registration in Settings search and that it renders
-/// each build-metadata state — including the unstamped one, which is what every
-/// bundle other than the shipping app produces.
+/// Covers Settings placement, search registration, and attribution content states.
 @MainActor
 struct AboutSettingsViewTests {
     // MARK: Placement
@@ -39,98 +34,7 @@ struct AboutSettingsViewTests {
         }
     }
 
-    // MARK: Rendering
-
-    @Test func hostsAStampedBuild() throws {
-        let rootView = NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.stampedBuildInfo(),
-                attribution: PreviewSupport.sampleAttribution(),
-            )
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func hostsAnUnstampedBuild() throws {
-        // The RegionViewer / test-host case: no version keys and no commit.
-        let rootView = NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.unstampedBuildInfo(),
-                attribution: PreviewSupport.sampleAttribution(),
-            )
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func hostsWithASearchFocus() throws {
-        let focus = try #require(
-            SettingsCatalog.results.first { $0.destination == .about },
-        ).focus
-        let rootView = NavigationStack {
-            AboutSettingsView(
-                focus: focus,
-                buildInfo: PreviewSupport.stampedBuildInfo(),
-                attribution: PreviewSupport.sampleAttribution(),
-            )
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func hostsABundleCarryingNoReport() throws {
-        // Every bundle but the app target's is in this state, so it has to render
-        // rather than trip on a force-unwrapped manifest.
-        let rootView = NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.unstampedBuildInfo(),
-                attribution: nil,
-                dataSources: [],
-            )
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func hostsAnEmptyReport() throws {
-        let rootView = NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.unstampedBuildInfo(),
-                attribution: AttributionManifest(credits: []),
-                dataSources: [],
-            )
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func hostsAReportThatCreditsOnlyOneKind() throws {
-        // Reachable for real: a config whose agent-skills manifest is empty still
-        // generates a valid report, and the tools section then has nothing to
-        // list while the libraries section is full.
-        let libraries = PreviewSupport.sampleAttribution().credits(ofKind: .library)
-        let rootView = NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.unstampedBuildInfo(),
-                attribution: AttributionManifest(credits: libraries),
-                dataSources: [],
-            )
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
+    // MARK: Attribution content
 
     @Test func distinguishesAnAbsentReportFromAnEmptySection() {
         // The two say different things about the build: no report means nothing
@@ -151,13 +55,6 @@ struct AboutSettingsViewTests {
             String(localized: empty.emptyMessage)
                 == String(localized: .settingsAboutAttributionNone),
         )
-    }
-
-    @Test func showsTheLiveDataSourceList() {
-        // The screen shows what RegionKit vends, not a copy of its own. The
-        // software credits are the app's generated report, asserted against the
-        // real bundle in the Where app's `AppAttributionTests`.
-        #expect(!RegionDataSource.all.isEmpty)
     }
 
     @Test func separatesLinkedLibrariesFromDevelopmentTools() {
