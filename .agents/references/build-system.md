@@ -41,7 +41,7 @@ The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `worktree`, `signing`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
 `circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` owns iOS and host-side tests
-(see [Running tests](../skills/running-tests/references/test-contract.md#running-tests)). `./icons`, `./attribution`, and `./simulator` own state that is
+(see [Running tests](../skills/running-tests/SKILL.md#architecture-and-host-checks)). `./icons`, `./attribution`, and `./simulator` own state that is
 easy to corrupt by hand. `./simulator` owns a per-checkout device (see the
 [`running-tests`](../skills/running-tests/SKILL.md) skill).
 

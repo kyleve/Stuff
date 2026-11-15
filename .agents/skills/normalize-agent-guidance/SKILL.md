@@ -36,9 +36,8 @@ If changing assumptions about Codex loading or skill behavior, verify them throu
 
 ## Make supported corrections
 
-- Strengthen the existing owner of each rule. Remove duplication only after preserving the requirement, its conditions, exceptions, and guard links there.
-- Move subsystem invariants into the deepest applicable instruction file. Put conditional procedures in the owning skill or a required reference.
-- Add an explicit read condition for every extracted reference. Preserve routes for callers and tests outside the new source directory.
+- Consolidate rules under [ownership and loading](../../../.agents/AGENTS.md#ownership-and-loading). Preserve each requirement, condition, exception, and guard link.
+- Preserve required-read routes for callers and tests outside any new source directory.
 - Keep general engineering rules, branch/publication policies, and skill invocation behavior intact. Do not raise budgets or change Codex configuration to make a failing check pass.
 - Keep external pins and fetched source contents unchanged. Report installed-package failures or use the existing maintenance procedure when repair is within the request.
 - Keep application behavior and unrelated tooling changes outside this normalization pass. Report a blocker when a correction needs a policy decision or separate implementation.

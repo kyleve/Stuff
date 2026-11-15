@@ -4,17 +4,9 @@ Read the [module contract](../AGENTS.md) and [repository contract](../../../AGEN
 
 ## Testing
 
-Swift Testing in [`Tests/`](.) (`WhereCoreTests`), hosted in
-`StuffTestHost`. Drive collaborators against `SwiftDataStore.inMemory()` +
-`ScriptedLocationSource`. Never use the user's on-disk/CloudKit store or live
-Core Location requests. Keep production-source history tests in isolated
-temporary on-disk containers without CloudKit (`StoreRemoteChangeSourceTests`).
-`CoreLocationSourceTests` must replace the source’s
-one-shot controls with a `CurrentLocationRequestDriving` fake before requesting
-a fix; never start passive monitoring in those tests. The CloudKit remote-import path uses the
-`@_spi(Testing)` `inMemory(remoteChangeSource:)` +
-`ScriptedStoreRemoteChangeSource`. Internal types are reached via
-`@testable import WhereCore`.
+`WhereCoreTests` uses Swift Testing. Read the [Where testing contracts](../../Guidance/testing.md) for its host, stores, and injected location/remote-import seams.
+Before a fix request, `CoreLocationSourceTests` must replace one-shot controls with a `CurrentLocationRequestDriving` fake.
+Never start passive monitoring in those tests. Reach internal types through `@testable import WhereCore`.
 
 Keep raw flight archives and export configurations outside Git. Preserve the complete selected GPS window before minimizing a regression.
 Verify transformation fidelity with `FlightFixtureExporterTests` and write expected flight behavior independently of detector output.

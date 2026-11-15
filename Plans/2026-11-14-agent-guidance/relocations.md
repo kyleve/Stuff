@@ -4,6 +4,7 @@ Baseline: `b629d56ac`. Each listed section or invariant bullet moved without cha
 Local link destinations were rebased and redirected. The extraction verified every moved block against its destination.
 Source hashes identify the original blocks. Existing introductory navigation was replaced with explicit task routes.
 Unlisted requirements stay in their original owners. The shortened root repeats only essential commands and routes to the complete contracts.
+Subsequent consolidation is recorded in [deliverable 05](05-deduplication.md#retained-owners), including the testing reference's current owner.
 
 | Original owner and block | New owner | Original block SHA-256 |
 | --- | --- | --- |

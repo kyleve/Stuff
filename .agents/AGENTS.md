@@ -11,6 +11,7 @@ The [human guide](README.md) explains prompting. [Maintenance](references/agent-
 - Keep a reference's requirement and its exception together. Preserve linked guards and diagnostic signatures.
 - Every extracted reference needs an explicit read condition at its owner. A link alone does not make required guidance discoverable.
 - Keep one authoritative statement of a rule. Use links for consumers instead of copying the full requirement.
+- Link rules to their guards or source. Keep review history in the PR.
 - Use source and manifest links for inventories and pinned versions. Keep historical evidence in linked records or conditional measurement references.
 - Preserve existing skill names and invocation policies unless the requested behavior changes them.
 - Give each skill a concise, discriminating description. Keep detailed operation lists in its body.

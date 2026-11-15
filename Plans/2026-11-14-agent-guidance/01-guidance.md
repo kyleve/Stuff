@@ -4,13 +4,7 @@ Status: complete
 Dependencies: None
 Requirements: R-01, R-02; exclusions X-01 through X-04 from the [overview](README.md).
 
-## Contracts and flow
-
-Read the root repository contract, the Tools contract for command changes, and the guidance-authoring contract.
-Use planning, skill-creator, simple-english, running-tests, code-review, and github-workflow as applicable.
-Canonical instructions produce generated mirrors. The validator reads those inputs and returns diagnostics and an exit status.
-External installation flows from the pinned package through exclusions and validation to staged FileTransaction replacement, then mirror synchronization.
-No Swift API, actor, or app ownership changes are part of this deliverable.
+Read the [shared contracts and recovery](README.md#shared-contracts-and-recovery) for this deliverable.
 
 ## Steps
 
@@ -25,12 +19,6 @@ Compare each recorded source section or bullet with its destination after resolv
 Measure UTF-8 bytes for the root, every discovered chain, and every repo-owned skill entry point.
 Run `mise exec -- ./sync-agents` and inspect the resulting source diff and generated mirrors.
 App suites do not exercise these documentation-only moves.
-
-## Recovery
-
-Use the relocation map for incomplete documentation moves. Keep work on the feature branch.
-Installer failures must retain the prior installation; preserve transaction recovery material if rollback fails.
-Resume from the recorded pending step and repeat only invalidated checks.
 
 ## Progress
 

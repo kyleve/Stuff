@@ -25,10 +25,16 @@ Add them within the existing sections.
 Omit inapplicable material without `N/A` placeholders.
 
 | Tier | When | Keep | Add when warranted |
-|------|------|------|--------------------|
-| Small | Obvious fix, 1–2 modules, no design choices | Summary, Testing | — |
-| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | User-facing / Internal split in Summary when mixed; skip rationale for doc-only work |
-| Large | Architecture, multi-module migration, new protocol | Summary or Problem + Changes, Why, Design decisions, Review focus, Testing | Product behavior, Architecture, ⚠️ Breaking changes, Compatibility, Rollout / follow-ups, Stack; situational sections (prototype round, backlog reconciliation) |
+| --- | --- | --- | --- |
+| Small | Obvious fix, 1–2 modules, no design choices | Summary (2–4 end-state bullets), Testing | Why and Review focus for subtle behavior |
+| Medium | Feature or behavior change | Summary, Why, Review focus, Testing | User-facing / Internal split in Summary when mixed |
+| Large | Architecture, multi-module feature, new protocol | Summary or Problem + Changes, Why, Design decisions, Product behavior or Architecture, Review focus, Testing | Breaking changes and Compatibility for persistence, backups, CloudKit, or wire formats; Rollout / follow-ups when ship order or another PR matters; Stack or prototype rounds |
+| Refactor or migration | Ownership, API, or stored-shape changes | Problem or Summary, Changes, Design decisions, Review focus, Testing | Breaking changes and Compatibility for stored-shape or backup changes |
+| Docs, skills, or repo tooling | Guidance or tool maintenance | Summary, Testing or Verification | Why for non-obvious changes; Review focus for moved/retained guidance boundaries |
+| Stacked PR | One slice in a chain | Summary, Testing, Stack (position, base-PR link, this slice's effect) | Link the stack head; do not repeat the full feature description |
+
+If the branch changes Linear issues or `MODULE_AUDIT.md`, add **Backlog reconciliation** with affected issue links and remaining work.
+Only if a required shape remains unclear, open merged PRs for examples.
 
 #### Section semantics
 
@@ -39,8 +45,10 @@ Omit inapplicable material without `N/A` placeholders.
   building on them.
   For bug fixes, include the failure trigger and the visible symptom or relevant error text.
   Use terms that future readers can search for.
-- **Changes / Architecture / Product behavior** — high-level structure and
-  behavior. Group by subsystem and explain ownership and data flow.
+- **Changes / Architecture / Product behavior** — structure, behavior, and data flow, grouped by subsystem with bold labels.
+  For architecture changes, explain key types, invariants, and ownership.
+  For refactors or migrations, explain what moved, what was removed, and what the compiler now enforces.
+  For product changes, cover onboarding, settings, failures, and edge cases.
 - **Screenshots** — selected images that explain visible behavior. Follow
   [Explain visible changes](#explain-visible-changes). When images add no useful context, omit this section.
 - **Primary APIs** — important additions, changed contracts, and removals, with
@@ -127,61 +135,6 @@ Skip diagrams for simple changes or facts that a short paragraph or table explai
 - Link the source that owns the flow. Keep API examples and validation evidence alongside the diagram, not replaced by it.
 - Trace the diagram against the current implementation before posting. Refresh it when review changes the flow.
 - Verify Mermaid syntax and inspect rendering when a renderer is available. Otherwise state the rendering limitation in validation.
-
-#### Common PR shapes
-
-Use the tier table above. **Do not open merged PRs for examples** unless a
-shape below is genuinely unclear.
-
-##### Small fix
-
-- **Summary:** 2–4 end-state bullets.
-- **Testing:** commands run + pass counts.
-- Drop **Why** and **Review focus** unless something subtle needs calling out.
-
-##### Feature or behavior change
-
-- **Summary**, **Why**, **Review focus**, **Testing**.
-- **Summary:** prefix **User-facing:** / **Internal:** when the PR ships both.
-- **Why:** user-visible problem or gap. Link a prior PR when building on one.
-- **Review focus:** edge cases, incomplete migrations, assumptions about `main`.
-
-##### Large feature
-
-- Everything in *Feature or behavior change*, plus **Product behavior** and/or
-  **Architecture**.
-- **Product behavior:** what the user sees — onboarding, settings, failure
-  modes, edge cases.
-- **Architecture:** key types, invariants, ownership. Group by subsystem with
-  bold labels.
-- **⚠️ Breaking changes** and **Compatibility** when persistence, backups,
-  CloudKit, or wire formats are involved.
-- **Rollout / follow-ups** when ship order or a follow-on PR matters.
-
-##### Refactor or migration
-
-- **Problem** (or **Summary**), **Changes**, **Design decisions**, **Review
-  focus**, **Testing**.
-- **Changes:** deep walkthrough — what moved, what was deleted, what the
-  compiler now enforces.
-- **Design decisions:** explicit choices and rejected alternatives.
-- **⚠️ Breaking changes** / **Compatibility** when stored shapes or backup
-  restore behavior changes.
-- **Backlog reconciliation** when the branch changed Linear issues or
-  `MODULE_AUDIT.md`. Link the affected issues and state what remains open.
-
-##### Docs, skills, or repo tooling
-
-- **Summary**, **Why** (if non-obvious), **Testing** / **Verification**.
-- State skipped checks explicitly (`./test` not run because Markdown-only).
-- **Review focus** only when the boundary between moved and retained guidance
-  matters.
-
-##### Stacked PR
-
-- **Summary**, **Testing**, **Stack** (position, base-PR link, what this slice
-  adds).
-- Do not repeat the full feature write-up — point at the stack head for that.
 
 #### Template hygiene
 

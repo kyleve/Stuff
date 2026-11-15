@@ -90,8 +90,8 @@ Before finishing a UI change:
 1. Search changed views for `dynamicTypeSize`, `sizeCategory`, `@ScaledMetric`,
    color scheme, size classes, and accessibility environment reads.
 2. Move decisions supported by slicing inputs into the owning component style.
-3. Document each remaining direct read and its runtime-only input. Infrastructure
-   that bridges system traits and snapshot configuration can read them directly.
+3. Document each remaining direct read at its declaration. Name the required input unavailable during slicing.
+   Infrastructure that bridges system traits and snapshot configuration can read them directly.
 4. Test the standard/accessibility boundary, trait updates, scoped overrides,
    and affected rendered states. Compare scaled geometry with system metrics.
 

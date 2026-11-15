@@ -48,30 +48,15 @@ current SwiftUI API, performance, and platform guidance.
   identity-relevant input and let cancellation return before changing durable
   presentation state, emitting haptics, or publishing late UI updates.
 
-## Build appearance through Broadway
+## Required task references
 
-For this work, read [broadway guidance](references/broadway.md).
+Before implementation or review, read the references for the affected UI work.
 
-## Blend subtle card outlines with their surroundings
-
-For this work, read [broadway guidance](references/broadway.md).
-
-## Build with Liquid Glass
-
-For this work, read [glass guidance](references/glass.md).
-
-## Make layout adaptive
-
-For this work, read [layout guidance](references/layout.md).
-
-## Build for accessibility and localization
-
-For this work, read [accessibility guidance](references/accessibility.md).
-
-## Keep UIKit bridges focused
-
-For this work, read [uikit guidance](references/uikit.md).
-
-## Author previews and image coverage with the view
-
-For this work, read [previews guidance](references/previews.md).
+| Task | Required reference |
+| --- | --- |
+| Authored appearance, stylesheets, or subtle card outlines | [Broadway](references/broadway.md) |
+| Liquid Glass | [Glass](references/glass.md) |
+| Adaptive layout | [Layout](references/layout.md) |
+| Accessibility or localization | [Accessibility](references/accessibility.md) |
+| UIKit bridges | [UIKit](references/uikit.md) |
+| Previews or image coverage | [Previews](references/previews.md) |

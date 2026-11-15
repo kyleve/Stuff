@@ -4,13 +4,7 @@ Status: complete
 Dependencies: [01](01-guidance.md), [02](02-installation.md)
 Requirements: R-04; exclusions X-01 through X-04 from the [overview](README.md).
 
-## Contracts and flow
-
-Read the root repository contract, the Tools contract for command changes, and the guidance-authoring contract.
-Use planning, skill-creator, simple-english, running-tests, code-review, and github-workflow as applicable.
-Canonical instructions produce generated mirrors. The validator reads those inputs and returns diagnostics and an exit status.
-External installation flows from the pinned package through exclusions and validation to staged FileTransaction replacement, then mirror synchronization.
-No Swift API, actor, or app ownership changes are part of this deliverable.
+Read the [shared contracts and recovery](README.md#shared-contracts-and-recovery) for this deliverable.
 
 ## Steps
 
@@ -27,12 +21,6 @@ Test local paths and anchors, fenced examples, mirrored links, absent external s
 Test valid documentation-only selection and invalid guidance propagation to the required lint job.
 Run the checker, focused Ruby suites, Python CI regression suites, and affected linters.
 Review the complete diff through code-review, including its required independent static review.
-
-## Recovery
-
-Use the relocation map for incomplete documentation moves. Keep work on the feature branch.
-Installer failures must retain the prior installation; preserve transaction recovery material if rollback fails.
-Resume from the recorded pending step and repeat only invalidated checks.
 
 ## Progress
 

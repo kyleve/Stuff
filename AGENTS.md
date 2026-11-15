@@ -63,10 +63,8 @@ Read the matching reference before implementation or review. Read only relevant 
   new area's instructions before editing it. Keep this map task-local.
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`). Keep
   every commit for one piece of work on that one branch.
-- **Run checks in proportion to risk.** Follow [Running tests](.agents/skills/running-tests/references/test-contract.md#running-tests).
-  Never commit a known-red tree. Load the
-  [`running-tests`](.agents/skills/running-tests/SKILL.md) skill to choose
-  the applicable checks.
+- **Run checks in proportion to risk.** Load [`running-tests`](.agents/skills/running-tests/SKILL.md) to choose the applicable checks.
+  Never commit a known-red tree.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit and push completed work eagerly.** Once a coherent change is

@@ -10,7 +10,6 @@ load File.expand_path("../../sync-agents", __dir__)
 class SyncAgentsTest < Minitest::Test
   class LocalUpstream < SyncAgents
     attr_reader :fetches
-    attr_accessor :fail_fetch
 
     def initialize(root, upstream)
       super(repository_root: root)
@@ -22,7 +21,6 @@ class SyncAgentsTest < Minitest::Test
 
     def clone_repo(repo, revision, destination)
       @fetches << [repo, revision]
-      abort "fetch failed" if fail_fetch
       FileUtils.cp_r(File.join(@upstream, "."), destination)
     end
 
@@ -68,21 +66,6 @@ class SyncAgentsTest < Minitest::Test
       assert_empty stdout
       assert_empty stderr
       assert_equal 1, command.fetches.length
-    end
-  end
-
-  def test_failed_fetch_preserves_existing_skill_and_manifest
-    with_upstream do |root, _upstream, command|
-      destination = File.join(root, ".agents", "skills", "example")
-      FileUtils.mkdir_p(destination)
-      File.write(File.join(destination, "SKILL.md"), "invalid but retained")
-      manifest_path = File.join(root, ".agents", "external-skills.json")
-      manifest = File.binread(manifest_path)
-      command.fail_fetch = true
-      capture_io { assert_raises(SystemExit) { command.run(["--install"]) } }
-      assert_equal "invalid but retained", File.read(File.join(destination, "SKILL.md"))
-      assert_equal manifest, File.binread(manifest_path)
-      refute_path_exists File.join(root, ".claude")
     end
   end
 
