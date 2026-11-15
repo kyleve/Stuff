@@ -18,7 +18,7 @@ class SyncAgentsCommandTest < Minitest::Test
     raise error unless status.success?
     File.write(File.join(@root, "AGENTS.md"), "# Root\n")
     FileUtils.cp(File.join(REPOSITORY, "sync-agents"), @root)
-    %w[repository file_transaction agent_skill agent_skill_installer agent_files agent_markdown agent_guidance].each do |name|
+    %w[repository file_transaction agent_skill agent_skill_installer agent_files agent_markdown agent_guidance agent_compatibility].each do |name|
       FileUtils.cp(File.join(REPOSITORY, "Tools", "#{name}.rb"), File.join(@root, "Tools"))
     end
     @manifest = File.join(@root, ".agents", "external-skills.json")
@@ -51,16 +51,65 @@ class SyncAgentsCommandTest < Minitest::Test
 
   def test_check_is_read_only_and_reports_optional_absent_installations
     FileUtils.rm_r(File.dirname(@skill))
+    FileUtils.mkdir_p(File.join(@root, ".agents/skills/local"))
+    File.write(File.join(@root, ".agents/skills/local/SKILL.md"), "---\nname: local\ndescription: Test\n---\n")
     before = snapshot
     stdout, stderr, status = run_command("--check")
     assert_predicate status, :success?, stderr
     assert_empty stderr
     assert_includes stdout, "checks passed"
     assert_includes stdout, "External skills absent (layout checks skipped): example"
-    assert_includes stdout, "Generated mirrors absent (allowed)"
+    assert_includes stdout, "Claude skill links absent (allowed): 1"
     assert_equal before, snapshot
     refute_path_exists File.join(@root, ".claude")
     refute_path_exists File.join(@root, "CLAUDE.md")
+  end
+
+  def test_check_rejects_legacy_copies_without_changing_them
+    File.write(@skill, "---\nname: example\ndescription: Test\n---\n")
+    FileUtils.mkdir_p(File.join(@root, ".claude"))
+    FileUtils.cp_r(File.join(@root, ".agents/skills"), File.join(@root, ".claude/skills"))
+    File.write(File.join(@root, "CLAUDE.md"), "<!-- Generated from AGENTS.md — do not edit directly -->\n\n# Root\n")
+    before = snapshot
+    stdout, stderr, status = run_command("--check")
+    assert_equal 1, status.exitstatus
+    assert_includes stdout, "checks failed"
+    assert_includes stderr, "legacy generated instructions"
+    assert_includes stderr, "expected a link to an installed canonical skill"
+    assert_equal before, snapshot
+  end
+
+  def test_conflict_reports_the_path_before_any_command_mutation
+    FileUtils.mkdir_p(File.join(@root, ".claude/skills/example"))
+    File.write(File.join(@root, ".claude/skills/example/SKILL.md"), "local edits")
+    before = snapshot
+    stdout, stderr, status = run_command
+    assert_equal 1, status.exitstatus
+    assert_empty stdout
+    assert_includes stderr, ".claude/skills/example: unrecognized or changed local content; preserved"
+    assert_equal before, snapshot
+  end
+
+  def test_invalid_action_inputs_do_not_migrate_existing_copies
+    FileUtils.mkdir_p(File.join(@root, ".claude"))
+    FileUtils.cp_r(File.join(@root, ".agents/skills"), File.join(@root, ".claude/skills"))
+    File.write(File.join(@root, "CLAUDE.md"), "<!-- Generated from AGENTS.md — do not edit directly -->\n\n# Root\n")
+    valid_manifest = File.read(@manifest)
+    cases = [
+      [valid_manifest, ["--add", "not-a-github-url"], "Could not parse GitHub repo"],
+      [valid_manifest, ["--add", "https://github.com/owner/repo", "../invalid"], "invalid skill name"],
+      ["[]", ["--install"], "must contain an object"],
+      [JSON.generate("bad/name" => {}), [], "invalid skill name"],
+    ]
+    cases.each do |manifest, arguments, diagnostic|
+      File.write(@manifest, manifest)
+      before = snapshot
+      stdout, stderr, status = run_command(*arguments)
+      assert_equal 1, status.exitstatus
+      assert_empty stdout
+      assert_includes stderr, diagnostic
+      assert_equal before, snapshot
+    end
   end
 
   def test_check_fails_on_invalid_installed_guidance_without_repairing_it

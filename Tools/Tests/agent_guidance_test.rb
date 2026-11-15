@@ -63,12 +63,12 @@ class AgentGuidanceTest < Minitest::Test
     end
   end
 
-  def test_links_and_anchors_are_checked_from_both_skill_locations_without_mirrors
+  def test_links_and_anchors_are_checked_from_both_skill_locations_without_skill_links
     with_guidance_repository do |root|
       write_guidance(root, ".agents/references/guide.md", "# Guide\n")
       write_guidance(root, ".agents/skills/example/SKILL.md", skill_text(body: "[guide](../../references/guide.md#guide)\n"))
       messages = validate_guidance(root).errors.join("\n")
-      assert_includes messages, "in Claude mirror"
+      assert_includes messages, "from Claude skill path"
       write_guidance(root, ".agents/skills/example/SKILL.md", skill_text(body: "[guide](../../../.agents/references/guide.md#guide)\n[here](#example)\n# Example\n"))
       assert_empty validate_guidance(root).errors
       write_guidance(root, "AGENTS.md", "[bad](.agents/references/guide.md#absent)\n[missing](gone.md)\n")
@@ -100,26 +100,39 @@ class AgentGuidanceTest < Minitest::Test
     end
   end
 
-  def test_present_mirrors_must_match_and_absent_mirrors_are_allowed
+  def test_copies_fail_and_missing_skill_links_are_allowed
     with_guidance_repository do |root|
-      write_guidance(root, ".agents/AGENTS.md", "# Guidance\n")
       write_guidance(root, ".agents/skills/example/SKILL.md", skill_text)
-      write_guidance(root, ".agents/skills/example/assets/pixel.bin", "\xFF".b)
       checker = validate_guidance(root)
       assert_empty checker.errors
-      assert_equal 3, checker.missing_mirrors
+      assert_equal 1, checker.missing_skill_links
       write_guidance(root, "CLAUDE.md", "#{AgentFiles::MARKER}\n\n# Root\n")
-      write_guidance(root, ".agents/CLAUDE.md", "#{AgentFiles::MARKER}\n\n# Guidance\n")
-      FileUtils.mkdir_p(File.join(root, ".claude"))
-      FileUtils.cp_r(File.join(root, ".agents", "skills"), File.join(root, ".claude", "skills"))
-      assert_empty validate_guidance(root).errors
-      write_guidance(root, ".claude/skills/example/assets/pixel.bin", "changed")
-      write_guidance(root, "CLAUDE.md", "old")
-      write_guidance(root, "Old/CLAUDE.md", "#{AgentFiles::MARKER}\n\nOld")
+      write_guidance(root, ".claude/skills/example/SKILL.md", skill_text)
       messages = validate_guidance(root).errors.join("\n")
-      assert_includes messages, "stale generated mirror"
-      assert_includes messages, "stale skill mirror"
-      assert_includes messages, "orphan generated mirror"
+      assert_includes messages, "legacy generated instructions"
+      assert_includes messages, "expected a link to an installed canonical skill"
+      capture_io { AgentCompatibility.new(root).sync }
+      assert_empty validate_guidance(root).errors
+      FileUtils.rm_r(File.join(root, ".agents/skills/example"))
+      assert_includes validate_guidance(root).errors.join, "expected a link to an installed canonical skill"
+    end
+  end
+
+  def test_manual_instructions_warn_and_wrong_skill_links_fail
+    with_guidance_repository do |root|
+      write_guidance(root, "CLAUDE.md", "# Manual override\n")
+      write_guidance(root, ".claude/CLAUDE.md", "# Local override\n")
+      nested = write_guidance(root, "Feature/.claude/CLAUDE.md", "# Nested override\n")
+      checker = validate_guidance(root)
+      assert_empty checker.errors
+      assert_equal 3, checker.warnings.length
+      assert_includes checker.warnings.join, "Feature/.claude/CLAUDE.md: preserved local Claude instructions"
+      capture_io { AgentCompatibility.new(root).sync }
+      assert_equal "# Nested override\n", File.read(nested)
+      write_guidance(root, ".agents/skills/example/SKILL.md", skill_text)
+      FileUtils.mkdir_p(File.join(root, ".claude/skills"))
+      File.symlink("missing", File.join(root, ".claude/skills/example"))
+      assert_includes validate_guidance(root).errors.join, "unrecognized or changed local content"
     end
   end
 
@@ -130,6 +143,20 @@ class AgentGuidanceTest < Minitest::Test
       messages = validate_guidance(root).errors.join("\n")
       assert_includes messages, "invalid UTF-8"
       assert_includes messages, "not a symlink"
+    end
+  end
+
+  def test_check_and_sync_reject_symlinks_in_canonical_skill_assets
+    with_guidance_repository do |root|
+      write_guidance(root, ".agents/skills/example/SKILL.md", skill_text)
+      asset = write_guidance(root, ".agents/skills/example/asset.bin", "\xFF".b)
+      assert_empty validate_guidance(root).errors
+      File.unlink(asset)
+      File.symlink(File.join(root, "AGENTS.md"), asset)
+      assert_includes validate_guidance(root).errors.join, "skill package contains a symlink"
+      error = assert_raises(AgentSkill::Error) { AgentCompatibility.new(root).sync }
+      assert_includes error.message, "skill package contains a symlink"
+      refute_path_exists File.join(root, ".claude")
     end
   end
 

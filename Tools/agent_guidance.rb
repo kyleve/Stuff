@@ -6,6 +6,7 @@ require "uri"
 require_relative "agent_files"
 require_relative "agent_markdown"
 require_relative "agent_skill"
+require_relative "agent_compatibility"
 
 # Offline validation of repository instruction discovery and canonical skills.
 class AgentGuidance
@@ -14,14 +15,15 @@ class AgentGuidance
   SKILL_LIMIT = 12 * 1024
   INSTRUCTIONS = %w[AGENTS.md AGENTS.override.md].freeze
 
-  attr_reader :errors, :largest_chain, :instruction_count, :skill_count, :missing_external, :missing_mirrors
+  attr_reader :errors, :largest_chain, :instruction_count, :skill_count, :missing_external, :missing_skill_links, :warnings
 
   def initialize(root)
     @root = File.expand_path(root)
     @errors = []
     @texts = {}
     @missing_external = []
-    @missing_mirrors = 0
+    @missing_skill_links = 0
+    @warnings = []
     @skill_count = 0
     @largest_chain = 0
   end
@@ -42,7 +44,7 @@ class AgentGuidance
         check_links(path, relative_to: path.sub(/\A\.agents\//, ".claude/")) if path.start_with?(".agents/skills/")
       end
     end
-    check_mirrors(instructions)
+    check_compatibility
     errors.empty?
   rescue IOError, SystemCallError, JSON::ParserError, AgentSkill::Error => error
     errors << error.message
@@ -53,7 +55,8 @@ class AgentGuidance
     diagnostics.puts(errors.map { |error| "error: #{error}" })
     output.puts "Agent guidance: #{instruction_count || 0} instruction files, #{skill_count} repo-owned skills; largest chain #{largest_chain}/#{CHAIN_LIMIT} bytes."
     output.puts "External skills absent (layout checks skipped): #{missing_external.join(', ')}." unless missing_external.empty?
-    output.puts "Generated mirrors absent (allowed): #{missing_mirrors}." if missing_mirrors.positive?
+    output.puts "Claude skill links absent (allowed): #{missing_skill_links}." if missing_skill_links.positive?
+    diagnostics.puts(warnings.map { |warning| "warning: #{warning}" })
     output.puts(errors.empty? ? "Agent guidance checks passed." : "Agent guidance checks failed (#{errors.length}).")
   end
 
@@ -158,12 +161,12 @@ class AgentGuidance
         next
       end
       # Resolve skill-to-skill links against canonical files even on clean
-      # checkouts without mirrors. Other .claude paths must actually exist.
+      # checkouts without skill links. Other .claude paths must actually exist.
       if relative_to != path && absolute.start_with?(File.join(@root, ".claude", "skills") + "/")
         absolute = absolute.sub(File.join(@root, ".claude", "skills") + "/", File.join(@root, ".agents", "skills") + "/")
       end
       unless File.exist?(absolute)
-        errors << "#{path}:#{link.line}: missing local link #{target}#{relative_to == path ? '' : ' in Claude mirror'}"
+        errors << "#{path}:#{link.line}: missing local link #{target}#{relative_to == path ? '' : ' from Claude skill path'}"
         next
       end
       next unless fragment && !fragment.empty? && File.extname(absolute).downcase == ".md"
@@ -174,37 +177,16 @@ class AgentGuidance
     end
   end
 
-  def check_mirrors(instructions)
-    sources = instructions.select { |path| File.basename(path) == "AGENTS.md" }
-    expected = sources.to_h { |path| [path.sub(/AGENTS\.md\z/, "CLAUDE.md"), path] }
-    expected.each do |mirror, source|
-      unless File.exist?(File.join(@root, mirror)) || File.symlink?(File.join(@root, mirror))
-        @missing_mirrors += 1
-        next
-      end
-      inspect_file(mirror) do
-        errors << "#{mirror}: stale generated mirror; run ./sync-agents" unless read(mirror) == "#{AgentFiles::MARKER}\n\n#{read(source)}"
-      end
+  def check_compatibility
+    compatibility = AgentCompatibility.new(@root).preflight!
+    compatibility.validate_source!
+    @missing_skill_links = compatibility.missing_links
+    warnings.concat(compatibility.warnings)
+    compatibility.legacy_documents.each do |path|
+      errors << "#{path.delete_prefix("#{@root}/")}: legacy generated instructions; run ./sync-agents"
     end
-    AgentFiles.named(@root, "CLAUDE.md", exclude: [".claude"]).each do |absolute|
-      path = absolute.delete_prefix("#{@root}/")
-      next if expected.key?(path) || external_path?(path)
-      inspect_file(path) do
-        errors << "#{path}: orphan generated mirror; run ./sync-agents" if read(path).start_with?(AgentFiles::MARKER)
-      end
-    end
-    source = File.join(@root, ".agents", "skills")
-    mirror = File.join(@root, ".claude", "skills")
-    unless File.exist?(mirror) || File.symlink?(mirror)
-      @missing_mirrors += 1 if Dir.exist?(source)
-      return
-    end
-    inspect_file(".claude/skills") do
-      AgentSkill.validate_tree!(mirror)
-      source_files = Dir.glob(File.join(source, "**", "*"), File::FNM_DOTMATCH).reject { |path| File.directory?(path) }.map { |path| path.delete_prefix("#{source}/") }.sort
-      mirrored_files = Dir.glob(File.join(mirror, "**", "*"), File::FNM_DOTMATCH).reject { |path| File.directory?(path) }.map { |path| path.delete_prefix("#{mirror}/") }.sort
-      stale = source_files != mirrored_files || source_files.any? { |path| File.binread(File.join(source, path)) != File.binread(File.join(mirror, path)) }
-      errors << ".claude/skills: stale skill mirror; run ./sync-agents" if stale
+    (compatibility.copies + compatibility.stale_links).uniq.each do |name|
+      errors << ".claude/skills/#{name}: expected a link to an installed canonical skill; run ./sync-agents"
     end
   end
 end

@@ -25,10 +25,10 @@ Use a named skill when its workflow is the intended job. For complex or ambiguou
 
 The [root contract](../AGENTS.md) directs agents to module instructions and required task references.
 The [authoring contract](AGENTS.md) defines ownership, size budgets, and validation.
-The [maintenance procedure](references/agent-maintenance.md) owns external installation and generated Claude mirrors.
+The [maintenance procedure](references/agent-maintenance.md) owns external installation, native Claude instructions, and skill links.
 
 Read only relevant references. A referenced requirement remains mandatory when its task condition applies.
-The same canonical instructions support Codex, Cursor, and Claude through the existing synchronization command.
+Codex and Claude read the shared instruction files. `./sync-agents` maintains Claude skill links.
 
 ## Official guidance
 

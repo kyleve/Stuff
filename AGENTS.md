@@ -33,7 +33,7 @@ Read the matching reference before implementation or review. Read only relevant 
 - Use `./icons` for icon catalogs and manifests. Never hand-edit them or add icon Swift.
 - Run `./attribution` after adding or updating a package, external skill, or development tool. Commit the report.
 - Run `./test --architecture-only` after a Where dependency, composition-root, or documented concurrency-boundary change.
-- Keep generated `.xcodeproj`, `Derived/`, `CLAUDE.md`, and `.claude/skills/` files out of commits.
+- Keep generated `.xcodeproj`, `Derived/`, local `CLAUDE.md`, and `.claude/skills/` links out of commits.
 - Bundle IDs follow `com.stuff.<suffix>`.
 - Keep the invariant, executable rule, rule catalog, and mutation test together when changing architecture enforcement.
 - Keep module README and agent instructions current when architecture, public API, conventions, or documented behavior changes.

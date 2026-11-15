@@ -30,7 +30,8 @@ Prioritize small remaining headroom, repeated rules, source inventories copied i
 Also inspect broken required-read routes, conflicting instructions, stale references, and ambiguous skill descriptions.
 A passing size check does not establish that guidance remains well placed or discoverable.
 
-Do not count generated mirrors or absent external installations as audited source content.
+Count each canonical source once. Do not count Claude skill links or absent external installations as additional content.
+Inspect compatibility diagnostics for leftover copies, incorrect links, and local instructions that can suppress native discovery.
 The [checker scope](../../../Tools/README.md#agent-guidance-tools) defines its coverage and parser limits.
 If changing assumptions about Codex loading or skill behavior, verify them through the available openai-docs workflow first.
 

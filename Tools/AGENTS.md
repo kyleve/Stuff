@@ -69,8 +69,10 @@ These rules also apply when changing a root command or installer that calls this
 - Install exactly one root `SKILL.md` with the manifest name. Reject symlinks and nested entry points after exclusions.
 - Repair invalid installations at the pinned revision. Stage and validate each candidate before replacing its directory and manifest through `FileTransaction`.
   Guards: [agent_skill_installer_test.rb](Tests/agent_skill_installer_test.rb), [sync_agents_test.rb](Tests/sync_agents_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
-- Keep `--check` read-only and offline. Allow absent external installations and generated mirrors, but validate every present copy.
-  Count UTF-8 bytes with directory override precedence. Check skill links from both canonical and mirrored locations.
+- Keep Claude skills as relative links to canonical folders. Remove only marked generated instructions and replace only matching skill copies or recognized links.
+  Reject conflicting local content and linked parent directories before mutation. Guard: [agent_compatibility_test.rb](Tests/agent_compatibility_test.rb).
+- Keep `--check` read-only and offline. Allow absent external installations and skill links, but reject legacy copies and incorrect links.
+  Count UTF-8 bytes with directory override precedence. Check Markdown links from both canonical and Claude skill paths.
   Guards: [agent_guidance_test.rb](Tests/agent_guidance_test.rb), [agent_markdown_test.rb](Tests/agent_markdown_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
 
 ## Installer publication

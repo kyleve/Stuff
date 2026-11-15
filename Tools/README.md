@@ -184,7 +184,7 @@ owns sample selection and publication.
 ## Agent guidance tools
 
 `./sync-agents --check` checks guidance without writing, fetching, installing, or staging files.
-It rejects combinations with mutating options. Run ordinary `./sync-agents` to refresh generated mirrors before checking them.
+It rejects combinations with mutating options. Run ordinary `./sync-agents` to migrate legacy copies and create Claude skill links.
 
 The checker reads tracked and untracked, nonignored repository files through Git.
 It validates every repository `AGENTS.md` and `AGENTS.override.md` chain, including hidden directories.
@@ -201,11 +201,20 @@ Local Markdown links and anchors are checked in instruction files, module `Guida
 Inline links, reference links, angle-wrapped destinations, titles, ATX/setext headings, and HTML anchors are supported.
 Fenced examples, inline code, and HTML comments do not produce links. Network destinations are not fetched.
 Markdown under skill `assets/` is template input and is excluded from link parsing; links to those assets must still resolve.
-Skill links are checked from both canonical and generated locations, even when mirrors are absent.
+Markdown links are checked from both canonical and Claude skill paths, even when the local symlinks are absent.
 This is a targeted Markdown check, not a renderer or a model activation evaluation.
 
-Present generated documents and the skill mirror must match their canonical sources. Absent mirrors are reported and allowed on clean checkouts.
-The checker excludes generated mirrors from instruction budgets and skill-name discovery.
+Legacy generated instructions, skill copies, and incorrect skill links fail validation. Missing skill links are reported and allowed on clean checkouts.
+The checker counts canonical instructions and skill names once. Preserved local Claude instructions produce a warning about native discovery.
+User settings, the Claude version, and instructions outside the checkout are not inspected.
+
+`AgentCompatibility` migrates marked generated instructions and matching skill copies through `FileTransaction`.
+Its preflight runs before external installation changes canonical content. Unknown entries, differing copies, and linked parents stop migration without deletion.
+Approved copy migrations commit before installation, so later fetch failures remain retryable. Successful migrations remain applied after such failures.
+The new `.claude/skills/` directory contains relative symlinks to `.agents/skills/<name>/`, with no copied skill contents.
+Recognized links for removed skills are removed on the next sync. Hand-written instruction files and instruction symlinks are preserved.
+Use stable checkout paths during sync. The command does not coordinate concurrent edits.
+The [maintenance procedure](../.agents/references/agent-maintenance.md) owns Claude version and discovery requirements.
 
 `./sync-agents --install` fetches missing or invalid external skills at their manifest revisions.
 An optional `exclude` array removes relative packaging paths from the staged copy.

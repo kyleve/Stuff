@@ -27,7 +27,7 @@ Keep both **current as the code changes**. Treat stale docs as a bug. When you
 change a module's architecture, public API, conventions, or a documented
 behavior, update that module's `README.md` and `AGENTS.md` in the *same* change.
 If you change a global rule, a target, or the build/test flow, update this root
-`AGENTS.md` too. After adding or renaming an `AGENTS.md`, run `./sync-agents`. That produces the generated (gitignored) `CLAUDE.md` next to it.
+`AGENTS.md` too. After adding or renaming an `AGENTS.md`, run `./sync-agents --check` to validate its instruction chain and links.
 
 **Point at the source instead of copying it.** The lists that rot fastest are
 the ones the code already owns. That includes every style group on a stylesheet, every

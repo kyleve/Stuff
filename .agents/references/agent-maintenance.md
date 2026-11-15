@@ -1,22 +1,36 @@
 # Maintain agent guidance
 
-## Agent instructions sync
+## Shared instructions and skills
 
-`AGENTS.md` is the source of truth for AI agent instructions. Cursor reads
-`AGENTS.md` natively. Claude Code uses `CLAUDE.md` and `.claude/skills/`.
-Generated files (`CLAUDE.md`, `.claude/skills/`) are gitignored and produced
-by `./sync-agents`.
+`AGENTS.md` is the shared instruction source. Do not generate `CLAUDE.md` copies.
+Claude Code 2.1.277+ supports native `AGENTS.md` discovery through its built-in AGENTS plugin.
+Use 2.1.281+ to avoid the early provider and telemetry exceptions. Keep that plugin enabled.
+See [Anthropic's instruction documentation](https://code.claude.com/docs/en/memory).
 
-- `./sync-agents` — generate `CLAUDE.md` next to each `AGENTS.md` and mirror
-  `.agents/skills/` into `.claude/skills/`.
-- `./sync-agents --check` — validate instructions, skills, local links, and present mirrors without changing files or fetching dependencies.
-- `./sync-agents --install` — fetch external skills listed in
-  `.agents/external-skills.json`. It repairs invalid layouts at the pinned revision. Rarely run by hand. `mise install` calls it
-  from a `postinstall` hook. Installing tools also installs skills on a dev
-  machine and a cloud agent. CI sets `MISE_NO_HOOKS=1` because CI does not use
-  agent skills.
+Under the default Project instructions setting, local `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` files can suppress native discovery.
+This includes matching files in ancestor directories. User-level `~/.claude/CLAUDE.md` does not suppress it.
+If local Claude instructions are intentional, select `claude-md-and-agents-md` in `/config` to load both formats.
+Use `/context all` to inspect the loaded memory files. The repository checker does not inspect user settings or ancestor files.
+Claude does not auto-load instructions under `.agents/` or `AGENTS.override.md`. Keep required-read routes for conditional references in the owning instructions.
+
+Claude project skills use `.claude/skills/<name>/`. Each folder is a relative symlink to `.agents/skills/<name>/`.
+[Anthropic supports these skill-folder links](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+Skill content exists once. Keep the links untracked and edit canonical files.
+
+- `./sync-agents` — remove marked generated instructions and replace matching skill copies with links. Maintain links for installed skills.
+- `./sync-agents --check` — validate instructions, skills, local links, and compatibility paths without changing files or fetching dependencies.
+- `./sync-agents --install` — fetch missing or invalid external skills at their pinned revisions, then maintain the links.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
-- `./sync-agents --update` — re-fetch all external skills to the latest commit.
+- `./sync-agents --update` — re-fetch all external skills at their latest commits.
+
+Migration preserves unmarked instruction files and reports their discovery implications.
+Unknown Claude skill entries or differing copies stop sync before installation or cleanup. Reconcile the reported files before retrying.
+The generated marker identifies removable instruction copies. Skill copies must match canonical contents and modes before replacement.
+Approved copy migrations commit before external installation. If a later fetch fails, the links remain valid for retry.
+The [tool contract](../../Tools/README.md#agent-guidance-tools) covers validation and rollback.
+
+`mise install` runs `--install` through its postinstall hook. `./ide` also runs it during setup.
+CI sets `MISE_NO_HOOKS=1` because CI does not use agent skills.
 
 `.agents/external-skills.json` pins the **external** skills to a commit.
 Its optional `exclude` list removes relative packaging paths from the staged skill.
@@ -30,8 +44,7 @@ also an **attribution** input. After adding or updating one, re-run
 `.agents/development-tools.json` when pinned verification or other non-SPM
 tooling changes.
 
-For canonical edits and mirror synchronization, read [guidance ownership](../AGENTS.md).
-Cursor loads both skill directories. The winning copy is undocumented, so do not let them drift.
+For canonical edits and link setup, read [guidance ownership](../AGENTS.md).
 A fresh clone carries only repo-owned skills. External skills arrive with the first `mise install`.
 
 ## Periodic normalization

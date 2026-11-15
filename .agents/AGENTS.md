@@ -1,7 +1,7 @@
 # Agent guidance
 
 This directory owns reusable skills and conditional repository references. Read the [repository contract](../AGENTS.md) first.
-The [human guide](README.md) explains prompting. [Maintenance](references/agent-maintenance.md) owns installation and mirrors.
+The [human guide](README.md) explains prompting. [Maintenance](references/agent-maintenance.md) owns installation and Claude compatibility.
 
 ## Ownership and loading
 
@@ -16,8 +16,8 @@ The [human guide](README.md) explains prompting. [Maintenance](references/agent-
 - Preserve existing skill names and invocation policies unless the requested behavior changes them.
 - Give each skill a concise, discriminating description. Keep detailed operation lists in its body.
 - Keep small skills self-contained. Do not add a reference layer without conditional detail to move.
-- Keep relative links valid from both `.agents/skills/` and its `.claude/skills/` mirror.
-  Reach shared repository references through the repository root, not through the mirror's parent directory.
+- Keep relative links valid from both `.agents/skills/` and its `.claude/skills/` links.
+  Reach shared repository references through the repository root.
 
 ## Budgets and validation
 
@@ -30,6 +30,6 @@ Offline checks establish file structure and discovery inputs. They do not prove 
 Use the available skill-creator workflow when creating or substantially revising a skill.
 
 Run `./sync-agents` after instruction or skill changes, then run `./sync-agents --check`.
-The checker validates byte budgets, skill discovery, local links, and present mirrors.
-See the [check scope](../Tools/README.md#agent-guidance-tools) for clean-checkout allowances and parser limits. Edit canonical sources, never generated Claude mirrors.
+The checker validates byte budgets, skill discovery, local links, and Claude compatibility paths.
+See the [check scope](../Tools/README.md#agent-guidance-tools) for clean-checkout allowances and parser limits. Edit canonical sources. Do not create Claude copies.
 Follow the root attribution procedure when external skill inputs change.

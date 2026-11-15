@@ -3,16 +3,12 @@
 #
 # sync-agents — keep AI agent configuration in sync across tools.
 #
-# AGENTS.md is the source of truth. Cursor and Codex read it natively;
-# Claude Code needs CLAUDE.md and .claude/skills/. This script bridges
-# the gap.
+# AGENTS.md is shared directly. Claude skill folders link to .agents/skills/.
+# Legacy generated instructions and matching skill copies are migrated safely.
 #
 # Commands:
-#   ./sync-agents                        Generate CLAUDE.md files from
-#                                        AGENTS.md and sync local skills
-#                                        to .claude/skills/. Incremental:
-#                                        skips files that are already up
-#                                        to date.
+#   ./sync-agents                        Remove generated CLAUDE.md files
+#                                        and link canonical skill folders.
 #
 #   ./sync-agents --install              Fetch external skills listed in
 #                                        .agents/external-skills.json.
@@ -41,15 +37,14 @@ require "open3"
 require_relative "Tools/repository"
 require_relative "Tools/agent_skill_installer"
 require_relative "Tools/agent_guidance"
+require_relative "Tools/agent_compatibility"
 
 REPO_ROOT = Repository.root(__FILE__)
-MARKER = AgentFiles::MARKER
 
 class SyncAgents
   def initialize(repository_root: REPO_ROOT)
     @repository_root = File.expand_path(repository_root)
     @skills_directory = File.join(@repository_root, ".agents", "skills")
-    @claude_skills_directory = File.join(@repository_root, ".claude", "skills")
     @manifest_path = File.join(@repository_root, ".agents", "external-skills.json")
     @changed_files = []
   end
@@ -61,67 +56,31 @@ class SyncAgents
       checker.report(output: $stdout, diagnostics: $stderr)
       return valid
     end
-    if args.include?("--add")
-      idx = args.index("--add")
-      url = args[idx + 1]
-      name = args[idx + 2]
+    load_manifest.each { |name, entry| AgentSkill.new(name, entry) }
+    if (index = args.index("--add"))
+      url = args[index + 1]
+      name = args[index + 2] unless args[index + 2]&.start_with?("-")
       abort "Usage: sync-agents --add <github-url> [skill-name]" unless url
-      add_skill(url, name)
-    elsif args.include?("--install")
-      install_skills
-    elsif args.include?("--update")
-      update_skills
+      repo = parse_github_repo(url)
+      abort "Could not parse GitHub repo from: #{url}" unless repo
+      AgentSkill.new(name, { "repo" => repo, "path" => name, "ref" => "HEAD" }) if name
     end
+    AgentCompatibility.new(@repository_root).sync do
+      if repo
+        add_skill(repo, name)
+      elsif args.include?("--install")
+        install_skills
+      elsif args.include?("--update")
+        update_skills
+      end
 
-    update_skills_gitignore
-    sync_claude_md
-    sync_skills
+      update_skills_gitignore
+    end
 
     stage_files if args.include?("--git-add") && !@changed_files.empty?
   end
 
   private
-
-  # --- CLAUDE.md sync ---
-
-  def sync_claude_md
-    expected = []
-
-    sources = AgentFiles.inventory(@repository_root).select do |path|
-      File.basename(path) == "AGENTS.md" && !path.start_with?(".claude/")
-    end
-    sources.each do |source|
-      agents_file = File.join(@repository_root, source)
-      claude_path = File.join(File.dirname(agents_file), "CLAUDE.md")
-      content = "#{MARKER}\n\n#{File.read(agents_file, encoding: "UTF-8")}"
-      write_if_changed(claude_path, content)
-      expected << claude_path
-    end
-
-    find_files("CLAUDE.md", exclude: %w[.claude]).each do |claude_file|
-      next if expected.include?(claude_file)
-      first_line = File.open(claude_file, encoding: "UTF-8", &:readline).chomp rescue next
-      remove_if_exists(claude_file) if first_line == MARKER
-    end
-  end
-
-  # --- Skills sync ---
-
-  def sync_skills
-    if Dir.exist?(@skills_directory)
-      FileUtils.mkdir_p(@claude_skills_directory)
-      unless dirs_equal?(@skills_directory, @claude_skills_directory)
-        FileUtils.rm_rf(@claude_skills_directory)
-        FileUtils.cp_r(@skills_directory, @claude_skills_directory)
-        puts "Synced .agents/skills/ → .claude/skills/"
-        @changed_files << @claude_skills_directory
-      end
-    elsif Dir.exist?(@claude_skills_directory)
-      FileUtils.rm_rf(@claude_skills_directory)
-      puts "Removed .claude/skills/"
-      @changed_files << @claude_skills_directory
-    end
-  end
 
   # --- Gitignore management for external skills ---
 
@@ -141,10 +100,7 @@ class SyncAgents
 
   # --- Add a new external skill ---
 
-  def add_skill(url, name)
-    repo = parse_github_repo(url)
-    abort "Could not parse GitHub repo from: #{url}" unless repo
-
+  def add_skill(repo, name)
     Dir.mktmpdir do |tmpdir|
       clone_default_branch(repo, tmpdir)
 
@@ -160,7 +116,7 @@ class SyncAgents
         when 0 then abort "No skills found in #{repo}"
         when 1 then name = available.first
         else abort "Multiple skills in #{repo}: #{available.join(", ")}\n" \
-                    "Specify one: ./sync-agents --add #{url} <name>"
+                    "Specify one: ./sync-agents --add https://github.com/#{repo} <name>"
         end
       end
 
@@ -252,34 +208,10 @@ class SyncAgents
     @changed_files << path
   end
 
-  def find_files(name, exclude: [])
-    AgentFiles.named(@repository_root, name, exclude: exclude)
-  end
-
-  def dirs_equal?(a, b)
-    return false unless Dir.exist?(a) && Dir.exist?(b)
-    a_files = relative_entries(a)
-    b_files = relative_entries(b)
-    return false unless a_files == b_files
-    a_files.each do |rel|
-      af = File.join(a, rel)
-      bf = File.join(b, rel)
-      next if File.directory?(af)
-      return false unless File.read(af, encoding: "UTF-8") == File.read(bf, encoding: "UTF-8")
-    end
-    true
-  end
-
   def stage_files
     @changed_files.each do |file|
       system("git", "add", "-A", "--", file, err: File::NULL)
     end
-  end
-
-  def relative_entries(dir)
-    Dir.glob(File.join(dir, "**", "*"), File::FNM_DOTMATCH)
-      .map { |f| f.delete_prefix("#{dir}/") }
-      .sort
   end
 
   def parse_github_repo(url)
@@ -332,14 +264,14 @@ def usage(output = $stdout)
     Usage: ./sync-agents [--install | --update | --add URL [NAME]] [--git-add]
            ./sync-agents --check
 
-    Generate Claude configuration from AGENTS.md and synchronize agent skills.
+    Remove legacy instruction copies and link Claude skills to .agents/skills/.
 
     Options:
       --check         Check guidance offline without writing, fetching, or staging.
       --install       Fetch missing or invalid external skills at pinned revisions.
       --update        Refresh external skills and their pinned revisions.
       --add URL NAME  Add one external skill; NAME is optional for one-skill repos.
-      --git-add       Stage generated changes after synchronizing.
+      --git-add       Stage manifest and external-skill ignore changes.
       -h, --help      Show this help without changing files or using the network.
   USAGE
 end
