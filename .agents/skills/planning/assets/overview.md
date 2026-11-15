@@ -51,6 +51,7 @@
 ## Discovery
 
 [Describe the users, current problem, and success criteria established from the request and source inspection.]
+[For open-ended product work, describe the main workflow and relevant interruptions or return visits. Link the answers or explicit delegation supporting material product choices; identify unresolved proposals.]
 [Record material constraints and link clarification answers from Questions and resolutions.]
 
 ## Research and evidence
@@ -78,7 +79,7 @@
 ## Planning horizon
 
 - Detail now: [Links to the next selected plans, usually one or two deliverables]
-- Reason: [Available evidence and what earlier work must establish before later design decisions]
+- Reason: [Available evidence, the user answers or delegation supporting material delivery priorities, and what earlier work must establish before later design decisions]
 - Next horizon review: [Completion or evidence that prompts reconsideration]
 
 <!-- Later numbered files can remain outlines. Link their refinement triggers instead of duplicating them here. -->

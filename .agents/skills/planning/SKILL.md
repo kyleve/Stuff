@@ -23,7 +23,10 @@ Ask if implementation scope remains unclear. After planning, record whether exec
 
 ## Create a plan
 
-Use [Develop an initial plan](references/develop-plan.md). Scale discovery to the uncertainty; a well-specified request needs no questionnaire.
+Use [Develop an initial plan](references/develop-plan.md).
+For open-ended product planning, establish the intended experience before prescribing architecture or executable deliverables.
+Use [scenario discovery and the question loop](references/develop-plan.md#discover-the-requirements) to resolve material product choices and keep dependent decisions provisional while answers are pending.
+Reuse existing answers and honor explicit delegation. Scale discovery to unresolved decisions, without a fixed question quota or repeating discovery for a well-specified request.
 Publish through [github-workflow](../github-workflow/SKILL.md), unless the user requests local-only work.
 Link the overview and numbered plans in the PR. Identify ready plans, later outlines, and unresolved decisions affecting the current horizon.
 Return the plan path, PR link, and material open questions.
@@ -64,3 +67,11 @@ Resume the recorded operation. Resuming planning or revision does not mean start
    Reconcile linked issues through [Linear issue lifecycle](../github-workflow/SKILL.md#linear-issue-lifecycle).
 8. Advance the horizon before selecting the next plan. Continue authorized work without confirmation between steps.
    At handoff, report remaining work and validation limits.
+
+## Delegated execution handoff
+
+When plan execution is delegated within the user's authorization, record the owning agent, plan, branch/worktree, and reporting responsibility in the overview checkpoint.
+Give the worker the required return information: artifact or PR link, tested and published revision, checks, remaining work, and any blocker.
+When the worker returns, reconcile its result with the plan and publication state, then report completion or the blocker to the user without waiting for a status request.
+Distinguish an implemented and checked artifact from a published handoff and from experiment acceptance that still needs user evaluation.
+If background delivery cannot be observed in the current environment, say so before promising a later notice and arrange an available handoff.

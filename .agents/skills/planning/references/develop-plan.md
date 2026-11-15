@@ -17,15 +17,20 @@ For revisions, repeat only stages affected by new requirements, evidence, or dec
 Inspect current source, tests, module documentation, and applicable instructions. Identify reusable components and existing guards.
 Treat documentation as a claim to verify against current behavior.
 Record who has the problem, what success changes, required behavior, exclusions, and material constraints or failure cases.
+For open-ended product work, walk through the main workflow, interruptions, and return visits before prescribing architecture.
+Establish what the user sees, does, and expects to persist; use those scenarios to clarify ambiguous concepts.
 Compare these with current behavior and repository contracts; record conflicts, ambiguous terms, and missing success criteria.
-Use [the question loop](#resolve-questions) for decisions affecting scope, acceptance, architecture, or compatibility.
+Use [the question loop](#resolve-questions) for decisions affecting behavior, scope, acceptance, architecture, compatibility, or delivery priorities.
+Technical evidence establishes constraints, not product preferences. Ask about material product choices unless existing answers or explicit delegation cover them; resolve routine implementation details within those choices.
+Record delegation scope and the decisions made within it. Distinguish proposals, user answers, and delegated selections.
 
 ## Research the unknowns
 
 Tie technical questions to the requirements or decisions they affect.
 Investigate repository code first; verify external claims against current primary documentation and the pinned tools or deployment targets.
 Record sources, covered revisions/versions, implications, and unresolved claims in Research and evidence.
-Compare meaningful alternatives against requirements, integration cost, and maintenance burden. Record choices without inventing alternatives for routine decisions.
+Compare meaningful alternatives against requirements, integration cost, and maintenance burden. Route unresolved product trade-offs through the question loop before selecting an approach.
+Record the decision source and why alternatives were rejected, without inventing alternatives for routine choices.
 If feasibility needs a prototype, plan an [experiment deliverable](../../../../Plans/AGENTS.md#experiment-deliverables); execute it only within existing authorization.
 Stop when material decisions have enough evidence and remaining uncertainty is explicit. Record when repository evidence suffices without external research.
 
@@ -38,14 +43,17 @@ Use the [question register and statuses](../../../../Plans/AGENTS.md#questions) 
 2. Record each answer's source and date; link GitHub comments. Mark complete answers `answered`, leaving partial or conflicting answers `open` with the remaining uncertainty.
 3. Integrate through [Apply a revision](revise-plan.md). Link its affected sections and review result before closing the question.
    For a question that no longer applies, record the scope decision that removed it.
+   During product discovery, reflect the emerging workflow and consequential assumptions to the user after each answer batch. Ask another focused batch only if material choices remain; no minimum number of questions or rounds is required.
 4. Apply the contract's deferral rules. File work outside the series through todo-triage; keep current-horizon plans blocked where the answer is still required.
+   A later question also blocks earlier work that embeds its answer in a model, API, or acceptance criterion. Independently testable groundwork does not bypass that product dependency.
 5. [Review the plan](#review-the-plan) after integration. Reopen invalidated answers or due deferrals, retaining their history; repeat only affected research and review.
 6. While input is pending, continue independent work. Do not spin, repeat answered questions, or treat elapsed time as an answer.
    Return unresolved questions with their next actions.
 
 ## Draft the executable plans
 
-Select the planning horizon from the evidence and requested scope.
+Select the planning horizon's size and order from the evidence and requested scope.
+When plausible first deliverables validate different product assumptions, resolve delivery priority through existing answers, explicit delegation, or a focused question before detailing it.
 Use [the plan template](../assets/plan.md) for that horizon and [the outline template](../assets/outline.md) for later selected work.
 Split at independently verifiable deliverables, keeping setup and documentation with the deliverable that needs them.
 Apply the contract's requirement mapping, dependencies, and [design requirements](../../../../Plans/AGENTS.md#reviewable-design).
@@ -66,6 +74,8 @@ Check later outlines against the [rolling-wave contract](../../../../Plans/AGENT
 
 Correct supported findings and repeat affected comparisons. Return new questions to the caller instead of starting a nested question loop.
 Record the date, source revision, reviewed scope, findings, dispositions, and limits in Plan review. Do not imply implementation verification.
+Before marking a plan ready, verify that its material product decisions are supported by user answers or explicit delegation and that no unresolved question prevents implementation or acceptance.
+Check decisions against the scope of those answers or delegation; technical review alone does not establish intended product behavior.
 Apply the contract's readiness rules. Preserve valid `executing`, `complete`, or `superseded` records and later `outline` status.
 Return to the caller without publishing; initial development returns to [Create a plan](../SKILL.md#create-a-plan) for handoff.
 
