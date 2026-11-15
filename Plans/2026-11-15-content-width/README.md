@@ -5,10 +5,10 @@
 - Updated: 2026-11-15, integrated base `ff3f9ec8df1d7901312624cba805be868f1f7345`.
 - Operation: Execute the approved plan on `codex/content-width`.
 - Requested scope: The user approved the main-screen rollout and requested implementation after selecting both modifiers.
-- Stage: Publication.
-- Completed: Source discovery, product decisions, implementation, independent review, image review, and final assertions against the integrated base.
-- Pending: Rollout commit and publication.
-- Next action: Publish the verified rollout in [01-content-width.md](01-content-width.md).
+- Stage: Complete.
+- Completed: Implementation, independent review, image review, final assertions, branch push, PR publication, and issue reconciliation.
+- Pending: No implementation work remains in this plan.
+- Next action: Review [PR #506](https://github.com/kyleve/Stuff/pull/506). The linked Linear issue remains In Review until merge and acceptance verification.
 
 ## Outcome and scope
 
@@ -79,5 +79,5 @@ Its API groundwork and screen adoption form two verified commits on the same bra
 ## Review and delivery
 
 - Linear: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies). Searched 328 issues, including archives, before filing this human request.
-- Implementation PR: Not published.
-- Outcome: Verified with 717 unit tests and 325 snapshot captures. Publication pending.
+- Implementation PR: [#506](https://github.com/kyleve/Stuff/pull/506), ready for review.
+- Outcome: Completed and published at source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad`. All 717 WhereUI tests and 325 snapshot captures passed.

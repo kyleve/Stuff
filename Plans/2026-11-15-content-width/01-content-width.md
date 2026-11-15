@@ -1,6 +1,6 @@
 # 01 — Content width
 
-- Status: executing
+- Status: complete
 - Depends on: None
 - Shared context: [Overview](README.md)
 
@@ -81,7 +81,7 @@ Record only the intended snapshot changes after visual review.
 
 - [x] Implement and verify the modifier groundwork.
 - [x] Integrate and verify the main screens.
-- [ ] Review and publish the completed work.
+- [x] Review and publish the completed work.
 
 ## Execution record
 
@@ -103,11 +103,16 @@ Record only the intended snapshot changes after visual review.
 - The merged Lab check found only the expected dark landscape reference failure. Its before/after image shows the centered Calendar column with full-width chrome and background. Independent review against `ff3f9ec8` found no logical integration issue.
 - The integrated revision passed all 717 WhereUI tests. Final Swift formatting, typed-symbol lint, architecture, and host checks passed. The final image assertion pass uses recording disabled.
 - Final assertions passed on Xcode 27.2: 717 tests in 153 WhereUI suites, plus 14 image tests in 10 suites covering 325 captures. Recording was disabled. The final image set adds 18 landscape captures and updates 74 existing references, including the merged dark Lab capture.
+- Published source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad` and opened [PR #506](https://github.com/kyleve/Stuff/pull/506) ready for review. Four screen comments show representative landscape captures. A fifth comment records the nested-root validation limit.
+- GitHub's rendered HTML contains the six expected images across the PR and screen comments. All six published PNG files match their reviewed Git LFS references. Local browser use is disabled in Work settings, so publication verification used the GitHub API and downloaded image bytes.
+- [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies) is In Review with the PR and validation evidence. Remote CI was still running at publication. Local acceptance checks passed.
 
 ## Resume point
 
-All source and reference updates passed verification. Commit the rollout and pending main integration, push, open the PR, add screen snapshot comments, and record publication.
+Implementation and publication are complete. PR #506 awaits review. The Linear issue remains In Review until merge and acceptance verification.
 
 ## Outcome
 
-Implementation verified. Publication pending.
+Completed and published in [PR #506](https://github.com/kyleve/Stuff/pull/506).
+The approved width policies and main-screen rollout passed the recorded acceptance checks.
+The nested-root debug trap and optimized release fallback retain the source-review limitation recorded above.
