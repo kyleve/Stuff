@@ -21,6 +21,6 @@ struct OnboardingThemeSelectionViewSnapshotTests {
 
 extension OnboardingThemeSelectionView: WhereThemeSnapshotGate {
     static var lightDarkCases: Set<String> {
-        ["Standard", "Alternate", "Halloween"]
+        ["Standard", "Alternate", "Halloween", "Holiday"]
     }
 }

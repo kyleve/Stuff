@@ -64,7 +64,7 @@ struct WhereModelTests {
         )
     }
 
-    @Test(arguments: [WhereTheme.alternate, .halloween])
+    @Test(arguments: [WhereTheme.alternate, .halloween, .holiday])
     func loadsPreviewsCommitsAndResetsTheme(theme: WhereTheme) throws {
         let preferences = makePreferences()
         preferences.theme = theme
@@ -114,7 +114,7 @@ struct WhereModelTests {
         #expect(await gate.delivered == [.standard])
     }
 
-    @Test(arguments: [WhereTheme.alternate, .halloween])
+    @Test(arguments: [WhereTheme.alternate, .halloween, .holiday])
     func onboardingCommitLaunchSynchronizationAndResetPublishTheme(theme: WhereTheme) async throws {
         let preferences = makePreferences()
         let model = try WhereModel(

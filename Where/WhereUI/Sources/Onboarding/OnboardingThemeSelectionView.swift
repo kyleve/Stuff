@@ -120,6 +120,17 @@ struct OnboardingThemeSelectionView: View {
                     OnboardingThemeSelectionSnapshotRoot(selection: .halloween)
                         .environment(\.regionOutlinePathCache, cache)
                 },
+                whereSnapshot(
+                    name: "Holiday",
+                    configurations: .fullContentPhoneLightDark,
+                    theme: .holiday,
+                    onReadyToSnapshot: {
+                        await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
+                    },
+                ) {
+                    OnboardingThemeSelectionSnapshotRoot(selection: .holiday)
+                        .environment(\.regionOutlinePathCache, cache)
+                },
             ]
         }
     }
