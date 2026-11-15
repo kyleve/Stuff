@@ -1,6 +1,6 @@
 # 01a — Workspace and remaining-work prototype
 
-- Status: ready
+- Status: executing
 - Implementation issue: [STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces).
 - Depends on: None.
 - Ordering: Inserted before [01](01-review-state-foundation.md); the [overview](README.md#execution-order) owns execution order.
@@ -363,11 +363,11 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-The title-bar follow-up is reviewed and published. The user now requests closing and reopening PR workspaces. The bounded method below is ready for coordinator review and parent-plan integration; hold implementation until that cascade is complete. Keep acceptance open and native refinement gated.
+The title-bar follow-up is reviewed and published. The user now requests closing and reopening PR workspaces. The close/reopen follow-up is implemented and verified with fresh independent review; return its clean tested commit for coordinator review, then publish the existing PR/evidence/issue and receipt. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
-Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its bounded method is ready for coordinated implementation and later user evaluation. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its implementation is verified and independently reviewed, with coordinator review/publication and user evaluation next. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
 
 
 ## Iteration 4 title-bar drag correction
@@ -425,8 +425,19 @@ Evidence criteria: exercise tabs and windows at phone/tablet/desktop sizes; clos
 Readiness review: `executing` → `draft` for this method revision, then `draft` → `ready` after tracing source ownership, implicit-active assumptions, focus recovery, the two-PR fixture, and the user-authorized retain/reopen behavior. No product choice blocks this bounded method. Parent integration of R-02/R-03 and outlines 01/02 is a coordination prerequisite; no UI implementation starts until the coordinator reviews this clean method commit and completes the cascade. The coordinator owns shared overview/native changes and the completion notice; this branch owns 01a/artifact evidence. Resume executing after that release, and keep experiment acceptance pending user evaluation.
 
 - [x] Inspect current ownership/activation paths and review the bounded method.
-- [ ] Coordinate parent integration and resume implementation.
-- [ ] Implement close/reopen, explicit no-active state, and retained-context recovery.
-- [ ] Verify focused three-size scenarios/captures and fresh independent review.
+- [x] Coordinate parent integration and resume implementation at parent `ecb3c017d` / child `7c0521696`; method and artifact bytes are unchanged by the cascade.
+- [x] Implement close/reopen, explicit no-active state, and retained-context recovery.
+- [x] Verify focused three-size scenarios/captures and fresh independent review; no actionable findings.
 - [ ] Publish the coordinated artifact/evidence/receipt and return completion.
 - [ ] Integrate user evaluation before completing the experiment.
+
+
+### Close/reopen implementation and evidence
+
+Final HTML SHA-256 `c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b` retains the workspace registry while separately rendering only open PRs. Outer tabs/windows have their own Close controls; Workspaces lists both retained PRs with Switch/Reopen, including when none are open. Active closure picks the next/previous remaining owner; inactive closure keeps the active owner/focus; last closure records `null` without a fallback PR. Reopen restores the same workspace/child objects and context, with Review file-top behavior. Global modal/render/focus paths tolerate no active owner, closed child actions are ignored, and closed sample pushes change revision without opening or focusing the PR. Reset recreates the initial session.
+
+[Focused verification](Prototype/evidence/workspace-close/verification.json) records eleven author scenarios across three sizes × Tabs/Windows (66 scenario checks), twelve selected WCAG scans, nine capture hashes, independent review and scoped cross-engine evidence. Scenarios cover active/inactive/last closure, actual absent hosts/tabs, retained object identities/routes/frames/layout/receipts/draft, non-review focus and review-top return, repeated reopen, empty-child recovery, keyboard/Escape, closed sample pushes, all-closed width/presentation changes, stale child events, Reset, and retained title-bar move/click/resize. No browser/resource errors, external requests or document overflow occurred.
+
+Fresh review found no actionable issues after its own eleven scenarios across all six size/presentation cases, six selected WCAG scans, real touch/hit checks at 320/390/834px, and keyboard workspace closure during an active drag. Author target inspection expanded the narrow 44px rule to the new outer window-close button; final-source hit tests confirm 44×44px tab/window close targets at 320/390. Closing during a drag releases capture, avoids a pointer-up action, and permits subsequent reopen/click. The coordinator independently passes close/reopen, stored review/draft/file context, all-closed presentation changes, review-top and title dragging in Chromium 156.0.8078.4 and WebKit 27.2 at phone/desktop widths on this final hash.
+
+Nine [captures](Prototype/evidence/workspace-close/) show the retained picker, empty state and reopened Store review at [phone](Prototype/evidence/workspace-close/phone-picker.png), [tablet](Prototype/evidence/workspace-close/tablet-picker.png), and [desktop](Prototype/evidence/workspace-close/desktop-picker.png) sizes. They use the same synthetic PR42 v1 context, with Parser reviewed and a saved draft, light appearance, 1× scale; all were inspected after the transient toast cleared naturally. Previous artifacts/evidence stay unchanged. Checks use isolated direct-file fixtures, not the user's unavailable browser. WebKit coverage is scoped, selected WCAG scans are not VoiceOver acceptance, and the probes are not retained CI guards. Default lint excludes this HTML; native tests/snapshots/SwiftFormat and unrelated format catalogs were not rerun. No backend/durability/sync/native work is added, and Q-09 retains the cross-device policy question. User evaluation remains pending; 01a is executing.

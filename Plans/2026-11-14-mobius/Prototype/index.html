@@ -38,6 +38,13 @@ h1, h2, h3, p { margin: 0; }
 .app { height: calc(100dvh - 66px); min-height: 460px; max-height: 1300px; display: flex; flex-direction: column; overflow: hidden; background: #f5f5f8; border: 1px solid #d2d4dc; border-radius: 10px; box-shadow: 0 8px 30px #25273c12; }
 .app-bar { display: flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 8px; background: #f8f8fb; border-bottom: 1px solid #d2d4dc; }
 .workspace-tabs { display: flex; align-items: stretch; gap: 4px; flex: 1; min-width: 0; align-self: stretch; overflow-x: auto; }
+.workspace-tab-shell { display:flex; align-items:center; flex:0 0 auto; border-bottom:2px solid transparent; }
+.workspace-tab-shell.selected { border-bottom-color:var(--accent); background:#efedf6; }
+.workspace-tab-shell .workspace-tab { border-bottom:0; background:transparent; }
+.workspace-picker { flex-shrink:0; }
+.workspace-picker span { font-size:12px; }
+.workspace-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center; }
+.workspace-empty p { color:var(--muted); font-size:13px; line-height:1.5; }
 .workspace-tab { display: flex; align-items: center; gap: 7px; padding: 0 13px; min-height: 48px; min-width: 0; color: #626774; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
 .workspace-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #efedf6; }
 .workspace-tab .pr-number { color: #626774; font-size: 11px; }
@@ -62,6 +69,7 @@ h1, h2, h3, p { margin: 0; }
 .outer-space[data-presentation="windows"] { display: flex; gap: 12px; padding: 12px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: stretch; }
 .workspace-host { min-width: 0; flex: 1; display: flex; flex-direction: column; background: #f0f0f5; container-type: inline-size; }
 .outer-space[data-presentation="windows"] .workspace-host { flex: 0 0 calc(50% - 6px); min-width: 430px; border: 1px solid #c9cbd5; border-radius: 9px; overflow: hidden; box-shadow: 0 7px 17px #25253e0b; scroll-snap-align: center; }
+.outer-space[data-presentation="windows"] .workspace-host:only-child { flex-basis:100%; }
 .outer-space[data-presentation="windows"] .workspace-host.selected { border-color: #9889c5; }
 .window-bar { display: none; align-items: center; justify-content: space-between; gap: 4px; padding: 3px 7px; background: #f8f8fc; border-bottom: 1px solid var(--line); }
 .outer-space[data-presentation="windows"] .window-bar { display: flex; }
@@ -185,7 +193,9 @@ dialog textarea { width: 100%; min-height: 130px; padding: 10px; border: 1px sol
 @container (max-width: 520px) {
  .app-bar { gap: 2px; padding: 0 4px; }
  .workspace-tab { padding: 0 7px; gap: 5px; font-size: 12px; flex: 1; }
- .workspace-tab svg { display: none; }
+ .workspace-tab svg, .workspace-picker span { display: none; }
+ .workspace-picker { width:44px; min-height:44px; padding:0; }
+ .workspace-tab-shell > .icon-button, .window-bar > .icon-button { width:44px; height:44px; }
  .workspace-actions .icon-button { width: 44px; min-height: 44px; }
  .outer-space[data-presentation="windows"] { padding: 7px; gap: 8px; }
  .outer-space[data-presentation="windows"] .workspace-host { min-width: 100%; flex-basis: 100%; }
@@ -404,7 +414,7 @@ function makeView(workspace, kind, file) {
   frame:{x:.025 + ((ordinal-1)%3)*.12, y:.025 + ((ordinal-1)%3)*.11, width:.64, height:.72}};
 }
 function newWorkspace(number) {
- const workspace = {number, version:1, reviewed:Object.fromEntries(files.map(file => [file,null])), skipped:Object.fromEntries(files.map(file=>[file,null])), draft:'', views:[], nextView:1, focused:null, layout:document.getElementById('stage').getBoundingClientRect().width<=680?'focus':'tiles', nextZ:5};
+ const workspace = {number, open:true, version:1, reviewed:Object.fromEntries(files.map(file => [file,null])), skipped:Object.fromEntries(files.map(file=>[file,null])), draft:'', views:[], nextView:1, focused:null, layout:document.getElementById('stage').getBoundingClientRect().width<=680?'focus':'tiles', nextZ:5};
  const kinds = number === 42 ? ['review','source','preview'] : ['review','search'];
  workspace.views = kinds.map(kind => makeView(workspace,kind));
  workspace.focused = workspace.views[0].id;
@@ -418,7 +428,8 @@ let dialogContext = null;
 let toastTimer;
 let outerScroll = 0;
 const byNumber = number => workspaces[Number(number)];
-const focusedView = workspace => workspace.views.find(view => view.id === workspace.focused);
+const openWorkspaces = () => Object.values(workspaces).filter(workspace=>workspace.open);
+const focusedView = workspace => workspace?.views.find(view => view.id === workspace.focused);
 const viewTitle = view => view.kind === 'review' || view.kind === 'source' ? view.state.file : view.kind === 'search' ? 'Repository search' : 'SearchKit preview';
 const viewName = view => `${kindLabels[view.kind]} ${view.ordinal}`;
 const attributes = (workspace, view) => `data-workspace="${workspace.number}"${view ? ` data-view="${view.id}"` : ''}`;
@@ -540,13 +551,22 @@ function workspaceActions(workspace) {
 }
 const shortWorkspace = workspace => workspace.number===42?'Search':'Restore';
 const workspaceName = workspace => `${shortWorkspace(workspace)} #${workspace.number}`;
+function closeWorkspaceControl(workspace) {
+ return `<button class="icon-button" ${attributes(workspace)} data-action="close-workspace" aria-label="Close ${workspaceName(workspace)} workspace" title="Close workspace">${icon('close')}</button>`;
+}
+function workspacePresentationControls() {
+ return `<div class="segment" aria-label="PR workspace presentation">${[['tabs','sidebar','Tabs'],['windows','windows','Windows']].map(([value,glyph,label])=>`<button data-action="presentation" data-presentation="${value}" aria-pressed="${presentation===value}">${icon(glyph)} ${label}</button>`).join('')}</div>`;
+}
 function workspaceNavigation() {
- return presentation==='tabs' ? `<nav class="workspace-tabs" aria-label="PR workspaces">${Object.values(workspaces).map(workspace=>`<button class="workspace-tab ${workspace.number===activeWorkspace?'active':''}" ${attributes(workspace)} data-action="workspace" ${workspace.number===activeWorkspace?'aria-current="true"':''} aria-label="${workspaceName(workspace)}">${icon('pr')}<span class="tab-title">${shortWorkspace(workspace)}</span><span class="pr-number">#${workspace.number}</span></button>`).join('')}</nav>${workspaceActions(byNumber(activeWorkspace))}` : `<label class="workspace-window-navigation"><span>PR workspaces · Windows</span><select data-control="workspace" aria-label="Active PR workspace">${Object.values(workspaces).map(workspace=>`<option value="${workspace.number}" ${workspace.number===activeWorkspace?'selected':''}>${workspaceName(workspace)}</option>`).join('')}</select></label>`;
+ const opened=openWorkspaces(),active=byNumber(activeWorkspace);
+ const picker=`<button class="button workspace-picker" data-action="workspaces" aria-label="Workspaces" title="Workspaces" aria-haspopup="dialog">${icon('sidebar')}<span>Workspaces</span></button>`;
+ if(!opened.length)return picker;
+ return picker+(presentation==='tabs' ? `<nav class="workspace-tabs" aria-label="PR workspaces">${opened.map(workspace=>`<div class="workspace-tab-shell ${workspace.number===activeWorkspace?'selected':''}" ${attributes(workspace)}><button class="workspace-tab ${workspace.number===activeWorkspace?'active':''}" ${attributes(workspace)} data-action="workspace" ${workspace.number===activeWorkspace?'aria-current="true"':''} aria-label="${workspaceName(workspace)}">${icon('pr')}<span class="tab-title">${shortWorkspace(workspace)}</span><span class="pr-number">#${workspace.number}</span></button>${closeWorkspaceControl(workspace)}</div>`).join('')}</nav>${active?workspaceActions(active):''}` : `<label class="workspace-window-navigation"><span>PR workspaces · Windows</span><select data-control="workspace" aria-label="Active PR workspace">${opened.map(workspace=>`<option value="${workspace.number}" ${workspace.number===activeWorkspace?'selected':''}>${workspaceName(workspace)}</option>`).join('')}</select></label>`);
 }
 function renderWorkspace(workspace) {
  const control=attributes(workspace), count=workspace.views.length, active=focusedView(workspace);
  const countClass=count===1?'one':count===2?'two':count===3?'three':'many';
- return `<section class="workspace-host ${workspace.number===activeWorkspace?'selected':''}" ${control} data-layout="${workspace.layout}" aria-label="PR ${workspace.number} workspace"><header class="window-bar"><button class="window-identity" ${control} data-action="workspace">${icon('pr')}${shortWorkspace(workspace)} <span>#${workspace.number}</span></button>${workspaceActions(workspace)}</header>${active?`<div class="compact-view-bar"><button class="view-picker" ${control} data-action="views" aria-label="Views in PR ${workspace.number}. Current ${viewName(active)}: ${escapeHTML(viewTitle(active))}" aria-haspopup="dialog">${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}</button><button class="icon-button" ${attributes(workspace,active)} data-action="close-view" aria-label="Close ${viewName(active)}">${icon('close')}</button></div>`:''}<div class="child-canvas ${countClass}" ${control} data-layout="${workspace.layout}">${count?workspace.views.map(view=>renderView(workspace,view)).join(''):`<div class="empty-state"><h2>No open views</h2><button class="button primary" ${control} data-action="new-view">New view</button></div>`}</div></section>`;
+ return `<section class="workspace-host ${workspace.number===activeWorkspace?'selected':''}" ${control} data-layout="${workspace.layout}" aria-label="PR ${workspace.number} workspace"><header class="window-bar"><button class="window-identity" ${control} data-action="workspace">${icon('pr')}${shortWorkspace(workspace)} <span>#${workspace.number}</span></button>${workspaceActions(workspace)}${closeWorkspaceControl(workspace)}</header>${active?`<div class="compact-view-bar"><button class="view-picker" ${control} data-action="views" aria-label="Views in PR ${workspace.number}. Current ${viewName(active)}: ${escapeHTML(viewTitle(active))}" aria-haspopup="dialog">${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}</button><button class="icon-button" ${attributes(workspace,active)} data-action="close-view" aria-label="Close ${viewName(active)}">${icon('close')}</button></div>`:''}<div class="child-canvas ${countClass}" ${control} data-layout="${workspace.layout}">${count?workspace.views.map(view=>renderView(workspace,view)).join(''):`<div class="empty-state"><h2>No open views</h2><button class="button primary" ${control} data-action="new-view">New view</button></div>`}</div></section>`;
 }
 function captureScroll() {
  document.querySelectorAll('[data-scroll]').forEach(node => {
@@ -564,33 +584,45 @@ function rememberFocus() {
 function restoreFocus(saved) {
  if (!saved || document.getElementById('modal').open) return;
  const target=saved.id ? document.getElementById(saved.id) : [...document.querySelectorAll('button,select,input')].find(node => node.getClientRects().length && Object.entries(saved.data).every(([key,value]) => node.dataset[key] === value));
- (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`) || [...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length))?.focus({preventScroll:true});
+ (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace)?.focused}"]`) || [...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length) || document.querySelector('.workspace-picker'))?.focus({preventScroll:true});
 }
 function render() {
  finishDrag();
  const saved=rememberFocus();rendering=true;
  const app=document.getElementById('app');app.dataset.presentation=presentation;
- app.innerHTML=`<header class="app-bar">${workspaceNavigation()}</header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
+ app.innerHTML=`<header class="app-bar">${workspaceNavigation()}</header><div class="outer-space" data-presentation="${presentation}">${openWorkspaces().length?openWorkspaces().map(renderWorkspace).join(''):`<div class="workspace-empty"><h2>No open workspaces</h2><p>Your sample PR workspaces are retained.</p><button class="button primary" data-action="workspaces">Reopen a workspace</button></div>`}</div>`;
  document.querySelectorAll('[data-scroll]').forEach(node=>{const view=Object.values(workspaces).flatMap(workspace=>workspace.views).find(item=>item.id===node.dataset.scroll);node.scrollTop=view.scroll.top;node.scrollLeft=view.scroll.left;});
  document.querySelectorAll('.prototype-panel [data-action="push"]').forEach(button=>{const applied=byNumber(button.dataset.workspace).version===2;button.disabled=applied;button.textContent=applied?'Push applied':'Simulate push';button.setAttribute('aria-label',`${button.textContent} for PR ${button.dataset.workspace}`);});
  if(presentation==='windows')document.querySelector('.outer-space').scrollLeft=outerScroll;
- observeFloatingCanvases();restoreFocus(saved);document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});rendering=false;
+ observeFloatingCanvases();restoreFocus(saved);document.querySelector(`.child[data-view="${byNumber(activeWorkspace)?.focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});rendering=false;
 }
 function focusView(workspace,view) {
+ if(!workspace?.open||!workspace.views.includes(view))return;
  const resumed=activeWorkspace !== workspace.number || workspace.focused !== view.id;
  activeWorkspace=workspace.number;workspace.focused=view.id;view.z=workspace.nextZ++;
  if (resumed && view.kind === 'review') view.scroll={top:0,left:0};
 }
 function activateWorkspace(workspace) {
+ if(!workspace?.open)return;
  const view=focusedView(workspace);
  if (view) focusView(workspace,view); else activeWorkspace=workspace.number;
+}
+function closeWorkspace(workspace) {
+ if(!workspace?.open)return;
+ const opened=openWorkspaces(),index=opened.indexOf(workspace),neighbor=opened[index+1]||opened[index-1];
+ workspace.open=false;
+ if(activeWorkspace===workspace.number){activeWorkspace=null;if(neighbor)activateWorkspace(neighbor);}
+}
+function reopenWorkspace(workspace) {
+ if(!workspace)return;
+ workspace.open=true;activateWorkspace(workspace);
 }
 function paintFocus() {
  const workspacePicker=document.querySelector('[data-control="workspace"]');if(workspacePicker)workspacePicker.value=String(activeWorkspace);
  document.querySelectorAll('.workspace-host').forEach(host=>{const owner=byNumber(host.dataset.workspace), active=focusedView(owner), picker=host.querySelector('.view-picker');if(active&&picker){picker.innerHTML=`${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}`;picker.setAttribute('aria-label',`Views in PR ${owner.number}. Current ${viewName(active)}: ${viewTitle(active)}`);const close=picker.nextElementSibling;close.dataset.view=active.id;close.setAttribute('aria-label',`Close ${viewName(active)}`);}});
- document.querySelectorAll('.workspace-host,.workspace-tab').forEach(node => {
+ document.querySelectorAll('.workspace-host,.workspace-tab,.workspace-tab-shell').forEach(node => {
   const selected=Number(node.dataset.workspace) === activeWorkspace;
-  node.classList.toggle(node.classList.contains('workspace-host') ? 'selected' : 'active',selected);
+  node.classList.toggle(node.classList.contains('workspace-tab') ? 'active' : 'selected',selected);
   if (node.classList.contains('workspace-tab')) { if(selected)node.setAttribute('aria-current','true');else node.removeAttribute('aria-current'); }
  });
  document.querySelectorAll('.child,.child-tab').forEach(node => {
@@ -601,9 +633,10 @@ function paintFocus() {
  });
 }
 function scrollWorkspaceIntoView(workspace) {
- if(presentation === 'windows') document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+ if(workspace?.open&&presentation === 'windows') document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
 }
 function addView(workspace,kind,file) {
+ if(!workspace?.open)return null;
  const view=makeView(workspace,kind,file);workspace.views.push(view);focusView(workspace,view);return view;
 }
 function toast(message) {
@@ -611,11 +644,15 @@ function toast(message) {
  toastTimer=setTimeout(()=>{document.getElementById('toast').textContent='';},3500);
 }
 function showModal(kind,workspace,opener) {
+ if(kind!=='workspaces'&&!workspace?.open)return;
  const previous=dialogContext;
- dialogContext={kind,number:workspace.number,view:opener.dataset.view,opener:previous?.opener||{...opener.dataset}};
- const modal=document.getElementById('modal'), view=workspace.views.find(item=>item.id===dialogContext.view), control=attributes(workspace,view);
+ dialogContext={kind,number:workspace?.number??null,view:opener.dataset.view,opener:previous?.opener||{...opener.dataset}};
+ const modal=document.getElementById('modal'), view=workspace?.views.find(item=>item.id===dialogContext.view), control=workspace?attributes(workspace,view):'';
  let title,body;
- if(kind==='new-view') {
+ if(kind==='workspaces') {
+  title='Workspaces';
+  body=`<div class="menu-list">${Object.values(workspaces).map(item=>`<button class="menu-item" ${attributes(item)} data-action="${item.open?'workspace':'reopen-workspace'}" ${item.number===activeWorkspace?'aria-current="true"':''}>${icon('pr')}<span>${workspaceName(item)}<small>${item.open?'Open':'Closed'} · ${item.views.length} views · ${countSummary(counts(item))}</small></span><span>${item.open?'Switch':'Reopen'}</span></button>`).join('')}</div><p class="menu-help">Closing a workspace keeps its views and review progress in this sample session. The GitHub PR stays open.</p><h3>PR workspaces</h3>${workspacePresentationControls()}`;
+ } else if(kind==='new-view') {
   title=`Add a view · PR #${workspace.number}`;
   body=`<div class="view-options">${[['review','Read another file or comparison.'],['source','Browse sample code.'],['search','Search with a separate query.'],['preview','Compare simulated app states.']].map(([type,description])=>`<button class="view-option" data-action="create-view" data-kind="${type}">${icon(kindIcons[type])}<strong>${kindLabels[type]}</strong><small>${description}</small></button>`).join('')}</div>`;
  } else if(kind==='draft') {
@@ -623,7 +660,7 @@ function showModal(kind,workspace,opener) {
   body=`<p>Private session note. Nothing is sent to GitHub.</p><label for="draft">A thought to come back to</label><textarea id="draft">${escapeHTML(workspace.draft)}</textarea><div class="dialog-footer"><span>Saved in this sample session</span><button class="button primary" data-action="close-modal">Keep draft</button></div>`;
  } else if(kind==='workspace-options') {
   title=`Workspace · PR #${workspace.number}`;
-  body=`<div class="workspace-title">${fixtures[workspace.number].title}</div><dl class="metadata"><dt>Repository</dt><dd>northstar</dd><dt>Author</dt><dd>${fixtures[workspace.number].author}</dd><dt>Branch</dt><dd>${fixtures[workspace.number].branch}</dd><dt>Revision</dt><dd>Sample v${workspace.version} · open PR</dd><dt>Review progress</dt><dd>${countSummary(counts(workspace))}</dd></dl><button class="menu-item" ${control} data-action="views">${icon('windows')}<span>Open views</span>${workspace.views.length}</button><h3>PR workspaces</h3><div class="segment" aria-label="PR workspace presentation">${[['tabs','sidebar','Tabs'],['windows','windows','Windows']].map(([value,glyph,label])=>`<button data-action="presentation" data-presentation="${value}" aria-pressed="${presentation===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Tabs switch PRs. Windows show separate PR workspaces inside this demo.</p><h3>Views in ${workspaceName(workspace)}</h3><div class="segment" aria-label="Views in ${workspaceName(workspace)}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','One view']].map(([value,glyph,label])=>`<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Arrange this PR’s review, source, research, and preview views. Float stays movable and resizable at every width.</p>`;
+  body=`<div class="workspace-title">${fixtures[workspace.number].title}</div><dl class="metadata"><dt>Repository</dt><dd>northstar</dd><dt>Author</dt><dd>${fixtures[workspace.number].author}</dd><dt>Branch</dt><dd>${fixtures[workspace.number].branch}</dd><dt>Revision</dt><dd>Sample v${workspace.version} · open PR</dd><dt>Review progress</dt><dd>${countSummary(counts(workspace))}</dd></dl><button class="menu-item" ${control} data-action="views">${icon('windows')}<span>Open views</span>${workspace.views.length}</button><h3>PR workspaces</h3>${workspacePresentationControls()}<p class="menu-help">Tabs switch PRs. Windows show separate PR workspaces inside this demo.</p><h3>Views in ${workspaceName(workspace)}</h3><div class="segment" aria-label="Views in ${workspaceName(workspace)}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','One view']].map(([value,glyph,label])=>`<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Arrange this PR’s review, source, research, and preview views. Float stays movable and resizable at every width.</p>`;
  } else if(kind==='views') {
   title=`Views · PR #${workspace.number}`;
   body=`<div class="menu-list">${workspace.views.map(item=>`<div class="menu-row"><button class="menu-item" ${attributes(workspace,item)} data-action="focus-view" ${item.id===workspace.focused?'aria-current="true"':''}>${icon(kindIcons[item.kind])}<span>${escapeHTML(viewTitle(item))}<small>${viewName(item)}</small></span></button><button class="icon-button" ${attributes(workspace,item)} data-action="close-view" aria-label="Close ${viewName(item)}">${icon('close')}</button></div>`).join('')}</div><button class="menu-item" ${attributes(workspace)} data-action="new-view">${icon('plus')} New view</button>`;
@@ -640,15 +677,19 @@ function showModal(kind,workspace,opener) {
 }
 function contextFor(node) {
  const workspace=byNumber(node.dataset.workspace || node.closest('.workspace-host')?.dataset.workspace || activeWorkspace);
- const view=workspace.views.find(item=>item.id===(node.dataset.view || node.closest('.child')?.dataset.view));
+ const view=workspace?.views.find(item=>item.id===(node.dataset.view || node.closest('.child')?.dataset.view));
  return {workspace,view};
 }
 document.addEventListener('click',event=>{
  const button=event.target.closest('button[data-action]');if(!button || button.disabled)return;
  captureScroll();const {workspace,view}=contextFor(button);
+ if(!workspace?.open&&!['workspaces','reopen-workspace','close-workspace','close-modal','presentation','push','reset'].includes(button.dataset.action))return;
  if(view && button.dataset.action !== 'close-view')focusView(workspace,view);
  switch(button.dataset.action) {
- case 'workspace': activateWorkspace(workspace);render();scrollWorkspaceIntoView(workspace);document.querySelector(`.child[data-view="${workspace.focused}"]`)?.focus({preventScroll:true});break;
+ case 'workspaces': showModal('workspaces',null,button);break;
+ case 'reopen-workspace': reopenWorkspace(workspace);dismissModal('child');scrollWorkspaceIntoView(workspace);break;
+ case 'close-workspace': closeWorkspace(workspace);render();scrollWorkspaceIntoView(byNumber(activeWorkspace));break;
+ case 'workspace': activateWorkspace(workspace);if(dialogContext)dismissModal('child');else render();scrollWorkspaceIntoView(workspace);document.querySelector(`.child[data-view="${workspace.focused}"]`)?.focus({preventScroll:true});break;
  case 'presentation': presentation=button.dataset.presentation;dismissModal('opener');scrollWorkspaceIntoView(byNumber(activeWorkspace));break;
  case 'focus-view': if(dialogContext)dismissModal('child');else render();break;
  case 'layout': workspace.layout=button.dataset.layout;activateWorkspace(workspace);dismissModal('opener');break;
@@ -660,7 +701,7 @@ document.addEventListener('click',event=>{
  case 'file': case 'source-file': view.state.file=button.dataset.file;view.scroll={top:0,left:0};dismissModal('child');break;
  case 'comparison': view.state.mode=button.dataset.mode;view.state.fileFilter=button.dataset.mode==='full'?'all':'remaining';view.scroll={top:0,left:0};if(dialogContext)dismissModal('child');else render();break;
  case 'review': if(!fileCatalog[view.state.file].available)break;workspace.reviewed[view.state.file]=workspace.version;workspace.skipped[view.state.file]=null;if(dialogContext)dismissModal('child');else render();toast(`${view.state.file} reviewed at v${workspace.version} · shared in PR #${workspace.number}`);break;
- case 'push': closePrototypeControls();activateWorkspace(workspace);workspace.version=2;render();toast(`PR #${workspace.number} · new edits and one new asset`);break;
+ case 'push': if(!workspace)break;closePrototypeControls();if(workspace.open)activateWorkspace(workspace);workspace.version=2;render();toast(`PR #${workspace.number} · new edits and one new asset`);break;
  case 'format': view.state.format=button.dataset.format;view.scroll={top:0,left:0};render();break;
  case 'file-filter': view.state.fileFilter=button.dataset.filter;showModal('files',workspace,button);break;
  case 'toggle-group': view.state.collapsed[button.dataset.group]=!view.state.collapsed[button.dataset.group];showModal('files',workspace,button);break;
@@ -676,22 +717,22 @@ document.addEventListener('click',event=>{
  }
 });
 document.addEventListener('input',event=>{
- if(event.target.id==='draft' && dialogContext){byNumber(dialogContext.number).draft=event.target.value;return;}
- if(event.target.dataset.control==='query'){const {view}=contextFor(event.target);view.state.query=event.target.value;}
+ if(event.target.id==='draft' && dialogContext){const owner=byNumber(dialogContext.number);if(owner?.open)owner.draft=event.target.value;return;}
+ if(event.target.dataset.control==='query'){const {workspace,view}=contextFor(event.target);if(workspace?.open&&view)view.state.query=event.target.value;}
 });
 document.addEventListener('change',event=>{
  if(event.target.id==='viewport'){captureScroll();document.getElementById('stage').dataset.size=event.target.value;return;}
  const control=event.target.dataset.control;
  if(control==='workspace'){captureScroll();activateWorkspace(byNumber(event.target.value));render();scrollWorkspaceIntoView(byNumber(activeWorkspace));return;}
  if(!['source-file','preview-scene'].includes(control))return;
- captureScroll();const {workspace,view}=contextFor(event.target);focusView(workspace,view);
+ captureScroll();const {workspace,view}=contextFor(event.target);if(!workspace?.open||!view)return;focusView(workspace,view);
  if(control==='source-file'){view.state.file=event.target.value;view.scroll={top:0,left:0};}
  if(control==='preview-scene')view.state.scene=event.target.value;
  render();
 });
 document.addEventListener('submit',event=>{
  if(!event.target.matches('.search-form'))return;event.preventDefault();
- const {workspace,view}=contextFor(event.target);view.state.searched=true;
+ const {workspace,view}=contextFor(event.target);if(!workspace?.open||!view)return;view.state.searched=true;
  document.querySelector(`[data-results="${view.id}"]`).innerHTML=searchResults(workspace,view);
 });
 // Native close events are queued. Finish owned dismissal synchronously so a
@@ -700,16 +741,16 @@ function dismissModal(destination) {
  const previous=dialogContext;dialogContext=null;
  document.getElementById('modal').close();render();
  const opener=previous && [...document.querySelectorAll('button[data-action]')].find(node=>node.getClientRects().length && Object.entries(previous.opener).every(([key,value])=>node.dataset[key]===value));
- const child=document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`);
+ const child=document.querySelector(`.child[data-view="${byNumber(activeWorkspace)?.focused}"]`);
  const newView=[...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length);
- (destination==='child' ? child || newView : opener || child || newView)?.focus({preventScroll:true});
+ ((destination==='child' ? child || newView : opener || child || newView) || document.querySelector('.workspace-picker'))?.focus({preventScroll:true});
 }
 document.getElementById('modal').addEventListener('cancel',event=>{event.preventDefault();dismissModal('opener');});
 document.getElementById('modal').addEventListener('close',()=>{if(dialogContext&&!document.getElementById('modal').open)dismissModal('opener');});
 
 function focusFromChild(node) {
  const child=node.closest('.child');if(node.closest('[data-action="close-view"]') || !child || rendering || document.getElementById('modal').open)return;
- const {workspace,view}=contextFor(child);
+ const {workspace,view}=contextFor(child);if(!workspace?.open||!view)return;
  if(workspace.focused===view.id && activeWorkspace===workspace.number)return;
  captureScroll();focusView(workspace,view);paintFocus();
  if(view.kind==='review'){const scroll=child.querySelector('[data-scroll]');if(scroll){scroll.scrollTop=0;scroll.scrollLeft=0;}}
@@ -719,6 +760,7 @@ document.addEventListener('pointerdown',event=>focusFromChild(event.target));
 // Saved normalized placement is authored only by explicit move/resize. Fitting a
 // smaller host changes displayed bounds without overwriting the wider arrangement.
 function frameBounds(workspace) {
+ if(!workspace?.open)return null;
  const canvas=document.querySelector(`.workspace-host[data-workspace="${workspace.number}"] .child-canvas`);
  if(workspace.layout!=='float'||!canvas?.getClientRects().length||!canvas.clientWidth||!canvas.clientHeight)return null;
  const rect=canvas.getBoundingClientRect();
@@ -739,7 +781,7 @@ function fitFloatingWorkspace(workspace) {
 const frameObserver=new ResizeObserver(entries=>entries.forEach(entry=>{if(entry.target.isConnected)fitFloatingWorkspace(byNumber(entry.target.dataset.workspace));}));
 function observeFloatingCanvases() {
  frameObserver.disconnect();
- Object.values(workspaces).filter(workspace=>workspace.layout==='float').forEach(workspace=>{fitFloatingWorkspace(workspace);const canvas=document.querySelector(`.child-canvas[data-workspace="${workspace.number}"]`);frameObserver.observe(canvas);});
+ openWorkspaces().filter(workspace=>workspace.layout==='float').forEach(workspace=>{fitFloatingWorkspace(workspace);const canvas=document.querySelector(`.child-canvas[data-workspace="${workspace.number}"]`);frameObserver.observe(canvas);});
 }
 function applyFrame(workspace,view,frame) {
  const rect=frameBounds(workspace);if(!rect)return;

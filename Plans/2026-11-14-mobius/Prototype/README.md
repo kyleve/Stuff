@@ -1,6 +1,6 @@
 # Mobius workspace study
 
-Open [index.html](index.html) in a browser. This fourth iteration adds grouped file kinds, suitable comparison previews, and explicit PR-local skip/undo to the compact logical workspaces and independent review, source, research, and simulated-preview views. It is self-contained and offline; no installation or account is needed. Reloading or **Reset** restores the sample session.
+Open [index.html](index.html) in a browser. This mockup explores compact PR workspaces with independent review, source, research, and simulated-preview views, grouped file kinds, suitable comparisons, and explicit PR-local skip/undo. PR workspaces can now close and reopen with their context retained. It is self-contained and offline; no installation or account is needed. Reloading or **Reset** restores the sample session.
 
 To serve it locally from the repository root:
 
@@ -12,6 +12,7 @@ Visit `http://127.0.0.1:8765`; stop the server when finished.
 
 ## Find the controls
 
+- **Workspaces:** the persistent picker lists open and closed sample PR workspaces. **×** on a PR tab or outer window closes that workspace without losing its views, review/skip progress, or draft. **Reopen** restores it; closing the last workspace leaves a deliberate empty state with recovery. This does not close the GitHub PR.
 - **Workspace bar:** switch between **Search #42** and **Restore #43** using PR tabs, or the **PR workspaces · Windows** selector when separate workspace windows are shown. The comment icon opens the PR's private review draft; **+** adds another Review, Source, Research, or Preview.
 - **Workspace options (…):** inspect full PR metadata and progress, select **Open views**, choose **PR workspaces → Tabs / Windows**, and separately arrange **Views in Search #42 → Tile / Float / One view**. Float stays movable/resizable at every width; narrow Tile stacks views. Narrow sessions initially choose One view. Resizing and changing outer presentation preserve explicit selections and saved placement.
 - **Current view:** Tile/Float title bars identify each child file or view. In One view, the title is also the view selector. Use it to switch children; **×** closes the selected view. **Open views** also lets you choose or close any child without activating another one.
@@ -20,7 +21,7 @@ Visit `http://127.0.0.1:8765`; stop the server when finished.
 - **Content previews:** Documents show rendered Markdown plus exact changed link targets; Localization shows changed key/locale/value rows; Snapshots/assets show before/after fixture images and metadata. **Source** reveals the prepared raw diff. LFS is a badge, not a group. `Design.psd` has only pointer/metadata fallback and cannot be marked reviewed.
 - **Source:** use the filename control (or One view file selector) to browse sample source. **Review file** opens another review child for changed files. Research queries remain independent and results open new Source children.
 - **Float:** drag the title bar, including its filename/title or kind icon, or use its resize corner. A stationary filename click opens the chooser; the separate close/focus actions remain buttons. With the move icon focused, arrow keys move and Shift+arrow keys resize; the resize handle also supports arrow-key resizing.
-- **Sample controls:** expand **Sample data · Controls** above the workspace for Canvas width, each PR's **Simulate push**, and **Reset**. Escape closes the panel and returns focus. Preview content remains explicitly **Simulated**.
+- **Sample controls:** expand **Sample data · Controls** above the workspace for Canvas width, each PR's **Simulate push**, and **Reset**. A push to a closed workspace updates its fixture without reopening it; Reset deliberately restores both initial workspaces. Escape closes the panel and returns focus. Preview content remains explicitly **Simulated**.
 
 Dialogs close through Escape or their close button. These controls and layouts are hypotheses to evaluate, not commitments for every native platform.
 
@@ -40,6 +41,23 @@ Dialogs close through Escape or their close button. These controls and layouts a
 3. Reset. Mark `Parser.swift` reviewed, then use Code **Skip 2 remaining** and Snapshots/assets **Skip 2 remaining**. Parser remains reviewed; only Store, Stable, SearchResults, and Design are skipped.
 4. Simulate the v2 push. Store and SearchResults return because their contents changed. New `EmptyResults.svg` was never skipped. Unchanged Stable and Design stay skipped. Parser shows edits since its actual v1 review. Counts read **6 remaining · 0 reviewed · 2 skipped**.
 5. Undo individual/group skips and confirm they do not create review receipts. Skip the changed Parser at v2: its actual reviewed version stays v1, and Undo restores that incremental comparison. Zero remaining with skips reports the skipped count separately.
+
+## Close and reopen a workspace
+
+1. In Search #42, mark a file reviewed, select another review file, save a draft, and open or arrange child views.
+2. Use the **×** on Restore #43's outer tab/window. Search keeps its active child. Reopen Restore through **Workspaces**, then switch back to Search.
+3. Close Search. Restore becomes active. Close Restore too: the screen has no active workspace and offers **Reopen a workspace**.
+4. Reopen Search. Its same child instances, selected files/queries, layout/frames, review/skip receipts, and draft return. The last-focused child returns; a Review starts its selected file at the top. Reopening an already-open entry switches to it without duplication.
+
+[Exact-source evidence](evidence/workspace-close/verification.json) pins HTML SHA-256 `c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b`. Eleven focused scenarios pass in each of three sizes × Tabs/Windows; fresh independent review has no findings. Narrow touch/hit and active-drag closure pass; the coordinator also checks Chromium/WebKit at phone/desktop sizes. Twelve author and six independent selected WCAG scans pass. Nine visually inspected captures use PR42 v1 with Parser reviewed, Store selected, a draft saved, and Float; phone uses Tabs, tablet/desktop Windows, light appearance, 1× scale:
+
+| Viewport | Retained picker | All closed | Reopened context |
+| --- | --- | --- | --- |
+| 390 × 844 | [Phone picker](evidence/workspace-close/phone-picker.png) | [Empty](evidence/workspace-close/phone-empty.png) | [Store and views](evidence/workspace-close/phone-reopened.png) |
+| 834 × 1112 | [Tablet picker](evidence/workspace-close/tablet-picker.png) | [Empty](evidence/workspace-close/tablet-empty.png) | [Store and views](evidence/workspace-close/tablet-reopened.png) |
+| 1440 × 1000 | [Desktop picker](evidence/workspace-close/desktop-picker.png) | [Empty](evidence/workspace-close/desktop-empty.png) | [Store and views](evidence/workspace-close/desktop-reopened.png) |
+
+The workspace remains in memory only; reload/Reset restores the sample. Cross-device open/closed policy is undecided in this experiment. Earlier title-bar/layout/type results below remain historical. User evaluation is pending.
 
 ## Title-bar drag correction
 

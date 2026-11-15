@@ -1,0 +1,897 @@
+{
+  "scope": "Retained workspace close/reopen follow-up; prior evidence remains historical and unchanged.",
+  "baseCommit": "7c052169683ebc4bd6ee4ff22495365d74fc81a6",
+  "parentCommit": "ecb3c017da2a1b812df1a3f5235e460448ee2bcd",
+  "sourceSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+  "contractMap": {
+    "ownership": "Open presentation is separate from retained workspace and child identity/state.",
+    "activation": "Inactive close preserves active/focus; active close chooses next then previous; last close has active=null. Only explicit reopen and Reset open closed workspaces.",
+    "resumption": "Same child/layout/routes/receipts/draft; Review returns to its own file top, non-review retains focus.",
+    "events": "Global controls tolerate no active owner; closed child events are ignored; sample push may update closed revision without activation.",
+    "guards": "Ad hoc isolated fixture evidence, not retained CI tests."
+  },
+  "tools": {
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "webkit": "27.2 (scoped coordinator checks)",
+    "axe": "4.14.0"
+  },
+  "commands": [
+    "mise exec -- node /tmp/mobius-close-verify.cjs",
+    "mise exec -- node /tmp/mobius-close-captures.cjs",
+    "mise exec -- node /tmp/mobius-workspace-close-review.cjs",
+    "mise exec -- node /tmp/mobius-workspace-close-review-extra.cjs",
+    "mise exec -- node /tmp/mobius-close-root-check.cjs"
+  ],
+  "author": {
+    "sourceSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+    "reports": [
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "presentation": "tabs",
+        "checks": [
+          "inactive closure preserves active PR/focused research, state and reachable outer close",
+          "active closure selects remaining neighbor without changing retained workspace",
+          "closed fixture push changes revision only, preserving active PR and review/skip baselines",
+          "keyboard last closure has explicit no-active state, no hosts/tabs, focused Workspaces recovery",
+          "all-closed viewport/presentation changes and stale child events cannot reopen or mutate retained state",
+          "picker keyboard/Escape and reopen restore same workspace/children, non-review focus, frames, draft and routes",
+          "repeated switch/reopen entry does not duplicate identities or lose context",
+          "Review reopen retains selected file/comparison and receipt, resumes at file top",
+          "titlebar drag/click and keyboard movement/resize retained after reopen",
+          "workspace with no children reopens empty and creates one new child",
+          "Reset deliberately restores the initial two-open-workspace session"
+        ],
+        "audits": [
+          {
+            "state": "two open workspaces",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "presentation": "windows",
+        "checks": [
+          "inactive closure preserves active PR/focused research, state and reachable outer close",
+          "active closure selects remaining neighbor without changing retained workspace",
+          "closed fixture push changes revision only, preserving active PR and review/skip baselines",
+          "keyboard last closure has explicit no-active state, no hosts/tabs, focused Workspaces recovery",
+          "all-closed viewport/presentation changes and stale child events cannot reopen or mutate retained state",
+          "picker keyboard/Escape and reopen restore same workspace/children, non-review focus, frames, draft and routes",
+          "repeated switch/reopen entry does not duplicate identities or lose context",
+          "Review reopen retains selected file/comparison and receipt, resumes at file top",
+          "titlebar drag/click and keyboard movement/resize retained after reopen",
+          "workspace with no children reopens empty and creates one new child",
+          "Reset deliberately restores the initial two-open-workspace session"
+        ],
+        "audits": [
+          {
+            "state": "all closed",
+            "violations": []
+          },
+          {
+            "state": "retained-workspace picker",
+            "violations": []
+          },
+          {
+            "state": "reopened floating review",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "presentation": "tabs",
+        "checks": [
+          "inactive closure preserves active PR/focused research, state and reachable outer close",
+          "active closure selects remaining neighbor without changing retained workspace",
+          "closed fixture push changes revision only, preserving active PR and review/skip baselines",
+          "keyboard last closure has explicit no-active state, no hosts/tabs, focused Workspaces recovery",
+          "all-closed viewport/presentation changes and stale child events cannot reopen or mutate retained state",
+          "picker keyboard/Escape and reopen restore same workspace/children, non-review focus, frames, draft and routes",
+          "repeated switch/reopen entry does not duplicate identities or lose context",
+          "Review reopen retains selected file/comparison and receipt, resumes at file top",
+          "titlebar drag/click and keyboard movement/resize retained after reopen",
+          "workspace with no children reopens empty and creates one new child",
+          "Reset deliberately restores the initial two-open-workspace session"
+        ],
+        "audits": [
+          {
+            "state": "two open workspaces",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "presentation": "windows",
+        "checks": [
+          "inactive closure preserves active PR/focused research, state and reachable outer close",
+          "active closure selects remaining neighbor without changing retained workspace",
+          "closed fixture push changes revision only, preserving active PR and review/skip baselines",
+          "keyboard last closure has explicit no-active state, no hosts/tabs, focused Workspaces recovery",
+          "all-closed viewport/presentation changes and stale child events cannot reopen or mutate retained state",
+          "picker keyboard/Escape and reopen restore same workspace/children, non-review focus, frames, draft and routes",
+          "repeated switch/reopen entry does not duplicate identities or lose context",
+          "Review reopen retains selected file/comparison and receipt, resumes at file top",
+          "titlebar drag/click and keyboard movement/resize retained after reopen",
+          "workspace with no children reopens empty and creates one new child",
+          "Reset deliberately restores the initial two-open-workspace session"
+        ],
+        "audits": [
+          {
+            "state": "all closed",
+            "violations": []
+          },
+          {
+            "state": "retained-workspace picker",
+            "violations": []
+          },
+          {
+            "state": "reopened floating review",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "presentation": "tabs",
+        "checks": [
+          "inactive closure preserves active PR/focused research, state and reachable outer close",
+          "active closure selects remaining neighbor without changing retained workspace",
+          "closed fixture push changes revision only, preserving active PR and review/skip baselines",
+          "keyboard last closure has explicit no-active state, no hosts/tabs, focused Workspaces recovery",
+          "all-closed viewport/presentation changes and stale child events cannot reopen or mutate retained state",
+          "picker keyboard/Escape and reopen restore same workspace/children, non-review focus, frames, draft and routes",
+          "repeated switch/reopen entry does not duplicate identities or lose context",
+          "Review reopen retains selected file/comparison and receipt, resumes at file top",
+          "titlebar drag/click and keyboard movement/resize retained after reopen",
+          "workspace with no children reopens empty and creates one new child",
+          "Reset deliberately restores the initial two-open-workspace session"
+        ],
+        "audits": [
+          {
+            "state": "two open workspaces",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "presentation": "windows",
+        "checks": [
+          "inactive closure preserves active PR/focused research, state and reachable outer close",
+          "active closure selects remaining neighbor without changing retained workspace",
+          "closed fixture push changes revision only, preserving active PR and review/skip baselines",
+          "keyboard last closure has explicit no-active state, no hosts/tabs, focused Workspaces recovery",
+          "all-closed viewport/presentation changes and stale child events cannot reopen or mutate retained state",
+          "picker keyboard/Escape and reopen restore same workspace/children, non-review focus, frames, draft and routes",
+          "repeated switch/reopen entry does not duplicate identities or lose context",
+          "Review reopen retains selected file/comparison and receipt, resumes at file top",
+          "titlebar drag/click and keyboard movement/resize retained after reopen",
+          "workspace with no children reopens empty and creates one new child",
+          "Reset deliberately restores the initial two-open-workspace session"
+        ],
+        "audits": [
+          {
+            "state": "all closed",
+            "violations": []
+          },
+          {
+            "state": "retained-workspace picker",
+            "violations": []
+          },
+          {
+            "state": "reopened floating review",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      }
+    ]
+  },
+  "independent": {
+    "disposition": "No actionable findings",
+    "lifecycle": {
+      "sourceSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+      "reports": [
+        {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mode": "tabs",
+          "checks": [
+            "inactive closure removes presentation and preserves active Research/data",
+            "reopen and repeated Switch preserve retained data and child counts",
+            "active closure selects deterministic previous/next neighbor",
+            "closed sample push updates revision only",
+            "last closure has explicit empty/no-active state and keyboard/Escape recovery",
+            "all-closed width/presentation changes do not reopen or mutate context",
+            "stale closed child/selector actions do not reopen or author data",
+            "reopen restores Research query/focus and Review selected-file/top; receipts/draft intact",
+            "reopened title text still drags +8/+12 and stationary click opens chooser",
+            "empty-child close/reopen preserves collection and New view recovery",
+            "Reset deliberately recreates the initial session"
+          ],
+          "errors": [],
+          "auditViolations": []
+        },
+        {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mode": "windows",
+          "checks": [
+            "inactive closure removes presentation and preserves active Research/data",
+            "reopen and repeated Switch preserve retained data and child counts",
+            "active closure selects deterministic previous/next neighbor",
+            "closed sample push updates revision only",
+            "last closure has explicit empty/no-active state and keyboard/Escape recovery",
+            "all-closed width/presentation changes do not reopen or mutate context",
+            "stale closed child/selector actions do not reopen or author data",
+            "reopen restores Research query/focus and Review selected-file/top; receipts/draft intact",
+            "reopened title text still drags +8/+12 and stationary click opens chooser",
+            "empty-child close/reopen preserves collection and New view recovery",
+            "Reset deliberately recreates the initial session"
+          ],
+          "errors": [],
+          "auditViolations": []
+        },
+        {
+          "viewport": {
+            "width": 834,
+            "height": 1112
+          },
+          "mode": "tabs",
+          "checks": [
+            "inactive closure removes presentation and preserves active Research/data",
+            "reopen and repeated Switch preserve retained data and child counts",
+            "active closure selects deterministic previous/next neighbor",
+            "closed sample push updates revision only",
+            "last closure has explicit empty/no-active state and keyboard/Escape recovery",
+            "all-closed width/presentation changes do not reopen or mutate context",
+            "stale closed child/selector actions do not reopen or author data",
+            "reopen restores Research query/focus and Review selected-file/top; receipts/draft intact",
+            "reopened title text still drags +8/+12 and stationary click opens chooser",
+            "empty-child close/reopen preserves collection and New view recovery",
+            "Reset deliberately recreates the initial session"
+          ],
+          "errors": [],
+          "auditViolations": []
+        },
+        {
+          "viewport": {
+            "width": 834,
+            "height": 1112
+          },
+          "mode": "windows",
+          "checks": [
+            "inactive closure removes presentation and preserves active Research/data",
+            "reopen and repeated Switch preserve retained data and child counts",
+            "active closure selects deterministic previous/next neighbor",
+            "closed sample push updates revision only",
+            "last closure has explicit empty/no-active state and keyboard/Escape recovery",
+            "all-closed width/presentation changes do not reopen or mutate context",
+            "stale closed child/selector actions do not reopen or author data",
+            "reopen restores Research query/focus and Review selected-file/top; receipts/draft intact",
+            "reopened title text still drags +8/+12 and stationary click opens chooser",
+            "empty-child close/reopen preserves collection and New view recovery",
+            "Reset deliberately recreates the initial session"
+          ],
+          "errors": [],
+          "auditViolations": []
+        },
+        {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mode": "tabs",
+          "checks": [
+            "inactive closure removes presentation and preserves active Research/data",
+            "reopen and repeated Switch preserve retained data and child counts",
+            "active closure selects deterministic previous/next neighbor",
+            "closed sample push updates revision only",
+            "last closure has explicit empty/no-active state and keyboard/Escape recovery",
+            "all-closed width/presentation changes do not reopen or mutate context",
+            "stale closed child/selector actions do not reopen or author data",
+            "reopen restores Research query/focus and Review selected-file/top; receipts/draft intact",
+            "reopened title text still drags +8/+12 and stationary click opens chooser",
+            "empty-child close/reopen preserves collection and New view recovery",
+            "Reset deliberately recreates the initial session"
+          ],
+          "errors": [],
+          "auditViolations": []
+        },
+        {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "mode": "windows",
+          "checks": [
+            "inactive closure removes presentation and preserves active Research/data",
+            "reopen and repeated Switch preserve retained data and child counts",
+            "active closure selects deterministic previous/next neighbor",
+            "closed sample push updates revision only",
+            "last closure has explicit empty/no-active state and keyboard/Escape recovery",
+            "all-closed width/presentation changes do not reopen or mutate context",
+            "stale closed child/selector actions do not reopen or author data",
+            "reopen restores Research query/focus and Review selected-file/top; receipts/draft intact",
+            "reopened title text still drags +8/+12 and stationary click opens chooser",
+            "empty-child close/reopen preserves collection and New view recovery",
+            "Reset deliberately recreates the initial session"
+          ],
+          "errors": [],
+          "auditViolations": []
+        }
+      ]
+    },
+    "touchAndBoundary": {
+      "sourceSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+      "reports": [
+        {
+          "viewport": {
+            "width": 320,
+            "height": 700
+          },
+          "windowCloseSize": {
+            "width": 44,
+            "height": 44
+          },
+          "tabCloseSize": {
+            "width": 44,
+            "height": 44
+          },
+          "checks": [
+            "real touch close/reopen in Windows and Tabs",
+            "close center hit-tested",
+            "all-closed sample pushes do not reopen; v2 appears on explicit reopen"
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "windowCloseSize": {
+            "width": 44,
+            "height": 44
+          },
+          "tabCloseSize": {
+            "width": 44,
+            "height": 44
+          },
+          "checks": [
+            "real touch close/reopen in Windows and Tabs",
+            "close center hit-tested",
+            "all-closed sample pushes do not reopen; v2 appears on explicit reopen"
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "width": 834,
+            "height": 1112
+          },
+          "windowCloseSize": {
+            "width": 44,
+            "height": 44
+          },
+          "tabCloseSize": {
+            "width": 36,
+            "height": 36
+          },
+          "checks": [
+            "real touch close/reopen in Windows and Tabs",
+            "close center hit-tested",
+            "all-closed sample pushes do not reopen; v2 appears on explicit reopen"
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "checks": [
+            "keyboard workspace close during active title drag releases capture; pointer-up cannot reopen/activate; subsequent reopen/click works"
+          ],
+          "errors": []
+        }
+      ]
+    }
+  },
+  "coordinatorCrossEngine": {
+    "sourceSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+    "reports": [
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "checks": "Inactive/last closure, all-closed presentation switch, same-state reopening, review-top return, title-bar drag, reopening second PR and active close",
+        "errors": []
+      },
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": "Inactive/last closure, all-closed presentation switch, same-state reopening, review-top return, title-bar drag, reopening second PR and active close",
+        "errors": []
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "checks": "Inactive/last closure, all-closed presentation switch, same-state reopening, review-top return, title-bar drag, reopening second PR and active close",
+        "errors": []
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": "Inactive/last closure, all-closed presentation switch, same-state reopening, review-top return, title-bar drag, reopening second PR and active close",
+        "errors": []
+      }
+    ]
+  },
+  "captures": {
+    "sourceSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+    "captures": [
+      {
+        "name": "phone-picker.png",
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "presentation": "tabs",
+        "state": "picker",
+        "sha256": "3da87e0cd94f7e63818e38bf1acb521228dc103e6df7512e0c39921c0336c2f8",
+        "activeWorkspace": 43,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": false,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": true,
+            "focused": "43-1",
+            "layout": "focus",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "phone-empty.png",
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "presentation": "tabs",
+        "state": "empty",
+        "sha256": "8ea94aff1f37109fa54acbbe3c3e7b5b5191d8efe3b47d6a6f93e5ba3fa51ca7",
+        "activeWorkspace": null,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": false,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": false,
+            "focused": "43-1",
+            "layout": "focus",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "phone-reopened.png",
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "presentation": "tabs",
+        "state": "reopened",
+        "sha256": "15a109848cbfbf9562c1ccf26eb63dd8a038e12e64d561e16c08f5d394d5011b",
+        "activeWorkspace": 42,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": true,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": false,
+            "focused": "43-1",
+            "layout": "focus",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "tablet-picker.png",
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "presentation": "windows",
+        "state": "picker",
+        "sha256": "12cd6a1896667d20855fc4007a58fbd9cdd2fca8e367336547057f526c8178a2",
+        "activeWorkspace": 43,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": false,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": true,
+            "focused": "43-1",
+            "layout": "tiles",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "tablet-empty.png",
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "presentation": "windows",
+        "state": "empty",
+        "sha256": "e93b18830d29e7ba40842d5e71826d5d343e60a8abe324f6aa01a5d2b8d99230",
+        "activeWorkspace": null,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": false,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": false,
+            "focused": "43-1",
+            "layout": "tiles",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "tablet-reopened.png",
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "presentation": "windows",
+        "state": "reopened",
+        "sha256": "cbf669e6d35d716a69f68a78c8d5014d5925a26d3ad158018c5e7f6d1c8f5b4b",
+        "activeWorkspace": 42,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": true,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": false,
+            "focused": "43-1",
+            "layout": "tiles",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "desktop-picker.png",
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "presentation": "windows",
+        "state": "picker",
+        "sha256": "218edcfaf2223078409af81d4ad780e2d2ee4f03a132f03882d0458375ed733f",
+        "activeWorkspace": 43,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": false,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": true,
+            "focused": "43-1",
+            "layout": "tiles",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "desktop-empty.png",
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "presentation": "windows",
+        "state": "empty",
+        "sha256": "1e151d3cebedf70edc0e4c1c6776a4bec7e900255bcb8898aeae11afa8b5821b",
+        "activeWorkspace": null,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": false,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": false,
+            "focused": "43-1",
+            "layout": "tiles",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      },
+      {
+        "name": "desktop-reopened.png",
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "presentation": "windows",
+        "state": "reopened",
+        "sha256": "f5bc6625a61dd3708b11aeb407bdc4c6200349f4e8cc947608af59d1f8aaa66a",
+        "activeWorkspace": 42,
+        "workspaces": [
+          {
+            "number": 42,
+            "open": true,
+            "focused": "42-1",
+            "layout": "float",
+            "childIDs": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "selectedReviewFiles": [
+              "Store.swift"
+            ],
+            "draftRetained": true
+          },
+          {
+            "number": 43,
+            "open": false,
+            "focused": "43-1",
+            "layout": "tiles",
+            "childIDs": [
+              "43-1",
+              "43-2"
+            ],
+            "selectedReviewFiles": [
+              "Parser.swift"
+            ],
+            "draftRetained": false
+          }
+        ]
+      }
+    ]
+  },
+  "captureSetup": "PR42 v1: Parser marked reviewed, Store selected, draft saved, Float. Phone uses Tabs; tablet/desktop Windows. Picker after closing PR42, empty after closing PR43, reopen PR42 with retained Store/children/draft. Light, 1x; actual transient toast cleared before capture; all nine inspected.",
+  "authorCorrection": "Expanded the narrow 44px target rule to the new outer window-close button, which is outside the existing workspace-actions group. Final-source runtime/hit checks include this correction.",
+  "limits": [
+    "In-memory synthetic two-PR fixture; no GitHub closure, deletion, repository browsing or native implementation.",
+    "No cross-device open/closed policy; Q09 remains deferred.",
+    "Scoped WebKit checks are not a full Safari/device matrix.",
+    "No live-user-browser or VoiceOver acceptance; selected WCAG scans are partial automated evidence.",
+    "Default lint excludes this HTML; native tests/snapshots/SwiftFormat and unrelated type-catalog scenarios were not rerun.",
+    "User evaluation remains pending; experiment executing and issue In Review."
+  ]
+}
