@@ -113,3 +113,11 @@ If resuming planning or revision, recover the recorded state and use that operat
    Continue through the authorized plans without asking for confirmation between steps.
    At a stopping point, record partial work and the exact next action.
    Report remaining work and validation limits honestly.
+
+## Delegated execution handoff
+
+When plan execution is delegated within the user's authorization, record the owning agent, plan, branch/worktree, and reporting responsibility in the overview checkpoint.
+Give the worker the required return information: artifact or PR link, tested and published revision, checks, remaining work, and any blocker.
+When the worker returns, reconcile its result with the plan and publication state, then report completion or the blocker to the user without waiting for a status request.
+Distinguish an implemented and checked artifact from a published handoff and from experiment acceptance that still needs user evaluation.
+If background delivery cannot be observed in the current environment, say so before promising a later notice and arrange an available handoff.
