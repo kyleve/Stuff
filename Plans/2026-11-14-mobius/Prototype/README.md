@@ -1,6 +1,6 @@
 # Mobius workspace study
 
-Open [index.html](index.html) in a browser. This third iteration keeps each PR as a logical workspace with independent review, source, research, and simulated-preview views, and gives their content more space through compact controls. It is self-contained and offline; no installation or account is needed. Reloading or **Reset** restores the sample session.
+Open [index.html](index.html) in a browser. This fourth iteration adds grouped file kinds, suitable comparison previews, and explicit PR-local skip/undo to the compact logical workspaces and independent review, source, research, and simulated-preview views. It is self-contained and offline; no installation or account is needed. Reloading or **Reset** restores the sample session.
 
 To serve it locally from the repository root:
 
@@ -15,7 +15,9 @@ Visit `http://127.0.0.1:8765`; stop the server when finished.
 - **Workspace bar:** switch between **Search #42** and **Restore #43**. The comment icon opens the PR's private review draft; **+** adds another Review, Source, Research, or Preview.
 - **Workspace options (…):** inspect full PR metadata and progress, select **Open views**, arrange children with **Tile / Float / Focus**, or change outer workspace presentation with **Tabs / Windows**. Compact widths retain the wider arrangement while showing the focused child.
 - **Current view:** wide child title bars identify the file or view. On compact layouts, the title is also the view selector. Use it to switch children; **×** closes the selected view. **Open views** also lets you choose or close any child without activating another one.
-- **Review:** on wide layouts, click the filename to choose another file. On compact layouts, use the folder button. The comparison button states what is actually displayed—**Full PR diff**, **New edits since v1**, or **No remaining changes**—and opens Remaining / Full PR choices. **Mark reviewed** explicitly advances only that PR/file baseline.
+- **Review:** on wide layouts, click the filename to choose another file. On compact layouts, use the folder button. The comparison button states what is actually displayed—**Full PR diff**, **New edits since v1**, or **No remaining changes**—and opens Remaining / Full PR choices. **Mark reviewed** explicitly advances only that PR/file baseline. The chooser groups Code, Documents, Localization, and Snapshots/assets; quiet groups start collapsed. Its Remaining / All filter changes the list without changing the comparison. Counts distinguish remaining, reviewed, and skipped files.
+- **Skip:** the comparison menu offers **Skip for this PR** for a remaining file. Group **Skip N remaining** captures only currently remaining members; **Undo** removes their active skips. Already-current reviewed files are excluded. A skipped file stays accessible under All, with Undo; explicit Mark reviewed is also available in its comparison menu when actual content exists.
+- **Content previews:** Documents show rendered Markdown plus exact changed link targets; Localization shows changed key/locale/value rows; Snapshots/assets show before/after fixture images and metadata. **Source** reveals the prepared raw diff. LFS is a badge, not a group. `Design.psd` has only pointer/metadata fallback and cannot be marked reviewed.
 - **Source:** use the filename control (or compact file selector) to browse sample source. **Review file** opens another review child for changed files. Research queries remain independent and results open new Source children.
 - **Float:** drag the kind icon at the left of a child's title bar, or use its resize corner. With the move icon focused, arrow keys move and Shift+arrow keys resize; the resize handle also supports arrow-key resizing.
 - **Sample controls:** expand **Sample data · Controls** above the workspace for Canvas width, each PR's **Simulate push**, and **Reset**. Escape closes the panel and returns focus. Preview content remains explicitly **Simulated**.
@@ -31,7 +33,33 @@ Dialogs close through Escape or their close button. These controls and layouts a
 5. Leave while a source, research, or preview is focused, and confirm it returns focused. Separately scroll a review, leave it, and resume it: that child's selected file opens at the top.
 6. Close a background child, then the last child. Background closure keeps active focus; an empty workspace retains PR progress and can open another view.
 
-## Iteration 3 evidence
+## Try grouped comparisons and skipping
+
+1. Reset. Open the file chooser and inspect collapsed quiet groups and their counts. Open Documents → `README.md`, Localization → `Localizable.xcstrings`, and Snapshots/assets → `SearchResults.svg`. Switch Preview / Source without marking anything reviewed.
+2. Mark `README.md` reviewed at v1, then simulate a push. Its new edits change only the link target: the rendered prose stays the same, while the target note and source diff expose the edit. Localization and image comparisons also use their own actual reviewed version when available.
+3. Reset. Mark `Parser.swift` reviewed, then use Code **Skip 2 remaining** and Snapshots/assets **Skip 2 remaining**. Parser remains reviewed; only Store, Stable, SearchResults, and Design are skipped.
+4. Simulate the v2 push. Store and SearchResults return because their contents changed. New `EmptyResults.svg` was never skipped. Unchanged Stable and Design stay skipped. Parser shows edits since its actual v1 review. Counts read **6 remaining · 0 reviewed · 2 skipped**.
+5. Undo individual/group skips and confirm they do not create review receipts. Skip the changed Parser at v2: its actual reviewed version stays v1, and Undo restores that incremental comparison. Zero remaining with skips reports the skipped count separately.
+
+## Iteration 4 evidence
+
+[Verification](evidence/iteration-04/verification.json) pins HTML SHA-256 `fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00`, the checks, capture hashes, and review corrections. Matching v1 full-comparison states use light appearance and 1× scale:
+
+| Viewport | Grouped list | Documents | Localization | Snapshots/assets |
+| --- | --- | --- | --- | --- |
+| 1440 × 1000 | [Groups](evidence/iteration-04/desktop-groups.png) | [Markdown](evidence/iteration-04/desktop-documents.png) | [Changed values](evidence/iteration-04/desktop-localization.png) | [Images](evidence/iteration-04/desktop-assets.png) |
+| 834 × 1112 | [Groups](evidence/iteration-04/tablet-groups.png) | [Markdown](evidence/iteration-04/tablet-documents.png) | [Changed values](evidence/iteration-04/tablet-localization.png) | [Images](evidence/iteration-04/tablet-assets.png) |
+| 390 × 844 | [Groups](evidence/iteration-04/phone-groups.png) | [Markdown](evidence/iteration-04/phone-documents.png) | [Changed values](evidence/iteration-04/phone-localization.png) | [Images](evidence/iteration-04/phone-assets.png) |
+
+Additional evidence: [skip then push](evidence/iteration-04/desktop-skip-push.png), [unavailable binary](evidence/iteration-04/phone-unavailable.png), and [link-only source edit since review](evidence/iteration-04/phone-document-source.png). The default Code pane retains iteration 3's exact top/height: desktop 203/765px, tablet 203/877px, phone 195/648px. The code-table top is measured separately from the first table row, whose collapsed border extends one pixel above it.
+
+Complete prior workspace scenarios and new grouping/skip/type scenarios passed at all three sizes with Playwright 1.64.1 / Chromium 156.0.8078.4. Checks cover independent child files/queries/format/expansion, shared PR review and skip receipts, drafts, layout/focus return, review file-top resumption, new/changed/unchanged work, group membership snapshots, raw/rich basis agreement, link-only edits, missing binary content, and explicit absent-before images. Thirteen WCAG 2/2.1 A/AA axe states per size passed; no page/console/load errors, external requests, or document overflow occurred. Standalone file loading also passes.
+
+Fresh independent review found and rechecked the individual Skip accessible-name mismatch and an object-size field mislabeled as pointer size. The corrected label was shortened to keep narrow tablet metadata readable; source views now explicitly identify pointer-only content. Group action labels include visible counts and “remaining.” No actionable findings remain. Unfiltered axe also reports inherited best-practice heading/landmark warnings outside the selected WCAG tags; these scans are not a complete accessibility or VoiceOver audit.
+
+The two user-facing revisions prove v1 skip → changed/new v2 return, unchanged skip persistence, and reviewed-v1 → skipped-v2 baseline retention. A separate seeded policy assertion verifies that a later changed content identity selects the actual v1 review basis; it does not render or claim a third UI revision. All checks are ad hoc evidence, not retained CI guards. Default web lint excludes this HTML; native tests/snapshots and SwiftFormat are outside this slice. Fourth-round user evaluation remains pending in [plan 01a](../01a-workspace-prototype.md).
+
+## Iteration 3 evidence (historical)
 
 The same initial Parser comparison was rendered before/after at matching viewports, light appearance, and 1× scale. The post-push incremental comparison was measured separately and has the same pane geometry. Measurements below are rounded to the nearest CSS pixel; [verification.json](evidence/iteration-03/verification.json) retains exact scroll-pane top/height and first-code-row top values.
 
@@ -49,15 +77,17 @@ Complete browser scenarios passed at all three sizes using Playwright 1.64.1 / C
 
 Fresh independent review rechecked last-child dialog focus recovery, title accessible names, and immediate dialog reopening. The native close event is queued: a stale event must not dismiss a newly opened dialog. Five immediate close → reopen → Research → Enter trials passed. Floating children are contained beneath prototype controls; those controls stayed reachable after 40 view raises. Standalone file loading, inline JavaScript syntax, archive byte identity, local links, and diff whitespace also passed.
 
-The checks are ad hoc browser evidence, not retained CI tests. Default repository web lint globs do not cover this HTML. Native tests, snapshots, and SwiftFormat are outside this browser-only slice. Automated accessibility scans do not establish VoiceOver or a complete accessibility audit. The third user evaluation remains pending in [plan 01a](../01a-workspace-prototype.md).
+The checks are ad hoc browser evidence, not retained CI tests. Default repository web lint globs do not cover this HTML. Native tests, snapshots, and SwiftFormat are outside this browser-only slice. Automated accessibility scans do not establish VoiceOver or a complete accessibility audit. The third user evaluation requested the grouped-kind and explicit-skip iteration above.
 
 ## Boundaries and retained history
 
-Two synthetic PRs, two prepared revisions, and four searchable sample files keep the study bounded. Reading, navigation, presentation, and view creation never mark files reviewed. Drafts are private session notes; nothing is submitted. “Fork” was clarified as “view,” so there is no editing, cloning, or fork feature.
+Two synthetic PRs and two prepared revisions keep the study bounded. Each PR has seven changed files at v1 and eight at v2, plus one supporting source file. Typed previews and diffs are deterministic prepared fixtures; they do not parse real Markdown/catalogs or fetch LFS objects. Reading, navigation, presentation, and view creation never mark files reviewed. Drafts are private session notes; nothing is submitted. “Fork” was clarified as “view,” so there is no editing, cloning, or fork feature.
 
 Prepared comparisons do not implement Git or compilable app code. There is no authentication, backend, durable storage, real OS windowing, execution, provider integration, or device sync. The mockup state schema is not a production schema.
 
 - [Iteration 1](iteration-01.html) exactly preserves [revision `2e3653877`](https://github.com/kyleve/Stuff/blob/2e3653877bf141964805d417eac0b94c03a24c6a/Plans/2026-11-14-mobius/Prototype/index.html), its [verification record](evidence/verification.json), and original captures. The user found that it flattened a workspace into a document-tab group.
-- [Iteration 2](iteration-02.html) exactly preserves [revision `e1c1059cf28`](https://github.com/kyleve/Stuff/blob/e1c1059cf28a2954a0513d2514e7d0b7be9c34dd/Plans/2026-11-14-mobius/Prototype/index.html) and its [separate evidence](evidence/iteration-02/verification.json). The user found the revised ownership model improved but requested less stacked chrome, leading to this pass.
+- [Iteration 2](iteration-02.html) exactly preserves [revision `e1c1059cf28`](https://github.com/kyleve/Stuff/blob/e1c1059cf28a2954a0513d2514e7d0b7be9c34dd/Plans/2026-11-14-mobius/Prototype/index.html) and its [separate evidence](evidence/iteration-02/verification.json). The user found the revised ownership model improved but requested less stacked chrome, leading to iteration 3.
+
+- [Iteration 3](iteration-03.html) exactly preserves [revision `58c13ac56`](https://github.com/kyleve/Stuff/blob/58c13ac56f87688548887172fef6f39e818bc819/Plans/2026-11-14-mobius/Prototype/index.html) and its [separate evidence](evidence/iteration-03/verification.json). The user then requested grouped kinds and explicit skip/resurfacing, leading to iteration 4.
 
 Earlier evidence remains historical; it does not validate the changed controls or establish native product acceptance.

@@ -21,7 +21,7 @@ The first pass was bounded to one self-contained browser artifact, two synthetic
 | US-01, US-04 | R-02, R-05 | Logical PR workspaces own independently navigable child views; outer tab/window presentation does not copy or merge their contents. |
 | US-02 | R-03 | Restore the workspace arrangement and last-focused child. Resuming a review child starts its own selected file at the top. |
 | US-03 | R-04 | Reviewed files show new edits; unreviewed files show the full PR diff; either can open its full PR diff. |
-| US-03, US-04 | R-13, R-14 | Group kinds and evaluate content-specific comparisons with raw fallbacks; separate PR-local skip receipts from review history and resurface changed/new work. |
+| US-09, US-10 | R-13, R-14 | Group kinds and evaluate content-specific comparisons with raw fallbacks; separate PR-local skip receipts from review history and resurface changed/new work. |
 | US-06 | R-01, R-10 | The same interaction is inspectable at phone, tablet, and desktop viewport sizes. This is not native platform acceptance. |
 
 The prototype supplies interaction evidence for these requirements; it does not complete their production acceptance. R-06/R-07 and the rest of the release requirements remain in later plans.
@@ -289,16 +289,42 @@ The parent readiness update was coordinated onto parent `4b5873d95` at child `33
 - Readiness disposition: `draft` → `ready` after review, then `ready` → `executing` under the explicit iteration-4 implementation request. Runtime evidence and fourth evaluation remain pending.
 
 - [x] Reconcile the bounded skip policy and review readiness.
-- [ ] Implement grouped fixtures, comparisons, and explicit skip/undo.
-- [ ] Repeat three-size regressions and skip/group/new-push truth scenarios.
-- [ ] Record fresh independent review and iteration-4 captures/evidence.
+- [x] Implement grouped fixtures, comparisons, and explicit skip/undo.
+- [x] Repeat three-size regressions and skip/group/new-push truth scenarios.
+- [x] Record fresh independent review and iteration-4 captures/evidence.
 - [ ] Publish coordinated PR, existing screenshot comment, and issue updates.
 - [ ] Collect and integrate fourth-round user evaluation.
 
+### Iteration 4 implementation and evidence
+
+The [artifact](Prototype/index.html) now groups Code, Documents, Localization, and Snapshots/assets, with quiet groups initially collapsed and visible counts/disclosures/actions. LFS is a badge. Each PR has seven changed files at v1 and eight at v2, plus supporting source. The chooser's Remaining / All filter, expansion, selected file, and rendered/source preference belong to each review child. Shared actual review and separate skip receipts belong to the PR workspace. Individual skip and **Skip N remaining** snapshot eligible current files only; group undo removes active skips. Viewing/disclosure never advances either receipt.
+
+Rendered Markdown exposes exact changed link targets and a source comparison. Localization presents changed key/locale/value rows with raw access. Assets present bundled before/after SVGs, dimensions, bytes, and LFS metadata where applicable. New EmptyResults explicitly has no before file. Design exposes only prepared pointer/metadata, announces unavailable binary content in both Review and Source, and cannot be marked reviewed. These remain candidate fixture presentations, not parsers or native renderers.
+
+The [iteration-3 archive](Prototype/iteration-03.html) exactly matches published `58c13ac56`; all previous evidence is retained unchanged. [Iteration-4 verification](Prototype/evidence/iteration-04/verification.json) pins HTML SHA-256 `fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00`. Matching v1 full-comparison captures use light appearance and 1× scale:
+
+| Viewport | Grouped list | Documents | Localization | Snapshots/assets |
+| --- | --- | --- | --- | --- |
+| 1440 × 1000 | [Groups](Prototype/evidence/iteration-04/desktop-groups.png) | [Markdown](Prototype/evidence/iteration-04/desktop-documents.png) | [Values](Prototype/evidence/iteration-04/desktop-localization.png) | [Images](Prototype/evidence/iteration-04/desktop-assets.png) |
+| 834 × 1112 | [Groups](Prototype/evidence/iteration-04/tablet-groups.png) | [Markdown](Prototype/evidence/iteration-04/tablet-documents.png) | [Values](Prototype/evidence/iteration-04/tablet-localization.png) | [Images](Prototype/evidence/iteration-04/tablet-assets.png) |
+| 390 × 844 | [Groups](Prototype/evidence/iteration-04/phone-groups.png) | [Markdown](Prototype/evidence/iteration-04/phone-documents.png) | [Values](Prototype/evidence/iteration-04/phone-localization.png) | [Images](Prototype/evidence/iteration-04/phone-assets.png) |
+
+Additional captures show [skip then push](Prototype/evidence/iteration-04/desktop-skip-push.png), unavailable binary metadata on [phone](Prototype/evidence/iteration-04/phone-unavailable.png) and [tablet](Prototype/evidence/iteration-04/tablet-unavailable.png), and the [link-only source edit](Prototype/evidence/iteration-04/phone-document-source.png). Every capture was visually inspected. The initial Code pane retains iteration 3's exact top/height: desktop 203/765px, tablet 203/877px, phone 195/648px. The verification records code-table top separately from first-row top (the collapsed border extends one pixel above the table origin), avoiding mixed geometry comparisons.
+
+Complete original workspace regressions and new feature scenarios passed at all three sizes on the final hash through Playwright 1.64.1 / Chromium 156.0.8078.4. Existing checks cover same-kind IDs and independent files/queries/previews, shared review progress, PR isolation/drafts, outer tabs/windows, arrangement/focus restoration, file-top review resumption, remaining/full comparisons, add/close/inactive/empty recovery, keyboard movement/resize, sample controls, and Reset. New checks cover independent grouping/format/filter, group exclusion of already-current reviews and future files, individual/group undo, changed/new resurfacing, unchanged skip persistence, baseline retention, available explicit review clearing a skip, and distinct zero-remaining counts. Markdown link-only, localization incremental/full, image identity, raw basis agreement, and unavailable/absent-before cases passed. Thirteen selected axe WCAG 2/2.1 A/AA states per size have zero violations; no page/console/load errors, external requests, or document overflow occurred. Direct file loading/marking, inline JavaScript syntax, 84 local links/anchors, Markdown fences, all three archive byte identities, 16 capture hashes, and diff whitespace also pass.
+
+Evidence distinguishes the fixture limits: the UI proves v1 skip → v2 changed/new return and unchanged skip persistence, plus actual review v1 → skip changed v2 retaining basis v1. A separate seeded policy-only check supplies a later content identity and asserts remaining disposition and actual basis v1. It does not render a third revision or claim that three-step live transition exists in this two-revision artifact.
+
+Fresh independent review covered the complete artifact/catalog and current contracts, relevant prior interaction fixes, prepared diff reconstruction, SVG bytes/hashes, raw/localization consistency, sibling ownership, group policy, focus recovery, and archive identity. It found: (1) the individual Skip accessible-name override omitted the visible action phrase; removing the override retains the visible label/helper; (2) unavailable metadata called object bytes “Pointer size”; the truthful **Object bytes** label and existing pointer-provenance note fix it. The first longer replacement made the narrow tablet object-ID column only 22px wide; the concise label restores 99px and reduces the ID from 363px to 66px tall. Rechecks passed at all three sizes. Pointer-only Source content now has an explicit unavailable-binary notice/footer; group Skip shows its remaining count with matching accessible whitespace. No actionable findings remain on the final hash.
+
+Unfiltered axe also reports inherited best-practice heading/landmark notices outside the selected WCAG tags. This is not a complete accessibility or VoiceOver audit. Checks are ad hoc browser evidence, not retained CI guards. Default web lint globs exclude this HTML; native tests/snapshots and SwiftFormat were not run because this slice changes no native source/build inputs. Real Git/LFS, format parsing, provider behavior, durability/sync, code execution, native platforms, and fourth-round user acceptance remain unverified.
+
+Readiness was coordinated onto parent `b386db979` at child `6e250ab22` before artifact edits. The final tested artifact/evidence is ready for the coordinator's delivery checkpoint and one parent cascade; PR/screenshot/issue publication receipt will be recorded after that stable commit is pushed. STU-330 remains In Review, and the plan remains executing pending fourth-round user evaluation.
+
 ## Resume point
 
-Send the reviewed iteration-4 readiness commit to the coordinator for the parent cascade before UI edits. Then implement the bounded grouped comparisons and skip behavior. Preserve earlier evidence and coordinate parent/child Git mutations. Return the tested/published artifact, checks, limits or blocker for the coordinator's user completion notice.
+Send the clean tested artifact/evidence commit to the coordinator for the delivery checkpoint and parent cascade. After the stable revision is pushed, update PR #500, its existing screen-evidence comment, STU-330, and this publication receipt; verify published bytes and return a clear completion handoff. Then collect the fourth-round evaluation before refining the native foundation.
 
 ## Outcome
 
-Three prior iterations are built, reviewed, and published with retained evidence. Third-round feedback now requests grouped content kinds and explicit PR-scoped skip semantics. Iteration 4 is ready and executing under explicit implementation authorization; product acceptance remains pending. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations are built and reviewed with retained evidence. Iteration 4 adds grouped content kinds, suitable prepared previews, and separate PR-scoped skip semantics; coordinated publication and fourth-round product evaluation remain pending. The plan stays executing. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.

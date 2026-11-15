@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Mobius — a workspace for every review</title>
+<style>
+
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #272b35; background: #eaeae7; --ink: #272b35; --muted: #626774; --line: #dddfe5; --accent: #5942b6; --tint: #efebfa; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; touch-action: manipulation; }
+button:disabled { opacity: .55; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 3px solid #8c76dc; outline-offset: 2px; }
+button svg, button span { pointer-events: none; }
+svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; flex-shrink: 0; }
+h1, h2, h3, p { margin: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.lab { position: relative; z-index: 20; max-width: 1600px; margin: auto; padding: 0 22px; height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
+.brand { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 17px; font-weight: 650; letter-spacing: -.5px; }
+.brand-mark { color: var(--accent); font-size: 30px; line-height: 1; font-weight: 450; }
+.prototype-controls { position: relative; z-index: 30; }
+.prototype-controls summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 10px; list-style: none; }
+.prototype-controls summary::-webkit-details-marker { display: none; }
+.prototype-controls summary::after { content: '⌄'; font-size: 15px; }
+.sample { font-size: 11px; color: #626774; white-space: nowrap; }
+.prototype-panel { position: absolute; right: 0; top: 44px; width: min(330px,calc(100vw - 24px)); border: 1px solid #d2d0dc; border-radius: 10px; background: #fff; box-shadow: 0 14px 40px #25243c2b; padding: 16px; }
+.prototype-panel h2 { color: var(--ink); font-size: 14px; margin-bottom: 14px; }
+.prototype-panel p { line-height: 1.6; margin-top: 12px; }
+.prototype-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 9px 0; }
+.prototype-row select { min-height: 36px; background: #fff; border: 1px solid #ccc7d7; border-radius: 5px; padding: 6px; }
+.stage { position: relative; z-index: 0; max-width: 1556px; width: calc(100% - 44px); margin: auto; container-type: inline-size; }
+.stage[data-size="phone"] { max-width: 390px; }
+.stage[data-size="tablet"] { max-width: 834px; }
+.stage[data-size="desktop"] { max-width: 1440px; }
+.app { height: calc(100dvh - 66px); min-height: 460px; max-height: 1300px; display: flex; flex-direction: column; overflow: hidden; background: #f5f5f8; border: 1px solid #d2d4dc; border-radius: 10px; box-shadow: 0 8px 30px #25273c12; }
+.app-bar { display: flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 8px; background: #f8f8fb; border-bottom: 1px solid #d2d4dc; }
+.workspace-tabs { display: flex; align-items: stretch; gap: 4px; flex: 1; min-width: 0; align-self: stretch; overflow-x: auto; }
+.workspace-tab { display: flex; align-items: center; gap: 7px; padding: 0 13px; min-height: 48px; min-width: 0; color: #626774; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.workspace-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #efedf6; }
+.workspace-tab .pr-number { color: #626774; font-size: 11px; }
+.workspace-actions, .child-controls { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.icon-button { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 6px; color: #626774; flex-shrink: 0; position: relative; }
+.icon-button:hover, .child-title:hover, .view-picker:hover { background: #eeebf5; }
+.has-draft::after { content: ''; position: absolute; top: 6px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.button { min-height: 36px; border: 1px solid #d5d7df; border-radius: 6px; background: #fff; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 550; white-space: nowrap; }
+.button:hover { background: #f3f0fa; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.button.primary:hover { background: #483597; }
+.button svg { width: 15px; height: 15px; }
+.segment { display: flex; background: #eaeaf0; padding: 3px; border: 1px solid #dcdde4; border-radius: 7px; gap: 3px; }
+.segment button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; flex: 1; padding: 6px 10px; border-radius: 4px; font-size: 12px; color: #626774; white-space: nowrap; }
+.segment button[aria-pressed="true"] { background: white; color: #333743; box-shadow: 0 1px 3px #27243818; }
+.outer-space { flex: 1; min-height: 0; overflow: hidden; }
+.outer-space[data-presentation="tabs"] { display: flex; }
+.outer-space[data-presentation="tabs"] .workspace-host:not(.selected) { display: none; }
+.outer-space[data-presentation="windows"] { display: flex; gap: 12px; padding: 12px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: stretch; }
+.workspace-host { min-width: 0; flex: 1; display: flex; flex-direction: column; background: #f0f0f5; container-type: inline-size; }
+.outer-space[data-presentation="windows"] .workspace-host { flex: 0 0 calc(50% - 6px); min-width: 430px; border: 1px solid #c9cbd5; border-radius: 9px; overflow: hidden; box-shadow: 0 7px 17px #25253e0b; scroll-snap-align: center; }
+.outer-space[data-presentation="windows"] .workspace-host.selected { border-color: #9889c5; }
+.window-bar { display: none; align-items: center; justify-content: space-between; gap: 4px; padding: 3px 7px; background: #f8f8fc; border-bottom: 1px solid var(--line); }
+.outer-space[data-presentation="windows"] .window-bar { display: flex; }
+.app[data-presentation="windows"] > .app-bar > .workspace-actions { display: none; }
+.window-identity { display: flex; align-items: center; gap: 7px; min-height: 38px; text-align: left; font-size: 13px; }
+.window-identity span { color: var(--muted); font-size: 11px; }
+.compact-view-bar { display: none; align-items: center; gap: 4px; min-height: 46px; padding: 2px 8px; border-bottom: 1px solid var(--line); background: #f5f2fb; }
+.view-picker { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; min-height: 40px; padding: 6px; text-align: left; border-radius: 5px; font-size: 13px; }
+.view-picker strong { font-weight: 550; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron-down { width: 12px; height: 12px; transform: rotate(90deg); }
+.child-canvas { position: relative; flex: 1; min-height: 0; padding: 12px; overflow: auto; }
+.child-canvas[data-layout="tiles"] { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(0,1fr); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 12px; }
+.child-canvas[data-layout="tiles"].one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.child-canvas[data-layout="tiles"].two { grid-template-rows: 1fr; }
+.child-canvas[data-layout="tiles"].three .child:first-child { grid-row: span 2; }
+.child-canvas[data-layout="tiles"].many { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: none; grid-auto-rows: minmax(310px,1fr); }
+.child-canvas[data-layout="focus"] { display: flex; }
+.child-canvas[data-layout="focus"] .child { width: 100%; }
+.child-canvas[data-layout="focus"] .child:not(.focused) { display: none; }
+.child-canvas[data-layout="float"] { background-image: radial-gradient(#c7c6d1 .7px,transparent .7px); background-size: 16px 16px; margin: 12px; padding: 0; border: 1px solid #dedde7; border-radius: 8px; overflow: hidden; }
+.child-canvas[data-layout="float"] .child { position: absolute; box-shadow: 0 9px 25px #2a224b20; }
+.child { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #d2d4de; background: white; border-radius: 7px; overflow: hidden; }
+.child.focused { border-color: #a18dcf; box-shadow: 0 0 0 1px #a18dcf1a; }
+.child-titlebar { min-height: 43px; display: flex; align-items: center; gap: 3px; padding: 2px 4px; background: #fafafd; border-bottom: 1px solid #e4e4ec; }
+.child.focused .child-titlebar { background: #f1edf9; }
+.child-title { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1; min-height: 36px; text-align: left; padding: 5px; border-radius: 4px; color: #4e5360; font-size: 13px; }
+.child-title strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.child-title .chevron-down { margin-left: 3px; }
+.child-canvas[data-layout="float"] [data-drag] { cursor: grab; touch-action: none; }
+.child-canvas[data-layout="float"] [data-drag]:active { cursor: grabbing; }
+.child-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.child-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; gap: 8px; border-bottom: 1px solid var(--line); min-height: 48px; background: #fff; }
+.comparison-button { display: flex; align-items: center; gap: 7px; min-height: 36px; min-width: 0; padding: 5px 3px; text-align: left; color: #65577f; font-size: 12px; line-height: 1.35; }
+.reviewed { color: #28704e; font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.compact-only { display: none; }
+.pane-scroll { overflow: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
+.diff-table { width: 100%; border-collapse: collapse; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size: 12px; line-height: 25px; }
+.diff-table td { padding: 0; vertical-align: top; }
+.diff-table .num { min-width: 30px; width: 30px; padding: 0 5px; text-align: right; color: #626774; font-size: 10px; user-select: none; }
+.diff-table .sign { min-width: 20px; width: 20px; text-align: center; user-select: none; }
+.diff-table .code { white-space: pre; padding-right: 18px; color: #4e5563; }
+.diff-table .add { background: #edf7f0; }
+.diff-table .delete { background: #fff0ee; }
+.diff-table .add .code, .diff-table .add .sign { color: #286042; }
+.diff-table .delete .code, .diff-table .delete .sign { color: #8b443f; }
+.diff-table .add .num { background: #e2f0e6; color: #4c705b; }
+.diff-table .delete .num { background: #f9e5e2; color: #875e5a; }
+.code-end { padding: 18px 13px 30px; color: #626774; font-size: 11px; }
+.empty-state { max-width: 360px; margin: auto; padding: 35px 20px; text-align: center; }
+.empty-state h2 { font-size: 16px; font-weight: 600; letter-spacing: -.2px; margin-bottom: 9px; }
+.empty-state p { color: #626774; font-size: 12px; line-height: 1.7; margin-bottom: 15px; }
+.check-circle { display: grid; place-items: center; width: 39px; height: 39px; margin: 0 auto 14px; border-radius: 50%; background: #e8f3ed; color: #28704e; }
+.source-select { min-width: 0; flex: 1; max-width: 75%; padding: 7px; border: 1px solid #d2d4dc; border-radius: 5px; font-size: 13px; background: #fff; }
+.search-content { padding: 12px; overflow: auto; flex: 1; }
+.search-content p { color: #626774; font-size: 12px; line-height: 1.7; margin-top: 7px; }
+.search-form { display: flex; gap: 7px; margin: 0 0 12px; }
+.search-form input { min-width: 0; flex: 1; min-height: 40px; border: 1px solid #ccc7dc; border-radius: 6px; padding: 9px; font-size: 13px; }
+.search-result { display: block; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 6px; margin-top: 10px; background: #fff; }
+.search-result:hover { background: #faf8ff; }
+.search-result strong { display: block; font-size: 13px; font-weight: 550; }
+.search-result code { display: block; margin-top: 7px; font-size: 12px; color: #626774; white-space: pre-wrap; overflow-wrap: anywhere; }
+.search-result small { display: block; color: var(--accent); font-size: 11px; margin-top: 8px; }
+.example-search { color: var(--accent); min-height: 36px; padding: 6px 0; font-size: 12px; text-decoration: underline; }
+.preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.simulated-badge { color: #6b536e; font-size: 11px; background: #f7edf7; border: 1px solid #e7d8e7; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.preview-toolbar select { max-width: 150px; min-height: 36px; padding: 6px; border-radius: 5px; border: 1px solid #d5d1de; background: #fff; font-size: 12px; }
+.preview-stage { background: #f0eef7; flex: 1; min-height: 0; padding: 16px; overflow: auto; }
+.preview-device { border: 1px solid #ccc8db; border-radius: 12px; max-width: 320px; margin: auto; background: #fff; box-shadow: 0 6px 14px #2d244914; padding: 16px; min-height: 190px; }
+.preview-app-name { display: flex; justify-content: space-between; font-size: 15px; font-weight: 650; margin-bottom: 12px; }
+.preview-search { background: #f3f3f7; border-radius: 6px; padding: 9px; color: #626774; font-size: 12px; margin-bottom: 10px; }
+.preview-item { padding: 10px 0; border-bottom: 1px solid #ededf2; display: flex; gap: 9px; align-items: center; font-size: 13px; }
+.preview-item svg { color: #7b688f; }
+.preview-item small { display: block; margin-top: 4px; font-size: 11px; color: #626774; }
+.preview-empty { text-align: center; padding: 25px 10px; color: #626774; font-size: 12px; line-height: 1.8; }
+.preview-empty strong { display: block; color: #4a4358; }
+.resize-handle { display: none; position: absolute; bottom: 2px; right: 2px; width: 28px; height: 28px; background: #f3effa; color: #796b94; border-radius: 5px; cursor: nwse-resize; touch-action: none; z-index: 5; }
+.child-canvas[data-layout="float"] .resize-handle { display: grid; place-items: center; }
+.resize-handle svg { width: 14px; height: 14px; }
+dialog { width: min(460px,calc(100% - 28px)); max-height: calc(100dvh - 36px); padding: 20px; border: 1px solid #d7d4e0; border-radius: 12px; box-shadow: 0 20px 80px #29203933; color: var(--ink); }
+dialog::backdrop { background: #2a283955; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+dialog h2 { font-size: 18px; font-weight: 600; letter-spacing: -.35px; }
+dialog h3 { font-size: 13px; margin: 18px 0 8px; font-weight: 600; }
+dialog p { font-size: 13px; color: #626774; line-height: 1.65; }
+.view-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.view-option { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; border: 1px solid #dcd9e5; border-radius: 8px; padding: 14px; min-height: 102px; }
+.view-option:hover { background: #f6f2fe; border-color: #b6a6d9; }
+.view-option svg { color: var(--accent); }
+.view-option strong { font-size: 13px; font-weight: 600; }
+.view-option small { color: #626774; font-size: 12px; line-height: 1.5; }
+dialog label { display: block; font-size: 13px; margin-top: 18px; margin-bottom: 8px; }
+dialog textarea { width: 100%; min-height: 130px; padding: 10px; border: 1px solid #cbc7d7; border-radius: 6px; font-size: 13px; line-height: 1.7; }
+.dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; color: #626774; font-size: 12px; }
+.menu-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.menu-row { display: flex; align-items: center; gap: 5px; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; border: 1px solid transparent; border-radius: 6px; padding: 9px; font-size: 13px; text-align: left; }
+.menu-item:hover, .menu-item[aria-current="true"] { background: var(--tint); border-color: #d2c5eb; }
+.menu-item span { min-width: 0; flex: 1; }
+.menu-item small { display: block; color: #626774; font-size: 11px; margin-top: 3px; }
+.metadata { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px 12px; margin: 14px 0; font-size: 12px; line-height: 1.5; }
+.metadata dt { color: #626774; }.metadata dd { margin: 0; overflow-wrap: anywhere; }
+.workspace-title { font-size: 15px; font-weight: 550; line-height: 1.5; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 28px); padding: 11px 16px; background: #2b2935; color: #fff; border-radius: 8px; box-shadow: 0 4px 18px #21183130; font-size: 12px; z-index: 100; pointer-events: none; }
+.toast:empty { display: none; }
+.workspace-host[data-layout="focus"] .compact-view-bar { display: flex; }
+.child-canvas[data-layout="focus"] .child-titlebar { display: none; }
+.child-canvas[data-layout="focus"] .compact-only { display: flex; }
+@container (max-width: 680px) {
+ .compact-view-bar { display: flex; }
+ .child-titlebar { display: none; }
+ .compact-only { display: flex; }
+ .child-canvas, .child-canvas[data-layout="tiles"], .child-canvas[data-layout="float"] { display: flex; padding: 0; margin: 0; background-image: none; border: 0; border-radius: 0; overflow: hidden; }
+ .child-canvas .child { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: 100% !important; box-shadow: none; border: 0; border-radius: 0; }
+ .child-canvas .child:not(.focused) { display: none; }
+ .child-canvas .resize-handle { display: none; }
+ .icon-button, .button, .view-picker, .comparison-button, .source-select, .preview-toolbar select { min-height: 44px; }
+ .icon-button { width: 44px; }
+ .child-toolbar { padding: 3px 8px; gap: 6px; }
+ .child-toolbar .button { padding: 7px 9px; }
+ .comparison-button { font-size: 12px; flex: 1; }
+ .preview-toolbar { padding: 3px 10px; }
+ .search-form input { min-height: 44px; }
+}
+@container (max-width: 520px) {
+ .app-bar { gap: 2px; padding: 0 4px; }
+ .workspace-tab { padding: 0 7px; gap: 5px; font-size: 12px; flex: 1; }
+ .workspace-tab svg { display: none; }
+ .workspace-actions .icon-button { width: 44px; min-height: 44px; }
+ .outer-space[data-presentation="windows"] { padding: 7px; gap: 8px; }
+ .outer-space[data-presentation="windows"] .workspace-host { min-width: 100%; flex-basis: 100%; }
+}
+@media (max-width: 650px) {
+ .lab { padding: 0 12px; height: 44px; }
+ .prototype-controls summary { gap: 7px; }
+ .stage { width: 100%; }
+ .app { border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 44px); min-height: 400px; }
+ .prototype-panel .button, .prototype-panel select, dialog .button, dialog .icon-button, dialog .segment button { min-height: 44px; }
+ dialog .icon-button { width: 44px; }
+}
+</style>
+</head>
+<body>
+<header class="lab"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><details id="prototype-controls" class="prototype-controls"><summary><span class="sample">Sample data</span><span>Controls</span></summary><div class="prototype-panel"><h2>Prototype controls</h2><div class="prototype-row"><label for="viewport">Canvas</label><select id="viewport" aria-label="Canvas width"><option value="auto">Auto</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select></div><div class="prototype-row"><span>PR #42</span><button class="button" data-action="push" data-workspace="42" aria-label="Simulate push for PR 42">Simulate push</button></div><div class="prototype-row"><span>PR #43</span><button class="button" data-action="push" data-workspace="43" aria-label="Simulate push for PR 43">Simulate push</button></div><button class="button" data-action="reset">Reset</button><p>Offline sample session. Previews are simulated; no code is running.</p></div></details></header>
+<main id="stage" class="stage" data-size="auto" aria-label="Mobius workspace prototype"><div id="app" class="app"></div></main>
+<dialog id="modal" aria-labelledby="modal-title"></dialog>
+<p id="arrange-help" class="sr-only">In floating layout, drag a view icon to move it. Arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+
+'use strict';
+// Deliberately small, prepared fixtures. This is not a Git engine or a production state schema.
+const icons = {
+ pr: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><path d="M6 7v10M14 3l-3 3 3 3M11 6h3a4 4 0 0 1 4 4v7"/><circle cx="18" cy="19" r="2"/>',
+ file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M8 13h8M8 17h5"/>',
+ search: '<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
+ sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+ check: '<path d="m5 12 4 4L19 6"/>',
+ comment: '<path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+ refresh: '<path d="M20 7a8 8 0 1 0 0 10M20 3v4h-4"/>',
+ plus: '<path d="M12 5v14M5 12h14"/>',
+ link: '<path d="m10 13 4-4M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(1 0) scale(.9)"/>',
+ folder: '<path d="M3 7V5h6l2 2h10v13H3z"/>',
+ chevron: '<path d="m9 5 7 7-7 7"/>'
+};
+const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
+const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const rows = text => text.replace(/^\n|\n$/g, '').split('\n').map(line => ({kind: line[0] === '+' ? 'add' : line[0] === '-' ? 'delete' : 'context', text: line.slice(1)}));
+const parserFull = version => rows(`
+ import Foundation
+
+ struct Parser {
+     struct Query {
+         let terms: [String]
++        let scope: SearchScope
+     }
+
+-    func parse(_ input: String) -> Query {
++    func parse(_ input: String, in scope: SearchScope) -> Query {
+         let normalized = input.trimmingCharacters(in: .whitespaces)
+         let terms = normalized.split(separator: " ").map(String.init)
+
+-        return Query(terms: terms)
++        return Query(
++            terms: ${version === 2 ? 'terms.filter { !$0.isEmpty }' : 'terms'},
++            scope: scope
++        )
+     }
+
+     func suggestions(for query: Query) -> [String] {
+         guard let first = query.terms.first else {
+             return []
+         }
+
+         return [first, first.lowercased()]
+     }
+ }
+
++extension Parser.Query {
++    var description: String {
++        terms.joined(separator: " ")
++    }
++
++    var isEmpty: Bool {
++        terms.isEmpty
++    }
++
++    var scopeLabel: String {
++        switch scope {
++        case .repository:
++            return "Entire repository"
++        case .workspace:
++            return "This workspace"
++        }
++    }
++}
+
+ // Search stays with the pull request that opened it.
+ // Navigating to a reference does not mark a file reviewed.
+`);
+const parserNew = rows(`
+         return Query(
+-            terms: terms,
++            terms: terms.filter { !$0.isEmpty },
+             scope: scope
+         )
+`);
+const storeFull = version => rows(`
+ import Foundation
+
+ struct Store {
+-    var search: Search?
++    var searches: [WorkspaceID: Search] = [:]
+
+-    mutating func save(_ search: Search) {
+-        self.search = search
++    mutating func save(_ search: Search, for workspace: WorkspaceID) {
++        searches[workspace] = search
+     }
+
++    func search(for workspace: WorkspaceID) -> Search? {
++        searches[workspace]
++    }
+${version === 2 ? '+\n+    mutating func removeSearch(for workspace: WorkspaceID) {\n+        searches.removeValue(forKey: workspace)\n+    }' : ' '}
+ }
+`);
+const storeNew = rows(`
+     func search(for workspace: WorkspaceID) -> Search? {
+         searches[workspace]
+     }
++
++    mutating func removeSearch(for workspace: WorkspaceID) {
++        searches.removeValue(forKey: workspace)
++    }
+`);
+const stableFull = rows(`
+ import Foundation
+
++enum SearchScope {
++    case repository
++    case workspace
++}
++
+ struct Stable {
+     let name: String
+ }
+`);
+const referenceSource = `// Supporting source, unchanged by this pull request.
+// Sample code for exploring context within a workspace.
+
+struct WorkspaceID: Hashable {
+    let number: Int
+}
+
+struct Search {
+    let query: Parser.Query
+    let results: [SearchResult]
+}
+
+struct SearchResult {
+    let path: String
+    let line: Int
+    let excerpt: String
+}
+
+// Every search belongs to its originating PR workspace.
+// Opening this file leaves review progress untouched.`;
+const fixtures = {
+ 42: {title: 'Keep searches in their review workspace', branch: 'workspace-search', author: 'Maya Chen', initials: 'MC'},
+ 43: {title: 'Restore a search when you return', branch: 'restore-search', author: 'Alex Rivera', initials: 'AR'}
+};
+const files = ['Parser.swift', 'Store.swift', 'Stable.swift'];
+Object.assign(icons, {
+ windows: '<rect x="3" y="3" width="14" height="13" rx="2"/><path d="M8 16v5h13V8h-4M3 7h14"/>',
+ tiles: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M13 3v18M13 12h8"/>',
+ focus: '<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
+ preview: '<rect x="5" y="2" width="14" height="20" rx="3"/><path d="M10 5h4M11 19h2"/>',
+ resize: '<path d="m8 20 12-12M14 20l6-6"/>',
+ more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+ close: '<path d="m6 6 12 12M18 6 6 18"/>'
+});
+const kindLabels = {review:'Review', source:'Source', search:'Research', preview:'Preview'};
+const kindIcons = {review:'pr', source:'file', search:'search', preview:'preview'};
+function makeView(workspace, kind, file) {
+ const ordinal = workspace.nextView++;
+ const state = kind === 'review' ? {file:file || 'Parser.swift', mode:'remaining'}
+  : kind === 'source' ? {file:file || 'Reference.swift'}
+  : kind === 'search' ? {query:'', searched:false} : {scene:'results'};
+ return {id:`${workspace.number}-${ordinal}`, ordinal, kind, state, scroll:{top:0,left:0}, z:ordinal,
+  frame:{x:.025 + ((ordinal-1)%3)*.12, y:.025 + ((ordinal-1)%3)*.11, width:.64, height:.72}};
+}
+function newWorkspace(number) {
+ const workspace = {number, version:1, reviewed:Object.fromEntries(files.map(file => [file,null])), draft:'', views:[], nextView:1, focused:null, layout:'tiles', nextZ:5};
+ const kinds = number === 42 ? ['review','source','preview'] : ['review','search'];
+ workspace.views = kinds.map(kind => makeView(workspace,kind));
+ workspace.focused = workspace.views[0].id;
+ return workspace;
+}
+let workspaces = {42:newWorkspace(42),43:newWorkspace(43)};
+let activeWorkspace = 42;
+let presentation = 'tabs';
+let rendering = false;
+let dialogContext = null;
+let toastTimer;
+let outerScroll = 0;
+const byNumber = number => workspaces[Number(number)];
+const focusedView = workspace => workspace.views.find(view => view.id === workspace.focused);
+const viewTitle = view => view.kind === 'review' || view.kind === 'source' ? view.state.file : view.kind === 'search' ? 'Repository search' : 'SearchKit preview';
+const viewName = view => `${kindLabels[view.kind]} ${view.ordinal}`;
+const attributes = (workspace, view) => `data-workspace="${workspace.number}"${view ? ` data-view="${view.id}"` : ''}`;
+function fileState(workspace, file) {
+ const baseline = workspace.reviewed[file];
+ if (baseline === null) return 'unreviewed';
+ return baseline === workspace.version || file === 'Stable.swift' ? 'reviewed' : 'changed';
+}
+const remainingCount = workspace => files.filter(file => fileState(workspace,file) !== 'reviewed').length;
+function adaptFixture(workspace, prepared) {
+ return workspace.number === 43 ? prepared.map(row => ({...row,text:row.text.replaceAll('suggestions','restoredTerms').replaceAll('searches','savedSearches')})) : prepared;
+}
+function allDiffRows(workspace,file) {
+ return adaptFixture(workspace,file === 'Parser.swift' ? parserFull(workspace.version) : file === 'Store.swift' ? storeFull(workspace.version) : stableFull);
+}
+function sourceText(workspace,file) {
+ return file === 'Reference.swift' ? referenceSource : allDiffRows(workspace,file).filter(row => row.kind !== 'delete').map(row => row.text).join('\n');
+}
+function diffTable(prepared, offset=1) {
+ let oldLine=offset, newLine=offset;
+ return `<table class="diff-table" aria-label="Code comparison"><thead class="sr-only"><tr><th>Old line</th><th>New line</th><th>Change</th><th>Code</th></tr></thead><tbody>${prepared.map(row => `<tr class="${row.kind}"><td class="num">${row.kind === 'add' ? '' : oldLine++}</td><td class="num">${row.kind === 'delete' ? '' : newLine++}</td><td class="sign">${row.kind === 'add' ? '+' : row.kind === 'delete' ? '−' : ''}</td><td class="code">${escapeHTML(row.text) || ' '}</td></tr>`).join('')}</tbody></table>`;
+}
+function comparisonLabel(workspace,view) {
+ const state=fileState(workspace,view.state.file);
+ return view.state.mode==='remaining' && state==='changed' ? `New edits since v${workspace.reviewed[view.state.file]}` : view.state.mode==='remaining' && state==='reviewed' ? 'No remaining changes' : 'Full PR diff';
+}
+function renderReview(workspace, view) {
+ const {file,mode}=view.state, state=fileState(workspace,file);
+ const incremental=mode==='remaining' && state==='changed', caughtUp=mode==='remaining' && state==='reviewed';
+ const prepared=incremental ? adaptFixture(workspace,file==='Parser.swift'?parserNew:storeNew) : allDiffRows(workspace,file);
+ const control=attributes(workspace,view);
+ return `<div class="child-toolbar"><button class="icon-button compact-only" ${control} data-action="files" aria-label="Choose file for ${viewName(view)}" aria-haspopup="dialog">${icon('folder')}</button><button class="comparison-button" ${control} data-action="comparison-menu" aria-label="${comparisonLabel(workspace,view)}. Comparison for ${viewName(view)}" aria-haspopup="dialog"><span>${comparisonLabel(workspace,view)}</span>${icon('chevron')}</button>${state==='reviewed'?`<span class="reviewed">${icon('check')} Reviewed</span>`:`<button class="button primary" ${control} data-action="review">Mark reviewed</button>`}</div><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${file} diff in ${viewName(view)}">${caughtUp?`<div class="empty-state"><div class="check-circle">${icon('check')}</div><h2>${file} is caught up</h2><p>Last marked reviewed at v${workspace.reviewed[file]}.</p><button class="button" ${control} data-action="comparison" data-mode="full">View full PR diff</button></div>`:`${diffTable(prepared,incremental?(file==='Parser.swift'?13:10):1)}<div class="code-end">End of ${incremental?'new edits':'file'} · sample comparison</div>`}</div>`;
+}
+function renderSource(workspace,view) {
+ const control=attributes(workspace,view);
+ return `<div class="child-toolbar compact-only"><select class="source-select" ${control} data-control="source-file" aria-label="Source file for ${viewName(view)}">${['Reference.swift',...files].map(file=>`<option ${file===view.state.file?'selected':''}>${file}</option>`).join('')}</select>${view.state.file!=='Reference.swift'?`<button class="button" ${control} data-action="review-source">Review file</button>`:''}</div><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${view.state.file} source in ${viewName(view)}">${diffTable(sourceText(workspace,view.state.file).split('\n').map(text=>({kind:'context',text})))}<div class="code-end">Sample source · v${workspace.version}</div></div>`;
+}
+function searchResults(workspace,view) {
+ if(!view.state.searched)return `<p>Try <button class="example-search" ${attributes(workspace,view)} data-action="example-search">WorkspaceID</button></p>`;
+ const query=view.state.query.trim().toLowerCase();if(!query)return '<p>Enter a term to search the sample source.</p>';
+ const matches=['Reference.swift',...files].map(file=>({file,text:sourceText(workspace,file)})).filter(document=>`${document.file} ${document.text}`.toLowerCase().includes(query));
+ return `<p>${matches.length} ${matches.length===1?'file':'files'} found · 4 sample files searched</p>${matches.map(document=>`<button class="search-result" ${attributes(workspace,view)} data-action="open-source" data-file="${document.file}"><strong>${document.file}</strong><code>${escapeHTML(document.text.split('\n').find(line=>line.toLowerCase().includes(query))||'Sources / Search')}</code><small>Open in a new source view ↗</small></button>`).join('')}`;
+}
+function renderSearch(workspace,view) {
+ return `<div class="search-content pane-scroll" data-scroll="${view.id}"><form class="search-form" ${attributes(workspace,view)}><input id="query-${view.id}" ${attributes(workspace,view)} data-control="query" aria-label="Search query for ${viewName(view)}" value="${escapeHTML(view.state.query)}" placeholder="Search sample source…"><button class="button primary" type="submit">Search</button></form><div data-results="${view.id}">${searchResults(workspace,view)}</div></div>`;
+}
+function renderPreview(workspace,view) {
+ const scene=view.state.scene;
+ return `<div class="preview-toolbar"><span class="simulated-badge">Simulated</span><select ${attributes(workspace,view)} data-control="preview-scene" aria-label="Sample state for ${viewName(view)}"><option value="results" ${scene==='results'?'selected':''}>Search results</option><option value="empty" ${scene==='empty'?'selected':''}>No results</option><option value="loading" ${scene==='loading'?'selected':''}>Loading sample</option></select></div><div class="preview-stage pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="Simulated content for ${viewName(view)}"><div class="preview-device"><div class="preview-app-name">SearchKit</div><div class="preview-search">${icon('search')} ${scene==='empty'?'no matching query':'WorkspaceID'}</div>${scene==='results'?`<div class="preview-item">${icon('file')}<span>Reference.swift<small>struct WorkspaceID: Hashable</small></span></div><div class="preview-item">${icon('file')}<span>Store.swift<small>Searches belong to a workspace</small></span></div>`:`<div class="preview-empty"><strong>${scene==='empty'?'No matches yet':'Searching the repository…'}</strong>${scene==='empty'?'Try a different term or file name.':'A prepared loading-state preview.'}</div>`}</div></div>`;
+}
+function renderView(workspace,view) {
+ const active=workspace.focused===view.id, control=attributes(workspace,view), hasFiles=['review','source'].includes(view.kind);
+ const frame=workspace.layout==='float'?`style="left:${view.frame.x*100}%;top:${view.frame.y*100}%;width:${view.frame.width*100}%;height:${view.frame.height*100}%;z-index:${view.z}"`:'';
+ return `<section class="child ${active?'focused':''}" ${control} data-kind="${view.kind}" data-focused="${active}" ${frame} tabindex="-1" aria-label="${viewName(view)} in PR ${workspace.number}"><header class="child-titlebar"><button class="icon-button" ${control} data-action="focus-view" data-drag="true" aria-label="Focus or move ${viewName(view)}" aria-describedby="arrange-help">${icon(kindIcons[view.kind])}</button><button class="child-title" ${control} data-action="${hasFiles?'files':'focus-view'}" aria-label="${escapeHTML(viewTitle(view))}. ${hasFiles?'Choose file for':'Focus'} ${viewName(view)}" ${hasFiles?'aria-haspopup="dialog"':''}><strong>${escapeHTML(viewTitle(view))}</strong>${hasFiles?icon('chevron'):''}</button><div class="child-controls">${view.kind==='source'&&view.state.file!=='Reference.swift'?`<button class="icon-button" ${control} data-action="review-source" aria-label="Review file" title="Review file">${icon('pr')}</button>`:''}<button class="icon-button" ${control} data-action="focus-layout" aria-label="${workspace.layout==='focus'?'Tile views':'Focus '+viewName(view)}">${icon(workspace.layout==='focus'?'tiles':'focus')}</button><button class="icon-button" ${control} data-action="close-view" aria-label="Close ${viewName(view)}">${icon('close')}</button></div></header><div class="child-body">${view.kind==='review'?renderReview(workspace,view):view.kind==='source'?renderSource(workspace,view):view.kind==='search'?renderSearch(workspace,view):renderPreview(workspace,view)}</div><button class="resize-handle" ${control} data-resize="true" aria-label="Resize ${viewName(view)}" aria-describedby="arrange-help">${icon('resize')}</button></section>`;
+}
+function workspaceActions(workspace) {
+ const control=attributes(workspace);
+ return `<div class="workspace-actions"><button class="icon-button ${workspace.draft?'has-draft':''}" ${control} data-action="draft" aria-label="${workspace.draft?'Draft saved. ':''}Review draft for PR ${workspace.number}" title="Review draft">${icon('comment')}</button><button class="icon-button" ${control} data-action="new-view" aria-label="New view" title="New view">${icon('plus')}</button><button class="icon-button" ${control} data-action="workspace-options" aria-label="Workspace options for PR ${workspace.number}" title="Workspace options" aria-haspopup="dialog">${icon('more')}</button></div>`;
+}
+const shortWorkspace = workspace => workspace.number===42?'Search':'Restore';
+function renderWorkspace(workspace) {
+ const control=attributes(workspace), count=workspace.views.length, active=focusedView(workspace);
+ const countClass=count===1?'one':count===2?'two':count===3?'three':'many';
+ return `<section class="workspace-host ${workspace.number===activeWorkspace?'selected':''}" ${control} data-layout="${workspace.layout}" aria-label="PR ${workspace.number} workspace"><header class="window-bar"><button class="window-identity" ${control} data-action="workspace">${icon('pr')}${shortWorkspace(workspace)} <span>#${workspace.number}</span></button>${workspaceActions(workspace)}</header>${active?`<div class="compact-view-bar"><button class="view-picker" ${control} data-action="views" aria-label="Views in PR ${workspace.number}. Current ${viewName(active)}: ${escapeHTML(viewTitle(active))}" aria-haspopup="dialog">${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}</button><button class="icon-button" ${attributes(workspace,active)} data-action="close-view" aria-label="Close ${viewName(active)}">${icon('close')}</button></div>`:''}<div class="child-canvas ${countClass}" ${control} data-layout="${workspace.layout}">${count?workspace.views.map(view=>renderView(workspace,view)).join(''):`<div class="empty-state"><h2>No open views</h2><button class="button primary" ${control} data-action="new-view">New view</button></div>`}</div></section>`;
+}
+function captureScroll() {
+ document.querySelectorAll('[data-scroll]').forEach(node => {
+  const view=Object.values(workspaces).flatMap(workspace => workspace.views).find(item => item.id === node.dataset.scroll);
+  if (view && node.getClientRects().length) view.scroll={top:node.scrollTop,left:node.scrollLeft};
+ });
+ const outer=document.querySelector('.outer-space');
+ if (outer && presentation === 'windows') outerScroll=outer.scrollLeft;
+}
+function rememberFocus() {
+ const active=document.activeElement;
+ if (!document.getElementById('app').contains(active)) return null;
+ return active.id ? {id:active.id} : active.dataset.action || active.dataset.control ? {data:{...active.dataset}} : null;
+}
+function restoreFocus(saved) {
+ if (!saved || document.getElementById('modal').open) return;
+ const target=saved.id ? document.getElementById(saved.id) : [...document.querySelectorAll('button,select,input')].find(node => node.getClientRects().length && Object.entries(saved.data).every(([key,value]) => node.dataset[key] === value));
+ (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`) || [...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length))?.focus({preventScroll:true});
+}
+function render() {
+ const saved=rememberFocus();rendering=true;
+ const app=document.getElementById('app');app.dataset.presentation=presentation;
+ app.innerHTML=`<header class="app-bar"><nav class="workspace-tabs" aria-label="Workspaces">${Object.values(workspaces).map(workspace=>`<button class="workspace-tab ${workspace.number===activeWorkspace?'active':''}" ${attributes(workspace)} data-action="workspace" ${workspace.number===activeWorkspace?'aria-current="true"':''} aria-label="${shortWorkspace(workspace)} #${workspace.number}">${icon('pr')}<span class="tab-title">${shortWorkspace(workspace)}</span><span class="pr-number">#${workspace.number}</span></button>`).join('')}</nav>${workspaceActions(byNumber(activeWorkspace))}</header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
+ document.querySelectorAll('[data-scroll]').forEach(node=>{const view=Object.values(workspaces).flatMap(workspace=>workspace.views).find(item=>item.id===node.dataset.scroll);node.scrollTop=view.scroll.top;node.scrollLeft=view.scroll.left;});
+ document.querySelectorAll('.prototype-panel [data-action="push"]').forEach(button=>{const applied=byNumber(button.dataset.workspace).version===2;button.disabled=applied;button.textContent=applied?'Push applied':'Simulate push';button.setAttribute('aria-label',`${button.textContent} for PR ${button.dataset.workspace}`);});
+ if(presentation==='windows')document.querySelector('.outer-space').scrollLeft=outerScroll;
+ restoreFocus(saved);document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});rendering=false;
+}
+function focusView(workspace,view) {
+ const resumed=activeWorkspace !== workspace.number || workspace.focused !== view.id;
+ activeWorkspace=workspace.number;workspace.focused=view.id;view.z=workspace.nextZ++;
+ if (resumed && view.kind === 'review') view.scroll={top:0,left:0};
+}
+function activateWorkspace(workspace) {
+ const view=focusedView(workspace);
+ if (view) focusView(workspace,view); else activeWorkspace=workspace.number;
+}
+function paintFocus() {
+ document.querySelectorAll('.workspace-host').forEach(host=>{const owner=byNumber(host.dataset.workspace), active=focusedView(owner), picker=host.querySelector('.view-picker');if(active&&picker){picker.innerHTML=`${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}`;picker.setAttribute('aria-label',`Views in PR ${owner.number}. Current ${viewName(active)}: ${viewTitle(active)}`);const close=picker.nextElementSibling;close.dataset.view=active.id;close.setAttribute('aria-label',`Close ${viewName(active)}`);}});
+ document.querySelectorAll('.workspace-host,.workspace-tab').forEach(node => {
+  const selected=Number(node.dataset.workspace) === activeWorkspace;
+  node.classList.toggle(node.classList.contains('workspace-host') ? 'selected' : 'active',selected);
+  if (node.classList.contains('workspace-tab')) { if(selected)node.setAttribute('aria-current','true');else node.removeAttribute('aria-current'); }
+ });
+ document.querySelectorAll('.child,.child-tab').forEach(node => {
+  const workspace=byNumber(node.dataset.workspace), selected=workspace.focused === node.dataset.view;
+  node.classList.toggle(node.classList.contains('child') ? 'focused' : 'active',selected);
+  if(node.classList.contains('child')) { node.dataset.focused=String(selected); const view=workspace.views.find(item=>item.id===node.dataset.view); if(workspace.layout==='float')node.style.zIndex=view.z; }
+  else {if(selected)node.setAttribute('aria-current','true');else node.removeAttribute('aria-current');}
+ });
+}
+function scrollWorkspaceIntoView(workspace) {
+ if(presentation === 'windows') document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function addView(workspace,kind,file) {
+ const view=makeView(workspace,kind,file);workspace.views.push(view);focusView(workspace,view);return view;
+}
+function toast(message) {
+ clearTimeout(toastTimer);document.getElementById('toast').textContent=message;
+ toastTimer=setTimeout(()=>{document.getElementById('toast').textContent='';},3500);
+}
+function showModal(kind,workspace,opener) {
+ const previous=dialogContext;
+ dialogContext={kind,number:workspace.number,view:opener.dataset.view,opener:previous?.opener||{...opener.dataset}};
+ const modal=document.getElementById('modal'), view=workspace.views.find(item=>item.id===dialogContext.view), control=attributes(workspace,view);
+ let title,body;
+ if(kind==='new-view') {
+  title=`Add a view · PR #${workspace.number}`;
+  body=`<div class="view-options">${[['review','Read another file or comparison.'],['source','Browse sample code.'],['search','Search with a separate query.'],['preview','Compare simulated app states.']].map(([type,description])=>`<button class="view-option" data-action="create-view" data-kind="${type}">${icon(kindIcons[type])}<strong>${kindLabels[type]}</strong><small>${description}</small></button>`).join('')}</div>`;
+ } else if(kind==='draft') {
+  title=`Review draft · PR #${workspace.number}`;
+  body=`<p>Private session note. Nothing is sent to GitHub.</p><label for="draft">A thought to come back to</label><textarea id="draft">${escapeHTML(workspace.draft)}</textarea><div class="dialog-footer"><span>Saved in this sample session</span><button class="button primary" data-action="close-modal">Keep draft</button></div>`;
+ } else if(kind==='workspace-options') {
+  title=`Workspace · PR #${workspace.number}`;
+  body=`<div class="workspace-title">${fixtures[workspace.number].title}</div><dl class="metadata"><dt>Repository</dt><dd>northstar</dd><dt>Author</dt><dd>${fixtures[workspace.number].author}</dd><dt>Branch</dt><dd>${fixtures[workspace.number].branch}</dd><dt>Revision</dt><dd>Sample v${workspace.version} · open PR</dd><dt>Review progress</dt><dd>${3-remainingCount(workspace)} of 3 files up to date</dd></dl><button class="menu-item" ${control} data-action="views">${icon('windows')}<span>Open views</span>${workspace.views.length}</button><h3>Arrange views</h3><div class="segment" aria-label="Arrangement for PR ${workspace.number}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','Focus']].map(([value,glyph,label])=>`<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout===value}">${icon(glyph)} ${label}</button>`).join('')}</div><h3>Workspace presentation</h3><div class="segment" aria-label="Workspace presentation">${[['tabs','sidebar','Tabs'],['windows','windows','Windows']].map(([value,glyph,label])=>`<button data-action="presentation" data-presentation="${value}" aria-pressed="${presentation===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Compact widths show one child at a time and retain the wider arrangement.</p>`;
+ } else if(kind==='views') {
+  title=`Views · PR #${workspace.number}`;
+  body=`<div class="menu-list">${workspace.views.map(item=>`<div class="menu-row"><button class="menu-item" ${attributes(workspace,item)} data-action="focus-view" ${item.id===workspace.focused?'aria-current="true"':''}>${icon(kindIcons[item.kind])}<span>${escapeHTML(viewTitle(item))}<small>${viewName(item)}</small></span></button><button class="icon-button" ${attributes(workspace,item)} data-action="close-view" aria-label="Close ${viewName(item)}">${icon('close')}</button></div>`).join('')}</div><button class="menu-item" ${attributes(workspace)} data-action="new-view">${icon('plus')} New view</button>`;
+ } else if(kind==='files') {
+  title=`${view.kind==='review'?'Review':'Source'} files`;
+  const visible=view.kind==='source'?['Reference.swift',...files]:files.filter(file=>view.state.mode==='full'||fileState(workspace,file)!=='reviewed');
+  body=`<div class="menu-list">${visible.length?visible.map(file=>`<button class="menu-item" ${control} data-action="${view.kind==='review'?'file':'source-file'}" data-file="${file}" ${file===view.state.file?'aria-current="true"':''}>${icon('file')}<span>${file}</span></button>`).join(''):'<p>All files are up to date.</p>'}</div>${view.kind==='review'?`<p>${view.state.mode==='remaining'?'Remaining files':'All PR files'} · PR #${workspace.number}</p><button class="menu-item" ${control} data-action="comparison-menu">${icon('pr')} Comparison options</button>`:''}`;
+ } else if(kind==='comparison-menu') {
+  title='Comparison';const baseline=workspace.reviewed[view.state.file];
+  body=`<p>${view.state.file} · ${baseline===null?'not marked reviewed':`last marked v${baseline}`} · current v${workspace.version}</p><div class="menu-list">${[['remaining','Remaining work',`${remainingCount(workspace)} files need review`],['full','Full PR diff','PR base → current revision']].map(([mode,label,detail])=>`<button class="menu-item" ${control} data-action="comparison" data-mode="${mode}" ${view.state.mode===mode?'aria-current="true"':''}><span>${label}<small>${detail}</small></span>${view.state.mode===mode?icon('check'):''}</button>`).join('')}</div>`;
+ }
+ modal.innerHTML=`<div class="dialog-heading"><h2 id="modal-title">${title}</h2><button class="icon-button" data-action="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${body}`;
+ if(!modal.open)modal.showModal();else modal.querySelector('[data-action="close-modal"]').focus();
+}
+function contextFor(node) {
+ const workspace=byNumber(node.dataset.workspace || node.closest('.workspace-host')?.dataset.workspace || activeWorkspace);
+ const view=workspace.views.find(item=>item.id===(node.dataset.view || node.closest('.child')?.dataset.view));
+ return {workspace,view};
+}
+document.addEventListener('click',event=>{
+ const button=event.target.closest('button[data-action]');if(!button || button.disabled)return;
+ captureScroll();const {workspace,view}=contextFor(button);
+ if(view && button.dataset.action !== 'close-view')focusView(workspace,view);
+ switch(button.dataset.action) {
+ case 'workspace': activateWorkspace(workspace);render();scrollWorkspaceIntoView(workspace);document.querySelector(`.child[data-view="${workspace.focused}"]`)?.focus({preventScroll:true});break;
+ case 'presentation': presentation=button.dataset.presentation;dismissModal('opener');scrollWorkspaceIntoView(byNumber(activeWorkspace));break;
+ case 'focus-view': if(dialogContext)dismissModal('child');else render();break;
+ case 'layout': workspace.layout=button.dataset.layout;activateWorkspace(workspace);dismissModal('opener');break;
+ case 'focus-layout': workspace.layout=workspace.layout==='focus'?'tiles':'focus';render();break;
+ case 'new-view': activateWorkspace(workspace);paintFocus();showModal('new-view',workspace,button);break;
+ case 'workspace-options': case 'views': case 'files': case 'comparison-menu': showModal(button.dataset.action,workspace,button);break;
+ case 'create-view': {const owner=byNumber(dialogContext.number);addView(owner,button.dataset.kind);dismissModal('child');break;}
+ case 'close-view': workspace.views=workspace.views.filter(item=>item.id!==view.id);if(workspace.focused===view.id){workspace.focused=null;const next=workspace.views.at(-1);if(next){if(activeWorkspace===workspace.number)focusView(workspace,next);else workspace.focused=next.id;}}render();if(dialogContext?.kind==='views')showModal('views',workspace,button);break;
+ case 'file': case 'source-file': view.state.file=button.dataset.file;view.scroll={top:0,left:0};dismissModal('child');break;
+ case 'comparison': view.state.mode=button.dataset.mode;view.scroll={top:0,left:0};if(dialogContext)dismissModal('child');else render();break;
+ case 'review': workspace.reviewed[view.state.file]=workspace.version;render();toast(`${view.state.file} reviewed at v${workspace.version} · shared in PR #${workspace.number}`);break;
+ case 'push': closePrototypeControls();activateWorkspace(workspace);workspace.version=2;render();toast(`PR #${workspace.number} · new edits in Parser.swift and Store.swift`);break;
+ case 'open-source': addView(workspace,'source',button.dataset.file);render();break;
+ case 'review-source': addView(workspace,'review',view.state.file);render();break;
+ case 'example-search': view.state.query='WorkspaceID';view.state.searched=true;render();break;
+ case 'draft': activateWorkspace(workspace);paintFocus();showModal('draft',workspace,button);break;
+ case 'close-modal': dismissModal('opener');break;
+ case 'reset': closePrototypeControls();workspaces={42:newWorkspace(42),43:newWorkspace(43)};activeWorkspace=42;presentation='tabs';outerScroll=0;render();toast('Sample workspaces reset');break;
+ }
+});
+document.addEventListener('input',event=>{
+ if(event.target.id==='draft' && dialogContext){byNumber(dialogContext.number).draft=event.target.value;return;}
+ if(event.target.dataset.control==='query'){const {view}=contextFor(event.target);view.state.query=event.target.value;}
+});
+document.addEventListener('change',event=>{
+ if(event.target.id==='viewport'){captureScroll();document.getElementById('stage').dataset.size=event.target.value;return;}
+ const control=event.target.dataset.control;if(!['source-file','preview-scene'].includes(control))return;
+ captureScroll();const {workspace,view}=contextFor(event.target);focusView(workspace,view);
+ if(control==='source-file'){view.state.file=event.target.value;view.scroll={top:0,left:0};}
+ if(control==='preview-scene')view.state.scene=event.target.value;
+ render();
+});
+document.addEventListener('submit',event=>{
+ if(!event.target.matches('.search-form'))return;event.preventDefault();
+ const {workspace,view}=contextFor(event.target);view.state.searched=true;
+ document.querySelector(`[data-results="${view.id}"]`).innerHTML=searchResults(workspace,view);
+});
+// Native close events are queued. Finish owned dismissal synchronously so a
+// later close event cannot replace a newly focused form or steal its input.
+function dismissModal(destination) {
+ const previous=dialogContext;dialogContext=null;
+ document.getElementById('modal').close();render();
+ const opener=previous && [...document.querySelectorAll('button[data-action]')].find(node=>node.getClientRects().length && Object.entries(previous.opener).every(([key,value])=>node.dataset[key]===value));
+ const child=document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`);
+ const newView=[...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length);
+ (destination==='child' ? child || newView : opener || child || newView)?.focus({preventScroll:true});
+}
+document.getElementById('modal').addEventListener('cancel',event=>{event.preventDefault();dismissModal('opener');});
+document.getElementById('modal').addEventListener('close',()=>{if(dialogContext&&!document.getElementById('modal').open)dismissModal('opener');});
+
+function focusFromChild(node) {
+ const child=node.closest('.child');if(node.closest('[data-action="close-view"]') || !child || rendering || document.getElementById('modal').open)return;
+ const {workspace,view}=contextFor(child);
+ if(workspace.focused===view.id && activeWorkspace===workspace.number)return;
+ captureScroll();focusView(workspace,view);paintFocus();
+ if(view.kind==='review'){const scroll=child.querySelector('[data-scroll]');if(scroll){scroll.scrollTop=0;scroll.scrollLeft=0;}}
+}
+document.addEventListener('focusin',event=>focusFromChild(event.target));
+document.addEventListener('pointerdown',event=>focusFromChild(event.target));
+function frameBounds(workspace) {
+ const host=document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`);
+ const canvas=host?.querySelector('.child-canvas');
+ return host && host.getBoundingClientRect().width>680 && workspace.layout==='float' ? canvas.getBoundingClientRect() : null;
+}
+function applyFrame(workspace,view,frame) {
+ const rect=frameBounds(workspace);if(!rect)return;
+ const minWidth=Math.min(300/rect.width,1),minHeight=Math.min(210/rect.height,1);
+ frame.width=Math.max(minWidth,Math.min(1,frame.width));frame.height=Math.max(minHeight,Math.min(1,frame.height));
+ frame.x=Math.max(0,Math.min(1-frame.width,frame.x));frame.y=Math.max(0,Math.min(1-frame.height,frame.y));view.frame=frame;
+ const child=document.querySelector(`.child[data-view="${view.id}"]`);
+ Object.assign(child.style,{left:frame.x*100+'%',top:frame.y*100+'%',width:frame.width*100+'%',height:frame.height*100+'%'});
+}
+let drag=null;
+document.addEventListener('pointerdown',event=>{
+ const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || event.button!==0)return;
+ const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
+ event.preventDefault();handle.focus({preventScroll:true});handle.setPointerCapture(event.pointerId);
+ drag={workspace,view,handle,rect,resize:handle.hasAttribute('data-resize'),x:event.clientX,y:event.clientY,frame:{...view.frame}};
+});
+document.addEventListener('pointermove',event=>{
+ if(!drag)return;const dx=(event.clientX-drag.x)/drag.rect.width,dy=(event.clientY-drag.y)/drag.rect.height;
+ applyFrame(drag.workspace,drag.view,{...drag.frame,...(drag.resize?{width:drag.frame.width+dx,height:drag.frame.height+dy}:{x:drag.frame.x+dx,y:drag.frame.y+dy})});
+});
+function finishDrag(){drag=null;}
+document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',finishDrag);
+document.addEventListener('keydown',event=>{
+ const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+ const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
+ event.preventDefault();const dx=event.key==='ArrowLeft'?-12/rect.width:event.key==='ArrowRight'?12/rect.width:0,dy=event.key==='ArrowUp'?-12/rect.height:event.key==='ArrowDown'?12/rect.height:0;
+ const resize=event.shiftKey||handle.hasAttribute('data-resize');applyFrame(workspace,view,{...view.frame,...(resize?{width:view.frame.width+dx,height:view.frame.height+dy}:{x:view.frame.x+dx,y:view.frame.y+dy})});
+});
+function closePrototypeControls() {
+ const details=document.getElementById('prototype-controls');if(details.open){details.open=false;details.querySelector('summary').focus({preventScroll:true});}
+}
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('prototype-controls').open&&!document.getElementById('modal').open){event.preventDefault();closePrototypeControls();}});
+document.addEventListener('click',event=>{const details=document.getElementById('prototype-controls');if(details.open&&!details.contains(event.target))details.open=false;});
+render();
+</script>
+</body>
+</html>

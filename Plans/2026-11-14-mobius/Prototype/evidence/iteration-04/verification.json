@@ -1,0 +1,657 @@
+{
+  "iteration": 4,
+  "verifiedDate": "2026-11-14",
+  "artifact": "index.html",
+  "artifactSHA256": "fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00",
+  "reviewBaseCommit": "6e250ab22bad4b2929bf6d9e0d06e337eef45ea2",
+  "toolchain": {
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "axe": "4.14.0"
+  },
+  "method": {
+    "fixture": "Two synthetic PRs, user-facing v1/v2; 7/8 changed files plus Reference.swift. Matched v1 full previews, light appearance, deviceScaleFactor 1.",
+    "metrics": "paneTop/paneHeight measure the scroll container. firstCodeTableTop matches iteration3 firstCodeTop. firstCodeRowTop is separately measured; collapsed table borders place it 1px above table origin.",
+    "checks": "Ad hoc scripts, not retained CI guards. Browser launch used approved macOS process access after the filesystem sandbox blocked Chromium MachPort registration.",
+    "commands": [
+      "mise exec -- node /tmp/mobius-v4-regression.cjs",
+      "mise exec -- node /tmp/mobius-v4-features.cjs",
+      "mise exec -- node /tmp/mobius-v4-captures.cjs",
+      "mise exec -- node --check /tmp/mobius-v4-inline.js",
+      "git diff --check"
+    ]
+  },
+  "workspaceRegression": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "initial compact chrome",
+          "violations": []
+        },
+        {
+          "state": "workspace disclosure",
+          "violations": []
+        },
+        {
+          "state": "prototype controls",
+          "violations": []
+        },
+        {
+          "state": "post-push shared progress and saved draft",
+          "violations": []
+        },
+        {
+          "state": "reopened empty workspace",
+          "violations": []
+        }
+      ]
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1112,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "initial compact chrome",
+          "violations": []
+        },
+        {
+          "state": "workspace disclosure",
+          "violations": []
+        },
+        {
+          "state": "prototype controls",
+          "violations": []
+        },
+        {
+          "state": "post-push shared progress and saved draft",
+          "violations": []
+        },
+        {
+          "state": "reopened empty workspace",
+          "violations": []
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "initial compact chrome",
+          "violations": []
+        },
+        {
+          "state": "workspace disclosure",
+          "violations": []
+        },
+        {
+          "state": "prototype controls",
+          "violations": []
+        },
+        {
+          "state": "post-push shared progress and saved draft",
+          "violations": []
+        },
+        {
+          "state": "reopened empty workspace",
+          "violations": []
+        }
+      ]
+    }
+  ],
+  "featureScenarios": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "grouped chooser",
+          "violations": []
+        },
+        {
+          "state": "individual skip action",
+          "violations": []
+        },
+        {
+          "state": "Markdown full preview",
+          "violations": []
+        },
+        {
+          "state": "unavailable pointer comparison",
+          "violations": []
+        },
+        {
+          "state": "localization since reviewed",
+          "violations": []
+        },
+        {
+          "state": "image since reviewed",
+          "violations": []
+        },
+        {
+          "state": "new image absent-before",
+          "violations": []
+        },
+        {
+          "state": "zero remaining with explicit skips",
+          "violations": []
+        }
+      ],
+      "seededLaterHeadPolicy": {
+        "disposition": "remaining",
+        "comparisonFrom": 1,
+        "reviewed": 1,
+        "limit": "Only content-identity/disposition/basis selection asserted. No v3 content or UI comparison was rendered."
+      }
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1112,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "grouped chooser",
+          "violations": []
+        },
+        {
+          "state": "individual skip action",
+          "violations": []
+        },
+        {
+          "state": "Markdown full preview",
+          "violations": []
+        },
+        {
+          "state": "unavailable pointer comparison",
+          "violations": []
+        },
+        {
+          "state": "localization since reviewed",
+          "violations": []
+        },
+        {
+          "state": "image since reviewed",
+          "violations": []
+        },
+        {
+          "state": "new image absent-before",
+          "violations": []
+        },
+        {
+          "state": "zero remaining with explicit skips",
+          "violations": []
+        }
+      ],
+      "seededLaterHeadPolicy": {
+        "disposition": "remaining",
+        "comparisonFrom": 1,
+        "reviewed": 1,
+        "limit": "Only content-identity/disposition/basis selection asserted. No v3 content or UI comparison was rendered."
+      }
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "grouped chooser",
+          "violations": []
+        },
+        {
+          "state": "individual skip action",
+          "violations": []
+        },
+        {
+          "state": "Markdown full preview",
+          "violations": []
+        },
+        {
+          "state": "unavailable pointer comparison",
+          "violations": []
+        },
+        {
+          "state": "localization since reviewed",
+          "violations": []
+        },
+        {
+          "state": "image since reviewed",
+          "violations": []
+        },
+        {
+          "state": "new image absent-before",
+          "violations": []
+        },
+        {
+          "state": "zero remaining with explicit skips",
+          "violations": []
+        }
+      ],
+      "seededLaterHeadPolicy": {
+        "disposition": "remaining",
+        "comparisonFrom": 1,
+        "reviewed": 1,
+        "limit": "Only content-identity/disposition/basis selection asserted. No v3 content or UI comparison was rendered."
+      }
+    }
+  ],
+  "captures": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "name": "desktop-groups.png",
+      "scenario": "Initial PR42 v1: Code open; Documents, Localization, Snapshots/assets collapsed; seven remaining.",
+      "sha256": "5f4fd4ca17fe659ae5129320e5e19fef13890616fe7d3c3b83ff4244b8f6e2ec"
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "name": "desktop-documents.png",
+      "scenario": "PR42 v1 README.md, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "021c268d9b59d64af22223738b0111fec7ef8c5cf050ab68c9c70d33a510673d"
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "name": "desktop-localization.png",
+      "scenario": "PR42 v1 Localizable.xcstrings, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "80c38c25a024b7590dc3f0058d8a37aa385ef9f58e6c50c33a31c8f38191d492"
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "name": "desktop-assets.png",
+      "scenario": "PR42 v1 SearchResults.svg, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "b1bf3e1e63485daf2e5ce9c95a53c3a8746144eb1830b2264a467b20fef43250"
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "name": "desktop-skip-push.png",
+      "scenario": "PR42 v2 after v1 Parser review, Code remaining skip and Assets skip: Parser changed review basis1; Store/Search return; new Empty unskipped; Stable/Design stay skipped.",
+      "sha256": "5caaf312234e5967a8af4d8ad521672ae71a1c82d1669043522d5830d5aca7d9"
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "initialCodeMetrics": {
+        "paneTop": 203,
+        "paneHeight": 765,
+        "firstCodeRowTop": 202,
+        "firstCodeTableTop": 203
+      },
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "name": "tablet-groups.png",
+      "scenario": "Initial PR42 v1: Code open; Documents, Localization, Snapshots/assets collapsed; seven remaining.",
+      "sha256": "bb12700caeaf83f3fb5ab2623b12b2c2e9f421781bbbe98992e786783886ddad"
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "name": "tablet-documents.png",
+      "scenario": "PR42 v1 README.md, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "7ae58fcfdbd8f1648b28f27c3a42cf4e1b9d5b8ad2bb2496af20b9a9749ee727"
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "name": "tablet-localization.png",
+      "scenario": "PR42 v1 Localizable.xcstrings, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "acce7faed5001f84aef396534641b8dddc5efc8af56e2ef84b605c7d2235bfca"
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "name": "tablet-assets.png",
+      "scenario": "PR42 v1 SearchResults.svg, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "b6a4db6551c031b5802b645e6240aaf2a1a332acdaeb632302934bfc6695a814"
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "initialCodeMetrics": {
+        "paneTop": 203,
+        "paneHeight": 877,
+        "firstCodeRowTop": 202,
+        "firstCodeTableTop": 203
+      },
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "name": "phone-groups.png",
+      "scenario": "Initial PR42 v1: Code open; Documents, Localization, Snapshots/assets collapsed; seven remaining.",
+      "sha256": "59a91aeab4bb5f435b60b33254a82d1925760bf6c23bc274817d7c0ed0a1bea3"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "name": "phone-documents.png",
+      "scenario": "PR42 v1 README.md, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "bc60e953bc2fd1736d20351ae6ea8a5584b02c9c31f02e308e374ebee1f88ec6"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "name": "phone-localization.png",
+      "scenario": "PR42 v1 Localizable.xcstrings, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "6f7d78d9a657116625951fd7b347570ed0833cc6c120f03c16c3c955ce6b38fb"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "name": "phone-assets.png",
+      "scenario": "PR42 v1 SearchResults.svg, full PR comparison, rendered preview, no review/skip receipts.",
+      "sha256": "c11100edf4eb00956a9efacebcc77f96872079b5af989cebd19a77dcc621b953"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "name": "phone-unavailable.png",
+      "scenario": "PR42 v1 Design.psd: absent binary preview, truthful object sizes from pointer, no Mark reviewed.",
+      "sha256": "d81ff6f4954ea7621ebdc7b7c46ef3dbc4191774400238a04cc322e6e02de340"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "name": "phone-document-source.png",
+      "scenario": "PR42 README reviewed at v1 then v2 link-target-only edit. Source comparison is v1 \u2192 v2, horizontally scrolled to reveal the changed URL suffix.",
+      "sha256": "98c873cc34cebc601d92d93b065a8ec9d13f6866e8b1101b7908f013f0eea7ac"
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "initialCodeMetrics": {
+        "paneTop": 195,
+        "paneHeight": 648,
+        "firstCodeRowTop": 194,
+        "firstCodeTableTop": 195
+      },
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "name": "tablet-unavailable.png",
+      "scenario": "Independent reviewer final Design.psd unavailable metadata inspection; concise Object bytes label preserves readable object-ID column.",
+      "sha256": "283abf7279df64f23137e019818465de6b56ce2dc3983dac0de130fe5c807283"
+    }
+  ],
+  "directFileLoadAndMark": "passed",
+  "archives": [
+    {
+      "path": "iteration-01.html",
+      "commit": "2e3653877bf141964805d417eac0b94c03a24c6a",
+      "sha256": "9268a1a8fb1207844b305880821fc9dfe3978c6042157383e0cdd81b007cd2d2",
+      "byteIdentity": "passed"
+    },
+    {
+      "path": "iteration-02.html",
+      "commit": "e1c1059cf28a2954a0513d2514e7d0b7be9c34dd",
+      "sha256": "78aa083a6350417961967a75ef26788c734b9e3f445d39abbb16e262ec9e3a8b",
+      "byteIdentity": "passed"
+    },
+    {
+      "path": "iteration-03.html",
+      "commit": "58c13ac56f87688548887172fef6f39e818bc819",
+      "sha256": "f2adc670df7668d0c99d79f3ac0d9abeea3df701f56a53e1373de331c2eb274f",
+      "byteIdentity": "passed"
+    }
+  ],
+  "independentReview": {
+    "conclusion": "No actionable findings remain",
+    "finalHTMLSHA256": "fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00",
+    "initialSourceSHA256": "54e72c65497f2edf1ce215d6ad57a56496077ae4cbb38938937a317d8dcf5f50",
+    "scope": "Complete implementation/catalog/current plan contracts and prior fix history; three-size policy/type/sibling/focus checks, prepared diffs, SVG metadata, raw localization, archive identity.",
+    "findings": [
+      {
+        "trigger": "Comparison menu on a remaining file",
+        "failure": "Skip aria-label did not contain its visible action phrase; axe label-content-name-mismatch.",
+        "correction": "Use visible label/helper as accessible name; group labels include count, remaining and separating whitespace.",
+        "verification": "Individual and grouped menus pass all three widths; final feature WCAG scans pass."
+      },
+      {
+        "trigger": "Unavailable Design.psd metadata",
+        "failure": "Referenced binary size was labelled Pointer size.",
+        "correction": "Label Object bytes; existing warning identifies pointer provenance. Source explicitly identifies pointer-only content.",
+        "verification": "Metadata and source reviewed at all three sizes; Mark reviewed unavailable."
+      },
+      {
+        "trigger": "First corrected size label in tablet tiled card",
+        "failure": "Long provenance label squeezed object ID into a 22px-wide, 363px-tall column.",
+        "correction": "Concise Object bytes preserves truth while warning supplies provenance.",
+        "verification": "Final tablet object ID is 99px wide / 66px tall, visually reviewed."
+      }
+    ],
+    "siblingChecks": [
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "checks": [
+          "independent review child file/expansion/format/comparison",
+          "shared actual review and skip receipts with distinct comparison bases",
+          "zero remaining reports skips separately",
+          "explicit review clears available skip only",
+          "group undo no receipt creation",
+          "last-child close/Escape/reopen/Research Enter",
+          "search/source/Review unavailable fallback"
+        ],
+        "errors": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "checks": [
+          "independent review child file/expansion/format/comparison",
+          "shared actual review and skip receipts with distinct comparison bases",
+          "zero remaining reports skips separately",
+          "explicit review clears available skip only",
+          "group undo no receipt creation",
+          "last-child close/Escape/reopen/Research Enter",
+          "search/source/Review unavailable fallback"
+        ],
+        "errors": []
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": [
+          "independent review child file/expansion/format/comparison",
+          "shared actual review and skip receipts with distinct comparison bases",
+          "zero remaining reports skips separately",
+          "explicit review clears available skip only",
+          "group undo no receipt creation",
+          "last-child close/Escape/reopen/Research Enter",
+          "search/source/Review unavailable fallback"
+        ],
+        "errors": []
+      }
+    ],
+    "finalMetadataChecks": [
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "hash": "fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00",
+        "metadataMetrics": [
+          {
+            "width": 364,
+            "grid": "66.8438px 263.156px",
+            "objectIdWidth": 263,
+            "objectIdHeight": 33
+          },
+          {
+            "width": 364,
+            "grid": "66.8438px 263.156px",
+            "objectIdWidth": 263,
+            "objectIdHeight": 33
+          }
+        ],
+        "errors": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "hash": "fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00",
+        "metadataMetrics": [
+          {
+            "width": 200,
+            "grid": "66.8438px 98.6719px",
+            "objectIdWidth": 99,
+            "objectIdHeight": 66
+          },
+          {
+            "width": 200,
+            "grid": "66.8438px 98.6875px",
+            "objectIdWidth": 99,
+            "objectIdHeight": 66
+          }
+        ],
+        "errors": []
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "hash": "fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00",
+        "metadataMetrics": [
+          {
+            "width": 379,
+            "grid": "66.8438px 278px",
+            "objectIdWidth": 278,
+            "objectIdHeight": 33
+          },
+          {
+            "width": 379,
+            "grid": "66.8438px 278.016px",
+            "objectIdWidth": 278,
+            "objectIdHeight": 33
+          }
+        ],
+        "errors": []
+      }
+    ],
+    "unfilteredAuditLimits": [
+      "page-has-heading-one",
+      "region (#arrange-help outside landmark)"
+    ],
+    "unfilteredAuditLimitNote": "Inherited best-practice notices outside selected WCAG tags; not introduced findings or a complete accessibility audit."
+  },
+  "limits": [
+    "Two UI revisions cannot exercise a third live push after reviewing v1 and skipping v2. Later-head selection was a separate seeded content-identity/disposition/basis assertion; no third revision rendering.",
+    "Prepared fixtures do not establish Git, Markdown/catalog parsing, LFS/provider/network integration, native windows/execution, persistence or sync.",
+    "Viewport checks do not establish native device or VoiceOver acceptance.",
+    "Default web lint globs exclude this HTML. Native suites, image snapshots and SwiftFormat were not run for this browser-only slice.",
+    "Fourth user evaluation remains pending; experiment status executing and issue In Review."
+  ],
+  "staticChecks": {
+    "inlineJavaScriptSyntax": "passed",
+    "localLinksAndAnchors": 84,
+    "markdownFences": "passed",
+    "captureHashes": 16,
+    "archiveByteIdentities": 3,
+    "diffWhitespace": "passed"
+  }
+}
