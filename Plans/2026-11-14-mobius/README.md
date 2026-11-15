@@ -3,12 +3,13 @@
 ## Planning checkpoint
 
 - Updated: 2026-11-14; repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`.
-- Operation: Revise the plan following product discovery. Product implementation is not requested.
+- Operation: Execute 01a in a background agent while continuing production-plan discussion here. Native implementation is not requested.
 - Requested scope and source: The user's 2026-11-14 request, Q-01–Q-07 answers, and Q-13–Q-18 follow-ups on review continuity and prototype priority; see [question history](#questions-and-resolutions).
-- Stage: Handoff; revised plan for review.
+- Stage: Prototype execution in an isolated worktree; production planning continues separately.
 - Completed: Initial research and publication in [PR #497](https://github.com/kyleve/Stuff/pull/497); integrated one workspace per PR, file-top resumption, per-file remaining work, and a lightweight mockup across all three layouts. [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) tracks plan delivery.
-- Pending: PR review and merge. Q-08–Q-12 remain at their technical refinement gates. The mockup must supply interaction evidence before the durable model becomes executable.
-- Next action: Await a request to execute [01a](01a-workspace-prototype.md#resume-point), then inspect current feedback and repository state. Choosing the first deliverable does not itself request its implementation.
+- Pending: Prototype implementation, browser validation, and user feedback; PR review and merge. Q-08–Q-12 remain at their technical refinement gates. The mockup must supply interaction evidence before the durable model becomes executable.
+- Execution authorization: The user subsequently requested background execution of 01a on 2026-11-14. The prototype runs on `codex/mobius-prototype` in `/Users/kve/.codex/worktrees/mobius-prototype/Stuff`, based on `4e70677e7`. Its branch owns the artifact and 01a execution evidence; this branch owns the overview and production-plan discussion.
+- Next action: The background agent implements and validates [01a](01a-workspace-prototype.md#resume-point), then returns the artifact for user evaluation. Continue production discovery here without assuming the prototype has already validated its hypotheses.
 
 ## Outcome and scope
 
@@ -56,7 +57,7 @@ R-01–R-07 and R-12 derive from the user's product choices. R-08–R-11 support
 
 | ID | Category | Exclusion | Reason |
 | --- | --- | --- | --- |
-| X-01 | Explicitly avoided | Product implementation during this planning operation. | Only planning is authorized. |
+| X-01 | Explicitly avoided | Native product implementation during the current prototype operation. | The execution request covers the lightweight 01a mockup. |
 | X-02 | Not required | Other Git hosting providers, a general code editor, Git push/merge tools, and automatic AI reviews. | The selected workflow is GitHub review. |
 | X-03 | Explicitly avoided | Marking files reviewed merely because they were opened; using scroll offsets as review receipts; posting personal progress as GitHub comments. | These recreate the continuity problem. |
 | X-04 | Explicitly avoided | Executing downloaded PR code, arbitrary native hot loading, or promising a general build service. | Q-06 selected a later investigation. |
@@ -350,9 +351,9 @@ User answers came from this chat on 2026-11-14. Q-13–Q-18 refine the original 
 ## Review and delivery
 
 - Plan review: [PR #497](https://github.com/kyleve/Stuff/pull/497), ready for review. [STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) remains In Review until merge and acceptance verification.
-- Implementation: Not requested or started.
+- Implementation: 01a is authorized and running in an isolated background worktree. Native plans 01–07 have not started.
 - Review focus: Independent PR workspaces; per-file remaining work and full-diff access; file-top resumption; prototype learning before the durable model; sync as a release gate.
 
 ## Outcome
 
-The revised series starts with the lightweight, three-layout mockup in 01a. Plans 01–07 remain outlines informed by later evidence. Execution awaits a new request.
+The revised series starts with the lightweight, three-layout mockup in 01a, now authorized for background execution. Plans 01–07 remain outlines informed by later evidence and production discussion.
