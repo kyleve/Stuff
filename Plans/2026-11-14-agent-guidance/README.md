@@ -5,10 +5,10 @@
 - Updated: 2026-11-14; baseline `b629d56ac`.
 - Operation: execute the user-approved native Claude discovery follow-up.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: deliverables 01–05 are complete. [06 — Native Claude discovery](06-native-claude.md) is executing.
+- Stage: all six deliverables are complete, including [06 — Native Claude discovery](06-native-claude.md).
 - Completed: original implementation, relocation verification, installer repair, offline validation, CI enforcement, focused checks, independent static review, reusable maintenance skill, and monthly schedule.
-- Pending: publication of deliverable 06. Implementation, focused checks, and independent re-review pass. Linear linking remains unavailable.
-- Next action: publish the compatibility migration and Linux bootstrap rename as separate commits, then update PR #499.
+- Pending: hosted CI and PR review. Linear linking remains unavailable.
+- Next action: address PR feedback if requested. Monthly maintenance starts from current main after the skill and checker merge.
 - Publication: user explicitly approved public publication on 2026-11-14. [PR #499](https://github.com/kyleve/Stuff/pull/499) is open and ready for review.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
@@ -111,7 +111,7 @@ These reviews were not live skill evaluations.
 
 R-01 through R-04 are implemented, verified, and published in [PR #499](https://github.com/kyleve/Stuff/pull/499).
 The newer main-branch Device Layout Lab invariant is preserved in its scoped owner. Native files remain identical to main.
-Deliverables 01–05 are complete. Deliverable 06 records the subsequent user request.
+All six deliverables are complete. Deliverable 06 records the native Claude migration and the requested Linux bootstrap rename.
 The normalization skill is implemented and verified; its monthly schedule is active with explicit user approval.
 The earlier automatic-review publication blocker was resolved by explicit user approval. Publication used the existing SSH credential because the OAuth credential lacked workflow scope.
 The full requirements, decisions, execution order, and review record were restored in deliverable 04 after an earlier publication update truncated this overview.

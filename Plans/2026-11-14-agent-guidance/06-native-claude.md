@@ -1,6 +1,6 @@
 # Shared instructions and linked Claude skills
 
-Status: executing
+Status: complete
 Dependencies: [05](05-deduplication.md)
 Requirements: R-01 through R-06 and X-01 through X-04 in the [overview](README.md).
 Authorization: Q-08 and Q-09. Reviewed against `aaae5b0f8` on 2026-11-14.
@@ -42,7 +42,9 @@ Independent review found three defects: interrupted updates blocked retries, nes
 Each is corrected with a regression. The author's check also found inconsistent handling of canonical asset symlinks. Sync and check now share source validation.
 The complete follow-up received independent re-review against `aaae5b0f8`. No actionable findings remain.
 The Linux bootstrap move preserves its executable body and mode. Its new path and Codex caller pass static inspection and pinned ShellCheck.
-Publication remains pending. Live Claude loading, network installation, and Linux bootstrap execution are outside the verification scope.
+Published in [PR #499](https://github.com/kyleve/Stuff/pull/499): migration `31e50ce0d` and bootstrap rename `90fa9ea7c`.
+The PR description contains the final behavior, review findings, and validation. The [naming comment received a reply](https://github.com/kyleve/Stuff/pull/499#discussion_r4576744748).
+Hosted CI is running. Live Claude loading, network installation, and Linux bootstrap execution are outside the verification scope.
 On a migration conflict, keep the originals and report the exact path for reconciliation.
 On apply failure, restore the prior directory and marked instructions. Preserve recovery material if rollback fails.
-Resume with publication.
+Resume with PR feedback.
