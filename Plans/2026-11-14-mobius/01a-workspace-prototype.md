@@ -165,15 +165,36 @@ The owned loopback server is stopped after inspection; the artifact opens direct
 - Readiness disposition: `draft` → `ready` after that review, then `ready` → `executing` under the user's explicit instruction to proceed with iteration 2. Implementation and second-round acceptance evidence are still pending.
 
 - [x] Review the revised bounded method and record readiness.
-- [ ] Build independent workspace presentation and multiple child views.
-- [ ] Exercise both ownership layers and original review behavior across three sizes.
-- [ ] Record fresh independent review and second-iteration captures.
-- [ ] Publish the coordinated stack update and collect second-round feedback.
+- [x] Build independent workspace presentation and multiple child views.
+- [x] Exercise both ownership layers and original review behavior across three sizes.
+- [x] Record fresh independent review and second-iteration captures.
+- [ ] Publish the coordinated stack update.
+- [ ] Collect and integrate second-round user feedback.
+
+### Iteration 2 implementation and evidence
+
+The [revised artifact](Prototype/index.html) separates outer workspace presentation from owned child views. Review, Source, Research, and explicitly simulated Preview instances have unique IDs and independent navigation. Review baselines and the draft remain shared within one PR. Workspace return restores arrangement and last-focused identity; each resumed review starts its own selected file at the top. Tiled, bounded floating, and focused arrangements are exploratory defaults, with compact view selection retaining the wider arrangement.
+
+The first-pass [runnable archive](Prototype/iteration-01.html) exactly matches `2e3653877` and its existing evidence remains intact. New captures and [exact-source verification](Prototype/evidence/iteration-02/verification.json) are separate:
+
+| Viewport | Evidence |
+| --- | --- |
+| 1440 × 1000 | [Tiled child views](Prototype/evidence/iteration-02/desktop-tiles.png), [outer workspace windows](Prototype/evidence/iteration-02/desktop-windows.png). |
+| 834 × 1112 | [Floating child views](Prototype/evidence/iteration-02/tablet-float.png). |
+| 390 × 844 | [Restored preview focus](Prototype/evidence/iteration-02/phone-preview.png). |
+
+Complete three-size scenarios passed through Playwright 1.64.1 / Chromium 156.0.8078.4. They created multiple Review, Source, Research, and Preview instances; verified independent files/queries/sample states and shared PR progress; changed outer presentation without replacing identities; restored arrangement and non-review focus; resumed each review file at its top; and repeated the original per-file remaining/full-diff scenario. Closure checks preserve focus when a background child or an inactive workspace's child closes; closing the last child provides keyboard recovery through New view. Reset restores the initial fixture.
+
+Pointer and phone touch taps, keyboard search, and wide-layout pointer/keyboard movement and resizing passed. Checked initial, post-push/saved-draft, and reopened-empty-workspace states had zero axe WCAG 2/2.1 A/AA violations. No page/console errors, failed loads, external requests, or document-level horizontal overflow were observed. Direct file loading and mark-reviewed behavior passed. Final inline JavaScript syntax, local links, and diff whitespace were checked. Native tests and SwiftFormat remain outside this browser-only change; default repository web lint globs do not cover the HTML.
+
+Fresh independent review found and rechecked floating z-order, background/inactive-workspace closure, empty-workspace focus recovery, keyboard scrolling in the preview, and Enter submission. The search change handler was rerendering a text input's form before implicit submission; restricting it to its owned select controls fixes that trigger. Modal dismissal now completes synchronously, preventing queued close callbacks from rerendering or stealing focus after another interaction begins. A final compact-selector correction keeps the focused child visible, including after PR/presentation changes. No actionable review findings remain. These checks do not establish native, VoiceOver, actual execution, persistence, provider, or sync behavior.
+
+Parent coordination rebased the unchanged first-pass artifact/readiness record onto parent `fcee86b3b0` at child `46d284bbafa` before implementation. Publication updates the existing PR #500 and its existing screen-evidence comment; STU-330 stays open. The next decision is the user's evaluation of this corrected workspace model, not readiness to implement native code.
 
 ## Resume point
 
-Execute the reviewed iteration-2 browser method under the user's authorization; readiness is established, but no revised UI has yet been built. Coordinate parent/child stack mutations before publishing. Preserve first-pass evidence and collect second-round feedback before refining or implementing the native foundation.
+Publish the reviewed iteration-2 artifact and evidence in the coordinated stack, then obtain the second user evaluation. Coordinate parent/child stack mutations before publishing. Preserve first-pass evidence and collect second-round feedback before refining or implementing the native foundation.
 
 ## Outcome
 
-First-pass evidence is retained and its evaluation calls for a revised workspace model. Iteration 2 is ready for authorized execution; no second-pass runtime or acceptance result is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+First-pass evidence is retained and its evaluation calls for a revised workspace model. Iteration 2 is built and browser-verified; the second user evaluation remains pending, so the experiment stays `executing`. No native or product acceptance is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.

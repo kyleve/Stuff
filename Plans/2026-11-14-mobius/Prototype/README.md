@@ -1,6 +1,6 @@
 # Mobius workspace study
 
-Open [index.html](index.html) in a browser. It is a self-contained, offline mockup using synthetic PRs; no installation or account is needed. Changes live only in memory. **Reset** or reloading restores the initial fixture.
+Open [index.html](index.html) in a browser. This is the second iteration: each PR is a logical workspace, presented as a tab or a window, containing independent review, source, research, and simulated-preview views. It is a self-contained offline mockup. No installation or account is needed. **Reset** or reloading restores the sample session.
 
 To serve it locally from the repository root:
 
@@ -8,33 +8,49 @@ To serve it locally from the repository root:
 python3 -m http.server 8765 --bind 127.0.0.1 --directory Plans/2026-11-14-mobius/Prototype
 ```
 
-Visit `http://127.0.0.1:8765`; stop the server when finished. The canvas selector previews narrow and wide layouts within the available browser width. Resizing the browser works too.
+Visit `http://127.0.0.1:8765`; stop the server when finished. The canvas selector previews layouts within the available browser width. Resizing the browser works too.
+
+## Explore the workspace
+
+1. PR 42 starts with a review, supporting source, and simulated preview in separate child views. Use **New view** to open another Review, Source, Research, or Preview. Multiple views of the same kind are supported.
+2. In two Review views, choose different files or comparisons. Their navigation stays independent; marking a file reviewed updates shared progress for that PR. Source views have independent file selectors. Each Research view keeps its own query; results open a new Source view.
+3. Use **Tabs / Windows** in the app bar to change how the PR workspaces are presented. It keeps the same workspace contents, child identities, progress, and focus. The window shells are simulated within the browser.
+4. On wide layouts, **Tile**, **Float**, and **Focus** explore child arrangements. In Float, drag a title bar to move a view or use its corner to resize it. With the title focused, arrow keys move and Shift+arrow keys resize; the resize handle also accepts arrow keys.
+5. Compact layouts show the focused child and a scrollable view selector while retaining the wider arrangement. Switch to a source, research, or preview child, leave for PR 43, and return: that child and the workspace arrangement are restored. Resuming a Review child starts its own selected file at the top.
+6. Change the preview's sample state among results, empty, and loading. Add a second Preview to compare states. The content is explicitly simulated; no code is executing.
+7. Close a child to remove that view while retaining PR progress. Closing an unfocused child does not steal focus, including in another visible workspace. Closing the last child leaves an empty workspace where **New view** starts another view. These are mockup behaviors, not a settled native scene-lifecycle specification.
+
+The modes and default layouts are hypotheses to evaluate. This prototype does not commit every native platform to every mode, or define production scene ownership and synchronization.
 
 ## Try the return visit
 
-1. In PR 42, mark `Parser.swift` reviewed. Choose `Stable.swift` and mark it reviewed. Leave `Store.swift` unreviewed. On a phone, the sidebar button beside the current filename opens the file list.
-2. Use **Simulate push**. Choose Parser in **Remaining**: only its new edit appears. Store shows its full current PR diff. Stable has no remaining work and remains accessible through **Full PR diff**.
-3. Open Parser’s full PR diff, then return to remaining work. Its reviewed baseline stays at v1 until you explicitly mark it reviewed again. Marking it at v2 keeps the file visible with a caught-up message.
-4. Open **Browse supporting source**, then the repository search button. Search for `WorkspaceID` and open `Reference.swift`. These become tabs within the same PR workspace.
-5. Save a review draft. Return to a long full diff, scroll down, and switch to PR 43. On phone and tablet, the sidebar button beside the PR title opens workspaces.
-6. Return to PR 42: the last review file opens at its top; its reference/search tabs, query, draft, and progress remain. PR 43 has its own state, even though it shares the sample file paths.
+1. In PR 42, mark `Parser.swift` and `Stable.swift` reviewed at v1; leave `Store.swift` unreviewed.
+2. **Simulate push** advances only that PR to v2. In Remaining, Parser shows its new edit, Store shows its full current PR diff, and Stable has no remaining changes.
+3. Open Parser's full PR diff, then return to Remaining. Its baseline stays at v1 until **Mark reviewed**. Marking it at v2 updates all review views in that PR while preserving each view's selected file and comparison.
+4. Open two Research views with different queries, supporting source, and a review draft. Switch to PR 43 and back. The PRs remain independent even though their fixtures share file paths.
+5. Leave while a non-review child is focused and confirm it returns focused. Separately, scroll a review, leave it, and resume it: the same selected file opens at its top.
 
-## Fixture boundaries
+## Boundaries and retained history
 
-Each PR starts at v1 with three unreviewed files. A single simulated push advances only the active PR to v2. It changes Parser and Store; Stable is unchanged. Marking a file updates only that PR/file’s baseline. Navigation, comparison selection, reading source, search, and refresh do not mark files reviewed.
+The current artifact has two synthetic PRs and two prepared revisions. Search covers four sample files. Reading, navigating, changing presentation, and opening views never mark files reviewed. Drafts are private session notes; nothing is submitted. There is no editing, cloning, or fork feature: the user clarified that “fork” meant “view.”
 
-The code and comparisons are prepared samples, not an implementation of Git diff or compilable application code. Search covers four sample files. Refresh reports the current sample revision; only Simulate push advances it. Drafts are private session notes with no submit action. There is no authentication, backend, durable storage, provider integration, native windowing, or device sync.
+Prepared code comparisons do not implement Git or represent compilable application code. There is no authentication, backend, durable storage, provider integration, actual OS windowing, native execution, or device sync. The mockup state schema is not a production schema. The experiment stays executing until the second user evaluation is recorded in [plan 01a](../01a-workspace-prototype.md).
 
-The layout is a hypothesis for evaluation. This artifact’s state schema is not a proposed production schema. The experiment remains executing until user feedback is recorded in [plan 01a](../01a-workspace-prototype.md).
+The first iteration flattened a workspace into one document-tab group. The user's evaluation required the ownership/presentation correction above. Its [runnable artifact](iteration-01.html) is byte-for-byte the original [revision `2e3653877`](https://github.com/kyleve/Stuff/blob/2e3653877bf141964805d417eac0b94c03a24c6a/Plans/2026-11-14-mobius/Prototype/index.html). Its [verification record](evidence/verification.json) and [desktop](evidence/desktop.png), [tablet](evidence/tablet.png), and [phone](evidence/phone.png) captures remain historical evidence. They are not acceptance of the revised model.
 
-## Evidence
+## Iteration 2 evidence
 
-Captured from Chromium in light appearance, at 1× device scale, after exercising both workspaces. Images are retained as the experiment’s design evidence, not native snapshot references.
+Live Chromium captures in light appearance, at 1× device scale, using synthetic data:
 
 | Capture | Viewport | What to inspect |
 | --- | --- | --- |
-| [Desktop](evidence/desktop.png) | 1440 × 1000 | Independent PR rail, retained source/search tabs, and full Parser context after the push. |
-| [Tablet](evidence/tablet.png) | 834 × 1112 | File list beside Parser’s new edits since v1, with Store still unreviewed. |
-| [Phone](evidence/phone.png) | 390 × 844 | Compact navigation and Store’s full PR diff after the push. Long code lines scroll horizontally within the code pane. |
+| [Tiled children](evidence/iteration-02/desktop-tiles.png) | 1440 × 1000 | One logical PR workspace containing review, source, and preview views together. |
+| [Outer workspace windows](evidence/iteration-02/desktop-windows.png) | 1440 × 1000 | Two distinct PR window shells, each retaining its own child collection and focus. |
+| [Floating children](evidence/iteration-02/tablet-float.png) | 834 × 1112 | Bounded freeform placement with a simulated preview focused over code views. |
+| [Compact preview](evidence/iteration-02/phone-preview.png) | 390 × 844 | Return to the last-focused preview; other views remain available in the selector. |
 
-[Verification record](evidence/verification.json) identifies the exact HTML content, viewports, checks, and limits. Browser automation exercised the sequence above, PR43’s own incremental comparison, reset, pointer and touch taps, keyboard search/marking, and drawer mode → Escape focus restoration. The three scenarios passed; checked states had no runtime/load errors, external requests, or axe WCAG 2/2.1 A/AA violations. These results do not establish native, VoiceOver, real Git, persistence, provider, or sync acceptance.
+[Verification record](evidence/iteration-02/verification.json) identifies the final source and checks. Complete browser scenarios passed at all three sizes, covering independent same-kind views, shared review progress, outer presentation changes, arrangement/focus restoration, per-child review resumption, simulated-preview state, closure/recovery, and Reset. Pointer/touch taps, keyboard submission, and wide-layout pointer/keyboard movement and resizing were exercised. Checked states had no runtime/load errors, external requests, or axe WCAG 2/2.1 A/AA violations.
+
+Fresh independent review verified corrections for floating order, background/inactive-workspace closure, empty-workspace focus, preview keyboard scrolling, and search submission. A generic input-change rerender detached the search form before Enter could submit it; the handler now owns only its select controls. Modal dismissal completes synchronously so queued close events cannot replace a newly active form. The compact selector keeps its active child visible after rendering.
+
+The observations are browser evidence, not native, VoiceOver, actual execution, persistence, provider, or sync acceptance. Automated accessibility scans are not a complete accessibility audit.

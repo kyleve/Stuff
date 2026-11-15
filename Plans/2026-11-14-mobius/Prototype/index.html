@@ -4,234 +4,256 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Mobius — a place for every review</title>
+<title>Mobius — a workspace for every review</title>
 <style>
-:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #252831; background: #ecece8; --ink: #252831; --muted: #626773; --line: #e2e3e7; --accent: #5841b7; --tint: #eeeafb; --green: #237354; }
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #272b35; background: #eaeae7; --ink: #272b35; --muted: #626774; --line: #dddfe5; --accent: #5942b6; --tint: #efebfa; }
 * { box-sizing: border-box; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 body { margin: 0; }
-button, input, textarea, select { font: inherit; }
-button { color: inherit; cursor: pointer; }
-button:disabled { cursor: default; opacity: .55; }
-button, select { touch-action: manipulation; }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #8b75d8; outline-offset: 3px; }
-button { border: 0; background: none; }
-svg { width: 18px; height: 18px; flex-shrink: 0; vertical-align: middle; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; touch-action: manipulation; }
+button:disabled { opacity: .55; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid #8c76dc; outline-offset: 2px; }
+button svg, button span { pointer-events: none; }
+svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; flex-shrink: 0; }
 h1, h2, h3, p { margin: 0; }
-button .label { pointer-events: none; }
-.lab { max-width: 1536px; margin: auto; padding: 18px 24px 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.lab-title { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #565b64; }
-.lab-title strong { color: var(--ink); font-size: 15px; letter-spacing: -.3px; }
-.sample { border: 1px solid #cdced4; border-radius: 5px; padding: 3px 6px; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
-.lab-controls { display: flex; align-items: center; gap: 12px; font-size: 12px; }
-.lab-controls select { border: 1px solid #c8cad1; background: #f9f9f7; border-radius: 6px; padding: 6px; max-width: 128px; }
-.lab-controls button { min-height: 36px; color: #555b65; text-decoration: underline; text-underline-offset: 3px; }
-.stage { width: calc(100% - 48px); max-width: 1488px; margin: 0 auto; container-type: inline-size; transition: max-width .2s; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.lab { max-width: 1600px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 22px 12px; font-size: 12px; color: var(--muted); }
+.lab strong { color: var(--ink); font-weight: 600; }
+.lab-title, .lab-controls { display: flex; align-items: center; gap: 10px; }
+.lab-controls select { padding: 5px 7px; border: 1px solid #c6c8cf; background: #f8f8f6; border-radius: 6px; font-size: 11px; }
+.lab-controls button { min-height: 32px; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.sample { border: 1px solid #c6c8cf; border-radius: 4px; padding: 3px 5px; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.stage { max-width: 1556px; width: calc(100% - 44px); margin: auto; container-type: inline-size; }
 .stage[data-size="phone"] { max-width: 390px; }
 .stage[data-size="tablet"] { max-width: 834px; }
 .stage[data-size="desktop"] { max-width: 1440px; }
-.shell { height: calc(100dvh - 115px); min-height: 520px; max-height: 1120px; background: #fff; border: 1px solid #d7d8dc; border-radius: 13px; box-shadow: 0 10px 35px #2c314010; overflow: hidden; display: flex; }
-.workspace-nav { width: 226px; flex-shrink: 0; background: #f6f6f8; border-right: 1px solid var(--line); padding: 20px 12px 14px; display: flex; flex-direction: column; }
-.brand { display: flex; align-items: center; gap: 10px; font-size: 21px; letter-spacing: -.8px; font-weight: 650; padding: 0 8px 28px; }
-.brand-mark { display: inline-grid; place-items: center; color: var(--accent); width: 28px; font-size: 39px; font-weight: 400; line-height: 24px; }
-.overline { color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; }
-.nav-heading { display: flex; justify-content: space-between; padding: 0 10px 10px; }
-.workspace-card { width: 100%; text-align: left; padding: 13px 11px; border-radius: 9px; margin-bottom: 6px; border: 1px solid transparent; }
-.workspace-card.active { background: white; border-color: #dfdce9; box-shadow: 0 2px 5px #25243e07; }
-.workspace-card:hover { background: #eeedf3; }
-.workspace-card.active:hover { background: white; }
-.workspace-number { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #626773; margin-bottom: 7px; }
-.workspace-number svg { width: 14px; height: 14px; color: #337857; }
-.workspace-card strong { display: block; font-size: 13px; line-height: 1.5; font-weight: 600; letter-spacing: -.1px; }
-.workspace-card small { display: block; margin-top: 8px; color: #626773; font-size: 11px; }
-.workspace-card.active small { color: var(--accent); }
-.nav-footer { margin-top: auto; padding: 18px 9px 0; border-top: 1px solid var(--line); display: flex; gap: 9px; align-items: center; color: #626773; font-size: 11px; line-height: 1.5; }
-.avatar { width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: #e5dfd2; color: #5d5340; }
-.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.workspace-header { padding: 21px 25px 18px; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
-.breadcrumb { color: var(--muted); font-size: 11px; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
-.breadcrumb .slash { color: #a4a7ae; }
-h1 { font-size: 21px; line-height: 1.25; font-weight: 630; letter-spacing: -.6px; }
-.pr-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 11px; color: var(--muted); font-size: 11px; }
-.open-pill { display: inline-flex; align-items: center; gap: 5px; color: #24694b; background: #e9f4ee; padding: 3px 7px; border-radius: 10px; }
-.open-pill svg { width: 12px; height: 12px; }
-.branch { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; }
-.header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #dcdde3; border-radius: 7px; padding: 7px 11px; background: #fff; font-size: 12px; font-weight: 550; white-space: nowrap; }
-.button:hover { background: #f4f3f8; }
-.button.primary { color: #fff; border-color: var(--accent); background: var(--accent); }
-.button.primary:hover { background: #483397; }
-.button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
-.icon-button { display: inline-grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 6px; color: var(--muted); }
-.icon-button:hover { background: #eeedf3; }
-.workspace-toggle { display: none; }
-.tabs { display: flex; align-items: stretch; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafafb; min-height: 45px; overflow-x: auto; padding: 0 18px; gap: 5px; flex-shrink: 0; }
-.document-tab { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; border-bottom: 2px solid transparent; white-space: nowrap; padding: 0 12px; }
-.document-tab svg { width: 15px; height: 15px; }
-.document-tab.active { border-bottom-color: var(--accent); color: var(--accent); }
-.tab-spacer { flex: 1; }
-.tabs .icon-button { margin: 4px 0; }
-.content { min-height: 0; flex: 1; display: flex; }
-.file-nav { width: 222px; flex-shrink: 0; background: #fcfcfd; border-right: 1px solid var(--line); padding: 18px 12px; overflow: auto; }
-.segmented { display: flex; padding: 3px; border: 1px solid #e0e0e6; border-radius: 7px; background: #f0f0f4; }
-.segmented button { flex: 1; padding: 7px 5px; border-radius: 4px; font-size: 11px; color: #606574; white-space: nowrap; }
-.segmented button[aria-pressed="true"] { background: #fff; color: #292c36; box-shadow: 0 1px 3px #25243e17; }
-.file-summary { display: flex; justify-content: space-between; align-items: center; padding: 23px 5px 12px; font-size: 10px; color: var(--muted); }
-.file-path { color: #626773; font-size: 10px; margin: 3px 7px 10px; }
-.file-item { width: 100%; text-align: left; display: flex; align-items: flex-start; gap: 8px; padding: 11px 9px; border-radius: 7px; margin-bottom: 4px; }
-.file-item.active { background: var(--tint); }
-.file-item:hover { background: #f0eef7; }
-.file-item svg { margin-top: 2px; width: 15px; height: 15px; color: #858992; }
-.file-item.active svg { color: var(--accent); }
-.file-item strong { display: block; font-size: 12px; font-weight: 550; }
-.file-item small { display: block; font-size: 10px; color: #626773; margin-top: 5px; }
-.file-item .new { color: var(--accent); }
-.file-item .done { color: var(--green); }
-.file-note { margin: 18px 7px; color: #626773; font-size: 11px; line-height: 1.65; }
-.all-clear { margin: 8px 5px 20px; padding: 13px; color: #347657; font-size: 12px; line-height: 1.6; border: 1px solid #dcece3; border-radius: 7px; background: #f4faf6; }
-.context-link { width: 100%; text-align: left; border-top: 1px solid var(--line); margin-top: 15px; padding: 17px 7px; display: flex; gap: 7px; font-size: 11px; color: #626773; }
-.context-link svg { width: 14px; height: 14px; }
-.document { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.document-toolbar { min-height: 63px; padding: 13px 22px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); }
-.file-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-.file-title svg { color: #787c86; width: 16px; height: 16px; }
-.file-subtitle { margin-top: 5px; font-size: 10px; color: var(--muted); }
-.toolbar-actions { display: flex; align-items: center; gap: 6px; }
-.reviewed-label { font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 5px; min-height: 36px; }
-.reviewed-label svg { width: 14px; height: 14px; }
-.files-toggle { display: none; }
-.comparison { padding: 11px 22px; min-height: 44px; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #faf9fd; border-bottom: 1px solid #ece9f6; font-size: 11px; color: #635780; }
+.app { height: calc(100dvh - 112px); min-height: 540px; max-height: 1300px; display: flex; flex-direction: column; overflow: hidden; background: #f5f5f8; border: 1px solid #d2d4dc; border-radius: 12px; box-shadow: 0 10px 40px #25273c12; }
+.app-bar { display: flex; align-items: center; padding: 0 16px; gap: 22px; min-height: 59px; border-bottom: 1px solid #d2d4dc; background: #f7f7f9; }
+.brand { display: flex; align-items: center; gap: 7px; font-size: 20px; font-weight: 640; letter-spacing: -.7px; flex-shrink: 0; }
+.brand-mark { font-size: 35px; font-weight: 450; color: var(--accent); line-height: 24px; }
+.workspace-tabs { display: flex; align-items: stretch; gap: 5px; flex: 1; min-width: 0; align-self: stretch; overflow-x: auto; }
+.workspace-tab { display: flex; align-items: center; gap: 8px; min-width: 135px; max-width: 270px; padding: 0 14px; color: #646a77; font-size: 12px; border-bottom: 2px solid transparent; text-align: left; }
+.workspace-tab .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #efedf6; }
+.workspace-tab svg { width: 14px; height: 14px; }
+.workspace-tab .pr-number { font-size: 10px; color: #626774; white-space: nowrap; }
+.segment { display: inline-flex; background: #eaeaf0; padding: 3px; border: 1px solid #dcdde4; border-radius: 7px; gap: 2px; flex-shrink: 0; }
+.segment button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 27px; padding: 5px 9px; border-radius: 4px; font-size: 10px; color: #626774; white-space: nowrap; }
+.segment button[aria-pressed="true"] { background: white; color: #333743; box-shadow: 0 1px 3px #27243818; }
+.segment svg { width: 13px; height: 13px; }
+.outer-space { flex: 1; min-height: 0; overflow: hidden; }
+.outer-space[data-presentation="tabs"] { display: flex; }
+.outer-space[data-presentation="tabs"] .workspace-host:not(.selected) { display: none; }
+.outer-space[data-presentation="windows"] { display: flex; gap: 15px; padding: 15px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: stretch; }
+.workspace-host { min-width: 0; flex: 1; display: flex; flex-direction: column; background: #f0f0f5; container-type: inline-size; }
+.outer-space[data-presentation="windows"] .workspace-host { flex: 0 0 calc(50% - 8px); min-width: 430px; border: 1px solid #c9cbd5; border-radius: 10px; overflow: hidden; box-shadow: 0 7px 17px #25253e0b; scroll-snap-align: center; }
+.outer-space[data-presentation="windows"] .workspace-host.selected { border-color: #9889c5; box-shadow: 0 7px 18px #5942b619; }
+.workspace-heading { padding: 20px 23px 16px; background: #fff; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+.workspace-heading .overline { display: flex; align-items: center; gap: 6px; color: #666b78; font-size: 9px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px; }
+.workspace-heading .overline svg { width: 12px; height: 12px; }
+.workspace-heading h1 { font-size: 20px; font-weight: 630; letter-spacing: -.55px; line-height: 1.3; }
+.workspace-meta { display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 10px; color: var(--muted); }
+.open-pill { color: #226c4b; background: #e9f4ee; border-radius: 8px; padding: 2px 6px; }
+.workspace-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.button { min-height: 34px; border: 1px solid #d5d7df; border-radius: 6px; background: #fff; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 550; white-space: nowrap; }
+.button:hover { background: #f3f0fa; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.button.primary:hover { background: #483597; }
+.button svg { width: 14px; height: 14px; }
+.icon-button { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 5px; color: #626774; flex-shrink: 0; }
+.icon-button:hover { background: #eeebf5; }
+.workspace-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 51px; padding: 8px 15px; }
+.tools-group { display: flex; align-items: center; gap: 10px; }
+.view-count { color: #626774; font-size: 10px; }
+.compact-label { display: none; color: #626774; font-size: 10px; }
+.child-shelf { display: flex; align-items: center; gap: 4px; padding: 0 15px 10px; overflow-x: auto; flex-shrink: 0; }
+.child-tab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; min-height: 31px; border: 1px solid #d5d6df; border-radius: 6px; color: #626774; font-size: 10px; background: #f7f7fa; white-space: nowrap; }
+.child-tab.active { color: var(--accent); border-color: #bdb1dc; background: #f5f1ff; }
+.child-tab svg { width: 13px; height: 13px; }
+.child-canvas { position: relative; flex: 1; min-height: 0; padding: 0 15px 15px; overflow: auto; }
+.child-canvas[data-layout="tiles"] { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(0,1fr); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 12px; }
+.child-canvas[data-layout="tiles"].one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.child-canvas[data-layout="tiles"].two { grid-template-rows: 1fr; }
+.child-canvas[data-layout="tiles"].three .child:first-child { grid-row: span 2; }
+.child-canvas[data-layout="tiles"].many { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: none; grid-auto-rows: minmax(310px,1fr); }
+.child-canvas[data-layout="focus"] { display: flex; }
+.child-canvas[data-layout="focus"] .child { width: 100%; }
+.child-canvas[data-layout="focus"] .child:not(.focused) { display: none; }
+.child-canvas[data-layout="float"] { background-image: radial-gradient(#c7c6d1 .7px,transparent .7px); background-size: 16px 16px; margin: 0 15px 15px; padding: 0; border: 1px solid #dedde7; border-radius: 8px; overflow: hidden; }
+.child-canvas[data-layout="float"] .child { position: absolute; box-shadow: 0 9px 25px #2a224b20; }
+.child { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #d2d4de; background: white; border-radius: 8px; overflow: hidden; }
+.child.focused { border-color: #a18dcf; box-shadow: 0 0 0 1px #a18dcf1a; }
+.child-titlebar { min-height: 37px; display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 2px 5px 2px 11px; background: #fafafd; border-bottom: 1px solid #e4e4ec; }
+.child.focused .child-titlebar { background: #f1edf9; }
+.child-title { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; min-height: 31px; text-align: left; padding: 2px 0; color: #4e5360; font-size: 11px; }
+.child-title strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.child-title svg { width: 14px; height: 14px; color: #6d6288; }
+.child-kind { font-size: 9px; color: #626774; white-space: nowrap; }
+.child-controls { display: flex; align-items: center; gap: 1px; }
+.child-controls .icon-button { width: 27px; height: 27px; }
+.child-controls svg { width: 13px; height: 13px; }
+.child-canvas[data-layout="float"] [data-drag] { cursor: grab; touch-action: none; }
+.child-canvas[data-layout="float"] [data-drag]:active { cursor: grabbing; }
+.child-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.child-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; gap: 8px; border-bottom: 1px solid var(--line); min-height: 54px; }
+.child-toolbar .segment { padding: 2px; }
+.child-toolbar .segment button { font-size: 9px; min-height: 27px; padding: 5px 7px; }
+.child-toolbar .button { font-size: 10px; min-height: 31px; padding: 6px 8px; }
+.reviewed { color: #28704e; font-size: 10px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.reviewed svg { width: 13px; height: 13px; }
+.file-list { display: flex; gap: 3px; align-items: center; padding: 5px 9px; overflow-x: auto; min-height: 34px; border-bottom: 1px solid #e9e9ee; flex-shrink: 0; }
+.file-list button { padding: 5px 7px; border-radius: 4px; font-size: 10px; color: #626774; white-space: nowrap; min-height: 25px; }
+.file-list button[aria-current="true"] { color: var(--accent); background: var(--tint); }
+.file-list small { font-size: 10px; color: #28704e; padding: 5px; }
+.comparison { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 9px 13px; background: #faf8fe; border-bottom: 1px solid #eeeaf7; color: #65577f; font-size: 10px; line-height: 1.5; }
 .comparison strong { font-weight: 550; }
-.comparison button { padding: 4px 0; color: var(--accent); font-size: 11px; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
-.diff-scroll { overflow: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
-.diff-meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 22px; color: #626773; font-size: 10px; }
-.diff-stats { color: #28714e; font-family: ui-monospace, SFMono-Regular, monospace; white-space: nowrap; }
-.diff-table { width: 100%; border-collapse: collapse; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; line-height: 24px; }
-.diff-table td { vertical-align: top; padding: 0; height: 24px; }
-.diff-table .num { min-width: 38px; width: 38px; text-align: right; padding: 0 8px; color: #626773; font-size: 10px; user-select: none; }
-.diff-table .sign { min-width: 24px; width: 24px; text-align: center; user-select: none; }
-.diff-table .code { white-space: pre; padding-right: 24px; }
-.diff-table .add { background: #eef8f1; color: #285f42; }
-.diff-table .delete { background: #fff0ee; color: #8c4541; }
-.diff-table .add .num { background: #e3f1e7; color: #4c705b; }
+.comparison button { color: var(--accent); font-size: 10px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; padding: 4px 0; }
+.pane-scroll { overflow: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
+.diff-meta { padding: 12px 13px; color: #626774; font-size: 9px; display: flex; justify-content: space-between; gap: 10px; }
+.diff-stats { color: #28704e; white-space: nowrap; font-family: ui-monospace,SFMono-Regular,monospace; }
+.diff-table { width: 100%; border-collapse: collapse; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size: 10px; line-height: 23px; }
+.diff-table td { padding: 0; vertical-align: top; }
+.diff-table .num { min-width: 29px; width: 29px; padding: 0 6px; text-align: right; color: #626774; font-size: 9px; user-select: none; }
+.diff-table .sign { min-width: 20px; width: 20px; text-align: center; user-select: none; }
+.diff-table .code { white-space: pre; padding-right: 18px; color: #4e5563; }
+.diff-table .add { background: #edf7f0; }
+.diff-table .delete { background: #fff0ee; }
+.diff-table .add .code, .diff-table .add .sign { color: #286042; }
+.diff-table .delete .code, .diff-table .delete .sign { color: #8b443f; }
+.diff-table .add .num { background: #e2f0e6; color: #4c705b; }
 .diff-table .delete .num { background: #f9e5e2; color: #875e5a; }
-.diff-table .context .code { color: #4e5564; }
-.diff-table .comment { color: #626773; }
-.code-end { padding: 24px 22px 48px; font-size: 10px; color: #626773; }
-.empty-state { padding: 70px 24px; text-align: center; max-width: 420px; margin: auto; }
-.check-circle { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: #eaf5ee; color: #2d8057; margin: 0 auto 16px; }
-.empty-state h2 { font-size: 17px; font-weight: 600; letter-spacing: -.3px; margin-bottom: 9px; }
-.empty-state p { color: var(--muted); font-size: 12px; line-height: 1.8; margin-bottom: 19px; }
-.status-bar { display: flex; justify-content: space-between; align-items: center; min-height: 33px; border-top: 1px solid var(--line); padding: 0 20px; gap: 12px; font-size: 10px; color: #626773; background: #fff; }
-.status-bar span { display: flex; align-items: center; gap: 6px; }
-.status-bar svg { width: 12px; height: 12px; }
-.lab-note { max-width: 1488px; margin: auto; padding: 11px 24px; font-size: 11px; color: #626773; display: flex; justify-content: space-between; gap: 18px; line-height: 1.6; }
-.lab-note strong { color: #404652; font-weight: 550; }
-.search-pane { padding: 24px; overflow: auto; }
-.search-pane h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; margin-bottom: 8px; }
-.search-pane p { font-size: 12px; color: var(--muted); line-height: 1.7; }
-.search-form { display: flex; align-items: center; gap: 8px; margin: 22px 0; }
-.search-form input { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #cbc8d8; border-radius: 7px; font-size: 13px; }
-.search-result { display: flex; flex-direction: column; text-align: left; gap: 8px; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 12px 0; }
-.search-result:hover { background: #faf9fd; }
-.search-result strong { font-size: 12px; font-weight: 550; }
-.search-result code { font-size: 11px; color: #626773; white-space: pre-wrap; }
-.search-help { font-size: 11px; color: #626773; margin-top: 16px; }
-.search-help button { color: var(--accent); text-decoration: underline; padding: 9px 5px; }
-.source-callout { font-size: 11px; color: #626773; padding: 14px 22px; border-bottom: 1px solid var(--line); background: #fafafb; line-height: 1.6; }
-dialog { padding: 24px; border: 1px solid #d9d9e2; border-radius: 13px; color: var(--ink); box-shadow: 0 20px 90px #27203f3b; width: min(480px, calc(100% - 32px)); }
-dialog::backdrop { background: #27283855; }
-.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
-dialog h2 { font-size: 18px; letter-spacing: -.4px; }
-dialog p { font-size: 12px; color: var(--muted); line-height: 1.7; }
-dialog label { display: block; font-size: 12px; margin: 22px 0 8px; }
-dialog textarea { width: 100%; min-height: 145px; resize: vertical; font-size: 13px; line-height: 1.7; border: 1px solid #ccc9d8; border-radius: 7px; padding: 12px; }
-.dialog-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; font-size: 11px; color: var(--muted); }
-.drawer { padding: 0; max-height: calc(100dvh - 40px); width: min(340px, calc(100% - 32px)); }
-.drawer .dialog-heading { padding: 18px 18px 0; }
-.drawer-body { padding: 12px; overflow: auto; }
-.drawer .file-summary { padding-top: 16px; }
-.drawer .workspace-card.active { border-color: #cfc6e5; background: #f4f1fc; }
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); border-radius: 9px; padding: 12px 18px; background: #2b2935; box-shadow: 0 4px 18px #16151c20; color: white; font-size: 12px; z-index: 10; pointer-events: none; }
+.code-end { padding: 18px 13px 30px; color: #626774; font-size: 9px; }
+.empty-state { max-width: 360px; margin: auto; padding: 48px 22px; text-align: center; }
+.empty-state h2 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; margin-bottom: 9px; }
+.empty-state p { color: #626774; font-size: 11px; line-height: 1.8; margin-bottom: 15px; }
+.check-circle { display: grid; place-items: center; width: 39px; height: 39px; margin: 0 auto 14px; border-radius: 50%; background: #e8f3ed; color: #28704e; }
+.source-select { max-width: 70%; padding: 6px 7px; border: 1px solid #d2d4dc; border-radius: 5px; font-size: 11px; background: #fff; }
+.source-note { padding: 8px 13px; font-size: 10px; color: #626774; background: #fafafd; border-bottom: 1px solid #e9e9ef; }
+.search-content { padding: 16px; overflow: auto; flex: 1; }
+.search-content h2 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+.search-content p { color: #626774; font-size: 11px; line-height: 1.7; margin-top: 7px; }
+.search-form { display: flex; gap: 6px; margin: 16px 0; }
+.search-form input { min-width: 0; flex: 1; border: 1px solid #ccc7dc; border-radius: 6px; padding: 9px; font-size: 12px; }
+.search-result { display: block; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 6px; margin-top: 10px; background: #fff; }
+.search-result:hover { background: #faf8ff; }
+.search-result strong { display: block; font-size: 11px; font-weight: 550; }
+.search-result code { display: block; margin-top: 7px; font-size: 10px; color: #626774; white-space: pre-wrap; overflow-wrap: anywhere; }
+.search-result small { display: block; color: var(--accent); font-size: 9px; margin-top: 8px; }
+.example-search { color: var(--accent); padding: 8px 0; font-size: 11px; text-decoration: underline; }
+.preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.simulated-badge { display: inline-flex; align-items: center; gap: 5px; color: #6b536e; font-size: 9px; background: #f7edf7; border: 1px solid #e7d8e7; padding: 3px 5px; border-radius: 4px; white-space: nowrap; }
+.preview-toolbar select { max-width: 120px; padding: 5px; border-radius: 5px; border: 1px solid #d5d1de; background: #fff; font-size: 10px; }
+.preview-stage { background: #f0eef7; flex: 1; min-height: 0; padding: 16px; overflow: auto; }
+.preview-device { border: 1px solid #ccc8db; border-radius: 12px; max-width: 300px; margin: auto; background: #fff; box-shadow: 0 6px 14px #2d244914; padding: 15px; min-height: 190px; }
+.preview-app-name { display: flex; justify-content: space-between; font-size: 13px; font-weight: 650; margin-bottom: 12px; letter-spacing: -.2px; }
+.preview-app-name span { font-size: 9px; font-weight: 400; color: #626774; }
+.preview-search { background: #f3f3f7; border-radius: 6px; padding: 8px; color: #626774; font-size: 10px; margin-bottom: 10px; }
+.preview-item { padding: 9px 0; border-bottom: 1px solid #ededf2; display: flex; gap: 8px; align-items: center; font-size: 11px; }
+.preview-item svg { color: #7b688f; width: 14px; height: 14px; }
+.preview-item small { display: block; margin-top: 4px; font-size: 9px; color: #626774; }
+.preview-empty { text-align: center; padding: 25px 10px; color: #626774; font-size: 11px; line-height: 1.8; }
+.preview-empty strong { display: block; color: #4a4358; }
+.preview-footnote { font-size: 9px; text-align: center; color: #626774; padding-top: 12px; }
+.resize-handle { display: none; position: absolute; bottom: 2px; right: 2px; width: 24px; height: 24px; background: #f3effa; color: #796b94; border-radius: 5px; cursor: nwse-resize; touch-action: none; z-index: 5; }
+.child-canvas[data-layout="float"] .resize-handle { display: grid; place-items: center; }
+.resize-handle svg { width: 13px; height: 13px; }
+.workspace-status { display: flex; justify-content: space-between; gap: 10px; align-items: center; min-height: 28px; padding: 0 16px; border-top: 1px solid #dedee7; background: #fafafd; font-size: 9px; color: #626774; }
+.workspace-status span { display: inline-flex; align-items: center; gap: 5px; }
+.workspace-status svg { width: 11px; height: 11px; }
+.lab-note { max-width: 1556px; margin: auto; display: flex; justify-content: space-between; gap: 20px; padding: 10px 22px; font-size: 10px; line-height: 1.6; color: #626774; }
+.lab-note strong { color: #464b58; font-weight: 550; }
+dialog { width: min(460px,calc(100% - 32px)); padding: 22px; border: 1px solid #d7d4e0; border-radius: 12px; box-shadow: 0 20px 80px #29203933; color: var(--ink); }
+dialog::backdrop { background: #2a283955; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; }
+dialog h2 { font-size: 18px; font-weight: 600; letter-spacing: -.35px; }
+dialog p { font-size: 12px; color: #626774; line-height: 1.7; }
+.view-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 19px; }
+.view-option { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; border: 1px solid #dcd9e5; border-radius: 8px; padding: 16px; min-height: 105px; }
+.view-option:hover { background: #f6f2fe; border-color: #b6a6d9; }
+.view-option svg { color: var(--accent); }
+.view-option strong { font-size: 12px; font-weight: 600; }
+.view-option small { color: #626774; font-size: 10px; line-height: 1.5; }
+dialog label { display: block; font-size: 12px; margin-top: 18px; margin-bottom: 8px; }
+dialog textarea { width: 100%; min-height: 130px; padding: 10px; border: 1px solid #cbc7d7; border-radius: 6px; font-size: 13px; line-height: 1.7; }
+.dialog-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; color: #626774; font-size: 10px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 28px); padding: 11px 16px; background: #2b2935; color: #fff; border-radius: 8px; box-shadow: 0 4px 18px #21183130; font-size: 11px; z-index: 100; pointer-events: none; }
 .toast:empty { display: none; }
-@container (max-width: 1090px) {
- .workspace-nav { display: none; }
- .workspace-toggle { display: inline-grid; margin-right: 2px; }
- .title-group { display: flex; align-items: flex-start; gap: 7px; min-width: 0; }
- .workspace-header { padding: 18px; }
- .workspace-toggle { margin-top: -2px; }
- h1 { font-size: 19px; }
- .file-nav { width: 210px; }
- .document-toolbar { padding-left: 18px; padding-right: 18px; }
+@container (max-width: 1000px) {
+ .app-bar { gap: 10px; padding: 0 12px; }
+ .workspace-tab { padding: 0 10px; min-width: 110px; }
+ .workspace-tab .tab-title { max-width: 125px; }
+ .workspace-heading { padding: 16px 17px 14px; gap: 8px; }
+ .workspace-heading h1 { font-size: 17px; }
+ .workspace-actions .button { width: 33px; padding: 5px; }
+ .workspace-actions .button .label { display: none; }
 }
-@container (max-width: 620px) {
- .workspace-header { padding: 16px 12px; gap: 6px; align-items: flex-start; }
- .title-group { gap: 3px; }
- h1 { font-size: 17px; line-height: 1.35; }
- .breadcrumb { font-size: 10px; margin-top: 1px; margin-bottom: 6px; }
- .pr-meta { gap: 7px; margin-top: 9px; }
- .branch { display: none; }
- .header-actions .button { width: 40px; min-height: 44px; padding: 8px; }
- .header-actions .button .label { display: none; }
- .header-actions .refresh { display: none; }
- .workspace-toggle { width: 34px; height: 44px; }
- .tabs { padding: 0 8px; gap: 0; }
- .document-tab { padding: 0 11px; }
- .file-nav { display: none; }
- .files-toggle { display: inline-grid; }
- .document-toolbar { padding: 10px 12px 10px 6px; min-height: 68px; gap: 4px; }
- .file-title { font-size: 12px; }
- .file-subtitle { font-size: 10px; }
- .file-heading { display: flex; align-items: center; gap: 3px; min-width: 0; }
- .file-heading > .files-toggle { height: 44px; width: 34px; }
- .file-title > svg { display: none; }
- .toolbar-actions .button { min-height: 44px; padding: 7px 10px; font-size: 11px; }
- .toolbar-actions .button svg { display: none; }
- .comparison { padding: 10px 15px; gap: 6px; font-size: 10px; }
- .comparison button { min-height: 44px; font-size: 10px; }
- .diff-meta { padding: 14px 15px; font-size: 9px; }
- .diff-table { font-size: 10px; line-height: 25px; }
- .diff-table .num { min-width: 27px; width: 27px; padding: 0 5px; font-size: 9px; }
- .diff-table .sign { min-width: 18px; width: 18px; }
- .status-bar { padding: 0 14px; font-size: 9px; }
- .status-extra { display: none !important; }
- .search-pane { padding: 20px 16px; }
- .source-callout { padding: 12px 16px; }
- .button, .icon-button { min-height: 44px; }
- .tabs .icon-button { margin: 0; }
+@container (max-width: 680px) {
+ .workspace-heading { padding: 14px 13px; }
+ .workspace-heading h1 { font-size: 16px; }
+ .workspace-heading .overline { font-size: 8px; margin-bottom: 6px; }
+ .workspace-meta { font-size: 9px; gap: 6px; margin-top: 8px; }
+ .workspace-actions { gap: 2px; }
+ .workspace-actions .button { width: 36px; min-height: 42px; }
+ .workspace-tools { padding: 7px 11px; min-height: 51px; }
+ .layout-controls { display: none; }
+ .compact-label { display: inline; }
+ .child-shelf { padding: 0 11px 9px; }
+ .child-tab { min-height: 38px; }
+ .child-canvas, .child-canvas[data-layout="tiles"], .child-canvas[data-layout="float"] { display: flex; padding: 0 10px 10px; margin: 0; background-image: none; border: 0; border-radius: 0; overflow: hidden; }
+ .child-canvas .child { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: 100% !important; box-shadow: none; }
+ .child-canvas .child:not(.focused) { display: none; }
+ .child-canvas .resize-handle { display: none; }
+ .child-titlebar { min-height: 42px; }
+ .child-title { min-height: 36px; }
+ .child-controls .icon-button { width: 31px; min-height: 36px; }
+ .child-toolbar { padding: 8px 10px; min-height: 56px; }
+ .child-toolbar .button { min-height: 38px; font-size: 10px; }
+ .child-toolbar .segment button { min-height: 34px; }
+ .file-list { min-height: 42px; padding: 2px 7px; }
+ .file-list button { min-height: 36px; }
+ .comparison { padding: 7px 11px; min-height: 44px; font-size: 9px; }
+ .comparison button { min-height: 30px; font-size: 9px; }
+ .workspace-status { padding: 0 12px; }
+ .source-select { min-height: 38px; }
+ .preview-toolbar select { min-height: 36px; }
+ .preview-device { margin-top: 5px; }
+}
+@container (max-width: 520px) {
+ .app-bar { flex-wrap: wrap; min-height: 84px; padding: 0 10px 7px; gap: 0 10px; }
+ .brand { font-size: 17px; height: 39px; }
+ .brand-mark { font-size: 30px; }
+ .outer-controls { margin-left: auto; order: 1; }
+ .workspace-tabs { order: 2; flex-basis: 100%; height: 37px; }
+ .workspace-tab { flex: 1; max-width: none; min-height: 37px; font-size: 10px; padding: 0 7px; }
+ .workspace-tab .tab-title { max-width: 104px; }
+ .workspace-tab .pr-number { font-size: 9px; }
+ .outer-space[data-presentation="windows"] { padding: 9px; gap: 10px; }
+ .outer-space[data-presentation="windows"] .workspace-host { min-width: 100%; flex-basis: 100%; }
+ .workspace-status .status-detail { display: none; }
 }
 @media (max-width: 650px) {
- .lab { padding: 12px 12px 10px; gap: 6px; }
+ .lab { padding: 10px 12px 9px; gap: 6px; }
  .lab-title { gap: 6px; }
- .lab-title > span:not(.sample), .lab-controls label { display: none; }
- .lab-controls { gap: 7px; font-size: 11px; flex-shrink: 0; }
- .lab-title .sample { font-size: 8px; padding: 3px 4px; letter-spacing: .04em; }
- .lab-controls select { max-width: 77px; }
- .lab-controls button { min-height: 36px; white-space: nowrap; }
+ .lab-title > .study-title, .lab-controls label { display: none; }
+ .sample { font-size: 8px; }
+ .lab-controls { gap: 7px; }
  .stage { width: 100%; }
- .shell { border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 129px); min-height: 440px; }
- .lab-note { padding: 9px 13px; font-size: 10px; }
+ .app { border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 106px); min-height: 500px; }
+ .lab-note { padding: 8px 12px; font-size: 9px; }
  .lab-note > span:last-child { display: none; }
- .toast { bottom: 70px; }
+ .toast { bottom: 60px; }
 }
-@media (prefers-reduced-motion: reduce) { .stage { transition: none; } }
 </style>
 </head>
 <body>
-<header class="lab">
- <div class="lab-title"><strong>Mobius</strong><span>/ Interaction study</span><span class="sample">Sample data</span></div>
- <div class="lab-controls"><label for="viewport">Canvas</label><select id="viewport" aria-label="Preview width"><option value="auto">Responsive</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><button data-action="push" id="push">Simulate push</button><button data-action="reset">Reset</button></div>
-</header>
-<main id="stage" class="stage" data-size="auto" aria-label="Mobius interactive prototype"><div id="app" class="shell"></div></main>
-<footer class="lab-note"><span><strong>Try the return visit.</strong> Mark Parser + Stable reviewed, then simulate a push. Switch PRs to resume your work.</span><span>In-memory mockup · layout hypotheses · v0.1</span></footer>
-<dialog id="drawer" class="drawer" aria-labelledby="drawer-title"></dialog>
-<dialog id="draft-dialog" aria-labelledby="draft-title">
- <div class="dialog-heading"><h2 id="draft-title">Review draft</h2><button class="icon-button" data-action="close-draft" aria-label="Close draft">×</button></div>
- <p id="draft-context"></p><label for="draft">A thought to come back to</label><textarea id="draft" placeholder="Leave yourself a review note…"></textarea>
- <div class="dialog-footer"><span>Kept in this sample session</span><button class="button primary" data-action="close-draft">Keep draft</button></div>
-</dialog>
+<header class="lab"><div class="lab-title"><strong>Mobius</strong><span class="study-title">/ Workspace study 02</span><span class="sample">Sample data</span></div><div class="lab-controls"><label for="viewport">Canvas</label><select id="viewport" aria-label="Canvas width"><option value="auto">Auto</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><button data-action="reset">Reset</button></div></header>
+<main id="stage" class="stage" data-size="auto" aria-label="Mobius workspace prototype"><div id="app" class="app"></div></main>
+<footer class="lab-note"><span><strong>A workspace holds the whole investigation.</strong> Add another view, arrange it, then switch PRs or try workspace windows.</span><span>In-memory study · previews are simulated</span></footer>
+<dialog id="modal" aria-labelledby="modal-title"></dialog>
+<p id="arrange-help" class="sr-only">In floating layout, drag a view title to move it. Arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script>
+
 'use strict';
 // Deliberately small, prepared fixtures. This is not a Git engine or a production state schema.
 const icons = {
@@ -374,197 +396,268 @@ const fixtures = {
  43: {title: 'Restore a search when you return', branch: 'restore-search', author: 'Alex Rivera', initials: 'AR'}
 };
 const files = ['Parser.swift', 'Store.swift', 'Stable.swift'];
-function newWorkspace(number) {
- return {number, version: 1, reviewed: Object.fromEntries(files.map(file => [file, null])), lastFile: 'Parser.swift', mode: 'remaining', tabs: ['review'], activeTab: 'review', query: '', searched: false, draft: ''};
+Object.assign(icons, {
+ windows: '<rect x="3" y="3" width="14" height="13" rx="2"/><path d="M8 16v5h13V8h-4M3 7h14"/>',
+ tiles: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M13 3v18M13 12h8"/>',
+ focus: '<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
+ preview: '<rect x="5" y="2" width="14" height="20" rx="3"/><path d="M10 5h4M11 19h2"/>',
+ resize: '<path d="m8 20 12-12M14 20l6-6"/>',
+ close: '<path d="m6 6 12 12M18 6 6 18"/>'
+});
+const kindLabels = {review:'Review', source:'Source', search:'Research', preview:'Preview'};
+const kindIcons = {review:'pr', source:'file', search:'search', preview:'preview'};
+function makeView(workspace, kind, file) {
+ const ordinal = workspace.nextView++;
+ const state = kind === 'review' ? {file:file || 'Parser.swift', mode:'remaining'}
+  : kind === 'source' ? {file:file || 'Reference.swift'}
+  : kind === 'search' ? {query:'', searched:false} : {scene:'results'};
+ return {id:`${workspace.number}-${ordinal}`, ordinal, kind, state, scroll:{top:0,left:0}, z:ordinal,
+  frame:{x:.025 + ((ordinal-1)%3)*.12, y:.025 + ((ordinal-1)%3)*.11, width:.64, height:.72}};
 }
-let workspaces = {42: newWorkspace(42), 43: newWorkspace(43)};
-let currentNumber = 42;
-let drawerKind = null;
-let drawerReturnAction = null;
+function newWorkspace(number) {
+ const workspace = {number, version:1, reviewed:Object.fromEntries(files.map(file => [file,null])), draft:'', views:[], nextView:1, focused:null, layout:'tiles', nextZ:5};
+ const kinds = number === 42 ? ['review','source','preview'] : ['review','search'];
+ workspace.views = kinds.map(kind => makeView(workspace,kind));
+ workspace.focused = workspace.views[0].id;
+ return workspace;
+}
+let workspaces = {42:newWorkspace(42),43:newWorkspace(43)};
+let activeWorkspace = 42;
+let presentation = 'tabs';
+let rendering = false;
+let dialogContext = null;
 let toastTimer;
-const current = () => workspaces[currentNumber];
+let outerScroll = 0;
+const byNumber = number => workspaces[Number(number)];
+const focusedView = workspace => workspace.views.find(view => view.id === workspace.focused);
+const viewTitle = view => view.kind === 'review' || view.kind === 'source' ? view.state.file : view.kind === 'search' ? 'Repository search' : 'SearchKit preview';
+const viewName = view => `${kindLabels[view.kind]} ${view.ordinal}`;
+const attributes = (workspace, view) => `data-workspace="${workspace.number}"${view ? ` data-view="${view.id}"` : ''}`;
 function fileState(workspace, file) {
  const baseline = workspace.reviewed[file];
  if (baseline === null) return 'unreviewed';
- if (baseline === workspace.version || file === 'Stable.swift') return 'reviewed';
- return 'changed';
+ return baseline === workspace.version || file === 'Stable.swift' ? 'reviewed' : 'changed';
 }
-const remainingCount = workspace => files.filter(file => fileState(workspace, file) !== 'reviewed').length;
-function workspaceCards() {
- return Object.values(workspaces).map(workspace => `<button class="workspace-card ${workspace.number === currentNumber ? 'active' : ''}" data-action="workspace" data-number="${workspace.number}" ${workspace.number === currentNumber ? 'aria-current="true"' : ''}><span class="workspace-number">${icon('pr')} northstar / #${workspace.number}</span><strong>${fixtures[workspace.number].title}</strong><small>${remainingCount(workspace)} files remaining${workspace.draft ? ' · Draft' : ''} · v${workspace.version}</small></button>`).join('');
-}
-function fileNavigation() {
- const workspace = current();
- const remaining = remainingCount(workspace);
- const listed = files.filter(file => workspace.mode === 'full' || fileState(workspace, file) !== 'reviewed');
- return `<div class="segmented" aria-label="Comparison view"><button data-action="mode" data-mode="remaining" aria-pressed="${workspace.mode === 'remaining'}">Remaining <span aria-hidden="true">${remaining}</span></button><button data-action="mode" data-mode="full" aria-pressed="${workspace.mode === 'full'}">Full PR diff</button></div><div class="file-summary"><span class="overline">${workspace.mode === 'remaining' ? 'To review' : 'Changed files'}</span><span>${listed.length} files</span></div><div class="file-path">Sources / Search</div>${listed.map(file => {const state = fileState(workspace, file); return `<button class="file-item ${workspace.lastFile === file ? 'active' : ''}" data-action="file" data-file="${file}" ${workspace.lastFile === file ? 'aria-current="true"' : ''}>${icon(state === 'reviewed' ? 'check' : 'file')}<span><strong>${file}</strong><small class="${state === 'changed' ? 'new' : state === 'reviewed' ? 'done' : ''}">${state === 'changed' ? `New edits since v${workspace.reviewed[file]}` : state === 'reviewed' ? 'Reviewed · no new edits' : 'Not yet reviewed'}</small></span></button>`;}).join('')}${!listed.length ? '<div class="all-clear">You’re caught up.<br>New pushes will appear here.</div>' : ''}<p class="file-note">${workspace.mode === 'remaining' ? 'New edits in reviewed files.<br>Full changes in unreviewed files.' : 'Every file in this pull request.<br>Your review progress stays with it.'}</p><button class="context-link" data-action="source">${icon('folder')} Browse supporting source ${icon('chevron')}</button>`;
-}
+const remainingCount = workspace => files.filter(file => fileState(workspace,file) !== 'reviewed').length;
 function adaptFixture(workspace, prepared) {
- return workspace.number === 43
-  ? prepared.map(row => ({...row, text: row.text.replaceAll('suggestions', 'restoredTerms').replaceAll('searches', 'savedSearches')}))
-  : prepared;
+ return workspace.number === 43 ? prepared.map(row => ({...row,text:row.text.replaceAll('suggestions','restoredTerms').replaceAll('searches','savedSearches')})) : prepared;
 }
-function allDiffRows(workspace, file) {
- const prepared = file === 'Parser.swift' ? parserFull(workspace.version) : file === 'Store.swift' ? storeFull(workspace.version) : stableFull;
- // PR 43 deliberately shares paths, but uses its own fixture and review state.
- return adaptFixture(workspace, prepared);
+function allDiffRows(workspace,file) {
+ return adaptFixture(workspace,file === 'Parser.swift' ? parserFull(workspace.version) : file === 'Store.swift' ? storeFull(workspace.version) : stableFull);
 }
-function diffTable(prepared, offset = 1) {
- let oldLine = offset;
- let newLine = offset;
+function sourceText(workspace,file) {
+ return file === 'Reference.swift' ? referenceSource : allDiffRows(workspace,file).filter(row => row.kind !== 'delete').map(row => row.text).join('\n');
+}
+function diffTable(prepared, offset=1) {
+ let oldLine=offset, newLine=offset;
  return `<table class="diff-table" aria-label="Code comparison"><thead class="sr-only"><tr><th>Old line</th><th>New line</th><th>Change</th><th>Code</th></tr></thead><tbody>${prepared.map(row => `<tr class="${row.kind}"><td class="num">${row.kind === 'add' ? '' : oldLine++}</td><td class="num">${row.kind === 'delete' ? '' : newLine++}</td><td class="sign">${row.kind === 'add' ? '+' : row.kind === 'delete' ? '−' : ''}</td><td class="code">${escapeHTML(row.text) || ' '}</td></tr>`).join('')}</tbody></table>`;
 }
-function renderReview() {
- const workspace = current();
- const file = workspace.lastFile;
- const state = fileState(workspace, file);
- const incremental = workspace.mode === 'remaining' && state === 'changed';
- const upToDate = workspace.mode === 'remaining' && state === 'reviewed';
- const prepared = incremental ? adaptFixture(workspace, file === 'Parser.swift' ? parserNew : storeNew) : allDiffRows(workspace, file);
- const added = prepared.filter(row => row.kind === 'add').length;
- const removed = prepared.filter(row => row.kind === 'delete').length;
- const label = incremental ? `New edits since v${workspace.reviewed[file]}` : upToDate ? 'No remaining changes' : 'Full PR diff';
- return `<div class="document-toolbar"><div class="file-heading"><button class="icon-button files-toggle" data-action="files" aria-label="Choose review file">${icon('sidebar')}</button><div><div class="file-title">${icon('file')}${file}</div><div class="file-subtitle">Sources / Search · version ${workspace.version}</div></div></div><div class="toolbar-actions">${state === 'reviewed' ? `<span class="reviewed-label">${icon('check')} Reviewed</span>` : `<button class="button primary" data-action="review">${icon('check')} Mark reviewed</button>`}</div></div><div class="comparison"><span><strong>${label}</strong>${state === 'unreviewed' ? ' · unreviewed' : incremental ? ` → v${workspace.version}` : state === 'reviewed' ? ` · last marked v${workspace.reviewed[file]}` : ''}</span><button data-action="mode" data-mode="${workspace.mode === 'full' ? 'remaining' : 'full'}">${workspace.mode === 'full' ? 'Remaining work' : 'View full PR diff'}</button></div><div class="diff-scroll" id="review-scroll" tabindex="0" aria-label="${file} diff">${upToDate ? `<div class="empty-state"><div class="check-circle">${icon('check')}</div><h2>${file} is caught up</h2><p>You’ve reviewed all of this file’s current changes. It stays here until you choose another file.</p><button class="button" data-action="mode" data-mode="full">View full PR diff</button></div>` : `<div class="diff-meta"><span>${incremental ? `Reviewed version ${workspace.reviewed[file]} → current version ${workspace.version}` : `PR base → current version ${workspace.version}`}</span><span class="diff-stats">+${added} <span style="color:#9d544d">−${removed}</span></span></div>${diffTable(prepared, incremental ? (file === 'Parser.swift' ? 13 : 10) : 1)}<div class="code-end">End of ${incremental ? 'new edits' : 'file'} · prepared sample comparison</div>`}</div>`;
+function renderReview(workspace, view) {
+ const {file,mode}=view.state;
+ const state=fileState(workspace,file), remaining=remainingCount(workspace);
+ const incremental=mode === 'remaining' && state === 'changed', caughtUp=mode === 'remaining' && state === 'reviewed';
+ const prepared=incremental ? adaptFixture(workspace,file === 'Parser.swift' ? parserNew : storeNew) : allDiffRows(workspace,file);
+ const visibleFiles=files.filter(name => mode === 'full' || fileState(workspace,name) !== 'reviewed');
+ const control=attributes(workspace,view);
+ return `<div class="child-toolbar"><div class="segment" aria-label="Comparison for ${viewName(view)}"><button ${control} data-action="comparison" data-mode="remaining" aria-pressed="${mode === 'remaining'}">Remaining ${remaining}</button><button ${control} data-action="comparison" data-mode="full" aria-pressed="${mode === 'full'}">Full PR diff</button></div>${state === 'reviewed' ? `<span class="reviewed">${icon('check')} Reviewed</span>` : `<button class="button primary" ${control} data-action="review">Mark reviewed</button>`}</div><nav class="file-list" aria-label="${mode === 'remaining' ? 'Remaining' : 'All PR'} files for ${viewName(view)}">${visibleFiles.length ? visibleFiles.map(name => `<button ${control} data-action="file" data-file="${name}" ${name === file ? 'aria-current="true"' : ''}>${name}</button>`).join('') : '<small>All files are up to date</small>'}</nav><div class="comparison"><span><strong>${incremental ? `New edits since v${workspace.reviewed[file]}` : caughtUp ? 'No remaining changes' : 'Full PR diff'}</strong>${state === 'unreviewed' ? ' · unreviewed' : incremental ? ` → v${workspace.version}` : ` · last marked v${workspace.reviewed[file]}`}</span><button ${control} data-action="comparison" data-mode="${mode === 'full' ? 'remaining' : 'full'}">${mode === 'full' ? 'Remaining work' : 'View full PR diff'}</button></div><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${file} diff in ${viewName(view)}">${caughtUp ? `<div class="empty-state"><div class="check-circle">${icon('check')}</div><h2>${file} is caught up</h2><p>Your progress is shared with every review view in PR #${workspace.number}. This view stays on ${file}.</p><button class="button" ${control} data-action="comparison" data-mode="full">View full PR diff</button></div>` : `<div class="diff-meta"><span>${incremental ? `Reviewed v${workspace.reviewed[file]} → current v${workspace.version}` : `PR base → current v${workspace.version}`}</span><span class="diff-stats">+${prepared.filter(row => row.kind === 'add').length} / −${prepared.filter(row => row.kind === 'delete').length}</span></div>${diffTable(prepared,incremental ? (file === 'Parser.swift' ? 13 : 10) : 1)}<div class="code-end">End of ${incremental ? 'new edits' : 'file'} · prepared sample comparison</div>`}</div>`;
 }
-function renderSource() {
- return `<div class="document-toolbar"><div><div class="file-title">${icon('file')}Reference.swift</div><div class="file-subtitle">Sources / Search · PR #${currentNumber}</div></div><button class="button" data-action="tab" data-tab="review">Back to review</button></div><p class="source-callout">Supporting source at version ${current().version}. Reading here doesn’t change review progress.</p><div class="diff-scroll" tabindex="0" aria-label="Reference.swift source">${diffTable(referenceSource.split('\n').map(text => ({kind:'context', text})))}<div class="code-end">End of supporting source</div></div>`;
+function renderSource(workspace,view) {
+ const control=attributes(workspace,view);
+ return `<div class="child-toolbar"><select class="source-select" ${control} data-control="source-file" aria-label="Source file for ${viewName(view)}">${['Reference.swift',...files].map(file => `<option ${file === view.state.file ? 'selected' : ''}>${file}</option>`).join('')}</select>${view.state.file !== 'Reference.swift' ? `<button class="button" ${control} data-action="review-source">Review file</button>` : `<span class="child-kind">v${workspace.version}</span>`}</div><p class="source-note">PR #${workspace.number} source · reading does not mark reviewed</p><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${view.state.file} source in ${viewName(view)}">${diffTable(sourceText(workspace,view.state.file).split('\n').map(text => ({kind:'context',text})))}<div class="code-end">Sample source · version ${workspace.version}</div></div>`;
 }
-function searchResults(workspace) {
- if (!workspace.searched) return '<p class="search-help">Try <button data-action="example-search">WorkspaceID</button> to find supporting source.</p>';
- const query = workspace.query.toLowerCase().trim();
+function searchResults(workspace,view) {
+ if (!view.state.searched) return `<p>Try <button class="example-search" ${attributes(workspace,view)} data-action="example-search">WorkspaceID</button> to find supporting source.</p>`;
+ const query=view.state.query.trim().toLowerCase();
  if (!query) return '<p>Enter a term to search the sample source.</p>';
- const documents = [...files.map(file => ({file, text: allDiffRows(workspace, file).filter(row => row.kind !== 'delete').map(row => row.text).join('\n')})), {file:'Reference.swift', text:referenceSource}];
- const matches = documents.filter(document => document.text.toLowerCase().includes(query) || document.file.toLowerCase().includes(query));
- return `<p>${matches.length} ${matches.length === 1 ? 'file' : 'files'} in this workspace’s sample source</p>${matches.map(document => `<button class="search-result" data-action="search-result" data-file="${document.file}"><strong>${icon('file')} ${document.file}</strong><code>${escapeHTML(document.text.split('\n').find(line => line.toLowerCase().includes(query)) || 'Sources / Search')}</code></button>`).join('')}`;
+ const matches=['Reference.swift',...files].map(file => ({file,text:sourceText(workspace,file)})).filter(document => `${document.file} ${document.text}`.toLowerCase().includes(query));
+ return `<p>${matches.length} ${matches.length === 1 ? 'file' : 'files'} found · 4 sample files searched</p>${matches.map(document => `<button class="search-result" ${attributes(workspace,view)} data-action="open-source" data-file="${document.file}"><strong>${document.file}</strong><code>${escapeHTML(document.text.split('\n').find(line => line.toLowerCase().includes(query)) || 'Sources / Search')}</code><small>Open in a new source view ↗</small></button>`).join('')}`;
 }
-function renderSearch() {
- const workspace = current();
- return `<section class="search-pane"><h2>Explore without leaving your review</h2><p>Search the sample source for PR #${currentNumber}. This tab and its query stay with this workspace.</p><form class="search-form" id="search-form"><input aria-label="Search repository" placeholder="Search the sample repository…" value="${escapeHTML(workspace.query)}"><button class="button primary" type="submit">Search</button></form><div id="search-results">${searchResults(workspace)}</div></section>`;
+function renderSearch(workspace,view) {
+ return `<div class="search-content pane-scroll" data-scroll="${view.id}"><h2>Research in this workspace</h2><p>PR #${workspace.number} · this view keeps its own query. Results open beside your existing work.</p><form class="search-form" ${attributes(workspace,view)}><input id="query-${view.id}" ${attributes(workspace,view)} data-control="query" aria-label="Search query for ${viewName(view)}" value="${escapeHTML(view.state.query)}" placeholder="Search sample source…"><button class="button primary" type="submit">Search</button></form><div data-results="${view.id}">${searchResults(workspace,view)}</div></div>`;
 }
-// Rendering replaces a small mockup tree. Carry keyboard focus to the equivalent
-// control, or the resulting document when an action removes its own control.
-function rememberFocus(container) {
- const active = document.activeElement;
- if (!container.contains(active)) return null;
- return active.matches('button[data-action]') ? {data: {...active.dataset}} : {id: active.id};
+function renderPreview(workspace,view) {
+ const scene=view.state.scene;
+ return `<div class="preview-toolbar"><span class="simulated-badge">Simulated preview</span><select ${attributes(workspace,view)} data-control="preview-scene" aria-label="Sample state for ${viewName(view)}"><option value="results" ${scene === 'results' ? 'selected' : ''}>Search results</option><option value="empty" ${scene === 'empty' ? 'selected' : ''}>No results</option><option value="loading" ${scene === 'loading' ? 'selected' : ''}>Loading sample</option></select></div><div class="preview-stage pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="Simulated content for ${viewName(view)}"><div class="preview-device"><div class="preview-app-name">SearchKit <span>PR #${workspace.number}</span></div><div class="preview-search">${icon('search')} ${scene === 'empty' ? 'no matching query' : 'WorkspaceID'}</div>${scene === 'results' ? `<div class="preview-item">${icon('file')}<span>Reference.swift<small>struct WorkspaceID: Hashable</small></span></div><div class="preview-item">${icon('file')}<span>Store.swift<small>Searches belong to a workspace</small></span></div>` : `<div class="preview-empty"><strong>${scene === 'empty' ? 'No matches yet' : 'Searching the repository…'}</strong>${scene === 'empty' ? 'Try a different term or file name.' : 'A prepared loading-state preview.'}</div>`}</div><p class="preview-footnote">Interactive sample state · no code is running</p></div>`;
 }
-function restoreFocus(container, saved) {
- if (!saved) return;
- const target = saved.data
-  ? [...container.querySelectorAll('button[data-action]')].find(button => button.getClientRects().length > 0 && Object.entries(saved.data).every(([key, value]) => button.dataset[key] === value))
-  : saved.id ? container.querySelector(`[id="${saved.id}"]`) : null;
- const fallback = container.querySelector('.document') || container.querySelector('.search-pane') || container.querySelector('button');
- (target || fallback)?.focus({preventScroll: true});
+function renderView(workspace,view) {
+ const active=workspace.focused === view.id, control=attributes(workspace,view);
+ const frame=workspace.layout === 'float' ? `style="left:${view.frame.x*100}%;top:${view.frame.y*100}%;width:${view.frame.width*100}%;height:${view.frame.height*100}%;z-index:${view.z}"` : '';
+ return `<section class="child ${active ? 'focused' : ''}" ${control} data-kind="${view.kind}" data-focused="${active}" ${frame} tabindex="-1" aria-label="${viewName(view)} in PR ${workspace.number}"><header class="child-titlebar"><button class="child-title" ${control} data-action="focus-view" data-drag="true" aria-describedby="arrange-help">${icon(kindIcons[view.kind])}<span class="child-kind">${viewName(view)}</span><strong>${escapeHTML(viewTitle(view))}</strong></button><div class="child-controls"><button class="icon-button" ${control} data-action="focus-layout" aria-label="${workspace.layout === 'focus' ? 'Tile views' : 'Focus '+viewName(view)}">${icon(workspace.layout === 'focus' ? 'tiles' : 'focus')}</button><button class="icon-button" ${control} data-action="close-view" aria-label="Close ${viewName(view)}">${icon('close')}</button></div></header><div class="child-body">${view.kind === 'review' ? renderReview(workspace,view) : view.kind === 'source' ? renderSource(workspace,view) : view.kind === 'search' ? renderSearch(workspace,view) : renderPreview(workspace,view)}</div><button class="resize-handle" ${control} data-resize="true" aria-label="Resize ${viewName(view)}" aria-describedby="arrange-help">${icon('resize')}</button></section>`;
+}
+function renderWorkspace(workspace) {
+ const control=attributes(workspace), fixture=fixtures[workspace.number];
+ const count=workspace.views.length, countClass=count === 1 ? 'one' : count === 2 ? 'two' : count === 3 ? 'three' : 'many';
+ return `<section class="workspace-host ${workspace.number === activeWorkspace ? 'selected' : ''}" ${control} aria-label="PR ${workspace.number} workspace"><header class="workspace-heading"><div><div class="overline">${icon('windows')} Workspace · PR #${workspace.number} <span> / northstar</span></div><h1>${fixture.title}</h1><div class="workspace-meta"><span class="open-pill">Open</span><span>${fixture.author}</span><span>·</span><span>version ${workspace.version}</span></div></div><div class="workspace-actions"><button class="button" ${control} data-action="draft" aria-label="${workspace.draft ? 'Draft saved. ' : ''}Review draft for PR ${workspace.number}">${icon('comment')}<span class="label">${workspace.draft ? 'Draft saved' : 'Review draft'}</span></button><button class="button" ${control} data-action="push" aria-label="${workspace.version === 2 ? 'Push applied' : 'Simulate push'} for PR ${workspace.number}" ${workspace.version === 2 ? 'disabled' : ''}>${icon(workspace.version === 2 ? 'check' : 'refresh')}<span class="label">${workspace.version === 2 ? 'Push applied' : 'Simulate push'}</span></button></div></header><div class="workspace-tools"><div class="tools-group"><button class="button" ${control} data-action="new-view">${icon('plus')} New view</button><span class="view-count">${count} ${count === 1 ? 'view' : 'views'}</span></div><div class="segment layout-controls" aria-label="Arrangement for PR ${workspace.number}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','Focus']].map(([value,glyph,label]) => `<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout === value}">${icon(glyph)} ${label}</button>`).join('')}</div><span class="compact-label">Focused view · layout kept</span></div><nav class="child-shelf" aria-label="Views in PR ${workspace.number}">${workspace.views.map(view => `<button class="child-tab ${view.id === workspace.focused ? 'active' : ''}" ${attributes(workspace,view)} data-action="focus-view" ${view.id === workspace.focused ? 'aria-current="true"' : ''}>${icon(kindIcons[view.kind])}${viewName(view)} <span>· ${escapeHTML(viewTitle(view))}</span></button>`).join('')}</nav><div class="child-canvas ${countClass}" ${control} data-layout="${workspace.layout}">${count ? workspace.views.map(view => renderView(workspace,view)).join('') : `<div class="empty-state"><h2>A place for your next question</h2><p>Open a review, source, research, or simulated-preview view. PR progress stays in this workspace.</p><button class="button primary" ${control} data-action="new-view">New view</button></div>`}</div><footer class="workspace-status"><span>${icon('check')} ${3-remainingCount(workspace)} of 3 files up to date</span><span class="status-detail">${workspace.draft ? 'Draft saved · ' : ''}PR #${workspace.number} owns these views</span><span>Sample session</span></footer></section>`;
+}
+function captureScroll() {
+ document.querySelectorAll('[data-scroll]').forEach(node => {
+  const view=Object.values(workspaces).flatMap(workspace => workspace.views).find(item => item.id === node.dataset.scroll);
+  if (view && node.getClientRects().length) view.scroll={top:node.scrollTop,left:node.scrollLeft};
+ });
+ const outer=document.querySelector('.outer-space');
+ if (outer && presentation === 'windows') outerScroll=outer.scrollLeft;
+}
+function rememberFocus() {
+ const active=document.activeElement;
+ if (!document.getElementById('app').contains(active)) return null;
+ return active.id ? {id:active.id} : active.dataset.action || active.dataset.control ? {data:{...active.dataset}} : null;
+}
+function restoreFocus(saved) {
+ if (!saved || document.getElementById('modal').open) return;
+ const target=saved.id ? document.getElementById(saved.id) : [...document.querySelectorAll('button,select,input')].find(node => node.getClientRects().length && Object.entries(saved.data).every(([key,value]) => node.dataset[key] === value));
+ (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`) || document.querySelector(`.workspace-host[data-workspace="${activeWorkspace}"] button[data-action="new-view"]`))?.focus({preventScroll:true});
 }
 function render() {
- const app = document.getElementById('app');
- const focused = rememberFocus(app);
- const workspace = current();
- const fixture = fixtures[currentNumber];
- app.innerHTML = `<nav class="workspace-nav" aria-label="PR workspaces"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><div class="nav-heading"><span class="overline">Your workspaces</span><span class="overline">2</span></div>${workspaceCards()}<div class="nav-footer"><span class="avatar">JD</span><span>Jamie Davis<br>Personal review space</span></div></nav><section class="workspace" aria-label="PR ${currentNumber} workspace"><header class="workspace-header"><div class="title-group"><button class="icon-button workspace-toggle" data-action="workspaces" aria-label="Switch workspace">${icon('sidebar')}</button><div><div class="breadcrumb">northstar <span class="slash">/</span> SearchKit <span class="slash">/</span> #${currentNumber}</div><h1>${fixture.title}</h1><div class="pr-meta"><span class="open-pill">${icon('pr')} Open</span><span>${fixture.author}</span><span>·</span><span>v${workspace.version}</span><span class="branch">${fixture.branch} → main</span></div></div></div><div class="header-actions"><button class="icon-button refresh" data-action="refresh" aria-label="Refresh sample PR">${icon('refresh')}</button><button class="button" data-action="draft" aria-label="${workspace.draft ? 'Draft saved. ' : ''}Open review draft">${icon('comment')}<span class="label">${workspace.draft ? 'Draft saved' : 'Review draft'}</span></button></div></header><nav class="tabs" aria-label="Workspace documents">${workspace.tabs.map(tab => `<button class="document-tab ${workspace.activeTab === tab ? 'active' : ''}" data-action="tab" data-tab="${tab}" ${workspace.activeTab === tab ? 'aria-current="page"' : ''}>${icon(tab === 'review' ? 'pr' : tab === 'search' ? 'search' : 'file')}${tab === 'review' ? 'Review' : tab === 'search' ? 'Search' : 'Reference.swift'}</button>`).join('')}<span class="tab-spacer"></span><button class="icon-button" data-action="search" aria-label="Open repository search">${icon('search')}</button></nav><div class="content">${workspace.activeTab === 'review' ? `<nav class="file-nav" aria-label="Review files">${fileNavigation()}</nav>` : ''}<section class="document" aria-label="Current document" tabindex="-1">${workspace.activeTab === 'review' ? renderReview() : workspace.activeTab === 'source' ? renderSource() : renderSearch()}</section></div><footer class="status-bar"><span>${icon('check')} ${3 - remainingCount(workspace)} of 3 files up to date</span><span class="status-extra">${workspace.draft ? '1 private draft · ' : ''}PR #${currentNumber} · independent workspace</span><span>Sample session</span></footer></section>`;
- restoreFocus(app, focused);
- const push = document.getElementById('push');
- push.disabled = workspace.version === 2;
- push.textContent = workspace.version === 2 ? 'Push applied' : 'Simulate push';
- push.setAttribute('aria-label', `${workspace.version === 2 ? 'Push applied' : 'Simulate push'} for PR ${currentNumber}`);
+ const saved=rememberFocus(); rendering=true;
+ document.getElementById('app').innerHTML=`<header class="app-bar"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><nav class="workspace-tabs" aria-label="Workspaces">${Object.values(workspaces).map(workspace => `<button class="workspace-tab ${workspace.number === activeWorkspace ? 'active' : ''}" ${attributes(workspace)} data-action="workspace" ${workspace.number === activeWorkspace ? 'aria-current="true"' : ''}>${icon('pr')}<span class="pr-number">#${workspace.number}</span><span class="tab-title">${workspace.number === 42 ? 'Workspace search' : 'Restore a search'}</span></button>`).join('')}</nav><div class="segment outer-controls" aria-label="Workspace presentation"><button data-action="presentation" data-presentation="tabs" aria-pressed="${presentation === 'tabs'}">${icon('sidebar')} Tabs</button><button data-action="presentation" data-presentation="windows" aria-pressed="${presentation === 'windows'}">${icon('windows')} Windows</button></div></header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
+ document.querySelectorAll('[data-scroll]').forEach(node => {
+  const view=Object.values(workspaces).flatMap(workspace => workspace.views).find(item => item.id === node.dataset.scroll);
+  node.scrollTop=view.scroll.top;node.scrollLeft=view.scroll.left;
+ });
+ if (presentation === 'windows') document.querySelector('.outer-space').scrollLeft=outerScroll;
+ restoreFocus(saved);
+ document.querySelector(`.child-tab[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+ document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+ rendering=false;
+}
+function focusView(workspace,view) {
+ const resumed=activeWorkspace !== workspace.number || workspace.focused !== view.id;
+ activeWorkspace=workspace.number;workspace.focused=view.id;view.z=workspace.nextZ++;
+ if (resumed && view.kind === 'review') view.scroll={top:0,left:0};
+}
+function activateWorkspace(workspace) {
+ const view=focusedView(workspace);
+ if (view) focusView(workspace,view); else activeWorkspace=workspace.number;
+}
+function paintFocus() {
+ document.querySelectorAll('.workspace-host,.workspace-tab').forEach(node => {
+  const selected=Number(node.dataset.workspace) === activeWorkspace;
+  node.classList.toggle(node.classList.contains('workspace-host') ? 'selected' : 'active',selected);
+  if (node.classList.contains('workspace-tab')) { if(selected)node.setAttribute('aria-current','true');else node.removeAttribute('aria-current'); }
+ });
+ document.querySelectorAll('.child,.child-tab').forEach(node => {
+  const workspace=byNumber(node.dataset.workspace), selected=workspace.focused === node.dataset.view;
+  node.classList.toggle(node.classList.contains('child') ? 'focused' : 'active',selected);
+  if(node.classList.contains('child')) { node.dataset.focused=String(selected); const view=workspace.views.find(item=>item.id===node.dataset.view); if(workspace.layout==='float')node.style.zIndex=view.z; }
+  else {if(selected)node.setAttribute('aria-current','true');else node.removeAttribute('aria-current');}
+ });
+}
+function scrollWorkspaceIntoView(workspace) {
+ if(presentation === 'windows') document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function addView(workspace,kind,file) {
+ const view=makeView(workspace,kind,file);workspace.views.push(view);focusView(workspace,view);return view;
 }
 function toast(message) {
- clearTimeout(toastTimer);
- document.getElementById('toast').textContent = message;
- toastTimer = setTimeout(() => { document.getElementById('toast').textContent = ''; }, 3500);
+ clearTimeout(toastTimer);document.getElementById('toast').textContent=message;
+ toastTimer=setTimeout(()=>{document.getElementById('toast').textContent='';},3500);
 }
-function openTab(tab) {
- const workspace = current();
- if (!workspace.tabs.includes(tab)) workspace.tabs.push(tab);
- workspace.activeTab = tab;
- render();
+function showModal(kind,workspace,opener) {
+ dialogContext={kind,number:workspace.number,opener:{...opener.dataset}};
+ const modal=document.getElementById('modal');
+ modal.innerHTML=`<div class="dialog-heading"><h2 id="modal-title">${kind === 'new-view' ? 'Add a view to PR #'+workspace.number : 'Review draft · PR #'+workspace.number}</h2><button class="icon-button" data-action="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${kind === 'new-view' ? `<p>Every view belongs to this workspace. Open another view of the same kind whenever you need one.</p><div class="view-options">${[['review','Read another file or comparison.'],['source','Browse existing sample code.'],['search','Explore with a separate query.'],['preview','Try simulated app states.']].map(([type,description])=>`<button class="view-option" data-action="create-view" data-kind="${type}">${icon(kindIcons[type])}<strong>${kindLabels[type]}</strong><small>${description}</small></button>`).join('')}</div>` : `<p>A private note shared by your review views. Nothing is sent to GitHub.</p><label for="draft">A thought to come back to</label><textarea id="draft">${escapeHTML(workspace.draft)}</textarea><div class="dialog-footer"><span>Kept in this sample session</span><button class="button primary" data-action="close-modal">Keep draft</button></div>`}`;
+ modal.showModal();
 }
-function showDrawer(kind) {
- drawerKind = kind;
- const drawer = document.getElementById('drawer');
- const focused = rememberFocus(drawer);
- drawer.innerHTML = `<div class="dialog-heading"><h2 id="drawer-title">${kind === 'workspaces' ? 'Your workspaces' : 'Review files'}</h2><button class="icon-button" data-action="close-drawer" aria-label="Close ${kind === 'workspaces' ? 'workspaces' : 'files'}">×</button></div><div class="drawer-body">${kind === 'workspaces' ? workspaceCards() : fileNavigation()}</div>`;
- if (!drawer.open) {
-  drawerReturnAction = kind;
-  drawer.showModal();
- }
- else restoreFocus(drawer, focused);
+function contextFor(node) {
+ const workspace=byNumber(node.dataset.workspace || node.closest('.workspace-host')?.dataset.workspace || activeWorkspace);
+ const view=workspace.views.find(item=>item.id===(node.dataset.view || node.closest('.child')?.dataset.view));
+ return {workspace,view};
 }
-function closeDrawer() {
- document.getElementById('drawer').close();
- drawerKind = null;
-}
-function selectFile(file) {
- const workspace = current();
- workspace.lastFile = file;
- workspace.activeTab = 'review';
- // A reviewed file remains inspectable when reached through repository search.
- if (fileState(workspace, file) === 'reviewed') workspace.mode = 'full';
- closeDrawer();
- render();
-}
-document.addEventListener('click', event => {
- const button = event.target.closest('button[data-action]');
- if (!button || button.disabled) return;
- const workspace = current();
- switch (button.dataset.action) {
- case 'workspace':
-  currentNumber = Number(button.dataset.number);
-  current().activeTab = 'review';
-  closeDrawer(); render();
-  toast(`PR #${currentNumber} · resumed ${current().lastFile} from the top`);
-  break;
- case 'file': selectFile(button.dataset.file); break;
- case 'mode':
-  workspace.mode = button.dataset.mode; workspace.activeTab = 'review'; render();
-  if (drawerKind === 'files') showDrawer('files');
-  break;
- case 'review':
-  workspace.reviewed[workspace.lastFile] = workspace.version;
-  render(); toast(`${workspace.lastFile} marked reviewed at v${workspace.version}`);
-  break;
- case 'push':
-  workspace.version = 2; render();
-  toast(`PR #${currentNumber} · new edits in Parser.swift and Store.swift`);
-  break;
- case 'reset':
-  workspaces = {42:newWorkspace(42), 43:newWorkspace(43)}; currentNumber = 42;
-  closeDrawer(); render(); toast('Sample session reset to version 1');
-  break;
- case 'tab': openTab(button.dataset.tab); break;
- case 'source': closeDrawer(); openTab('source'); break;
- case 'search': openTab('search'); break;
- case 'search-result': button.dataset.file === 'Reference.swift' ? openTab('source') : selectFile(button.dataset.file); break;
- case 'example-search': workspace.query = 'WorkspaceID'; workspace.searched = true; render(); break;
- case 'workspaces': showDrawer('workspaces'); break;
- case 'files': showDrawer('files'); break;
- case 'close-drawer': closeDrawer(); break;
- case 'refresh': toast(`PR #${currentNumber} is current · review progress unchanged`); break;
- case 'draft':
-  document.getElementById('draft-context').textContent = `Private draft for PR #${currentNumber}. Nothing is sent to GitHub.`;
-  document.getElementById('draft').value = workspace.draft;
-  document.getElementById('draft-dialog').showModal();
-  break;
- case 'close-draft': document.getElementById('draft-dialog').close(); render(); break;
+document.addEventListener('click',event=>{
+ const button=event.target.closest('button[data-action]');if(!button || button.disabled)return;
+ captureScroll();const {workspace,view}=contextFor(button);
+ if(view && button.dataset.action !== 'close-view')focusView(workspace,view);
+ switch(button.dataset.action) {
+ case 'workspace': activateWorkspace(workspace);render();scrollWorkspaceIntoView(workspace);document.querySelector(`.child[data-view="${workspace.focused}"]`)?.focus({preventScroll:true});break;
+ case 'presentation': presentation=button.dataset.presentation;render();scrollWorkspaceIntoView(byNumber(activeWorkspace));break;
+ case 'focus-view': render();break;
+ case 'layout': workspace.layout=button.dataset.layout;activateWorkspace(workspace);render();break;
+ case 'focus-layout': workspace.layout=workspace.layout==='focus'?'tiles':'focus';render();break;
+ case 'new-view': activateWorkspace(workspace);paintFocus();showModal('new-view',workspace,button);break;
+ case 'create-view': {const owner=byNumber(dialogContext.number);addView(owner,button.dataset.kind);dismissModal('child');break;}
+ case 'close-view': workspace.views=workspace.views.filter(item=>item.id!==view.id);if(workspace.focused===view.id){workspace.focused=null;const next=workspace.views.at(-1);if(next){if(activeWorkspace===workspace.number)focusView(workspace,next);else workspace.focused=next.id;}}render();break;
+ case 'file': view.state.file=button.dataset.file;view.scroll={top:0,left:0};render();break;
+ case 'comparison': view.state.mode=button.dataset.mode;view.scroll={top:0,left:0};render();break;
+ case 'review': workspace.reviewed[view.state.file]=workspace.version;render();toast(`${view.state.file} reviewed at v${workspace.version} · shared in PR #${workspace.number}`);break;
+ case 'push': activateWorkspace(workspace);workspace.version=2;render();toast(`PR #${workspace.number} · new edits in Parser.swift and Store.swift`);break;
+ case 'open-source': addView(workspace,'source',button.dataset.file);render();break;
+ case 'review-source': addView(workspace,'review',view.state.file);render();break;
+ case 'example-search': view.state.query='WorkspaceID';view.state.searched=true;render();break;
+ case 'draft': activateWorkspace(workspace);paintFocus();showModal('draft',workspace,button);break;
+ case 'close-modal': dismissModal('opener');break;
+ case 'reset': workspaces={42:newWorkspace(42),43:newWorkspace(43)};activeWorkspace=42;presentation='tabs';outerScroll=0;render();toast('Sample workspaces reset');break;
  }
 });
-document.getElementById('drawer').addEventListener('close', () => {
- drawerKind = null;
- const opener = [...document.querySelectorAll(`button[data-action="${drawerReturnAction}"]`)].find(button => button.getClientRects().length > 0);
- (opener || document.querySelector('.document'))?.focus({preventScroll: true});
- drawerReturnAction = null;
+document.addEventListener('input',event=>{
+ if(event.target.id==='draft' && dialogContext){byNumber(dialogContext.number).draft=event.target.value;return;}
+ if(event.target.dataset.control==='query'){const {view}=contextFor(event.target);view.state.query=event.target.value;}
 });
-document.getElementById('draft-dialog').addEventListener('close', () => render());
-document.getElementById('draft').addEventListener('input', event => { current().draft = event.target.value; });
-document.addEventListener('input', event => {
- if (event.target.matches('#search-form input')) current().query = event.target.value;
+document.addEventListener('change',event=>{
+ if(event.target.id==='viewport'){captureScroll();document.getElementById('stage').dataset.size=event.target.value;return;}
+ const control=event.target.dataset.control;if(!['source-file','preview-scene'].includes(control))return;
+ captureScroll();const {workspace,view}=contextFor(event.target);focusView(workspace,view);
+ if(control==='source-file'){view.state.file=event.target.value;view.scroll={top:0,left:0};}
+ if(control==='preview-scene')view.state.scene=event.target.value;
+ render();
 });
-document.addEventListener('submit', event => {
- if (event.target.id !== 'search-form') return;
- event.preventDefault(); current().searched = true;
- document.getElementById('search-results').innerHTML = searchResults(current());
+document.addEventListener('submit',event=>{
+ if(!event.target.matches('.search-form'))return;event.preventDefault();
+ const {workspace,view}=contextFor(event.target);view.state.searched=true;
+ document.querySelector(`[data-results="${view.id}"]`).innerHTML=searchResults(workspace,view);
 });
-document.getElementById('viewport').addEventListener('change', event => { document.getElementById('stage').dataset.size = event.target.value; });
+// Native close events are queued. Finish owned dismissal synchronously so a
+// later close event cannot replace a newly focused form or steal its input.
+function dismissModal(destination) {
+ const previous=dialogContext;dialogContext=null;
+ document.getElementById('modal').close();render();
+ const opener=previous && [...document.querySelectorAll('button[data-action]')].find(node=>node.getClientRects().length && Object.entries(previous.opener).every(([key,value])=>node.dataset[key]===value));
+ const child=document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`);
+ (destination==='child' ? child : opener || child)?.focus({preventScroll:true});
+}
+document.getElementById('modal').addEventListener('cancel',event=>{event.preventDefault();dismissModal('opener');});
+document.getElementById('modal').addEventListener('close',()=>{if(dialogContext)dismissModal('opener');});
+
+function focusFromChild(node) {
+ const child=node.closest('.child');if(node.closest('[data-action="close-view"]') || !child || rendering || document.getElementById('modal').open)return;
+ const {workspace,view}=contextFor(child);
+ if(workspace.focused===view.id && activeWorkspace===workspace.number)return;
+ captureScroll();focusView(workspace,view);paintFocus();
+ if(view.kind==='review'){const scroll=child.querySelector('[data-scroll]');if(scroll){scroll.scrollTop=0;scroll.scrollLeft=0;}}
+}
+document.addEventListener('focusin',event=>focusFromChild(event.target));
+document.addEventListener('pointerdown',event=>focusFromChild(event.target));
+function frameBounds(workspace) {
+ const host=document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`);
+ const canvas=host?.querySelector('.child-canvas');
+ return host && host.getBoundingClientRect().width>680 && workspace.layout==='float' ? canvas.getBoundingClientRect() : null;
+}
+function applyFrame(workspace,view,frame) {
+ const rect=frameBounds(workspace);if(!rect)return;
+ const minWidth=Math.min(300/rect.width,1),minHeight=Math.min(210/rect.height,1);
+ frame.width=Math.max(minWidth,Math.min(1,frame.width));frame.height=Math.max(minHeight,Math.min(1,frame.height));
+ frame.x=Math.max(0,Math.min(1-frame.width,frame.x));frame.y=Math.max(0,Math.min(1-frame.height,frame.y));view.frame=frame;
+ const child=document.querySelector(`.child[data-view="${view.id}"]`);
+ Object.assign(child.style,{left:frame.x*100+'%',top:frame.y*100+'%',width:frame.width*100+'%',height:frame.height*100+'%'});
+}
+let drag=null;
+document.addEventListener('pointerdown',event=>{
+ const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || event.button!==0)return;
+ const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
+ event.preventDefault();handle.focus({preventScroll:true});handle.setPointerCapture(event.pointerId);
+ drag={workspace,view,handle,rect,resize:handle.hasAttribute('data-resize'),x:event.clientX,y:event.clientY,frame:{...view.frame}};
+});
+document.addEventListener('pointermove',event=>{
+ if(!drag)return;const dx=(event.clientX-drag.x)/drag.rect.width,dy=(event.clientY-drag.y)/drag.rect.height;
+ applyFrame(drag.workspace,drag.view,{...drag.frame,...(drag.resize?{width:drag.frame.width+dx,height:drag.frame.height+dy}:{x:drag.frame.x+dx,y:drag.frame.y+dy})});
+});
+function finishDrag(){drag=null;}
+document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',finishDrag);
+document.addEventListener('keydown',event=>{
+ const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+ const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
+ event.preventDefault();const dx=event.key==='ArrowLeft'?-12/rect.width:event.key==='ArrowRight'?12/rect.width:0,dy=event.key==='ArrowUp'?-12/rect.height:event.key==='ArrowDown'?12/rect.height:0;
+ const resize=event.shiftKey||handle.hasAttribute('data-resize');applyFrame(workspace,view,{...view.frame,...(resize?{width:view.frame.width+dx,height:view.frame.height+dy}:{x:view.frame.x+dx,y:view.frame.y+dy})});
+});
 render();
 </script>
 </body>
