@@ -1,6 +1,6 @@
 # 01a — Workspace and remaining-work prototype
 
-- Status: executing
+- Status: ready
 - Implementation issue: [STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces).
 - Depends on: None.
 - Ordering: Inserted before [01](01-review-state-foundation.md); the [overview](README.md#execution-order) owns execution order.
@@ -18,7 +18,7 @@ The first pass was bounded to one self-contained browser artifact, two synthetic
 
 | Story | Requirement | Evidence from this prototype |
 | --- | --- | --- |
-| US-01, US-04 | R-02, R-05 | Logical PR workspaces own independently navigable child views; outer tab/window presentation does not copy or merge their contents. |
+| US-01, US-04 | R-02, R-05 | Logical PR workspaces own independently navigable child views; outer tab/window presentation and close/reopen do not copy, merge, or discard their retained contents. |
 | US-02 | R-03 | Restore the workspace arrangement and last-focused child. Resuming a review child starts its own selected file at the top. |
 | US-03 | R-04 | Reviewed files show new edits; unreviewed files show the full PR diff; either can open its full PR diff. |
 | US-09, US-10 | R-13, R-14 | Group kinds and evaluate content-specific comparisons with raw fallbacks; separate PR-local skip receipts from review history and resurface changed/new work. |
@@ -30,7 +30,7 @@ The prototype supplies interaction evidence for these requirements; it does not 
 
 Proposed artifact: `Plans/2026-11-14-mobius/Prototype/index.html`, with embedded styles, scripts, and synthetic fixtures. Use semantic browser controls and no external dependencies or network data. Store the interaction evidence and feedback in this plan's execution record. Read the repository and Plans contracts before implementation.
 
-Keep session state in memory so fixture behavior is reproducible through an explicit Reset action. Workspace switching preserves each PR's child views, their independent navigation and arrangement, the last-focused child, draft fixture, and shared review progress. Reload durability, CloudKit, authentication, native menus/windows, a real Git engine, real search indexing, and live GitHub feedback are outside this artifact. Those exclusions do not alter first-release scope.
+Keep session state in memory so fixture behavior is reproducible through an explicit Reset action. Workspace switching and close/reopen preserve each PR's child views, their independent navigation and arrangement, the last-focused child, draft fixture, and shared review/skip progress. Closing removes presentation from the current session; it neither deletes the retained workspace nor closes the GitHub PR. Reload durability, CloudKit, authentication, native menus/windows, a real Git engine, real search indexing, and live GitHub feedback are outside this artifact. Those exclusions do not alter first-release scope.
 
 The artifact must identify itself as a mockup using sample data. Do not copy its state schema into production automatically; 01 must derive its model from evaluated behavior and repository contracts.
 
@@ -363,11 +363,11 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-The title-bar follow-up is reviewed and published. Return the final receipt to the coordinator for the completion notice, then evaluate the corrected filename drag/click behavior with the user. Keep acceptance open and native refinement gated.
+The title-bar follow-up is reviewed and published. The user now requests closing and reopening PR workspaces. The bounded method below is ready for coordinator review and parent-plan integration; hold implementation until that cascade is complete. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
-Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published; user reevaluation remains. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its bounded method is ready for coordinated implementation and later user evaluation. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
 
 
 ## Iteration 4 title-bar drag correction
@@ -404,3 +404,29 @@ Six visually inspected captures apply the same +36/+80px title-text gesture to m
 
 
 Title-bar publication receipt: reviewed artifact/evidence [`f21e01fecffd0f0ecbfa63fbaa6970e7bd3b760c`](https://github.com/kyleve/Stuff/commit/f21e01fecffd0f0ecbfa63fbaa6970e7bd3b760c) is published through `gh stack push`; parent stays `8021dc5cc`. The coordinator reviewed the clean commit, final HTML and six capture hashes, and scoped cross-engine evidence. Inline JavaScript, 214 local links/anchors, fences, archive identities and whitespace passed before that commit. PR #500, its existing screen-evidence comment, and STU-330 now describe this correction. GitHub-rendered HTML has the expected three PR images and one comment image; the published HTML and all six PNG responses match the tested bytes. The owned loopback server is stopped and direct file use passed. No source changed after validation. STU-330 stays In Review under STU-329 and 01a stays executing; user reevaluation is pending. The coordinator owns the final completion notice.
+
+
+## Workspace close/reopen follow-up
+
+The user reports that PR42/43 remain permanently visible with no dismissal and requests closing and reopening PR workspaces. This extends R-02/R-03 within the same two synthetic PRs and in-memory browser experiment. It does not close a GitHub PR, delete a workspace, add repository browsing, or implement persistence/sync. Cross-device open/closed policy remains under Q-09. Retain the published title-bar artifact/evidence at `f21e01fec` and all earlier records.
+
+### Close/reopen method and readiness
+
+Separate retained workspace ownership from current open presentation. Add an explicit open/closed state while preserving the same PR/workspace object, child IDs/routes, saved frames/layout, last-focused child, reviewed/skipped versions, and draft. The active workspace may be absent; no fallback may silently select or reopen PR42/43. Reset deliberately recreates the initial two-open-workspace sample session.
+
+Use a close control on each outer PR tab/window and a persistent compact **Workspaces** picker listing the two retained PRs with open/closed status and explicit switch/reopen actions. Closed workspaces disappear from the outer tabs, window hosts and active-workspace navigation, but stay in that picker. Closing the last workspace shows an intentional empty state with a reopen entry point. Preserve compact chrome and distinguish workspace close from child-view close. These browser controls are bounded prototype choices, not a native window-menu commitment.
+
+Closing an inactive workspace preserves the active PR and its focused child; closing the active workspace selects the next remaining workspace in existing order, or the previous one if there is no next. Last closure sets no active workspace. Reopening activates the same retained workspace, once, with its arrangement and focused child; a Review resumes its selected file at the top, while a non-review keeps its focus/state. Reopening an empty-child workspace keeps its existing New view recovery. Recover keyboard focus to the surviving active context or Workspaces control after a close, and to the restored child/context after reopen; Escape returns from the picker predictably.
+
+Current source `ac4ac4478` renders every retained workspace and dereferences the active owner throughout navigation, render/focus restoration, modal dismissal, observers and events. The current sample-push path also activates its PR. Update those paths coherently: only open workspaces render/observe/accept child actions, global controls tolerate no active owner, and repeated/stale actions cannot duplicate or implicitly reopen a workspace. A sample push may update a retained closed PR's fixture revision without opening it or stealing active focus. Resize/presentation changes preserve open/closed state and saved placement. Reset is the deliberate exception.
+
+Evidence criteria: exercise tabs and windows at phone/tablet/desktop sizes; close inactive, active, then last workspace; assert actual host/tab visibility, active/focused identity and accessible empty recovery. Reopen repeatedly and verify no duplicate instances, unchanged child IDs/routes/frames/layout, review/skip receipts and drafts, review-file-top versus non-review-focus return, and empty-child recovery. Check picker keyboard/Escape and mouse/touch reachability, closed-workspace sample push, all-closed resize/presentation paths, Reset, and retained title-bar drag/click/resize behavior after reopening. Test relevant shared modal/render boundaries, not unrelated format catalogs. Add exact-source evidence and representative captures under `Prototype/evidence/workspace-close/`; obtain fresh independent review, a clean tested artifact checkpoint and coordinator review before coordinated publication of #500, its existing screen comment and STU-330.
+
+Readiness review: `executing` → `draft` for this method revision, then `draft` → `ready` after tracing source ownership, implicit-active assumptions, focus recovery, the two-PR fixture, and the user-authorized retain/reopen behavior. No product choice blocks this bounded method. Parent integration of R-02/R-03 and outlines 01/02 is a coordination prerequisite; no UI implementation starts until the coordinator reviews this clean method commit and completes the cascade. The coordinator owns shared overview/native changes and the completion notice; this branch owns 01a/artifact evidence. Resume executing after that release, and keep experiment acceptance pending user evaluation.
+
+- [x] Inspect current ownership/activation paths and review the bounded method.
+- [ ] Coordinate parent integration and resume implementation.
+- [ ] Implement close/reopen, explicit no-active state, and retained-context recovery.
+- [ ] Verify focused three-size scenarios/captures and fresh independent review.
+- [ ] Publish the coordinated artifact/evidence/receipt and return completion.
+- [ ] Integrate user evaluation before completing the experiment.
