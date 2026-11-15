@@ -363,7 +363,7 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-Close/reopen is reviewed and published. The user now requests Astro authoring with automatic reload and local-network access. The bounded [Astro development follow-up](#astro-implementation-and-evidence) is built, validated and independently reviewed. Return its clean tested commit for coordinator review before publication. Leave the intentional demo server running for evaluation and report its exact URL and stop command. Keep acceptance open and native refinement gated.
+Close/reopen is reviewed and published. The user now requests Astro authoring with automatic reload and local-network access. The bounded [Astro development follow-up](#astro-implementation-and-evidence) is reviewed and published at `eba910265`, with its final receipt below. Return the live LAN demo and receipt to the coordinator for the completion notice. The intentional native Astro server remains running for evaluation; its URL and stop command accompany the handoff. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
@@ -465,8 +465,9 @@ Readiness review (2026-11-15): the tooling revision was drafted and reviewed aga
 - [x] Create the real Astro route and document its scoped commands.
 - [x] Verify automatic updates, LAN serving, retained behavior, and matched renders.
 - [x] Complete fresh independent review.
-- [ ] Return a clean tested commit for coordinator review, then publish.
-- [ ] Return the running demo and ownership/stop information; integrate user evaluation.
+- [x] Return a clean tested commit for coordinator review, then publish.
+- [x] Prepare the running demo and ownership/stop information for the coordinator handoff.
+- [ ] Integrate user evaluation; do not mark the experiment complete yet.
 
 ### Astro implementation and evidence
 
@@ -479,3 +480,8 @@ Astro check reports four files and zero errors/warnings/hints; build emits one s
 Fresh independent review passes ten Chromium 156 / WebKit 27.2 dev/build cases and finds no actionable migration issue. Its final mechanical recheck verifies removal of only the CSS separator newline; the author’s build/reload/three-size checks and coordinator’s four cases were rerun at the final CSS hash `4dcaeb7e65ffb9469d740184816ed6249cff16f0f5be7753dd5aac9b83241282`. Four additional coordinator localhost/LAN cases pass. WebKit mouse closure of an inactive workspace may move DOM focus from Research input to body while preserving logical child focus; the reviewer reproduced it identically in archive/dev/build and classified it as unchanged browser-focus behavior, not a migration defect. Keyboard recovery and retained context pass. No UI/script behavior was changed to address it.
 
 Limits: actual phone Wi-Fi/native devices remain untested; full reload remains intentionally destructive to the sample session. Root default lint excludes Prototype, so explicit narrow checks are recorded rather than claiming broad lint coverage. Runtime probes are ad hoc evidence, not new CI guards. The separate [planning workflow PR #503](https://github.com/kyleve/Stuff/pull/503) owns reusable Astro guidance. Experiment acceptance and native refinement still await user evaluation.
+
+
+Astro publication receipt (2026-11-15): coordinator-approved [artifact/evidence `eba910265bc74b8ef858c1d71289ce31745b0132`](https://github.com/kyleve/Stuff/commit/eba910265bc74b8ef858c1d71289ce31745b0132) is published through `gh stack push`; parent remains `ecb3c017d`. Existing PR #500, screenshot discussion `4576427594`, and STU-330 now reference the Astro setup, exact-source checks and separate [workflow PR #503](https://github.com/kyleve/Stuff/pull/503). GitHub-rendered HTML contains three PR images and one updated discussion image; all 17 published source/config/archive/README/evidence/PNG responses exactly match approved bytes. The comment preserves its existing discussion and links the new owning route after the original file became an archive. No user browser was available for publication UI inspection, so verification used rendered GitHub HTML and image responses.
+
+The dev server remains intentionally running under the prototype task (native background PID 7013, port 4321; LAN and local URLs supplied to the coordinator). Use the README’s project-scoped `astro dev status`/`dev stop` commands; the temporary independent build-preview server is stopped. Sources did not change after final validation. STU-330 remains In Review under STU-329 and 01a executing pending user evaluation. The coordinator owns the requested completion notice. Actual phone Wi-Fi remains untested.
