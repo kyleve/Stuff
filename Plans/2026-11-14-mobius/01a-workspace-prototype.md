@@ -292,7 +292,7 @@ The parent readiness update was coordinated onto parent `4b5873d95` at child `33
 - [x] Implement grouped fixtures, comparisons, and explicit skip/undo.
 - [x] Repeat three-size regressions and skip/group/new-push truth scenarios.
 - [x] Record fresh independent review and iteration-4 captures/evidence.
-- [ ] Publish coordinated PR, existing screenshot comment, and issue updates.
+- [x] Publish coordinated PR, existing screenshot comment, and issue updates.
 - [ ] Collect and integrate fourth-round user evaluation.
 
 ### Iteration 4 implementation and evidence
@@ -319,12 +319,14 @@ Fresh independent review covered the complete artifact/catalog and current contr
 
 Unfiltered axe also reports inherited best-practice heading/landmark notices outside the selected WCAG tags. This is not a complete accessibility or VoiceOver audit. Checks are ad hoc browser evidence, not retained CI guards. Default web lint globs exclude this HTML; native tests/snapshots and SwiftFormat were not run because this slice changes no native source/build inputs. Real Git/LFS, format parsing, provider behavior, durability/sync, code execution, native platforms, and fourth-round user acceptance remain unverified.
 
-Readiness was coordinated onto parent `b386db979` at child `6e250ab22` before artifact edits. The final tested artifact/evidence is ready for the coordinator's delivery checkpoint and one parent cascade; PR/screenshot/issue publication receipt will be recorded after that stable commit is pushed. STU-330 remains In Review, and the plan remains executing pending fourth-round user evaluation.
+Readiness was coordinated onto parent `b386db979` at child `6e250ab22` before artifact edits. The tested artifact/evidence was committed at `97ba3f963`, then rebased unchanged after the coordinator recorded the delivery checkpoint in parent `ce886cdab`. Stable artifact/evidence revision [`e987835f6a1dd18463eceaf8274673c8445036d5`](https://github.com/kyleve/Stuff/commit/e987835f6a1dd18463eceaf8274673c8445036d5) is published through `gh stack push`. The entire 01a/Prototype tree was verified byte-identical through the cascade; the coordinator independently checked the final HTML/capture hashes and representative final visuals.
+
+[PR #500](https://github.com/kyleve/Stuff/pull/500), its [existing screenshot comment](https://github.com/kyleve/Stuff/pull/500#discussion_r4576427594), and STU-330 now describe iteration 4 and preserve prior history. GitHub-rendered HTML has the expected three PR images and one comment image with descriptive alt text; the published HTML artifact and all sixteen commit-pinned PNG responses exactly match local evidence. Published-PR browser inspection remains unavailable; captures were visually inspected locally. The owned loopback server is stopped, and direct file loading passed. STU-330 remains In Review and this plan remains executing; fourth-round evaluation is explicitly pending. The worker returns the completed artifact/publication/checks/limits to the coordinator, who owns the user's completion notice and next evaluation.
 
 ## Resume point
 
-Send the clean tested artifact/evidence commit to the coordinator for the delivery checkpoint and parent cascade. After the stable revision is pushed, update PR #500, its existing screen-evidence comment, STU-330, and this publication receipt; verify published bytes and return a clear completion handoff. Then collect the fourth-round evaluation before refining the native foundation.
+Deliver the final published revision, artifact, checks, and limits to the coordinator for the user completion notice. Collect fourth-round evaluation of group discoverability, skip meaning/resurfacing, rich/source comparisons, and retained workspace return behavior. Integrate the decision before refining the native foundation; do not infer acceptance from publication.
 
 ## Outcome
 
-Four iterations are built and reviewed with retained evidence. Iteration 4 adds grouped content kinds, suitable prepared previews, and separate PR-scoped skip semantics; coordinated publication and fourth-round product evaluation remain pending. The plan stays executing. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations are built, reviewed, and published with retained evidence. Iteration 4 adds grouped content kinds, suitable prepared previews, and separate PR-scoped skip semantics; fourth-round product evaluation remains pending. The plan stays executing. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
