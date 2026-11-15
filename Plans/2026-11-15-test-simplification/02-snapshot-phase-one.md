@@ -1,6 +1,6 @@
 # 02 — Snapshot phase one
 
-- Status: ready
+- Status: executing
 - Depends on: [01](01-unit-tests-and-guidance.md)
 - Shared context: [Overview](README.md)
 - Requirements: R-03 and R-05; exclusions X-01 and X-02 apply.
@@ -42,8 +42,25 @@ Do not record unrelated differences to complete a matrix reduction.
 
 ## Progress and evidence
 
-Not started. The audit verified all 29 reference identities and identified the retained coverage.
+- Narrowed the five affected suites at their existing declarations.
+- Kept all MainTabs preview state names through `PreviewScenarios`, including FlatElsewhere and equivalent fold poses.
+- Removed the dark Inspector quarantine without claiming that STU-20's rendering defect is fixed.
+- Verified the exact 29 deletions and unchanged bytes for all 137 retained references in the affected suites.
+- Independent review found two preview-only issues: capture hooks did not load Elsewhere in previews, and repeated capture case names collided in the preview cutsheet.
+  The preview provider now emits 35 unique cases and loads Elsewhere from its mounted task. The follow-up source review found no remaining issue.
+  SnapshotKit's contract now states both preview requirements.
+- Swift formatting, diff whitespace, and the 71-suite shard inventory checks passed.
+- The five selected snapshot suites passed with `--record never --timings`: 8 test declarations and 137 reference captures.
+  The loading/failed Locations navigation-bar and inset probe also passed.
+  Log: `/private/tmp/stuff-test-reduction-phase-one.log`; full output and timing identities were retained alongside it.
+- After the preview correction, a fresh build passed 15 tests across `MainTabsTests`, `MainTabsTestsDuo`, `YearViewTests`,
+  `LocationsViewTests`, `LocationsViewTestsDuo`, `WhereFlyoverCatalogTests`, and `WhereFlyoverDataTests`.
+  The final MainTabs assertion run also passed all 61 references with unchanged images.
+  Command: `./test --no-generate --record never --timings`, with repeated `--only` for those seven unit suites and `WhereUISnapshotTests/MainTabsSnapshotTests`.
+  Log: `/private/tmp/stuff-test-reduction-phase-one-final.log`.
+- Timing identities match every remaining reference in the five changed suites, including the repeated final MainTabs run.
+- Xcode preview rendering was not exercised. Preview identity and readiness changes received source review and compiled in the test build.
 
 ## Resume point
 
-After step 01, apply the first snapshot selection changes.
+Verification and review are complete. Publish this phase-one change, then continue with [03](03-snapshot-phase-two.md).

@@ -29,10 +29,6 @@ struct InspectorSnapshotTests {
                 ),
             )
         }
-        // Light is asserted strictly. Dark is quarantined, and the two are
-        // separate calls so that quarantine covers only the capture that is
-        // actually unreliable — wrapping both would stop guarding the one that
-        // has never failed.
         await assertSnapshots(
             of: swiftDataView,
             named: "SwiftData",
@@ -41,35 +37,6 @@ struct InspectorSnapshotTests {
                 colorSchemes: [.light],
             ),
         )
-
-        // The dark capture is bistable: the search field's placeholder renders at
-        // one of two widths ~3% apart and only one matches the reference, so this
-        // reddens a run perhaps once in several. Quarantined rather than
-        // re-recorded, because neither state is more correct than the other and
-        // re-recording would just move which one fails.
-        //
-        // `isIntermittent` because it passes far more often than it fails.
-        //
-        // What is ruled out, so nobody re-runs these: not a settle-duration
-        // problem (captured cold it fails 8/8, and a `settledAtLeast(1.5)` floor
-        // still fails 4/4); not the content instance shared across a case's
-        // configurations (rebuilding the view per configuration still failed 1 of
-        // 6); and not a regression from the commit that first went red, which was
-        // docs plus two WhereUI files this bundle doesn't link. See
-        // [STU-20](https://linear.app/kve/issue/STU-20) for the evidence and candidate fix.
-        await withKnownIssue(
-            "inspectorSurfaces.SwiftData_iPhone_dark is bistable",
-            isIntermittent: true,
-        ) {
-            await assertSnapshots(
-                of: swiftDataView,
-                named: "SwiftData",
-                configurations: SnapshotConfiguration.combinations(
-                    devices: [.iPhoneFullContent],
-                    colorSchemes: [.dark],
-                ),
-            )
-        }
 
         let controlSuiteName = "inspector.snapshot.control"
         let defaultsSuiteName = "inspector.snapshot.defaults"

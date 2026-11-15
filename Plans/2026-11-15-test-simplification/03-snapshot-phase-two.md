@@ -11,9 +11,9 @@
    The cases are About Default, Data Default, Devices Default, License Default, Regions Overview, DayRelabel Default, ManualDay Add, and LoggedDays Loaded.
 2. Retain all five phone configurations, the light iPad baseline, and every additional named state.
    These changes remove 32 references and leave 893 before any fixture reframing.
-3. Assess FlightReviewPointRow's screen-sized fixture for intrinsic component coverage at production row width.
-   If its Form context is preserved, use five Gap configurations and two each for Restore and Ground.
-   Record and review new fixture images separately from unchanged captures.
+3. Keep FlightReviewPointRow's Form context and full-content phone frame.
+   Retain five Gap phone configurations, its light tablet baseline, and two each for Restore and Ground.
+   Remove Gap's four repeated tablet traits. This avoids fixture reframing and leaves 889 references.
 4. Assess the remaining Periscope hosting-only tests, Alerts/VisibleYear hosting checks, and repeated PlannedStayEditor matrices.
    Remove additional cases only where source and retained guards establish redundant coverage.
 5. Record each remaining candidate's disposition, final counts, validation, and publication.
@@ -38,8 +38,18 @@ If a proposed cut removes unique meaningful coverage, retain it and record that 
 
 ## Progress and evidence
 
-Not started. All 32 proposed reference identities exist at the baseline.
+All 32 proposed reference identities exist at the baseline. Assessment also supports four row-reference deletions and two unit-test removals.
+
+| Candidate | Decision and evidence |
+| --- | --- |
+| FlightReviewPointRow | Keep Form styling and width unchanged; use five phone traits plus the light tablet baseline for Gap. The parent screen's point disclosure starts collapsed, so its tablet matrices do not replace the expanded row baseline. |
+| PeriscopeViewerHostingTests | Remove both window-exists assertions. Viewer light/dark snapshots exercise its public root; model and stylesheet suites retain query, persistence, and density behavior. The removed tests did not assert comfortable density or loaded content. |
+| Other Periscope hosting families | Retain for now: no equivalent image coverage was found for every tool. Their mount assertions do not establish async completion or store rebinding. |
+| Alerts and VisibleYear hosting checks | Retain the existing mount checks because there is no direct image suite for either screen. |
+| PlannedStayEditor | Retain its two representative matrices. NewStay and FlexibleStay render different date-control branches, and flexible arrival/departure adds controls and accessibility labels. Keep overlap and stale-save states. |
+
+Source review did not establish equivalent coverage for the retained candidates. No additional reduction or replacement test is proposed for them.
 
 ## Resume point
 
-After step 02, apply the eight tablet-matrix reductions and assess the remaining candidates.
+After step 02, apply the eight tablet-matrix reductions, narrow Gap's tablet coverage, and remove the two redundant viewer mount tests.

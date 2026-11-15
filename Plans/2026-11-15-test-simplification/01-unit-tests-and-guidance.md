@@ -1,6 +1,6 @@
 # 01 — Unit tests and guidance
 
-- Status: executing
+- Status: complete
 - Depends on: none
 - Shared context: [Overview](README.md)
 - Requirements: R-01, R-02, R-05; exclusions X-01 and X-02 apply.
@@ -49,8 +49,8 @@ If a removed test owns a unique behavior guard, retain that assertion and repeat
   `WhereUITests/WhereStylesheetTests`, `WhereStylesheetEnvironmentTests`, and `AboutSettingsViewTests`.
 - The wrapper also passed 29 architecture tests, architecture lint, 17 Flyover web tests, attribution, and 16 backup-upgrader regressions.
 - Test log: `/private/tmp/stuff-test-reduction-unit.log`; results: `where-test-e901f1e05db2` in the checkout's temporary test directory.
-- Review and checks are complete; publication is pending.
+- Published as `7c3a06da1` on `codex/test-maintenance-reduction` in [PR #505](https://github.com/kyleve/Stuff/pull/505).
 
 ## Resume point
 
-Read the focused test result, then commit and push this slice.
+Complete. Continue with [02](02-snapshot-phase-one.md).

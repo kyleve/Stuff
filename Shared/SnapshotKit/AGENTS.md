@@ -18,6 +18,8 @@ Consumer modules own design-system root wrapping.
 - Keep configuration selection explicit; case/assertion APIs must not supply a broad default matrix.
   Treat identifiers as a reference-file wire format: omit default axes, preserve existing tokens and frame semantics, and omit a new axis's default. Guard: `SnapshotConfigurationTests`.
 - Filter `.accessibility` configurations out of previews. Including them requires a preview-only dependency boundary for the test-only renderer.
+- Preview cutsheets require one case per `(referenceGroup, name)` identity. Distinct configurations do not distinguish repeated case identities.
+  Preview fixtures must load from their mounted view or start ready; previews do not invoke capture readiness hooks.
 - Keep content and panel builders lazy. Descriptor construction must not instantiate views/models.
   Models captured outside a builder and shared hooks still require independent cases; per-configuration builder invocation does not isolate them. See [STU-114](https://linear.app/kve/issue/STU-114).
 - Use `\.isCapturingSnapshot` only to freeze motion at a deterministic phase. The exception is content no settle window can stabilize: externally loaded substrates or wall-clock controls/timers may use an identical-layout placeholder.

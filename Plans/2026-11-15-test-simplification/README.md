@@ -6,9 +6,9 @@
 - Operation: execute the approved audit recommendations.
 - Authorization: Kyle requested both snapshot phases, guidance improvements, and other supported audit improvements on 2026-11-15.
 - Stage: implementation.
-- Completed: source, reference, guidance, and relevant fix-history audit; plan review; clean baseline check.
-- Pending: the three numbered deliverables, focused verification, independent review, and publication.
-- Next action: implement [01](01-unit-tests-and-guidance.md).
+- Completed: audit and plan review; [01](01-unit-tests-and-guidance.md), verified and published in `7c3a06da1`.
+- Pending: both snapshot passes, remaining candidate assessment, focused verification, and publication.
+- Next action: implement and verify [02](02-snapshot-phase-one.md).
 - Branch: `codex/test-maintenance-reduction`.
 - Tracking: [STU-332](https://linear.app/kve/issue/STU-332/reduce-low-value-tests-and-automatic-snapshot-matrix-growth).
 
@@ -82,5 +82,5 @@ All three plans have executable detail from the accepted audit. Each deliverable
 
 - [STU-20](https://linear.app/kve/issue/STU-20) remains open: removing a quarantine does not prove a renderer fix.
 - [STU-246](https://linear.app/kve/issue/STU-246) owns the separate Manual Day range-mode gap; existing named states remain.
-- Implementation PR: pending.
+- Implementation PR: [#505](https://github.com/kyleve/Stuff/pull/505).
 - Outcome: in progress.
