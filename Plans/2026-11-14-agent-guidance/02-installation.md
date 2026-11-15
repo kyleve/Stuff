@@ -1,6 +1,6 @@
 # External skill layout repair
 
-Status: ready
+Status: executing
 Dependencies: [01](01-guidance.md)
 Requirements: R-03; exclusions X-01 through X-04 from the [overview](README.md).
 
@@ -34,14 +34,26 @@ Resume from the recorded pending step and repeat only invalidated checks.
 
 ## Progress
 
-- [ ] Implement the steps.
-- [ ] Verify acceptance and record evidence.
+- [x] Implement the steps.
+- [x] Verify acceptance and record evidence.
 - [ ] Review and publish the deliverable.
 
 ## Execution record
 
 2026-11-14: approved plan recorded; execution authorized by the user.
 
+2026-11-14: implemented shared metadata/layout validation, explicit exclusions, pinned repair, and staged directory/manifest replacement.
+The real pinned package contained a symlink inside its excluded plugin tree. Exclusions now prevent traversal and copying of that tree.
+Symlinks outside exclusions remain rejected. Regression fixtures cover both cases.
+Focused installer, orchestration, command, and transaction checks passed: 24 tests and 163 assertions before the final added outside-target assertion.
+Public command contracts passed separately: 2 tests and 130 assertions outside the sandbox.
+The sandbox run hit unrelated Xcode diagnostics from snapshot-shards help.
+The real install retained Swift Testing revision `2d6bba14a3c8bf3694f218b92fffe617c41ae43e` and produced one entry point in each source/mirror tree.
+A second install emitted no changes. Attribution regeneration and its offline check passed; the report remained unchanged.
+Independent review will cover the complete tooling change with deliverable 03.
+
 ## Resume point
 
-Complete the steps above in dependency order. Publication and evidence remain pending.
+Proceed with deliverable 03. Complete independent review before publication.
+Automatic approval review rejected pushing to public `kyleve/Stuff`, even after ownership and ADMIN access were verified.
+Request explicit publication permission after the complete implementation is reviewable. Linear linking remains unavailable without credentials.

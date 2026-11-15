@@ -61,6 +61,13 @@ These rules also apply when changing a root command or installer that calls this
 - Stop publication polling when a setup workflow fails before the requested publication workflow exists.
   Guards: [test_circleci_pipeline.py](Tests/test_circleci_pipeline.py) and the installer and Flyover controller command tests.
 
+## Agent skills
+
+- Validate every manifest entry before installation. Exclusions are relative paths within the selected upstream skill directory.
+- Install exactly one root `SKILL.md` with the manifest name. Reject symlinks and nested entry points after exclusions.
+- Repair invalid installations at the pinned revision. Stage and validate each candidate before replacing its directory and manifest through `FileTransaction`.
+  Guards: [agent_skill_installer_test.rb](Tests/agent_skill_installer_test.rb), [sync_agents_test.rb](Tests/sync_agents_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
+
 ## Installer publication
 
 Both websites share the root npm workspace and `astro_site.py` launcher.

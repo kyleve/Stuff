@@ -1,6 +1,6 @@
 # Guidance restructuring
 
-Status: complete
+Status: blocked
 Dependencies: None
 Requirements: R-01, R-02; exclusions X-01 through X-04 from the [overview](README.md).
 

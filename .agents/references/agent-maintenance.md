@@ -10,7 +10,7 @@ by `./sync-agents`.
 - `./sync-agents` — generate `CLAUDE.md` next to each `AGENTS.md` and mirror
   `.agents/skills/` into `.claude/skills/`.
 - `./sync-agents --install` — fetch external skills listed in
-  `.agents/external-skills.json`. Rarely run by hand. `mise install` calls it
+  `.agents/external-skills.json`. It repairs invalid layouts at the pinned revision. Rarely run by hand. `mise install` calls it
   from a `postinstall` hook. Installing tools also installs skills on a dev
   machine and a cloud agent. CI sets `MISE_NO_HOOKS=1` because CI does not use
   agent skills.
@@ -18,6 +18,10 @@ by `./sync-agents`.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
 `.agents/external-skills.json` pins the **external** skills to a commit.
+Its optional `exclude` list removes relative packaging paths from the staged skill.
+Keep exactly one root `SKILL.md` with the manifest name. Preserve referenced resources.
+Add, install, and update validate the candidate before transactional replacement.
+See the [installer contract](../../Tools/README.md#agent-guidance-tools).
 `.agents/skills/.gitignore` excludes those fetched copies. Anything else
 under `.agents/skills/` is **repo-owned** and committed. External skills are
 also an **attribution** input. After adding or updating one, re-run

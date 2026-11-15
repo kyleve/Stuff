@@ -5,10 +5,11 @@
 - Updated: 2026-11-14; baseline `b629d56ac`.
 - Operation: execute the user-approved plan.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: implementation of [02](02-installation.md).
+- Stage: implementation of [03](03-validation.md).
 - Completed: discovery, plan review, guidance restructuring, relocation verification, link audit, and byte-budget checks.
-- Pending: guidance verification, installer repair, offline validator, CI enforcement, review, and publication.
-- Next action: implement and test external skill layout repair.
+- Pending: offline validator, CI enforcement, independent review, and publication.
+- Next action: implement the read-only checker and CI failure propagation.
+- Publication: automatic approval review rejected a push to public `kyleve/Stuff`; explicit publication permission will be requested after the complete diff is verified.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
 ## Outcome and requirements

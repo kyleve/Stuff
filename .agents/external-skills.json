@@ -12,7 +12,11 @@
   "swift-testing-pro": {
     "repo": "twostraws/Swift-Testing-Agent-Skill",
     "path": "swift-testing-pro",
-    "ref": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e"
+    "ref": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+    "exclude": [
+      "skills",
+      ".claude-plugin"
+    ]
   },
   "swiftdata-pro": {
     "repo": "twostraws/SwiftData-Agent-Skill",

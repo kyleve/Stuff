@@ -16,7 +16,7 @@
 #
 #   ./sync-agents --install              Fetch external skills listed in
 #                                        .agents/external-skills.json.
-#                                        Skips skills already present.
+#                                        Repairs invalid installations.
 #                                        Run automatically by ./ide.
 #
 #   ./sync-agents --add <url> [name]     Add an external skill from a
@@ -38,8 +38,10 @@ require "fileutils"
 require "json"
 require "tmpdir"
 require "open3"
+require_relative "Tools/repository"
+require_relative "Tools/agent_skill_installer"
 
-REPO_ROOT = File.expand_path("..", __FILE__)
+REPO_ROOT = Repository.root(__FILE__)
 MARKER = "<!-- Generated from AGENTS.md — do not edit directly -->"
 
 EXCLUDED_DIRS = %w[Derived .build .git .cursor .claude].freeze
@@ -151,23 +153,18 @@ class SyncAgents
         else abort "Multiple skills in #{repo}: #{available.join(", ")}\n" \
                     "Specify one: ./sync-agents --add #{url} <name>"
         end
-        skill_src = File.join(tmpdir, name)
       end
 
-      dest = File.join(@skills_directory, name)
-      FileUtils.rm_rf(dest)
-      FileUtils.mkdir_p(@skills_directory)
-      FileUtils.cp_r(skill_src, dest)
       sha = head_sha(tmpdir)
-      puts "Added #{name} from #{repo}@#{sha[0..7]}"
-
       manifest = load_manifest
       manifest[name] = { "repo" => repo, "path" => name, "ref" => sha }
-      save_manifest(manifest)
+      skill = AgentSkill.new(name, manifest.fetch(name))
+      install_skill(skill, tmpdir, manifest: manifest)
+      puts "Added #{name} from #{repo}@#{sha[0..7]}"
     end
   end
 
-  # --- Install all external skills from manifest (skip if present) ---
+  # --- Install external skills from manifest, repairing invalid layouts ---
 
   def install_skills
     manifest = load_manifest
@@ -176,28 +173,16 @@ class SyncAgents
       return
     end
 
-    manifest.each do |name, entry|
+    skills = manifest.map { |name, entry| AgentSkill.new(name, entry) }
+    skills.each do |skill|
+      name = skill.name
       dest = File.join(@skills_directory, name)
-      if Dir.exist?(dest) && File.exist?(File.join(dest, "SKILL.md"))
-        next
-      end
-
-      repo = entry["repo"]
-      path = entry["path"]
-      ref = entry["ref"] || "main"
+      next if skill.installed?(dest)
 
       Dir.mktmpdir do |tmpdir|
-        clone_repo(repo, ref, tmpdir)
-
-        skill_src = File.join(tmpdir, path)
-        unless Dir.exist?(skill_src)
-          warn "Warning: '#{path}' not found in #{repo}@#{ref}, skipping #{name}"
-          next
-        end
-
-        FileUtils.mkdir_p(@skills_directory)
-        FileUtils.cp_r(skill_src, dest)
-        puts "Installed #{name} from #{repo}@#{ref}"
+        clone_repo(skill.repository, skill.revision, tmpdir)
+        install_skill(skill, tmpdir)
+        puts "Installed #{name} from #{skill.repository}@#{skill.revision}"
       end
     end
   end
@@ -211,36 +196,34 @@ class SyncAgents
       return
     end
 
-    changed = false
-    manifest.each do |name, entry|
-      repo = entry["repo"]
-      path = entry["path"]
-
+    skills = manifest.map { |name, entry| AgentSkill.new(name, entry) }
+    skills.each do |skill|
+      name = skill.name
       Dir.mktmpdir do |tmpdir|
-        clone_default_branch(repo, tmpdir)
+        clone_default_branch(skill.repository, tmpdir)
         sha = head_sha(tmpdir)
 
-        if sha == entry["ref"]
+        if sha == skill.revision && skill.installed?(File.join(@skills_directory, name))
           puts "#{name} already at #{sha[0..7]}"
           next
         end
 
-        skill_src = File.join(tmpdir, path)
-        unless Dir.exist?(skill_src)
-          warn "Warning: '#{path}' not found in #{repo}@#{sha[0..7]}, skipping #{name}"
-          next
-        end
-
-        dest = File.join(@skills_directory, name)
-        FileUtils.rm_rf(dest)
-        FileUtils.cp_r(skill_src, dest)
-        entry["ref"] = sha
-        changed = true
-        puts "Updated #{name} from #{repo}@#{sha[0..7]}"
+        updated = manifest.merge(name => manifest.fetch(name).merge("ref" => sha))
+        install_skill(AgentSkill.new(name, updated.fetch(name)), tmpdir, manifest: updated)
+        manifest = updated
+        puts "Updated #{name} from #{skill.repository}@#{sha[0..7]}"
       end
     end
+  end
 
-    save_manifest(manifest) if changed
+  def install_skill(skill, checkout, manifest: nil)
+    update = if manifest
+      AgentSkillInstaller::ManifestUpdate.new(path: @manifest_path, content: JSON.pretty_generate(manifest) + "\n")
+    end
+    AgentSkillInstaller.new.install(
+      skill, checkout: checkout, destination: File.join(@skills_directory, skill.name), manifest_update: update,
+    )
+    @changed_files << @manifest_path if update
   end
 
   # --- Helpers ---
@@ -331,13 +314,9 @@ class SyncAgents
 
   def load_manifest
     return {} unless File.exist?(@manifest_path)
-    JSON.parse(File.read(@manifest_path))
-  end
-
-  def save_manifest(manifest)
-    FileUtils.mkdir_p(File.dirname(@manifest_path))
-    File.write(@manifest_path, JSON.pretty_generate(manifest) + "\n")
-    puts "Updated #{@manifest_path}"
+    result = JSON.parse(File.read(@manifest_path))
+    raise AgentSkill::Error, "external-skills.json must contain an object" unless result.is_a?(Hash)
+    result
   end
 end
 
@@ -348,7 +327,7 @@ def usage(output = $stdout)
     Generate Claude configuration from AGENTS.md and synchronize agent skills.
 
     Options:
-      --install       Fetch missing external skills at their pinned revisions.
+      --install       Fetch missing or invalid external skills at pinned revisions.
       --update        Refresh external skills and their pinned revisions.
       --add URL NAME  Add one external skill; NAME is optional for one-skill repos.
       --git-add       Stage generated changes after synchronizing.
@@ -380,5 +359,9 @@ if __FILE__ == $PROGRAM_NAME
     exit 0
   end
   validate_arguments(ARGV)
-  SyncAgents.new.run(ARGV)
+  begin
+    SyncAgents.new.run(ARGV)
+  rescue AgentSkill::Error, FileTransaction::Error, JSON::ParserError, SystemCallError => error
+    abort "error: #{error.message}"
+  end
 end

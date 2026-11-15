@@ -180,6 +180,19 @@ metadata remain readable. No-op writes preserve their original bytes.
 The [rebalance skill](../.agents/skills/rebalance-snapshot-shards/SKILL.md)
 owns sample selection and publication.
 
+## Agent guidance tools
+
+`./sync-agents --install` fetches missing or invalid external skills at their manifest revisions.
+An optional `exclude` array removes relative packaging paths from the staged copy.
+It cannot remove the root `SKILL.md` or traverse outside the selected skill directory.
+The installed package must contain exactly one root entry point with the manifest name.
+Excluded paths are never traversed or copied. Symlinks elsewhere in the package are rejected.
+
+Add, install, and update use the same validation and transactional replacement.
+A failed fetch, copy, validation, or replacement preserves the previous skill.
+When add or update changes the manifest, that change commits with the skill directory.
+Valid existing installations are left alone by `--install`; `--update` explicitly selects newer revisions.
+
 ## Testing
 
 Install the site dependencies before the retained installer tests or snapshot builds:
