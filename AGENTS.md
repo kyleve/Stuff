@@ -30,6 +30,7 @@ Read the matching reference before implementation or review. Read only relevant 
 - Regenerate with `./ide --no-open`. Never open Xcode or bypass the setup with `tuist generate`.
 - Use `./test` for iOS bundles. Never hand-roll `tuist test` or `xcodebuild` for them.
 - Use root commands for their owned state. Read `--help` instead of reimplementing a command.
+- Use `./prototype` for Astro prototype servers and checks; see [tooling details](Tools/README.md#browser-prototypes).
 - Use `./icons` for icon catalogs and manifests. Never hand-edit them or add icon Swift.
 - Run `./attribution` after adding or updating a package, external skill, or development tool. Commit the report.
 - Run `./test --architecture-only` after a Where dependency, composition-root, or documented concurrency-boundary change.

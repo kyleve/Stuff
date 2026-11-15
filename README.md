@@ -205,6 +205,7 @@ sync-agents         Link Claude skills to .agents/skills/; remove legacy instruc
 simulator           Resolve/create this checkout's simulator, boot it, print its UDID
 worktree            Check or update against origin/main; remove owned worktree caches
 profile             Report build/test hot spots (see `./profile --help`)
+prototype           Run, inspect, check, and build plan-local Astro prototypes
 flyover             Export, preview, and develop Where's native Flyover QA atlas with Astro
 flaky               Detect flaky tests, update FLAKY_TESTS.md (see `./flaky --help`)
 circleci-artifacts   Download every artifact for a CircleCI job

@@ -12,37 +12,26 @@ This procedure supports an authorized prototype; it does not authorize implement
 
 ## Run and share the preview
 
-Use the installed CLI from the repository root. Pass an absolute project root: the background process changes its working directory, so a relative `--root` can resolve twice. Substitute the actual project path and choose an available port:
+Use the repository command from the repository root (see [`./prototype --help`](../../../../prototype) and [tooling details](../../../../Tools/README.md#browser-prototypes)):
 
 ```sh
-prototype_dir="$PWD/Plans/YYYY-MM-DD-topic/Prototype"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev \
-  --root "$prototype_dir" --host 0.0.0.0 --port 4321 --background
+./prototype start Plans/YYYY-MM-DD-topic/Prototype --lan
+./prototype status Plans/YYYY-MM-DD-topic/Prototype
+./prototype logs Plans/YYYY-MM-DD-topic/Prototype
+./prototype stop Plans/YYYY-MM-DD-topic/Prototype
 ```
 
-`--host` enables local-network device review. Give the user both the localhost URL and the server's actual LAN URL; a phone uses the latter on the same network. Verify the running server's actual port and the machine's current LAN interface address at handoff. Astro's printed network URLs can retain an old address after a network change; confirm a fresh HTTP response from the address you give the user. Keep this a development preview; do not add public hosting or a tunnel unless requested.
+The command owns pinned tooling, absolute project paths, background lifecycle, ownership checks, port conflicts, HTTP readiness, and current reachable IPv4 URLs. Run `status` again at handoff; network addresses can change while the server stays running. Give the user the verified local and network URLs. A phone uses the latter on the same network. Keep this a development preview; do not add public hosting or a tunnel unless requested.
 
-Use Astro's project-scoped lifecycle commands to inspect and stop the server:
-
-```sh
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev status --root "$prototype_dir"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev logs --root "$prototype_dir"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev stop --root "$prototype_dir"
-```
-
-Reuse the intended project's server when it already exists. Do not stop an unrelated process to obtain a port. Leave the review server running for an interactive handoff and provide its stop command; stop temporary verification servers. Record its worktree/project and owner in the execution checkpoint, including the coordinator's reporting duty under [Delegated execution handoff](../SKILL.md#delegated-execution-handoff).
+Leave the review server running for an interactive handoff and provide its stop command; stop temporary verification servers. Record its worktree/project and owner in the execution checkpoint, including the coordinator's reporting duty under [Delegated execution handoff](../SKILL.md#delegated-execution-handoff).
 
 ## Verify the development loop
 
-Run the project's documented check and build commands with the pinned CLI:
-
 ```sh
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro check --root "$prototype_dir"
-ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro build --root "$prototype_dir"
+./prototype check Plans/YYYY-MM-DD-topic/Prototype
+./prototype build Plans/YYYY-MM-DD-topic/Prototype
 ```
 
 Exercise the served prototype in a browser at the intended viewport sizes. Make and revert a small visible source edit and observe automatic updates without manually reloading. Cover the edited source kinds, such as route markup, client code, and CSS; a successful HTTP response or build alone does not establish live reload. Record whether an update preserves the sample session or performs a full reload that resets it.
 
 Check both loopback and the actual LAN address, including live reload when reachable. A request from the host to its own LAN address is not physical-phone verification; distinguish that evidence from an actual device test. Confirm the served final content and source revision after reverting the probe, then record checks, URLs, remaining limits, and publication state in the plan before the completion notice.
-
-CLI behavior follows the installed version; consult the [Astro CLI reference](https://docs.astro.build/en/reference/cli-reference/) when flags or lifecycle behavior differ.
