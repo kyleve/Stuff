@@ -440,6 +440,34 @@ tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 The rules for what may and may not live in the sheet are in
 [`AGENTS.md`](Sources/Shared/AGENTS.md#design-system--wherestylesheet).
 
+### Content width
+
+Apply `.whereContentRoot()` to padded content inside a scroll view. The modifier centers the content and limits its width to 600 points.
+The scroll view, its background, and native navigation retain the available width.
+
+```swift
+ScrollView {
+    VStack {
+        // Screen content
+    }
+    .padding()
+    .whereContentRoot()
+}
+.whereContentWidth(.wide)
+```
+
+`.whereContentWidth(_:)` selects an inherited policy for descendant content roots. It does not size the modified view.
+The nearest ancestor override wins. Each root also respects the width available from its parent.
+
+| Policy | Maximum width, including existing padding |
+| --- | --- |
+| `.regular` (default) | 600 points |
+| `.wide` | 900 points |
+| `.fluid` | Available width |
+
+`WhereStylesheet.contentRoot` owns the limits. They stay fixed across themes and text sizes.
+The root modifier adds no padding, scrolling, clipping, or height limit. Apply it separately to pinned headers that must align with scrolling content.
+
 ### Using tokens
 
 For a component with more than one look, resolve the variant once: vend a

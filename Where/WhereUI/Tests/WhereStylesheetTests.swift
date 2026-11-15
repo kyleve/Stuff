@@ -31,6 +31,13 @@ struct WhereStylesheetTests {
 
     private let style = WhereStylesheet.default
 
+    @Test func contentWidthDefaultsToRegular() {
+        #expect(EnvironmentValues().whereContentWidth == .regular)
+        #expect(style.contentRoot.regularMaximumWidth == 600)
+        #expect(style.contentRoot.wideMaximumWidth == 900)
+        #expect(style.contentRoot.maximumWidth(for: .fluid) == .infinity)
+    }
+
     @Test func browseColumnCardsRetainTheirArtworkWithCompactTypography() {
         let column = style.card[.column]
         #expect(column.regionShape == style.card.regular.regionShape)
