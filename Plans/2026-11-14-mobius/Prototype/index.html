@@ -252,34 +252,34 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({'&':'&am
 const rows = text => text.replace(/^\n|\n$/g, '').split('\n').map(line => ({kind: line[0] === '+' ? 'add' : line[0] === '-' ? 'delete' : 'context', text: line.slice(1)}));
 const parserFull = version => rows(`
  import Foundation
- 
+
  struct Parser {
      struct Query {
          let terms: [String]
 +        let scope: SearchScope
      }
- 
+
 -    func parse(_ input: String) -> Query {
 +    func parse(_ input: String, in scope: SearchScope) -> Query {
          let normalized = input.trimmingCharacters(in: .whitespaces)
          let terms = normalized.split(separator: " ").map(String.init)
- 
+
 -        return Query(terms: terms)
 +        return Query(
 +            terms: ${version === 2 ? 'terms.filter { !$0.isEmpty }' : 'terms'},
 +            scope: scope
 +        )
      }
- 
+
      func suggestions(for query: Query) -> [String] {
          guard let first = query.terms.first else {
              return []
          }
- 
+
          return [first, first.lowercased()]
      }
  }
- 
+
 +extension Parser.Query {
 +    var description: String {
 +        terms.joined(separator: " ")
@@ -298,7 +298,7 @@ const parserFull = version => rows(`
 +        }
 +    }
 +}
- 
+
  // Search stays with the pull request that opened it.
  // Navigating to a reference does not mark a file reviewed.
 `);
@@ -311,17 +311,17 @@ const parserNew = rows(`
 `);
 const storeFull = version => rows(`
  import Foundation
- 
+
  struct Store {
 -    var search: Search?
 +    var searches: [WorkspaceID: Search] = [:]
- 
+
 -    mutating func save(_ search: Search) {
 -        self.search = search
 +    mutating func save(_ search: Search, for workspace: WorkspaceID) {
 +        searches[workspace] = search
      }
- 
+
 +    func search(for workspace: WorkspaceID) -> Search? {
 +        searches[workspace]
 +    }
@@ -339,7 +339,7 @@ const storeNew = rows(`
 `);
 const stableFull = rows(`
  import Foundation
- 
+
 +enum SearchScope {
 +    case repository
 +    case workspace

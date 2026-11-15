@@ -1,6 +1,7 @@
 # 01a — Workspace and remaining-work prototype
 
-- Status: ready
+- Status: executing
+- Implementation issue: [STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces).
 - Depends on: None.
 - Ordering: Inserted before [01](01-review-state-foundation.md); the [overview](README.md#execution-order) owns execution order.
 - Shared context: [Overview](README.md).
@@ -87,17 +88,45 @@ Reset restores the known fixture; reload also starts a fresh session. Keep the p
 
 ## Progress and execution record
 
-- [ ] Create fixture and interactive artifact.
-- [ ] Exercise all three layouts and capture evidence.
+- [x] Create fixture and interactive artifact.
+- [x] Exercise all three layouts and capture evidence.
 - [ ] Collect and integrate user feedback.
 - [ ] Review and publish the artifact and evaluation record.
 
-Not started. No prototype artifact or runtime result exists yet.
+Execution started on 2026-11-14 after the user requested the prototype in a background agent. Work is isolated in the `mobius-prototype` worktree on `codex/mobius-prototype`, initially based on `4e70677e7` and advanced to the `047706c26` planning checkpoint. PR #497 had no conversation, review, or inline comments when read at start. The implementation is tracked separately in STU-330; STU-329 remains the planning issue.
+
+### Artifact and interaction evidence
+
+The self-contained [prototype](Prototype/index.html), [walkthrough](Prototype/README.md), and [verification record](Prototype/evidence/verification.json) are available for evaluation. All data is synthetic and session-only. Two PRs retain independent files, comparison modes, open source/search tabs, queries, drafts, and reviewed versions. Returning to a PR opens its last review file at the top. A marked file remains selected with a caught-up message; this transition is a hypothesis for feedback.
+
+Browser scenarios passed at the following viewports in Chromium 156.0.8078.4 through repository-pinned Playwright 1.64.1. Captures use light appearance and 1× device scale.
+
+| Viewport | Capture | Observed behavior |
+| --- | --- | --- |
+| 1440 × 1000 | [Desktop](Prototype/evidence/desktop.png) | Workspace rail, file list, retained source/search tabs, full PR context. |
+| 834 × 1112 | [Tablet](Prototype/evidence/tablet.png) | Workspace picker, persistent file list, Parser's new edits since v1. |
+| 390 × 844 | [Phone](Prototype/evidence/phone.png) | Workspace/file drawers, scrollable tabs, Store's full current PR diff; code scroll stays inside the document. |
+
+At every size, the scenario marked Parser and Stable at v1, left Store unreviewed, advanced PR 42 to v2, and verified Parser's incremental comparison, Store's full comparison, Stable's absence from remaining work, and access to full context. Comparison selection and refresh preserved baselines. Marking Parser at v2 changed only its baseline. Switching PRs retained independent drafts and context; returning restored the same review file at scroll offset zero. PR 43's own reviewed-Store → push comparison was also checked. Reset restored v1 and empty progress.
+
+Pointer interaction, phone touch taps, keyboard search, keyboard marking, and phone drawer comparison → Escape focus restoration passed. No page/console errors, failed resource loads, external requests, or document-level horizontal overflow occurred. `@axe-core/playwright` 4.14.0 WCAG 2/2.1 A/AA scans of the checked baseline, post-push, and saved-draft states reported no violations. Direct `file://` loading and marking a file also passed, so the artifact does not require a running server.
+
+These are browser interaction and automated accessibility observations. They do not establish native device, VoiceOver, real Git diff, persistence, provider, or sync acceptance. The repository's default web lint globs do not cover this HTML artifact. Inline JavaScript syntax and `git diff --check` were checked directly; local walkthrough links resolve. `./test`, native snapshots, and SwiftFormat were not run because no native source, build input, or Swift file changed.
+
+### Independent review
+
+A fresh subagent reviewed the complete artifact against parent `047706c26`, then rechecked supported corrections. The fixes preserve first-row characters/indentation in prepared diffs; apply PR-specific substitutions to both full and incremental comparisons; restore focus to a surviving control or the current document after rendering and modal dismissal; improve small-text contrast; and keep accessible names consistent with visible workspace, push, and saved-draft labels. No actionable findings remained after recheck. The verification record identifies the final artifact content; retained screenshots are design evidence, not SnapshotKit references.
+
+### Feedback and publication
+
+User evaluation is pending. Suggested discussion points are whether workspace/file navigation is discoverable on the phone, whether the comparison labels communicate the mixed remaining-work model, and whether retaining a just-reviewed file with a caught-up message is the right transition. These are evaluation prompts, not newly accepted requirements. The native state foundation remains an outline.
+
+Artifact publication is being coordinated with the latest parent plan branch. No product acceptance is claimed.
 
 ## Resume point
 
-After an execution request, read current plan feedback and the latest question resolutions, then begin the bounded artifact. Plan creation and the selection of this deliverable did not authorize its execution.
+Read the current artifact PR and this execution record, collect the first user feedback round, and record whether to proceed, revise, or run another bounded iteration. Route changes to shared requirements and the overview through the parent planning discussion. Do not refine or implement the durable state foundation until the required prototype feedback is integrated.
 
 ## Outcome
 
-Pending prototype evidence and feedback. [01](01-review-state-foundation.md) remains an outline until those findings are integrated.
+Interactive artifact and browser evidence are ready for evaluation. User feedback and the resulting decision remain pending, so this experiment stays `executing`. [01](01-review-state-foundation.md) remains an outline until those findings are integrated.

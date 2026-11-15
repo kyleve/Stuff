@@ -1,7 +1,7 @@
 {
   "date": "2026-11-14",
   "artifact": "index.html",
-  "sha256": "d244168a2f0ecd53c4be04d6516a5a5c3366360b7a032db61557b084d486d2bc",
+  "sha256": "9268a1a8fb1207844b305880821fc9dfe3978c6042157383e0cdd81b007cd2d2",
   "tooling": {
     "playwright": "1.64.1",
     "axePlaywright": "4.14.0",
