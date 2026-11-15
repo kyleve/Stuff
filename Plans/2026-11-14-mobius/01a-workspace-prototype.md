@@ -8,18 +8,18 @@
 
 ## Deliverable and investigation
 
-A lightweight interactive mockup for evaluating independent PR workspaces, file-top resumption, and remaining work across phone, tablet, and desktop layouts. The user selected a prototype before durable state work (Q-16), all three layouts together (Q-17), and a lightweight mockup for quick iteration (Q-18).
+A lightweight interactive mockup for evaluating logical PR workspaces, their independent presentation as tabs or windows, multiple child views, review resumption, and remaining work across phone, tablet, and desktop layouts. The user selected a prototype before durable state work (Q-16), all three layouts together (Q-17), and a lightweight mockup for quick iteration (Q-18).
 
 Investigate whether the navigation and comparison labels make it clear which PR, file, version, and unfinished work the reviewer is seeing. The agreed behavior comes from Q-13–Q-15; layout and navigation details are hypotheses to evaluate, not final native UI decisions.
 
-Bound the first pass to one self-contained browser artifact, two synthetic PR workspaces, two fixture revisions, three viewport layouts, and one feedback round. Record further iterations explicitly rather than expanding the prototype into a production implementation.
+The first pass was bounded to one self-contained browser artifact, two synthetic PR workspaces, two fixture revisions, three viewport layouts, and one feedback round. That evaluation identified a material correction: a workspace had been flattened into a document tab group. Iteration 2 retains the same fixture and browser scope, adds the ownership/presentation experiment below, and ends with a second feedback round. It does not expand into native implementation or a complete window manager.
 
 ## User stories and requirements
 
 | Story | Requirement | Evidence from this prototype |
 | --- | --- | --- |
-| US-01, US-04 | R-02, R-05 | Separate PR contexts; reference files and a fixture search remain with their PR. |
-| US-02 | R-03 | Returning to a PR restores its last review file at the top. |
+| US-01, US-04 | R-02, R-05 | Logical PR workspaces own independently navigable child views; outer tab/window presentation does not copy or merge their contents. |
+| US-02 | R-03 | Restore the workspace arrangement and last-focused child. Resuming a review child starts its own selected file at the top. |
 | US-03 | R-04 | Reviewed files show new edits; unreviewed files show the full PR diff; either can open its full PR diff. |
 | US-06 | R-01, R-10 | The same interaction is inspectable at phone, tablet, and desktop viewport sizes. This is not native platform acceptance. |
 
@@ -29,9 +29,31 @@ The prototype supplies interaction evidence for these requirements; it does not 
 
 Proposed artifact: `Plans/2026-11-14-mobius/Prototype/index.html`, with embedded styles, scripts, and synthetic fixtures. Use semantic browser controls and no external dependencies or network data. Store the interaction evidence and feedback in this plan's execution record. Read the repository and Plans contracts before implementation.
 
-Keep session state in memory so fixture behavior is reproducible through an explicit Reset action. Workspace switching within the mockup preserves each PR's documents, last file, draft fixture, and review state. Reload durability, CloudKit, authentication, native menus/windows, a real Git engine, real search indexing, and live GitHub feedback are outside this artifact. Those exclusions do not alter first-release scope.
+Keep session state in memory so fixture behavior is reproducible through an explicit Reset action. Workspace switching preserves each PR's child views, their independent navigation and arrangement, the last-focused child, draft fixture, and shared review progress. Reload durability, CloudKit, authentication, native menus/windows, a real Git engine, real search indexing, and live GitHub feedback are outside this artifact. Those exclusions do not alter first-release scope.
 
 The artifact must identify itself as a mockup using sample data. Do not copy its state schema into production automatically; 01 must derive its model from evaluated behavior and repository contracts.
+
+## Iteration 2 decisions and bounded method
+
+User feedback and Q-19–Q-21 were supplied through the parent planning conversation on 2026-11-14:
+
+- Q-19: “fork” was a typo for “view.” No editing, cloning, or fork capability is requested. Child views may display existing code, research, reviews, previews, and simulations.
+- Q-20: “All of the above if needed” delegates bounded layout exploration. Floating, tiling, docking, and tabs may be used where useful; this is not a requirement to implement every mode on every native platform.
+- Q-21: Return restores the workspace arrangement and last-focused child. A non-review child keeps focus. Resuming a review child starts that child's selected file at the top; there is no singleton workspace-wide selected review file.
+
+Proposed prototype structure, not a production schema:
+
+| Owner | Session-only responsibility |
+| --- | --- |
+| Mockup shell | Outer workspace tab/window presentation and active workspace identity. |
+| Logical PR workspace | Fixture revision, per-file reviewed versions, draft, child collection, arrangement, and last-focused child. |
+| Child view instance | Unique instance identity, kind, selected file/comparison or search query or simulated-preview state, and placement. Multiple children can have the same kind or file. |
+
+Use tiled children as an exploratory wide-screen default, a bounded freeform move/resize arrangement, and a focus-one-child presentation with a child selector for compact screens. Outer workspace windows remain simulated browser shells. Treat defaults and labels as evaluation hypotheses, not native platform commitments. Showing the same workspace through a different outer presentation must not create another logical workspace or reset its children.
+
+A New View action can create Review, Source, Search, or Preview children. Review selection and comparison mode belong to each review child; marking reviewed updates the workspace's shared PR/file baseline and all affected child displays. A preview contains explicitly simulated, interactive sample content sufficient to evaluate placement and continuity. It neither executes code nor establishes native preview/simulator feasibility. Native execution remains a later experiment.
+
+Bound iteration 2 to those four child kinds, the existing two PRs/two revisions, useful arrangement controls, the same three viewport categories, and one further user evaluation. No editing/forking, backend, new account integration, actual OS windows, native execution, or production durability is added.
 
 ## Scenario and state flow
 
@@ -42,29 +64,33 @@ Within PR 42, version 1 includes `Parser.swift`, `Store.swift`, and `Stable.swif
 - Remaining work shows Parser's new edits since its last reviewed version and Store's full current PR diff. Stable has no new work and remains reachable through the full PR view.
 - Opening the full PR diff for Parser shows its complete current PR change. Changing views does not advance a reviewed version.
 - Marking Parser reviewed at version 2 advances only Parser's baseline. Keep the visible file understandable while updating the remaining-work list; the precise transition is part of the evaluation.
-- Open a fixture reference file and search in PR 42, switch to PR 43, then return. Restore PR 42's context and open its last review file at the top. A reference document is not a new review workspace.
+- Open multiple child views in PR 42, including two review views with different selected files, independent search views, and a simulated preview. Changing a child selection/query does not navigate a sibling.
+- Change outer workspace presentation between tabs and windows. The child identities, contents, arrangement, progress, and focus remain owned by the same workspace.
+- Switch from a focused research/preview child in PR 42 to PR 43, then return. Restore PR 42's arrangement and focused child. Separately resume a review child and verify its selected file opens at the top.
+- Change the bounded arrangement, focus a child, and inspect compact/wide layouts. A child view is not a new workspace. Review progress remains shared within one PR and isolated from the other PR.
 
 ```mermaid
 flowchart LR
-    Fixtures["Synthetic PRs and prepared revision diffs"] --> Session["Proposed in-memory mockup session"]
-    Actions["Switch PR / file / comparison view"] --> Session
-    Mark["Explicit mark-file-reviewed action"] -->|that PR and file only| Session
-    Push["Simulate push"] -->|new fixture revision; retain reviewed versions| Session
-    Session --> Remaining["New edits or full diff for unreviewed file"]
-    Session --> Full["Full current PR diff"]
-    Remaining --> Layouts["Phone / tablet / desktop layouts"]
-    Full --> Layouts
-    Reset["Reset sample data"] --> Session
+    Shell["Proposed outer tabs or workspace windows"] -->|presents by identity| Workspace["Logical PR workspace"]
+    Workspace --> Progress["Shared per-file review baselines and draft"]
+    Workspace --> Placement["Child arrangement and last-focused child"]
+    Workspace --> Children["Unique child view instances"]
+    Children --> Review["Review: selected file and comparison"]
+    Children --> Research["Source/search: independent navigation"]
+    Children --> Preview["Explicitly simulated preview state"]
+    Review -->|explicit mark only| Progress
+    Fixtures["Two synthetic PRs and prepared revisions"] --> Workspace
+    Reset["Reset sample data"] --> Workspace
 ```
 
 All components are proposed mockup state. Swift pseudocode does not apply to this browser artifact; the native ownership sketch remains provisional in the overview. Predefined fixture diffs simulate comparisons and do not verify a Git diff algorithm.
 
 ## Steps
 
-1. **Build the scenario fixture.** Define two PR identities, independent document collections and last-file selections, per-file reviewed versions, and prepared full/incremental diffs for the two versions. Keep shared-path fixtures isolated by PR. Document the fixture states alongside the artifact.
-2. **Create the interactive shell.** Add workspace switching, a review-file list, remaining-work/full-PR views, a full-diff action for the selected file, fixture reference/search navigation, explicit file-review actions, Simulate push, and Reset. Prototype suitable navigation for narrow, medium, and wide viewports using the same state. Treat layout and labels as candidates for feedback.
-3. **Exercise the return visit.** Run the scenario above at recorded phone, tablet, and desktop viewport sizes. Confirm a resumed review file starts at the top and that another PR's state is unaffected. Check both mouse/pointer and keyboard operation; inspect narrow-layout touch-target usability. Record what was actually exercised rather than claiming native device validation.
-4. **Collect evidence and feedback.** Deliver the artifact with the scenario and representative captures of the three layouts. Ask the user to try workspace switching and the post-push remaining-work view. Record confusing transitions, requested changes, and whether the workflow should proceed, change, or receive another prototype iteration.
+1. **Preserve and revise the fixture ownership.** Retain the first-pass artifact/evidence at `2e3653877` and its evaluation. Keep PR/file review baselines workspace-owned. Introduce unique child instances with independent selected files, comparisons, queries, and simulated-preview state; retain the two prepared fixture revisions.
+2. **Separate presentation from ownership.** Present logical workspaces as outer tabs or window shells. Add multiple child instances, useful tiled/freeform/focused arrangements, and child navigation appropriate to the three viewport sizes. Preserve the agreed remaining-work/full-diff behavior, explicit mark action, simulated push, draft, and Reset. Layout details remain candidates for feedback.
+3. **Exercise the return visit.** Run the scenario above at recorded phone, tablet, and desktop viewport sizes. Confirm child navigation is independent, shared review progress updates sibling review views, outer presentation preserves ownership, workspace return preserves arrangement/focus, a resumed review child starts its selected file at the top, and another PR's state is unaffected. Check both mouse/pointer and keyboard operation; inspect narrow-layout touch-target usability. Record what was actually exercised rather than claiming native device validation.
+4. **Collect evidence and feedback.** Deliver the artifact with the scenario and representative captures of the three layouts. Ask the user to try outer presentation changes, multiple same-kind child views, workspace return, the simulated preview, and post-push remaining work. Record confusing transitions, requested changes, and whether the workflow should proceed, change, or receive another prototype iteration.
 5. **Review and hand off.** Integrate supported feedback into the overview and affected outlines, retaining unresolved decisions. Review the changed artifact and plan through code-review, run relevant checks, then commit/push and publish through github-workflow. Do not refine the durable model until the required prototype feedback is recorded.
 
 For local browser inspection, a loopback-only static server can serve the artifact, for example `python3 -m http.server 8765 --bind 127.0.0.1 --directory Plans/2026-11-14-mobius/Prototype`. Use an available port and stop the owned server after inspection. If browser automation is unavailable, record the missing runtime evidence; source inspection alone does not establish interactive acceptance.
@@ -73,10 +99,13 @@ For local browser inspection, a loopback-only static server can serve the artifa
 
 | Criterion | Check | Expected evidence |
 | --- | --- | --- |
-| Workspaces stay independent. | Switch PR 42 → PR 43 → PR 42 after opening context and changing review state. | Each retains its own documents, last file, and reviewed versions; a stack link has no shared-state effect. |
-| Resume starts at the file top. | Scroll within a review file, leave the PR, and return. | The same review file opens from the top. No reviewed-range state is inferred. |
+| Logical ownership survives presentation. | Change outer tabs/windows with multiple children open in both PRs. | Same workspace and child identities, content, focus, arrangement, drafts, and progress. |
+| Child navigation is independent. | Open two review or search children; change only one file/comparison/query. | Sibling state is unchanged. Marking reviewed is shared only among review children of that PR. |
+| Workspaces stay independent. | Switch PR 42 → PR 43 → PR 42 after changing child and review state. | Each retains its children, arrangement, last focus, draft, and review baselines. |
+| Return and review resumption are distinct. | Leave a focused research/preview child, return, then resume a previously scrolled review child. | Preserve non-review focus and arrangement on return; the review child opens its own selected file at the top when resumed. |
 | Remaining work follows the chosen model. | Mark Parser/Stable reviewed at version 1, leave Store unreviewed, then simulate version 2. | Parser shows new edits; Store shows its full PR diff; Stable has no remaining changes. |
 | Full context is accessible. | Open the full PR diff for both Parser and Store; switch views and PR workspaces. | Complete current PR diffs remain available and baselines change only through the explicit file-review action. |
+| Simulated preview can be evaluated. | Change sample preview controls, switch children/PRs/presentation, and return. | State remains with its child and owner; simulated status is explicit and no code is executed. |
 | All three layouts can be evaluated. | Execute the scenario at recorded narrow, medium, and wide browser sizes. | Captures plus interaction notes identify each viewport and any usability failures. |
 | The experiment produces a decision. | Review the artifact with the user. | Recorded feedback supports proceeding, revising, or another bounded iteration. A supported negative result is valid; pending feedback leaves the experiment incomplete. |
 
@@ -88,16 +117,18 @@ Reset restores the known fixture; reload also starts a fresh session. Keep the p
 
 ## Progress and execution record
 
+### First pass
+
 - [x] Create fixture and interactive artifact.
 - [x] Exercise all three layouts and capture evidence.
-- [ ] Collect and integrate user feedback.
+- [x] Collect first-pass feedback; material correction requires iteration 2.
 - [x] Review and publish the artifact and evaluation record.
 
 Execution started on 2026-11-14 after the user requested the prototype in a background agent. Work is isolated in the `mobius-prototype` worktree on `codex/mobius-prototype`, initially based on `4e70677e7` and advanced to the `047706c26` planning checkpoint. PR #497 had no conversation, review, or inline comments when read at start. The implementation is tracked separately in STU-330; STU-329 remains the planning issue.
 
-### Artifact and interaction evidence
+### First-pass artifact and interaction evidence
 
-The self-contained [prototype](Prototype/index.html), [walkthrough](Prototype/README.md), and [verification record](Prototype/evidence/verification.json) are available for evaluation. All data is synthetic and session-only. Two PRs retain independent files, comparison modes, open source/search tabs, queries, drafts, and reviewed versions. Returning to a PR opens its last review file at the top. A marked file remains selected with a caught-up message; this transition is a hypothesis for feedback.
+The first-pass artifact is preserved at [revision `2e3653877`](https://github.com/kyleve/Stuff/blob/2e3653877bf141964805d417eac0b94c03a24c6a/Plans/2026-11-14-mobius/Prototype/index.html), alongside the retained [first-pass verification record](Prototype/evidence/verification.json) and captures below. This describes first-pass behavior, not iteration 2 acceptance. All data is synthetic and session-only. Two PRs retain independent files, comparison modes, open source/search tabs, queries, drafts, and reviewed versions. Returning to a PR opens its last review file at the top. A marked file remains selected with a caught-up message; this transition is a hypothesis for feedback.
 
 Browser scenarios passed at the following viewports in Chromium 156.0.8078.4 through repository-pinned Playwright 1.64.1. Captures use light appearance and 1× device scale.
 
@@ -119,16 +150,30 @@ A fresh subagent reviewed the complete artifact against parent `047706c26`, then
 
 ### Feedback and publication
 
-User evaluation is pending. Suggested discussion points are whether workspace/file navigation is discoverable on the phone, whether the comparison labels communicate the mixed remaining-work model, and whether retaining a just-reviewed file with a caught-up message is the right transition. These are evaluation prompts, not newly accepted requirements. The native state foundation remains an outline.
+The user evaluated the first pass and found it flattened a logical workspace into a document tab group. That is a material correction, not acceptance of the first-pass workspace model. Q-19–Q-21 above resolve the revised method and authorize another bounded prototype pass. The native state foundation remains an outline.
 
 Published [PR #500](https://github.com/kyleve/Stuff/pull/500), ready for review, above planning [PR #497](https://github.com/kyleve/Stuff/pull/497) in [stack #501](https://github.com/kyleve/Stuff/stack/501). The branch merges parent `68477fe625`, which includes main `96f5bf0f1`; integration preserves the verified HTML content. The stack reports no rebase needed. STU-330 remains In Review and this experiment remains executing for user feedback. No product acceptance is claimed.
 
 The owned loopback server is stopped after inspection; the artifact opens directly from disk. Local CUA browser use is disabled in Work settings, so the published PR could not be visually inspected through that UI. Published description/image-link checks use GitHub API and direct image responses; the local captures themselves were visually inspected.
 
+## Iteration 2 readiness and execution
+
+- Status transition: `executing` → `draft` on 2026-11-14 after the material first-pass correction; the previous readiness review does not establish readiness for the revised UI.
+- Source inspected: `2e3653877`; working tree was clean. Current PR #500 feedback contains only the previously posted screen-evidence comment; the new product feedback comes from the user conversation.
+- Q-19–Q-21 are resolved above. Parent owns integration into shared requirements/overview and production outlines; this file owns the browser method and evidence.
+- Readiness review, 2026-11-14: inspected the complete revised method against source `2e3653877`, Q-13–Q-21, the root/Plans contracts, and current PR feedback. The existing singleton `lastFile`, `query`, and kind-deduplicated tabs cannot represent the requested child instances. The revised owner table, state flow, steps, and acceptance checks consistently put selection/query/preview state on child instances and review progress on the PR workspace. Q-19 excludes editing/forking; Q-20 delegates bounded layout exploration; Q-21 separates workspace focus restoration from per-review-child file-top resumption. All material choices needed for this browser pass have answers or explicit delegation. Defaults remain exploratory; native/platform/execution exclusions are preserved. No readiness findings remain. Mermaid was source-reviewed, not renderer-validated.
+- Readiness disposition: `draft` → `ready` after that review, then `ready` → `executing` under the user's explicit instruction to proceed with iteration 2. Implementation and second-round acceptance evidence are still pending.
+
+- [x] Review the revised bounded method and record readiness.
+- [ ] Build independent workspace presentation and multiple child views.
+- [ ] Exercise both ownership layers and original review behavior across three sizes.
+- [ ] Record fresh independent review and second-iteration captures.
+- [ ] Publish the coordinated stack update and collect second-round feedback.
+
 ## Resume point
 
-Read the current artifact PR and this execution record, collect the first user feedback round, and record whether to proceed, revise, or run another bounded iteration. Route changes to shared requirements and the overview through the parent planning discussion. Do not refine or implement the durable state foundation until the required prototype feedback is integrated.
+Execute the reviewed iteration-2 browser method under the user's authorization; readiness is established, but no revised UI has yet been built. Coordinate parent/child stack mutations before publishing. Preserve first-pass evidence and collect second-round feedback before refining or implementing the native foundation.
 
 ## Outcome
 
-Interactive artifact and browser evidence are ready for evaluation. User feedback and the resulting decision remain pending, so this experiment stays `executing`. [01](01-review-state-foundation.md) remains an outline until those findings are integrated.
+First-pass evidence is retained and its evaluation calls for a revised workspace model. Iteration 2 is ready for authorized execution; no second-pass runtime or acceptance result is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
