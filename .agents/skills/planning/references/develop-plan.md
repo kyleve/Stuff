@@ -1,192 +1,81 @@
 # Develop an initial plan
 
-Use this procedure to turn a request into a reviewable execution plan.
+Follow the [Plans contract](../../../../Plans/AGENTS.md) for record structure and lifecycle.
 For revisions, repeat only stages affected by new requirements, evidence, or decisions.
-Planning can produce drafts and later outlines for discussion. Readiness requires the review described here.
 
 ## Start the durable record
 
-1. Read the request, supplied references, and existing related plans or backlog items.
-   Use existing session answers and authorization.
-   Find or create the corresponding Linear issue through [todo-triage](../../todo-triage/SKILL.md), using BACKLOG.md's duplicate-search rules.
-   Link the issue and plan in both directions without copying execution detail into the issue.
-   If Linear access is unavailable, preserve the unsent link or issue work in the checkpoint and report the limitation.
-   Continue independent planning without creating local TODO files or claiming issue updates succeeded.
-2. Create `Plans/YYYY-MM-DD-<topic>/` using the user's local date.
-   If that path already exists, inspect it before selecting another unique name.
-   Copy [the overview template](../assets/overview.md) to the series `README.md`.
-   Replace placeholders as facts become known.
-3. Record the initial outcome, known constraints, and open questions before substantial research.
-   Separate user requirements, observed behavior, and assumptions.
-   Update these files throughout discovery instead of keeping findings only in chat.
-4. Initialize the overview's Planning checkpoint through [Maintain the checkpoint](../SKILL.md#maintain-the-checkpoint).
-   Maintain it through discovery, research, questions, drafting, and review, even before numbered plans exist.
+1. Read the request, supplied references, and related plans. Reuse existing session answers and authorization.
+   Find or create the corresponding Linear issue through [todo-triage](../../todo-triage/SKILL.md), then link issue and plan both ways.
+   If access is unavailable, retain pending issue work in the checkpoint and continue independent planning. Do not claim unsent updates succeeded.
+2. Create the series directory using the user's local date; inspect an existing path before choosing another name.
+   Start its README from [the overview template](../assets/overview.md), recording the outcome, constraints, assumptions, and questions before substantial research.
+3. [Maintain the checkpoint](../SKILL.md#maintain-the-checkpoint) throughout discovery and review, including before numbered plans exist.
 
 ## Discover the requirements
 
-1. Identify the affected users or maintainers and their current problem.
-   Describe what success changes for them.
-2. Inspect the current source, relevant tests, module documentation, and applicable `AGENTS.md` files.
-   Identify reusable components, existing guards, and required skills.
-   Treat unverified documentation as a claim to investigate, not proof of current behavior.
-3. Gather user stories, required behavior, exclusions, and operational constraints.
-   Cover relevant failure cases, data compatibility, permissions, accessibility, performance, and deployment constraints.
-   Include only concerns that materially affect this work.
-4. Compare the request with the current behavior and repository contracts.
-   Record ambiguous terms, conflicting requirements, unsupported assumptions, and missing success criteria.
-5. Ask focused questions that change scope, acceptance, architecture, or compatibility.
-   Resolve questions from available sources before asking the user.
-   Offer concrete options and trade-offs where useful.
-   Continue independent discovery while awaiting answers.
-   Do not repeat answered questions or treat silence as agreement.
-6. Record answers and their sources in the overview's question register.
-   Label reasonable implementation assumptions explicitly.
-   Use [the question loop](#resolve-questions) to integrate answers and track unresolved decisions.
+Inspect current source, tests, module documentation, and applicable instructions. Identify reusable components and existing guards.
+Treat documentation as a claim to verify against current behavior.
+Record who has the problem, what success changes, required behavior, exclusions, and material constraints or failure cases.
+Compare these with current behavior and repository contracts; record conflicts, ambiguous terms, and missing success criteria.
+Use [the question loop](#resolve-questions) for decisions affecting scope, acceptance, architecture, or compatibility.
 
 ## Research the unknowns
 
-1. List technical questions that prevent a credible current horizon or affect decisions needed before later work.
-   Tie each question to a requirement or design decision.
-2. Investigate repository code and tests first.
-   Use current primary documentation for external APIs, platform behavior, or dependencies that the design relies on.
-   Verify version-specific claims against the repository's pinned tools and deployment targets.
-3. Record findings, source paths or URLs, and their implications in Research and evidence.
-   Distinguish observed facts from inferences and unresolved claims.
-   State which revision or version the evidence covers where relevant.
-4. When meaningful alternatives exist, compare them against requirements, exclusions, integration cost, and maintenance burden.
-   Record the selected approach and why alternatives were rejected in Shared decisions.
-   Do not manufacture alternatives for routine choices.
-5. If feasibility needs a prototype, plan an [experiment deliverable](../../../../Plans/AGENTS.md#experiment-deliverables).
-   Define the question, method, effort bound, evidence criteria, and artifact cleanup or retention in the plan template.
-   Separate experiment acceptance from the product behavior that later plans must deliver.
-   Perform only experiments covered by the current authorization.
-   Otherwise include the experiment as an explicit planned step and retain the feasibility gap.
-   Do not start product implementation merely to finish a planning request.
-6. Stop research when material decisions have sufficient evidence and remaining uncertainty is explicit.
-   For familiar work without external unknowns, record the repository evidence and why external research was unnecessary.
+Tie technical questions to the requirements or decisions they affect.
+Investigate repository code first; verify external claims against current primary documentation and the pinned tools or deployment targets.
+Record sources, covered revisions/versions, implications, and unresolved claims in Research and evidence.
+Compare meaningful alternatives against requirements, integration cost, and maintenance burden. Record choices without inventing alternatives for routine decisions.
+If feasibility needs a prototype, plan an [experiment deliverable](../../../../Plans/AGENTS.md#experiment-deliverables); execute it only within existing authorization.
+Stop when material decisions have enough evidence and remaining uncertainty is explicit. Record when repository evidence suffices without external research.
 
 ## Resolve questions
 
-Use this loop after discovery and research, and whenever drafting, review, or execution exposes a new question.
-Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#questions).
+Use the [question register and statuses](../../../../Plans/AGENTS.md#questions) after discovery and whenever later work exposes a decision.
 
-1. Collect unresolved questions in the overview with stable `Q-NN` IDs.
-   Record affected requirements or plans, blocking impact, and the next action.
-   Reuse an existing question for the same decision rather than creating a duplicate.
-2. Resolve factual questions from available evidence before asking the user.
-   Ask a small, focused batch of remaining questions, starting with those that block important decisions.
-   Include the question IDs, concrete options, and relevant trade-offs.
-   Do not ask again when an existing answer still applies.
-3. Record each answer, its source, and date, then mark the question `answered`.
-   Link GitHub answers to their comments. Summarize chat answers with their date.
-   If an answer is partial or conflicting, keep the question `open` and identify what remains unresolved.
-4. Integrate the answer through [Apply a revision](revise-plan.md).
-   Collect its review result and any new questions before continuing this loop.
-5. Link the integrated sections and review result from the question's resolution record.
-   Mark the question `closed` only when the revision procedure confirms integration and review are complete.
-   If the question no longer applies, record the reason and relevant scope decision before closing it.
-6. For intentional deferral, record the reason, revisit condition, and next action.
-   For later selected work, link the affected outline and refinement trigger.
-   For work outside the series, link the Linear issue filed through todo-triage.
-   Mark the question `deferred` without treating it as answered.
-   State which plans it blocks and when the answer is needed.
-   Keep affected plans in the current horizon blocked. Later plans can remain outlines until refinement is due.
-   Only an integrated answer or authorized removal of the dependency clears that blocker.
-7. After closing questions, refresh readiness through [Review the plan](#review-the-plan).
-   Collect any new questions before the next iteration of this loop.
-   If evidence invalidates a closed answer or a deferral's revisit condition occurs, reopen that question with its history intact.
-   Repeat the affected research, question, and review steps until no further answers are needed for the selected scope.
-8. If user input is pending, continue independent work and preserve the exact pending questions for handoff.
-   Do not spin on unanswered questions or infer answers from elapsed time.
-   Return unresolved blockers and deliberately deferred questions with their next actions.
+1. Reuse the existing question ID for the same decision. Resolve factual questions from available evidence before asking the user.
+   Ask a small batch of remaining questions, with concrete options and trade-offs, prioritizing blockers. Reuse applicable answers.
+2. Record each answer's source and date; link GitHub comments. Mark complete answers `answered`, leaving partial or conflicting answers `open` with the remaining uncertainty.
+3. Integrate through [Apply a revision](revise-plan.md). Link its affected sections and review result before closing the question.
+   For a question that no longer applies, record the scope decision that removed it.
+4. Apply the contract's deferral rules. File work outside the series through todo-triage; keep current-horizon plans blocked where the answer is still required.
+5. [Review the plan](#review-the-plan) after integration. Reopen invalidated answers or due deferrals, retaining their history; repeat only affected research and review.
+6. While input is pending, continue independent work. Do not spin, repeat answered questions, or treat elapsed time as an answer.
+   Return unresolved questions with their next actions.
 
 ## Draft the executable plans
 
-1. Give stories, requirements, and exclusions stable IDs in the overview.
-   Define both unnecessary capabilities and explicitly avoided approaches.
-2. Record the planning horizon in the overview, usually the next one or two deliverables.
-   Select its size from available evidence and the user's requested scope.
-   Copy [the plan template](../assets/plan.md) for work inside that horizon.
-   Use [the outline template](../assets/outline.md) for later selected deliverables.
-   Start numbering at `01`. Split at independently verifiable deliverables or useful review boundaries.
-   Keep setup and documentation with the deliverable that needs them.
-3. List plans in execution order and give each plan explicit dependency links.
-   Map every requirement to an implementing plan, including outlines.
-   Record intended success for outlines and concrete acceptance criteria for plans in the current horizon.
-   For experiments, map the supporting requirement and decision question to the evidence the experiment must produce.
-   Prefer sequential execution unless independent work materially benefits from parallel execution.
-   Follow the session's delegation rules.
-4. Within the current horizon, write concrete steps with affected paths, interfaces, and observable results.
-   Use repository-relative paths and working directories for commands.
-   Include recovery instructions for operations that can leave partial state.
-5. Describe data flows with fenced Mermaid diagrams using actual component names and data passed between them.
-   Sketch proposed ownership, interfaces, and composition with fenced Swift pseudocode.
-   Label existing APIs, proposed APIs, assumptions, and omitted details.
-   If a diagram or sketch does not apply, record the reason.
-   For outlines, show only known boundaries and link questions for unresolved design details.
-   Record the evidence needed for refinement and its trigger instead of inventing implementation details.
-6. Link shared context instead of copying definitions across plans.
-   Replace remaining template instructions with concrete content or an explicit unresolved question.
+Select the planning horizon from the evidence and requested scope.
+Use [the plan template](../assets/plan.md) for that horizon and [the outline template](../assets/outline.md) for later selected work.
+Split at independently verifiable deliverables, keeping setup and documentation with the deliverable that needs them.
+Apply the contract's requirement mapping, dependencies, and [design requirements](../../../../Plans/AGENTS.md#reviewable-design).
+Prefer sequential execution unless independent work benefits materially from parallel execution, within session delegation rules.
+Write concrete steps for the current horizon: affected paths, interfaces, observable outcomes, repository-relative commands/working directories, and recovery from partial operations.
+Link shared context instead of copying definitions. Replace template instructions with concrete content or explicit questions.
 
 ## Review the plan
 
-Review the whole series for scope and dependency consistency before marking any plan ready.
-Apply executable-detail checks to the current horizon and any other plan whose readiness claim needs review.
-For later outlines, verify the required outline content in the [Plans contract](../../../../Plans/AGENTS.md#rolling-wave-planning).
-Apply this distinction to direct feedback and GitHub revisions too.
+Review the whole series for scope and dependency consistency, and the current horizon for executable detail.
+Check later outlines against the [rolling-wave contract](../../../../Plans/AGENTS.md#rolling-wave-planning), rather than demanding premature implementation detail.
 
-1. Trace each user story through requirements, implementing plans, and intended outcomes or detailed acceptance criteria.
-   Find missing requirements, unowned requirements, and implementation steps without a requirement or necessary supporting role.
-2. Compare requirements with exclusions and user decisions.
-   Find contradictions, accidental scope additions, and assumptions presented as agreed requirements.
-3. Compare the design with current source, module boundaries, supported versions, and repository rules.
-   Find invented existing APIs, missing integration work, and claims unsupported by the recorded evidence.
-4. Trace data and ownership across Mermaid diagrams, Swift sketches, and implementation steps.
-   Find mismatched interfaces, missing producers or consumers, dependency cycles, and conflicting execution order.
-   Inspect relevant failure, cancellation, persistence, and recovery paths.
-5. Verify that acceptance criteria distinguish success from failure and cover material constraints.
-   Verify that each deliverable can be demonstrated with the proposed commands or procedures.
-   For experiments, verify that acceptance measures the investigation and evidence, without requiring the hypothesis to succeed.
-   If a renderer is available, verify Mermaid syntax and rendering.
-   Otherwise record the rendering limit.
-   Treat Swift pseudocode as a design sketch, not compilation evidence.
-6. Read the plan as a fresh executor without prior chat context.
-   Find missing decisions, prerequisites, and ambiguous instructions that would force that executor to guess.
-   Distinguish deliberate later uncertainty from gaps affecting the current horizon.
-   If a later question affects an earlier design decision, record its blocking impact on that earlier plan.
-7. Correct supported findings and repeat the affected comparisons.
-   Record new questions in the register and return them to the caller for [the question loop](#resolve-questions).
-   Do not start a nested question loop during this review.
-   Record the review date, source revision, reviewed scope, findings, dispositions, and remaining limits in Plan review.
-   If no findings remain, say so without claiming that the implementation is verified.
-8. Mark executable plans `ready` only when no unresolved question prevents their safe implementation or acceptance.
-   When a current-horizon plan requires an external answer or feasibility result, mark it `blocked`.
-   Record the blocker and next action.
-   Leave plans still being developed as `draft`.
-   Preserve `outline` for later work that deliberately awaits refinement.
-   Preserve `executing` for unchanged work already in progress, and preserve valid `complete` or `superseded` records.
-   Unaffected plans can be ready when their dependencies permit execution.
+- Trace stories through requirements, deliverables, and acceptance. Find unowned requirements, unnecessary steps, scope additions, and contradictions with exclusions or decisions.
+- Compare design with source, module boundaries, supported versions, and evidence. Check ownership and interfaces across diagrams, sketches, and steps, including failure, cancellation, persistence, and recovery paths.
+- Verify that the proposed checks distinguish success from failure and cover material constraints. Experiment acceptance measures evidence, not whether the hypothesis succeeds.
+- Verify Mermaid syntax and rendering when a renderer is available; otherwise record the limit. Swift pseudocode is not compilation evidence.
+- Read as an executor without prior chat context. Find missing prerequisites or decisions; distinguish deliberate later uncertainty from questions that block earlier work.
 
-When called by another procedure, return the review result to that caller without publishing.
-After initial plan development finishes, return to [Create a plan](../SKILL.md#create-a-plan) for publication and handoff.
+Correct supported findings and repeat affected comparisons. Return new questions to the caller instead of starting a nested question loop.
+Record the date, source revision, reviewed scope, findings, dispositions, and limits in Plan review. Do not imply implementation verification.
+Apply the contract's readiness rules. Preserve valid `executing`, `complete`, or `superseded` records and later `outline` status.
+Return to the caller without publishing; initial development returns to [Create a plan](../SKILL.md#create-a-plan) for handoff.
 
 ## Advance the planning horizon
 
-Use this checkpoint after a completed deliverable, when an outline's refinement trigger occurs, or when the user requests refinement.
+After a deliverable completes, a refinement trigger occurs, or the user requests refinement:
 
-1. Read actual outcomes, verification evidence, source changes, and relevant feedback from the completed work.
-   For experiments, use the recorded conclusion and limitations to decide which dependent plans can proceed or need revision.
-   Record new learning in the overview and reopen questions whose answers or deferrals no longer hold.
-2. Reconsider upcoming deliverables, their order, dependencies, and assumptions within the authorized scope.
-   Preserve agreed requirements and exclusions. Record scope changes that need a user decision.
-   Split or supersede plans through [Apply a revision](revise-plan.md), preserving stable paths and links.
-3. Select the next horizon and update its overview record with the evidence and reason for that selection.
-   If a required trigger has not occurred, record the pending evidence and next action.
-   Continue only independent work within the authorized scope.
-4. For an outline selected for refinement, mark it `draft` and expand the same file with the executable template's sections.
-   Preserve its decisions, question links, and existing content. Do not overwrite it with a blank template.
-   Repeat the relevant discovery, research, question loop, drafting, and review stages using the new evidence.
-   If a required answer or result is unavailable, mark the affected plan `blocked` and record its next action.
-5. Return the reviewed plans and pending questions to the caller, which owns publication and the operation checkpoint.
-   Continue implementation only within existing authorization and after the execution readiness check.
-   For a planning-only request, hand over the refined plan without starting implementation.
+1. Read actual outcomes, verification evidence, source changes, and feedback. Integrate experiment conclusions with their limits; reopen invalidated questions.
+2. Reconsider order, dependencies, and assumptions within the authorized scope. Use [Apply a revision](revise-plan.md) for splits or supersession.
+3. Record the next horizon, evidence, and selection reason. If a required trigger is pending, record its next action and continue only independent work.
+4. Mark selected outlines `draft` and expand the same files with executable sections. Preserve decisions, question links, and existing content; do not overwrite with a blank template.
+   Repeat affected discovery, research, question integration, and review. Record blockers when required evidence is unavailable.
+5. Return reviewed plans and pending questions to the caller for checkpoint and publication. Implementation still requires existing authorization and readiness.

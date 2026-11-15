@@ -15,30 +15,14 @@ build system, formatting, and global conventions. Read that first.
 
 ## Modules
 
-The layering stack runs bottom-up: **RegionKit** (geometry + region lookup) →
-**WhereCore** (domain. It never imports SwiftUI/UIKit) → **WhereUI** (SwiftUI
-views + view models) → the thin hosts (**Where** app, **WhereIntents**,
-**WhereWidgets**, **WhereShareExtension**, **RegionViewer**). Each layer
-reaches only *down*. Each module's own `AGENTS.md` / `README.md` is the
-authority on what it is. Add domain behavior to WhereCore. Add presentation to
-WhereUI. The app target stays tiny.
-
-The DEBUG app has a second boot runtime from
-[`Shared/Inspector`](../Shared/Inspector). `AppDelegate` selects either the
-regular composition root or the standalone Inspector before launch. Inspector
-is not a `WhereScope`. It must never construct regular app services.
+The dependency order is RegionKit → WhereCore → WhereUI → app/intent/widget/share-extension hosts. Reach only downward.
+Module READMEs describe APIs; module instructions define local contracts.
 
 ## Layering
 
-| Layer | Where | Owns |
-|-------|-------|------|
-| **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects. Unit-test here. |
-| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
-| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings. Never store I/O, detection, or cache/throttle policy. |
-
-When in doubt, ask this: if the behavior would still be correct without
-SwiftUI, it belongs in `WhereCore` (or on the coordinator / a scoped model —
-still not a `View`).
+WhereCore owns domain rules, persistence, and side effects. WhereUI models own observable mirrors, lifecycle wiring, and UI intents.
+Views own presentation; the app target stays a composition host. The [building-ui skill](../.agents/skills/building-ui/SKILL.md) defines the shared UI boundary.
+The DEBUG Inspector runtime is selected before launch, is not a `WhereScope`, and must not construct regular app services.
 
 Rules the code enforces and agents must preserve:
 
@@ -86,7 +70,6 @@ Rules the code enforces and agents must preserve:
 ## Required task guidance
 
 Read the matching instructions before changing or reviewing that behavior, including its tests and callers outside this directory.
-Read only the rows relevant to the task. These references preserve required contracts.
 
 | Task | Required guidance |
 | --- | --- |
@@ -99,13 +82,5 @@ Read only the rows relevant to the task. These references preserve required cont
 
 ## Adding things
 
-- **New library target:** add it in root [`Package.swift`](../Package.swift) under
-  `Where/<Name>/Sources`. Add a hosted test bundle via `Project.swift`'s
-  `unitTests` helper.
-- **New region:** pure data. No `Region` case, no code. See
-  [`RegionKit/README.md`](RegionKit/README.md#adding-a-region).
-- **New evidence kind / sample source:** add the case. Follow the compile
-  errors through the exhaustive switches.
-- **New app icon:** run `./icons --add` (root
-  [`AGENTS.md`](../.agents/references/build-system.md#managing-app-icons)). Never hand-edit the
-  catalogs or manifest.
+New regions are data, not enum cases: see [RegionKit](RegionKit/README.md#adding-a-region).
+For new evidence/sample-source cases, follow the exhaustive-switch compile errors.

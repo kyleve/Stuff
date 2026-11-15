@@ -17,7 +17,6 @@ internal shape.
 ## Required task guidance
 
 Read the matching instructions before changing or reviewing that behavior, including its tests and callers outside this directory.
-Read only the rows relevant to the task. These references preserve required contracts.
 
 | Task | Required guidance |
 | --- | --- |
@@ -28,14 +27,9 @@ Read only the rows relevant to the task. These references preserve required cont
 | GPS acquisition, ingestion, or durable outbox behavior | [Location acquisition and outbox contracts](Sources/Location/AGENTS.md) |
 | Preference persistence, reset, themes, diagnostics, or presentation state | [Preference contracts](Sources/Preferences/AGENTS.md) |
 
-## Scope & dependencies
-
-- Dependencies live in the root [`Package.swift`](../../Package.swift). It
-  must **not** import SwiftUI or UIKit. If a behavior would still be correct
-  without SwiftUI, it belongs here, not in `WhereUI`.
-
 ## Shape & invariants
 
+- Do not import SwiftUI or UIKit into WhereCore.
 - Use InstallerKit for local and published build identity, feed validation, and cache policy.
   Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
   installer identity only for the Development audience.
@@ -45,10 +39,7 @@ Read only the rows relevant to the task. These references preserve required cont
   initializer. `README.md` describes them). It owns the one
   cross-collaborator operation, `reset()`. Add new behavior to the
   collaborator it belongs to.
-- **`WhereStore` is a value-type boundary.** Everything crossing it is a
-  value, never a SwiftData record. Every mutation runs inside
-  `perform { … }` (the production store traps otherwise). Stale-decision
-  writes use `perform(expectedDataGenerationID:)`. Multi-table reads use
+- **`WhereStore` extends the feature's mutation boundary.** Stale-decision writes use `perform(expectedDataGenerationID:)`. Multi-table reads use
   `readSnapshot`. Guard:
   `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. A snapshot
   inside a mutation pins durable history until its pre-save check; concurrent
@@ -64,11 +55,6 @@ Read only the rows relevant to the task. These references preserve required cont
   Retire a profile whose registration frontier omits any observed account-reset
   generation
   (`WhereDataGenerationTests.resetBarrierRejectsEarlierRegistrationAndAcceptsLaterRegistration`).
-- **Each process opens its on-disk store once and injects it.** The app's
-  launch opens it. The App Intents stack shares it via
-  `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
-  same file is how a fresh install once raced the launch into failure (root
-  [Composition](../../.agents/references/swift-conventions.md#composition-create-once-inject-down)).
 - **On-disk storage always carries an explicit App Group identifier.** Audience
   selection belongs to host targets; WhereCore must not own a production or
   development default.
@@ -78,10 +64,7 @@ Read only the rows relevant to the task. These references preserve required cont
   region's `RegionAppearance` + pick order. `RegionAppearance` carries the
   persisted `RegionSymbol`. Its mapping to SFSafeSymbols and `Color` is
   presentation (WhereUI).
-- **Composite identity keys are `store://` URLs, not joined strings.**
-  Conform to `WhereStoreURLCodable` (see `DataIssueID`). Build and parse
-  with `StoreURL`. Families without a dedicated identity type get theirs from
-  `WhereStoreID`. Used to stamp Periscope `LogEvent.externalID`s.
+- Families without a dedicated identity type use `WhereStoreID`. The Swift wire-format convention owns composite-key encoding.
 - **No in-app data migration or legacy recovery.** `SD….toValue()` reads only
   the current shape and fault-logs a row it cannot place. Incomplete generation
   or removal history throws and fails closed instead of dropping into a benign
@@ -126,13 +109,8 @@ Read only the rows relevant to the task. These references preserve required cont
   checked categories appear and unchecked categories do not. Keep any
   early-year clock adjustment inside the in-memory demo. Guard:
   `DemoDataBuilderTests.holdsItsShapeWhereverInTheYearItIsEntered`.
-- **Impossible states trap. Recoverable ones surface.** `WhereStore` methods
-  are `async throws`. A `catch` logs a typed `WhereLog` event (PII-free,
-  `.public`) and leaves state honest. When the event accepts `LogError`, pass
-  the original error through `.restricted(.errorDetails, error)`. Do not add
-  a duplicate error attachment. Follow PeriscopeCore's structured-error contract.
-  Never use a benign-looking default. The `WhereLog` facade and every
-  `*Log.swift` event type live together in `Sources/Logging/`.
+- When an event accepts `LogError`, pass the original error through `.restricted(.errorDetails, error)` without a duplicate error attachment.
+  PeriscopeCore owns the structured-error contract; the Swift conventions own failure propagation.
 - **Expensive Core work is spanned, with a budget.** That includes bulk reads
   and `perform` commits, aggregation, calendar layout, issue detection, the
   reconcile fan-out, backup, GPS acquisition. Names come from each `*Log`'s

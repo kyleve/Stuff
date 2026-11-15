@@ -3,12 +3,12 @@
 ## Planning checkpoint
 
 - Updated: 2026-11-14; baseline `b629d56ac`.
-- Operation: execute the user-approved native Claude discovery follow-up.
+- Operation: remove duplication and unnecessary detail from guidance loaded together, as requested by the user.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: all six deliverables are complete, including [06 — Native Claude discovery](06-native-claude.md).
+- Stage: deliverables 01–06 are complete. [07 — Loaded duplication](07-loaded-duplication.md) is executing.
 - Completed: original implementation, relocation verification, installer repair, offline validation, CI enforcement, focused checks, independent static review, reusable maintenance skill, and monthly schedule.
-- Pending: hosted CI and PR review. Linear linking remains unavailable.
-- Next action: address PR feedback if requested. Monthly maintenance starts from current main after the skill and checker merge.
+- Pending: publish the verified guidance reduction. Linear linking remains unavailable.
+- Next action: commit and push deliverable 07, then update PR #499 with its reduction and review evidence.
 - Publication: user explicitly approved public publication on 2026-11-14. [PR #499](https://github.com/kyleve/Stuff/pull/499) is open and ready for review.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
@@ -56,6 +56,7 @@ The current CI documentation shortcut skips the required lint job.
 | Q-07 | closed | User approved the independent review's focused cleanup on 2026-11-14. Preserve requirements, checks, and audit evidence. | Deliverable 05; CI-test rewrite excluded |
 | Q-08 | closed | User requested guidance and script changes to stop separate Claude copies. Anthropic documents native AGENTS.md and symlinked skill folders. | R-04/R-06 and deliverable 06; earlier mirror behavior is superseded |
 | Q-09 | closed | The [user's PR comment](https://github.com/kyleve/Stuff/pull/499#discussion_r4576693763) requests renaming the Linux bootstrap because Cursor is no longer used. | Deliverable 06 moves the script and its Codex caller, then removes the unused launcher |
+| Q-10 | closed | User clarified that net maintained content is the concern, and requested removal of duplicates, including statements repeated when guidance loads together. | Deliverable 07 preserves useful contracts while deleting redundant and verified stale detail |
 
 Preserve complete existing sections or invariant bullets when moving them. Record their new owners in the [relocation map](relocations.md).
 Use source-scoped instruction files for subsystem invariants and conditional references for procedures or measurement history.
@@ -83,6 +84,7 @@ Resume from the recorded pending step and repeat only invalidated checks.
 4. [04 — Monthly maintenance](04-monthly-maintenance.md): follow-up requested after publication; reusable skill and schedule.
 5. [05 — Deduplication](05-deduplication.md): remove confirmed repetition and repair PR-template routes.
 6. [06 — Native Claude discovery](06-native-claude.md): retire generated instruction copies and replace skill copies with links.
+7. [07 — Loaded duplication](07-loaded-duplication.md): remove repeated rules and unnecessary detail across common task contexts.
 
 The original three deliverables were specified together because their interfaces and dependencies were established. Deliverable 04 records the later user request.
 Each deliverable lands as a verified commit on the same feature branch.
@@ -97,6 +99,7 @@ The numbered plans describe the file and command flows directly; an additional d
 Deliverable 05 was reviewed against `a650676ba`: its bounded cleanup preserves R-01 through R-05 and all exclusions.
 The independent size review and subsequent source check identified its edits. No unresolved decision blocks execution.
 Deliverable 06 was reviewed against `aaae5b0f8` and current Anthropic documentation. Its migration, contracts, and acceptance conditions agree.
+Deliverable 07 was reviewed against `6a52313e8`: its scope is guidance reduction, with retained owners and existing structural checks as acceptance evidence.
 
 ## Review and delivery
 
@@ -105,13 +108,14 @@ Review focus: preserved requirements, installer rollback, byte accounting, Markd
 A fresh static subagent review is complete. Findings, corrections, coverage, and remaining validation limits are recorded in [03](03-validation.md).
 The follow-up review and its corrections are recorded in [05](05-deduplication.md). No actionable findings remain in the reviewed scope.
 The native Claude migration and bootstrap review are recorded in [06](06-native-claude.md), including four corrected failure cases and regression evidence.
+The loaded-guidance reduction and two corrected review findings are recorded in [07](07-loaded-duplication.md).
 These reviews were not live skill evaluations.
 
 ## Outcome
 
 R-01 through R-04 are implemented, verified, and published in [PR #499](https://github.com/kyleve/Stuff/pull/499).
 The newer main-branch Device Layout Lab invariant is preserved in its scoped owner. Native files remain identical to main.
-All six deliverables are complete. Deliverable 06 records the native Claude migration and the requested Linux bootstrap rename.
+Deliverables 01–06 are complete. Deliverable 07 records the subsequent request to reduce maintained guidance.
 The normalization skill is implemented and verified; its monthly schedule is active with explicit user approval.
 The earlier automatic-review publication blocker was resolved by explicit user approval. Publication used the existing SSH credential because the OAuth credential lacked workflow scope.
 The full requirements, decisions, execution order, and review record were restored in deliverable 04 after an earlier publication update truncated this overview.

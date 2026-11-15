@@ -42,18 +42,11 @@ Read the matching reference before implementation or review. Read only relevant 
 
 ## Formatting
 
-- **Python and web correctness:** `mise exec -- npm run lint` runs pinned Ruff, type-aware ESLint, Astro rules, and Stylelint. `npm run test:lint` proves that representative errors fail. Ruff targets Python 3.9. Keep formatting-only changes separate from behavior changes.
-- **Python formatting:** `mise exec -- npm run format:python` applies Ruff formatting. The shared lint command checks formatting without changing files. CSS uses the pinned standard Stylelint preset; preserve the three documented Safari property exceptions in `stylelint.config.mjs`.
-- **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
-  format the tree. Run `./swiftformat --lint` to make sure that formatting is correct (as in CI).
-- **ShellCheck** is pinned in [`.mise.toml`](.mise.toml). `./shellcheck` discovers
-  and lints every tracked shell file by its shebang.
-- The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
-  `*.swift` files in place and re-stages them.
-- **String Catalogs are stored exactly as Xcode serializes them**. `./xcstrings` (`--lint` in CI) enforces this. A catalog written by anything
-  else parses fine. The next IDE build then produces thousands of lines of
-  whitespace churn. Write catalogs through Xcode. Or normalize with the
-  script afterwards (it touches formatting only, never content).
+- Python/web: `mise exec -- npm run lint` checks Ruff, type-aware ESLint, Astro, and Stylelint. `npm run test:lint` exercises their failure guards.
+  Use `mise exec -- npm run format:python` for Python formatting. Keep formatting-only changes separate from behavior changes.
+- Swift: `./swiftformat` applies `.swiftformat`; `./swiftformat --lint` checks it. The pre-commit hook formats and re-stages staged Swift files.
+- Shell: `./shellcheck` lints tracked shell files by shebang.
+- String catalogs must match Xcode serialization. Write them through Xcode or normalize with `./xcstrings`; use `--lint` for checking.
 
 ## Working in this repo
 

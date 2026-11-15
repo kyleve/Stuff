@@ -1,21 +1,11 @@
 # WhereUI – Module Shape
 
-WhereUI is the SwiftUI layer of the Where feature. It owns the screens, the
-shared components and widget views, and the `@Observable` view models that
-orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
-coordinator, and the scoped `YearReportModel` / `ResolveModel` /
-`BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` /
-`OnboardingFlowModel` / `OnboardingImportRecoveryModel` /
-`LocationForecastModel` / `DiagnosticReportingSettingsModel`).
-Layering, localization, preview, and testing conventions live in the feature
-[`Where/AGENTS.md`](../AGENTS.md). Read that and the root
-[`AGENTS.md`](../../AGENTS.md) first.
-
+WhereUI owns Where's presentation and observable models. Read the [feature contract](../AGENTS.md) and [root contract](../../AGENTS.md).
+Its [README](README.md) describes the API; the required task references below own local behavior.
 
 ## Required task guidance
 
 Read the matching instructions before changing or reviewing that behavior, including its tests and callers outside this directory.
-Read only the rows relevant to the task. These references preserve required contracts.
 
 | Task | Required guidance |
 | --- | --- |
@@ -31,9 +21,6 @@ Read only the rows relevant to the task. These references preserve required cont
 
 ## Scope & dependencies
 
-- Presentation layer only. No domain rules, persistence, or store I/O here
-  ([Layering](../AGENTS.md#layering)). Dependencies live in the root
-  [`Package.swift`](../../Package.swift).
 - WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'
   `SFSymbol` and re-exports SFSafeSymbols for its presentation API consumers.
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
