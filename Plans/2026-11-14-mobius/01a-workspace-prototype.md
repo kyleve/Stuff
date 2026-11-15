@@ -363,11 +363,11 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-The title-bar follow-up is reviewed and published. The user now requests closing and reopening PR workspaces. The close/reopen follow-up is implemented and verified with fresh independent review; return its clean tested commit for coordinator review, then publish the existing PR/evidence/issue and receipt. Keep acceptance open and native refinement gated.
+The title-bar follow-up is reviewed and published. The user now requests closing and reopening PR workspaces. The close/reopen follow-up is reviewed and published; return its final receipt to the coordinator for the completion notice, then integrate user evaluation. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
-Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its implementation is verified and independently reviewed, with coordinator review/publication and user evaluation next. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its implementation is verified, independently reviewed and published, with user evaluation next. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
 
 
 ## Iteration 4 title-bar drag correction
@@ -428,7 +428,7 @@ Readiness review: `executing` → `draft` for this method revision, then `draft`
 - [x] Coordinate parent integration and resume implementation at parent `ecb3c017d` / child `7c0521696`; method and artifact bytes are unchanged by the cascade.
 - [x] Implement close/reopen, explicit no-active state, and retained-context recovery.
 - [x] Verify focused three-size scenarios/captures and fresh independent review; no actionable findings.
-- [ ] Publish the coordinated artifact/evidence/receipt and return completion.
+- [x] Publish the coordinated artifact/evidence/receipt; ready for the coordinator completion handoff.
 - [ ] Integrate user evaluation before completing the experiment.
 
 
@@ -441,3 +441,6 @@ Final HTML SHA-256 `c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6ca
 Fresh review found no actionable issues after its own eleven scenarios across all six size/presentation cases, six selected WCAG scans, real touch/hit checks at 320/390/834px, and keyboard workspace closure during an active drag. Author target inspection expanded the narrow 44px rule to the new outer window-close button; final-source hit tests confirm 44×44px tab/window close targets at 320/390. Closing during a drag releases capture, avoids a pointer-up action, and permits subsequent reopen/click. The coordinator independently passes close/reopen, stored review/draft/file context, all-closed presentation changes, review-top and title dragging in Chromium 156.0.8078.4 and WebKit 27.2 at phone/desktop widths on this final hash.
 
 Nine [captures](Prototype/evidence/workspace-close/) show the retained picker, empty state and reopened Store review at [phone](Prototype/evidence/workspace-close/phone-picker.png), [tablet](Prototype/evidence/workspace-close/tablet-picker.png), and [desktop](Prototype/evidence/workspace-close/desktop-picker.png) sizes. They use the same synthetic PR42 v1 context, with Parser reviewed and a saved draft, light appearance, 1× scale; all were inspected after the transient toast cleared naturally. Previous artifacts/evidence stay unchanged. Checks use isolated direct-file fixtures, not the user's unavailable browser. WebKit coverage is scoped, selected WCAG scans are not VoiceOver acceptance, and the probes are not retained CI guards. Default lint excludes this HTML; native tests/snapshots/SwiftFormat and unrelated format catalogs were not rerun. No backend/durability/sync/native work is added, and Q-09 retains the cross-device policy question. User evaluation remains pending; 01a is executing.
+
+
+Close/reopen publication receipt: approved artifact/evidence [`87886b922ca2ba6a578ebac9259d7691e7ad7730`](https://github.com/kyleve/Stuff/commit/87886b922ca2ba6a578ebac9259d7691e7ad7730) is published through `gh stack push`, with parent unchanged at `ecb3c017d`. The coordinator verified the clean commit, final source and nine capture hashes, review disposition and representative visuals. Inline JS, 234 local links/anchors, fences, archive identities and whitespace passed before that commit. PR #500, its existing screenshot comment and STU-330 now describe close/reopen. GitHub-rendered HTML has three PR images and one comment image; published HTML and all nine PNG responses exactly match tested bytes. Direct-file checks needed no server. No source changed after validation. STU-330 remains In Review under STU-329 and 01a executing pending user evaluation; the coordinator owns the completion notice.
