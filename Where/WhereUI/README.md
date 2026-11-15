@@ -116,8 +116,20 @@ Settings uses native split navigation and the stylesheet's compact-layout policy
 
 Planning sheets remain above changing containers, with one owner per destination.
 The welcome and developer overlays share the geometry adapter to find clear space.
-Embedded demo tools leave dismissal to their containing tool. Duo capture fixtures
-retain their demo-world loader independently of the interactive developer lab.
+The DEBUG **Device Layout Lab** retains one production demo scene while switching
+between iPhone SE, iPhone 17, Pro Max, iPad mini, 11-inch and 13-inch iPad profiles,
+and all Duo poses. Ordinary profiles support portrait and landscape. Reset Demo
+creates a fresh world without changing the selected layout. A centered, illustrative
+bezel surrounds the synthetic screen without changing its dimensions or traits.
+Loading and error content stays inside this frame.
+The lab remains outside the developer tool's navigation stack because an ancestor
+stack suppresses the embedded app's navigation content. Its layout picker and Reset
+remain in the lab header. Embedded demo tools leave dismissal to their containing tool.
+
+`SnapshotConfiguration.DeviceProfile` supplies ordinary device dimensions and
+traits; `DuoPose` supplies fold geometry. Device safe areas and size classes are
+explicit synthetic fixtures. These controls do not change the host device or
+establish native keyboard, system-bar, or folding fidelity.
 
 Synthetic poses come from `SnapshotConfiguration.DuoPose`; see the measurement provenance in [SnapshotKit](../../Shared/SnapshotKit/README.md). Native runtime geometry validation remains pending.
 Viewport shell captures supplement full-content captures of the shared scrolling panes.

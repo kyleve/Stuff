@@ -135,3 +135,11 @@ Unlisted requirements stay in their original owners. The shortened root repeats 
 | Where/WhereCore/AGENTS.md: ## Testing | Where/WhereCore/Tests/AGENTS.md | `99f89671190701173a9b9740e0a0af891dc3c27aac8d4f4585348a5444c00ac2` |
 | Where/WhereCore/AGENTS.md: - Persist textual day keys through CalendarDay.iso8601, never its diagnostic description. | Where/WhereCore/Sources/Days/AGENTS.md | `21f37f63fb6de8611304a65dc4d4fdec62ad200d3140aade52aff4b9265a9285` |
 | Where/WhereCore/AGENTS.md: - **A logical day is a CalendarDay, not a Date.** CalendarDay (Y-M-D) | Where/WhereCore/Sources/Days/AGENTS.md | `7231124ce9e0494f6c6f5858b11ad69aa0be7e373376c6eb0b6f33d5f4b1a90b` |
+
+## Main integration
+
+The integration of `2e27fc5ba` also relocates its new Device Layout Lab invariant without changing its text.
+
+| Original owner and block | New owner | Original block SHA-256 (without trailing newline) |
+| --- | --- | --- |
+| `2e27fc5ba:Where/WhereUI/AGENTS.md`: Keep Device Layout Lab controls | Where/WhereUI/Sources/Developer/AGENTS.md | `d925f333010ab42ce57fc05db3a7a4c261374d2c2fa9be816b39fae6bd695c73` |

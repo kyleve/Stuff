@@ -1,6 +1,6 @@
 # External skill layout repair
 
-Status: blocked
+Status: complete
 Dependencies: [01](01-guidance.md)
 Requirements: R-03; exclusions X-01 through X-04 from the [overview](README.md).
 
@@ -36,7 +36,7 @@ Resume from the recorded pending step and repeat only invalidated checks.
 
 - [x] Implement the steps.
 - [x] Verify acceptance and record evidence.
-- [ ] Review and publish the deliverable.
+- [x] Review and publish the deliverable.
 
 ## Execution record
 
@@ -55,8 +55,8 @@ Independent review will cover the complete tooling change with deliverable 03.
 2026-11-14: the complete branch review is now recorded in deliverable 03. No installer findings remain.
 Implementation and verification are complete; publication is the remaining blocker.
 
+2026-11-14 publication: the user explicitly approved public publication. The reviewed branch is published in [PR #499](https://github.com/kyleve/Stuff/pull/499), ready for review.
+
 ## Resume point
 
-Proceed with deliverable 03. Complete independent review before publication.
-Automatic approval review rejected pushing to public `kyleve/Stuff`, even after ownership and ADMIN access were verified.
-Request explicit publication permission after the complete implementation is reviewable. Linear linking remains unavailable without credentials.
+Implementation is delivered. Continue any PR feedback through github-workflow. Linear linking remains unavailable without credentials.

@@ -1,6 +1,6 @@
 # Guidance restructuring
 
-Status: blocked
+Status: complete
 Dependencies: None
 Requirements: R-01, R-02; exclusions X-01 through X-04 from the [overview](README.md).
 
@@ -36,7 +36,7 @@ Resume from the recorded pending step and repeat only invalidated checks.
 
 - [x] Implement the steps.
 - [x] Verify acceptance and record evidence.
-- [ ] Publish the verified deliverable.
+- [x] Publish the verified deliverable.
 
 ## Execution record
 
@@ -50,8 +50,10 @@ The complete documentation diff was reviewed for preserved rules, explicit read 
 No app tests or formatting checks were run because this deliverable changes only Markdown.
 The durable validator and hidden-directory mirror discovery follow in deliverable 03.
 
+2026-11-14 publication: the user explicitly approved public publication. The reviewed branch is published in [PR #499](https://github.com/kyleve/Stuff/pull/499), ready for review.
+
 ## Resume point
 
-Local implementation is committed in `2df3ec197`. The earlier completion claim was reopened because publication did not succeed.
-Automatic approval review rejected pushing to public `kyleve/Stuff`. Obtain explicit publication permission for the complete verified branch.
-Deliverable 03 now covers the missing hidden-directory mirror and the seven links found invalid from the Claude mirror.
+Implementation is delivered. Continue any PR feedback through github-workflow. Linear linking remains unavailable without credentials.
+
+The main integration preserves the new Device Layout Lab rule from `2e27fc5ba` verbatim in `Where/WhereUI/Sources/Developer/AGENTS.md`.

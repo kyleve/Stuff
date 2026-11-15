@@ -34,7 +34,7 @@
             case settings
         }
 
-        let model = DuoLayoutLabModel()
+        let model = WhereDemoWorldModel()
         let artwork = RegionOutlinePathCache()
         let tab: MainTabSelection.TabID
         let selection: Selection

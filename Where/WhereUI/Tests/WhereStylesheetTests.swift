@@ -1046,6 +1046,13 @@ struct WhereStylesheetTests {
         #expect(warning.ink == .standard)
     }
 
+    @Test func deviceLayoutLabStyle() {
+        #expect(style.deviceLayoutLab.screenCornerRadius == 32)
+        #expect(style.deviceLayoutLab.bezelWidth == 8)
+        #expect(style.deviceLayoutLab.bezelColor == .black)
+        #expect(style.deviceLayoutLab.outlineWidth == 1)
+    }
+
     @Test func developerOverlayStyle() {
         let overlay = style.developerOverlay
         #expect(overlay.edgeInset == 16)

@@ -24,6 +24,7 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   factory methods.
 - Construct and retain the Where Flyover catalog once after its world loads.
   Never rebuild fixture state from a SwiftUI `body`.
+- Keep Device Layout Lab controls in view-owned state. Changing profiles retains the mounted demo world and navigation; only Reset Demo replaces them. Keep ordinary device fixtures in SnapshotKit and Duo geometry adaptation in WhereUI. Keep lab chrome outside the synthetic screen bounds. Keep the configured device host mounted through loading and failure. Host the lab outside ancestor navigation stacks so its embedded app navigation can render. Guards: `DeviceLayoutLabViewTests`, `DeviceLayoutLabViewSnapshotTests`.
 - Build one `WhereFlyoverWorld` for each hosted web export. Reuse it for every
   capture. Never activate its scope or read user data.
 - Export stable screen IDs from reflected screen and context type names. Use

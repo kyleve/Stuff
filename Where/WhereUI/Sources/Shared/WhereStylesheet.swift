@@ -44,6 +44,7 @@ struct WhereStylesheet: BStylesheet {
     var openSourceStamp = StampBannerStyle.openSource
     var plannedStayWarningStamp = StampBannerStyle.plannedStayWarning
     var developerOverlay = DeveloperOverlayStyle.standard
+    var deviceLayoutLab = DeviceLayoutLabStyle()
 
     init() {}
 
@@ -629,6 +630,18 @@ extension WhereStylesheet {
         /// (the "updating your data" line shown during a slow store open), kept
         /// clear of the home indicator.
         var launchCaptionBottomInset: CGFloat = 72
+    }
+}
+
+// MARK: - Developer tools
+
+extension WhereStylesheet {
+    /// Illustrative device chrome outside the lab's unchanged synthetic screen bounds.
+    struct DeviceLayoutLabStyle: Equatable {
+        var screenCornerRadius: CGFloat = 32
+        var bezelWidth: CGFloat = 8
+        var bezelColor: Color = .black
+        var outlineWidth: CGFloat = 1
     }
 }
 

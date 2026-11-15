@@ -1,6 +1,6 @@
 # Offline guidance validation and CI
 
-Status: blocked
+Status: complete
 Dependencies: [01](01-guidance.md), [02](02-installation.md)
 Requirements: R-04; exclusions X-01 through X-04 from the [overview](README.md).
 
@@ -38,7 +38,7 @@ Resume from the recorded pending step and repeat only invalidated checks.
 
 - [x] Implement the steps.
 - [x] Verify acceptance and record evidence.
-- [ ] Review and publish the deliverable.
+- [x] Review and publish the deliverable.
 
 ## Execution record
 
@@ -68,8 +68,12 @@ Ignored instructions could acquire generated mirrors that the checker rejected; 
 An unqualified mise invocation could install unrelated tools; both CI checks now use `mise exec ruby --`.
 Each correction has regression coverage. Re-review and the repeated affected checks found no remaining actionable findings.
 
+2026-11-14 publication: the user explicitly approved public publication. The reviewed branch is published in [PR #499](https://github.com/kyleve/Stuff/pull/499), ready for review.
+
 ## Resume point
 
-Local implementation, verification, and review are complete. Publication is pending explicit permission after automatic approval review rejected the public push.
-Publish the completed branch and open a ready-for-review PR, then record its link and complete all three deliverables.
-Linear linking remains unsent because the CLI has no usable credentials.
+Implementation is delivered. Continue any PR feedback through github-workflow. Linear linking remains unavailable without credentials.
+
+After integrating `main` at `2e27fc5ba`, the 43 Ruby tests, 33 Python CI tests, and repository guidance check passed again.
+All Swift files, catalogs, and image references remain identical to that main revision. Native suites were not rerun for this documentation conflict resolution.
+Independent merge review confirmed the new invariant appears exactly once, its required read route remains valid, and no unresolved conflicts or logical guidance conflicts remain.
