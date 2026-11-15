@@ -46,7 +46,9 @@ Read [references/develop-plan.md](references/develop-plan.md) before developing 
 Use its discovery, research, question resolution, drafting, and review stages.
 Use rolling-wave planning: detail the current horizon and keep later selected work as numbered outlines.
 Keep findings in the plan files as work proceeds.
-Scale the depth to the uncertainty and scope, without requiring a questionnaire for a well-specified request.
+For open-ended product planning, establish the intended experience before prescribing architecture or executable deliverables.
+Use [scenario discovery and the question loop](references/develop-plan.md#discover-the-requirements) to resolve material product choices and keep dependent decisions provisional while answers are pending.
+Reuse existing answers and honor explicit delegation. Scale discovery to unresolved decisions, without a fixed question quota or repeating discovery for a well-specified request.
 
 Publish the reviewable files through [github-workflow](../github-workflow/SKILL.md), unless the user requests local-only work.
 Link the overview and numbered plans in the PR body.

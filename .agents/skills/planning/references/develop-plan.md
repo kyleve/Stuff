@@ -26,6 +26,8 @@ Planning can produce drafts and later outlines for discussion. Readiness require
 
 1. Identify the affected users or maintainers and their current problem.
    Describe what success changes for them.
+   For open-ended product work, walk through a concrete main workflow, including relevant interruptions and return visits, before prescribing architecture.
+   Establish what the user sees, does, and expects to persist. Explore ambiguous product concepts through those scenarios.
 2. Inspect the current source, relevant tests, module documentation, and applicable `AGENTS.md` files.
    Identify reusable components, existing guards, and required skills.
    Treat unverified documentation as a claim to investigate, not proof of current behavior.
@@ -34,12 +36,14 @@ Planning can produce drafts and later outlines for discussion. Readiness require
    Include only concerns that materially affect this work.
 4. Compare the request with the current behavior and repository contracts.
    Record ambiguous terms, conflicting requirements, unsupported assumptions, and missing success criteria.
-5. Ask focused questions that change scope, acceptance, architecture, or compatibility.
-   Resolve questions from available sources before asking the user.
-   Offer concrete options and trade-offs where useful.
+5. Ask focused questions that change behavior, scope, acceptance, architecture, compatibility, or delivery priorities.
+   Resolve factual questions from available sources. Technical evidence establishes constraints; it does not select the user's product preferences.
+   Ask about material product choices unless existing answers or explicit delegation cover them. Resolve routine implementation details autonomously within those choices and repository contracts.
+   Offer concrete options, recommendations, and trade-offs where useful.
    Continue independent discovery while awaiting answers.
    Do not repeat answered questions or treat silence as agreement.
 6. Record answers and their sources in the overview's question register.
+   Record the scope of any explicit delegation and the decisions made within it. Keep proposals distinct from user answers and delegated selections.
    Label reasonable implementation assumptions explicitly.
    Use [the question loop](#resolve-questions) to integrate answers and track unresolved decisions.
 
@@ -54,7 +58,8 @@ Planning can produce drafts and later outlines for discussion. Readiness require
    Distinguish observed facts from inferences and unresolved claims.
    State which revision or version the evidence covers where relevant.
 4. When meaningful alternatives exist, compare them against requirements, exclusions, integration cost, and maintenance burden.
-   Record the selected approach and why alternatives were rejected in Shared decisions.
+   Route unresolved product trade-offs through [the question loop](#resolve-questions) before selecting an approach; research alone does not settle them.
+   Record the selected approach, its decision source, and why alternatives were rejected in Shared decisions.
    Do not manufacture alternatives for routine choices.
 5. If feasibility needs a prototype, plan an [experiment deliverable](../../../../Plans/AGENTS.md#experiment-deliverables).
    Define the question, method, effort bound, evidence criteria, and artifact cleanup or retention in the plan template.
@@ -81,7 +86,8 @@ Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#que
    Link GitHub answers to their comments. Summarize chat answers with their date.
    If an answer is partial or conflicting, keep the question `open` and identify what remains unresolved.
 4. Integrate the answer through [Apply a revision](revise-plan.md).
-   Collect its review result and any new questions before continuing this loop.
+   During product discovery, briefly reflect the emerging workflow and its consequential assumptions to the user after each answer batch. Ask the next focused batch when the answers expose further material choices.
+   Collect its review result and any new questions before continuing this loop. Stop asking when the relevant decisions are covered; no minimum number of questions or rounds is required.
 5. Link the integrated sections and review result from the question's resolution record.
    Mark the question `closed` only when the revision procedure confirms integration and review are complete.
    If the question no longer applies, record the reason and relevant scope decision before closing it.
@@ -90,6 +96,7 @@ Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#que
    For work outside the series, link the Linear issue filed through todo-triage.
    Mark the question `deferred` without treating it as answered.
    State which plans it blocks and when the answer is needed.
+   A question assigned to a later outline also blocks earlier work that embeds its answer in a model, API, or acceptance criterion. Independently testable groundwork does not bypass that product dependency.
    Keep affected plans in the current horizon blocked. Later plans can remain outlines until refinement is due.
    Only an integrated answer or authorized removal of the dependency clears that blocker.
 7. After closing questions, refresh readiness through [Review the plan](#review-the-plan).
@@ -105,7 +112,8 @@ Use the statuses defined in the [Plans contract](../../../../Plans/AGENTS.md#que
 1. Give stories, requirements, and exclusions stable IDs in the overview.
    Define both unnecessary capabilities and explicitly avoided approaches.
 2. Record the planning horizon in the overview, usually the next one or two deliverables.
-   Select its size from available evidence and the user's requested scope.
+   Select its size and order from available evidence and the user's requested scope.
+   When plausible first deliverables would validate different product assumptions, resolve the delivery priority through existing answers, explicit delegation, or a focused question before detailing it.
    Copy [the plan template](../assets/plan.md) for work inside that horizon.
    Use [the outline template](../assets/outline.md) for later selected deliverables.
    Start numbering at `01`. Split at independently verifiable deliverables or useful review boundaries.
@@ -159,7 +167,8 @@ Apply this distinction to direct feedback and GitHub revisions too.
    Do not start a nested question loop during this review.
    Record the review date, source revision, reviewed scope, findings, dispositions, and remaining limits in Plan review.
    If no findings remain, say so without claiming that the implementation is verified.
-8. Mark executable plans `ready` only when no unresolved question prevents their safe implementation or acceptance.
+8. Mark executable plans `ready` only when their material product decisions are supported by user answers or explicit delegation, and no unresolved question prevents their safe implementation or acceptance.
+   Check the recorded decisions against the scope of those answers or delegation. Technical review alone does not establish the intended product behavior.
    When a current-horizon plan requires an external answer or feasibility result, mark it `blocked`.
    Record the blocker and next action.
    Leave plans still being developed as `draft`.
