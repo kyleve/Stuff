@@ -1,38 +1,25 @@
-# Span contracts
+# Logging contracts
+
+Use Periscope's `@LogScope`, `@LogEvent`, and classified `@LogField` payloads through `WhereLog`.
+Keep each module's `*Log.swift` declarations in `Sources/Logging/`; do not write direct `LogEvent` conformances or raw-string events.
+
+- Events log `.public`: keep PII out. Use `info` for important success, `warning` for handled degradation, and `error`/`fault` for failure. Keep hot paths quiet.
+- Match classified fields with `.shared` or `.restricted` inputs. Pass original errors through `.restricted(.errorDetails, error)` without a duplicate attachment.
+- RegionKit uses its own root in the same `Periscope.shared`. Only the app process attaches a store; widgets/share extensions use OSLog only. App Intents run in the app process.
+- Events about store objects stamp `externalID` with their `store://` identity. RegionKit uses `region://`; see its [contract](../RegionKit/AGENTS.md).
 
 ## Spans
 
-Anything plausibly expensive is measured. Use `logger.measure(.name, budget:)`
-on the owning type's `*Log`. Then the [Periscope](../../Shared/Periscope) span
-history can say which work is slow on a real device. It does not only say that
-a screen felt slow.
+Measure expensive work with the owning logger's `measure(.name, budget:)`.
+This includes bulk reads/commits, aggregation, calendar layout, issue detection, reconciliation, backup, GPS acquisition, and orchestration that reflects user-perceived latency.
+Do not span SwiftUI computed properties evaluated on every `body` pass.
 
-- **Names are a typed `enum SpanName`** nested on the `*Log`. Never use a raw
-  string. When a name carries a value, give it `CustomStringConvertible`. Then
-  the history buckets by something readable — `step(resolve-scope)`,
-  `loadRegion(us-CA)`, `detect(border-drift)` — not the Swift case's shape.
-- **The budget is the promise, and it lives next to the work.** Overrunning it
-  emits a `SpanOverdue` warning while the span keeps running. A budget is a
-  claim about this specific call ("a widget publish must not take 2s"). It is
-  not a timeout. Omit it only where no ceiling is meaningful — user-driven
-  backup export/import, which scales with the archive.
-- **Launch and reset steps declare a budget, not a `measure` call.** Every step
-  in `WhereLaunch`'s plans conforms to `BudgetedLaunchStep`. It joins the plan
-  through `.measured()`, which wraps it in `MeasuredStep`. A new step is
-  spanned by declaring `budget`. `MeasuredStep` pointedly is not itself
-  budgeted. Nothing can be measured twice into nested duplicate spans. Gates
-  are exempt. The onboarding gate parks on the user. It has nothing to promise.
-- **Span the work, not the property.** Composite orchestration that reflects
-  user-perceived latency is worth a span even when its callees have their own
-  (`WhereSession.appBecameActive`, `YearReportModel.refreshAll`, an intent's
-  `perform`). A SwiftUI computed property re-evaluated per `body` pass is not.
-  It would emit continuously and bury the real signal.
-- **If a type needs spans but has no events,** declare an `@LogScope` enum
-  with its nested `SpanName` and no `@LogEvent` members. See `ReportReaderLog`,
-  `DataIssueScannerLog`, and `PresenceCalendarLog`. Derive its logger through
-  the owning `WhereLog` group.
-- **Spans emitted before a scope's durable store attaches are
-  half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog.
-  The `SpanEnded` lands in the store. Durations survive but the pair does not.
-  That gap is Periscope's to close (P0 in its
-  [Periscope backlog](https://linear.app/kve/view/c0511a6281eb)). Do not work around it here.
+- Names are a nested typed `SpanName` enum. Associated values need readable `CustomStringConvertible` output, such as `detect(border-drift)`.
+  A scope may have spans without events; derive its logger through the owning `WhereLog` group.
+- Budgets live beside the work. An overrun warns while the span continues; it is not a timeout.
+  Omit the budget only when no ceiling is meaningful, such as user-driven backup work whose cost scales with the archive.
+- Launch/reset steps conform to `BudgetedLaunchStep` and join through `.measured()`. Declare the budget without adding another `measure` call.
+  `MeasuredStep` is not budgeted. Gates are exempt because they wait for user input.
+- Detectors name their span through `DataIssueDetecting.detects`; `DataIssueScanner` owns detector-pass and shared GPS-assessment measurements.
+- Spans begun before the durable store attaches are half-persisted: the begin reaches OSLog, while the end reaches the store.
+  Keep that fix in Periscope ([backlog](https://linear.app/kve/view/c0511a6281eb)); do not add a Where workaround.
