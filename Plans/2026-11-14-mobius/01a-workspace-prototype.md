@@ -363,11 +363,11 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-The title-bar follow-up is built and verified; return its clean tested commit for coordinator review, then publish the existing PR/evidence/issue and final receipt. Evaluate the corrected filename drag/click behavior with the user after delivery. Keep acceptance open and native refinement gated.
+The title-bar follow-up is reviewed and published. Return the final receipt to the coordinator for the completion notice, then evaluate the corrected filename drag/click behavior with the user. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
-Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built and verified with fresh review; coordinator review/publication and user reevaluation remain. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published; user reevaluation remains. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
 
 
 ## Iteration 4 title-bar drag correction
@@ -385,11 +385,11 @@ Readiness review (2026-11-14): status briefly returned to draft for the method r
 - [x] Reproduce title text versus icon and review the bounded method.
 - [x] Implement and verify drag/click separation and cleanup at representative widths.
 - [x] Finish fresh independent review; no actionable findings.
-- [ ] Obtain coordinator review of the clean tested commit.
-- [ ] Publish the existing PR/evidence/issue and return completion to the coordinator.
+- [x] Obtain coordinator review of the clean tested commit.
+- [x] Publish the existing PR/evidence/issue; final receipt is ready for the coordinator completion handoff.
 - [ ] Obtain user reevaluation; the experiment remains executing.
 
-Resume point: send the clean tested commit for coordinator review before publication. The earlier layout-correction publication remains valid historical evidence.
+Resume point: return this published receipt to the coordinator, then await user reevaluation. The earlier layout-correction publication remains valid historical evidence.
 
 
 ### Title-bar implementation and evidence
@@ -401,3 +401,6 @@ HTML SHA-256 `3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d` 
 Fresh independent review found no actionable issues after 15 scenarios at each size plus five alternate-path checks, including drag-out-and-back suppression, preview title, narrow outer Windows ownership, and Tile preserving saved frames. The coordinator independently verified the exact filename drag (+32/+24), suppression, subsequent click, and Enter in Chromium 156.0.8078.4 and WebKit 27.2 via direct file loading. These targeted WebKit checks do not establish a full Safari/device matrix.
 
 Six visually inspected captures apply the same +36/+80px title-text gesture to matching PR42 v1 fixtures, light appearance, 1× scale: [phone before](Prototype/evidence/iteration-04-drag/phone-before.png)/[after](Prototype/evidence/iteration-04-drag/phone-after.png), [tablet before](Prototype/evidence/iteration-04-drag/tablet-before.png)/[after](Prototype/evidence/iteration-04-drag/tablet-after.png), [desktop before](Prototype/evidence/iteration-04-drag/desktop-before.png)/[after](Prototype/evidence/iteration-04-drag/desktop-after.png). Before is exact published source `7f89c2b5c` and stays still; after moves exactly as requested. Prior archives/evidence stay unchanged. The default lint excludes this HTML; native tests/snapshots/SwiftFormat and unrelated type/skip scenarios were not rerun. These are ad hoc synthetic browser checks, not live-user-browser, native/VoiceOver acceptance or retained CI guards. The experiment remains executing pending user reevaluation.
+
+
+Title-bar publication receipt: reviewed artifact/evidence [`f21e01fecffd0f0ecbfa63fbaa6970e7bd3b760c`](https://github.com/kyleve/Stuff/commit/f21e01fecffd0f0ecbfa63fbaa6970e7bd3b760c) is published through `gh stack push`; parent stays `8021dc5cc`. The coordinator reviewed the clean commit, final HTML and six capture hashes, and scoped cross-engine evidence. Inline JavaScript, 214 local links/anchors, fences, archive identities and whitespace passed before that commit. PR #500, its existing screen-evidence comment, and STU-330 now describe this correction. GitHub-rendered HTML has the expected three PR images and one comment image; the published HTML and all six PNG responses match the tested bytes. The owned loopback server is stopped and direct file use passed. No source changed after validation. STU-330 stays In Review under STU-329 and 01a stays executing; user reevaluation is pending. The coordinator owns the final completion notice.
