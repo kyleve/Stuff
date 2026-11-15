@@ -47,6 +47,11 @@ Read the matching reference before implementation or review. Read only relevant 
 - Shell: `./shellcheck` lints tracked shell files by shebang.
 - String catalogs must match Xcode serialization. Write them through Xcode or normalize with `./xcstrings`; use `--lint` for checking.
 
+## Writing
+
+Use plain, direct English in documentation, PRs, and responses. Lead with the result or required action.
+Prefer familiar words, active voice, and short sentences. Remove filler and repetition; keep technical terms when they improve precision.
+
 ## Working in this repo
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`). Keep

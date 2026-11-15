@@ -10,9 +10,6 @@ mise.local.toml
 CLAUDE.md
 .claude/skills/
 
-# Retired default skill; preserve ignored copies in older checkouts.
-.agents/skills/simple-english/
-
 # Xcode
 build/
 DerivedData/

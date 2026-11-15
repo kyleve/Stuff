@@ -47,11 +47,6 @@ tooling changes.
 For canonical edits and link setup, read [guidance ownership](../AGENTS.md).
 A fresh clone carries only repo-owned skills. External skills arrive with the first `mise install`.
 
-### Optional writing guidance
-
-`simple-english` is no longer installed by repository setup. Install [SimpleEnglish](https://github.com/AminBlg/SimpleEnglish/tree/59bf6702197a5aadc96d197ea17f290d8d50dcd3/skills/simple-english) as a personal skill when controlled-language writing is wanted.
-Existing checkouts can still contain its ignored installation. Move `.agents/skills/simple-english/` outside skill-discovery directories to retire it locally, then run `./sync-agents` to remove its Claude link. Preserve any local edits.
-
 ## Periodic normalization
 
 Use [normalize-agent-guidance](../skills/normalize-agent-guidance/SKILL.md) for the monthly audit or a requested instruction cleanup.
