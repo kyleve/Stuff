@@ -44,3 +44,9 @@ Put a new invariant in the deepest `AGENTS.md` that covers its consumers.
 Use a scoped source-directory file when only one subsystem needs it.
 Before adding guidance, find its existing owner and strengthen that rule instead of adding another copy.
 Keep the review history in the PR and link the rule to its guard or source.
+
+## Periodic normalization
+
+Use [normalize-agent-guidance](../skills/normalize-agent-guidance/SKILL.md) for the monthly audit or a requested instruction cleanup.
+CI enforces the hard budgets. The skill reviews growth, ownership, duplication, and required-read routes, then publishes supported corrections for review.
+Keep the procedure in the skill and the cadence in the scheduler. A clean run needs no commit or PR.
