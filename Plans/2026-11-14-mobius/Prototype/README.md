@@ -12,13 +12,13 @@ Visit `http://127.0.0.1:8765`; stop the server when finished.
 
 ## Find the controls
 
-- **Workspace bar:** switch between **Search #42** and **Restore #43**. The comment icon opens the PR's private review draft; **+** adds another Review, Source, Research, or Preview.
-- **Workspace options (…):** inspect full PR metadata and progress, select **Open views**, arrange children with **Tile / Float / Focus**, or change outer workspace presentation with **Tabs / Windows**. Compact widths retain the wider arrangement while showing the focused child.
-- **Current view:** wide child title bars identify the file or view. On compact layouts, the title is also the view selector. Use it to switch children; **×** closes the selected view. **Open views** also lets you choose or close any child without activating another one.
-- **Review:** on wide layouts, click the filename to choose another file. On compact layouts, use the folder button. The comparison button states what is actually displayed—**Full PR diff**, **New edits since v1**, or **No remaining changes**—and opens Remaining / Full PR choices. **Mark reviewed** explicitly advances only that PR/file baseline. The chooser groups Code, Documents, Localization, and Snapshots/assets; quiet groups start collapsed. Its Remaining / All filter changes the list without changing the comparison. Counts distinguish remaining, reviewed, and skipped files.
+- **Workspace bar:** switch between **Search #42** and **Restore #43** using PR tabs, or the **PR workspaces · Windows** selector when separate workspace windows are shown. The comment icon opens the PR's private review draft; **+** adds another Review, Source, Research, or Preview.
+- **Workspace options (…):** inspect full PR metadata and progress, select **Open views**, choose **PR workspaces → Tabs / Windows**, and separately arrange **Views in Search #42 → Tile / Float / One view**. Float stays movable/resizable at every width; narrow Tile stacks views. Narrow sessions initially choose One view. Resizing and changing outer presentation preserve explicit selections and saved placement.
+- **Current view:** Tile/Float title bars identify each child file or view. In One view, the title is also the view selector. Use it to switch children; **×** closes the selected view. **Open views** also lets you choose or close any child without activating another one.
+- **Review:** in Tile/Float, click the filename to choose another file. In One view, use the folder button. The comparison button states what is actually displayed—**Full PR diff**, **New edits since v1**, or **No remaining changes**—and opens Remaining / Full PR choices. **Mark reviewed** explicitly advances only that PR/file baseline. The chooser groups Code, Documents, Localization, and Snapshots/assets; quiet groups start collapsed. Its Remaining / All filter changes the list without changing the comparison. Counts distinguish remaining, reviewed, and skipped files.
 - **Skip:** the comparison menu offers **Skip for this PR** for a remaining file. Group **Skip N remaining** captures only currently remaining members; **Undo** removes their active skips. Already-current reviewed files are excluded. A skipped file stays accessible under All, with Undo; explicit Mark reviewed is also available in its comparison menu when actual content exists.
 - **Content previews:** Documents show rendered Markdown plus exact changed link targets; Localization shows changed key/locale/value rows; Snapshots/assets show before/after fixture images and metadata. **Source** reveals the prepared raw diff. LFS is a badge, not a group. `Design.psd` has only pointer/metadata fallback and cannot be marked reviewed.
-- **Source:** use the filename control (or compact file selector) to browse sample source. **Review file** opens another review child for changed files. Research queries remain independent and results open new Source children.
+- **Source:** use the filename control (or One view file selector) to browse sample source. **Review file** opens another review child for changed files. Research queries remain independent and results open new Source children.
 - **Float:** drag the kind icon at the left of a child's title bar, or use its resize corner. With the move icon focused, arrow keys move and Shift+arrow keys resize; the resize handle also supports arrow-key resizing.
 - **Sample controls:** expand **Sample data · Controls** above the workspace for Canvas width, each PR's **Simulate push**, and **Reset**. Escape closes the panel and returns focus. Preview content remains explicitly **Simulated**.
 
@@ -41,7 +41,25 @@ Dialogs close through Escape or their close button. These controls and layouts a
 4. Simulate the v2 push. Store and SearchResults return because their contents changed. New `EmptyResults.svg` was never skipped. Unchanged Stable and Design stay skipped. Parser shows edits since its actual v1 review. Counts read **6 remaining · 0 reviewed · 2 skipped**.
 5. Undo individual/group skips and confirm they do not create review receipts. Skip the changed Parser at v2: its actual reviewed version stays v1, and Undo restores that incremental comparison. Zero remaining with skips reports the skipped count separately.
 
-## Iteration 4 evidence
+## Layout-options correction
+
+The user found that selected Float did not match the rendered layout and that outer Windows looked like another form of inner Float. The old width rule silently hid all but one child at 680px or below; switching to Windows created 679px hosts even on a 1440px desktop. Windows also retained the tab-looking PR strip.
+
+The corrected options distinguish **PR workspaces** from **Views in the named PR**. Explicit Float works at every width, explicit Tile remains non-overlapping (stacked when narrow), and One view is its own selection. Saved normalized placement is fitted for display without rewriting it on a resize; movement starts from the fitted frame so the first drag does not jump. Windows uses separate labeled PR containers and a workspace selector, not a tab strip. These remain simulated browser windows.
+
+Matched initial PR42 v1 fixtures, light appearance and 1× scale:
+
+| Case | Before | After |
+| --- | --- | --- |
+| Phone 390 × 844, Float + Tabs | [One child despite Float](evidence/iteration-04-layout/phone-float-before.png) | [Actual floating views](evidence/iteration-04-layout/phone-float-after.png) |
+| Tablet 834 × 1112, Float + Windows | [Silent narrow fallback](evidence/iteration-04-layout/tablet-windows-before.png) | [Distinct PR windows and floating views](evidence/iteration-04-layout/tablet-windows-after.png) |
+| Desktop 1440 × 1000, Float + Windows | [Misleading shared tab strip](evidence/iteration-04-layout/desktop-windows-before.png) | [Separate scopes and effective Float](evidence/iteration-04-layout/desktop-windows-after.png) |
+
+[Scoped options](evidence/iteration-04-layout/desktop-options-after.png), [narrow Tile](evidence/iteration-04-layout/phone-tiles-after.png), and [content in a narrow floating view](evidence/iteration-04-layout/phone-asset-float-after.png) show the other changed states. [Verification](evidence/iteration-04-layout/verification.json) pins source SHA-256 `93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b`. Author checks cover 36 computed combinations; independent review covers 42 including 320px and both sides of the old boundary. Three-size real pointer/keyboard movement, resizing, handle reachability, saved-placement continuity, independent PR frames, focus/review-top return, and empty recovery pass. A requested 4px/6px first drag moved exactly that amount without changing size. The reviewer also exercised narrow touch movement. Fifteen author and twelve independent selected WCAG scans pass with no browser errors.
+
+This is focused correction evidence. The prior type-fixture matrix below remains historical; its catalog and review/skip/comparison functions are byte-identical, and changed-path continuity/content checks passed. [Iteration 4 before this correction](iteration-04.html) exactly preserves published `e987835f6`. Evaluation of the corrected presentation remains pending.
+
+## Iteration 4 feature evidence (before layout correction)
 
 [Verification](evidence/iteration-04/verification.json) pins HTML SHA-256 `fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00`, the checks, capture hashes, and review corrections. Matching v1 full-comparison states use light appearance and 1× scale:
 
@@ -89,5 +107,7 @@ Prepared comparisons do not implement Git or compilable app code. There is no au
 - [Iteration 2](iteration-02.html) exactly preserves [revision `e1c1059cf28`](https://github.com/kyleve/Stuff/blob/e1c1059cf28a2954a0513d2514e7d0b7be9c34dd/Plans/2026-11-14-mobius/Prototype/index.html) and its [separate evidence](evidence/iteration-02/verification.json). The user found the revised ownership model improved but requested less stacked chrome, leading to iteration 3.
 
 - [Iteration 3](iteration-03.html) exactly preserves [revision `58c13ac56`](https://github.com/kyleve/Stuff/blob/58c13ac56f87688548887172fef6f39e818bc819/Plans/2026-11-14-mobius/Prototype/index.html) and its [separate evidence](evidence/iteration-03/verification.json). The user then requested grouped kinds and explicit skip/resurfacing, leading to iteration 4.
+
+- [Iteration 4 before the layout correction](iteration-04.html) preserves [revision `e987835f6`](https://github.com/kyleve/Stuff/blob/e987835f6a1dd18463eceaf8274673c8445036d5/Plans/2026-11-14-mobius/Prototype/index.html) and its grouped-content/skip evidence. User feedback then required selected layouts to match actual rendering, including Float at narrow widths.
 
 Earlier evidence remains historical; it does not validate the changed controls or establish native product acceptance.

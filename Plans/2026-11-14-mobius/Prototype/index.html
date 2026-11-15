@@ -41,6 +41,9 @@ h1, h2, h3, p { margin: 0; }
 .workspace-tab { display: flex; align-items: center; gap: 7px; padding: 0 13px; min-height: 48px; min-width: 0; color: #626774; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
 .workspace-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #efedf6; }
 .workspace-tab .pr-number { color: #626774; font-size: 11px; }
+.workspace-window-navigation { display:flex; align-items:center; gap:12px; flex:1; min-width:0; padding:0 5px; }
+.workspace-window-navigation span { color:var(--muted); font-size:12px; white-space:nowrap; }
+.workspace-window-navigation select { min-width:0; max-width:220px; min-height:38px; flex:1; padding:6px 9px; border:1px solid #d5d7df; border-radius:6px; background:#fff; font-size:13px; }
 .workspace-actions, .child-controls { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .icon-button { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 6px; color: #626774; flex-shrink: 0; position: relative; }
 .icon-button:hover, .child-title:hover, .view-picker:hover { background: #eeebf5; }
@@ -75,12 +78,12 @@ h1, h2, h3, p { margin: 0; }
 .child-canvas[data-layout="tiles"].two { grid-template-rows: 1fr; }
 .child-canvas[data-layout="tiles"].three .child:first-child { grid-row: span 2; }
 .child-canvas[data-layout="tiles"].many { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: none; grid-auto-rows: minmax(310px,1fr); }
-.child-canvas[data-layout="focus"] { display: flex; }
-.child-canvas[data-layout="focus"] .child { width: 100%; }
+.child-canvas[data-layout="focus"] { display:flex; padding:0; }
+.child-canvas[data-layout="focus"] .child { width:100%; border:0; border-radius:0; }
 .child-canvas[data-layout="focus"] .child:not(.focused) { display: none; }
 .child-canvas[data-layout="float"] { background-image: radial-gradient(#c7c6d1 .7px,transparent .7px); background-size: 16px 16px; margin: 12px; padding: 0; border: 1px solid #dedde7; border-radius: 8px; overflow: hidden; }
 .child-canvas[data-layout="float"] .child { position: absolute; box-shadow: 0 9px 25px #2a224b20; }
-.child { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #d2d4de; background: white; border-radius: 7px; overflow: hidden; }
+.child { container-type:inline-size; min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #d2d4de; background: white; border-radius: 7px; overflow: hidden; }
 .child.focused { border-color: #a18dcf; box-shadow: 0 0 0 1px #a18dcf1a; }
 .child-titlebar { min-height: 43px; display: flex; align-items: center; gap: 3px; padding: 2px 4px; background: #fafafd; border-bottom: 1px solid #e4e4ec; }
 .child.focused .child-titlebar { background: #f1edf9; }
@@ -167,13 +170,9 @@ dialog textarea { width: 100%; min-height: 130px; padding: 10px; border: 1px sol
 .child-canvas[data-layout="focus"] .child-titlebar { display: none; }
 .child-canvas[data-layout="focus"] .compact-only { display: flex; }
 @container (max-width: 680px) {
- .compact-view-bar { display: flex; }
- .child-titlebar { display: none; }
- .compact-only { display: flex; }
- .child-canvas, .child-canvas[data-layout="tiles"], .child-canvas[data-layout="float"] { display: flex; padding: 0; margin: 0; background-image: none; border: 0; border-radius: 0; overflow: hidden; }
- .child-canvas .child { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: 100% !important; box-shadow: none; border: 0; border-radius: 0; }
- .child-canvas .child:not(.focused) { display: none; }
- .child-canvas .resize-handle { display: none; }
+ .child-canvas[data-layout="tiles"], .child-canvas[data-layout="tiles"].one, .child-canvas[data-layout="tiles"].two, .child-canvas[data-layout="tiles"].many { grid-template-columns:minmax(0,1fr); grid-template-rows:none; grid-auto-rows:minmax(320px,1fr); }
+ .child-canvas[data-layout="tiles"].three .child:first-child { grid-row:auto; }
+ .child-canvas[data-layout="float"] .resize-handle { width:44px; height:44px; }
  .icon-button, .button, .view-picker, .comparison-button, .source-select, .preview-toolbar select { min-height: 44px; }
  .icon-button { width: 44px; }
  .child-toolbar { padding: 3px 8px; gap: 6px; }
@@ -404,7 +403,7 @@ function makeView(workspace, kind, file) {
   frame:{x:.025 + ((ordinal-1)%3)*.12, y:.025 + ((ordinal-1)%3)*.11, width:.64, height:.72}};
 }
 function newWorkspace(number) {
- const workspace = {number, version:1, reviewed:Object.fromEntries(files.map(file => [file,null])), skipped:Object.fromEntries(files.map(file=>[file,null])), draft:'', views:[], nextView:1, focused:null, layout:'tiles', nextZ:5};
+ const workspace = {number, version:1, reviewed:Object.fromEntries(files.map(file => [file,null])), skipped:Object.fromEntries(files.map(file=>[file,null])), draft:'', views:[], nextView:1, focused:null, layout:document.getElementById('stage').getBoundingClientRect().width<=680?'focus':'tiles', nextZ:5};
  const kinds = number === 42 ? ['review','source','preview'] : ['review','search'];
  workspace.views = kinds.map(kind => makeView(workspace,kind));
  workspace.focused = workspace.views[0].id;
@@ -539,6 +538,10 @@ function workspaceActions(workspace) {
  return `<div class="workspace-actions"><button class="icon-button ${workspace.draft?'has-draft':''}" ${control} data-action="draft" aria-label="${workspace.draft?'Draft saved. ':''}Review draft for PR ${workspace.number}" title="Review draft">${icon('comment')}</button><button class="icon-button" ${control} data-action="new-view" aria-label="New view" title="New view">${icon('plus')}</button><button class="icon-button" ${control} data-action="workspace-options" aria-label="Workspace options for PR ${workspace.number}" title="Workspace options" aria-haspopup="dialog">${icon('more')}</button></div>`;
 }
 const shortWorkspace = workspace => workspace.number===42?'Search':'Restore';
+const workspaceName = workspace => `${shortWorkspace(workspace)} #${workspace.number}`;
+function workspaceNavigation() {
+ return presentation==='tabs' ? `<nav class="workspace-tabs" aria-label="PR workspaces">${Object.values(workspaces).map(workspace=>`<button class="workspace-tab ${workspace.number===activeWorkspace?'active':''}" ${attributes(workspace)} data-action="workspace" ${workspace.number===activeWorkspace?'aria-current="true"':''} aria-label="${workspaceName(workspace)}">${icon('pr')}<span class="tab-title">${shortWorkspace(workspace)}</span><span class="pr-number">#${workspace.number}</span></button>`).join('')}</nav>${workspaceActions(byNumber(activeWorkspace))}` : `<label class="workspace-window-navigation"><span>PR workspaces · Windows</span><select data-control="workspace" aria-label="Active PR workspace">${Object.values(workspaces).map(workspace=>`<option value="${workspace.number}" ${workspace.number===activeWorkspace?'selected':''}>${workspaceName(workspace)}</option>`).join('')}</select></label>`;
+}
 function renderWorkspace(workspace) {
  const control=attributes(workspace), count=workspace.views.length, active=focusedView(workspace);
  const countClass=count===1?'one':count===2?'two':count===3?'three':'many';
@@ -565,11 +568,11 @@ function restoreFocus(saved) {
 function render() {
  const saved=rememberFocus();rendering=true;
  const app=document.getElementById('app');app.dataset.presentation=presentation;
- app.innerHTML=`<header class="app-bar"><nav class="workspace-tabs" aria-label="Workspaces">${Object.values(workspaces).map(workspace=>`<button class="workspace-tab ${workspace.number===activeWorkspace?'active':''}" ${attributes(workspace)} data-action="workspace" ${workspace.number===activeWorkspace?'aria-current="true"':''} aria-label="${shortWorkspace(workspace)} #${workspace.number}">${icon('pr')}<span class="tab-title">${shortWorkspace(workspace)}</span><span class="pr-number">#${workspace.number}</span></button>`).join('')}</nav>${workspaceActions(byNumber(activeWorkspace))}</header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
+ app.innerHTML=`<header class="app-bar">${workspaceNavigation()}</header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
  document.querySelectorAll('[data-scroll]').forEach(node=>{const view=Object.values(workspaces).flatMap(workspace=>workspace.views).find(item=>item.id===node.dataset.scroll);node.scrollTop=view.scroll.top;node.scrollLeft=view.scroll.left;});
  document.querySelectorAll('.prototype-panel [data-action="push"]').forEach(button=>{const applied=byNumber(button.dataset.workspace).version===2;button.disabled=applied;button.textContent=applied?'Push applied':'Simulate push';button.setAttribute('aria-label',`${button.textContent} for PR ${button.dataset.workspace}`);});
  if(presentation==='windows')document.querySelector('.outer-space').scrollLeft=outerScroll;
- restoreFocus(saved);document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});rendering=false;
+ observeFloatingCanvases();restoreFocus(saved);document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});rendering=false;
 }
 function focusView(workspace,view) {
  const resumed=activeWorkspace !== workspace.number || workspace.focused !== view.id;
@@ -581,6 +584,7 @@ function activateWorkspace(workspace) {
  if (view) focusView(workspace,view); else activeWorkspace=workspace.number;
 }
 function paintFocus() {
+ const workspacePicker=document.querySelector('[data-control="workspace"]');if(workspacePicker)workspacePicker.value=String(activeWorkspace);
  document.querySelectorAll('.workspace-host').forEach(host=>{const owner=byNumber(host.dataset.workspace), active=focusedView(owner), picker=host.querySelector('.view-picker');if(active&&picker){picker.innerHTML=`${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}`;picker.setAttribute('aria-label',`Views in PR ${owner.number}. Current ${viewName(active)}: ${viewTitle(active)}`);const close=picker.nextElementSibling;close.dataset.view=active.id;close.setAttribute('aria-label',`Close ${viewName(active)}`);}});
  document.querySelectorAll('.workspace-host,.workspace-tab').forEach(node => {
   const selected=Number(node.dataset.workspace) === activeWorkspace;
@@ -617,7 +621,7 @@ function showModal(kind,workspace,opener) {
   body=`<p>Private session note. Nothing is sent to GitHub.</p><label for="draft">A thought to come back to</label><textarea id="draft">${escapeHTML(workspace.draft)}</textarea><div class="dialog-footer"><span>Saved in this sample session</span><button class="button primary" data-action="close-modal">Keep draft</button></div>`;
  } else if(kind==='workspace-options') {
   title=`Workspace · PR #${workspace.number}`;
-  body=`<div class="workspace-title">${fixtures[workspace.number].title}</div><dl class="metadata"><dt>Repository</dt><dd>northstar</dd><dt>Author</dt><dd>${fixtures[workspace.number].author}</dd><dt>Branch</dt><dd>${fixtures[workspace.number].branch}</dd><dt>Revision</dt><dd>Sample v${workspace.version} · open PR</dd><dt>Review progress</dt><dd>${countSummary(counts(workspace))}</dd></dl><button class="menu-item" ${control} data-action="views">${icon('windows')}<span>Open views</span>${workspace.views.length}</button><h3>Arrange views</h3><div class="segment" aria-label="Arrangement for PR ${workspace.number}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','Focus']].map(([value,glyph,label])=>`<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout===value}">${icon(glyph)} ${label}</button>`).join('')}</div><h3>Workspace presentation</h3><div class="segment" aria-label="Workspace presentation">${[['tabs','sidebar','Tabs'],['windows','windows','Windows']].map(([value,glyph,label])=>`<button data-action="presentation" data-presentation="${value}" aria-pressed="${presentation===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Compact widths show one child at a time and retain the wider arrangement.</p>`;
+  body=`<div class="workspace-title">${fixtures[workspace.number].title}</div><dl class="metadata"><dt>Repository</dt><dd>northstar</dd><dt>Author</dt><dd>${fixtures[workspace.number].author}</dd><dt>Branch</dt><dd>${fixtures[workspace.number].branch}</dd><dt>Revision</dt><dd>Sample v${workspace.version} · open PR</dd><dt>Review progress</dt><dd>${countSummary(counts(workspace))}</dd></dl><button class="menu-item" ${control} data-action="views">${icon('windows')}<span>Open views</span>${workspace.views.length}</button><h3>PR workspaces</h3><div class="segment" aria-label="PR workspace presentation">${[['tabs','sidebar','Tabs'],['windows','windows','Windows']].map(([value,glyph,label])=>`<button data-action="presentation" data-presentation="${value}" aria-pressed="${presentation===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Tabs switch PRs. Windows show separate PR workspaces inside this demo.</p><h3>Views in ${workspaceName(workspace)}</h3><div class="segment" aria-label="Views in ${workspaceName(workspace)}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','One view']].map(([value,glyph,label])=>`<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Arrange this PR’s review, source, research, and preview views. Float stays movable and resizable at every width.</p>`;
  } else if(kind==='views') {
   title=`Views · PR #${workspace.number}`;
   body=`<div class="menu-list">${workspace.views.map(item=>`<div class="menu-row"><button class="menu-item" ${attributes(workspace,item)} data-action="focus-view" ${item.id===workspace.focused?'aria-current="true"':''}>${icon(kindIcons[item.kind])}<span>${escapeHTML(viewTitle(item))}<small>${viewName(item)}</small></span></button><button class="icon-button" ${attributes(workspace,item)} data-action="close-view" aria-label="Close ${viewName(item)}">${icon('close')}</button></div>`).join('')}</div><button class="menu-item" ${attributes(workspace)} data-action="new-view">${icon('plus')} New view</button>`;
@@ -675,7 +679,9 @@ document.addEventListener('input',event=>{
 });
 document.addEventListener('change',event=>{
  if(event.target.id==='viewport'){captureScroll();document.getElementById('stage').dataset.size=event.target.value;return;}
- const control=event.target.dataset.control;if(!['source-file','preview-scene'].includes(control))return;
+ const control=event.target.dataset.control;
+ if(control==='workspace'){captureScroll();activateWorkspace(byNumber(event.target.value));render();scrollWorkspaceIntoView(byNumber(activeWorkspace));return;}
+ if(!['source-file','preview-scene'].includes(control))return;
  captureScroll();const {workspace,view}=contextFor(event.target);focusView(workspace,view);
  if(control==='source-file'){view.state.file=event.target.value;view.scroll={top:0,left:0};}
  if(control==='preview-scene')view.state.scene=event.target.value;
@@ -708,25 +714,43 @@ function focusFromChild(node) {
 }
 document.addEventListener('focusin',event=>focusFromChild(event.target));
 document.addEventListener('pointerdown',event=>focusFromChild(event.target));
+// Saved normalized placement is authored only by explicit move/resize. Fitting a
+// smaller host changes displayed bounds without overwriting the wider arrangement.
 function frameBounds(workspace) {
- const host=document.querySelector(`.workspace-host[data-workspace="${workspace.number}"]`);
- const canvas=host?.querySelector('.child-canvas');
- return host && host.getBoundingClientRect().width>680 && workspace.layout==='float' ? canvas.getBoundingClientRect() : null;
+ const canvas=document.querySelector(`.workspace-host[data-workspace="${workspace.number}"] .child-canvas`);
+ if(workspace.layout!=='float'||!canvas?.getClientRects().length||!canvas.clientWidth||!canvas.clientHeight)return null;
+ const rect=canvas.getBoundingClientRect();
+ return {x:rect.x+canvas.clientLeft,y:rect.y+canvas.clientTop,width:canvas.clientWidth,height:canvas.clientHeight};
+}
+function fittedFrame(frame,rect) {
+ const width=Math.max(Math.min(300/rect.width,1),Math.min(1,frame.width));
+ const height=Math.max(Math.min(210/rect.height,1),Math.min(1,frame.height));
+ return {x:Math.max(0,Math.min(1-width,frame.x)),y:Math.max(0,Math.min(1-height,frame.y)),width,height};
+}
+function paintFrame(view,frame) {
+ const child=document.querySelector(`.child[data-view="${view.id}"]`);
+ Object.assign(child.style,{left:frame.x*100+'%',top:frame.y*100+'%',width:frame.width*100+'%',height:frame.height*100+'%'});
+}
+function fitFloatingWorkspace(workspace) {
+ const rect=frameBounds(workspace);if(rect)workspace.views.forEach(view=>paintFrame(view,fittedFrame(view.frame,rect)));
+}
+const frameObserver=new ResizeObserver(entries=>entries.forEach(entry=>{if(entry.target.isConnected)fitFloatingWorkspace(byNumber(entry.target.dataset.workspace));}));
+function observeFloatingCanvases() {
+ frameObserver.disconnect();
+ Object.values(workspaces).filter(workspace=>workspace.layout==='float').forEach(workspace=>{fitFloatingWorkspace(workspace);const canvas=document.querySelector(`.child-canvas[data-workspace="${workspace.number}"]`);frameObserver.observe(canvas);});
 }
 function applyFrame(workspace,view,frame) {
  const rect=frameBounds(workspace);if(!rect)return;
- const minWidth=Math.min(300/rect.width,1),minHeight=Math.min(210/rect.height,1);
- frame.width=Math.max(minWidth,Math.min(1,frame.width));frame.height=Math.max(minHeight,Math.min(1,frame.height));
- frame.x=Math.max(0,Math.min(1-frame.width,frame.x));frame.y=Math.max(0,Math.min(1-frame.height,frame.y));view.frame=frame;
- const child=document.querySelector(`.child[data-view="${view.id}"]`);
- Object.assign(child.style,{left:frame.x*100+'%',top:frame.y*100+'%',width:frame.width*100+'%',height:frame.height*100+'%'});
+ const next=fittedFrame(frame,rect),current=fittedFrame(view.frame,rect);
+ if(Object.keys(next).every(key=>next[key]===current[key]))return;
+ view.frame=next;paintFrame(view,next);
 }
 let drag=null;
 document.addEventListener('pointerdown',event=>{
  const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || event.button!==0)return;
  const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
  event.preventDefault();handle.focus({preventScroll:true});handle.setPointerCapture(event.pointerId);
- drag={workspace,view,handle,rect,resize:handle.hasAttribute('data-resize'),x:event.clientX,y:event.clientY,frame:{...view.frame}};
+ drag={workspace,view,handle,rect,resize:handle.hasAttribute('data-resize'),x:event.clientX,y:event.clientY,frame:fittedFrame(view.frame,rect)};
 });
 document.addEventListener('pointermove',event=>{
  if(!drag)return;const dx=(event.clientX-drag.x)/drag.rect.width,dy=(event.clientY-drag.y)/drag.rect.height;
@@ -738,7 +762,7 @@ document.addEventListener('keydown',event=>{
  const handle=event.target.closest('[data-drag],[data-resize]');if(!handle || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
  const {workspace,view}=contextFor(handle),rect=frameBounds(workspace);if(!rect)return;
  event.preventDefault();const dx=event.key==='ArrowLeft'?-12/rect.width:event.key==='ArrowRight'?12/rect.width:0,dy=event.key==='ArrowUp'?-12/rect.height:event.key==='ArrowDown'?12/rect.height:0;
- const resize=event.shiftKey||handle.hasAttribute('data-resize');applyFrame(workspace,view,{...view.frame,...(resize?{width:view.frame.width+dx,height:view.frame.height+dy}:{x:view.frame.x+dx,y:view.frame.y+dy})});
+ const resize=event.shiftKey||handle.hasAttribute('data-resize'),frame=fittedFrame(view.frame,rect);applyFrame(workspace,view,{...frame,...(resize?{width:frame.width+dx,height:frame.height+dy}:{x:frame.x+dx,y:frame.y+dy})});
 });
 function closePrototypeControls() {
  const details=document.getElementById('prototype-controls');if(details.open){details.open=false;details.querySelector('summary').focus({preventScroll:true});}
