@@ -28,7 +28,7 @@ The prototype supplies interaction evidence for these requirements; it does not 
 
 ## Scope and artifacts
 
-Proposed artifact: `Plans/2026-11-14-mobius/Prototype/index.html`, with embedded styles, scripts, and synthetic fixtures. Use semantic browser controls and no external dependencies or network data. Store the interaction evidence and feedback in this plan's execution record. Read the repository and Plans contracts before implementation.
+Current authoring artifact: an Astro route in `Prototype/src/pages/index.astro`, with local browser script, global stylesheet, and synthetic fixtures. Reuse the repository’s pinned development dependencies; the mockup itself makes no account or data requests. The prior standalone artifact is retained unchanged as `Prototype/pre-astro.html`. Store the interaction evidence and feedback in this plan's execution record. Read the repository and Plans contracts before implementation.
 
 Keep session state in memory so fixture behavior is reproducible through an explicit Reset action. Workspace switching and close/reopen preserve each PR's child views, their independent navigation and arrangement, the last-focused child, draft fixture, and shared review/skip progress. Closing removes presentation from the current session; it neither deletes the retained workspace nor closes the GitHub PR. Reload durability, CloudKit, authentication, native menus/windows, a real Git engine, real search indexing, and live GitHub feedback are outside this artifact. Those exclusions do not alter first-release scope.
 
@@ -140,7 +140,7 @@ All components are proposed mockup state. Swift pseudocode does not apply to thi
 4. **Collect evidence and feedback.** Deliver matched grouped-list/type-comparison captures at all three sizes, plus skip/undo/new-push evidence and compact-shell continuity. Ask the user to evaluate group discoverability, skip meaning/resurfacing, comparison usefulness/raw access, and retained workspace return behavior. Record confusing transitions, requested changes, and whether to proceed, change, or run another bounded iteration.
 5. **Review and hand off.** Integrate supported feedback into the overview and affected outlines, retaining unresolved decisions. Review the changed artifact and plan through code-review, run relevant checks, then commit/push and publish through github-workflow. Do not refine the durable model until the required prototype feedback is recorded.
 
-For local browser inspection, a loopback-only static server can serve the artifact, for example `python3 -m http.server 8765 --bind 127.0.0.1 --directory Plans/2026-11-14-mobius/Prototype`. Use an available port and stop the owned server after inspection. If browser automation is unavailable, record the missing runtime evidence; source inspection alone does not establish interactive acceptance.
+For current browser authoring and inspection, use the [Astro commands](Prototype/README.md#run-the-demo) with LAN binding and automatic updates. The requested evaluation server stays running at handoff with an explicit owner and stop command; stop temporary verification servers. If browser automation is unavailable, record the missing runtime evidence; source inspection alone does not establish interactive acceptance.
 
 ## Acceptance and verification
 
@@ -227,7 +227,7 @@ The owned loopback server is stopped after inspection; the artifact opens direct
 
 ### Iteration 2 implementation and evidence
 
-The [revised artifact](Prototype/index.html) separates outer workspace presentation from owned child views. Review, Source, Research, and explicitly simulated Preview instances have unique IDs and independent navigation. Review baselines and the draft remain shared within one PR. Workspace return restores arrangement and last-focused identity; each resumed review starts its own selected file at the top. Tiled, bounded floating, and focused arrangements are exploratory defaults, with compact view selection retaining the wider arrangement.
+The [iteration-2 artifact](Prototype/iteration-02.html) separates outer workspace presentation from owned child views. Review, Source, Research, and explicitly simulated Preview instances have unique IDs and independent navigation. Review baselines and the draft remain shared within one PR. Workspace return restores arrangement and last-focused identity; each resumed review starts its own selected file at the top. Tiled, bounded floating, and focused arrangements are exploratory defaults, with compact view selection retaining the wider arrangement.
 
 The first-pass [runnable archive](Prototype/iteration-01.html) exactly matches `2e3653877` and its existing evidence remains intact. New captures and [exact-source verification](Prototype/evidence/iteration-02/verification.json) are separate:
 
@@ -262,7 +262,7 @@ Parent coordination rebased the unchanged first-pass artifact/readiness record o
 
 ### Iteration 3 implementation and evidence
 
-The revised [artifact](Prototype/index.html) consolidates workspace identity/actions, removes repeated teaching/status bands, and uses concise child/file titles. Workspace options disclose full metadata, review progress, child navigation, arrangement, and outer presentation. On compact screens the active child selector supplies the title; review controls retain the actual comparison and explicit mark action. File navigation is disclosed. Canvas, Reset, and both simulated pushes live in a collapsible sample-controls panel. The independent workspace/child model, PR baselines, drafts, and all previous capabilities remain intact.
+The revised [iteration-3 artifact](Prototype/iteration-03.html) consolidates workspace identity/actions, removes repeated teaching/status bands, and uses concise child/file titles. Workspace options disclose full metadata, review progress, child navigation, arrangement, and outer presentation. On compact screens the active child selector supplies the title; review controls retain the actual comparison and explicit mark action. File navigation is disclosed. Canvas, Reset, and both simulated pushes live in a collapsible sample-controls panel. The independent workspace/child model, PR baselines, drafts, and all previous capabilities remain intact.
 
 [Iteration 2's runnable archive](Prototype/iteration-02.html) exactly matches `e1c1059cf28`; both earlier evidence sets remain unchanged. [Iteration-3 verification](Prototype/evidence/iteration-03/verification.json) identifies final HTML SHA256 `f2adc670df7668d0c99d79f3ac0d9abeea3df701f56a53e1373de331c2eb274f`, exact measurements, captures, and observed checks.
 
@@ -297,7 +297,7 @@ The parent readiness update was coordinated onto parent `4b5873d95` at child `33
 
 ### Iteration 4 implementation and evidence
 
-The [artifact](Prototype/index.html) now groups Code, Documents, Localization, and Snapshots/assets, with quiet groups initially collapsed and visible counts/disclosures/actions. LFS is a badge. Each PR has seven changed files at v1 and eight at v2, plus supporting source. The chooser's Remaining / All filter, expansion, selected file, and rendered/source preference belong to each review child. Shared actual review and separate skip receipts belong to the PR workspace. Individual skip and **Skip N remaining** snapshot eligible current files only; group undo removes active skips. Viewing/disclosure never advances either receipt.
+The [iteration-4 artifact](Prototype/iteration-04.html) now groups Code, Documents, Localization, and Snapshots/assets, with quiet groups initially collapsed and visible counts/disclosures/actions. LFS is a badge. Each PR has seven changed files at v1 and eight at v2, plus supporting source. The chooser's Remaining / All filter, expansion, selected file, and rendered/source preference belong to each review child. Shared actual review and separate skip receipts belong to the PR workspace. Individual skip and **Skip N remaining** snapshot eligible current files only; group undo removes active skips. Viewing/disclosure never advances either receipt.
 
 Rendered Markdown exposes exact changed link targets and a source comparison. Localization presents changed key/locale/value rows with raw access. Assets present bundled before/after SVGs, dimensions, bytes, and LFS metadata where applicable. New EmptyResults explicitly has no before file. Design exposes only prepared pointer/metadata, announces unavailable binary content in both Review and Source, and cannot be marked reviewed. These remain candidate fixture presentations, not parsers or native renderers.
 
@@ -363,11 +363,11 @@ PR #500, its existing screen-evidence comment, and STU-330 now describe the corr
 
 ## Resume point
 
-The title-bar follow-up is reviewed and published. The user now requests closing and reopening PR workspaces. The close/reopen follow-up is reviewed and published; return its final receipt to the coordinator for the completion notice, then integrate user evaluation. Keep acceptance open and native refinement gated.
+Close/reopen is reviewed and published. The user now requests Astro authoring with automatic reload and local-network access. The bounded [Astro development follow-up](#astro-implementation-and-evidence) is built, validated and independently reviewed. Return its clean tested commit for coordinator review before publication. Leave the intentional demo server running for evaluation and report its exact URL and stop command. Keep acceptance open and native refinement gated.
 
 ## Outcome
 
-Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its implementation is verified, independently reviewed and published, with user evaluation next. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+Four iterations and the layout-options correction are published with retained evidence. The next user evaluation found the title-bar gesture missing outside the icon. That focused correction is built, verified, independently reviewed, and published. New feedback requests closing/reopening retained PR workspaces; its implementation is verified, independently reviewed and published, with user evaluation next. The next authorized tooling follow-up moves authoring to the existing pinned Astro toolchain with live reload and LAN access; it preserves the evaluated UI and session model. The plan stays executing through delivery and evaluation. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
 
 
 ## Iteration 4 title-bar drag correction
@@ -444,3 +444,38 @@ Nine [captures](Prototype/evidence/workspace-close/) show the retained picker, e
 
 
 Close/reopen publication receipt: approved artifact/evidence [`87886b922ca2ba6a578ebac9259d7691e7ad7730`](https://github.com/kyleve/Stuff/commit/87886b922ca2ba6a578ebac9259d7691e7ad7730) is published through `gh stack push`, with parent unchanged at `ecb3c017d`. The coordinator verified the clean commit, final source and nine capture hashes, review disposition and representative visuals. Inline JS, 234 local links/anchors, fences, archive identities and whitespace passed before that commit. PR #500, its existing screenshot comment and STU-330 now describe close/reopen. GitHub-rendered HTML has three PR images and one comment image; published HTML and all nine PNG responses exactly match tested bytes. Direct-file checks needed no server. No source changed after validation. STU-330 remains In Review under STU-329 and 01a executing pending user evaluation; the coordinator owns the completion notice.
+
+
+## Astro development follow-up
+
+On 2026-11-15, the user requested the repository’s Astro dependency for automatic reload and phone access over the local network, followed by a separate planning-skill PR. This branch owns the prototype migration; the coordinator owns the independent skill change. No native requirement or parent-stack mutation is needed.
+
+### Astro development method and readiness
+
+- Preserve the exact published standalone HTML (`c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b`) as `pre-astro.html` and leave all prior archives/evidence unchanged. Extract the same markup, global CSS and client JavaScript into a real `src/pages/index.astro` route and imported sources. Do not serve a static `public/index.html` bypass.
+- Add prototype-local Astro configuration and TypeScript project discovery only. Resolve Astro and its tools from root `package.json`/`package-lock.json` and installed root dependencies; add no second dependency tree, root script, native module, production deployment, or live data integration. Keep generated output/cache ignored and dev filesystem access scoped to this prototype.
+- Use the installed CLI’s `dev --root "$PWD/Plans/2026-11-14-mobius/Prototype" --host 0.0.0.0 --port 4321 --background`; use native `dev status`, `dev logs`, and `dev stop` for ownership. Set `ASTRO_TELEMETRY_DISABLED=1` for noninteractive invocation. Verify the actual command before publishing it.
+- Prove page, CSS, and client-script changes reach an already-open isolated browser without manual refresh, then restore probes and pin final sources. Distinguish CSS updates from full-page reload; a full reload intentionally resets the in-memory sample session. No persistence is added.
+- Run Astro check/build and scoped syntax/lint checks appropriate to the new files. Exercise served phone/tablet/desktop UI, representative retained workspace/review/skip/draft/navigation/drag behavior, and compare matched captures to the preserved standalone artifact. Check console/load errors and the machine’s LAN address. Phone Wi-Fi and native device behavior remain untested.
+- Obtain a fresh independent code/behavior review, retain separate evidence under `Prototype/evidence/astro-dev/`, and return the clean tested commit for coordinator review before publication. Update existing #500/comment/STU-330; leave 01a executing pending user evaluation. The final handoff names the running server’s owner, URL, and exact stop command.
+
+Readiness review (2026-11-15): the tooling revision was drafted and reviewed against the existing experiment scope, root pinned Node/Astro tools and installed CLI help, current session-only behavior, retention rules, and user authorization. The method changes development delivery only; no unresolved product choice blocks it. Status transitioned `executing → draft → ready → executing` before implementation. Parent remains `ecb3c017d`; no rebase/cascade is required. Historical browser evidence remains valid for its old sources; the new packaging needs fresh served/reload evidence.
+
+- [x] Inspect pinned tools and review this bounded method.
+- [x] Create the real Astro route and document its scoped commands.
+- [x] Verify automatic updates, LAN serving, retained behavior, and matched renders.
+- [x] Complete fresh independent review.
+- [ ] Return a clean tested commit for coordinator review, then publish.
+- [ ] Return the running demo and ownership/stop information; integrate user evaluation.
+
+### Astro implementation and evidence
+
+The real Astro route imports a global stylesheet and bundled client script. The script is byte-identical and the CSS differs only by removal of the original closing-block separator blank line from published standalone SHA-256 `c99c3a86…`, preserved as [pre-astro.html](Prototype/pre-astro.html). No root dependencies, lockfile, Tools or skill source changed. The route hash is `06655f89112e163387eab452f15a042e0e7e00a92cab6f172e5dc4b6fcb0d2cd`; [verification.json](Prototype/evidence/astro-dev/verification.json) pins all five source/config hashes and nine captures.
+
+Actual LAN-browser edits prove CSS HMR preserves the session, while page/client-script edits full-reload and reset the sample without manual refresh. All probes were restored; one Add action creates one child after reload. Native background startup requires an absolute `--root` in pinned Astro 7.4 because it changes the child cwd before forwarding that argument; the initial relative-root attempt timed out with missing pages, and its generated nested cache was removed after the child exited. The documented absolute-root command starts normally. Native status/logs and machine-LAN HTTP succeed; prototype-scoped `@fs` access rejects the repository-root file probe. The owned dev server (PID 7013 on port 4321 at this checkpoint) remains running intentionally; [run/stop commands](Prototype/README.md#run-the-demo) and the live URL are supplied in the handoff. The reviewer’s separate build-preview server was stopped.
+
+Astro check reports four files and zero errors/warnings/hints; build emits one static route and bundled assets. Explicit Astro/config ESLint, unchanged-client syntax and whitespace pass. Eight observable scenarios at each of 390 × 844, 834 × 1112 and 1440 × 1000 pass, with six selected WCAG scans. Review/skip/draft state, independent child navigation, close/reopen ownership, rich/source previews, actual comparison basis, file-top return and filename drag/click/keyboard movement remain intact. The three matched initial before/after PNG pairs are byte-identical and all new captures were visually inspected. Prior archives and evidence remain unchanged.
+
+Fresh independent review passes ten Chromium 156 / WebKit 27.2 dev/build cases and finds no actionable migration issue. Its final mechanical recheck verifies removal of only the CSS separator newline; the author’s build/reload/three-size checks and coordinator’s four cases were rerun at the final CSS hash `4dcaeb7e65ffb9469d740184816ed6249cff16f0f5be7753dd5aac9b83241282`. Four additional coordinator localhost/LAN cases pass. WebKit mouse closure of an inactive workspace may move DOM focus from Research input to body while preserving logical child focus; the reviewer reproduced it identically in archive/dev/build and classified it as unchanged browser-focus behavior, not a migration defect. Keyboard recovery and retained context pass. No UI/script behavior was changed to address it.
+
+Limits: actual phone Wi-Fi/native devices remain untested; full reload remains intentionally destructive to the sample session. Root default lint excludes Prototype, so explicit narrow checks are recorded rather than claiming broad lint coverage. Runtime probes are ad hoc evidence, not new CI guards. The separate [planning workflow PR #503](https://github.com/kyleve/Stuff/pull/503) owns reusable Astro guidance. Experiment acceptance and native refinement still await user evaluation.

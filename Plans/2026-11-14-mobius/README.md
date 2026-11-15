@@ -2,14 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-14; initial repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`; merged main through `96f5bf0f1685de259d7ff080842b8092f9a950d2` in `68477fe625784a1a1e68c0115d7e42cc63166692`.
-- Operation: Add explicit closing and reopening of PR workspaces to the prototype and record the lifecycle in the production outlines.
-- Requested scope and source: On 2026-11-14, the user reports that PR 42 and PR 43 cannot be dismissed and requests closing/reopening workspaces. This extends the existing retained-workspace and restoration decisions; it does not request native implementation.
-- Stage: Close/reopen is reviewed and published at `87886b922`; final receipt is ready for the coordinator completion notice. [01a](01a-workspace-prototype.md#closereopen-implementation-and-evidence) owns exact-source checks, publication and pending user evaluation.
-- Completed: The title-bar follow-up is also published at `f21e01fec` with receipt `ac4ac4478`; its focused browser checks, independent review, and scoped Chromium/WebKit check pass. Q-22–Q-25 and affected production outlines are integrated and reviewed. The fourth prototype iteration and its focused layout correction are built. The correction checks actual selected/rendered geometry, narrow movement/resize, and preserved workspace state; fresh independent review has no actionable findings. The coordinator verified the final HTML/capture hashes and inspected representative phone/tablet/desktop captures. Earlier artifacts/evidence remain intact. [01a's execution record](https://github.com/kyleve/Stuff/blob/codex/mobius-prototype/Plans/2026-11-14-mobius/01a-workspace-prototype.md#layout-correction-implementation-and-evidence) owns detailed evidence and publication. [PR #497](https://github.com/kyleve/Stuff/pull/497)/[STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) track the plan; [PR #500](https://github.com/kyleve/Stuff/pull/500)/[STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) track the experiment.
-- Pending: Coordinator completion notice and user evaluation of close/reopen behavior. The implementation branch owns current 01a evidence and receipt. PR review and merge remain. Q-09 retains cross-device open/closed presentation policy.
-- Execution authorization and ownership: The user's request authorizes this bounded prototype change. `/root/mobius_prototype` owns `Prototype/**` and 01a on `codex/mobius-prototype`; the coordinator owns shared requirements/native outlines on `codex/mobius-plan` and the completion notice. Cascade at a clean method checkpoint before UI edits. The implementation branch then owns the current execution checkpoint and publication receipt. Native implementation remains outside scope.
-- Next action: Return the published artifact/receipt for the coordinator completion notice, then integrate user evaluation of active/inactive/last closure and retained-state reopening. Parent stays `ecb3c017d`; native plans remain outlines.
+- Updated: 2026-11-15; initial repository baseline `b629d56ac44a3f2a5ea59c3d6ae9cd5401f37674`; merged main through `96f5bf0f1685de259d7ff080842b8092f9a950d2` in `68477fe625784a1a1e68c0115d7e42cc63166692`.
+- Operation and source: The user requests using the repository’s Astro dependency for automatic reload and local-network phone access, plus a separate planning-skill PR documenting the proven workflow.
+- Stage: Astro migration built, validated and independently reviewed; clean artifact checkpoint is being prepared for coordinator review and publication. [01a](01a-workspace-prototype.md#astro-implementation-and-evidence) owns the bounded migration, checks, publication and running-server handoff.
+- Completed: Close/reopen is reviewed and published at `87886b922` with receipt `12e48303a`. Earlier evaluated artifacts, focused fixes, and evidence remain intact in 01a. Shared requirements/native outlines are unchanged. [PR #497](https://github.com/kyleve/Stuff/pull/497)/[STU-329](https://linear.app/kve/issue/STU-329/plan-mobius-code-review-app) track the plan; [PR #500](https://github.com/kyleve/Stuff/pull/500)/[STU-330](https://linear.app/kve/issue/STU-330/prototype-mobius-review-workspaces) track the experiment.
+- Pending: Coordinator artifact review and publication; user evaluation remains open. Live updates, LAN serving, three-size matched renders and fresh dev/build review pass. The coordinator owns the separate [planning-skill PR #503](https://github.com/kyleve/Stuff/pull/503) and final completion notice.
+- Ownership: `/root/mobius_prototype` owns `Prototype/**`, 01a and this checkpoint on `codex/mobius-prototype`. Reuse root dependencies without changing root package/config or Tools; no parent rewrite or native work is needed.
+- Next action: Return the clean tested commit for coordinator review, then publish #500 and its linked evidence. Leave the intentional server running with explicit ownership and a stop command at handoff.
 
 ## Outcome and scope
 
@@ -420,7 +419,7 @@ User answers came from this chat on 2026-11-14. Q-13–Q-25 refine the original 
 ### Q-18
 
 - Answer/source: Lightweight interactive mockup for quick iteration.
-- Integration: 01a produces a self-contained browser artifact; native UIKit targets, persistent stores, authentication, and CloudKit remain later work.
+- Integration: 01a produces a lightweight browser prototype, now authored through the repository’s pinned Astro toolchain at the user’s request. Fixtures remain local and session-only; native UIKit targets, persistent stores, authentication, and CloudKit remain later work.
 - History: Asked, answered, integrated, and closed after checking prototype scope and acceptance. Browser technology is an implementation choice for the mockup, not the production app architecture.
 
 ### Q-19
