@@ -114,8 +114,9 @@ An empty diff, unavailable history, or classification error selects full CI and 
 Main pushes and manual runs always select full CI.
 The existing `NO-CI` title marker remains available for prototypes.
 
-GitHub runs one Linux classification job and skips the existing required jobs for documentation-only PRs.
-If classification fails, those jobs run.
+GitHub runs one Linux classification job and checks agent guidance before skipping the existing required jobs for documentation-only PRs.
+That job checks out the full tree without LFS objects and installs only the pinned Ruby, with mise hooks disabled.
+If classification or guidance validation fails, the required jobs run. Required lint repeats the guidance check, so invalid guidance cannot pass through a skipped lint job.
 The workflow retains its triggers and required job names.
 Workflow-level path filters can leave required checks pending, so selection uses job conditions.
 See [GitHub's conditional-job behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions).
@@ -181,6 +182,30 @@ The [rebalance skill](../.agents/skills/rebalance-snapshot-shards/SKILL.md)
 owns sample selection and publication.
 
 ## Agent guidance tools
+
+`./sync-agents --check` checks guidance without writing, fetching, installing, or staging files.
+It rejects combinations with mutating options. Run ordinary `./sync-agents` to refresh generated mirrors before checking them.
+
+The checker reads tracked and untracked, nonignored repository files through Git.
+It validates every repository `AGENTS.md` and `AGENTS.override.md` chain, including hidden directories.
+At each directory, a nonempty override replaces the ordinary file for chain accounting. An empty override falls back to the ordinary file.
+Each root instruction file has an 8 KiB limit. Each selected chain has a 28 KiB limit, including two newline bytes between files.
+Each repo-owned skill entry point has a 12 KiB limit. These are UTF-8 byte counts; conditional references are not part of discovery-chain accounting.
+User-level instructions and custom Codex loading settings are outside this repository check.
+
+Skills need valid YAML frontmatter with a nonempty name and description, a matching directory name, and one canonical entry point.
+Names must be unique across owned skills and the external manifest. Installed external skills receive layout checks; absent installations are reported and allowed.
+External skill contents have no repository entry-point budget and are not rewritten by the checker.
+
+Local Markdown links and anchors are checked in instruction files, module `Guidance/` documents, and owned `.agents/` documentation.
+Inline links, reference links, angle-wrapped destinations, titles, ATX/setext headings, and HTML anchors are supported.
+Fenced examples, inline code, and HTML comments do not produce links. Network destinations are not fetched.
+Markdown under skill `assets/` is template input and is excluded from link parsing; links to those assets must still resolve.
+Skill links are checked from both canonical and generated locations, even when mirrors are absent.
+This is a targeted Markdown check, not a renderer or a model activation evaluation.
+
+Present generated documents and the skill mirror must match their canonical sources. Absent mirrors are reported and allowed on clean checkouts.
+The checker excludes generated mirrors from instruction budgets and skill-name discovery.
 
 `./sync-agents --install` fetches missing or invalid external skills at their manifest revisions.
 An optional `exclude` array removes relative packaging paths from the staged copy.

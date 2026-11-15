@@ -1,6 +1,6 @@
 # Offline guidance validation and CI
 
-Status: ready
+Status: blocked
 Dependencies: [01](01-guidance.md), [02](02-installation.md)
 Requirements: R-04; exclusions X-01 through X-04 from the [overview](README.md).
 
@@ -36,14 +36,40 @@ Resume from the recorded pending step and repeat only invalidated checks.
 
 ## Progress
 
-- [ ] Implement the steps.
-- [ ] Verify acceptance and record evidence.
+- [x] Implement the steps.
+- [x] Verify acceptance and record evidence.
 - [ ] Review and publish the deliverable.
 
 ## Execution record
 
 2026-11-14: approved plan recorded; execution authorized by the user.
 
+2026-11-14: implemented the validator, Markdown checks, hidden-directory synchronization, and both CI invocations.
+The checker found seven relocated links that failed from the Claude mirror. Their targets now route through the repository root.
+Boundary tests caught and corrected root omission from relative Pathname ancestor accounting.
+Current focused checks pass: 33 tests, 215 assertions. Final checks and independent static review remain in progress.
+The Linux action's Ruby-only setup uses the documented `install_args` input from [mise-action v3](https://github.com/jdx/mise-action/blob/v3/action.yml).
+
+2026-11-14 final verification:
+
+- `mise exec ruby -- ./sync-agents --check`: passed; 57 instruction files, 12 owned skills, largest chain 27,801/28,672 bytes.
+- Ruby guidance, installer, synchronization, command, and FileTransaction suites: 43 tests, 278 assertions, all passed.
+- Public command contracts: 2 tests, 130 assertions, passed outside the sandbox because snapshot-shards help emits unrelated Xcode diagnostics inside it.
+- Python CI classifier, CircleCI selection, and GitHub workflow suites: 33 tests, all passed.
+- Ruff lint and format checks for the changed Python test, attribution check, and `git diff --check`: passed.
+- Native builds, image snapshots, and SwiftFormat were omitted because no Swift, UI, or native build inputs changed. Hosted CI and live model evaluations were not run.
+
+Fresh static review covered baseline `b629d56ac` through commits `2df3ec197` and `635682573`, plus the full deliverable-03 working tree.
+It covered installation transactions, discovery, Markdown parsing, command boundaries, CI, tests, and required-read routes.
+Text comparisons found no lost invariant bullets in the major relocated contracts. This does not establish live model activation.
+
+The reviewer reproduced three defects. Empty Markdown destinations raised an exception; they now resolve to the current document.
+Ignored instructions could acquire generated mirrors that the checker rejected; sync and check now share the Git inventory.
+An unqualified mise invocation could install unrelated tools; both CI checks now use `mise exec ruby --`.
+Each correction has regression coverage. Re-review and the repeated affected checks found no remaining actionable findings.
+
 ## Resume point
 
-Complete the steps above in dependency order. Publication and evidence remain pending.
+Local implementation, verification, and review are complete. Publication is pending explicit permission after automatic approval review rejected the public push.
+Publish the completed branch and open a ready-for-review PR, then record its link and complete all three deliverables.
+Linear linking remains unsent because the CLI has no usable credentials.

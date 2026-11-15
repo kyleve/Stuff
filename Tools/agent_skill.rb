@@ -42,6 +42,7 @@ class AgentSkill
 
   def self.metadata(file)
     text = File.read(file, encoding: "UTF-8")
+    raise Error, "#{file}: invalid UTF-8" unless text.valid_encoding?
     match = text.match(/\A---\r?\n(.*?)\r?\n---(?:\r?\n|\z)/m)
     raise Error, "#{file}: missing YAML frontmatter" unless match
 

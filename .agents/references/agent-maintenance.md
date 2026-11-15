@@ -9,6 +9,7 @@ by `./sync-agents`.
 
 - `./sync-agents` — generate `CLAUDE.md` next to each `AGENTS.md` and mirror
   `.agents/skills/` into `.claude/skills/`.
+- `./sync-agents --check` — validate instructions, skills, local links, and present mirrors without changing files or fetching dependencies.
 - `./sync-agents --install` — fetch external skills listed in
   `.agents/external-skills.json`. It repairs invalid layouts at the pinned revision. Rarely run by hand. `mise install` calls it
   from a `postinstall` hook. Installing tools also installs skills on a dev

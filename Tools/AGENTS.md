@@ -58,6 +58,8 @@ These rules also apply when changing a root command or installer that calls this
 - Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
   Keep main pushes, explicit full runs, and publication workflows outside the shortcut.
   Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
+- Validate guidance in Linux classification before the documentation shortcut and repeat it in required lint.
+  A guidance failure must fail classification and reach required lint through its failure fallback.
 - Stop publication polling when a setup workflow fails before the requested publication workflow exists.
   Guards: [test_circleci_pipeline.py](Tests/test_circleci_pipeline.py) and the installer and Flyover controller command tests.
 
@@ -67,6 +69,9 @@ These rules also apply when changing a root command or installer that calls this
 - Install exactly one root `SKILL.md` with the manifest name. Reject symlinks and nested entry points after exclusions.
 - Repair invalid installations at the pinned revision. Stage and validate each candidate before replacing its directory and manifest through `FileTransaction`.
   Guards: [agent_skill_installer_test.rb](Tests/agent_skill_installer_test.rb), [sync_agents_test.rb](Tests/sync_agents_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
+- Keep `--check` read-only and offline. Allow absent external installations and generated mirrors, but validate every present copy.
+  Count UTF-8 bytes with directory override precedence. Check skill links from both canonical and mirrored locations.
+  Guards: [agent_guidance_test.rb](Tests/agent_guidance_test.rb), [agent_markdown_test.rb](Tests/agent_markdown_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
 
 ## Installer publication
 

@@ -5,10 +5,10 @@
 - Updated: 2026-11-14; baseline `b629d56ac`.
 - Operation: execute the user-approved plan.
 - Scope: all repository instruction chains; offline validation only.
-- Stage: implementation of [03](03-validation.md).
-- Completed: discovery, plan review, guidance restructuring, relocation verification, link audit, and byte-budget checks.
-- Pending: offline validator, CI enforcement, independent review, and publication.
-- Next action: implement the read-only checker and CI failure propagation.
+- Stage: local implementation and review complete; publication blocked.
+- Completed: all three deliverables, relocation verification, installer repair, offline validation, CI enforcement, focused checks, and independent static review.
+- Pending: publication and Linear linking.
+- Next action: obtain explicit permission to publish the verified branch, then push and open a ready-for-review PR.
 - Publication: automatic approval review rejected a push to public `kyleve/Stuff`; explicit publication permission will be requested after the complete diff is verified.
 - Linear: duplicate lookup failed because the local CLI has no usable credentials. Issue search and linking remain unsent.
 
@@ -75,8 +75,11 @@ The numbered plans describe the file and command flows directly; an additional d
 
 Implementation PR: pending publication.
 Review focus: preserved requirements, installer rollback, byte accounting, Markdown parsing, and documentation-only CI failure propagation.
-A fresh static subagent review is required by code-review for the tooling behavior changes; it is not a live skill evaluation.
+A fresh static subagent review is complete. Findings, corrections, coverage, and remaining validation limits are recorded in [03](03-validation.md).
+No actionable findings remain in the reviewed scope. This review was not a live skill evaluation.
 
 ## Outcome
 
-Implementation in progress.
+The local branch implements and verifies R-01 through R-04. All three plans await publication before lifecycle completion.
+Automatic approval review rejected public publication of repository guidance, even after the configured destination and repository ownership were verified.
+The complete branch is ready for explicit publication approval. No push or PR is claimed.

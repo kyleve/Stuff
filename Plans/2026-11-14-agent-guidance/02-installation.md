@@ -1,6 +1,6 @@
 # External skill layout repair
 
-Status: executing
+Status: blocked
 Dependencies: [01](01-guidance.md)
 Requirements: R-03; exclusions X-01 through X-04 from the [overview](README.md).
 
@@ -51,6 +51,9 @@ The sandbox run hit unrelated Xcode diagnostics from snapshot-shards help.
 The real install retained Swift Testing revision `2d6bba14a3c8bf3694f218b92fffe617c41ae43e` and produced one entry point in each source/mirror tree.
 A second install emitted no changes. Attribution regeneration and its offline check passed; the report remained unchanged.
 Independent review will cover the complete tooling change with deliverable 03.
+
+2026-11-14: the complete branch review is now recorded in deliverable 03. No installer findings remain.
+Implementation and verification are complete; publication is the remaining blocker.
 
 ## Resume point
 

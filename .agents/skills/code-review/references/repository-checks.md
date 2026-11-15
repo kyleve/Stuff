@@ -16,7 +16,7 @@ The linked owners and tests define the applicable contract. This index does not 
 | An early consumer creates its own resource, or retains a previous session | Exercise pre-install access and reset/relaunch. Follow the shared-store handoff and lifetime guards under [composition](#composition-and-transactions). |
 | A write updates the primary screen but leaves other readers stale | Trace the same commit through reports, widgets, reminders, and intents. Inspect the [transaction and reconciliation seams](#composition-and-transactions). |
 | Several flags or optional values encode impossible combinations | Construct the conflicting combinations, then compare the owning [state type and callers](#domain-types-and-state). |
-| A catch turns failure into empty data, or loses the original error | Fail a refresh after a successful result. Compare [UpdateModelTests.failedManualCheckKeepsLastResultAndOriginalError](../../../../Shared/InstallerKit/Tests/UpdateModelTests.swift) and the [error owner](../../../references/swift-conventions.md#errors-and-failure). |
+| A catch turns failure into empty data, or loses the original error | Fail a refresh after a successful result. Compare [UpdateModelTests.failedManualCheckKeepsLastResultAndOriginalError](../../../../Shared/InstallerKit/Tests/UpdateModelTests.swift) and the [error owner](../../../../.agents/references/swift-conventions.md#errors-and-failure). |
 | A display value becomes a persistent identity | Follow the value through storage and restore. Check diagnostic `description`, localized names, and `Date`-based day keys against the [domain identity contract](#dates-and-persisted-data). |
 | A fixture or helper exercises a different path from production | Follow both paths to their common implementation. Check [typed previews and capture reuse](#rendering-and-fixtures), plus the affected public entry point. |
 | Recovery overwrites another owner's files or rolls back after commit | Inject failure around the commit boundary and add a competing destination. Inspect the [publication recovery guards](#tools-and-publication). |
@@ -24,7 +24,7 @@ The linked owners and tests define the applicable contract. This index does not 
 
 ## Domain types and state
 
-Read the root [type rules](../../../references/swift-conventions.md#types-state-and-api-design), [state rules](../../../references/swift-conventions.md#modeling-state), and [error rules](../../../references/swift-conventions.md#errors-and-failure).
+Read the root [type rules](../../../../.agents/references/swift-conventions.md#types-state-and-api-design), [state rules](../../../../.agents/references/swift-conventions.md#modeling-state), and [error rules](../../../../.agents/references/swift-conventions.md#errors-and-failure).
 
 Inspect changed property and parameter types for raw identity strings/UUIDs, multi-field tuples, and domain values unwrapped before a wire or storage boundary.
 For coupled booleans/optionals, enumerate the combinations callers can construct. Compare with the owning model's enum or value type.
@@ -61,7 +61,7 @@ Probe both a valid event near the boundary and a contradictory observation that 
 
 ## Dates and persisted data
 
-Read [Where dates](../../../../Where/Guidance/dates.md#dates), [WhereCore's storage contracts](../../../../Where/WhereCore/AGENTS.md#shape--invariants), and the root [wire-format rules](../../../references/swift-conventions.md#persistence-and-wire-formats).
+Read [Where dates](../../../../Where/Guidance/dates.md#dates), [WhereCore's storage contracts](../../../../Where/WhereCore/AGENTS.md#shape--invariants), and the root [wire-format rules](../../../../.agents/references/swift-conventions.md#persistence-and-wire-formats).
 
 Trace logical days as `CalendarDay`, textual keys as `iso8601`, and genuine instants as `Date`.
 Probe a time-zone change and a non-Gregorian device calendar. Preserve the documented distinction between asserted days and GPS bucketing.
@@ -90,7 +90,7 @@ Their budgets are not universal limits. Follow building-ui for navigation, motio
 
 Read the authoritative [Package.swift](../../../../Package.swift), [Project.swift](../../../../Project.swift), and [Bumper catalog](../../../../.bumper/RULES.md) for the affected targets.
 
-For `extraPackageProducts`, apply the root [WhereUI double-link rule and exceptions](../../../references/targets.md#never-double-link-a-product-whereui-already-carries).
+For `extraPackageProducts`, apply the root [WhereUI double-link rule and exceptions](../../../../.agents/references/targets.md#never-double-link-a-product-whereui-already-carries).
 Inspect `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` in [its source](../../../../Where/WhereUI/Tests/WhereStylesheetTests.swift).
 An isolated bundle pass does not exercise the documented full-scheme duplicate-copy failure.
 For a new import, locate the behavior's owning layer before considering an allow-list change.

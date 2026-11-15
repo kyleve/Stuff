@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          sparse-checkout: Tools
+          lfs: false
       - name: Classify the complete PR diff
         id: classify
         env:
@@ -46,6 +46,11 @@ jobs:
           python3 -m Tools.ci_changes
           --event "$CI_EVENT" --base "$CI_BASE_SHA" --head "$CI_HEAD_SHA"
           >> "$GITHUB_OUTPUT"
+      - uses: jdx/mise-action@v3
+        with:
+          install_args: ruby
+      - name: Agent guidance check
+        run: mise exec ruby -- ./sync-agents --check
 
   format:
     needs: changes
@@ -56,6 +61,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+      - name: Agent guidance check
+        run: mise exec ruby -- ./sync-agents --check
       - name: Install web lint dependencies
         run: mise exec -- npm ci
       - name: ShellCheck

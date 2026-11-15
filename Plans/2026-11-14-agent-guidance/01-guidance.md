@@ -36,7 +36,7 @@ Resume from the recorded pending step and repeat only invalidated checks.
 
 - [x] Implement the steps.
 - [x] Verify acceptance and record evidence.
-- [x] Review and publish the deliverable.
+- [ ] Publish the verified deliverable.
 
 ## Execution record
 
@@ -52,4 +52,6 @@ The durable validator and hidden-directory mirror discovery follow in deliverabl
 
 ## Resume point
 
-Complete in the documentation commit containing this record; branch publication accompanies the commit. Continue with [02](02-installation.md).
+Local implementation is committed in `2df3ec197`. The earlier completion claim was reopened because publication did not succeed.
+Automatic approval review rejected pushing to public `kyleve/Stuff`. Obtain explicit publication permission for the complete verified branch.
+Deliverable 03 now covers the missing hidden-directory mirror and the seven links found invalid from the Claude mirror.

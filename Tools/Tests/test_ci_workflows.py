@@ -1,6 +1,8 @@
 """Guard required checks and the boundary before expensive runner allocation."""
 
+import ast
 import json
+import re
 import subprocess
 import unittest
 
@@ -87,6 +89,76 @@ class CIWorkflowTests(unittest.TestCase):
                 job["environment"][key],
                 f"<< pipeline.event.github.pull_request.{suffix} >>",
             )
+
+    def test_guidance_is_checked_before_docs_skip_and_again_in_required_lint(self):
+        jobs = self.github["jobs"]
+        classifier = jobs["changes"]
+        checkout = classifier["steps"][0]["with"]
+        self.assertNotIn("sparse-checkout", checkout)
+        self.assertFalse(checkout["lfs"])
+        self.assertEqual(self.github["env"]["MISE_NO_HOOKS"], "1")
+        setup = next(
+            step
+            for step in classifier["steps"]
+            if step.get("uses") == "jdx/mise-action@v3"
+        )
+        self.assertEqual(setup["with"]["install_args"], "ruby")
+        for job in (classifier, jobs["format"]):
+            check = next(
+                step
+                for step in job["steps"]
+                if step.get("name") == "Agent guidance check"
+            )
+            self.assertEqual(check["run"], "mise exec ruby -- ./sync-agents --check")
+            self.assertNotIn("if", check)
+            self.assertNotIn("continue-on-error", check)
+            self.assertNotIn("continue-on-error", job)
+        self.assertNotIn("docs_only", classifier["if"])
+        self.assertIn("needs.changes.result != 'success'", jobs["format"]["if"])
+
+    def test_required_lint_runs_when_guidance_fails_after_docs_classification(self):
+        condition = self.github["jobs"]["format"]["if"]
+        for result, docs_only, expected in (
+            ("success", "true", False),
+            ("failure", "true", True),
+            ("failure", "", True),
+            ("success", "false", True),
+        ):
+            with self.subTest(result=result, docs_only=docs_only):
+                expression = condition.removeprefix("${{").removesuffix("}}")
+                substitutions = {
+                    "contains(github.event.pull_request.title, 'NO-CI')": "False",
+                    "cancelled()": "False",
+                    "github.event_name": repr("pull_request"),
+                    "needs.changes.result": repr(result),
+                    "needs.changes.outputs.docs_only": repr(docs_only),
+                }
+                for source, replacement in substitutions.items():
+                    expression = expression.replace(source, replacement)
+                expression = expression.replace("&&", "and").replace("||", "or")
+                expression = re.sub(r"!(?!=)", "not ", expression).strip()
+                tree = ast.parse(expression, mode="eval")
+                allowed = (
+                    ast.Expression,
+                    ast.BoolOp,
+                    ast.UnaryOp,
+                    ast.Compare,
+                    ast.Constant,
+                    ast.And,
+                    ast.Or,
+                    ast.Not,
+                    ast.Eq,
+                    ast.NotEq,
+                )
+                self.assertTrue(
+                    all(isinstance(node, allowed) for node in ast.walk(tree))
+                )
+                self.assertEqual(
+                    eval(
+                        compile(tree, "<job condition>", "eval"), {"__builtins__": {}}
+                    ),
+                    expected,
+                )
 
     def test_circleci_docs_workflow_completes_without_any_macos_job(self):
         workflow = self.continued["workflows"]["iOS CI"]

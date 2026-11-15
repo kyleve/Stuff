@@ -37,6 +37,7 @@ class SyncAgentsTest < Minitest::Test
 
   def with_upstream
     Dir.mktmpdir do |root|
+      initialize_repository(root)
       Dir.mktmpdir do |upstream|
         source = File.join(upstream, "example")
         FileUtils.mkdir_p(source)
@@ -111,9 +112,12 @@ class SyncAgentsTest < Minitest::Test
 
   def test_reconciles_generated_docs_skills_and_external_skill_ignores_in_one_pass
     Dir.mktmpdir do |root|
+      initialize_repository(root)
       File.write(File.join(root, "AGENTS.md"), "# Root rules\n")
       FileUtils.mkdir_p(File.join(root, "Feature"))
       File.write(File.join(root, "Feature", "AGENTS.md"), "# Feature rules\n")
+      FileUtils.mkdir_p(File.join(root, ".agents"))
+      File.write(File.join(root, ".agents", "AGENTS.md"), "# Guidance rules\n")
 
       FileUtils.mkdir_p(File.join(root, "Old"))
       stale_claude = File.join(root, "Old", "CLAUDE.md")
@@ -141,6 +145,7 @@ class SyncAgentsTest < Minitest::Test
 
       assert_equal "#{MARKER}\n\n# Root rules\n", File.read(File.join(root, "CLAUDE.md"))
       assert_equal "#{MARKER}\n\n# Feature rules\n", File.read(File.join(root, "Feature", "CLAUDE.md"))
+      assert_equal "#{MARKER}\n\n# Guidance rules\n", File.read(File.join(root, ".agents", "CLAUDE.md"))
       refute_path_exists stale_claude
       assert_equal "# Hand-maintained\n", File.read(manual_claude)
       assert_equal "# Local skill\n", File.read(File.join(root, ".claude", "skills", "local", "SKILL.md"))
@@ -164,6 +169,7 @@ class SyncAgentsTest < Minitest::Test
 
   def test_removes_generated_mirror_when_source_skills_are_absent
     Dir.mktmpdir do |root|
+      initialize_repository(root)
       File.write(File.join(root, "AGENTS.md"), "# Rules\n")
       mirror = File.join(root, ".claude", "skills", "old")
       FileUtils.mkdir_p(mirror)
@@ -173,5 +179,30 @@ class SyncAgentsTest < Minitest::Test
 
       refute_path_exists File.join(root, ".claude", "skills")
     end
+  end
+
+  def test_sync_and_check_agree_on_ignored_instruction_files
+    Dir.mktmpdir do |root|
+      initialize_repository(root)
+      File.write(File.join(root, "AGENTS.md"), "# Root\n")
+      File.write(File.join(root, ".gitignore"), ".local-cache/\nCLAUDE.md\n.claude/\n")
+      FileUtils.mkdir_p(File.join(root, ".local-cache"))
+      File.write(File.join(root, ".local-cache", "AGENTS.md"), "# Cached\n")
+      File.write(File.join(root, ".local-cache", "CLAUDE.md"), "#{MARKER}\n\n# Previously generated\n")
+      capture_io { SyncAgents.new(repository_root: root).run([]) }
+      refute_path_exists File.join(root, ".local-cache", "CLAUDE.md")
+      checker = AgentGuidance.new(root)
+      assert checker.check, checker.errors.join("\n")
+      stdout, stderr = capture_io { SyncAgents.new(repository_root: root).run([]) }
+      assert_empty stdout
+      assert_empty stderr
+    end
+  end
+
+  private
+
+  def initialize_repository(root)
+    _, error, status = Open3.capture3("git", "init", "-q", root)
+    raise error unless status.success?
   end
 end

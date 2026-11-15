@@ -28,5 +28,7 @@ Review relocation maps for preserved requirements and exceptions. Check local li
 Offline checks establish file structure and discovery inputs. They do not prove model activation or task quality.
 Use the available skill-creator workflow when creating or substantially revising a skill.
 
-Run `./sync-agents` after instruction or skill changes. Edit canonical sources, never generated Claude mirrors.
+Run `./sync-agents` after instruction or skill changes, then run `./sync-agents --check`.
+The checker validates byte budgets, skill discovery, local links, and present mirrors.
+See the [check scope](../Tools/README.md#agent-guidance-tools) for clean-checkout allowances and parser limits. Edit canonical sources, never generated Claude mirrors.
 Follow the root attribution procedure when external skill inputs change.

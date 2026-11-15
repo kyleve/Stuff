@@ -156,7 +156,7 @@ Raw one-off `xcodebuild` (rare):
   does run: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`,
   `mise exec -- ./sync-agents`, and the retained Python tool tests
   (`python3 -m unittest discover -s Tools/Tests -p 'test_*.py'`). See the Linux
-  table in the root [`AGENTS.md`](../../references/environments.md#what-works-on-linux) for the
+  table in the root [`AGENTS.md`](../../../.agents/references/environments.md#what-works-on-linux) for the
   three macOS-coupled carve-outs among those.
 
 ## Broad local iOS and macOS validation

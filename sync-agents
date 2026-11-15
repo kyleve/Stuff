@@ -40,11 +40,10 @@ require "tmpdir"
 require "open3"
 require_relative "Tools/repository"
 require_relative "Tools/agent_skill_installer"
+require_relative "Tools/agent_guidance"
 
 REPO_ROOT = Repository.root(__FILE__)
-MARKER = "<!-- Generated from AGENTS.md — do not edit directly -->"
-
-EXCLUDED_DIRS = %w[Derived .build .git .cursor .claude].freeze
+MARKER = AgentFiles::MARKER
 
 class SyncAgents
   def initialize(repository_root: REPO_ROOT)
@@ -56,6 +55,12 @@ class SyncAgents
   end
 
   def run(args)
+    if args == ["--check"]
+      checker = AgentGuidance.new(@repository_root)
+      valid = checker.check
+      checker.report(output: $stdout, diagnostics: $stderr)
+      return valid
+    end
     if args.include?("--add")
       idx = args.index("--add")
       url = args[idx + 1]
@@ -68,8 +73,8 @@ class SyncAgents
       update_skills
     end
 
-    sync_claude_md
     update_skills_gitignore
+    sync_claude_md
     sync_skills
 
     stage_files if args.include?("--git-add") && !@changed_files.empty?
@@ -82,14 +87,18 @@ class SyncAgents
   def sync_claude_md
     expected = []
 
-    find_files("AGENTS.md", exclude: EXCLUDED_DIRS).each do |agents_file|
+    sources = AgentFiles.inventory(@repository_root).select do |path|
+      File.basename(path) == "AGENTS.md" && !path.start_with?(".claude/")
+    end
+    sources.each do |source|
+      agents_file = File.join(@repository_root, source)
       claude_path = File.join(File.dirname(agents_file), "CLAUDE.md")
       content = "#{MARKER}\n\n#{File.read(agents_file, encoding: "UTF-8")}"
       write_if_changed(claude_path, content)
       expected << claude_path
     end
 
-    find_files("CLAUDE.md", exclude: %w[Derived .build .git]).each do |claude_file|
+    find_files("CLAUDE.md", exclude: %w[.claude]).each do |claude_file|
       next if expected.include?(claude_file)
       first_line = File.open(claude_file, encoding: "UTF-8", &:readline).chomp rescue next
       remove_if_exists(claude_file) if first_line == MARKER
@@ -244,9 +253,7 @@ class SyncAgents
   end
 
   def find_files(name, exclude: [])
-    Dir.glob(File.join(@repository_root, "**", name)).reject do |f|
-      exclude.any? { |d| f.include?("/#{d}/") }
-    end
+    AgentFiles.named(@repository_root, name, exclude: exclude)
   end
 
   def dirs_equal?(a, b)
@@ -323,10 +330,12 @@ end
 def usage(output = $stdout)
   output << <<~USAGE
     Usage: ./sync-agents [--install | --update | --add URL [NAME]] [--git-add]
+           ./sync-agents --check
 
     Generate Claude configuration from AGENTS.md and synchronize agent skills.
 
     Options:
+      --check         Check guidance offline without writing, fetching, or staging.
       --install       Fetch missing or invalid external skills at pinned revisions.
       --update        Refresh external skills and their pinned revisions.
       --add URL NAME  Add one external skill; NAME is optional for one-skill repos.
@@ -336,6 +345,10 @@ def usage(output = $stdout)
 end
 
 def validate_arguments(arguments)
+  if arguments.include?("--check")
+    abort "error: --check cannot be combined with other options" unless arguments == ["--check"]
+    return
+  end
   action_count = arguments.count { |argument| %w[--install --update --add].include?(argument) }
   abort "error: choose only one of --install, --update, or --add" if action_count > 1
 
@@ -360,8 +373,9 @@ if __FILE__ == $PROGRAM_NAME
   end
   validate_arguments(ARGV)
   begin
-    SyncAgents.new.run(ARGV)
-  rescue AgentSkill::Error, FileTransaction::Error, JSON::ParserError, SystemCallError => error
+    result = SyncAgents.new.run(ARGV)
+    exit 1 if ARGV == ["--check"] && !result
+  rescue AgentSkill::Error, FileTransaction::Error, JSON::ParserError, SystemCallError, IOError => error
     abort "error: #{error.message}"
   end
 end
