@@ -29,6 +29,8 @@ Create the Core runtime once in the process composition root. Scene presentation
 
 Use 01a's evaluated interactions to distinguish switching PR workspaces from selecting, opening, or arranging children inside one PR. Q-20 allows floating, tiling, docking, or tabs where useful; choose native defaults and platform affordances during refinement. Layouts and labels from the mockup remain candidates until validated natively. Mac outer windows use system scene APIs, with app-specific menu and shortcut routing through the focused workspace to its focused child. Separate child closure, closing a native window, and deleting a workspace. Restore arrangement and last-focused child on return; resuming a review child starts its file at the top. Exact review offsets are not required.
 
+Apply the accepted [presentation-density decision](README.md#presentation-density): compact workspace identity and view controls, with full PR metadata and less frequent arrangement actions available on demand. Keep the active content title, actual comparison meaning, immediate review actions, and relevant warnings clear. On phone, a child selector can also provide the active view title. Reclaim space through fewer rows and repeated labels while preserving readable text, touch targets, accessible disclosures, keyboard commands, and focus return. Prototype-only Canvas/Reset/Simulate Push controls do not become production chrome.
+
 ```mermaid
 flowchart LR
     Root["Proposed Mobius composition root"] --> Runtime["Proposed runtime using 01 store"]
@@ -63,7 +65,7 @@ Declare Mobius's attribution inputs and bundled report through CreditKit's exist
 ## Refinement trigger
 
 - Trigger: 01a's feedback is integrated and 01 supplies actual state/persistence interfaces.
-- Evidence needed: Working Core types, renderer/layout probe results, dependency closure, an explicit Catalyst build/runtime procedure, and an accessible tab/window interaction specification.
+- Evidence needed: Working Core types, renderer/layout probe results, dependency closure, an explicit Catalyst build/runtime procedure, and an accessible tab/window interaction specification. Include usable content-space and moved-control reachability evidence at standard and accessibility layouts; a compact screenshot alone does not prove access to the hidden controls.
 - Next action: Read the applicable UI/module/tooling contracts, expand this file into executable steps and acceptance criteria, and review it before implementation. Keep the first runtime demo synthetic and repeatable.
 
 ## Decisions and revisions
@@ -74,6 +76,7 @@ Declare Mobius's attribution inputs and bundled report through CreditKit's exist
 | 2026-11-14 | Keep platform scene presentation local while workspace identity persists. | Overview design proposal. |
 | 2026-11-14 | Adopt per-PR grouping and file-top resumption after the lightweight mockup is evaluated. | Q-13/Q-14, Q-16–Q-18. |
 | 2026-11-14 | Restore logical workspaces with multiple child windows independently of outer tab/window presentation; retain arrangement and last focus. | First-artifact feedback and [Q-19–Q-21](README.md#q-19). |
+| 2026-11-14 | Prioritize useful content with compact workspace/view chrome and details on demand, preserving comparison meaning and accessible actions. | Accepted [iteration-2 density feedback](README.md#presentation-density); evaluated controls follow 01a iteration 3. |
 
 ## Resume point
 
