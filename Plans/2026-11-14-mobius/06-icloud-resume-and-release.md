@@ -50,6 +50,8 @@ protocol WorkspaceSynchronizing: Sendable {
 
 Proposed policy keeps native window bounds, child arrangement, last-focused child, and local scene IDs device-local. Returning to an existing local workspace restores that arrangement/focus under Q-21; a first open on another device needs an adaptive arrangement. Refine initial focus, order, and concurrent child-navigation behavior under Q-09 before fixing the sync schema. Preserve each review child's selected-file identity and resume it at the top; exact review scroll offsets are not part of the continuity contract. Remote work becomes available without unexpectedly opening windows or closing a focused local child during an edit.
 
+The [workspace close/reopen flow](README.md#closing-and-reopening-workspaces) preserves semantic contents when presentation closes. Q-09 must decide whether open/closed workspace presentation is device-local or follows the user, including concurrent close/reopen across devices. The session-only prototype is not evidence for either sync policy. Closing presentation must not be encoded as deletion of the retained workspace, children, drafts, or review/skip records.
+
 Account changes must stop the prior sync scope and isolate its files/records before any new scope starts. iCloud sign-out must not silently upload one account's drafts into another account. GitHub sign-out/revocation must prevent protected fetches and display, with an explicit policy for retained private drafts and caches. Preserve recoverable user work while resolving access; never infer fresh access from stale credentials.
 
 ## Questions and learning needed

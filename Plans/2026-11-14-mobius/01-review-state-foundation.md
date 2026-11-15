@@ -31,6 +31,8 @@ Each workspace belongs to one typed account/repository/PR target, independent of
 
 A review child's resume value identifies its selected file; it does not persist a reviewed line range or require exact scroll restoration. Workspace restoration retains child arrangement and last-focused identity, so returning need not focus a review. Keep device presentation separate from semantic workspace contents; refine persistence and sync boundaries before fixing the schema. Per-file review evidence records the immutable comparison/version accepted by the explicit file-review action. A new push may make that file need review again, but must retain the earlier evidence needed to calculate its new edits. Unreviewed files have no reviewed baseline and show the full PR diff.
 
+The [close/reopen lifecycle](README.md#closing-and-reopening-workspaces) requires retained workspaces to outlive their open presentation membership. Closing the last presentation does not erase child identities/routes, arrangement/focus, drafts, or review/skip evidence. Reopening refers to the same workspace, including an intentionally empty set of children. Represent an empty presented set and no active workspace explicitly. Refine durable open-state ownership and cross-device behavior under Q-09 before fixing its schema.
+
 Keep [skip evidence](README.md#changes-by-kind-and-explicit-skipping) distinct from reviewed versions. Skipping captures a currently remaining file's comparison; the prototype's group action snapshots the currently remaining files in that group, never a rule excluding future members. Undo removes that skip without altering prior review evidence. Changed/new files return to remaining work while unchanged skips persist. A returning file uses its last actually reviewed baseline, including previously skipped edits, or the full PR diff if never reviewed. Group collapse, kind classification, and rich/source view choice are presentation and must not create review or skip evidence. Refine missing history, renamed files, comparison-context changes, and concurrent skip/undo/review mutations jointly with 03 before fixing identities or storage.
 
 The previous candidate was a serial store actor with version-checked mutations and atomic metadata replacement, separate from evictable source blobs/indexes. Retain it as an option to evaluate after the prototype; do not implement its schema just because it was previously specified. Production identity, errors, migrations, concurrency, and recovery need executable refinement.
@@ -44,6 +46,7 @@ flowchart LR
     Revisions["Immutable current comparison and coverage"] --> Policy
     Model --> Children["Identified children with independent navigation"]
     Model --> Store["Candidate durable store"]
+    Presentation["Open workspace references; may be empty"] -->|close/reopen preserves retained identity| Model
     Children --> Store
     Evidence --> Store
     Skip --> Store
@@ -73,6 +76,7 @@ struct FileReviewReceipt: Codable, Sendable {
 // Separate skip evidence refers to a current file comparison, not a new baseline.
 // Each review child retains its own ReviewResumeFile.
 // Presentation references workspace/child IDs; native scene IDs are separate.
+// Closing presentation retains Workspace and its children for explicit reopening.
 // File identity across renames and comparison context requires refinement.
 ```
 
@@ -93,6 +97,8 @@ All named domain types are proposed. Receipt/content identity must distinguish b
 
 The eventual checks must demonstrate two independent PR workspaces reopening with their children, references, drafts, arrangements, and last-focused child; independent navigation in multiple children of the same kind; file-top review resumption; per-file new-edit/full-diff selection shared within the PR; preserved prior review evidence after a push; no cross-PR progress leakage; explicit baseline advancement; honest incomplete history; and failed/stale saves preserving accepted state. Changing outer presentation must preserve logical identities. Include real persistence round trips and controlled competing mutations. Use the matching Core tests, architecture checks, and formatting after targets exist; a zero-test pass is not acceptance.
 
+Include explicit workspace close/reopen, all workspaces closed, repeated open without duplication, and reopening a workspace whose children were intentionally closed. Closing must not mutate review or skip baselines or draft text. Reopen must preserve the existing child identities and selected routes rather than seeding a fresh workspace.
+
 Include individual/group skip, undo, relaunch, and a push with changed, unchanged, and newly introduced files. Assert separate remaining/reviewed/skipped counts and unchanged reviewed baselines. Cover stale actions from a child displaying an older comparison and competing skip/undo/review mutations; unavailable evidence must not produce a false reviewed or unchanged result. Classification and collapse alone must leave progress unchanged.
 
 ## Decisions and revisions
@@ -104,6 +110,7 @@ Include individual/group skip, undo, relaunch, and a push with changed, unchange
 | 2026-11-14 | Return this deliverable to outline and refine it after a lightweight, three-layout prototype. | Q-16–Q-18. |
 | 2026-11-14 | Distinguish workspace, child-view, route, and presentation identities; restore arrangement and last focus, with a selected file per review child. | First-artifact feedback and [Q-19–Q-21](README.md#q-19). |
 | 2026-11-14 | Store current skips independently from reviewed versions; changed/new files return without resetting unrelated skips or advancing review evidence. | [Q-23](README.md#q-23)/[Q-24](README.md#q-24); exact production identities remain provisional. |
+| 2026-11-14 | Separate retained workspace contents from open presentation membership; preserve work through explicit close/reopen and an all-closed state. | User's [workspace lifecycle feedback](README.md#closing-and-reopening-workspaces). |
 
 ## Execution record
 
