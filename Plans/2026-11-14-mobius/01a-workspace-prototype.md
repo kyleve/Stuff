@@ -12,7 +12,7 @@ A lightweight interactive mockup for evaluating logical PR workspaces, their ind
 
 Investigate whether the navigation and comparison labels make it clear which PR, file, version, and unfinished work the reviewer is seeing. The agreed behavior comes from Q-13–Q-15; layout and navigation details are hypotheses to evaluate, not final native UI decisions.
 
-The first pass was bounded to one self-contained browser artifact, two synthetic PR workspaces, two fixture revisions, three viewport layouts, and one feedback round. That evaluation identified a material correction: a workspace had been flattened into a document tab group. Iteration 2 retains the same fixture and browser scope, adds the ownership/presentation experiment below, and ends with a second feedback round. It does not expand into native implementation or a complete window manager.
+The first pass was bounded to one self-contained browser artifact, two synthetic PR workspaces, two fixture revisions, three viewport layouts, and one feedback round. That evaluation identified a material correction: a workspace had been flattened into a document tab group. Iteration 2 retained the same fixture and browser scope and added the ownership/presentation experiment below. Its evaluation requested substantially less stacked chrome. Iteration 3 preserves the corrected ownership model and capabilities while testing compact workspace/view controls, ending with another user evaluation. None of these passes expands into native implementation or a complete window manager.
 
 ## User stories and requirements
 
@@ -55,6 +55,22 @@ A New View action can create Review, Source, Search, or Preview children. Review
 
 Bound iteration 2 to those four child kinds, the existing two PRs/two revisions, useful arrangement controls, the same three viewport categories, and one further user evaluation. No editing/forking, backend, new account integration, actual OS windows, native execution, or production durability is added.
 
+## Iteration 3 compact-chrome method
+
+The user evaluated iteration 2 and approved the compact-chrome proposal (“SGTM”), explicitly requesting another background rebuild on 2026-11-14. This revises presentation, not the Q-19–Q-21 ownership or review rules. Retain iteration-2 artifact revision `e1c1059cf28` and its separate evidence; record new evidence under `Prototype/evidence/iteration-03/`.
+
+The investigation is whether more of the default viewport can show the actual review, source, research, or preview while all existing capabilities stay understandable and reachable:
+
+- Keep concise workspace identity (short name/PR number), the active child/file title, truthful current comparison, and immediate review actions visible. Combine workspace heading and tools into a compact row. On compact screens, the child selector can supply the active view title instead of repeating a title bar.
+- Replace stacked comparison/file/context bands with a compact view toolbar. A full PR diff must still say **Full PR diff**, including an unreviewed file in Remaining; a reviewed file's new edits must identify its last-reviewed version. Keep file navigation and full/remaining selection reachable without advancing baselines.
+- Remove permanent teaching copy and repeated kind/ordinal labels when the title and icon suffice. Preserve accessible names that distinguish same-kind child instances. Full PR metadata, progress detail, outer presentation, and arrangement choices may move into accessible details/menus with predictable focus and dismissal.
+- Move Canvas, Reset, and Simulate push into a collapsible prototype-controls panel. Keep a small sample-data indicator and an honest simulated-preview indicator; no real execution is implied.
+- Keep readable typography and usable pointer/touch/keyboard targets. The experiment reduces the number of bands and repeated content rather than shrinking labels and controls. Defaults remain exploratory native-layout hypotheses.
+
+Bound the pass to the existing two PRs/two revisions/four child kinds and state model. Retain multiple views, independent navigation, shared review progress, drafts, add/close/recovery, outer tabs/windows, arrangements, search, simulated preview state, and file-top review resumption. No native, backend, persistence, account, editing/forking, or real execution work is added.
+
+Before/after evidence uses identical viewports and fixture states, including a review at the initial full comparison and a post-push incremental comparison. Record the content viewport's top position and usable height at phone, tablet, and desktop sizes, plus representative visually inspected captures. Exercise newly disclosed controls by keyboard and pointer, Escape/focus return, and navigation from the compact selector. Repeat the complete previous regression scenario against the final source, since moving controls can affect focus and reachability despite retaining the state model.
+
 ## Scenario and state flow
 
 Use synthetic PR 42 and PR 43. Each has a distinct workspace even if they share a file path. An optional stack-connection label links the PRs without combining their state.
@@ -87,10 +103,10 @@ All components are proposed mockup state. Swift pseudocode does not apply to thi
 
 ## Steps
 
-1. **Preserve and revise the fixture ownership.** Retain the first-pass artifact/evidence at `2e3653877` and its evaluation. Keep PR/file review baselines workspace-owned. Introduce unique child instances with independent selected files, comparisons, queries, and simulated-preview state; retain the two prepared fixture revisions.
-2. **Separate presentation from ownership.** Present logical workspaces as outer tabs or window shells. Add multiple child instances, useful tiled/freeform/focused arrangements, and child navigation appropriate to the three viewport sizes. Preserve the agreed remaining-work/full-diff behavior, explicit mark action, simulated push, draft, and Reset. Layout details remain candidates for feedback.
+1. **Preserve evaluated ownership and history.** Retain the first-pass artifact/evidence at `2e3653877` and iteration-2 artifact/evidence at `e1c1059cf28`, with their evaluations. Keep PR/file review baselines workspace-owned and unique child instances independently navigable. Retain the prepared fixture revisions.
+2. **Compact the presentation.** Apply the iteration-3 method above: combine workspace heading/tools, use concise child titles, compact the view toolbar, and disclose metadata/arrangement/prototype controls. Preserve all iteration-2 ownership, navigation, review, draft, preview, and arrangement capabilities. Layout details remain candidates for feedback.
 3. **Exercise the return visit.** Run the scenario above at recorded phone, tablet, and desktop viewport sizes. Confirm child navigation is independent, shared review progress updates sibling review views, outer presentation preserves ownership, workspace return preserves arrangement/focus, a resumed review child starts its selected file at the top, and another PR's state is unaffected. Check both mouse/pointer and keyboard operation; inspect narrow-layout touch-target usability. Record what was actually exercised rather than claiming native device validation.
-4. **Collect evidence and feedback.** Deliver the artifact with the scenario and representative captures of the three layouts. Ask the user to try outer presentation changes, multiple same-kind child views, workspace return, the simulated preview, and post-push remaining work. Record confusing transitions, requested changes, and whether the workflow should proceed, change, or receive another prototype iteration.
+4. **Collect evidence and feedback.** Deliver the artifact with the scenario, matched content-space measurements, and representative captures of the three layouts. Ask the user to evaluate the compact chrome and control discoverability alongside multiple same-kind child views, workspace return, simulated preview, and post-push remaining work. Record confusing transitions, requested changes, and whether to proceed, change, or run another bounded iteration.
 5. **Review and hand off.** Integrate supported feedback into the overview and affected outlines, retaining unresolved decisions. Review the changed artifact and plan through code-review, run relevant checks, then commit/push and publish through github-workflow. Do not refine the durable model until the required prototype feedback is recorded.
 
 For local browser inspection, a loopback-only static server can serve the artifact, for example `python3 -m http.server 8765 --bind 127.0.0.1 --directory Plans/2026-11-14-mobius/Prototype`. Use an available port and stop the owned server after inspection. If browser automation is unavailable, record the missing runtime evidence; source inspection alone does not establish interactive acceptance.
@@ -107,6 +123,8 @@ For local browser inspection, a loopback-only static server can serve the artifa
 | Full context is accessible. | Open the full PR diff for both Parser and Store; switch views and PR workspaces. | Complete current PR diffs remain available and baselines change only through the explicit file-review action. |
 | Simulated preview can be evaluated. | Change sample preview controls, switch children/PRs/presentation, and return. | State remains with its child and owner; simulated status is explicit and no code is executed. |
 | All three layouts can be evaluated. | Execute the scenario at recorded narrow, medium, and wide browser sizes. | Captures plus interaction notes identify each viewport and any usability failures. |
+| Compact chrome improves content space. | Compare the same fixture and viewport before/after at all three sizes. | More usable content height without smaller text/targets; workspace, child/file, actual comparison, and immediate review action stay understandable. |
+| Disclosed controls stay reachable. | Use metadata/arrangement, outer presentation, prototype controls, and compact child navigation by pointer and keyboard. | Every previous capability remains reachable; Escape/dismissal restores focus and leaves state unchanged unless an explicit action changes it. |
 | The experiment produces a decision. | Review the artifact with the user. | Recorded feedback supports proceeding, revising, or another bounded iteration. A supported negative result is valid; pending feedback leaves the experiment incomplete. |
 
 Inspect the browser console for runtime errors and verify all artifact resources load locally. Use `git diff --check` and review local plan links after updates. No app test suite or snapshot baseline is implied by this browser mockup; use proportionate browser interaction checks. Do not claim iPhone/iPad/Catalyst runtime, VoiceOver, persistence, provider, or sync validation from viewport captures.
@@ -169,7 +187,7 @@ The owned loopback server is stopped after inspection; the artifact opens direct
 - [x] Exercise both ownership layers and original review behavior across three sizes.
 - [x] Record fresh independent review and second-iteration captures.
 - [x] Publish the coordinated stack update.
-- [ ] Collect and integrate second-round user feedback.
+- [x] Collect and integrate second-round user feedback: excessive stacked chrome prompted the approved iteration-3 method above.
 
 ### Iteration 2 implementation and evidence
 
@@ -191,10 +209,25 @@ Fresh independent review found and rechecked floating z-order, background/inacti
 
 Parent coordination rebased the unchanged first-pass artifact/readiness record onto parent `fcee86b3b0` at child `46d284bbafa` before implementation. The revised artifact and evidence were committed at [`e1c1059cf28`](https://github.com/kyleve/Stuff/commit/e1c1059cf28a2954a0513d2514e7d0b7be9c34dd) and published through `gh stack push` to existing [PR #500](https://github.com/kyleve/Stuff/pull/500). Its description and [existing screen-evidence comment](https://github.com/kyleve/Stuff/pull/500#discussion_r4576427594) now describe iteration 2. GitHub-rendered HTML contains the expected images and captions; all four commit-pinned image responses match the local PNG bytes. Published-PR visual inspection remains unavailable because local CUA browser use is disabled. The owned loopback server is stopped; direct file loading remains usable. STU-330 stays In Review with current evidence. The next decision is the user's evaluation of this corrected workspace model, not readiness to implement native code.
 
+## Iteration 3 readiness and execution
+
+- Status transition: `executing` → `draft` for the material presentation revision.
+- Source and feedback inspected: clean child `66c7da62331873548f0231c9da666a555bf306fb`, artifact `e1c1059cf28`; current PR #500 feedback contains the existing screen-evidence comment. The new direction is the user's explicit approval and rebuild request in the parent conversation.
+- Accepted decisions are recorded in the compact-chrome method above. Parent owns the overview and production-plan implications. No unanswered product question blocks this bounded presentation pass.
+- Readiness review, 2026-11-14: inspected the revised method against `66c7da623`, the original remaining-work scenario, Q-19–Q-21, the current overview/production-outline boundaries, root/Plans instructions, and current PR feedback. The change is presentation-only: the existing workspace/child identity and explicit baseline owners remain valid. The method keeps truthful comparison labels, preserves every existing capability through named reachable controls, requires keyboard/dismissal regression checks, and measures content-space improvement at matched fixture states. Earlier evidence is retained as historical, with runtime/visual verification repeated for the changed source. The user explicitly approved compact chrome and background implementation; no missing product decision blocks this bounded pass. No readiness findings remain. The unchanged ownership diagram is source-reviewed, not renderer-validated.
+- Readiness disposition: `draft` → `ready` after review, then `ready` → `executing` under the user's explicit rebuild request. Implementation evidence and third-round feedback remain pending.
+
+- [x] Review the compact-chrome method and record readiness.
+- [ ] Rebuild compact controls while retaining all existing capabilities.
+- [ ] Repeat the three-size regression scenario and exercise disclosed controls.
+- [ ] Record fresh independent review, content-space comparison, and iteration-3 captures.
+- [ ] Publish the coordinated stack update and current issue evidence.
+- [ ] Collect and integrate third-round user feedback.
+
 ## Resume point
 
-Obtain the second user evaluation of the published iteration-2 artifact. Focus on logical workspace ownership, independent child views, useful arrangements, and return behavior. Preserve first-pass evidence and integrate second-round feedback with the parent overview before refining or implementing the native foundation. Coordinate any further parent/child stack mutations.
+Coordinate the reviewed iteration-3 readiness checkpoint with the parent, then rebuild and validate the compact controls. Preserve earlier evidence and collect third-round feedback before refining or implementing the native foundation. Coordinate all parent/child history mutations.
 
 ## Outcome
 
-First-pass evidence is retained and its evaluation calls for a revised workspace model. Iteration 2 is built and browser-verified; the second user evaluation remains pending, so the experiment stays `executing`. No native or product acceptance is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+First-pass evidence is retained; its evaluation prompted the workspace-model correction. Iteration 2 is built, verified, and published; its evaluation now prompts compact chrome. Iteration 3 is ready and executing under explicit implementation authorization. The experiment remains incomplete until its required feedback is recorded. No native or product acceptance is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
