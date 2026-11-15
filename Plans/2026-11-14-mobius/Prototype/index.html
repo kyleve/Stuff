@@ -6,71 +6,70 @@
 <meta name="color-scheme" content="light">
 <title>Mobius — a workspace for every review</title>
 <style>
+
 :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #272b35; background: #eaeae7; --ink: #272b35; --muted: #626774; --line: #dddfe5; --accent: #5942b6; --tint: #efebfa; }
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; touch-action: manipulation; }
 button:disabled { opacity: .55; cursor: default; }
-button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid #8c76dc; outline-offset: 2px; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 3px solid #8c76dc; outline-offset: 2px; }
 button svg, button span { pointer-events: none; }
 svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; flex-shrink: 0; }
 h1, h2, h3, p { margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.lab { max-width: 1600px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 22px 12px; font-size: 12px; color: var(--muted); }
-.lab strong { color: var(--ink); font-weight: 600; }
-.lab-title, .lab-controls { display: flex; align-items: center; gap: 10px; }
-.lab-controls select { padding: 5px 7px; border: 1px solid #c6c8cf; background: #f8f8f6; border-radius: 6px; font-size: 11px; }
-.lab-controls button { min-height: 32px; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
-.sample { border: 1px solid #c6c8cf; border-radius: 4px; padding: 3px 5px; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
-.stage { max-width: 1556px; width: calc(100% - 44px); margin: auto; container-type: inline-size; }
+.lab { position: relative; z-index: 20; max-width: 1600px; margin: auto; padding: 0 22px; height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
+.brand { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 17px; font-weight: 650; letter-spacing: -.5px; }
+.brand-mark { color: var(--accent); font-size: 30px; line-height: 1; font-weight: 450; }
+.prototype-controls { position: relative; z-index: 30; }
+.prototype-controls summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 10px; list-style: none; }
+.prototype-controls summary::-webkit-details-marker { display: none; }
+.prototype-controls summary::after { content: '⌄'; font-size: 15px; }
+.sample { font-size: 11px; color: #626774; white-space: nowrap; }
+.prototype-panel { position: absolute; right: 0; top: 44px; width: min(330px,calc(100vw - 24px)); border: 1px solid #d2d0dc; border-radius: 10px; background: #fff; box-shadow: 0 14px 40px #25243c2b; padding: 16px; }
+.prototype-panel h2 { color: var(--ink); font-size: 14px; margin-bottom: 14px; }
+.prototype-panel p { line-height: 1.6; margin-top: 12px; }
+.prototype-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 9px 0; }
+.prototype-row select { min-height: 36px; background: #fff; border: 1px solid #ccc7d7; border-radius: 5px; padding: 6px; }
+.stage { position: relative; z-index: 0; max-width: 1556px; width: calc(100% - 44px); margin: auto; container-type: inline-size; }
 .stage[data-size="phone"] { max-width: 390px; }
 .stage[data-size="tablet"] { max-width: 834px; }
 .stage[data-size="desktop"] { max-width: 1440px; }
-.app { height: calc(100dvh - 112px); min-height: 540px; max-height: 1300px; display: flex; flex-direction: column; overflow: hidden; background: #f5f5f8; border: 1px solid #d2d4dc; border-radius: 12px; box-shadow: 0 10px 40px #25273c12; }
-.app-bar { display: flex; align-items: center; padding: 0 16px; gap: 22px; min-height: 59px; border-bottom: 1px solid #d2d4dc; background: #f7f7f9; }
-.brand { display: flex; align-items: center; gap: 7px; font-size: 20px; font-weight: 640; letter-spacing: -.7px; flex-shrink: 0; }
-.brand-mark { font-size: 35px; font-weight: 450; color: var(--accent); line-height: 24px; }
-.workspace-tabs { display: flex; align-items: stretch; gap: 5px; flex: 1; min-width: 0; align-self: stretch; overflow-x: auto; }
-.workspace-tab { display: flex; align-items: center; gap: 8px; min-width: 135px; max-width: 270px; padding: 0 14px; color: #646a77; font-size: 12px; border-bottom: 2px solid transparent; text-align: left; }
-.workspace-tab .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app { height: calc(100dvh - 66px); min-height: 460px; max-height: 1300px; display: flex; flex-direction: column; overflow: hidden; background: #f5f5f8; border: 1px solid #d2d4dc; border-radius: 10px; box-shadow: 0 8px 30px #25273c12; }
+.app-bar { display: flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 8px; background: #f8f8fb; border-bottom: 1px solid #d2d4dc; }
+.workspace-tabs { display: flex; align-items: stretch; gap: 4px; flex: 1; min-width: 0; align-self: stretch; overflow-x: auto; }
+.workspace-tab { display: flex; align-items: center; gap: 7px; padding: 0 13px; min-height: 48px; min-width: 0; color: #626774; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
 .workspace-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #efedf6; }
-.workspace-tab svg { width: 14px; height: 14px; }
-.workspace-tab .pr-number { font-size: 10px; color: #626774; white-space: nowrap; }
-.segment { display: inline-flex; background: #eaeaf0; padding: 3px; border: 1px solid #dcdde4; border-radius: 7px; gap: 2px; flex-shrink: 0; }
-.segment button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 27px; padding: 5px 9px; border-radius: 4px; font-size: 10px; color: #626774; white-space: nowrap; }
-.segment button[aria-pressed="true"] { background: white; color: #333743; box-shadow: 0 1px 3px #27243818; }
-.segment svg { width: 13px; height: 13px; }
-.outer-space { flex: 1; min-height: 0; overflow: hidden; }
-.outer-space[data-presentation="tabs"] { display: flex; }
-.outer-space[data-presentation="tabs"] .workspace-host:not(.selected) { display: none; }
-.outer-space[data-presentation="windows"] { display: flex; gap: 15px; padding: 15px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: stretch; }
-.workspace-host { min-width: 0; flex: 1; display: flex; flex-direction: column; background: #f0f0f5; container-type: inline-size; }
-.outer-space[data-presentation="windows"] .workspace-host { flex: 0 0 calc(50% - 8px); min-width: 430px; border: 1px solid #c9cbd5; border-radius: 10px; overflow: hidden; box-shadow: 0 7px 17px #25253e0b; scroll-snap-align: center; }
-.outer-space[data-presentation="windows"] .workspace-host.selected { border-color: #9889c5; box-shadow: 0 7px 18px #5942b619; }
-.workspace-heading { padding: 20px 23px 16px; background: #fff; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
-.workspace-heading .overline { display: flex; align-items: center; gap: 6px; color: #666b78; font-size: 9px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px; }
-.workspace-heading .overline svg { width: 12px; height: 12px; }
-.workspace-heading h1 { font-size: 20px; font-weight: 630; letter-spacing: -.55px; line-height: 1.3; }
-.workspace-meta { display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 10px; color: var(--muted); }
-.open-pill { color: #226c4b; background: #e9f4ee; border-radius: 8px; padding: 2px 6px; }
-.workspace-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-.button { min-height: 34px; border: 1px solid #d5d7df; border-radius: 6px; background: #fff; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 550; white-space: nowrap; }
+.workspace-tab .pr-number { color: #626774; font-size: 11px; }
+.workspace-actions, .child-controls { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.icon-button { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 6px; color: #626774; flex-shrink: 0; position: relative; }
+.icon-button:hover, .child-title:hover, .view-picker:hover { background: #eeebf5; }
+.has-draft::after { content: ''; position: absolute; top: 6px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.button { min-height: 36px; border: 1px solid #d5d7df; border-radius: 6px; background: #fff; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 550; white-space: nowrap; }
 .button:hover { background: #f3f0fa; }
 .button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .button.primary:hover { background: #483597; }
-.button svg { width: 14px; height: 14px; }
-.icon-button { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 5px; color: #626774; flex-shrink: 0; }
-.icon-button:hover { background: #eeebf5; }
-.workspace-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 51px; padding: 8px 15px; }
-.tools-group { display: flex; align-items: center; gap: 10px; }
-.view-count { color: #626774; font-size: 10px; }
-.compact-label { display: none; color: #626774; font-size: 10px; }
-.child-shelf { display: flex; align-items: center; gap: 4px; padding: 0 15px 10px; overflow-x: auto; flex-shrink: 0; }
-.child-tab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; min-height: 31px; border: 1px solid #d5d6df; border-radius: 6px; color: #626774; font-size: 10px; background: #f7f7fa; white-space: nowrap; }
-.child-tab.active { color: var(--accent); border-color: #bdb1dc; background: #f5f1ff; }
-.child-tab svg { width: 13px; height: 13px; }
-.child-canvas { position: relative; flex: 1; min-height: 0; padding: 0 15px 15px; overflow: auto; }
+.button svg { width: 15px; height: 15px; }
+.segment { display: flex; background: #eaeaf0; padding: 3px; border: 1px solid #dcdde4; border-radius: 7px; gap: 3px; }
+.segment button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; flex: 1; padding: 6px 10px; border-radius: 4px; font-size: 12px; color: #626774; white-space: nowrap; }
+.segment button[aria-pressed="true"] { background: white; color: #333743; box-shadow: 0 1px 3px #27243818; }
+.outer-space { flex: 1; min-height: 0; overflow: hidden; }
+.outer-space[data-presentation="tabs"] { display: flex; }
+.outer-space[data-presentation="tabs"] .workspace-host:not(.selected) { display: none; }
+.outer-space[data-presentation="windows"] { display: flex; gap: 12px; padding: 12px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: stretch; }
+.workspace-host { min-width: 0; flex: 1; display: flex; flex-direction: column; background: #f0f0f5; container-type: inline-size; }
+.outer-space[data-presentation="windows"] .workspace-host { flex: 0 0 calc(50% - 6px); min-width: 430px; border: 1px solid #c9cbd5; border-radius: 9px; overflow: hidden; box-shadow: 0 7px 17px #25253e0b; scroll-snap-align: center; }
+.outer-space[data-presentation="windows"] .workspace-host.selected { border-color: #9889c5; }
+.window-bar { display: none; align-items: center; justify-content: space-between; gap: 4px; padding: 3px 7px; background: #f8f8fc; border-bottom: 1px solid var(--line); }
+.outer-space[data-presentation="windows"] .window-bar { display: flex; }
+.app[data-presentation="windows"] > .app-bar > .workspace-actions { display: none; }
+.window-identity { display: flex; align-items: center; gap: 7px; min-height: 38px; text-align: left; font-size: 13px; }
+.window-identity span { color: var(--muted); font-size: 11px; }
+.compact-view-bar { display: none; align-items: center; gap: 4px; min-height: 46px; padding: 2px 8px; border-bottom: 1px solid var(--line); background: #f5f2fb; }
+.view-picker { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; min-height: 40px; padding: 6px; text-align: left; border-radius: 5px; font-size: 13px; }
+.view-picker strong { font-weight: 550; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron-down { width: 12px; height: 12px; transform: rotate(90deg); }
+.child-canvas { position: relative; flex: 1; min-height: 0; padding: 12px; overflow: auto; }
 .child-canvas[data-layout="tiles"] { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(0,1fr); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 12px; }
 .child-canvas[data-layout="tiles"].one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .child-canvas[data-layout="tiles"].two { grid-template-rows: 1fr; }
@@ -79,41 +78,26 @@ h1, h2, h3, p { margin: 0; }
 .child-canvas[data-layout="focus"] { display: flex; }
 .child-canvas[data-layout="focus"] .child { width: 100%; }
 .child-canvas[data-layout="focus"] .child:not(.focused) { display: none; }
-.child-canvas[data-layout="float"] { background-image: radial-gradient(#c7c6d1 .7px,transparent .7px); background-size: 16px 16px; margin: 0 15px 15px; padding: 0; border: 1px solid #dedde7; border-radius: 8px; overflow: hidden; }
+.child-canvas[data-layout="float"] { background-image: radial-gradient(#c7c6d1 .7px,transparent .7px); background-size: 16px 16px; margin: 12px; padding: 0; border: 1px solid #dedde7; border-radius: 8px; overflow: hidden; }
 .child-canvas[data-layout="float"] .child { position: absolute; box-shadow: 0 9px 25px #2a224b20; }
-.child { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #d2d4de; background: white; border-radius: 8px; overflow: hidden; }
+.child { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid #d2d4de; background: white; border-radius: 7px; overflow: hidden; }
 .child.focused { border-color: #a18dcf; box-shadow: 0 0 0 1px #a18dcf1a; }
-.child-titlebar { min-height: 37px; display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 2px 5px 2px 11px; background: #fafafd; border-bottom: 1px solid #e4e4ec; }
+.child-titlebar { min-height: 43px; display: flex; align-items: center; gap: 3px; padding: 2px 4px; background: #fafafd; border-bottom: 1px solid #e4e4ec; }
 .child.focused .child-titlebar { background: #f1edf9; }
-.child-title { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; min-height: 31px; text-align: left; padding: 2px 0; color: #4e5360; font-size: 11px; }
+.child-title { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1; min-height: 36px; text-align: left; padding: 5px; border-radius: 4px; color: #4e5360; font-size: 13px; }
 .child-title strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.child-title svg { width: 14px; height: 14px; color: #6d6288; }
-.child-kind { font-size: 9px; color: #626774; white-space: nowrap; }
-.child-controls { display: flex; align-items: center; gap: 1px; }
-.child-controls .icon-button { width: 27px; height: 27px; }
-.child-controls svg { width: 13px; height: 13px; }
+.child-title .chevron-down { margin-left: 3px; }
 .child-canvas[data-layout="float"] [data-drag] { cursor: grab; touch-action: none; }
 .child-canvas[data-layout="float"] [data-drag]:active { cursor: grabbing; }
 .child-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-.child-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; gap: 8px; border-bottom: 1px solid var(--line); min-height: 54px; }
-.child-toolbar .segment { padding: 2px; }
-.child-toolbar .segment button { font-size: 9px; min-height: 27px; padding: 5px 7px; }
-.child-toolbar .button { font-size: 10px; min-height: 31px; padding: 6px 8px; }
-.reviewed { color: #28704e; font-size: 10px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-.reviewed svg { width: 13px; height: 13px; }
-.file-list { display: flex; gap: 3px; align-items: center; padding: 5px 9px; overflow-x: auto; min-height: 34px; border-bottom: 1px solid #e9e9ee; flex-shrink: 0; }
-.file-list button { padding: 5px 7px; border-radius: 4px; font-size: 10px; color: #626774; white-space: nowrap; min-height: 25px; }
-.file-list button[aria-current="true"] { color: var(--accent); background: var(--tint); }
-.file-list small { font-size: 10px; color: #28704e; padding: 5px; }
-.comparison { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 9px 13px; background: #faf8fe; border-bottom: 1px solid #eeeaf7; color: #65577f; font-size: 10px; line-height: 1.5; }
-.comparison strong { font-weight: 550; }
-.comparison button { color: var(--accent); font-size: 10px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; padding: 4px 0; }
+.child-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; gap: 8px; border-bottom: 1px solid var(--line); min-height: 48px; background: #fff; }
+.comparison-button { display: flex; align-items: center; gap: 7px; min-height: 36px; min-width: 0; padding: 5px 3px; text-align: left; color: #65577f; font-size: 12px; line-height: 1.35; }
+.reviewed { color: #28704e; font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.compact-only { display: none; }
 .pane-scroll { overflow: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
-.diff-meta { padding: 12px 13px; color: #626774; font-size: 9px; display: flex; justify-content: space-between; gap: 10px; }
-.diff-stats { color: #28704e; white-space: nowrap; font-family: ui-monospace,SFMono-Regular,monospace; }
-.diff-table { width: 100%; border-collapse: collapse; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size: 10px; line-height: 23px; }
+.diff-table { width: 100%; border-collapse: collapse; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size: 12px; line-height: 25px; }
 .diff-table td { padding: 0; vertical-align: top; }
-.diff-table .num { min-width: 29px; width: 29px; padding: 0 6px; text-align: right; color: #626774; font-size: 9px; user-select: none; }
+.diff-table .num { min-width: 30px; width: 30px; padding: 0 5px; text-align: right; color: #626774; font-size: 10px; user-select: none; }
 .diff-table .sign { min-width: 20px; width: 20px; text-align: center; user-select: none; }
 .diff-table .code { white-space: pre; padding-right: 18px; color: #4e5563; }
 .diff-table .add { background: #edf7f0; }
@@ -122,135 +106,105 @@ h1, h2, h3, p { margin: 0; }
 .diff-table .delete .code, .diff-table .delete .sign { color: #8b443f; }
 .diff-table .add .num { background: #e2f0e6; color: #4c705b; }
 .diff-table .delete .num { background: #f9e5e2; color: #875e5a; }
-.code-end { padding: 18px 13px 30px; color: #626774; font-size: 9px; }
-.empty-state { max-width: 360px; margin: auto; padding: 48px 22px; text-align: center; }
-.empty-state h2 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; margin-bottom: 9px; }
-.empty-state p { color: #626774; font-size: 11px; line-height: 1.8; margin-bottom: 15px; }
+.code-end { padding: 18px 13px 30px; color: #626774; font-size: 11px; }
+.empty-state { max-width: 360px; margin: auto; padding: 35px 20px; text-align: center; }
+.empty-state h2 { font-size: 16px; font-weight: 600; letter-spacing: -.2px; margin-bottom: 9px; }
+.empty-state p { color: #626774; font-size: 12px; line-height: 1.7; margin-bottom: 15px; }
 .check-circle { display: grid; place-items: center; width: 39px; height: 39px; margin: 0 auto 14px; border-radius: 50%; background: #e8f3ed; color: #28704e; }
-.source-select { max-width: 70%; padding: 6px 7px; border: 1px solid #d2d4dc; border-radius: 5px; font-size: 11px; background: #fff; }
-.source-note { padding: 8px 13px; font-size: 10px; color: #626774; background: #fafafd; border-bottom: 1px solid #e9e9ef; }
-.search-content { padding: 16px; overflow: auto; flex: 1; }
-.search-content h2 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
-.search-content p { color: #626774; font-size: 11px; line-height: 1.7; margin-top: 7px; }
-.search-form { display: flex; gap: 6px; margin: 16px 0; }
-.search-form input { min-width: 0; flex: 1; border: 1px solid #ccc7dc; border-radius: 6px; padding: 9px; font-size: 12px; }
+.source-select { min-width: 0; flex: 1; max-width: 75%; padding: 7px; border: 1px solid #d2d4dc; border-radius: 5px; font-size: 13px; background: #fff; }
+.search-content { padding: 12px; overflow: auto; flex: 1; }
+.search-content p { color: #626774; font-size: 12px; line-height: 1.7; margin-top: 7px; }
+.search-form { display: flex; gap: 7px; margin: 0 0 12px; }
+.search-form input { min-width: 0; flex: 1; min-height: 40px; border: 1px solid #ccc7dc; border-radius: 6px; padding: 9px; font-size: 13px; }
 .search-result { display: block; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 6px; margin-top: 10px; background: #fff; }
 .search-result:hover { background: #faf8ff; }
-.search-result strong { display: block; font-size: 11px; font-weight: 550; }
-.search-result code { display: block; margin-top: 7px; font-size: 10px; color: #626774; white-space: pre-wrap; overflow-wrap: anywhere; }
-.search-result small { display: block; color: var(--accent); font-size: 9px; margin-top: 8px; }
-.example-search { color: var(--accent); padding: 8px 0; font-size: 11px; text-decoration: underline; }
-.preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
-.simulated-badge { display: inline-flex; align-items: center; gap: 5px; color: #6b536e; font-size: 9px; background: #f7edf7; border: 1px solid #e7d8e7; padding: 3px 5px; border-radius: 4px; white-space: nowrap; }
-.preview-toolbar select { max-width: 120px; padding: 5px; border-radius: 5px; border: 1px solid #d5d1de; background: #fff; font-size: 10px; }
+.search-result strong { display: block; font-size: 13px; font-weight: 550; }
+.search-result code { display: block; margin-top: 7px; font-size: 12px; color: #626774; white-space: pre-wrap; overflow-wrap: anywhere; }
+.search-result small { display: block; color: var(--accent); font-size: 11px; margin-top: 8px; }
+.example-search { color: var(--accent); min-height: 36px; padding: 6px 0; font-size: 12px; text-decoration: underline; }
+.preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.simulated-badge { color: #6b536e; font-size: 11px; background: #f7edf7; border: 1px solid #e7d8e7; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.preview-toolbar select { max-width: 150px; min-height: 36px; padding: 6px; border-radius: 5px; border: 1px solid #d5d1de; background: #fff; font-size: 12px; }
 .preview-stage { background: #f0eef7; flex: 1; min-height: 0; padding: 16px; overflow: auto; }
-.preview-device { border: 1px solid #ccc8db; border-radius: 12px; max-width: 300px; margin: auto; background: #fff; box-shadow: 0 6px 14px #2d244914; padding: 15px; min-height: 190px; }
-.preview-app-name { display: flex; justify-content: space-between; font-size: 13px; font-weight: 650; margin-bottom: 12px; letter-spacing: -.2px; }
-.preview-app-name span { font-size: 9px; font-weight: 400; color: #626774; }
-.preview-search { background: #f3f3f7; border-radius: 6px; padding: 8px; color: #626774; font-size: 10px; margin-bottom: 10px; }
-.preview-item { padding: 9px 0; border-bottom: 1px solid #ededf2; display: flex; gap: 8px; align-items: center; font-size: 11px; }
-.preview-item svg { color: #7b688f; width: 14px; height: 14px; }
-.preview-item small { display: block; margin-top: 4px; font-size: 9px; color: #626774; }
-.preview-empty { text-align: center; padding: 25px 10px; color: #626774; font-size: 11px; line-height: 1.8; }
+.preview-device { border: 1px solid #ccc8db; border-radius: 12px; max-width: 320px; margin: auto; background: #fff; box-shadow: 0 6px 14px #2d244914; padding: 16px; min-height: 190px; }
+.preview-app-name { display: flex; justify-content: space-between; font-size: 15px; font-weight: 650; margin-bottom: 12px; }
+.preview-search { background: #f3f3f7; border-radius: 6px; padding: 9px; color: #626774; font-size: 12px; margin-bottom: 10px; }
+.preview-item { padding: 10px 0; border-bottom: 1px solid #ededf2; display: flex; gap: 9px; align-items: center; font-size: 13px; }
+.preview-item svg { color: #7b688f; }
+.preview-item small { display: block; margin-top: 4px; font-size: 11px; color: #626774; }
+.preview-empty { text-align: center; padding: 25px 10px; color: #626774; font-size: 12px; line-height: 1.8; }
 .preview-empty strong { display: block; color: #4a4358; }
-.preview-footnote { font-size: 9px; text-align: center; color: #626774; padding-top: 12px; }
-.resize-handle { display: none; position: absolute; bottom: 2px; right: 2px; width: 24px; height: 24px; background: #f3effa; color: #796b94; border-radius: 5px; cursor: nwse-resize; touch-action: none; z-index: 5; }
+.resize-handle { display: none; position: absolute; bottom: 2px; right: 2px; width: 28px; height: 28px; background: #f3effa; color: #796b94; border-radius: 5px; cursor: nwse-resize; touch-action: none; z-index: 5; }
 .child-canvas[data-layout="float"] .resize-handle { display: grid; place-items: center; }
-.resize-handle svg { width: 13px; height: 13px; }
-.workspace-status { display: flex; justify-content: space-between; gap: 10px; align-items: center; min-height: 28px; padding: 0 16px; border-top: 1px solid #dedee7; background: #fafafd; font-size: 9px; color: #626774; }
-.workspace-status span { display: inline-flex; align-items: center; gap: 5px; }
-.workspace-status svg { width: 11px; height: 11px; }
-.lab-note { max-width: 1556px; margin: auto; display: flex; justify-content: space-between; gap: 20px; padding: 10px 22px; font-size: 10px; line-height: 1.6; color: #626774; }
-.lab-note strong { color: #464b58; font-weight: 550; }
-dialog { width: min(460px,calc(100% - 32px)); padding: 22px; border: 1px solid #d7d4e0; border-radius: 12px; box-shadow: 0 20px 80px #29203933; color: var(--ink); }
+.resize-handle svg { width: 14px; height: 14px; }
+dialog { width: min(460px,calc(100% - 28px)); max-height: calc(100dvh - 36px); padding: 20px; border: 1px solid #d7d4e0; border-radius: 12px; box-shadow: 0 20px 80px #29203933; color: var(--ink); }
 dialog::backdrop { background: #2a283955; }
-.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 dialog h2 { font-size: 18px; font-weight: 600; letter-spacing: -.35px; }
-dialog p { font-size: 12px; color: #626774; line-height: 1.7; }
-.view-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 19px; }
-.view-option { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; border: 1px solid #dcd9e5; border-radius: 8px; padding: 16px; min-height: 105px; }
+dialog h3 { font-size: 13px; margin: 18px 0 8px; font-weight: 600; }
+dialog p { font-size: 13px; color: #626774; line-height: 1.65; }
+.view-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.view-option { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; border: 1px solid #dcd9e5; border-radius: 8px; padding: 14px; min-height: 102px; }
 .view-option:hover { background: #f6f2fe; border-color: #b6a6d9; }
 .view-option svg { color: var(--accent); }
-.view-option strong { font-size: 12px; font-weight: 600; }
-.view-option small { color: #626774; font-size: 10px; line-height: 1.5; }
-dialog label { display: block; font-size: 12px; margin-top: 18px; margin-bottom: 8px; }
+.view-option strong { font-size: 13px; font-weight: 600; }
+.view-option small { color: #626774; font-size: 12px; line-height: 1.5; }
+dialog label { display: block; font-size: 13px; margin-top: 18px; margin-bottom: 8px; }
 dialog textarea { width: 100%; min-height: 130px; padding: 10px; border: 1px solid #cbc7d7; border-radius: 6px; font-size: 13px; line-height: 1.7; }
-.dialog-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; color: #626774; font-size: 10px; }
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 28px); padding: 11px 16px; background: #2b2935; color: #fff; border-radius: 8px; box-shadow: 0 4px 18px #21183130; font-size: 11px; z-index: 100; pointer-events: none; }
+.dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; color: #626774; font-size: 12px; }
+.menu-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.menu-row { display: flex; align-items: center; gap: 5px; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; border: 1px solid transparent; border-radius: 6px; padding: 9px; font-size: 13px; text-align: left; }
+.menu-item:hover, .menu-item[aria-current="true"] { background: var(--tint); border-color: #d2c5eb; }
+.menu-item span { min-width: 0; flex: 1; }
+.menu-item small { display: block; color: #626774; font-size: 11px; margin-top: 3px; }
+.metadata { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px 12px; margin: 14px 0; font-size: 12px; line-height: 1.5; }
+.metadata dt { color: #626774; }.metadata dd { margin: 0; overflow-wrap: anywhere; }
+.workspace-title { font-size: 15px; font-weight: 550; line-height: 1.5; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 28px); padding: 11px 16px; background: #2b2935; color: #fff; border-radius: 8px; box-shadow: 0 4px 18px #21183130; font-size: 12px; z-index: 100; pointer-events: none; }
 .toast:empty { display: none; }
-@container (max-width: 1000px) {
- .app-bar { gap: 10px; padding: 0 12px; }
- .workspace-tab { padding: 0 10px; min-width: 110px; }
- .workspace-tab .tab-title { max-width: 125px; }
- .workspace-heading { padding: 16px 17px 14px; gap: 8px; }
- .workspace-heading h1 { font-size: 17px; }
- .workspace-actions .button { width: 33px; padding: 5px; }
- .workspace-actions .button .label { display: none; }
-}
+.workspace-host[data-layout="focus"] .compact-view-bar { display: flex; }
+.child-canvas[data-layout="focus"] .child-titlebar { display: none; }
+.child-canvas[data-layout="focus"] .compact-only { display: flex; }
 @container (max-width: 680px) {
- .workspace-heading { padding: 14px 13px; }
- .workspace-heading h1 { font-size: 16px; }
- .workspace-heading .overline { font-size: 8px; margin-bottom: 6px; }
- .workspace-meta { font-size: 9px; gap: 6px; margin-top: 8px; }
- .workspace-actions { gap: 2px; }
- .workspace-actions .button { width: 36px; min-height: 42px; }
- .workspace-tools { padding: 7px 11px; min-height: 51px; }
- .layout-controls { display: none; }
- .compact-label { display: inline; }
- .child-shelf { padding: 0 11px 9px; }
- .child-tab { min-height: 38px; }
- .child-canvas, .child-canvas[data-layout="tiles"], .child-canvas[data-layout="float"] { display: flex; padding: 0 10px 10px; margin: 0; background-image: none; border: 0; border-radius: 0; overflow: hidden; }
- .child-canvas .child { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: 100% !important; box-shadow: none; }
+ .compact-view-bar { display: flex; }
+ .child-titlebar { display: none; }
+ .compact-only { display: flex; }
+ .child-canvas, .child-canvas[data-layout="tiles"], .child-canvas[data-layout="float"] { display: flex; padding: 0; margin: 0; background-image: none; border: 0; border-radius: 0; overflow: hidden; }
+ .child-canvas .child { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: 100% !important; box-shadow: none; border: 0; border-radius: 0; }
  .child-canvas .child:not(.focused) { display: none; }
  .child-canvas .resize-handle { display: none; }
- .child-titlebar { min-height: 42px; }
- .child-title { min-height: 36px; }
- .child-controls .icon-button { width: 31px; min-height: 36px; }
- .child-toolbar { padding: 8px 10px; min-height: 56px; }
- .child-toolbar .button { min-height: 38px; font-size: 10px; }
- .child-toolbar .segment button { min-height: 34px; }
- .file-list { min-height: 42px; padding: 2px 7px; }
- .file-list button { min-height: 36px; }
- .comparison { padding: 7px 11px; min-height: 44px; font-size: 9px; }
- .comparison button { min-height: 30px; font-size: 9px; }
- .workspace-status { padding: 0 12px; }
- .source-select { min-height: 38px; }
- .preview-toolbar select { min-height: 36px; }
- .preview-device { margin-top: 5px; }
+ .icon-button, .button, .view-picker, .comparison-button, .source-select, .preview-toolbar select { min-height: 44px; }
+ .icon-button { width: 44px; }
+ .child-toolbar { padding: 3px 8px; gap: 6px; }
+ .child-toolbar .button { padding: 7px 9px; }
+ .comparison-button { font-size: 12px; flex: 1; }
+ .preview-toolbar { padding: 3px 10px; }
+ .search-form input { min-height: 44px; }
 }
 @container (max-width: 520px) {
- .app-bar { flex-wrap: wrap; min-height: 84px; padding: 0 10px 7px; gap: 0 10px; }
- .brand { font-size: 17px; height: 39px; }
- .brand-mark { font-size: 30px; }
- .outer-controls { margin-left: auto; order: 1; }
- .workspace-tabs { order: 2; flex-basis: 100%; height: 37px; }
- .workspace-tab { flex: 1; max-width: none; min-height: 37px; font-size: 10px; padding: 0 7px; }
- .workspace-tab .tab-title { max-width: 104px; }
- .workspace-tab .pr-number { font-size: 9px; }
- .outer-space[data-presentation="windows"] { padding: 9px; gap: 10px; }
+ .app-bar { gap: 2px; padding: 0 4px; }
+ .workspace-tab { padding: 0 7px; gap: 5px; font-size: 12px; flex: 1; }
+ .workspace-tab svg { display: none; }
+ .workspace-actions .icon-button { width: 44px; min-height: 44px; }
+ .outer-space[data-presentation="windows"] { padding: 7px; gap: 8px; }
  .outer-space[data-presentation="windows"] .workspace-host { min-width: 100%; flex-basis: 100%; }
- .workspace-status .status-detail { display: none; }
 }
 @media (max-width: 650px) {
- .lab { padding: 10px 12px 9px; gap: 6px; }
- .lab-title { gap: 6px; }
- .lab-title > .study-title, .lab-controls label { display: none; }
- .sample { font-size: 8px; }
- .lab-controls { gap: 7px; }
+ .lab { padding: 0 12px; height: 44px; }
+ .prototype-controls summary { gap: 7px; }
  .stage { width: 100%; }
- .app { border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 106px); min-height: 500px; }
- .lab-note { padding: 8px 12px; font-size: 9px; }
- .lab-note > span:last-child { display: none; }
- .toast { bottom: 60px; }
+ .app { border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 44px); min-height: 400px; }
+ .prototype-panel .button, .prototype-panel select, dialog .button, dialog .icon-button, dialog .segment button { min-height: 44px; }
+ dialog .icon-button { width: 44px; }
 }
 </style>
 </head>
 <body>
-<header class="lab"><div class="lab-title"><strong>Mobius</strong><span class="study-title">/ Workspace study 02</span><span class="sample">Sample data</span></div><div class="lab-controls"><label for="viewport">Canvas</label><select id="viewport" aria-label="Canvas width"><option value="auto">Auto</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><button data-action="reset">Reset</button></div></header>
+<header class="lab"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><details id="prototype-controls" class="prototype-controls"><summary><span class="sample">Sample data</span><span>Controls</span></summary><div class="prototype-panel"><h2>Prototype controls</h2><div class="prototype-row"><label for="viewport">Canvas</label><select id="viewport" aria-label="Canvas width"><option value="auto">Auto</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select></div><div class="prototype-row"><span>PR #42</span><button class="button" data-action="push" data-workspace="42" aria-label="Simulate push for PR 42">Simulate push</button></div><div class="prototype-row"><span>PR #43</span><button class="button" data-action="push" data-workspace="43" aria-label="Simulate push for PR 43">Simulate push</button></div><button class="button" data-action="reset">Reset</button><p>Offline sample session. Previews are simulated; no code is running.</p></div></details></header>
 <main id="stage" class="stage" data-size="auto" aria-label="Mobius workspace prototype"><div id="app" class="app"></div></main>
-<footer class="lab-note"><span><strong>A workspace holds the whole investigation.</strong> Add another view, arrange it, then switch PRs or try workspace windows.</span><span>In-memory study · previews are simulated</span></footer>
 <dialog id="modal" aria-labelledby="modal-title"></dialog>
-<p id="arrange-help" class="sr-only">In floating layout, drag a view title to move it. Arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
+<p id="arrange-help" class="sr-only">In floating layout, drag a view icon to move it. Arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script>
 
@@ -402,6 +356,7 @@ Object.assign(icons, {
  focus: '<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
  preview: '<rect x="5" y="2" width="14" height="20" rx="3"/><path d="M10 5h4M11 19h2"/>',
  resize: '<path d="m8 20 12-12M14 20l6-6"/>',
+ more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
  close: '<path d="m6 6 12 12M18 6 6 18"/>'
 });
 const kindLabels = {review:'Review', source:'Source', search:'Research', preview:'Preview'};
@@ -452,42 +407,48 @@ function diffTable(prepared, offset=1) {
  let oldLine=offset, newLine=offset;
  return `<table class="diff-table" aria-label="Code comparison"><thead class="sr-only"><tr><th>Old line</th><th>New line</th><th>Change</th><th>Code</th></tr></thead><tbody>${prepared.map(row => `<tr class="${row.kind}"><td class="num">${row.kind === 'add' ? '' : oldLine++}</td><td class="num">${row.kind === 'delete' ? '' : newLine++}</td><td class="sign">${row.kind === 'add' ? '+' : row.kind === 'delete' ? '−' : ''}</td><td class="code">${escapeHTML(row.text) || ' '}</td></tr>`).join('')}</tbody></table>`;
 }
+function comparisonLabel(workspace,view) {
+ const state=fileState(workspace,view.state.file);
+ return view.state.mode==='remaining' && state==='changed' ? `New edits since v${workspace.reviewed[view.state.file]}` : view.state.mode==='remaining' && state==='reviewed' ? 'No remaining changes' : 'Full PR diff';
+}
 function renderReview(workspace, view) {
- const {file,mode}=view.state;
- const state=fileState(workspace,file), remaining=remainingCount(workspace);
- const incremental=mode === 'remaining' && state === 'changed', caughtUp=mode === 'remaining' && state === 'reviewed';
- const prepared=incremental ? adaptFixture(workspace,file === 'Parser.swift' ? parserNew : storeNew) : allDiffRows(workspace,file);
- const visibleFiles=files.filter(name => mode === 'full' || fileState(workspace,name) !== 'reviewed');
+ const {file,mode}=view.state, state=fileState(workspace,file);
+ const incremental=mode==='remaining' && state==='changed', caughtUp=mode==='remaining' && state==='reviewed';
+ const prepared=incremental ? adaptFixture(workspace,file==='Parser.swift'?parserNew:storeNew) : allDiffRows(workspace,file);
  const control=attributes(workspace,view);
- return `<div class="child-toolbar"><div class="segment" aria-label="Comparison for ${viewName(view)}"><button ${control} data-action="comparison" data-mode="remaining" aria-pressed="${mode === 'remaining'}">Remaining ${remaining}</button><button ${control} data-action="comparison" data-mode="full" aria-pressed="${mode === 'full'}">Full PR diff</button></div>${state === 'reviewed' ? `<span class="reviewed">${icon('check')} Reviewed</span>` : `<button class="button primary" ${control} data-action="review">Mark reviewed</button>`}</div><nav class="file-list" aria-label="${mode === 'remaining' ? 'Remaining' : 'All PR'} files for ${viewName(view)}">${visibleFiles.length ? visibleFiles.map(name => `<button ${control} data-action="file" data-file="${name}" ${name === file ? 'aria-current="true"' : ''}>${name}</button>`).join('') : '<small>All files are up to date</small>'}</nav><div class="comparison"><span><strong>${incremental ? `New edits since v${workspace.reviewed[file]}` : caughtUp ? 'No remaining changes' : 'Full PR diff'}</strong>${state === 'unreviewed' ? ' · unreviewed' : incremental ? ` → v${workspace.version}` : ` · last marked v${workspace.reviewed[file]}`}</span><button ${control} data-action="comparison" data-mode="${mode === 'full' ? 'remaining' : 'full'}">${mode === 'full' ? 'Remaining work' : 'View full PR diff'}</button></div><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${file} diff in ${viewName(view)}">${caughtUp ? `<div class="empty-state"><div class="check-circle">${icon('check')}</div><h2>${file} is caught up</h2><p>Your progress is shared with every review view in PR #${workspace.number}. This view stays on ${file}.</p><button class="button" ${control} data-action="comparison" data-mode="full">View full PR diff</button></div>` : `<div class="diff-meta"><span>${incremental ? `Reviewed v${workspace.reviewed[file]} → current v${workspace.version}` : `PR base → current v${workspace.version}`}</span><span class="diff-stats">+${prepared.filter(row => row.kind === 'add').length} / −${prepared.filter(row => row.kind === 'delete').length}</span></div>${diffTable(prepared,incremental ? (file === 'Parser.swift' ? 13 : 10) : 1)}<div class="code-end">End of ${incremental ? 'new edits' : 'file'} · prepared sample comparison</div>`}</div>`;
+ return `<div class="child-toolbar"><button class="icon-button compact-only" ${control} data-action="files" aria-label="Choose file for ${viewName(view)}" aria-haspopup="dialog">${icon('folder')}</button><button class="comparison-button" ${control} data-action="comparison-menu" aria-label="${comparisonLabel(workspace,view)}. Comparison for ${viewName(view)}" aria-haspopup="dialog"><span>${comparisonLabel(workspace,view)}</span>${icon('chevron')}</button>${state==='reviewed'?`<span class="reviewed">${icon('check')} Reviewed</span>`:`<button class="button primary" ${control} data-action="review">Mark reviewed</button>`}</div><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${file} diff in ${viewName(view)}">${caughtUp?`<div class="empty-state"><div class="check-circle">${icon('check')}</div><h2>${file} is caught up</h2><p>Last marked reviewed at v${workspace.reviewed[file]}.</p><button class="button" ${control} data-action="comparison" data-mode="full">View full PR diff</button></div>`:`${diffTable(prepared,incremental?(file==='Parser.swift'?13:10):1)}<div class="code-end">End of ${incremental?'new edits':'file'} · sample comparison</div>`}</div>`;
 }
 function renderSource(workspace,view) {
  const control=attributes(workspace,view);
- return `<div class="child-toolbar"><select class="source-select" ${control} data-control="source-file" aria-label="Source file for ${viewName(view)}">${['Reference.swift',...files].map(file => `<option ${file === view.state.file ? 'selected' : ''}>${file}</option>`).join('')}</select>${view.state.file !== 'Reference.swift' ? `<button class="button" ${control} data-action="review-source">Review file</button>` : `<span class="child-kind">v${workspace.version}</span>`}</div><p class="source-note">PR #${workspace.number} source · reading does not mark reviewed</p><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${view.state.file} source in ${viewName(view)}">${diffTable(sourceText(workspace,view.state.file).split('\n').map(text => ({kind:'context',text})))}<div class="code-end">Sample source · version ${workspace.version}</div></div>`;
+ return `<div class="child-toolbar compact-only"><select class="source-select" ${control} data-control="source-file" aria-label="Source file for ${viewName(view)}">${['Reference.swift',...files].map(file=>`<option ${file===view.state.file?'selected':''}>${file}</option>`).join('')}</select>${view.state.file!=='Reference.swift'?`<button class="button" ${control} data-action="review-source">Review file</button>`:''}</div><div class="pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="${view.state.file} source in ${viewName(view)}">${diffTable(sourceText(workspace,view.state.file).split('\n').map(text=>({kind:'context',text})))}<div class="code-end">Sample source · v${workspace.version}</div></div>`;
 }
 function searchResults(workspace,view) {
- if (!view.state.searched) return `<p>Try <button class="example-search" ${attributes(workspace,view)} data-action="example-search">WorkspaceID</button> to find supporting source.</p>`;
- const query=view.state.query.trim().toLowerCase();
- if (!query) return '<p>Enter a term to search the sample source.</p>';
- const matches=['Reference.swift',...files].map(file => ({file,text:sourceText(workspace,file)})).filter(document => `${document.file} ${document.text}`.toLowerCase().includes(query));
- return `<p>${matches.length} ${matches.length === 1 ? 'file' : 'files'} found · 4 sample files searched</p>${matches.map(document => `<button class="search-result" ${attributes(workspace,view)} data-action="open-source" data-file="${document.file}"><strong>${document.file}</strong><code>${escapeHTML(document.text.split('\n').find(line => line.toLowerCase().includes(query)) || 'Sources / Search')}</code><small>Open in a new source view ↗</small></button>`).join('')}`;
+ if(!view.state.searched)return `<p>Try <button class="example-search" ${attributes(workspace,view)} data-action="example-search">WorkspaceID</button></p>`;
+ const query=view.state.query.trim().toLowerCase();if(!query)return '<p>Enter a term to search the sample source.</p>';
+ const matches=['Reference.swift',...files].map(file=>({file,text:sourceText(workspace,file)})).filter(document=>`${document.file} ${document.text}`.toLowerCase().includes(query));
+ return `<p>${matches.length} ${matches.length===1?'file':'files'} found · 4 sample files searched</p>${matches.map(document=>`<button class="search-result" ${attributes(workspace,view)} data-action="open-source" data-file="${document.file}"><strong>${document.file}</strong><code>${escapeHTML(document.text.split('\n').find(line=>line.toLowerCase().includes(query))||'Sources / Search')}</code><small>Open in a new source view ↗</small></button>`).join('')}`;
 }
 function renderSearch(workspace,view) {
- return `<div class="search-content pane-scroll" data-scroll="${view.id}"><h2>Research in this workspace</h2><p>PR #${workspace.number} · this view keeps its own query. Results open beside your existing work.</p><form class="search-form" ${attributes(workspace,view)}><input id="query-${view.id}" ${attributes(workspace,view)} data-control="query" aria-label="Search query for ${viewName(view)}" value="${escapeHTML(view.state.query)}" placeholder="Search sample source…"><button class="button primary" type="submit">Search</button></form><div data-results="${view.id}">${searchResults(workspace,view)}</div></div>`;
+ return `<div class="search-content pane-scroll" data-scroll="${view.id}"><form class="search-form" ${attributes(workspace,view)}><input id="query-${view.id}" ${attributes(workspace,view)} data-control="query" aria-label="Search query for ${viewName(view)}" value="${escapeHTML(view.state.query)}" placeholder="Search sample source…"><button class="button primary" type="submit">Search</button></form><div data-results="${view.id}">${searchResults(workspace,view)}</div></div>`;
 }
 function renderPreview(workspace,view) {
  const scene=view.state.scene;
- return `<div class="preview-toolbar"><span class="simulated-badge">Simulated preview</span><select ${attributes(workspace,view)} data-control="preview-scene" aria-label="Sample state for ${viewName(view)}"><option value="results" ${scene === 'results' ? 'selected' : ''}>Search results</option><option value="empty" ${scene === 'empty' ? 'selected' : ''}>No results</option><option value="loading" ${scene === 'loading' ? 'selected' : ''}>Loading sample</option></select></div><div class="preview-stage pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="Simulated content for ${viewName(view)}"><div class="preview-device"><div class="preview-app-name">SearchKit <span>PR #${workspace.number}</span></div><div class="preview-search">${icon('search')} ${scene === 'empty' ? 'no matching query' : 'WorkspaceID'}</div>${scene === 'results' ? `<div class="preview-item">${icon('file')}<span>Reference.swift<small>struct WorkspaceID: Hashable</small></span></div><div class="preview-item">${icon('file')}<span>Store.swift<small>Searches belong to a workspace</small></span></div>` : `<div class="preview-empty"><strong>${scene === 'empty' ? 'No matches yet' : 'Searching the repository…'}</strong>${scene === 'empty' ? 'Try a different term or file name.' : 'A prepared loading-state preview.'}</div>`}</div><p class="preview-footnote">Interactive sample state · no code is running</p></div>`;
+ return `<div class="preview-toolbar"><span class="simulated-badge">Simulated</span><select ${attributes(workspace,view)} data-control="preview-scene" aria-label="Sample state for ${viewName(view)}"><option value="results" ${scene==='results'?'selected':''}>Search results</option><option value="empty" ${scene==='empty'?'selected':''}>No results</option><option value="loading" ${scene==='loading'?'selected':''}>Loading sample</option></select></div><div class="preview-stage pane-scroll" data-scroll="${view.id}" tabindex="0" aria-label="Simulated content for ${viewName(view)}"><div class="preview-device"><div class="preview-app-name">SearchKit</div><div class="preview-search">${icon('search')} ${scene==='empty'?'no matching query':'WorkspaceID'}</div>${scene==='results'?`<div class="preview-item">${icon('file')}<span>Reference.swift<small>struct WorkspaceID: Hashable</small></span></div><div class="preview-item">${icon('file')}<span>Store.swift<small>Searches belong to a workspace</small></span></div>`:`<div class="preview-empty"><strong>${scene==='empty'?'No matches yet':'Searching the repository…'}</strong>${scene==='empty'?'Try a different term or file name.':'A prepared loading-state preview.'}</div>`}</div></div>`;
 }
 function renderView(workspace,view) {
- const active=workspace.focused === view.id, control=attributes(workspace,view);
- const frame=workspace.layout === 'float' ? `style="left:${view.frame.x*100}%;top:${view.frame.y*100}%;width:${view.frame.width*100}%;height:${view.frame.height*100}%;z-index:${view.z}"` : '';
- return `<section class="child ${active ? 'focused' : ''}" ${control} data-kind="${view.kind}" data-focused="${active}" ${frame} tabindex="-1" aria-label="${viewName(view)} in PR ${workspace.number}"><header class="child-titlebar"><button class="child-title" ${control} data-action="focus-view" data-drag="true" aria-describedby="arrange-help">${icon(kindIcons[view.kind])}<span class="child-kind">${viewName(view)}</span><strong>${escapeHTML(viewTitle(view))}</strong></button><div class="child-controls"><button class="icon-button" ${control} data-action="focus-layout" aria-label="${workspace.layout === 'focus' ? 'Tile views' : 'Focus '+viewName(view)}">${icon(workspace.layout === 'focus' ? 'tiles' : 'focus')}</button><button class="icon-button" ${control} data-action="close-view" aria-label="Close ${viewName(view)}">${icon('close')}</button></div></header><div class="child-body">${view.kind === 'review' ? renderReview(workspace,view) : view.kind === 'source' ? renderSource(workspace,view) : view.kind === 'search' ? renderSearch(workspace,view) : renderPreview(workspace,view)}</div><button class="resize-handle" ${control} data-resize="true" aria-label="Resize ${viewName(view)}" aria-describedby="arrange-help">${icon('resize')}</button></section>`;
+ const active=workspace.focused===view.id, control=attributes(workspace,view), hasFiles=['review','source'].includes(view.kind);
+ const frame=workspace.layout==='float'?`style="left:${view.frame.x*100}%;top:${view.frame.y*100}%;width:${view.frame.width*100}%;height:${view.frame.height*100}%;z-index:${view.z}"`:'';
+ return `<section class="child ${active?'focused':''}" ${control} data-kind="${view.kind}" data-focused="${active}" ${frame} tabindex="-1" aria-label="${viewName(view)} in PR ${workspace.number}"><header class="child-titlebar"><button class="icon-button" ${control} data-action="focus-view" data-drag="true" aria-label="Focus or move ${viewName(view)}" aria-describedby="arrange-help">${icon(kindIcons[view.kind])}</button><button class="child-title" ${control} data-action="${hasFiles?'files':'focus-view'}" aria-label="${escapeHTML(viewTitle(view))}. ${hasFiles?'Choose file for':'Focus'} ${viewName(view)}" ${hasFiles?'aria-haspopup="dialog"':''}><strong>${escapeHTML(viewTitle(view))}</strong>${hasFiles?icon('chevron'):''}</button><div class="child-controls">${view.kind==='source'&&view.state.file!=='Reference.swift'?`<button class="icon-button" ${control} data-action="review-source" aria-label="Review file" title="Review file">${icon('pr')}</button>`:''}<button class="icon-button" ${control} data-action="focus-layout" aria-label="${workspace.layout==='focus'?'Tile views':'Focus '+viewName(view)}">${icon(workspace.layout==='focus'?'tiles':'focus')}</button><button class="icon-button" ${control} data-action="close-view" aria-label="Close ${viewName(view)}">${icon('close')}</button></div></header><div class="child-body">${view.kind==='review'?renderReview(workspace,view):view.kind==='source'?renderSource(workspace,view):view.kind==='search'?renderSearch(workspace,view):renderPreview(workspace,view)}</div><button class="resize-handle" ${control} data-resize="true" aria-label="Resize ${viewName(view)}" aria-describedby="arrange-help">${icon('resize')}</button></section>`;
 }
+function workspaceActions(workspace) {
+ const control=attributes(workspace);
+ return `<div class="workspace-actions"><button class="icon-button ${workspace.draft?'has-draft':''}" ${control} data-action="draft" aria-label="${workspace.draft?'Draft saved. ':''}Review draft for PR ${workspace.number}" title="Review draft">${icon('comment')}</button><button class="icon-button" ${control} data-action="new-view" aria-label="New view" title="New view">${icon('plus')}</button><button class="icon-button" ${control} data-action="workspace-options" aria-label="Workspace options for PR ${workspace.number}" title="Workspace options" aria-haspopup="dialog">${icon('more')}</button></div>`;
+}
+const shortWorkspace = workspace => workspace.number===42?'Search':'Restore';
 function renderWorkspace(workspace) {
- const control=attributes(workspace), fixture=fixtures[workspace.number];
- const count=workspace.views.length, countClass=count === 1 ? 'one' : count === 2 ? 'two' : count === 3 ? 'three' : 'many';
- return `<section class="workspace-host ${workspace.number === activeWorkspace ? 'selected' : ''}" ${control} aria-label="PR ${workspace.number} workspace"><header class="workspace-heading"><div><div class="overline">${icon('windows')} Workspace · PR #${workspace.number} <span> / northstar</span></div><h1>${fixture.title}</h1><div class="workspace-meta"><span class="open-pill">Open</span><span>${fixture.author}</span><span>·</span><span>version ${workspace.version}</span></div></div><div class="workspace-actions"><button class="button" ${control} data-action="draft" aria-label="${workspace.draft ? 'Draft saved. ' : ''}Review draft for PR ${workspace.number}">${icon('comment')}<span class="label">${workspace.draft ? 'Draft saved' : 'Review draft'}</span></button><button class="button" ${control} data-action="push" aria-label="${workspace.version === 2 ? 'Push applied' : 'Simulate push'} for PR ${workspace.number}" ${workspace.version === 2 ? 'disabled' : ''}>${icon(workspace.version === 2 ? 'check' : 'refresh')}<span class="label">${workspace.version === 2 ? 'Push applied' : 'Simulate push'}</span></button></div></header><div class="workspace-tools"><div class="tools-group"><button class="button" ${control} data-action="new-view">${icon('plus')} New view</button><span class="view-count">${count} ${count === 1 ? 'view' : 'views'}</span></div><div class="segment layout-controls" aria-label="Arrangement for PR ${workspace.number}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','Focus']].map(([value,glyph,label]) => `<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout === value}">${icon(glyph)} ${label}</button>`).join('')}</div><span class="compact-label">Focused view · layout kept</span></div><nav class="child-shelf" aria-label="Views in PR ${workspace.number}">${workspace.views.map(view => `<button class="child-tab ${view.id === workspace.focused ? 'active' : ''}" ${attributes(workspace,view)} data-action="focus-view" ${view.id === workspace.focused ? 'aria-current="true"' : ''}>${icon(kindIcons[view.kind])}${viewName(view)} <span>· ${escapeHTML(viewTitle(view))}</span></button>`).join('')}</nav><div class="child-canvas ${countClass}" ${control} data-layout="${workspace.layout}">${count ? workspace.views.map(view => renderView(workspace,view)).join('') : `<div class="empty-state"><h2>A place for your next question</h2><p>Open a review, source, research, or simulated-preview view. PR progress stays in this workspace.</p><button class="button primary" ${control} data-action="new-view">New view</button></div>`}</div><footer class="workspace-status"><span>${icon('check')} ${3-remainingCount(workspace)} of 3 files up to date</span><span class="status-detail">${workspace.draft ? 'Draft saved · ' : ''}PR #${workspace.number} owns these views</span><span>Sample session</span></footer></section>`;
+ const control=attributes(workspace), count=workspace.views.length, active=focusedView(workspace);
+ const countClass=count===1?'one':count===2?'two':count===3?'three':'many';
+ return `<section class="workspace-host ${workspace.number===activeWorkspace?'selected':''}" ${control} data-layout="${workspace.layout}" aria-label="PR ${workspace.number} workspace"><header class="window-bar"><button class="window-identity" ${control} data-action="workspace">${icon('pr')}${shortWorkspace(workspace)} <span>#${workspace.number}</span></button>${workspaceActions(workspace)}</header>${active?`<div class="compact-view-bar"><button class="view-picker" ${control} data-action="views" aria-label="Views in PR ${workspace.number}. Current ${viewName(active)}: ${escapeHTML(viewTitle(active))}" aria-haspopup="dialog">${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}</button><button class="icon-button" ${attributes(workspace,active)} data-action="close-view" aria-label="Close ${viewName(active)}">${icon('close')}</button></div>`:''}<div class="child-canvas ${countClass}" ${control} data-layout="${workspace.layout}">${count?workspace.views.map(view=>renderView(workspace,view)).join(''):`<div class="empty-state"><h2>No open views</h2><button class="button primary" ${control} data-action="new-view">New view</button></div>`}</div></section>`;
 }
 function captureScroll() {
  document.querySelectorAll('[data-scroll]').forEach(node => {
@@ -505,20 +466,16 @@ function rememberFocus() {
 function restoreFocus(saved) {
  if (!saved || document.getElementById('modal').open) return;
  const target=saved.id ? document.getElementById(saved.id) : [...document.querySelectorAll('button,select,input')].find(node => node.getClientRects().length && Object.entries(saved.data).every(([key,value]) => node.dataset[key] === value));
- (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`) || document.querySelector(`.workspace-host[data-workspace="${activeWorkspace}"] button[data-action="new-view"]`))?.focus({preventScroll:true});
+ (target || document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`) || [...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length))?.focus({preventScroll:true});
 }
 function render() {
- const saved=rememberFocus(); rendering=true;
- document.getElementById('app').innerHTML=`<header class="app-bar"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><nav class="workspace-tabs" aria-label="Workspaces">${Object.values(workspaces).map(workspace => `<button class="workspace-tab ${workspace.number === activeWorkspace ? 'active' : ''}" ${attributes(workspace)} data-action="workspace" ${workspace.number === activeWorkspace ? 'aria-current="true"' : ''}>${icon('pr')}<span class="pr-number">#${workspace.number}</span><span class="tab-title">${workspace.number === 42 ? 'Workspace search' : 'Restore a search'}</span></button>`).join('')}</nav><div class="segment outer-controls" aria-label="Workspace presentation"><button data-action="presentation" data-presentation="tabs" aria-pressed="${presentation === 'tabs'}">${icon('sidebar')} Tabs</button><button data-action="presentation" data-presentation="windows" aria-pressed="${presentation === 'windows'}">${icon('windows')} Windows</button></div></header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
- document.querySelectorAll('[data-scroll]').forEach(node => {
-  const view=Object.values(workspaces).flatMap(workspace => workspace.views).find(item => item.id === node.dataset.scroll);
-  node.scrollTop=view.scroll.top;node.scrollLeft=view.scroll.left;
- });
- if (presentation === 'windows') document.querySelector('.outer-space').scrollLeft=outerScroll;
- restoreFocus(saved);
- document.querySelector(`.child-tab[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
- document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
- rendering=false;
+ const saved=rememberFocus();rendering=true;
+ const app=document.getElementById('app');app.dataset.presentation=presentation;
+ app.innerHTML=`<header class="app-bar"><nav class="workspace-tabs" aria-label="Workspaces">${Object.values(workspaces).map(workspace=>`<button class="workspace-tab ${workspace.number===activeWorkspace?'active':''}" ${attributes(workspace)} data-action="workspace" ${workspace.number===activeWorkspace?'aria-current="true"':''} aria-label="${shortWorkspace(workspace)} #${workspace.number}">${icon('pr')}<span class="tab-title">${shortWorkspace(workspace)}</span><span class="pr-number">#${workspace.number}</span></button>`).join('')}</nav>${workspaceActions(byNumber(activeWorkspace))}</header><div class="outer-space" data-presentation="${presentation}">${Object.values(workspaces).map(renderWorkspace).join('')}</div>`;
+ document.querySelectorAll('[data-scroll]').forEach(node=>{const view=Object.values(workspaces).flatMap(workspace=>workspace.views).find(item=>item.id===node.dataset.scroll);node.scrollTop=view.scroll.top;node.scrollLeft=view.scroll.left;});
+ document.querySelectorAll('.prototype-panel [data-action="push"]').forEach(button=>{const applied=byNumber(button.dataset.workspace).version===2;button.disabled=applied;button.textContent=applied?'Push applied':'Simulate push';button.setAttribute('aria-label',`${button.textContent} for PR ${button.dataset.workspace}`);});
+ if(presentation==='windows')document.querySelector('.outer-space').scrollLeft=outerScroll;
+ restoreFocus(saved);document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});rendering=false;
 }
 function focusView(workspace,view) {
  const resumed=activeWorkspace !== workspace.number || workspace.focused !== view.id;
@@ -530,6 +487,7 @@ function activateWorkspace(workspace) {
  if (view) focusView(workspace,view); else activeWorkspace=workspace.number;
 }
 function paintFocus() {
+ document.querySelectorAll('.workspace-host').forEach(host=>{const owner=byNumber(host.dataset.workspace), active=focusedView(owner), picker=host.querySelector('.view-picker');if(active&&picker){picker.innerHTML=`${icon(kindIcons[active.kind])}<strong>${escapeHTML(viewTitle(active))}</strong>${icon('chevron')}`;picker.setAttribute('aria-label',`Views in PR ${owner.number}. Current ${viewName(active)}: ${viewTitle(active)}`);const close=picker.nextElementSibling;close.dataset.view=active.id;close.setAttribute('aria-label',`Close ${viewName(active)}`);}});
  document.querySelectorAll('.workspace-host,.workspace-tab').forEach(node => {
   const selected=Number(node.dataset.workspace) === activeWorkspace;
   node.classList.toggle(node.classList.contains('workspace-host') ? 'selected' : 'active',selected);
@@ -553,10 +511,32 @@ function toast(message) {
  toastTimer=setTimeout(()=>{document.getElementById('toast').textContent='';},3500);
 }
 function showModal(kind,workspace,opener) {
- dialogContext={kind,number:workspace.number,opener:{...opener.dataset}};
- const modal=document.getElementById('modal');
- modal.innerHTML=`<div class="dialog-heading"><h2 id="modal-title">${kind === 'new-view' ? 'Add a view to PR #'+workspace.number : 'Review draft · PR #'+workspace.number}</h2><button class="icon-button" data-action="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${kind === 'new-view' ? `<p>Every view belongs to this workspace. Open another view of the same kind whenever you need one.</p><div class="view-options">${[['review','Read another file or comparison.'],['source','Browse existing sample code.'],['search','Explore with a separate query.'],['preview','Try simulated app states.']].map(([type,description])=>`<button class="view-option" data-action="create-view" data-kind="${type}">${icon(kindIcons[type])}<strong>${kindLabels[type]}</strong><small>${description}</small></button>`).join('')}</div>` : `<p>A private note shared by your review views. Nothing is sent to GitHub.</p><label for="draft">A thought to come back to</label><textarea id="draft">${escapeHTML(workspace.draft)}</textarea><div class="dialog-footer"><span>Kept in this sample session</span><button class="button primary" data-action="close-modal">Keep draft</button></div>`}`;
- modal.showModal();
+ const previous=dialogContext;
+ dialogContext={kind,number:workspace.number,view:opener.dataset.view,opener:previous?.opener||{...opener.dataset}};
+ const modal=document.getElementById('modal'), view=workspace.views.find(item=>item.id===dialogContext.view), control=attributes(workspace,view);
+ let title,body;
+ if(kind==='new-view') {
+  title=`Add a view · PR #${workspace.number}`;
+  body=`<div class="view-options">${[['review','Read another file or comparison.'],['source','Browse sample code.'],['search','Search with a separate query.'],['preview','Compare simulated app states.']].map(([type,description])=>`<button class="view-option" data-action="create-view" data-kind="${type}">${icon(kindIcons[type])}<strong>${kindLabels[type]}</strong><small>${description}</small></button>`).join('')}</div>`;
+ } else if(kind==='draft') {
+  title=`Review draft · PR #${workspace.number}`;
+  body=`<p>Private session note. Nothing is sent to GitHub.</p><label for="draft">A thought to come back to</label><textarea id="draft">${escapeHTML(workspace.draft)}</textarea><div class="dialog-footer"><span>Saved in this sample session</span><button class="button primary" data-action="close-modal">Keep draft</button></div>`;
+ } else if(kind==='workspace-options') {
+  title=`Workspace · PR #${workspace.number}`;
+  body=`<div class="workspace-title">${fixtures[workspace.number].title}</div><dl class="metadata"><dt>Repository</dt><dd>northstar</dd><dt>Author</dt><dd>${fixtures[workspace.number].author}</dd><dt>Branch</dt><dd>${fixtures[workspace.number].branch}</dd><dt>Revision</dt><dd>Sample v${workspace.version} · open PR</dd><dt>Review progress</dt><dd>${3-remainingCount(workspace)} of 3 files up to date</dd></dl><button class="menu-item" ${control} data-action="views">${icon('windows')}<span>Open views</span>${workspace.views.length}</button><h3>Arrange views</h3><div class="segment" aria-label="Arrangement for PR ${workspace.number}">${[['tiles','tiles','Tile'],['float','windows','Float'],['focus','focus','Focus']].map(([value,glyph,label])=>`<button ${control} data-action="layout" data-layout="${value}" aria-pressed="${workspace.layout===value}">${icon(glyph)} ${label}</button>`).join('')}</div><h3>Workspace presentation</h3><div class="segment" aria-label="Workspace presentation">${[['tabs','sidebar','Tabs'],['windows','windows','Windows']].map(([value,glyph,label])=>`<button data-action="presentation" data-presentation="${value}" aria-pressed="${presentation===value}">${icon(glyph)} ${label}</button>`).join('')}</div><p class="menu-help">Compact widths show one child at a time and retain the wider arrangement.</p>`;
+ } else if(kind==='views') {
+  title=`Views · PR #${workspace.number}`;
+  body=`<div class="menu-list">${workspace.views.map(item=>`<div class="menu-row"><button class="menu-item" ${attributes(workspace,item)} data-action="focus-view" ${item.id===workspace.focused?'aria-current="true"':''}>${icon(kindIcons[item.kind])}<span>${escapeHTML(viewTitle(item))}<small>${viewName(item)}</small></span></button><button class="icon-button" ${attributes(workspace,item)} data-action="close-view" aria-label="Close ${viewName(item)}">${icon('close')}</button></div>`).join('')}</div><button class="menu-item" ${attributes(workspace)} data-action="new-view">${icon('plus')} New view</button>`;
+ } else if(kind==='files') {
+  title=`${view.kind==='review'?'Review':'Source'} files`;
+  const visible=view.kind==='source'?['Reference.swift',...files]:files.filter(file=>view.state.mode==='full'||fileState(workspace,file)!=='reviewed');
+  body=`<div class="menu-list">${visible.length?visible.map(file=>`<button class="menu-item" ${control} data-action="${view.kind==='review'?'file':'source-file'}" data-file="${file}" ${file===view.state.file?'aria-current="true"':''}>${icon('file')}<span>${file}</span></button>`).join(''):'<p>All files are up to date.</p>'}</div>${view.kind==='review'?`<p>${view.state.mode==='remaining'?'Remaining files':'All PR files'} · PR #${workspace.number}</p><button class="menu-item" ${control} data-action="comparison-menu">${icon('pr')} Comparison options</button>`:''}`;
+ } else if(kind==='comparison-menu') {
+  title='Comparison';const baseline=workspace.reviewed[view.state.file];
+  body=`<p>${view.state.file} · ${baseline===null?'not marked reviewed':`last marked v${baseline}`} · current v${workspace.version}</p><div class="menu-list">${[['remaining','Remaining work',`${remainingCount(workspace)} files need review`],['full','Full PR diff','PR base → current revision']].map(([mode,label,detail])=>`<button class="menu-item" ${control} data-action="comparison" data-mode="${mode}" ${view.state.mode===mode?'aria-current="true"':''}><span>${label}<small>${detail}</small></span>${view.state.mode===mode?icon('check'):''}</button>`).join('')}</div>`;
+ }
+ modal.innerHTML=`<div class="dialog-heading"><h2 id="modal-title">${title}</h2><button class="icon-button" data-action="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${body}`;
+ if(!modal.open)modal.showModal();else modal.querySelector('[data-action="close-modal"]').focus();
 }
 function contextFor(node) {
  const workspace=byNumber(node.dataset.workspace || node.closest('.workspace-host')?.dataset.workspace || activeWorkspace);
@@ -569,23 +549,24 @@ document.addEventListener('click',event=>{
  if(view && button.dataset.action !== 'close-view')focusView(workspace,view);
  switch(button.dataset.action) {
  case 'workspace': activateWorkspace(workspace);render();scrollWorkspaceIntoView(workspace);document.querySelector(`.child[data-view="${workspace.focused}"]`)?.focus({preventScroll:true});break;
- case 'presentation': presentation=button.dataset.presentation;render();scrollWorkspaceIntoView(byNumber(activeWorkspace));break;
- case 'focus-view': render();break;
- case 'layout': workspace.layout=button.dataset.layout;activateWorkspace(workspace);render();break;
+ case 'presentation': presentation=button.dataset.presentation;dismissModal('opener');scrollWorkspaceIntoView(byNumber(activeWorkspace));break;
+ case 'focus-view': if(dialogContext)dismissModal('child');else render();break;
+ case 'layout': workspace.layout=button.dataset.layout;activateWorkspace(workspace);dismissModal('opener');break;
  case 'focus-layout': workspace.layout=workspace.layout==='focus'?'tiles':'focus';render();break;
  case 'new-view': activateWorkspace(workspace);paintFocus();showModal('new-view',workspace,button);break;
+ case 'workspace-options': case 'views': case 'files': case 'comparison-menu': showModal(button.dataset.action,workspace,button);break;
  case 'create-view': {const owner=byNumber(dialogContext.number);addView(owner,button.dataset.kind);dismissModal('child');break;}
- case 'close-view': workspace.views=workspace.views.filter(item=>item.id!==view.id);if(workspace.focused===view.id){workspace.focused=null;const next=workspace.views.at(-1);if(next){if(activeWorkspace===workspace.number)focusView(workspace,next);else workspace.focused=next.id;}}render();break;
- case 'file': view.state.file=button.dataset.file;view.scroll={top:0,left:0};render();break;
- case 'comparison': view.state.mode=button.dataset.mode;view.scroll={top:0,left:0};render();break;
+ case 'close-view': workspace.views=workspace.views.filter(item=>item.id!==view.id);if(workspace.focused===view.id){workspace.focused=null;const next=workspace.views.at(-1);if(next){if(activeWorkspace===workspace.number)focusView(workspace,next);else workspace.focused=next.id;}}render();if(dialogContext?.kind==='views')showModal('views',workspace,button);break;
+ case 'file': case 'source-file': view.state.file=button.dataset.file;view.scroll={top:0,left:0};dismissModal('child');break;
+ case 'comparison': view.state.mode=button.dataset.mode;view.scroll={top:0,left:0};if(dialogContext)dismissModal('child');else render();break;
  case 'review': workspace.reviewed[view.state.file]=workspace.version;render();toast(`${view.state.file} reviewed at v${workspace.version} · shared in PR #${workspace.number}`);break;
- case 'push': activateWorkspace(workspace);workspace.version=2;render();toast(`PR #${workspace.number} · new edits in Parser.swift and Store.swift`);break;
+ case 'push': closePrototypeControls();activateWorkspace(workspace);workspace.version=2;render();toast(`PR #${workspace.number} · new edits in Parser.swift and Store.swift`);break;
  case 'open-source': addView(workspace,'source',button.dataset.file);render();break;
  case 'review-source': addView(workspace,'review',view.state.file);render();break;
  case 'example-search': view.state.query='WorkspaceID';view.state.searched=true;render();break;
  case 'draft': activateWorkspace(workspace);paintFocus();showModal('draft',workspace,button);break;
  case 'close-modal': dismissModal('opener');break;
- case 'reset': workspaces={42:newWorkspace(42),43:newWorkspace(43)};activeWorkspace=42;presentation='tabs';outerScroll=0;render();toast('Sample workspaces reset');break;
+ case 'reset': closePrototypeControls();workspaces={42:newWorkspace(42),43:newWorkspace(43)};activeWorkspace=42;presentation='tabs';outerScroll=0;render();toast('Sample workspaces reset');break;
  }
 });
 document.addEventListener('input',event=>{
@@ -612,10 +593,11 @@ function dismissModal(destination) {
  document.getElementById('modal').close();render();
  const opener=previous && [...document.querySelectorAll('button[data-action]')].find(node=>node.getClientRects().length && Object.entries(previous.opener).every(([key,value])=>node.dataset[key]===value));
  const child=document.querySelector(`.child[data-view="${byNumber(activeWorkspace).focused}"]`);
- (destination==='child' ? child : opener || child)?.focus({preventScroll:true});
+ const newView=[...document.querySelectorAll(`button[data-workspace="${activeWorkspace}"][data-action="new-view"]`)].find(node=>node.getClientRects().length);
+ (destination==='child' ? child || newView : opener || child || newView)?.focus({preventScroll:true});
 }
 document.getElementById('modal').addEventListener('cancel',event=>{event.preventDefault();dismissModal('opener');});
-document.getElementById('modal').addEventListener('close',()=>{if(dialogContext)dismissModal('opener');});
+document.getElementById('modal').addEventListener('close',()=>{if(dialogContext&&!document.getElementById('modal').open)dismissModal('opener');});
 
 function focusFromChild(node) {
  const child=node.closest('.child');if(node.closest('[data-action="close-view"]') || !child || rendering || document.getElementById('modal').open)return;
@@ -658,6 +640,11 @@ document.addEventListener('keydown',event=>{
  event.preventDefault();const dx=event.key==='ArrowLeft'?-12/rect.width:event.key==='ArrowRight'?12/rect.width:0,dy=event.key==='ArrowUp'?-12/rect.height:event.key==='ArrowDown'?12/rect.height:0;
  const resize=event.shiftKey||handle.hasAttribute('data-resize');applyFrame(workspace,view,{...view.frame,...(resize?{width:view.frame.width+dx,height:view.frame.height+dy}:{x:view.frame.x+dx,y:view.frame.y+dy})});
 });
+function closePrototypeControls() {
+ const details=document.getElementById('prototype-controls');if(details.open){details.open=false;details.querySelector('summary').focus({preventScroll:true});}
+}
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('prototype-controls').open&&!document.getElementById('modal').open){event.preventDefault();closePrototypeControls();}});
+document.addEventListener('click',event=>{const details=document.getElementById('prototype-controls');if(details.open&&!details.contains(event.target))details.open=false;});
 render();
 </script>
 </body>

@@ -1,0 +1,324 @@
+{
+  "iteration": 3,
+  "verifiedDate": "2026-11-14",
+  "artifact": "index.html",
+  "artifactSHA256": "f2adc670df7668d0c99d79f3ac0d9abeea3df701f56a53e1373de331c2eb274f",
+  "beforeArtifact": {
+    "path": "iteration-02.html",
+    "commit": "e1c1059cf28a2954a0513d2514e7d0b7be9c34dd",
+    "sha256": "78aa083a6350417961967a75ef26788c734b9e3f445d39abbb16e262ec9e3a8b"
+  },
+  "toolchain": {
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "axe": "4.14.0"
+  },
+  "method": {
+    "fixtures": "Initial PR42 Parser full comparison and Parser marked v1 followed by simulated v2 push. Matched viewport, light appearance, deviceScaleFactor 1.",
+    "metrics": "CSS pixels. paneTop/paneHeight measure the scroll container; firstCodeTop measures the code table, separately from earlier iteration metadata inside the pane.",
+    "checks": "Ad hoc browser automation; scripts are not retained CI guards.",
+    "commands": [
+      "mise exec -- node /tmp/mobius-v3-verify.cjs",
+      "mise exec -- node /tmp/mobius-v3-before.cjs",
+      "mise exec -- node /tmp/mobius-v3-captures.cjs",
+      "mise exec -- node /tmp/mobius-v3-standalone.cjs",
+      "mise exec -- node --check /tmp/mobius-v3-inline.js"
+    ]
+  },
+  "before": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "initial": {
+        "paneTop": 490,
+        "paneHeight": 413,
+        "firstCodeTop": 525,
+        "codeFontSize": "10px"
+      },
+      "incremental": {
+        "paneTop": 490,
+        "paneHeight": 413,
+        "firstCodeTop": 525,
+        "codeFontSize": "10px"
+      }
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1112,
+      "initial": {
+        "paneTop": 480.09375,
+        "paneHeight": 534.90625,
+        "firstCodeTop": 515.09375,
+        "codeFontSize": "10px"
+      },
+      "incremental": {
+        "paneTop": 480.09375,
+        "paneHeight": 534.90625,
+        "firstCodeTop": 515.09375,
+        "codeFontSize": "10px"
+      }
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "initial": {
+        "paneTop": 532.59375,
+        "paneHeight": 216.40625,
+        "firstCodeTop": 567.59375,
+        "codeFontSize": "10px"
+      },
+      "incremental": {
+        "paneTop": 532.59375,
+        "paneHeight": 216.40625,
+        "firstCodeTop": 567.59375,
+        "codeFontSize": "10px"
+      }
+    }
+  ],
+  "after": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "initial": {
+        "paneTop": 203,
+        "paneHeight": 765,
+        "firstCodeTop": 203,
+        "codeFontSize": "12px"
+      },
+      "incremental": {
+        "paneTop": 203,
+        "paneHeight": 765,
+        "firstCodeTop": 203,
+        "codeFontSize": "12px"
+      }
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1112,
+      "initial": {
+        "paneTop": 203,
+        "paneHeight": 877,
+        "firstCodeTop": 203,
+        "codeFontSize": "12px"
+      },
+      "incremental": {
+        "paneTop": 203,
+        "paneHeight": 877,
+        "firstCodeTop": 203,
+        "codeFontSize": "12px"
+      }
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "initial": {
+        "paneTop": 195,
+        "paneHeight": 648,
+        "firstCodeTop": 195,
+        "codeFontSize": "12px"
+      },
+      "incremental": {
+        "paneTop": 195,
+        "paneHeight": 648,
+        "firstCodeTop": 195,
+        "codeFontSize": "12px"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "initial compact chrome",
+          "violations": []
+        },
+        {
+          "state": "workspace disclosure",
+          "violations": []
+        },
+        {
+          "state": "prototype controls",
+          "violations": []
+        },
+        {
+          "state": "post-push shared progress and saved draft",
+          "violations": []
+        },
+        {
+          "state": "reopened empty workspace",
+          "violations": []
+        }
+      ]
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1112,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "initial compact chrome",
+          "violations": []
+        },
+        {
+          "state": "workspace disclosure",
+          "violations": []
+        },
+        {
+          "state": "prototype controls",
+          "violations": []
+        },
+        {
+          "state": "post-push shared progress and saved draft",
+          "violations": []
+        },
+        {
+          "state": "reopened empty workspace",
+          "violations": []
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "result": "passed",
+      "errors": [],
+      "externalRequests": [],
+      "axe": [
+        {
+          "state": "initial compact chrome",
+          "violations": []
+        },
+        {
+          "state": "workspace disclosure",
+          "violations": []
+        },
+        {
+          "state": "prototype controls",
+          "violations": []
+        },
+        {
+          "state": "post-push shared progress and saved draft",
+          "violations": []
+        },
+        {
+          "state": "reopened empty workspace",
+          "violations": []
+        }
+      ]
+    }
+  ],
+  "additionalChecks": {
+    "standaloneFileLoadingAndMarkReviewed": "passed",
+    "inlineJavaScriptSyntax": "passed",
+    "iteration2ArchiveExactIdentity": "passed",
+    "initialPhoneVisibleButtonsAtLeast44By44CSSPixels": "passed"
+  },
+  "independentReview": {
+    "reviewedArtifactSHA256": "f2adc670df7668d0c99d79f3ac0d9abeea3df701f56a53e1373de331c2eb274f",
+    "result": "No actionable findings remain after recheck",
+    "fixedFindings": [
+      "After closing every view in the Views dialog, dismissal now focuses visible New view.",
+      "Title button accessible names include the visible filename/title.",
+      "A queued close event from a dismissed dialog cannot dismiss a newly reopened dialog."
+    ],
+    "checks": [
+      "Both final-child dialog dismissal paths",
+      "Five immediate close/reopen/Research/typing/Enter sequences",
+      "Prototype controls after 40 floating-view raises",
+      "Initial, workspace options, prototype controls, and Research at all three viewports: zero axe WCAG 2/2.1 A/AA violations, runtime errors, and document overflow",
+      "Full/incremental labels, retained compact arrangement, inactive-PR menu closure",
+      "Iteration-2 archive byte identity",
+      "Rendered layouts/dialogs visually inspected"
+    ]
+  },
+  "authorCorrection": "Long tablet regression exposed floating-child z-order escaping over the sample-controls popup; explicit stage/lab stacking contexts contain it. Full scenario and independent stress recheck pass.",
+  "captures": [
+    {
+      "path": "desktop-before.png",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "cf56521f29c046b1cdc11a398a5e7c8f9c845555db6e18f3693c1a483c8ddb0c"
+    },
+    {
+      "path": "desktop-after.png",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "c20aa8abc8f1c66d32bc8fce755d8352cd4b910f53e90dea60ce329d860fb6f0"
+    },
+    {
+      "path": "tablet-before.png",
+      "width": 834,
+      "height": 1112,
+      "sha256": "264765dcd889a6630079d900ee96c05c963a868b8dc2e6b1673964515448357d"
+    },
+    {
+      "path": "tablet-after.png",
+      "width": 834,
+      "height": 1112,
+      "sha256": "0466ea6ef35e4d72f6a76fd7f8dce5ee02f9b62a624b6605f44c2f7089744a86"
+    },
+    {
+      "path": "phone-before.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "66411b91a259265ced7e08687bebe39909c1d80062047afa0076c89e1ca55298"
+    },
+    {
+      "path": "phone-after.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "be3412b2986768d6c64a0d1f6a90d15ff3d1ecd86561a96db6a352f529d00d51"
+    },
+    {
+      "path": "phone-incremental.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "bd0d18334c11c2b102cc52e950346a42ba76cc4e600256a41429b1f707107ef3"
+    },
+    {
+      "path": "desktop-windows.png",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "3c6da721575d35190f576aea40ad81a84cde7d7edf2d4e488d8e1da38413778c"
+    },
+    {
+      "path": "tablet-float.png",
+      "width": 834,
+      "height": 1112,
+      "sha256": "e5d25f88641c14ce5ececa774e5684558d3dd677cc970b57d476f707d55da1c8"
+    },
+    {
+      "path": "phone-preview.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "b45cea126ae806b786c15eac7c30a8ad29d1367c284d6bd68d2950ebf91b93af"
+    },
+    {
+      "path": "phone-options.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "e5cc09adb0ec05c36ba3252d574a9bc161d08246b8584cc059204c641d10ec85"
+    }
+  ],
+  "limits": [
+    "Native runtime, VoiceOver, actual execution, Git comparison, durability, provider, and sync are not exercised.",
+    "Default repository web lint globs do not cover this HTML. Native tests/snapshots and SwiftFormat were not run for the browser-only slice.",
+    "Third user evaluation is pending; automated evidence does not complete the experiment."
+  ]
+}

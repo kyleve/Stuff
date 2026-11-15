@@ -218,16 +218,36 @@ Parent coordination rebased the unchanged first-pass artifact/readiness record o
 - Readiness disposition: `draft` → `ready` after review, then `ready` → `executing` under the user's explicit rebuild request. Implementation evidence and third-round feedback remain pending.
 
 - [x] Review the compact-chrome method and record readiness.
-- [ ] Rebuild compact controls while retaining all existing capabilities.
-- [ ] Repeat the three-size regression scenario and exercise disclosed controls.
-- [ ] Record fresh independent review, content-space comparison, and iteration-3 captures.
+- [x] Rebuild compact controls while retaining all existing capabilities.
+- [x] Repeat the three-size regression scenario and exercise disclosed controls.
+- [x] Record fresh independent review, content-space comparison, and iteration-3 captures.
 - [ ] Publish the coordinated stack update and current issue evidence.
 - [ ] Collect and integrate third-round user feedback.
 
+### Iteration 3 implementation and evidence
+
+The revised [artifact](Prototype/index.html) consolidates workspace identity/actions, removes repeated teaching/status bands, and uses concise child/file titles. Workspace options disclose full metadata, review progress, child navigation, arrangement, and outer presentation. On compact screens the active child selector supplies the title; review controls retain the actual comparison and explicit mark action. File navigation is disclosed. Canvas, Reset, and both simulated pushes live in a collapsible sample-controls panel. The independent workspace/child model, PR baselines, drafts, and all previous capabilities remain intact.
+
+[Iteration 2's runnable archive](Prototype/iteration-02.html) exactly matches `e1c1059cf28`; both earlier evidence sets remain unchanged. [Iteration-3 verification](Prototype/evidence/iteration-03/verification.json) identifies final HTML SHA256 `f2adc670df7668d0c99d79f3ac0d9abeea3df701f56a53e1373de331c2eb274f`, exact measurements, captures, and observed checks.
+
+| Viewport | Review pane height, before → after | First code-row top, before → after | Matched evidence |
+| --- | --- | --- | --- |
+| 1440 × 1000 | 413 → 765 | 525 → 203 | [Before](Prototype/evidence/iteration-03/desktop-before.png), [after](Prototype/evidence/iteration-03/desktop-after.png). |
+| 834 × 1112 | 535 → 877 | 515 → 203 | [Before](Prototype/evidence/iteration-03/tablet-before.png), [after](Prototype/evidence/iteration-03/tablet-after.png). |
+| 390 × 844 | 216 → 648 | 568 → 195 | [Before](Prototype/evidence/iteration-03/phone-before.png), [after](Prototype/evidence/iteration-03/phone-after.png). |
+
+Values are CSS pixels rounded to the nearest pixel. Initial Parser full comparisons use identical viewport/fixture/appearance; post-push incremental comparisons were separately measured with the same pane geometry. Scroll-pane top and first-code-row top are distinct measurements in the verification JSON. Code text increases from 10px to 12px, and initial phone buttons measure at least 44 × 44px. Additional captures show [new edits on phone](Prototype/evidence/iteration-03/phone-incremental.png), [outer windows](Prototype/evidence/iteration-03/desktop-windows.png), [tablet float](Prototype/evidence/iteration-03/tablet-float.png), [phone preview](Prototype/evidence/iteration-03/phone-preview.png), and [workspace options](Prototype/evidence/iteration-03/phone-options.png).
+
+The complete final-source scenario passed at all three sizes through Playwright 1.64.1 / Chromium 156.0.8078.4. It covers same-kind child identity/navigation, PR isolation/shared baselines, drafts, source-to-review, preview state, outer presentation, arrangement/focus return, review file-top resumption, original remaining/full comparisons, background/inactive-workspace closure, empty-workspace recovery, and Reset. Relocated menus and sample controls were exercised by pointer/touch and keyboard, with Escape/focus return and Canvas changes. Five axe WCAG 2/2.1 A/AA scans per size reported zero violations. No page/console/load errors, external requests, or document overflow occurred. Standalone file loading/marking, inline JavaScript syntax, archive identity, local links, and whitespace checks pass. Checks use ad hoc scripts, not retained CI guards; native suites and default HTML-excluding lint do not establish coverage here.
+
+Fresh independent review confirmed three fixes: final-view dialog dismissal restores visible New view focus; title accessible names retain visible filenames/titles; and queued native close events are ignored while a newly reopened dialog is open. The last failure reproduced when Escape after removing all children was immediately followed by Enter to reopen. Five immediate close → reopen → Research → Enter trials pass after correction. The long tablet scenario also found floating children could cover prototype controls after repeated focus; explicit stacking contexts contain them. The reviewer independently verified controls after 40 view raises, all three sizes and disclosed states, comparison labels, inactive-PR closure, archive identity, and rendered output. No actionable findings remain on the recorded source hash.
+
+The parent readiness update was coordinated onto parent `4b5873d95` at child `3327973404` before UI edits. Commit the verified artifact/evidence at a clean point, let the coordinator record the delivery checkpoint and cascade the stack, then publish current PR/issue/screenshot evidence. Native behavior, VoiceOver, actual execution, provider/durability/sync, and third-round product acceptance remain unverified.
+
 ## Resume point
 
-Coordinate the reviewed iteration-3 readiness checkpoint with the parent, then rebuild and validate the compact controls. Preserve earlier evidence and collect third-round feedback before refining or implementing the native foundation. Coordinate all parent/child history mutations.
+Coordinate the final clean artifact/evidence commit with the parent, then publish PR #500, its existing screenshot comment, and STU-330 evidence. Return the demo/checks/revision to the coordinator for the requested user notification. Preserve earlier evidence and collect third-round feedback before refining or implementing the native foundation. Coordinate all parent/child history mutations.
 
 ## Outcome
 
-First-pass evidence is retained; its evaluation prompted the workspace-model correction. Iteration 2 is built, verified, and published; its evaluation now prompts compact chrome. Iteration 3 is ready and executing under explicit implementation authorization. The experiment remains incomplete until its required feedback is recorded. No native or product acceptance is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
+First-pass evidence is retained; its evaluation prompted the workspace-model correction. Iteration 2 is built, verified, and published; its evaluation now prompts compact chrome. Iteration 3 is built and browser-verified; publication and third-round user evaluation remain pending, so the plan stays `executing`. The experiment remains incomplete until its required feedback is recorded. No native or product acceptance is claimed. [01](01-review-state-foundation.md) remains an outline until the required evidence and user decision are integrated.
