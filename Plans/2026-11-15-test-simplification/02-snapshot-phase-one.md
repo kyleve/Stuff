@@ -1,6 +1,6 @@
 # 02 — Snapshot phase one
 
-- Status: executing
+- Status: complete
 - Depends on: [01](01-unit-tests-and-guidance.md)
 - Shared context: [Overview](README.md)
 - Requirements: R-03 and R-05; exclusions X-01 and X-02 apply.
@@ -60,7 +60,9 @@ Do not record unrelated differences to complete a matrix reduction.
   Log: `/private/tmp/stuff-test-reduction-phase-one-final.log`.
 - Timing identities match every remaining reference in the five changed suites, including the repeated final MainTabs run.
 - Xcode preview rendering was not exercised. Preview identity and readiness changes received source review and compiled in the test build.
+- Published as `d36763ed8` in [PR #505](https://github.com/kyleve/Stuff/pull/505).
+  STU-20 now records the removal while retaining its unresolved renderer status and historical evidence.
 
 ## Resume point
 
-Verification and review are complete. Publish this phase-one change, then continue with [03](03-snapshot-phase-two.md).
+Complete. Continue with [03](03-snapshot-phase-two.md).

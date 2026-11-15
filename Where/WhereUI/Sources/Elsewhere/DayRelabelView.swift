@@ -258,7 +258,13 @@ struct DayRelabelView: View {
 #if DEBUG
     extension DayRelabelView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenRepresentative) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
+            ) {
                 NavigationStack {
                     DayRelabelView(
                         day: DayPresence(

@@ -1,6 +1,6 @@
 # 03 — Snapshot phase two and remaining candidates
 
-- Status: ready
+- Status: complete
 - Depends on: [02](02-snapshot-phase-one.md)
 - Shared context: [Overview](README.md)
 - Requirements: R-04 and R-05; exclusions X-01 and X-02 apply.
@@ -44,12 +44,32 @@ All 32 proposed reference identities exist at the baseline. Assessment also supp
 | --- | --- |
 | FlightReviewPointRow | Keep Form styling and width unchanged; use five phone traits plus the light tablet baseline for Gap. The parent screen's point disclosure starts collapsed, so its tablet matrices do not replace the expanded row baseline. |
 | PeriscopeViewerHostingTests | Remove both window-exists assertions. Viewer light/dark snapshots exercise its public root; model and stylesheet suites retain query, persistence, and density behavior. The removed tests did not assert comfortable density or loaded content. |
-| Other Periscope hosting families | Retain for now: no equivalent image coverage was found for every tool. Their mount assertions do not establish async completion or store rebinding. |
+| Other Periscope hosting families | Retain for now: no equivalent image coverage was found for every tool. Their mount assertions do not establish async completion or store rebinding. [STU-49](https://linear.app/kve/issue/STU-49) owns the remaining 18 checks across nine files. |
 | Alerts and VisibleYear hosting checks | Retain the existing mount checks because there is no direct image suite for either screen. |
 | PlannedStayEditor | Retain its two representative matrices. NewStay and FlexibleStay render different date-control branches, and flexible arrival/departure adds controls and accessibility labels. Keep overlap and stale-save states. |
 
 Source review did not establish equivalent coverage for the retained candidates. No additional reduction or replacement test is proposed for them.
 
+- Applied all 32 audited removals plus four Gap tablet variants. Every retained PNG remains unchanged.
+- Removed `PeriscopeViewerHostingTests` and its local defaults helper: two fewer test declarations.
+- Final inventory against `2193072f6`: 3,030 → 2,973 unit declarations; 954 → 889 PNGs; 1,011 → 946 reference panels.
+  The 65 deleted references represent 101,888,066 hydrated bytes (97.2 MiB).
+- Swift formatting, diff whitespace, guidance checks, and the 71-suite shard inventory passed.
+- Focused verification passed: 23 Periscope unit tests and 82 reference captures across ten snapshot suites.
+  Emitted timing identities match all remaining references in those suites. No reference was recorded or modified.
+- Command: `./test --record never --timings`, with repeated `--only` for these selections:
+  `PeriscopeToolsTests/PeriscopeViewerModelTests`, `PeriscopeStylesheetTests`, and `PeriscopeStylesheetEnvironmentTests`;
+  `WhereUISnapshotTests/AboutSettingsViewSnapshotTests`, `DataSettingsViewSnapshotTests`, `DevicesSettingsViewSnapshotTests`,
+  `LicenseViewSnapshotTests`, `RegionsSettingsViewSnapshotTests`, `DayRelabelViewSnapshotTests`, `ManualDayViewSnapshotTests`,
+  `LoggedDaysViewSnapshotTests`, and `FlightReviewPointRowSnapshotTests`;
+  `PeriscopeToolsSnapshotTests/PeriscopeViewerSnapshotTests`.
+  Log: `/private/tmp/stuff-test-reduction-phase-two.log`; full output and timing identities were retained alongside it.
+- Independent review against `d36763ed8` found no actionable code issue. It verified every deletion and all 80 retained WhereUI PNG hashes.
+- The review identified STU-49's obsolete blanket snapshot-conversion request. Its partial cleanup and current selection policy are recorded without changing the historical migration manifest.
+- Delivery: the final implementation commit for this plan in [PR #505](https://github.com/kyleve/Stuff/pull/505). STU-332 stays In Review until merge and acceptance verification.
+- The full local suite and physical-device testing were not run: production behavior, capture infrastructure, and image pixels did not change.
+  Final CI status is reported on the PR; no runtime savings are claimed.
+
 ## Resume point
 
-After step 02, apply the eight tablet-matrix reductions, narrow Gap's tablet coverage, and remove the two redundant viewer mount tests.
+Complete. Review [PR #505](https://github.com/kyleve/Stuff/pull/505); no implementation step remains in this series.

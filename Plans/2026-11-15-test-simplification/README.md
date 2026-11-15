@@ -5,10 +5,11 @@
 - Updated: 2026-11-15, baseline `2193072f6a1c988f797c77c14c3b6cf0923d8ca0`.
 - Operation: execute the approved audit recommendations.
 - Authorization: Kyle requested both snapshot phases, guidance improvements, and other supported audit improvements on 2026-11-15.
-- Stage: implementation.
-- Completed: audit and plan review; [01](01-unit-tests-and-guidance.md), verified and published in `7c3a06da1`.
-- Pending: both snapshot passes, remaining candidate assessment, focused verification, and publication.
-- Next action: implement and verify [02](02-snapshot-phase-one.md).
+- Stage: implementation complete; PR review.
+- Completed: audit, all three deliverables, remaining candidate assessment, focused checks, and independent reviews.
+  [01](01-unit-tests-and-guidance.md) is in `7c3a06da1`; [02](02-snapshot-phase-one.md) is in `d36763ed8`; [03](03-snapshot-phase-two.md) is the final implementation commit.
+- Pending: PR review and CI on the final published revision. No implementation step remains.
+- Next action: review [PR #505](https://github.com/kyleve/Stuff/pull/505).
 - Branch: `codex/test-maintenance-reduction`.
 - Tracking: [STU-332](https://linear.app/kve/issue/STU-332/reduce-low-value-tests-and-automatic-snapshot-matrix-growth).
 
@@ -76,11 +77,32 @@ All three plans have executable detail from the accepted audit. Each deliverable
 - Reviewed on 2026-11-15 against the baseline, selected sources, guidance owners, reference identities, and prior fixes.
 - All requirements map to a deliverable. No unresolved product decision blocks execution.
 - The retained-identity audit and focused assertion runs distinguish a coverage reduction from an accidental image update.
-- Implementation and runtime results remain unverified until recorded in the numbered plans.
+- Implementation and focused runtime results are recorded in the numbered plans. Rendered Xcode previews remain unverified.
+
+## Delivered result
+
+| Inventory | Before | After | Removed |
+| --- | --- | --- | --- |
+| Unit-test declarations | 3,030 | 2,973 | 57 |
+| Snapshot reference PNGs | 954 | 889 | 65 |
+| Reference panels | 1,011 | 946 | 65 |
+
+The removed PNGs represent 97.2 MiB of hydrated reference data. All retained PNG bytes are unchanged.
+Focused unit runs passed 72, 15, and 23 tests; these selections overlap.
+Strict image runs covered 219 distinct retained references, with all 61 MainTabs images repeated after the preview correction.
+The Locations loading/failed navigation-bar and inset probes also passed.
+Formatting, guidance synchronization, skill validation, shard inventory, and the wrapper's architecture/host checks passed.
+
+Coverage now follows distinct behavior and visual risk. The selected tablet matrices retain five phone traits and a light tablet baseline.
+The FlightReviewPointRow fixture keeps its Form context and tablet baseline; its parent's collapsed disclosure does not replace that coverage.
+Stylesheet calculations, accessibility constraints, environment propagation, fold behavior, and device stack guards remain.
+Independent reviews found two preview issues, both corrected before publication, and no remaining actionable code finding.
+This is a maintenance reduction, with no measured runtime claim.
 
 ## Related work and delivery
 
 - [STU-20](https://linear.app/kve/issue/STU-20) remains open: removing a quarantine does not prove a renderer fix.
 - [STU-246](https://linear.app/kve/issue/STU-246) owns the separate Manual Day range-mode gap; existing named states remain.
+- [STU-49](https://linear.app/kve/issue/STU-49) owns the remaining Periscope mount-only checks; this series removes the two viewer checks and replaces its blanket snapshot prescription with the current selection policy.
 - Implementation PR: [#505](https://github.com/kyleve/Stuff/pull/505).
-- Outcome: in progress.
+- Outcome: implemented, verified, and published for review.
