@@ -121,6 +121,8 @@ between iPhone SE, iPhone 17, Pro Max, iPad mini, 11-inch and 13-inch iPad profi
 and all Duo poses. Ordinary profiles support portrait and landscape. Reset Demo
 creates a fresh world without changing the selected layout. A centered, illustrative
 bezel surrounds the synthetic screen without changing its dimensions or traits.
+The `deviceLayoutLab` bezel uses fixed native values outside portable theme documents.
+The embedded app screen uses its own theme root.
 Loading and error content stays inside this frame.
 The lab remains outside the developer tool's navigation stack because an ancestor
 stack suppresses the embedded app's navigation content. Its layout picker and Reset
