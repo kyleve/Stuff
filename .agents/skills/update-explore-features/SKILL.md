@@ -6,8 +6,6 @@ description: Review and update Where’s Explore Features galleries against curr
 # Update Explore Features
 
 Keep Settings > Explore Features useful for people who do not know every Where workflow.
-The default invocation updates local files. Leave changes uncommitted and do not push, publish a PR, or create a schedule.
-An explicit request for those actions overrides this default.
 
 ## Find coverage gaps
 
@@ -25,7 +23,7 @@ Name the source that establishes the behavior. Do not maintain a second persiste
 
 ## Update the galleries
 
-Use the `building-ui` skill and its companion SwiftUI guidance.
+Use the `building-ui` skill.
 Extend an existing page when the topic belongs to its workflow.
 Add a page only when the workflow needs its own explanation and visuals.
 Keep core workflows before optional integrations in the Explore list.
