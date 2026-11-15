@@ -11,7 +11,7 @@ editor when changing its schema.
   checkout's `.mise.toml`, installs pinned tools, hydrates every Git LFS object
   referenced by the checkout, syncs agent files, and generates without opening
   Xcode.
-- Linux setup delegates to [`.cursor/install.sh`](../../.cursor/install.sh). It has the
+- Linux setup delegates to [`Tools/setup-linux.sh`](../../Tools/setup-linux.sh). It has the
   same platform limits documented below.
 - Setup first runs `./worktree --check-main`, which refreshes `origin/main` and
   warns without moving `HEAD` when the selected checkout does not contain it.
@@ -27,26 +27,22 @@ editor when changing its schema.
 - `./worktree --prune-derived-data --dry-run` previews cache removal for deleted
   Codex worktrees. [Tools/AGENTS.md](../../Tools/AGENTS.md) owns cache ownership rules.
 
-## Cursor Cloud specific instructions
+## Linux cloud instructions
 
 Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 27** with
 **Xcode 27+** and **Tuist** (macOS-only). Treat Linux as a partial dev
 environment. Formatting and agent sync work on Linux. Builds, tests, and running the
 **Where** app require macOS (as in CI on the `xcode-27` runner image).
 
-### Setup is committed, not configured in a dashboard
+### Setup is committed
 
-[`.cursor/environment.json`](../../.cursor/environment.json) runs
-[`.cursor/install.sh`](../../.cursor/install.sh) after checkout. It installs `mise`,
-trusts the config, runs `mise install`, installs `git-lfs`, and points Git at
-`.githooks/`. Nothing about a cloud agent's setup lives in a dashboard.
+[`Tools/setup-linux.sh`](../../Tools/setup-linux.sh) is the shared Linux bootstrap.
+The Codex environment runs it after checkout. Other Linux environments can run it from the repository root.
+It installs `mise`, trusts the config, installs pinned tools and site dependencies, and configures Git LFS and hooks.
+Setup remains idempotent for cached environments.
 
-`git-lfs` is not optional on either platform. The `.githooks/` LFS hooks
-exit non-zero when the binary is missing. That breaks checkout/merge/push even
-for work that never touches snapshots. Both bootstraps install it before
-setting `core.hooksPath`. The repo-defined environment follows branches.
-It **takes precedence over any dashboard-managed environment**. It must stay
-idempotent. Cursor can re-run it against cached state.
+`git-lfs` is required on both platforms. The `.githooks/` LFS hooks fail when the binary is absent.
+Both bootstraps install it before setting `core.hooksPath`.
 
 ### What works on Linux
 

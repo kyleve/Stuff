@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 #
-# Repository bootstrap for Cursor Cloud agents, run after the checkout.
-#
-# These VMs are Linux, so this deliberately does none of what `./ide` does:
-# no Xcode check, no Tuist, no project generation. See the Cursor Cloud section
-# of ../AGENTS.md for what is and isn't possible here.
-#
-# Cursor may re-run this against cached state, so every step is idempotent.
+# Repository bootstrap for Linux cloud agents, run from the checkout root.
+# See .agents/references/environments.md for platform limits.
+# Each step is idempotent so setup can run against cached state.
 set -euo pipefail
 
 # mise isn't in the base image. Its official installer is self-contained (no
