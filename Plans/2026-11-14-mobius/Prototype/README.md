@@ -11,7 +11,7 @@ prototype_dir="$PWD/Plans/2026-11-14-mobius/Prototype"
 ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev --root "$prototype_dir" --host 0.0.0.0 --port 4321 --background
 ```
 
-Open the printed **Local** URL on this Mac or its **Network** LAN URL on a phone connected to the same network. The server uses port 4321 and fails if that port is occupied. The absolute `--root` is intentional: pinned Astro’s background child changes into the project directory before forwarding this option. A relative root can resolve twice and start without the page. See [Astro CLI background commands](https://docs.astro.build/en/reference/cli-reference/#--background).
+Open the **Local** URL on this Mac or the current machine LAN URL on a phone connected to the same network. Astro’s startup output and `dev status` can retain an old Network address after the machine changes networks or receives a new address. Before sharing the demo, identify the current LAN address from the machine’s network interfaces and verify an HTTP response at that address; do not treat the printed startup address as permanent. The server uses port 4321 and fails if that port is occupied. The absolute `--root` is intentional: pinned Astro’s background child changes into the project directory before forwarding this option. A relative root can resolve twice and start without the page. See [Astro CLI background commands](https://docs.astro.build/en/reference/cli-reference/#--background).
 
 ```sh
 ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev status --root "$prototype_dir"
