@@ -82,15 +82,16 @@ struct IntentServicesTests {
         #expect(resolved.journal === replacement.journal)
     }
 
-    @Test func themeUpdatesAtomicallyWithoutReplacingTheStack() async throws {
+    @Test(arguments: WhereTheme.allCases)
+    func themeUpdatesAtomicallyWithoutReplacingTheStack(theme: WhereTheme) async throws {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let stack = try makeStack()
         await handoff.install(stack, theme: .standard)
 
-        await handoff.updateTheme(.alternate)
+        await handoff.updateTheme(theme)
 
         let context = try await handoff.currentContext()
         #expect(context.services.journal === stack.journal)
-        #expect(context.theme == .alternate)
+        #expect(context.theme == theme)
     }
 }

@@ -35,11 +35,9 @@ struct UpdateSceneHost: View {
         .environment(session)
         .environment(model)
         .environment(updates)
+        .background { ThemeScenePhaseProbe { fixture.renderedPhase = $0 } }
         .environment(\.scenePhase, fixture.phase)
         .whereBroadwayRoot()
-        .onChange(of: fixture.phase, initial: true) { _, phase in
-            fixture.renderedPhase = phase
-        }
     }
 }
 

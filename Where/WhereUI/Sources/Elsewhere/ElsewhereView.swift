@@ -13,6 +13,7 @@ struct ElsewhereView: View {
 
     @State private var retrySequence = 0
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.regionStyles) private var regionStyles
 
@@ -50,9 +51,10 @@ struct ElsewhereView: View {
     var body: some View {
         NavigationStack {
             screen
+                .modifier(WhereComponentTextStyle(role: .elsewhere))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background {
-                    LocationsBackground(regions: backgroundRegions)
+                    LocationsBackground(regions: backgroundRegions, role: .elsewhere)
                         .ignoresSafeArea()
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -81,7 +83,9 @@ struct ElsewhereView: View {
                         emptyState
                     } else {
                         GlassEffectContainer(spacing: stylesheet.spacing.large) {
-                            VStack(spacing: stylesheet.spacing.large) {
+                            VStack(spacing: stylesheet.spacing.large + components[.elsewhereCard]
+                                .outsets.top + components[.elsewhereCard].outsets.bottom)
+                            {
                                 ForEach(content.regions) { item in
                                     NavigationLink {
                                         RegionDaysView(
@@ -100,7 +104,8 @@ struct ElsewhereView: View {
                                             year: report.selectedYear,
                                             recordedPoints: content.cardLocations
                                                 .pointsByRegion[item.region] ?? [],
-                                            showsRecordedPoints: report.showsRecordedLocationDots,
+                                            showsRecordedPoints: report
+                                                .showsRecordedLocationDots,
                                             recordedPointsID: content.cardLocations.id,
                                         )
                                     }
@@ -109,10 +114,23 @@ struct ElsewhereView: View {
                                     ))
                                 }
                             }
+                            .padding(.top, components[.elsewhereCard].outsets.top)
+                            .padding(.bottom, components[.elsewhereCard].outsets.bottom)
+                            .padding(
+                                .horizontal,
+                                max(
+                                    0,
+                                    max(
+                                        components[.elsewhereCard].outsets.leading,
+                                        components[.elsewhereCard].outsets.trailing,
+                                    ) - stylesheet
+                                        .spacing.xxLarge,
+                                ),
+                            )
                         }
                     }
                 }
-                .padding()
+                .padding(stylesheet.spacing.xxLarge)
             }
             .defaultScrollAnchor(.center, for: .alignment)
             .scrollBounceBehavior(.basedOnSize)

@@ -105,6 +105,8 @@ struct LocationsView: View {
                 .bHorizontalSizeClass(arrangement == .compact ? .compact : .regular)
             }
         }
+        .whereThemeActivity(!navigation.showingResolution && navigation
+            .planningDestination == nil && navigation.flightReview == nil)
         .sheet(item: $navigation.flightReview) { review in
             NavigationStack {
                 FlightDayDetailView(review: review, report: report)
@@ -291,6 +293,7 @@ struct LocationsContent: View {
 
     var body: some View {
         screen
+            .modifier(WhereComponentTextStyle(role: .locations))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 LocationsBackground(regions: backgroundRegions)
@@ -302,6 +305,8 @@ struct LocationsContent: View {
                     LocationsToolbar(report: report, navigation: navigation)
                 }
             }
+            .whereThemeActivity(!navigation.showingResolution && navigation
+                .planningDestination == nil && navigation.flightReview == nil)
             .observesTilt(tilt, enabled: isCardSurfaceUncovered && cardSurface.usesReflection)
             .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
@@ -380,7 +385,8 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
-            for theme in WhereTheme.allCases where theme != .standard {
+            // Halloween has full-screen and accessibility coverage in MainTabs snapshots.
+            for theme in [WhereTheme.alternate] {
                 artworkSnapshot(
                     name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",
                     report: PreviewSupport.loadedYearReportModel(),
@@ -618,3 +624,44 @@ private struct LocationsToolbar: ToolbarContent {
         }
     }
 }
+
+#if DEBUG
+    extension LocationsView {
+        @MainActor
+        enum SeasonalThemes: SnapshotProviding {
+            static var snapshots: [SnapshotCase] {
+                for example in WhereThemeExamples.allCases {
+                    snapshot(example)
+                }
+            }
+
+            private static func snapshot(_ example: WhereThemeExamples) -> SnapshotCase {
+                let theme: PreparedWhereThemeDocument
+                do { theme = try example.prepare() }
+                catch { preconditionFailure("Invalid bundled theme: \(error)") }
+                let report = PreviewSupport.loadedYearReportModel()
+                let cache = RegionOutlinePathCache()
+                let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
+                return SnapshotCase(
+                    name: example.rawValue,
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                    settle: .settledAtLeast(minDuration: 1),
+                    onReadyToSnapshot: {
+                        for region in regions {
+                            _ = await cache.path(for: region, resolution: .small)
+                            _ = await cache.path(for: region, resolution: .medium)
+                            _ = await cache.path(for: region, resolution: .micro)
+                        }
+                    },
+                ) {
+                    LocationsBrowsePane(report: report)
+                        .environment(\.regionOutlinePathCache, cache)
+                        .whereBroadwayRoot(themeDocument: theme)
+                }
+            }
+        }
+    }
+
+    #Preview("Seasonal theme documents") { LocationsView.SeasonalThemes.snapshotPreviews }
+#endif

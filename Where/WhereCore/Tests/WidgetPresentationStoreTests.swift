@@ -11,13 +11,14 @@ struct WidgetPresentationStoreTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    @Test func writeThenReadRoundTrips() throws {
+    @Test(arguments: WhereTheme.allCases)
+    func writeThenReadRoundTrips(theme: WhereTheme) throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = WidgetPresentationStore(directory: directory)
 
-        try store.write(theme: .alternate)
+        try store.write(theme: theme)
 
-        #expect(store.readTheme() == .alternate)
+        #expect(store.readTheme() == theme)
     }
 
     @Test func missingOrUnknownPresentationDefaultsToStandard() throws {

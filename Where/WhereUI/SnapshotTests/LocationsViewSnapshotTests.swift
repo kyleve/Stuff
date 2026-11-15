@@ -5,8 +5,22 @@ import Testing
 
 @MainActor
 struct LocationsViewSnapshotTests {
-    @Test func locations() async {
-        await assertSnapshots(of: LocationsView.self)
+    @Test func seasonalDocuments() async {
+        await assertSnapshots(of: LocationsView.SeasonalThemes.self)
+    }
+
+    @Test func locationsLightDark() async {
+        await assertSnapshots(
+            of: WhereLightDarkSnapshots<LocationsView>.self,
+            testName: "locations()",
+        )
+    }
+
+    @Test func locationsExtended() async {
+        await assertSnapshots(
+            of: WhereExtendedSnapshots<LocationsView>.self,
+            testName: "locations()",
+        )
     }
 
     @Test(arguments: [AdaptivePaneLoadFixture.State.loading, .failed])
@@ -56,5 +70,11 @@ struct LocationsViewSnapshotTests {
                 await fixture.finish()
             }
         }
+    }
+}
+
+extension LocationsView: WhereThemeSnapshotGate {
+    static var lightDarkCases: Set<String> {
+        ["Loaded", "FlatLoaded"]
     }
 }

@@ -51,7 +51,18 @@ struct LocationsCardsView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var componentStylesheet
     @Environment(\.regionStyles) private var regionStyles
+
+    private var artworkSpacing: CGFloat {
+        let bounds = componentStylesheet[.regularCard].outsets
+        return stylesheet.spacing.xxLarge + bounds.top + bounds.bottom
+    }
+
+    private var additionalGutter: CGFloat {
+        let bounds = componentStylesheet[.regularCard].outsets
+        return max(0, max(bounds.leading, bounds.trailing) - stylesheet.spacing.xxLarge)
+    }
 
     var body: some View {
         let presentedCards = cardPresentation.presented(report.locationRegions)
@@ -63,7 +74,7 @@ struct LocationsCardsView: View {
                 LocationsFlightNotice(report: report, openReview: { navigation.flightReview = $0 })
 
                 LocationCardRankingStack(
-                    spacing: stylesheet.spacing.xxLarge,
+                    spacing: artworkSpacing,
                     presentation: cardPresentation,
                     motion: stylesheet.locationCardStack.overtake,
                 ) {
@@ -83,41 +94,12 @@ struct LocationsCardsView: View {
                                     .pointsByRegion[item.region] ?? [],
                                 showsRecordedPoints: report.showsRecordedLocationDots,
                                 recordedPointsID: report.primaryRegionLocations?.id,
+                                transitionNamespace: calendarTransition,
                             )
                         }
                         .buttonStyle(stylesheet.card[cardVariant].buttonStyle(
                             tint: regionStyles.style(for: item.region).tint,
                         ))
-                        // The card is the zoom source: tapping it expands the
-                        // card into the pushed calendar (matched geometry). The
-                        // configuration re-states the card's rounded shape and
-                        // its glow/lift shadows so the transition interpolates
-                        // them — without it, the zoom clips the source to a bare
-                        // rectangle and the card's soft shadow pops on/off.
-                        .matchedTransitionSource(
-                            id: item.region,
-                            in: calendarTransition,
-                        ) { source in
-                            let card = stylesheet.card[cardVariant]
-                            let tint = regionStyles.style(for: item.region).tint
-                            let elevation = card.transitionElevation(tint: tint)
-                            return source
-                                .clipShape(
-                                    RoundedRectangle(
-                                        cornerRadius: card.cornerRadius,
-                                        style: .continuous,
-                                    ),
-                                )
-                                .shadow(
-                                    color: elevation.glow.color,
-                                    radius: elevation.glow.radius,
-                                )
-                                .shadow(
-                                    color: elevation.lift.color,
-                                    radius: elevation.lift.radius,
-                                    y: elevation.lift.offsetY,
-                                )
-                        }
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
                         .locationCardOvertakeEffect(
                             region: item.region,
@@ -134,10 +116,13 @@ struct LocationsCardsView: View {
                 }
 
                 .scrollTargetLayout()
+                .padding(.top, componentStylesheet[.regularCard].outsets.top)
+                .padding(.bottom, componentStylesheet[.regularCard].outsets.bottom)
 
                 LocationsEstimatePanel(report: report, planningAction: planningAction)
             }
-            .padding()
+            .padding(stylesheet.spacing.xxLarge)
+            .padding(.horizontal, additionalGutter)
             .frame(maxWidth: .infinity)
         }
         .defaultScrollAnchor(.top, for: .initialOffset)
@@ -147,9 +132,7 @@ struct LocationsCardsView: View {
             _position.initialize(edge: .top)
         }
         .scrollBounceBehavior(.basedOnSize)
-        // The card normally stays clipped to the scrolling viewport. Reveal
-        // overflow only while the authored arc, scale, and rotation need it.
-        .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
+        // Theme artwork remains clipped to the scrolling viewport during ranking changes.
         .accessibilityIdentifier("where_root_title")
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }

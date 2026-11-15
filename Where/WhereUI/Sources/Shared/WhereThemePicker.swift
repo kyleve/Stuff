@@ -12,33 +12,27 @@ struct WhereThemePicker: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        Group {
-            if stylesheet.themePicker.layout == .stacked {
-                stackedOptions
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: stylesheet.themePicker.spacing) {
-                        options
-                    }
-                    .frame(minWidth: stylesheet.themePicker.minimumInlineWidth)
-                    stackedOptions
+        ViewThatFits(in: .horizontal) {
+            if stylesheet.themePicker.layout == .inline {
+                HStack(alignment: .top, spacing: stylesheet.themePicker.spacing) {
+                    options(minimumWidth: stylesheet.themePicker.minimumOptionWidth)
                 }
+            }
+            VStack(spacing: stylesheet.themePicker.spacing) {
+                options(minimumWidth: nil)
             }
         }
         .sensoryFeedback(.selection, trigger: selection)
     }
 
-    private var stackedOptions: some View {
-        VStack(spacing: stylesheet.themePicker.spacing) { options }
-    }
-
-    private var options: some View {
+    private func options(minimumWidth: CGFloat?) -> some View {
         ForEach(WhereTheme.allCases, id: \.self) { theme in
             Button {
                 onSelect(theme)
             } label: {
                 WhereThemeOption(theme: theme, isSelected: theme == selection)
             }
+            .frame(minWidth: minimumWidth)
             .buttonStyle(.plain)
             .accessibilityLabel(theme.title)
             .accessibilityValue(
@@ -61,16 +55,10 @@ private struct WhereThemeOption: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-            RegionSummaryCard(
-                regionDays: RegionDays(region: .california, days: 128),
-                variant: .compact,
-                renderPurpose: .themeSpecimen,
-                year: 2026,
-                showsRecordedPoints: false,
-            )
-            .environment(\.regionOutlinePathCache, regionOutlinePathCache)
-            .whereBroadwayRoot(theme: theme)
-            .accessibilityHidden(true)
+            WhereThemeSpecimen()
+                .environment(\.regionOutlinePathCache, regionOutlinePathCache)
+                .whereBroadwayRoot(theme: theme)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 HStack(spacing: stylesheet.spacing.small) {
@@ -101,6 +89,23 @@ private struct WhereThemeOption: View {
                 )
         }
         .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+/// Contains the card's full paint bounds inside the selection button, above its caption.
+private struct WhereThemeSpecimen: View {
+    @Environment(\.whereComponentStylesheet) private var stylesheet
+
+    var body: some View {
+        RegionSummaryCard(
+            regionDays: RegionDays(region: .california, days: 128),
+            variant: .compact,
+            renderPurpose: .themeSpecimen,
+            year: 2026,
+            showsRecordedPoints: false,
+        )
+        .padding(stylesheet[.compactCard].outsets)
+        .allowsHitTesting(false)
     }
 }
 

@@ -11,6 +11,7 @@ struct PresenceJourneyRow: View {
     let cardPosition: PresenceJourneyCardPosition
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
     @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
@@ -38,10 +39,10 @@ struct PresenceJourneyRow: View {
             countLayout {
                 VStack(alignment: .leading, spacing: row.labelSpacing) {
                     Text(stint.region.localizedName)
-                        .font(.headline)
+                        .font(components[.timelineEntry].heading ?? .headline)
                     Text(dateRange)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(components[.timelineEntry].body ?? .subheadline)
+                        .foregroundStyle(.whereSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -58,9 +59,11 @@ struct PresenceJourneyRow: View {
             .frame(minHeight: proportionalHeight)
             .padding(.horizontal, row.horizontalPadding)
             .padding(.vertical, sizing.verticalPadding)
-            .background {
-                cardShape.fill(style.tint.opacity(row.fillOpacity))
-            }
+            .whereThemePanel(
+                .timelineEntry,
+                in: cardPosition.shape(cornerRadius: row.cornerRadius),
+                tint: style.tint,
+            ) { cardShape.fill(style.tint.opacity(row.fillOpacity)) }
             .overlay {
                 PresenceJourneyCardBorder(
                     position: cardPosition,

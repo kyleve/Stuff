@@ -17,10 +17,13 @@ struct RegionArtworkTransform {
             size.width * style.extent.width / bounds.width,
             size.height * style.extent.height / bounds.height,
         ) * style.scale
+        // Zero-sized authored artwork and collapsed layout proposals have no drawable transform.
+        guard scale.isFinite, scale > 0 else { return nil }
         translation = CGPoint(
             x: size.width * style.center.x / scale - bounds.midX,
             y: size.height * style.center.y / scale - bounds.midY,
         )
+        guard translation.x.isFinite, translation.y.isFinite else { return nil }
     }
 
     func apply(to context: inout GraphicsContext) {

@@ -5,8 +5,10 @@ import SwiftUI
 /// Stationary, noninteractive paper texture shared by Locations and Elsewhere.
 struct LocationsBackground: View {
     let regions: [Region]
+    var role: WhereThemeComponents.Role = .locations
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var componentStylesheet
     @State private var artworkModel = RegionArtworkModel<[Region], LocationsBackgroundArtwork>()
 
     private var style: WhereStylesheet.LocationsBackgroundStyle {
@@ -14,24 +16,29 @@ struct LocationsBackground: View {
     }
 
     private var requestedRegions: [Region] {
-        style.showsInk ? regions.filter { $0 != .other } : []
+        style.showsInk && componentStylesheet[role].nativeArtwork.contains(.regionPattern) ? regions
+            .filter { $0 != .other } : []
     }
 
     var body: some View {
         ZStack {
-            style.paper
+            componentStylesheet[role].background ?? style.paper
             if style.showsInk {
-                SecurityPrintRosette(
-                    tint: style.ink,
-                    wobble: style.rosette.wobble,
-                    lineWidth: style.rosette.lineWidth,
-                    primaryRingSpacing: style.rosette.primaryRingSpacing,
-                    secondaryRingSpacing: style.rosette.secondaryRingSpacing,
-                    primaryOpacity: style.rosetteOpacity,
-                    secondaryOpacity: style.rosetteOpacity,
-                )
-                silhouettes
+                if componentStylesheet[role].nativeArtwork.contains(.rosette) {
+                    SecurityPrintRosette(
+                        tint: style.ink,
+                        wobble: style.rosette.wobble,
+                        lineWidth: style.rosette.lineWidth,
+                        primaryRingSpacing: style.rosette.primaryRingSpacing,
+                        secondaryRingSpacing: style.rosette.secondaryRingSpacing,
+                        primaryOpacity: style.rosetteOpacity,
+                        secondaryOpacity: style.rosetteOpacity,
+                    )
+                }
+                if componentStylesheet[role].nativeArtwork.contains(.regionPattern) { silhouettes }
             }
+            WhereComponentArtwork(role: role, plane: .interior, shape: Rectangle())
+            WhereComponentArtwork(role: role, plane: .exterior, shape: Rectangle())
         }
         .clipped()
         .allowsHitTesting(false)

@@ -20,6 +20,7 @@ struct PlacesYearFeaturesContent: View {
                     yearLength: report.daysInSelectedYear,
                     year: report.selectedYear,
                 )
+                .whereThemeArtworkSpace(.compactCard)
             }
             if let content = report.elsewhere.content(for: report.selectedYear),
                let region = content.regions.first
@@ -32,6 +33,7 @@ struct PlacesYearFeaturesContent: View {
                     showsRecordedPoints: report.showsRecordedLocationDots,
                     recordedPointsID: content.cardLocations.id,
                 )
+                .whereThemeArtworkSpace(.elsewhereCard)
             }
         }
         .task(id: report.elsewhereInput) {

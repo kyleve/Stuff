@@ -9,4 +9,7 @@ public enum WhereTheme: String, CaseIterable, Codable, Hashable, Sendable {
 
     /// The Flat presentation theme. Its original raw value remains permanent.
     case alternate
+
+    /// Illustrated pumpkins and plum paper surfaces.
+    case halloween
 }

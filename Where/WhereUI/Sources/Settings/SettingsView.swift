@@ -115,8 +115,10 @@ struct SettingsView: View {
         )
         .bHorizontalSizeClass(stylesheet.adaptivePane.panes == .single ? .compact : .regular)
         .background(.background)
+        .whereThemeActivity(!navigation.showRegions)
         .sheet(isPresented: $navigation.showRegions) {
             RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                .whereThemeScreen(.sheet)
         }
     }
 

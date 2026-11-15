@@ -67,6 +67,7 @@ struct SettingsContent: View {
             if isSearching {
                 ForEach(searchResults) { result in
                     searchNavigationRow(result)
+                        .whereThemeListRow()
                 }
             } else {
                 if recordingWarning.isPresented {
@@ -81,6 +82,7 @@ struct SettingsContent: View {
                         Section {
                             ForEach(destinations, id: \.self) { destination in
                                 groupNavigationRow(destination)
+                                    .whereThemeListRow()
                             }
                         } header: {
                             if let headerTitle = section.headerTitle {
@@ -91,6 +93,8 @@ struct SettingsContent: View {
                 }
             }
         }
+        .whereThemeScreen(.settings)
+        .whereThemeActivity(!navigation.showRegions)
         .navigationTitle(String(localized: .settingsTitle))
         .searchable(
             text: $navigation.searchText,
@@ -113,7 +117,7 @@ struct SettingsContent: View {
                             .font(.headline)
                         Text(.settingsRecordingWarningMessage)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.whereSecondary)
                     }
                 } icon: {
                     Image(systemSymbol: .exclamationmarkTriangleFill)
@@ -201,7 +205,7 @@ struct SettingsContent: View {
         LabeledContent {
             if let subtitle = subtitle(for: destination) {
                 Text(subtitle)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
             }
         } label: {
             Label {
@@ -240,7 +244,7 @@ struct SettingsContent: View {
                 Text(result.title)
                 Text(result.destination.rowTitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
             }
         } icon: {
             SettingsIcon(

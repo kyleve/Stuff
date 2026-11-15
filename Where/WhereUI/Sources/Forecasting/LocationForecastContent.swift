@@ -19,7 +19,7 @@ struct LocationForecastContent: View {
             if forecasts.contains(where: { !$0.estimatedTotalDays.isExact }) {
                 Text(String(localized: .forecastDateRangeExplanation))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.whereSecondary)
             }
             if let planningAction {
                 LocationForecastControls(planningAction: planningAction)

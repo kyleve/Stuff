@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "id": "christmas",
+  "fallback": "flat",
+  "appearance": {},
+  "layers": {
+    "regularCardOverlay": [
+      {
+        "schemaVersion": 1,
+        "root": {
+          "id": "christmas-card",
+          "content": {
+            "group": {
+              "axis": "vertical",
+              "alignment": "center",
+              "spacing": 0,
+              "children": [
+                {
+                  "id": "top-row",
+                  "content": {
+                    "group": {
+                      "axis": "horizontal",
+                      "alignment": "center",
+                      "spacing": 0,
+                      "children": [
+                        {
+                          "id": "leading",
+                          "content": {
+                            "spacer": {
+                              "minimum": 0
+                            }
+                          },
+                          "modifiers": [],
+                          "accessibility": {
+                            "hidden": {}
+                          }
+                        },
+                        {
+                          "id": "bells",
+                          "content": {
+                            "symbol": {
+                              "_0": "seasonal.bell"
+                            }
+                          },
+                          "modifiers": [
+                            {
+                              "font": {
+                                "_0": {
+                                  "size": {
+                                    "semantic": {
+                                      "_0": "title"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "foreground": {
+                                "_0": {
+                                  "color": {
+                                    "_0": {
+                                      "rgba": {
+                                        "red": 0.85,
+                                        "green": 0.55,
+                                        "blue": 0.05,
+                                        "alpha": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ],
+                          "accessibility": {
+                            "hidden": {}
+                          },
+                          "animation": {
+                            "from": {
+                              "opacity": 1,
+                              "offsetX": 0,
+                              "offsetY": 0,
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "rotation": -10
+                            },
+                            "to": {
+                              "opacity": 1,
+                              "offsetX": 0,
+                              "offsetY": 0,
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "rotation": 10
+                            },
+                            "staticPose": {
+                              "opacity": 1,
+                              "offsetX": 0,
+                              "offsetY": 0,
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "rotation": 0
+                            },
+                            "duration": 2,
+                            "delay": 0,
+                            "curve": "easeInOut",
+                            "repetition": {
+                              "forever": {
+                                "autoreverses": true
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "modifiers": [],
+                  "accessibility": {
+                    "hidden": {}
+                  }
+                },
+                {
+                  "id": "below",
+                  "content": {
+                    "spacer": {
+                      "minimum": 0
+                    }
+                  },
+                  "modifiers": [],
+                  "accessibility": {
+                    "hidden": {}
+                  }
+                }
+              ]
+            }
+          },
+          "modifiers": [
+            {
+              "padding": {
+                "_0": {
+                  "points": {
+                    "_0": 14
+                  }
+                }
+              }
+            }
+          ],
+          "accessibility": {
+            "hidden": {}
+          }
+        }
+      }
+    ],
+    "compactCardOverlay": [
+      {
+        "schemaVersion": 1,
+        "root": {
+          "id": "christmas-card",
+          "content": {
+            "group": {
+              "axis": "vertical",
+              "alignment": "center",
+              "spacing": 0,
+              "children": [
+                {
+                  "id": "top-row",
+                  "content": {
+                    "group": {
+                      "axis": "horizontal",
+                      "alignment": "center",
+                      "spacing": 0,
+                      "children": [
+                        {
+                          "id": "leading",
+                          "content": {
+                            "spacer": {
+                              "minimum": 0
+                            }
+                          },
+                          "modifiers": [],
+                          "accessibility": {
+                            "hidden": {}
+                          }
+                        },
+                        {
+                          "id": "bells",
+                          "content": {
+                            "symbol": {
+                              "_0": "seasonal.bell"
+                            }
+                          },
+                          "modifiers": [
+                            {
+                              "font": {
+                                "_0": {
+                                  "size": {
+                                    "semantic": {
+                                      "_0": "title"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "foreground": {
+                                "_0": {
+                                  "color": {
+                                    "_0": {
+                                      "rgba": {
+                                        "red": 0.85,
+                                        "green": 0.55,
+                                        "blue": 0.05,
+                                        "alpha": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ],
+                          "accessibility": {
+                            "hidden": {}
+                          },
+                          "animation": {
+                            "from": {
+                              "opacity": 1,
+                              "offsetX": 0,
+                              "offsetY": 0,
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "rotation": -10
+                            },
+                            "to": {
+                              "opacity": 1,
+                              "offsetX": 0,
+                              "offsetY": 0,
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "rotation": 10
+                            },
+                            "staticPose": {
+                              "opacity": 1,
+                              "offsetX": 0,
+                              "offsetY": 0,
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "rotation": 0
+                            },
+                            "duration": 2,
+                            "delay": 0,
+                            "curve": "easeInOut",
+                            "repetition": {
+                              "forever": {
+                                "autoreverses": true
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "modifiers": [],
+                  "accessibility": {
+                    "hidden": {}
+                  }
+                },
+                {
+                  "id": "below",
+                  "content": {
+                    "spacer": {
+                      "minimum": 0
+                    }
+                  },
+                  "modifiers": [],
+                  "accessibility": {
+                    "hidden": {}
+                  }
+                }
+              ]
+            }
+          },
+          "modifiers": [
+            {
+              "padding": {
+                "_0": {
+                  "points": {
+                    "_0": 14
+                  }
+                }
+              }
+            }
+          ],
+          "accessibility": {
+            "hidden": {}
+          }
+        }
+      }
+    ]
+  }
+}

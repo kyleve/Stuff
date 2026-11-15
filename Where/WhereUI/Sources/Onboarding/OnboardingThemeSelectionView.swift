@@ -3,7 +3,7 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// First-run choice between Where's two presentation identities.
+/// First-run choice among Where's bundled themes.
 struct OnboardingThemeSelectionView: View {
     let selection: WhereTheme
     let onSelect: (WhereTheme) -> Void
@@ -107,6 +107,17 @@ struct OnboardingThemeSelectionView: View {
                     },
                 ) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .alternate)
+                        .environment(\.regionOutlinePathCache, cache)
+                },
+                whereSnapshot(
+                    name: "Halloween",
+                    configurations: .fullContentPhoneLightDark,
+                    theme: .halloween,
+                    onReadyToSnapshot: {
+                        await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
+                    },
+                ) {
+                    OnboardingThemeSelectionSnapshotRoot(selection: .halloween)
                         .environment(\.regionOutlinePathCache, cache)
                 },
             ]
