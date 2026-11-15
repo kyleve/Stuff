@@ -20,7 +20,7 @@ ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev \
   --root "$prototype_dir" --host 0.0.0.0 --port 4321 --background
 ```
 
-`--host` enables local-network device review. Give the user both the localhost URL and the server's actual LAN URL; a phone uses the latter on the same network. Verify the address and actual port reported by the running server instead of assuming the requested port was used. Keep this a development preview; do not add public hosting or a tunnel unless requested.
+`--host` enables local-network device review. Give the user both the localhost URL and the server's actual LAN URL; a phone uses the latter on the same network. Verify the running server's actual port and the machine's current LAN interface address at handoff. Astro's printed network URLs can retain an old address after a network change; confirm a fresh HTTP response from the address you give the user. Keep this a development preview; do not add public hosting or a tunnel unless requested.
 
 Use Astro's project-scoped lifecycle commands to inspect and stop the server:
 
