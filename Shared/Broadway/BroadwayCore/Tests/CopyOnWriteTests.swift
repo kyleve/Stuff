@@ -1,7 +1,52 @@
+import Foundation
 import Testing
 @_spi(CopyOnWrite) @testable import BroadwayCore
 
 struct CopyOnWriteTests {
+    private struct CodableModel: Codable, Equatable {
+        @CopyOnWrite var values: [Int]
+        @CopyOnWrite var optional: String?
+    }
+
+    @Test func codablePreservesTheWrappedWireFormat() throws {
+        let decoder = JSONDecoder()
+        let absent = try decoder.decode(CodableModel.self, from: Data(#"{"values":[1,2]}"#.utf8))
+        let null = try decoder.decode(
+            CodableModel.self,
+            from: Data(#"{"values":[1,2],"optional":null}"#.utf8),
+        )
+        #expect(absent == null)
+        let encoded = try JSONEncoder().encode(absent)
+        let object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(object["values"] as? [Int] == [1, 2])
+        #expect(object["optional"] == nil)
+        var changed = absent
+        changed.values.append(3)
+        changed.optional = "present"
+        #expect(absent.values == [1, 2])
+        #expect(absent.optional == nil)
+        #expect(try decoder
+            .decode(CodableModel.self, from: JSONEncoder().encode(changed)) == changed)
+        #expect(throws: DecodingError.self) {
+            try decoder.decode(CodableModel.self, from: Data(#"{"values":[],"optional":42}"#.utf8))
+        }
+    }
+
+    @Test func codableHonorsEncoderAndDecoderStrategies() throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let date = Date(timeIntervalSince1970: 0)
+        #expect(try encoder.encode(CopyOnWrite(wrappedValue: date)) == encoder.encode(date))
+        #expect(try decoder.decode(CopyOnWrite<Date>.self, from: encoder.encode(date))
+            .wrappedValue == date)
+        let data = Data([1, 2, 3])
+        #expect(try encoder.encode(CopyOnWrite(wrappedValue: data)) == encoder.encode(data))
+        #expect(try decoder.decode(CopyOnWrite<Data>.self, from: encoder.encode(data))
+            .wrappedValue == data)
+    }
+
     // MARK: - Initialization
 
     @Test("Stores the initial value")

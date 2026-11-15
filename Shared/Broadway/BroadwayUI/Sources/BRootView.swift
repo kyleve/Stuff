@@ -22,6 +22,7 @@ public struct BRootView<Content: View>: View {
     private let content: Content
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -36,6 +37,7 @@ public struct BRootView<Content: View>: View {
         content
             .environment(\.bContext, BRootContext.make(
                 colorScheme: colorScheme,
+                contrast: contrast,
                 dynamicTypeSize: dynamicTypeSize,
                 horizontalSizeClass: horizontalSizeClass,
                 verticalSizeClass: verticalSizeClass,
@@ -68,6 +70,7 @@ enum BRootContext {
     @MainActor
     static func make(
         colorScheme: ColorScheme,
+        contrast: ColorSchemeContrast,
         dynamicTypeSize: DynamicTypeSize,
         horizontalSizeClass: UserInterfaceSizeClass?,
         verticalSizeClass: UserInterfaceSizeClass?,
@@ -87,7 +90,11 @@ enum BRootContext {
         traits.contentSizeCategory = BContentSizeCategory(dynamicTypeSize)
         traits.horizontalSizeClass = BHorizontalSizeClass(horizontalSizeClass)
         traits.verticalSizeClass = BVerticalSizeClass(verticalSizeClass)
-        traits.accessibility = accessibility
+        var effectiveAccessibility = accessibility
+        effectiveAccessibility.isDarkerSystemColorsEnabled = accessibility
+            .isDarkerSystemColorsEnabled
+            || contrast == .increased
+        traits.accessibility = effectiveAccessibility
         return BContext(traits: traits, themes: themes)
     }
 }
