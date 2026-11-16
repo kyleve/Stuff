@@ -5,10 +5,10 @@
 - Updated: 2026-11-16, integrated base `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
 - Operation: Restore accessibility annotation coverage on `codex/content-width`.
 - Requested scope: The user requested retaining the accessibility snapshots removed by the additional reduction.
-- Stage: Execute [04 — Accessibility coverage](04-accessibility-coverage.md).
-- Completed: Plans 01–03, including the main merge and its verification. CI passed at `af8199887`.
-- Pending: Publish the verified five-capture restoration and update PR/issue evidence.
-- Next action: Commit and push; all 58 image captures and both catalog tests passed. STU-331 remains In Review.
+- Stage: Complete; [04 — Accessibility coverage](04-accessibility-coverage.md) is published.
+- Completed: Plans 01–04. Accessibility restoration passed all 58 captures and both catalog tests; PR and issue evidence are updated. Previous CI passed at `af8199887`.
+- Pending: CI, PR review, and eventual merge; no implementation work remains in this series.
+- Next action: Address subsequent review feedback. STU-331 remains In Review.
 
 ## Outcome and scope
 
@@ -75,7 +75,7 @@ The existing horizontal padding counts toward each limit. Limits remain fixed ac
 The initial deliverable, [01 — Content width](01-content-width.md), is complete.
 The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete.
 The follow-up, [03 — Main integration](03-main-integration.md), is complete.
-The current horizon is [04 — Accessibility coverage](04-accessibility-coverage.md).
+The final correction, [04 — Accessibility coverage](04-accessibility-coverage.md), is complete.
 
 ## Initial plan review
 
@@ -92,3 +92,5 @@ The current horizon is [04 — Accessibility coverage](04-accessibility-coverage
 - Initial delivery: Published at source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad`. All 717 WhereUI tests and 325 snapshot captures passed.
 - Review follow-up: Published at source revision `8ffba7b465bde1a445c020ba11b46c06c927b016`. All 723 WhereUI tests and 366 selected captures passed. After the final onboarding correction, all 13 onboarding captures passed again. See plan 02 for commands, independent review, and validation limits.
 - Main integration: Merge `cdbdf62cf` preserves all 65 upstream image deletions. All 684 WhereUI tests and 220 distinct retained image references passed across the integration selections. Coverage commit `9d5ab08b9` removes another 18 redundant variants (71→53 captures across five suites). PR #506 and STU-331 contain the final evidence; plan 03 records commands and limits.
+
+- Accessibility correction: `bf561d1a3` restores all five iPad annotation captures removed by the additional reduction. The five suites retain 58 captures, and all 58 plus both catalog tests passed with recording disabled. Restored and retained reference bytes are unchanged.

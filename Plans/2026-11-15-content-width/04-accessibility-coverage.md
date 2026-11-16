@@ -1,6 +1,6 @@
 # 04 — Restore accessibility annotation coverage
 
-- Status: executing
+- Status: complete
 - Depends on: [03 — Main integration](03-main-integration.md)
 - Shared context: [Overview](README.md)
 - Issue: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies)
@@ -26,8 +26,8 @@ No new layout, renderer, or helper is required, so an architecture diagram does 
 ## Progress
 
 - [x] Restore and verify all five annotation captures.
-- [ ] Review, commit, and push the correction.
-- [ ] Update PR/issue evidence and complete this record.
+- [x] Review, commit, and push the correction: `bf561d1a38d9c7f3366b6d0e3fdd11353d4ce63d`.
+- [x] Update and verify PR #506, the existing review reply, and STU-331; issue remains In Review.
 
 ## Verification and review
 
@@ -51,4 +51,4 @@ Command (Xcode 27.2):
 
 ## Resume point
 
-Verification and independent review are complete. Commit and push the correction, then update PR and issue evidence.
+The correction is pushed to [PR #506](https://github.com/kyleve/Stuff/pull/506), ready for review. The PR diff deletes no accessibility-annotation references relative to main. Implementation, review, and publication are complete; await PR review and CI.
