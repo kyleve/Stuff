@@ -32,7 +32,7 @@ Form { rows }.whereFormRoot() // Native container retains ownership.
 ```
 
 The screen modifier composes scrolling, padding, and the existing content root.
-A native-container adapter applies content margins from the same width policy.
+A native-container adapter adds safe-area gutters from the same width policy and compensates scroll-indicator margins.
 An optional `WhereScreen` protocol delegates its default body to the screen modifier.
 Explicit presentation boundaries reset root nesting without discarding the inherited width.
 These modifiers own presentation only. No services or persistence change, so a separate data-flow diagram is unnecessary.
@@ -57,11 +57,13 @@ No additional full-screen snapshot matrices are required.
 - Reviewed against `d8d3c3eb5f0317c407eeff69140caad816399450` and all five human review comments on PR #506.
 - The user approved implementation in this conversation.
 - The native margin adapter and presentation reset require hosted validation before rollout.
+- Independent review covered the helpers, selected callers, presentation boundaries, and full-content measurement paths.
+- Review found two native-layout defects. Explicit content margins replaced native gutters at the width cutoff. Subtracting safe-area insets from the already-reduced proposal exceeded the limit. Additive gutters and the proposed geometry width address these defects.
 
 ## Progress
 
 - [x] Remove redundant snapshot coverage.
-- [ ] Implement and verify shared helpers.
+- [x] Implement and verify shared helpers.
 - [ ] Adopt and verify the selected screens.
 - [ ] Review, push, and reconcile PR feedback.
 
@@ -70,7 +72,10 @@ No additional full-screen snapshot matrices are required.
 - Started from a clean `codex/content-width` checkout. PR #506 still targets `ff3f9ec8` and has no newer source revision.
 - Removed exactly 18 new references, the four added loops, and their configuration helper. The retained files are unchanged.
 - `./test --no-generate --only WhereUITests/WhereFlyoverCatalogTests --only WhereUISnapshotTests/CalendarContentViewSnapshotTests --only WhereUISnapshotTests/ElsewhereViewSnapshotTests --only WhereUISnapshotTests/LocationsViewSnapshotTests --only WhereUISnapshotTests/PresenceTimelineListSnapshotTests --record never --timings` passed two catalog tests and six image tests covering 183 captures. Formatting passed.
+- Added screen-root, padding, protocol, native-container, and presentation-boundary helpers. Hosted coverage exercises inherited and explicit widths, padding, nesting fallback, navigation, sheets, resizing, and retained scroll identity.
+- Native coverage includes Form, automatic List, plain List, and sidebar List. It checks 600/601 and 900/901 boundaries in both size classes, plus asymmetric caller safe-area padding.
+- All 722 WhereUI tests in 155 suites passed with the helpers and selected adoptions present. Formatting, symbol lint, architecture checks, and default host checks passed. Existing image verification is pending.
 
 ## Resume point
 
-Verify the new screen and native-container helpers before adopting them on additional surfaces.
+Review the selected screens' existing captures, record intentional changes, and run assertions with recording disabled.

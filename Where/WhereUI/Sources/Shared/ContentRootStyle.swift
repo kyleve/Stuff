@@ -5,6 +5,7 @@ extension WhereStylesheet {
     struct ContentRootStyle: Equatable {
         var regularMaximumWidth: CGFloat = 600
         var wideMaximumWidth: CGFloat = 900
+        var standardPadding: CGFloat = 16
 
         func maximumWidth(for width: WhereContentWidth) -> CGFloat {
             switch width {

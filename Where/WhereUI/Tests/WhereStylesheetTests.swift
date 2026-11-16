@@ -35,6 +35,7 @@ struct WhereStylesheetTests {
         #expect(EnvironmentValues().whereContentWidth == .regular)
         #expect(style.contentRoot.regularMaximumWidth == 600)
         #expect(style.contentRoot.wideMaximumWidth == 900)
+        #expect(style.contentRoot.standardPadding == 16)
         #expect(style.contentRoot.maximumWidth(for: .fluid) == .infinity)
     }
 

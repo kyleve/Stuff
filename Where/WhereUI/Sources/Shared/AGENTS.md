@@ -31,6 +31,9 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   renders relative to *today*. No reference containing one is stable across
   days. Views do not read `\.isCapturingSnapshot` to branch themselves. Capture
   handling stays inside the shared component.
+- Keep one content root per scrolling surface. Ordinary screens use `whereScreenRoot`; native forms and lists use `whereFormRoot` without another scroller.
+  Reset nesting only at independent navigation or sheet destinations with `whereScreenBoundary`. Preserve inherited width and caller-owned navigation.
+  Guards: `WhereScreenRootTests`, `WhereFormRootTests`, and `WhereContentRootTests`.
 
 ## Design system — `WhereStylesheet`
 

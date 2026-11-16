@@ -10,20 +10,18 @@ extension View {
 }
 
 extension EnvironmentValues {
-    @Entry fileprivate var isInsideWhereContentRoot = false
+    @Entry var isInsideWhereContentRoot = false
 }
 
 private struct WhereContentRootModifier: ViewModifier {
     @Environment(\.whereContentWidth) private var width
     @Environment(\.isInsideWhereContentRoot) private var isInsideRoot
     @Environment(\.stylesheet.contentRoot) private var style
+    @Environment(\.whereContentRootDiagnostics) private var diagnostics
 
     func body(content: Content) -> some View {
-        let _ = assert(
-            !isInsideRoot,
-            "Do not nest whereContentRoot(). Apply it once to the scrolling content, after padding.",
-        )
         if isInsideRoot {
+            let _ = diagnostics.reportNesting()
             content
         } else {
             content

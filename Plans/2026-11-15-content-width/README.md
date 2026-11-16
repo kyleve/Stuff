@@ -6,9 +6,9 @@
 - Operation: Execute the approved plan on `codex/content-width`.
 - Requested scope: The user approved the main-screen rollout and requested implementation after selecting both modifiers.
 - Stage: Execute the approved review follow-up.
-- Completed: The initial rollout in plan 01, publication, and review of all five human PR comments.
-- Pending: Snapshot reduction, screen helpers, native-container support, and the approved broader rollout.
-- Next action: Execute [02 — Screen roots](02-screen-roots.md) on the existing PR branch.
+- Completed: The initial rollout, removal of redundant snapshot matrices, shared screen helpers, native-container support, and their unit verification.
+- Pending: Image verification and publication of the selected screen adoptions.
+- Next action: Complete [02 — Screen roots](02-screen-roots.md) on the existing PR branch.
 
 ## Outcome and scope
 
@@ -60,6 +60,8 @@ All answers came from the user in this conversation on 2026-11-15.
 | Q-05 | closed | Use `.whereContentRoot()` instead of a wrapper closure. | R-01. |
 | Q-06 | closed | Detect nested roots with a debug assertion and use an unconstrained pass-through for inner roots in release builds. | R-05. User requested an assertion and/or a silent fallback during implementation. |
 | Q-07 | closed | Accept one-pixel rendering differences from SwiftUI rounding. | The user accepted these differences during snapshot review. The simple two-frame modifier remains in use. |
+| Q-08 | closed | Add screen conveniences, configurable padding, and native-container support, then adopt the selected additional screens. | Plan 02 follows the approved PR review recommendations. |
+| Q-09 | closed | Remove the four added full snapshot matrices. | Plan 02 retains existing captures and focused hosted geometry coverage. |
 
 The existing horizontal padding counts toward each limit. Limits remain fixed across themes and text sizes.
 

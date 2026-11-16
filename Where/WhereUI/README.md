@@ -442,6 +442,30 @@ The rules for what may and may not live in the sheet are in
 
 ### Content width
 
+Use `.whereScreenRoot()` for an ordinary vertical scrolling screen. It supplies one scroll view, standard padding, and a centered content column.
+An omitted width inherits the surrounding policy. An explicit argument overrides that policy for the screen.
+
+```swift
+content.whereScreenRoot()
+content.whereScreenRoot(.wide)
+content.whereScreenRoot(padding: .none)
+```
+
+`WhereContentPadding` supports `.standard`, `.none`, and `.custom(EdgeInsets)`.
+Standard padding comes from `WhereStylesheet.contentRoot.standardPadding`. Padding counts toward the width limit.
+`WhereScreenRoot { content }` uses the same implementation.
+Simple screen types can conform to `WhereScreen` and supply `content` instead of `body`.
+Its optional `contentWidth` and `contentPadding` properties customize the defaults.
+
+Apply `.whereFormRoot()` directly to a native `Form` or `List`.
+It adds centered safe-area gutters while retaining the full viewport, scroll indicators, and section styling.
+The system's own margins and row padding remain inside the width limit. Narrow containers and `.fluid` receive no extra gutters.
+Keep presentation modifiers outside this adapter.
+
+At a navigation or sheet destination, use `.whereScreenBoundary()` to start an independent root scope.
+The boundary preserves the inherited width. It must not separate roots within one scrolling surface.
+Nested screen roots assert in debug builds and pass content through without another scroller or padding in release builds.
+
 Apply `.whereContentRoot()` to padded content inside a scroll view. The modifier centers the content and limits its width to 600 points.
 The scroll view, its background, and native navigation retain the available width.
 
