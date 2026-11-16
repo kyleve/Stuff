@@ -3,12 +3,12 @@
 ## Planning checkpoint
 
 - Updated: 2026-11-16, integrated base `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
-- Operation: Restore accessibility annotation coverage on `codex/content-width`.
-- Requested scope: The user requested retaining the accessibility snapshots removed by the additional reduction.
-- Stage: Complete; [04 — Accessibility coverage](04-accessibility-coverage.md) is published.
-- Completed: Plans 01–04. Accessibility restoration passed all 58 captures and both catalog tests; PR and issue evidence are updated. Previous CI passed at `af8199887`.
-- Pending: CI, PR review, and eventual merge; no implementation work remains in this series.
-- Next action: Address subsequent review feedback. STU-331 remains In Review.
+- Operation: Address the onboarding test review on `codex/content-width`.
+- Requested scope: The user pointed to the PR comment suggesting removal of the hosted onboarding layout test.
+- Stage: Execute [05 — Onboarding test review](05-onboarding-test-review.md).
+- Completed: Plans 01–04, including restored accessibility annotations and passing validation.
+- Pending: Publish the verified test deletion, update coverage claims, and reply on the review thread.
+- Next action: Commit and push; both catalog tests and all 11 onboarding captures passed. STU-331 remains In Review.
 
 ## Outcome and scope
 
@@ -52,7 +52,7 @@ Repository evidence is sufficient for this layout change. No external API or pla
 
 ## Questions and decisions
 
-Answers came from the user in this conversation on 2026-11-15, except Q-11 on 2026-11-16.
+Answers came from the user in this conversation on 2026-11-15, except Q-11 and Q-12 on 2026-11-16.
 
 | ID | Status | Decision | Integration |
 | --- | --- | --- | --- |
@@ -67,6 +67,7 @@ Answers came from the user in this conversation on 2026-11-15, except Q-11 on 20
 | Q-09 | closed | Remove the four added full snapshot matrices. | Plan 02 retains existing captures and focused hosted geometry coverage. |
 | Q-10 | closed | Merge main and reduce redundant snapshot axes while retaining distinct layout risks. | Plan 03 follows the user's latest request and main's revised coverage policy. |
 | Q-11 | closed | Retain the accessibility annotation snapshots removed by the additional reduction. | Plan 04 restores all five iPad annotation captures and their original identities. |
+| Q-12 | closed | Delete the hosted onboarding landscape test suggested in PR review. | Plan 05 retains production behavior and all onboarding snapshots, and corrects current validation claims. |
 
 The existing horizontal padding counts toward each limit. Limits remain fixed across themes and text sizes.
 
@@ -75,7 +76,8 @@ The existing horizontal padding counts toward each limit. Limits remain fixed ac
 The initial deliverable, [01 — Content width](01-content-width.md), is complete.
 The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete.
 The follow-up, [03 — Main integration](03-main-integration.md), is complete.
-The final correction, [04 — Accessibility coverage](04-accessibility-coverage.md), is complete.
+The correction, [04 — Accessibility coverage](04-accessibility-coverage.md), is complete.
+The current horizon is [05 — Onboarding test review](05-onboarding-test-review.md).
 
 ## Initial plan review
 
