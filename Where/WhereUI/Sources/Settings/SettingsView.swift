@@ -250,7 +250,9 @@ private struct SettingsDestinationView: View {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative + [
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
                     SnapshotConfiguration(
                         layoutDirection: .rightToLeft,
                         device: .iPhoneFullContent,

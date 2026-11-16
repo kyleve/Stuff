@@ -35,8 +35,8 @@ Coverage reductions preserve retained rendering and reference bytes. The integra
 - Reviewed scope against branch `efe70da7e` and main `6676b36bc`. The merge has 31 modified/deleted image conflicts and one guidance conflict.
 - Preserved all main image deletions and retained the content-root invariant in the shorter shared guidance.
 - Independent reviewer: `merge_coverage_review`, covering integration and the complete branch diff against main.
-- [ ] Verify, commit, and push the main merge.
-- [ ] Reduce and verify redundant image axes.
+- [x] Verify, commit, and push the main merge: `cdbdf62cf754bb2cbe0f0af1289e4344f6a33bb6`.
+- [x] Reduce and verify redundant image axes: 18 removed, 53 retained and asserted.
 - [ ] Publish final review evidence and complete the record.
 
 ## Integration findings
@@ -87,4 +87,4 @@ The first command exposed the two integration issues recorded above. The second 
 
 ## Resume point
 
-Verification is complete. Commit and push the merge, then commit the isolated coverage reduction. Refresh PR and issue evidence before completing this record.
+The merge is pushed and all verification passed. Commit and push the isolated coverage reduction, then refresh PR and issue evidence before completing this record.

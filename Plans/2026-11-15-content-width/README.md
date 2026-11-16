@@ -7,8 +7,8 @@
 - Requested scope: The user requested the main merge and a further snapshot-coverage review after both implementation deliverables.
 - Stage: Execute [03 — Main integration](03-main-integration.md).
 - Completed: Plans 01 and 02; main conflict resolution; 684 passing WhereUI tests, 220 verified image references, focused coverage edits, and independent review.
-- Pending: Separate merge and coverage commits, and publication.
-- Next action: Commit and publish the verified changes. STU-331 remains In Review.
+- Pending: Commit and push the verified coverage reduction; refresh PR and issue evidence.
+- Next action: Publish the coverage reduction and final evidence. STU-331 remains In Review.
 
 ## Outcome and scope
 
@@ -89,3 +89,5 @@ The current horizon is [03 — Main integration](03-main-integration.md).
 - Implementation PR: [#506](https://github.com/kyleve/Stuff/pull/506), ready for review.
 - Initial delivery: Published at source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad`. All 717 WhereUI tests and 325 snapshot captures passed.
 - Review follow-up: Published at source revision `8ffba7b465bde1a445c020ba11b46c06c927b016`. All 723 WhereUI tests and 366 selected captures passed. After the final onboarding correction, all 13 onboarding captures passed again. See plan 02 for commands, independent review, and validation limits.
+
+- Main integration: Merge `cdbdf62cf` preserves all 65 upstream image deletions. All 684 WhereUI tests and 220 distinct retained image references passed across the integration selections. Plan 03 records commands and the additional 18-variant reduction.

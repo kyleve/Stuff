@@ -450,7 +450,14 @@ struct OnboardingPage: Identifiable {
     extension OnboardingView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
             [
-                whereSnapshot(name: "Default", configurations: .screenRepresentative) {
+                whereSnapshot(name: "Default", configurations: .phoneLightDark + [
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
+                    SnapshotConfiguration(contrast: .increased, device: .iPhone),
+                    SnapshotConfiguration(device: .iPhone, snapshotType: .accessibility),
+                    SnapshotConfiguration(device: .iPad),
+                    // The wider text column has its own pager/footer fit at AX5.
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPad),
+                ]) {
                     // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
                     // is false and the capture lands on the intro flow.phase.
                     OnboardingView(

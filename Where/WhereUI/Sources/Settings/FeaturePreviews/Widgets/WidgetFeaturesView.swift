@@ -47,7 +47,10 @@ extension WidgetFeaturesView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
                 measurementReadiness: .immediate,
             ) {
                 WidgetFeaturesView(

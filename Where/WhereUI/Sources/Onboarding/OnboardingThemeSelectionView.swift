@@ -83,10 +83,18 @@ struct OnboardingThemeSelectionView: View {
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             let cache = RegionOutlinePathCache()
-            let configurations = [SnapshotConfiguration].fullContentScreenRepresentative + [
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhoneFullContent),
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
-            ]
+            let configurations = [SnapshotConfiguration]
+                .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    // Keep the wider-column wrapping and picker placement at AX5.
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPadFullContent),
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
+                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
+                ]
             return [
                 whereSnapshot(
                     name: "Standard",

@@ -247,7 +247,10 @@ extension AppearanceSettingsView: SettingsSection {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
                 measurementReadiness: .immediate,
                 // Native navigation adapts when the Form reaches its full height.
                 // Reparse accessibility after that preparation pass, as About does.
