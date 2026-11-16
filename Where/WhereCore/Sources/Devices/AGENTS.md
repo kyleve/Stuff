@@ -11,5 +11,8 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   may rename or remove an identity. It must never change another installation's
   local consent. Backups alone read lossless raw samples and device/removal
   timelines, excluding non-restorable check-ins.
+- Keep recording consent beside the backup-excluded installation identity.
+  Phone onboarding recommends On only when no other active device recently
+  reported recording. Tablet/other devices and explicit rejoins recommend Off.
 - Keep historical device-name lookups inclusive of removed profiles.
   Use the latest saved nickname or the profile's hardware name.

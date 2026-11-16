@@ -1,130 +1,64 @@
 ---
 name: review-lessons
-description: Audit human and agent review findings and follow-up fixes to improve repository guidance and enforcement. Use for the monthly review retrospective or an explicit review of recurring mistakes.
+description: Audit historical human and agent review findings to improve repository guidance and enforcement.
 ---
 
-Read the root [AGENTS.md](../../../AGENTS.md) and
-[github-workflow](../github-workflow/SKILL.md) before changes.
-Use this procedure monthly, or after a recurring failure needs investigation.
-The weekly [todo-triage](../todo-triage/SKILL.md) pass owns backlog maintenance and module audits.
-[code-review](../code-review/SKILL.md) owns review of a current PR or completed branch.
+# Review lessons
 
-## Establish the review window
+Use [code-review](../code-review/SKILL.md) for a current diff, [todo-triage](../todo-triage/SKILL.md) for backlog/module audits, and [github-workflow](../github-workflow/SKILL.md) for publication.
+Historical audits do not authorize replies or resolution changes on old threads.
 
-1. Inspect the checkout and fetch `origin/main`.
-   Unless the user specifies a base or stack, use a clean branch from current `main`.
-   Search open PRs for an unfinished review-lessons audit before creating another one.
-   If one exists, continue it through the GitHub workflow.
-2. Use the requested period, or start from the last complete audit's recorded end time.
-   Find that time in its PR body or accessible run summary.
-   If no complete record is available, review the previous three months.
-   Fix an end time in UTC before collection.
-   Record both boundaries and the source revision.
-3. Use three months of context to identify recurring patterns, including lessons from the previous audit.
-   Treat that context as an overlap, not as new evidence on every run.
-   Compare prior audit changes with current source to identify which changes actually landed.
+## Window and sources
 
-## Collect and verify evidence
+- Use the selected base, otherwise a clean branch from current `origin/main`. Continue an unfinished matching audit PR.
+- Fix a UTC end time before collection. Start at the last complete audit's recorded end, or three months earlier when no record exists.
+- Use three months of overlapping context for recurrence analysis; do not count it again as new evidence.
+- Collect PRs updated in the window, including older, closed, and open PRs: inline/resolved threads, submitted reviews, conversation comments, and later corrections.
+- Include available agent-review reports and findings fixed before publication. Search Linear history and dated `MODULE_AUDIT.md` reports under [BACKLOG.md](../../../BACKLOG.md). Also inspect merged fixes without review comments.
+- Paginate each collection, split capped searches, and filter individual events by the window. Record inaccessible reports and missing pages. Partial runs must not advance the last complete audit boundary.
 
-- Find PRs updated during the review window, including older, closed, and still-open PRs.
-  Read inline threads, submitted reviews, conversation comments, and follow-up fixes.
-  Include resolved threads and later corrections to the original feedback.
-- Include completed agent-review reports available in the current task or linked to the reviewed PRs.
-  Preserve findings fixed before publication when the review report or fix history records them.
-  Record inaccessible or unrecorded reviews as a coverage limit. A PR-only collection cannot establish complete agent-review coverage.
-- Search the Stuff team’s Linear issues, including completed and archived history, and dated `MODULE_AUDIT.md` reports to locate agent-found issues and fixes. Follow [BACKLOG.md](../../../BACKLOG.md) for complete reads.
-  Verify them against source and history. A backlog entry or stale audit is not proof of a current defect.
-- Collect clarification questions about scope, affected callers, validation, and design rationale.
-  Compare them with the description and context available at the time of review.
-  If the earlier description is unavailable, record that limit.
-  Do not infer an earlier omission from the current body.
-- Paginate the PR list and every comment, review, and thread collection.
-  Split searches that reach an API result cap.
-  Filter individual events by the recorded window, allowing overlap at the start boundary.
-  Include fixes without review comments from the period's merged PRs and commit history.
-- Trace each candidate lesson to the final change and current source.
-  Record the comment, fix, affected behavior, existing guidance, and any executable guard.
-  Treat unmerged proposals and declined feedback as context, not established repository policy.
-- Check recovered opening or pre-review revisions when commits were rewritten.
-  A correction may be folded into the final PR's first commit without a separate review comment.
-  Record unavailable earlier revisions as a coverage limit.
-- Classify by content and outcome, not by author. Apply the same evidence standard to human and agent findings.
-  Separate substantive findings and clarification questions from status updates, screenshots, suggested review focus, and replies without a new finding.
-  Raw comment volume is not a defect count.
-  Inspect later corrections before counting a finding as confirmed.
-  Deduplicate reports of the same defect across review sources. Repeated mentions are not independent recurrences.
-- Before classifying a missed rule, verify that the rule existed when the offending change was made.
-  Use Git history for the relevant instruction and code.
-  Distinguish a missing rule from a rule added after the defect.
-- Mark missing pages, unavailable sources, and unverified outcomes explicitly.
-  An incomplete collection cannot establish that no changes are needed.
-  Do not advance the last complete audit's end time from a partial run.
+## Establish lessons
 
-Historical review does not authorize replies or resolution changes on old threads.
+For each candidate, trace the report to its final disposition, fix, current source, owning guidance, and guard.
+Recover pre-review revisions when needed after rewrites; report unavailable history.
+For clarification gaps, compare the question with the description available at that time, not today's edited body.
+Check whether a supposedly missed rule existed when the defect was introduced.
 
-## Choose the smallest effective correction
+Deduplicate by defect across human and agent reports.
+Distinguish confirmed defects, accepted design decisions, declined suggestions, and unverified claims.
+Prioritize recurring mechanisms and single failures with substantial consequences.
 
-Group evidence by failure mechanism, not by reviewer wording.
-Prioritize repeated failures and individual failures with a clear, substantial consequence.
-Use the current owner of each rule before adding a new instruction.
-For each selected bug or anti-pattern, record its trigger, failure mechanism, final correction, and regression evidence or remaining gap.
-Distinguish confirmed defects, accepted design corrections, declined suggestions, and unverified suspicions.
-Do not turn a disputed review suggestion into repository policy.
+## Correct the owner
 
-| Finding | Correction |
-|---------|------------|
-| Missing guidance | Add the invariant to the deepest applicable `AGENTS.md`, or the procedure to its skill. Link its guard or source. |
-| Existing guidance missed | Repair its discovery, placement, or relevant workflow step. Consolidate duplicate instructions. |
-| Missing or ineffective guard | Prefer compiler constraints, lint, or regression tests for deterministic requirements. Verify that the guard rejects the observed failure. |
-| Obsolete or conflicting guidance | Remove or correct it against current source and the final decision. |
-| Recurring clarification caused by missing PR context | Add a conditional prompt to the relevant [PR body guidance](../github-workflow/references/pr-writing.md#writing-the-pr-body). |
-| No supported gap | Leave the guidance unchanged. Record why the evidence does not justify a change. |
+| Evidence | Action |
+| --- | --- |
+| Missing non-obvious contract | Add it to the deepest applicable instructions or workflow skill, with its guard/source. |
+| Existing rule missed | Repair discovery or consolidate duplicate owners. |
+| Missing or ineffective deterministic guard | Prefer compiler/lint/test enforcement. Follow code-review's guard checks and the [Bumper catalog](../../../.bumper/RULES.md) where applicable. |
+| Obsolete or generic guidance | Correct or remove it; do not preserve wording that adds no decision value. |
+| Repeated PR-context gap | Refine the relevant [PR-writing guidance](../github-workflow/references/pr-writing.md). |
+| No supported gap | Leave guidance unchanged. |
 
-Read the owning module instructions before changing guidance or a guard.
-For architecture enforcement, use the existing [Bumper rules](../../../.bumper/RULES.md) and root mutation-test requirements.
-For a new guard, cover the actual failing form and a valid neighboring form.
-Check the guard's file selection, exclusions, configured severity, and CI invocation.
-Retain the production configuration in regression probes so disabling the guard makes them fail.
-Avoid broad text matching for rules that require type or runtime context.
-If enforcement needs a separate product change, file it through `todo-triage` in Linear’s Stuff team and link the issue.
-Search existing backlog items before filing another one.
-Keep review history in the PR and actionable follow-ups in the backlog.
-If a confirmed lesson lacks a useful review check, update [repository checks](../code-review/references/repository-checks.md).
-Give the reviewer a recognizable trigger, a discriminating question or failure probe, and the owning rule and guard.
-Merge lessons with the same mechanism. Extend the pattern index only when it improves discovery across modules.
-Replace stale routes instead of accumulating historical examples. Keep the invariant at its existing owner and the fix history in the audit record.
-
-Do not add instructions to meet a monthly quota.
-Remove redundant guidance as part of the same correction.
+Use the current owner's instructions before editing.
+For a confirmed mechanism that lacks a useful review probe, update [repository checks](../code-review/references/repository-checks.md) with a trigger, discriminating probe, and owner/guard links.
+Keep fix history in the audit record. Replace stale examples instead of accumulating them.
+File separate product work through todo-triage, with duplicate/history checks.
 
 ## Verify and publish
 
-Review whether earlier corrections prevented recurrence in later comparable changes.
-Count a recurrence only after the relevant guidance or guard landed.
-Separate new violations from defects already present at that time.
-Report the number of relevant changes examined and any repeated defects or clarification gaps.
-A quiet period without comparable changes does not establish effectiveness.
+Assess prior corrections only against comparable changes after they landed; a quiet period alone does not prove effectiveness.
+Report comparable-change counts and any recurrences.
 
-Validate the changed files through the root rules and applicable skills.
-For skill changes, verify frontmatter, discovery descriptions, and local links.
-Run `./sync-agents` after instruction changes.
-If attribution inputs change, follow the root attribution procedure.
-For guard changes, report the failing fixture and the passing corrected case.
+Run guidance synchronization/checks, validate changed skills, and exercise changed executable guards.
+Publish supported corrections through github-workflow; leave the PR open.
+No-change runs need no commit or PR. Do not add instructions to fill an audit quota.
 
-If supported changes remain, publish a ready-for-review PR through `github-workflow`.
-If no changes are warranted, leave tracked files unchanged and report the result.
-Do not create a PR solely to record a completed run.
+Keep this record in the PR or response:
 
-In the PR body or run summary, record:
+- UTC window, source revision, and complete/partial coverage.
+- Collection counts, human/agent sources, and inaccessible evidence.
+- Verified changes and each selected lesson's trigger, mechanism, outcome, owner, and correction or reason for no change.
+- Prior corrections' observed effects and limits.
+- Checks and deferred issue links.
 
-- The UTC review window, source revision, and coverage status: complete or partial.
-- The PR and comment counts, with any collection limits.
-- The human and agent review sources examined, including unavailable private or ephemeral reports.
-- Separate collection coverage from source verification. Name the changes examined for each selected lesson.
-- Each selected lesson, its evidence links, its owner, and the correction or reason for no change.
-- The effect of prior corrections, including limits on that conclusion.
-- The checks run and links to deferred backlog items.
-
-Use this record to establish the next review window.
-If the user requests a monthly schedule, invoke `$review-lessons` from the task prompt.
-Keep the audit procedure in this skill.
+Schedules invoke `$review-lessons`; cadence belongs in the scheduler.
