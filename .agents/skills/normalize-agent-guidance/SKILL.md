@@ -1,63 +1,43 @@
 ---
 name: normalize-agent-guidance
-description: Audit and normalize repository instructions and owned skills for size, duplication, and discovery drift. Use for the monthly guidance maintenance run or a requested instruction cleanup.
+description: Audit and simplify repository instructions and owned skills, including size, duplication, task routing, and discovery.
 ---
 
 # Normalize agent guidance
 
-Read the [repository contract](../../../AGENTS.md), [guidance ownership](../../../.agents/AGENTS.md), and [maintenance procedure](../../../.agents/references/agent-maintenance.md).
-Use this skill to keep guidance complete, focused, and within the existing budgets.
-For an audit-only request, report proposed corrections without changing files or publishing.
-[review-lessons](../review-lessons/SKILL.md) owns historical review audits; this skill owns the current instruction structure.
+Use the [guidance ownership rules](../../../.agents/AGENTS.md).
+For audit-only requests, report proposals without editing or publishing.
+[review-lessons](../review-lessons/SKILL.md) owns historical review audits.
 
-## Establish the scope and baseline
+## Establish the baseline
 
-- Respect an explicitly selected checkout or base. For unattended runs, use an isolated worktree from current `origin/main`.
-- Search open PRs for an unfinished guidance-normalization run before creating another branch. Continue a matching PR through [github-workflow](../github-workflow/SKILL.md).
-- If the selected revision lacks this skill or `./sync-agents --check`, report the missing rollout prerequisite and stop. Do not reconstruct unmerged tooling.
-- Record the source revision and the prior completed audit's revision from its PR or run summary. If none is available, establish a baseline without claiming a growth comparison.
-- Cover all repository instruction chains, owned skill entry points, and their required references. Read each affected module's instructions before relocating its rules.
+- Use the selected checkout; unattended runs start from current `origin/main` in an isolated worktree. Continue an unfinished matching PR when one exists.
+- Record the source revision and the prior completed audit revision, or establish a first baseline.
+- Run `mise exec ruby -- ./sync-agents --check`. Use [AgentFiles](../../../Tools/agent_files.rb) for canonical inventory and [the validator](../../../Tools/agent_guidance.rb) for budgets and chain accounting.
+- Cover instruction chains, owned skill entry points, and required references. Count canonical sources once; report absent external installations and other coverage gaps.
 
-## Measure and inspect
+## Remove content that does not change a decision
 
-Run `mise exec ruby -- ./sync-agents --check` before editing. Retain its diagnostics and reported coverage gaps.
-Use the [validator](../../../Tools/agent_guidance.rb) for budgets, override precedence, and combined-chain accounting.
-Use [AgentFiles](../../../Tools/agent_files.rb) for the canonical inventory and raw UTF-8 file sizes to rank individual instructions and owned skill entry points.
-Compare changed guidance with the prior audit when its revision is available.
+Prefer deletion for generic engineering advice, behavior inferable from code, copied inventories, algorithm walkthroughs, and repeated rationale.
+Keep repository preferences, non-obvious constraints, exceptions, and useful guard links. Do not remove a safety or compatibility requirement merely because code currently enforces it.
 
-Review the largest and fastest-growing files, plus guidance changed since the prior audit.
-Prioritize small remaining headroom, repeated rules, source inventories copied into prose, and procedures in always-loaded instructions.
-Also inspect broken required-read routes, conflicting instructions, stale references, and ambiguous skill descriptions.
-A passing size check does not establish that guidance remains well placed or discoverable.
+For common tasks, trace the instructions and skills they encounter. Narrow unnecessary triggers and required reads; shorten descriptions to the actual capability.
+Use conditional references for substantial specialized procedures, not to preserve unnecessary prose.
+Keep caller/test routes when moving source-directory contracts.
 
-Count each canonical source once. Do not count Claude skill links or absent external installations as additional content.
-Inspect compatibility diagnostics for leftover copies, incorrect links, and local instructions that can suppress native discovery.
-The [checker scope](../../../Tools/README.md#agent-guidance-tools) defines its coverage and parser limits.
-If changing assumptions about Codex loading or skill behavior, verify them through the available openai-docs workflow first.
-
-## Make supported corrections
-
-- Consolidate rules under [ownership and loading](../../../.agents/AGENTS.md#ownership-and-loading). Preserve each requirement, condition, exception, and guard link.
-- Preserve required-read routes for callers and tests outside any new source directory.
-- Keep general engineering rules, branch/publication policies, and skill invocation behavior intact. Do not raise budgets or change Codex configuration to make a failing check pass.
-- Keep external pins and fetched source contents unchanged. Report installed-package failures or use the existing maintenance procedure when repair is within the request.
-- Keep application behavior and unrelated tooling changes outside this normalization pass. Report a blocker when a correction needs a policy decision or separate implementation.
-- For relocations, record an old-owner to new-owner map in the PR or an existing execution record. Compare the original rule text with the result, including its exceptions.
-
-Do not rewrite clear guidance merely to reduce its byte count or meet a monthly quota.
-When no supported correction remains, leave tracked files unchanged and report the audit result.
+Read each changed owner's instructions. Record significant deletions and relocations with their rationale in the PR.
+Changes to explicit workflow preferences, authorization boundaries, or skill availability need existing user authorization; otherwise report a proposal.
+Keep external pins and fetched contents unchanged unless the task includes their maintenance.
+Verify changed loading assumptions through official OpenAI guidance.
+[Maintenance](../../../.agents/references/agent-maintenance.md) covers installation and Claude compatibility.
 
 ## Verify and deliver
 
-After changes, run `mise exec ruby -- ./sync-agents`, then `mise exec ruby -- ./sync-agents --check`.
-Validate changed skills through skill-creator when available. Review the complete diff through [code-review](../code-review/SKILL.md).
-Use the existing tests for any changed executable guard; documentation moves alone do not need app builds or model evaluations.
-If changes are warranted, publish a ready-for-review PR through github-workflow and leave it open for review.
-Do not create a commit or PR solely to record a clean run.
+- Run `mise exec ruby -- ./sync-agents`, then `mise exec ruby -- ./sync-agents --check`.
+- Validate changed skills through skill-creator. Review representative positive and negative task routes when triggers change; distinguish static inspection from observed activation.
+- Keep existing budgets. Use existing tests for changed executable guards; text-only edits need no app builds.
+- Review through [code-review](../code-review/SKILL.md) and publish supported changes through [github-workflow](../github-workflow/SKILL.md). Leave the PR open.
 
-Report the source and comparison revisions, instruction/skill counts, root size, largest chain, largest owned entry points, and remaining headroom.
-Include growth where a baseline exists, corrections and relocation map, checks run, PR link, and any incomplete coverage or blocked publication.
-Keep this record in the PR or run summary so the next audit can compare results.
-Offline checks establish structure and discovery inputs, not model activation or task quality.
-
-For a requested schedule, invoke `$normalize-agent-guidance` from the automation prompt. Keep the procedure here and the cadence in the scheduler.
+Report revisions, counts, root/chain/entry-point sizes and headroom, growth or reduction, significant deletions/relocations, checks, and coverage limits.
+A passing structural check does not establish model behavior. A clean audit needs no commit or PR.
+Keep the run record in the PR or response. Schedules invoke `$normalize-agent-guidance`; cadence belongs in the scheduler.

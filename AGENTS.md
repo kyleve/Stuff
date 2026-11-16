@@ -1,12 +1,10 @@
 # Stuff — Repository contract
 
-Read this file first. Then read every descendant `AGENTS.md` that applies to the affected paths, including source directories.
-When starting at the repository root, discover those descendants before editing; they are not all loaded automatically.
-Read the required references below for the task. They carry the same authority as the owning instructions.
+Read the descendant `AGENTS.md` files for affected paths, including source directories; they are not all loaded when starting at the root.
+Task-specific references below carry the owning instructions' authority.
 
-Library targets live in `Package.swift`. App, extension, and test targets live in `Project.swift` and `Tuist.swift`.
-Shared modules live under `Shared/`; Where modules live under `Where/`.
-Use each module's `README.md` for its API and its `AGENTS.md` for its contracts.
+Use module READMEs for APIs and local instructions for contracts.
+`Package.swift` owns libraries; `Project.swift` and `Tuist.swift` own app, extension, and test targets.
 Read exact tool versions from `.mise.toml`, lockfiles, and `.xcode-version`.
 
 ## Required task guidance
@@ -37,7 +35,7 @@ Read the matching reference before implementation or review. Read only relevant 
 - Keep generated `.xcodeproj`, `Derived/`, local `CLAUDE.md`, and `.claude/skills/` links out of commits.
 - Bundle IDs follow `com.stuff.<suffix>`.
 - Keep the invariant, executable rule, rule catalog, and mutation test together when changing architecture enforcement.
-- Keep module README and agent instructions current when architecture, public API, conventions, or documented behavior changes.
+- Keep affected module documentation current; retain instructions for decisions not evident from code.
 - Linear's Stuff team owns actionable work. Follow [BACKLOG.md](BACKLOG.md); unavailable access does not establish an empty backlog.
 - Durable plans live in [Plans/](Plans/README.md). Use the [planning skill](.agents/skills/planning/SKILL.md) for their lifecycle.
 
@@ -49,30 +47,27 @@ Read the matching reference before implementation or review. Read only relevant 
 - Shell: `./shellcheck` lints tracked shell files by shebang.
 - String catalogs must match Xcode serialization. Write them through Xcode or normalize with `./xcstrings`; use `--lint` for checking.
 
+## Writing
+
+Use plain, direct English in documentation, PRs, and responses. Lead with the result or required action.
+Prefer familiar words, active voice, and short sentences. Remove filler and repetition; keep technical terms when they improve precision.
+
 ## Working in this repo
 
-- **Identify the applicable rules before implementation.** For behavior changes,
-  name the relevant invariants and their existing guards in the task's working plan.
-  Use the owning `AGENTS.md` and required skills. If the scope expands, read the
-  new area's instructions before editing it. Keep this map task-local.
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`). Keep
   every commit for one piece of work on that one branch.
 - **Run checks in proportion to risk.** Load [`running-tests`](.agents/skills/running-tests/SKILL.md) to choose the applicable checks.
   Never commit a known-red tree.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit and push completed work eagerly.** Once a coherent change is
-  verified, commit it and push the current feature branch. Do not wait for a
-  separate request. Never hand back a finished task with task-related changes
-  left local, unpushed, or uncommitted. Honor an explicit request to keep work
-  local or uncommitted.
+- **Commit and push verified work eagerly.** Finished feature work ends with a ready-for-review PR, including work without a formal plan.
+  Honor explicit requests to keep work local or uncommitted.
 
 ### GitHub
 
 Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
-`gh`. Open PRs ready-for-review. Mark AI-posted comments. **Plan-driven work
-ends with push + PR** before handing back. **Addressing review feedback
+`gh`. Mark AI-posted content. **Addressing review feedback
 includes GitHub replies** on the threads you touch — not code-only fixes.
 
 Use [`review-lessons`](.agents/skills/review-lessons/SKILL.md) for the monthly

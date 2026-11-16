@@ -633,8 +633,8 @@ Every previewable component ships a `#Preview` (wrapped in `#if DEBUG`) built
 from **`PreviewSupport`** — synchronous, in-memory fixtures that never touch
 disk, CloudKit, or CoreLocation. Pull services and models from there rather than
 constructing them inline, and cover the empty / loaded / edge states, not just
-the happy path. See the feature
-[`Where/AGENTS.md`](../AGENTS.md#swiftui-views--previews).
+the happy path. See the feature's
+[UI construction contracts](../Guidance/presentation.md#ui-construction).
 
 ## Flyover
 
