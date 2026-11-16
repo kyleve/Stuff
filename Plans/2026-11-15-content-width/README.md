@@ -5,10 +5,10 @@
 - Updated: 2026-11-15, integrated base `ff3f9ec8df1d7901312624cba805be868f1f7345`.
 - Operation: Execute the approved plan on `codex/content-width`.
 - Requested scope: The user approved the main-screen rollout and requested implementation after selecting both modifiers.
-- Stage: Complete.
-- Completed: Implementation, independent review, image review, final assertions, branch push, PR publication, and issue reconciliation.
-- Pending: No implementation work remains in this plan.
-- Next action: Review [PR #506](https://github.com/kyleve/Stuff/pull/506). The linked Linear issue remains In Review until merge and acceptance verification.
+- Stage: Execute the approved review follow-up.
+- Completed: The initial rollout in plan 01, publication, and review of all five human PR comments.
+- Pending: Snapshot reduction, screen helpers, native-container support, and the approved broader rollout.
+- Next action: Execute [02 — Screen roots](02-screen-roots.md) on the existing PR branch.
 
 ## Outcome and scope
 
@@ -32,8 +32,8 @@ Each adaptive pane applies its own width limit. Native navigation, backgrounds, 
 
 ## Exclusions
 
-- X-01: Settings, onboarding, sheets, maps, and Timeline excerpts are outside this rollout.
-- X-02: The modifiers add no scrolling, padding, clipping, height limit, or navigation container.
+- X-01: Plan 01 excluded Settings, onboarding, sheets, maps, and Timeline excerpts. Plan 02 adds its selected Settings and onboarding surfaces. Maps and Timeline excerpts retain their existing ownership.
+- X-02: The content-root modifier adds no scrolling, padding, clipping, height limit, or navigation container. Plan 02 adds a separate screen convenience that owns scrolling and padding.
 - X-03: No dependency, persistence, or exported API changes are required.
 
 ## Discovery and evidence
@@ -65,8 +65,8 @@ The existing horizontal padding counts toward each limit. Limits remain fixed ac
 
 ## Execution order and horizon
 
-The current horizon contains one deliverable: [01 — Content width](01-content-width.md).
-Its API groundwork and screen adoption form two verified commits on the same branch.
+The initial deliverable, [01 — Content width](01-content-width.md), is complete.
+The current horizon is [02 — Screen roots](02-screen-roots.md), authorized after review of PR #506.
 
 ## Plan review
 

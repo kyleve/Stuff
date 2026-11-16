@@ -380,16 +380,6 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
-            for theme in WhereTheme.allCases {
-                for configuration in ContentWidthSnapshotConfigurations.wideScreens {
-                    artworkSnapshot(
-                        name: "ContentWidth-\(theme.rawValue)-\(configuration.device.name)",
-                        report: PreviewSupport.loadedYearReportModel(),
-                        configurations: [configuration],
-                        theme: theme,
-                    )
-                }
-            }
             for theme in WhereTheme.allCases where theme != .standard {
                 artworkSnapshot(
                     name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",

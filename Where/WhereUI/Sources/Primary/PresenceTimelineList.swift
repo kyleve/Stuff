@@ -300,20 +300,6 @@ struct PresenceTimelineList: View {
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            for theme in WhereTheme.allCases {
-                for configuration in ContentWidthSnapshotConfigurations.wideScreens {
-                    whereSnapshot(
-                        name: "ContentWidth-\(theme.rawValue)-\(configuration.device.name)",
-                        configurations: [configuration],
-                        theme: theme,
-                        measurementReadiness: .immediate,
-                    ) {
-                        NavigationStack {
-                            PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
-                        }
-                    }
-                }
-            }
             // WithData and Flights own full layout coverage; uncertainty keeps focused
             // accessibility checks.
             [

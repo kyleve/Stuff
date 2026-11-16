@@ -152,16 +152,6 @@ struct ElsewhereView: View {
 #if DEBUG
     extension ElsewhereView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            for theme in WhereTheme.allCases {
-                for configuration in ContentWidthSnapshotConfigurations.wideScreens {
-                    snapshot(
-                        name: "ContentWidth-\(theme.rawValue)-\(configuration.device.name)",
-                        report: PreviewSupport.elsewhereCatalogYearReportModel(),
-                        configurations: [configuration],
-                        theme: theme,
-                    )
-                }
-            }
             snapshot(
                 name: "Loaded",
                 report: PreviewSupport.elsewhereCatalogYearReportModel(),
