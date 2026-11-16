@@ -87,6 +87,7 @@ struct OnboardingThemeSelectionView: View {
                 .fullContentPhoneLightDarkWithAX5AndAnnotations + [
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
                     SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                     // Keep the wider-column wrapping and picker placement at AX5.
                     SnapshotConfiguration(dynamicType: .accessibility5, device: .iPadFullContent),
                     SnapshotConfiguration(

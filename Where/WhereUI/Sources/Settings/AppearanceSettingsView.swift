@@ -250,6 +250,7 @@ extension AppearanceSettingsView: SettingsSection {
                 configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
                     SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                 ],
                 measurementReadiness: .immediate,
                 // Native navigation adapts when the Form reaches its full height.

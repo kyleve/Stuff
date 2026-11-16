@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-15, integrated base `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
-- Operation: Merge current main and reduce redundant image coverage on `codex/content-width`.
-- Requested scope: The user requested the main merge and a further snapshot-coverage review after both implementation deliverables.
-- Stage: Complete; [03 — Main integration](03-main-integration.md) is published.
-- Completed: All three plans, including the main merge, further snapshot reduction, verification, independent review, and PR/issue updates.
-- Pending: PR review and eventual merge; no implementation work remains in this series.
-- Next action: Address subsequent review feedback. STU-331 remains In Review.
+- Updated: 2026-11-16, integrated base `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
+- Operation: Restore accessibility annotation coverage on `codex/content-width`.
+- Requested scope: The user requested retaining the accessibility snapshots removed by the additional reduction.
+- Stage: Execute [04 — Accessibility coverage](04-accessibility-coverage.md).
+- Completed: Plans 01–03, including the main merge and its verification. CI passed at `af8199887`.
+- Pending: Publish the verified five-capture restoration and update PR/issue evidence.
+- Next action: Commit and push; all 58 image captures and both catalog tests passed. STU-331 remains In Review.
 
 ## Outcome and scope
 
@@ -52,7 +52,7 @@ Repository evidence is sufficient for this layout change. No external API or pla
 
 ## Questions and decisions
 
-All answers came from the user in this conversation on 2026-11-15.
+Answers came from the user in this conversation on 2026-11-15, except Q-11 on 2026-11-16.
 
 | ID | Status | Decision | Integration |
 | --- | --- | --- | --- |
@@ -66,6 +66,7 @@ All answers came from the user in this conversation on 2026-11-15.
 | Q-08 | closed | Add screen conveniences, configurable padding, and native-container support, then adopt the selected additional screens. | Plan 02 follows the approved PR review recommendations. |
 | Q-09 | closed | Remove the four added full snapshot matrices. | Plan 02 retains existing captures and focused hosted geometry coverage. |
 | Q-10 | closed | Merge main and reduce redundant snapshot axes while retaining distinct layout risks. | Plan 03 follows the user's latest request and main's revised coverage policy. |
+| Q-11 | closed | Retain the accessibility annotation snapshots removed by the additional reduction. | Plan 04 restores all five iPad annotation captures and their original identities. |
 
 The existing horizontal padding counts toward each limit. Limits remain fixed across themes and text sizes.
 
@@ -73,7 +74,8 @@ The existing horizontal padding counts toward each limit. Limits remain fixed ac
 
 The initial deliverable, [01 — Content width](01-content-width.md), is complete.
 The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete.
-The final follow-up, [03 — Main integration](03-main-integration.md), is complete.
+The follow-up, [03 — Main integration](03-main-integration.md), is complete.
+The current horizon is [04 — Accessibility coverage](04-accessibility-coverage.md).
 
 ## Initial plan review
 

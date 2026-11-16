@@ -50,6 +50,7 @@ extension WidgetFeaturesView: SettingsSection {
                 configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
                     SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                 ],
                 measurementReadiness: .immediate,
             ) {

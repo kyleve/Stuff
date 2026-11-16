@@ -455,6 +455,7 @@ struct OnboardingPage: Identifiable {
                     SnapshotConfiguration(contrast: .increased, device: .iPhone),
                     SnapshotConfiguration(device: .iPhone, snapshotType: .accessibility),
                     SnapshotConfiguration(device: .iPad),
+                    SnapshotConfiguration(device: .iPad, snapshotType: .accessibility),
                     // The wider text column has its own pager/footer fit at AX5.
                     SnapshotConfiguration(dynamicType: .accessibility5, device: .iPad),
                 ]) {

@@ -253,6 +253,7 @@ private struct SettingsDestinationView: View {
                 configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
                     SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                     SnapshotConfiguration(
                         layoutDirection: .rightToLeft,
                         device: .iPhoneFullContent,
