@@ -56,7 +56,8 @@ Prefer familiar words, active voice, and short sentences. Remove filler and repe
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`). Keep
   every commit for one piece of work on that one branch.
-- **Run checks in proportion to risk.** Load [`running-tests`](.agents/skills/running-tests/SKILL.md) to choose the applicable checks.
+- **Run checks in proportion to risk.** Use the [testing policy](.agents/references/swift-conventions.md#testing) to choose coverage.
+  Load [`running-tests`](.agents/skills/running-tests/SKILL.md) to choose the applicable checks.
   Never commit a known-red tree.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.

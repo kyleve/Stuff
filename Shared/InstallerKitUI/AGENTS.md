@@ -16,5 +16,5 @@ See [README.md](README.md) and the [repository rules](../../AGENTS.md).
 - Use the section-decoration seam for host search anchors. Keep host-specific navigation and search types outside this module.
 - Construct preview identities and catalogs with InstallerKit's typed Testing SPI. Inject them through the production service and model.
 
-Run `./test InstallerKitUITests` and `./test InstallerKitUISnapshotTests --review`.
+Use `running-tests` to select affected suites from `InstallerKitUITests` and `InstallerKitUISnapshotTests`.
 The update page and browser destinations own their shared image matrices; hosts cover branding and navigation wrappers.

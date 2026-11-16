@@ -167,16 +167,6 @@ struct LocationsViewTestsDuo {
             controller.view.frame = CGRect(x: 0, y: 0, width: 466, height: 678)
             controller.traitOverrides.horizontalSizeClass = .compact
             controller.view.layoutIfNeeded()
-            try await waitForStage("initial scroll content") {
-                AdaptivePaneTestSupport.descendants(
-                    of: controller.view,
-                    matching: UIScrollView.self,
-                ).contains { $0.contentSize.height > $0.bounds.height }
-            }
-            var scroll = try #require(AdaptivePaneTestSupport.descendants(
-                of: controller.view,
-                matching: UIScrollView.self,
-            ).first { $0.contentSize.height > $0.bounds.height })
             @MainActor func currentScroll() -> UIScrollView? {
                 AdaptivePaneTestSupport.descendants(
                     of: controller.view,
@@ -184,6 +174,27 @@ struct LocationsViewTestsDuo {
                 )
                 .first { $0.window != nil && $0.contentSize.height > $0.bounds.height }
             }
+            @MainActor func navigationBarFrame() -> CGRect? {
+                AdaptivePaneTestSupport.descendants(
+                    of: controller.view,
+                    matching: UINavigationBar.self,
+                )
+                .first { $0.window != nil && $0.bounds.height > 0 }
+                .map { $0.convert($0.bounds, to: controller.view) }
+            }
+            @MainActor func hasAppliedSafeArea(_ scroll: UIScrollView) -> Bool {
+                guard let bar = navigationBarFrame() else { return false }
+                let viewport = scroll.convert(scroll.bounds, to: controller.view)
+                let expectedInset = max(0, bar.maxY - viewport.minY) + scroll.contentInset.top
+                return abs(bar.minY - controller.view.safeAreaInsets.top) < 1
+                    && abs(scroll.adjustedContentInset.top - expectedInset) < 1
+            }
+            try await waitForStage("initial navigation and scroll layout") {
+                guard let scroll = currentScroll() else { return false }
+                return hasAppliedSafeArea(scroll)
+                    && abs(scroll.contentOffset.y + scroll.adjustedContentInset.top) < 1
+            }
+            var scroll = try #require(currentScroll())
             for topInset in [CGFloat(82), 0, 56, 0] {
                 let previousInset = scroll.adjustedContentInset.top
                 let previousHostInset = controller.view.safeAreaInsets.top
@@ -199,12 +210,15 @@ struct LocationsViewTestsDuo {
                         "top anchoring after inset \(previousInset) -> requested \(topInset)",
                     ) {
                         guard let current = currentScroll() else { return false }
-                        return abs(current.adjustedContentInset.top - previousInset) > 1
+                        // Initial navigation layout can change an inset before the requested
+                        // safe area reaches the scroll view. Wait for both native frames.
+                        return hasAppliedSafeArea(current)
+                            && abs(current.adjustedContentInset.top - previousInset) > 1
                             && abs(current.contentOffset.y + current.adjustedContentInset.top) < 1
                     }
                 } catch {
                     throw TestHostError(
-                        "\(error); requested=\(controller.additionalSafeAreaInsets), hostSafeArea=\(controller.view.safeAreaInsets), scrollSafeArea=\(scroll.safeAreaInsets), adjusted=\(scroll.adjustedContentInset), offset=\(scroll.contentOffset), bounds=\(scroll.bounds), content=\(scroll.contentSize), attached=\(scroll.window != nil), current=\(String(describing: currentScroll()))",
+                        "\(error); requested=\(controller.additionalSafeAreaInsets), hostSafeArea=\(controller.view.safeAreaInsets), bar=\(String(describing: navigationBarFrame())), scrollSafeArea=\(scroll.safeAreaInsets), adjusted=\(scroll.adjustedContentInset), offset=\(scroll.contentOffset), bounds=\(scroll.bounds), content=\(scroll.contentSize), attached=\(scroll.window != nil), current=\(String(describing: currentScroll()))",
                     )
                 }
                 let current = try #require(currentScroll())

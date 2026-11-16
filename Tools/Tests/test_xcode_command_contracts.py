@@ -54,14 +54,19 @@ import signal
 import sys
 import time
 
-Path(sys.argv[1]).write_text(str(os.getpid()))
+def publish(path, value):
+    destination = Path(path)
+    pending = destination.with_name(destination.name + ".tmp")
+    pending.write_text(str(value))
+    pending.replace(destination)
 
 def finish(received, _frame):
-    Path(sys.argv[2]).write_text(str(received))
+    publish(sys.argv[2], received)
     raise SystemExit(128 + received)
 
 signal.signal(signal.SIGINT, finish)
 signal.signal(signal.SIGTERM, finish)
+publish(sys.argv[1], os.getpid())
 while True:
     time.sleep(1)
 """
@@ -200,6 +205,11 @@ for argument in "$@"; do
   fi
   previous="$argument"
 done
+# The test treats a visible PID file as readiness to interrupt this process.
+publish_pid() {
+  printf '%s\\n' "$$" >"$XCODE_PID_FILE.tmp"
+  /bin/mv "$XCODE_PID_FILE.tmp" "$XCODE_PID_FILE"
+}
 case "${XCODE_OUTPUT:-passing}" in
   passing)
     printf '◇ Suite ValueTests started\\n'
@@ -221,13 +231,13 @@ case "${XCODE_OUTPUT:-passing}" in
     printf '✔ Test works() passed after 0.001 seconds\\n'
     ;;
   pipe-source)
-    printf '%s\\n' "$$" >"$XCODE_PID_FILE"
+    publish_pid
     exec /usr/bin/yes '◇ Test stillRunning() started'
     ;;
   hang)
-    printf '%s\\n' "$$" >"$XCODE_PID_FILE"
     trap 'printf INT >"$XCODE_EXIT_MARKER"; exit 130' INT
     trap 'printf TERM >"$XCODE_EXIT_MARKER"; exit 143' TERM
+    publish_pid
     if [ "${SPAWN_GRANDCHILD:-0}" = 1 ]; then
       /usr/bin/python3 "$SIGNAL_CHILD_SCRIPT" \
         "$XCODE_GRANDCHILD_PID_FILE" "$XCODE_GRANDCHILD_EXIT_MARKER" &

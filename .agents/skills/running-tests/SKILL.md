@@ -23,8 +23,9 @@ Pick the **narrowest tier that covers the change**:
 |------|---------|------|
 | Affected | `./test` | Default — bundles touched by your diff against `origin/main` |
 | One bundle | `./test WhereCoreTests` | You know exactly what you touched |
-| Unit suite | `./test --all` | Change spans modules; before a wide commit |
-| Image suite | `./test --snapshots` | Triggers below |
+| Selected suites | `./test --only Bundle/Suite` | Focused behavior or coverage changes; repeat `--only` for each affected suite |
+| Unit suite | `./test --all` | Shared behavior or integration risk spans the unit bundles |
+| Image suite | `./test --snapshots` | Shared renderer or appearance changes affect image coverage across modules |
 | Everything | `./test --everything` | All iOS unit and image bundles plus default host/architecture checks |
 
 Use `--base REF` for another diff base and `--only Bundle/Suite/testName()` for a focused selection.

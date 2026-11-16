@@ -716,18 +716,17 @@ driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
 the on-disk/CloudKit store). Internal types are reached via
 `@testable import WhereUI`.
 
-How screens *look* is pinned separately: every top-level screen, widget, and
-app-flow surface has image snapshots, with representative layouts covering
-light/dark, Dynamic Type, iPhone/iPad, contrast, and VoiceOver annotations, in
-[`SnapshotTests/`](SnapshotTests), with reference images under
-`SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its matrix via a
-`SnapshotProviding` conformance **in its own source file**, shared with its
-`#Preview` cutsheet (`Self.snapshotPreviews`). Additional states use compact coverage
-or focused traits. Explore Features shares a representative gallery matrix with
+Distinct visual behavior has selected image coverage in [`SnapshotTests/`](SnapshotTests).
+Reference images live under `SnapshotTests/__Snapshots__/` in Git LFS.
+Each covered view declares its matrix through a colocated `SnapshotProviding` conformance,
+shared with its `#Preview` cutsheet (`Self.snapshotPreviews`).
+Device, appearance, Dynamic Type, contrast, and annotation configurations cover specific rendering risks.
+Additional states can use one baseline or focused traits. Preview and Flyover states do not each require a recorded image.
+Explore Features shares a representative gallery matrix with
 large-type checks on dense content. The updater wrapper records only host integration;
 its shared fixture builder still supplies all scenarios to previews and Flyover.
-There is one `FooSnapshotTests`
-suite per view, so each view's references live in their own `__Snapshots__/`
+Each covered view has a matching `FooSnapshotTests`
+suite, so its references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job.
@@ -741,7 +740,7 @@ To re-record after an intentional UI change (see the
 for the mode values):
 
 ```bash
-./test --snapshots --record failed
+./test --snapshots --only WhereUISnapshotTests/RegionSummaryCardSnapshotTests --record failed
 ```
 
 Then review and commit the images.

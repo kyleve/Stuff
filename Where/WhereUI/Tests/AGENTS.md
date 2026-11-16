@@ -13,11 +13,10 @@ runtime. Guard: `CalendarContentViewTests`.
 `Tests/Support/TestStore.swift` and `AdaptivePaneLoadFixture.swift` are shared by the unit and image bundles through `Project.swift`.
 Keep support fixtures outside `SnapshotTests/`, whose Swift files each declare one matching suite. Use the store's read gates and failures for adaptive loading snapshots. Keep fixture setup and completion independent for each configuration.
 
-`WhereStylesheetTests` pins every token default and trait-aware derivation.
+`WhereStylesheetTests` covers trait-aware derivation, calculations, and semantic accessibility constraints.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
-When you add, rename, or retune a token, update those assertions in the
-same change.
+Follow [Broadway coverage guidance](../../../.agents/skills/building-ui/references/broadway.md) for token changes.
 
 `WhereFlyoverCatalogTests` pins the catalog against the colocated registrations
 assembled by `WhereFlyoverCatalog`. Add a registration beside every new
@@ -29,7 +28,7 @@ When registrations, routes, or default variants change, run
 Keep the full Where Flyover overview out of image snapshots. Use individual screen
 suites for content and the shared Flyover suite for the browser.
 
-Screens, widgets, and app-flow surfaces are pinned as matrixed image
+Distinct screen, widget, and app-flow rendering is covered by selected image
 snapshots under [`SnapshotTests/`](../SnapshotTests). Those build as this module's
 `WhereUISnapshotTests` bundle in the shared `StuffSnapshotTests` scheme and CI
 job, deliberately outside `Stuff-iOS-Tests` (root

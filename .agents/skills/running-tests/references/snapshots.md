@@ -1,5 +1,12 @@
 # Snapshot validation
 
+## Select coverage
+
+Use `./test --snapshots --only Bundle/Suite` for the owning component and relevant screen integration suites.
+Changes to SnapshotKit configuration or capture code need their regression suites and affected rendering coverage.
+Reserve the full image suite for changes whose effects span the shared renderer or application appearance.
+Documentation-only edits and test deletions do not automatically require every image bundle.
+
 ## Capture and review
 
 - Use the Xcode major.minor in [`.xcode-version`](../../../../.xcode-version); `./test` checks it before setup.

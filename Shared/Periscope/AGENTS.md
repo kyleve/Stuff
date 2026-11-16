@@ -17,4 +17,4 @@ Macros run on the build host. JournalKit stays payload-agnostic.
 
 ## Testing
 
-Hosted Swift Testing bundles (`PeriscopeCoreTests`, `PeriscopeUITests`, `PeriscopeToolsTests`) run in `StuffTestHost`. Use 1:1 test files per the root rules.
+Hosted Swift Testing bundles (`PeriscopeCoreTests`, `PeriscopeUITests`, `PeriscopeToolsTests`) run in `StuffTestHost`.

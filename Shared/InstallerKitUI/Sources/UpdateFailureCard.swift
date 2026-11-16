@@ -29,9 +29,9 @@ struct UpdateFailureCard: View {
 #if DEBUG
     extension UpdateFailureCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            // Capture this static surface for text scaling and VoiceOver annotations.
+            // OfflineCached owns text scaling and VoiceOver annotation coverage.
             // Full-page fixtures also exercise the automatic refresh and cached-data state.
-            SnapshotCase(name: "MissingFeed", configurations: .componentRepresentative) {
+            SnapshotCase(name: "MissingFeed", configurations: .componentLightDark) {
                 UpdateFailureCard(
                     error: UpdateClient.FetchError.httpStatus(404),
                     hasCachedBuilds: false,
