@@ -6,8 +6,6 @@ description: Review and update Where’s Explore Features galleries against curr
 # Update Explore Features
 
 Keep Settings > Explore Features useful for people who do not know every Where workflow.
-The default invocation updates local files. Leave changes uncommitted and do not push, publish a PR, or create a schedule.
-An explicit request for those actions overrides this default.
 
 ## Find coverage gaps
 
@@ -25,7 +23,7 @@ Name the source that establishes the behavior. Do not maintain a second persiste
 
 ## Update the galleries
 
-Use the `building-ui` skill and its companion SwiftUI guidance.
+Use the `building-ui` skill.
 Extend an existing page when the topic belongs to its workflow.
 Add a page only when the workflow needs its own explanation and visuals.
 Keep core workflows before optional integrations in the Explore list.
@@ -48,7 +46,8 @@ Do not invent a product feature to fill a documentation gap.
 ## Validate and report
 
 Use `running-tests` for affected unit and snapshot checks.
-Review full-content images for phone, tablet, dark mode, large text, and contrast.
+Review the selected full-content images under SnapshotKit's coverage policy.
+Keep shared gallery layout coverage and focused large-text checks for dense content. Do not repeat every device and trait per gallery.
 Verify search focus, navigation, demo behavior, and explicit edit boundaries.
 Run the applicable catalog, symbol, and formatting checks.
 Report changed pages, source-backed findings, test results, and unresolved decisions.

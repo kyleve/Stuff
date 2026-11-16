@@ -5,6 +5,7 @@ Read the [repository contract](../AGENTS.md). [Maintenance](references/agent-mai
 ## Ownership and loading
 
 - Keep one owner per rule: universal rules in the root contract, local invariants in module instructions, and procedures in skills.
+- Remove generic advice and behavior evident from code. Retain explicit preferences, non-obvious constraints, exceptions, and useful guards.
 - Conditional references need explicit read conditions. Preserve exceptions and guard links when moving rules.
 - Preserve skill names and invocation policies unless the requested behavior changes them.
 - Skill links must work from both `.agents/skills/` and `.claude/skills/`; reach shared references through the repository root.

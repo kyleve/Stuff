@@ -42,19 +42,18 @@ struct LocationsViewSnapshotTests {
     }
 
     @Test func adaptiveLoadStates() async throws {
+        let pose = SnapshotConfiguration.DuoPose.innerPortrait
         for state in AdaptivePaneLoadFixture.State.allCases {
-            for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop] {
-                let fixture = try await AdaptivePaneLoadFixture(state: state)
-                await assertSnapshots(
-                    of: LocationsView(report: fixture.report)
-                        .adaptivePaneReservedRegions(pose.regions)
-                        .whereBroadwayRoot(),
-                    named: "Adaptive-" + state.rawValue + "-" + pose.rawValue,
-                    configurations: [SnapshotConfiguration(device: pose.frame)],
-                    settle: .settledAtLeast(minDuration: 1),
-                )
-                await fixture.finish()
-            }
+            let fixture = try await AdaptivePaneLoadFixture(state: state)
+            await assertSnapshots(
+                of: LocationsView(report: fixture.report)
+                    .adaptivePaneReservedRegions(pose.regions)
+                    .whereBroadwayRoot(),
+                named: "Adaptive-" + state.rawValue + "-" + pose.rawValue,
+                configurations: [SnapshotConfiguration(device: pose.frame)],
+                settle: .settledAtLeast(minDuration: 1),
+            )
+            await fixture.finish()
         }
     }
 }

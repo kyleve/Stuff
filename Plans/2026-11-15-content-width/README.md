@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-15, integrated base `ff3f9ec8df1d7901312624cba805be868f1f7345`.
-- Operation: Completed the approved plan and review follow-up on `codex/content-width`.
-- Requested scope: The user approved the main-screen rollout, then the shared screen helpers and selected additional screens after PR review.
-- Stage: Complete; PR #506 is ready for review.
-- Completed: Both deliverables, unit/image verification, publication, and review-feedback reconciliation.
-- Pending: No implementation work. PR review and merge remain external to plan delivery.
-- Next action: Review PR #506; STU-331 remains In Review until merge and acceptance verification.
+- Updated: 2026-11-15, integration target `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
+- Operation: Merge current main and reduce redundant image coverage on `codex/content-width`.
+- Requested scope: The user requested the main merge and a further snapshot-coverage review after both implementation deliverables.
+- Stage: Execute [03 — Main integration](03-main-integration.md).
+- Completed: Plans 01 and 02; main conflict resolution; 684 passing WhereUI tests, 220 verified image references, focused coverage edits, and independent review.
+- Pending: Separate merge and coverage commits, and publication.
+- Next action: Commit and publish the verified changes. STU-331 remains In Review.
 
 ## Outcome and scope
 
@@ -65,13 +65,15 @@ All answers came from the user in this conversation on 2026-11-15.
 | Q-07 | closed | Accept one-pixel rendering differences from SwiftUI rounding. | The user accepted these differences during snapshot review. The simple two-frame modifier remains in use. |
 | Q-08 | closed | Add screen conveniences, configurable padding, and native-container support, then adopt the selected additional screens. | Plan 02 follows the approved PR review recommendations. |
 | Q-09 | closed | Remove the four added full snapshot matrices. | Plan 02 retains existing captures and focused hosted geometry coverage. |
+| Q-10 | closed | Merge main and reduce redundant snapshot axes while retaining distinct layout risks. | Plan 03 follows the user's latest request and main's revised coverage policy. |
 
 The existing horizontal padding counts toward each limit. Limits remain fixed across themes and text sizes.
 
 ## Execution order and horizon
 
 The initial deliverable, [01 — Content width](01-content-width.md), is complete.
-The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete. No later deliverable is selected.
+The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete.
+The current horizon is [03 — Main integration](03-main-integration.md).
 
 ## Initial plan review
 

@@ -513,7 +513,13 @@ extension ManualDayView {
         }
 
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Add", configurations: .fullContentScreenRepresentative) {
+            whereSnapshot(
+                name: "Add",
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
+            ) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),

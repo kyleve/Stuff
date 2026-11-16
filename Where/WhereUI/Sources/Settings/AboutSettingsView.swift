@@ -247,7 +247,10 @@ extension AboutSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
                 measurementReadiness: .immediate,
                 // The navigation bar's scroll-edge shadow adapts after the
                 // form reaches its full-content height. Wait through that

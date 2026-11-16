@@ -57,7 +57,13 @@ extension FlightPointCorrection.Action {
                 day: review.day.day,
                 resultingRegions: [.california, .newYork],
             )
-            whereSnapshot(name: "Gap", configurations: .fullContentScreenRepresentative) {
+            whereSnapshot(
+                name: "Gap",
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
+            ) {
                 Form {
                     FlightReviewPointRow(point: .init(
                         point: point,
