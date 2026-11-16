@@ -1,6 +1,6 @@
 # 03 — Main integration and focused coverage
 
-- Status: executing
+- Status: complete
 - Depends on: [02 — Screen roots](02-screen-roots.md)
 - Shared context: [Overview](README.md)
 - Issue: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies)
@@ -37,7 +37,7 @@ Coverage reductions preserve retained rendering and reference bytes. The integra
 - Independent reviewer: `merge_coverage_review`, covering integration and the complete branch diff against main.
 - [x] Verify, commit, and push the main merge: `cdbdf62cf754bb2cbe0f0af1289e4344f6a33bb6`.
 - [x] Reduce and verify redundant image axes: 18 removed, 53 retained and asserted.
-- [ ] Publish final review evidence and complete the record.
+- [x] Publish final review evidence and complete the record: PR #506 and STU-331 updated.
 
 ## Integration findings
 
@@ -85,6 +85,14 @@ Commands (Xcode 27.2):
 
 The first command exposed the two integration issues recorded above. The second passed all unit tests and recorded the reviewed reference; recording intentionally reports that update as a failed comparison. The third passed with recording disabled. Temporary 40-transition probes were removed; the final test retains its original four-transition sequence.
 
+## Delivery
+
+- Merge: `cdbdf62cf754bb2cbe0f0af1289e4344f6a33bb6`, with main `6676b36bc` as its second parent.
+- Coverage reduction and final source: `9d5ab08b9c69d8fbb369db9a4e7ff3f2f9995c61`.
+- Both commits are pushed to [PR #506](https://github.com/kyleve/Stuff/pull/506), ready for review. Its body, the existing API reply, and the existing Settings snapshot comment contain current evidence. The [native-layout review note](https://github.com/kyleve/Stuff/pull/506#discussion_r4581569416) records the integration finding.
+- Verified the published body, rendered image markup, all 24 retained screen comments, existing human-thread replies, and four published image hashes. Browser UI verification was unavailable; GitHub API HTML and image bytes provided publication evidence.
+- STU-331 was updated and remains In Review. CI is asynchronous; local verification is complete. Plan 02's physical-device and optimized-build validation limits remain.
+
 ## Resume point
 
-The merge is pushed and all verification passed. Commit and push the isolated coverage reduction, then refresh PR and issue evidence before completing this record.
+Implementation, review, and publication are complete. Await PR review; the linked issue stays In Review until merge and acceptance verification.

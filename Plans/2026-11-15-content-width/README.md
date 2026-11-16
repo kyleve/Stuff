@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-15, integration target `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
+- Updated: 2026-11-15, integrated base `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`.
 - Operation: Merge current main and reduce redundant image coverage on `codex/content-width`.
 - Requested scope: The user requested the main merge and a further snapshot-coverage review after both implementation deliverables.
-- Stage: Execute [03 — Main integration](03-main-integration.md).
-- Completed: Plans 01 and 02; main conflict resolution; 684 passing WhereUI tests, 220 verified image references, focused coverage edits, and independent review.
-- Pending: Commit and push the verified coverage reduction; refresh PR and issue evidence.
-- Next action: Publish the coverage reduction and final evidence. STU-331 remains In Review.
+- Stage: Complete; [03 — Main integration](03-main-integration.md) is published.
+- Completed: All three plans, including the main merge, further snapshot reduction, verification, independent review, and PR/issue updates.
+- Pending: PR review and eventual merge; no implementation work remains in this series.
+- Next action: Address subsequent review feedback. STU-331 remains In Review.
 
 ## Outcome and scope
 
@@ -73,7 +73,7 @@ The existing horizontal padding counts toward each limit. Limits remain fixed ac
 
 The initial deliverable, [01 — Content width](01-content-width.md), is complete.
 The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete.
-The current horizon is [03 — Main integration](03-main-integration.md).
+The final follow-up, [03 — Main integration](03-main-integration.md), is complete.
 
 ## Initial plan review
 
@@ -89,5 +89,4 @@ The current horizon is [03 — Main integration](03-main-integration.md).
 - Implementation PR: [#506](https://github.com/kyleve/Stuff/pull/506), ready for review.
 - Initial delivery: Published at source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad`. All 717 WhereUI tests and 325 snapshot captures passed.
 - Review follow-up: Published at source revision `8ffba7b465bde1a445c020ba11b46c06c927b016`. All 723 WhereUI tests and 366 selected captures passed. After the final onboarding correction, all 13 onboarding captures passed again. See plan 02 for commands, independent review, and validation limits.
-
-- Main integration: Merge `cdbdf62cf` preserves all 65 upstream image deletions. All 684 WhereUI tests and 220 distinct retained image references passed across the integration selections. Plan 03 records commands and the additional 18-variant reduction.
+- Main integration: Merge `cdbdf62cf` preserves all 65 upstream image deletions. All 684 WhereUI tests and 220 distinct retained image references passed across the integration selections. Coverage commit `9d5ab08b9` removes another 18 redundant variants (71→53 captures across five suites). PR #506 and STU-331 contain the final evidence; plan 03 records commands and limits.
