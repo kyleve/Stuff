@@ -128,9 +128,14 @@ public struct OnboardingView: View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
             TabView(selection: $flow.page) {
                 ForEach(pages.indices, id: \.self) { index in
-                    pageView(pages[index])
-                        .tag(index)
-                        .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                    GeometryReader { geometry in
+                        pageView(pages[index])
+                            .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                            .frame(minHeight: geometry.size.height)
+                            .whereScreenRoot(padding: .none)
+                            .scrollBounceBehavior(.basedOnSize)
+                    }
+                    .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
@@ -138,6 +143,7 @@ public struct OnboardingView: View {
             introFooter
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
+                .whereContentRoot()
         }
         .fileImporter(
             isPresented: $flow.showImporter,
@@ -191,7 +197,8 @@ public struct OnboardingView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            Spacer(minLength: 0)
+            // Keep the final line clear of the page indicator when content scrolls.
+            Spacer(minLength: stylesheet.spacing.xxxLarge)
         }
     }
 
@@ -311,6 +318,7 @@ public struct OnboardingView: View {
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
                 .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                .whereContentRoot()
             }
             .scrollBounceBehavior(.basedOnSize)
         }

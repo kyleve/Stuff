@@ -45,8 +45,8 @@ struct OnboardingThemeSelectionView: View {
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.vertical, stylesheet.spacing.xxxLarge)
-                .frame(maxWidth: 720, minHeight: geometry.size.height)
-                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
+                .whereContentRoot()
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)

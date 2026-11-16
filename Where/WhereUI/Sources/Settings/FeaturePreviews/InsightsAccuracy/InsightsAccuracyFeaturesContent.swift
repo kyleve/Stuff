@@ -74,6 +74,7 @@ struct InsightsAccuracyFeaturesContent: View {
                 .staggeredReveal(order: 7)
             }
         }
+        .whereFormRoot()
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
     }

@@ -36,6 +36,7 @@ struct DataSettingsView: View {
                 dataSection
                 resetSection
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsDataHeader))
         .navigationBarTitleDisplayMode(.inline)

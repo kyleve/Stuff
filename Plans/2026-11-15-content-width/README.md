@@ -6,14 +6,15 @@
 - Operation: Execute the approved plan on `codex/content-width`.
 - Requested scope: The user approved the main-screen rollout and requested implementation after selecting both modifiers.
 - Stage: Execute the approved review follow-up.
-- Completed: The initial rollout, removal of redundant snapshot matrices, shared screen helpers, native-container support, and their unit verification.
-- Pending: Image verification and publication of the selected screen adoptions.
-- Next action: Complete [02 — Screen roots](02-screen-roots.md) on the existing PR branch.
+- Completed: The initial rollout, removal of redundant snapshot matrices, shared screen helpers, native-container support, selected screen adoptions, and their unit/image verification.
+- Pending: Publication and review-feedback reconciliation for the selected screen adoptions.
+- Next action: Publish [02 — Screen roots](02-screen-roots.md) on the existing PR branch.
 
 ## Outcome and scope
 
 Calendar, Elsewhere, Locations cards, and Timeline use centered content columns inside their existing scroll views.
 Each adaptive pane applies its own width limit. Native navigation, backgrounds, and scrolling retain the available width.
+The approved follow-up adds screen conveniences and native-container support for selected Settings pages, Explore Features, onboarding, region editors, and license text.
 
 ## User stories and requirements
 
@@ -29,6 +30,8 @@ Each adaptive pane applies its own width limit. Native navigation, backgrounds, 
 | R-03 | The nearest ancestor width override wins. Width changes retain view identity and scrolling state. | US-02 | [01](01-content-width.md) |
 | R-04 | The selected screens adopt regular width. Calendar zoom and Timeline header alignment remain correct. | US-01 | [01](01-content-width.md) |
 | R-05 | Nested roots assert in debug builds and pass through in release builds. Sibling roots remain independent. | US-02 | [01](01-content-width.md) |
+| R-06 | Screen conveniences compose scrolling and configurable padding. Native Form/List adapters retain their container and scroll identity. | US-02 | [02](02-screen-roots.md) |
+| R-07 | Selected additional screens adopt the shared limit, with existing image coverage and focused hosted regression tests. | US-01 | [02](02-screen-roots.md) |
 
 ## Exclusions
 

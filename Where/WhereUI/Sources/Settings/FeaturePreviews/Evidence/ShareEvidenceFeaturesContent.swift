@@ -59,6 +59,7 @@ struct ShareEvidenceFeaturesContent: View {
                 .staggeredReveal(order: 5)
             }
         }
+        .whereFormRoot()
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
         .navigationDestination(for: Route.self) { route in

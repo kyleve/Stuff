@@ -144,6 +144,7 @@ struct AppearanceSettingsView: View {
                     }
                 #endif
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)

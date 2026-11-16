@@ -25,7 +25,7 @@ The first plan remains the historical record of the initial rollout.
 ## Design
 
 ```swift
-// Proposed conveniences over the existing width policy.
+// Conveniences over the existing width policy.
 content.whereScreenRoot() // Inherited width, standard padding, vertical scrolling.
 content.whereScreenRoot(.wide, padding: .none)
 Form { rows }.whereFormRoot() // Native container retains ownership.
@@ -52,19 +52,53 @@ Verification uses `./test --no-generate` with focused hosted suites and affected
 The final pass includes the complete WhereUI unit bundle, formatting, and typed-symbol lint.
 No additional full-screen snapshot matrices are required.
 
+## Verification selection
+
+The final assertion uses these existing suites with recording disabled. No snapshot cases or configurations are added.
+
+```sh
+./test --no-generate --no-build \
+  --only WhereUISnapshotTests/AboutSettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/AppearanceSettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/DataSettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/DevicesSettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/PrivacyDiagnosticsSettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/SettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/EstimatedTimeFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/InsightsAccuracyFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/PersonalizationFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/PlacesYearFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/PrivacyBackupsFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/RecordingFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/ShareEvidenceFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/SiriFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/WidgetFeaturesViewSnapshotTests \
+  --only WhereUISnapshotTests/LicenseViewSnapshotTests \
+  --only WhereUISnapshotTests/OnboardingViewSnapshotTests \
+  --only WhereUISnapshotTests/OnboardingThemeSelectionViewSnapshotTests \
+  --only WhereUISnapshotTests/RegionCustomizeViewSnapshotTests \
+  --only WhereUISnapshotTests/RegionsSettingsViewSnapshotTests \
+  --only WhereUISnapshotTests/CalendarContentViewSnapshotTests \
+  --only WhereUISnapshotTests/ElsewhereViewSnapshotTests \
+  --only WhereUISnapshotTests/LocationsViewSnapshotTests \
+  --only WhereUISnapshotTests/PresenceTimelineListSnapshotTests \
+  --record never --review --timings
+```
+
 ## Review
 
 - Reviewed against `d8d3c3eb5f0317c407eeff69140caad816399450` and all five human review comments on PR #506.
 - The user approved implementation in this conversation.
-- The native margin adapter and presentation reset require hosted validation before rollout.
+- Hosted tests verify the native adapter and independent presentation scopes before rollout.
 - Independent review covered the helpers, selected callers, presentation boundaries, and full-content measurement paths.
 - Review found two native-layout defects. Explicit content margins replaced native gutters at the width cutoff. Subtracting safe-area insets from the already-reduced proposal exceeded the limit. Additive gutters and the proposed geometry width address these defects.
+- Landscape onboarding at the largest text size needed a vertical scrolling path. Each intro page now scrolls independently, with bottom space to clear the page indicator. A hosted regression failed before the correction and verifies the final line remains reachable above the fixed footer.
 
 ## Progress
 
 - [x] Remove redundant snapshot coverage.
 - [x] Implement and verify shared helpers.
-- [ ] Adopt and verify the selected screens.
+- [x] Adopt and verify the selected screens.
 - [ ] Review, push, and reconcile PR feedback.
 
 ## Execution record
@@ -74,8 +108,11 @@ No additional full-screen snapshot matrices are required.
 - `./test --no-generate --only WhereUITests/WhereFlyoverCatalogTests --only WhereUISnapshotTests/CalendarContentViewSnapshotTests --only WhereUISnapshotTests/ElsewhereViewSnapshotTests --only WhereUISnapshotTests/LocationsViewSnapshotTests --only WhereUISnapshotTests/PresenceTimelineListSnapshotTests --record never --timings` passed two catalog tests and six image tests covering 183 captures. Formatting passed.
 - Added screen-root, padding, protocol, native-container, and presentation-boundary helpers. Hosted coverage exercises inherited and explicit widths, padding, nesting fallback, navigation, sheets, resizing, and retained scroll identity.
 - Native coverage includes Form, automatic List, plain List, and sidebar List. It checks 600/601 and 900/901 boundaries in both size classes, plus asymmetric caller safe-area padding.
-- All 722 WhereUI tests in 155 suites passed with the helpers and selected adoptions present. Formatting, symbol lint, architecture checks, and default host checks passed. Existing image verification is pending.
+- All 723 WhereUI tests in 156 suites passed with the final helpers, selected adoptions, and onboarding correction. Formatting, symbol lint, architecture checks, and default host checks passed.
+- Visual review covered 52 intentional iPad updates across ten existing suites. The remaining 131 captures in the initial selection passed their existing references. The recorded PNG bytes match the reviewed captures.
+- The 24-suite assertion pass covered 26 image tests and 366 captures. All passed before the final onboarding scrolling correction. After that correction, all 13 onboarding captures passed again with recording disabled. Exactly 53 existing references changed: the 52 iPad captures and one iPhone AX5 capture.
+- The independent reviewer found no remaining actionable issue, including in the final onboarding source, regression test, and images. The assertion-reporter seam covers nesting fallback; the debug trap and optimized-release binary were not run directly. Scroll-indicator coverage uses UIKit insets rather than a physical-device capture.
 
 ## Resume point
 
-Review the selected screens' existing captures, record intentional changes, and run assertions with recording disabled.
+Publish the verified screen adoptions, refresh PR screenshots and review replies, and reconcile the issue evidence.

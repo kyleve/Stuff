@@ -496,6 +496,8 @@ Sibling roots remain independent. Width overrides can be nested without adding a
 
 Calendar, Elsewhere, Locations cards and states, and the full Timeline use regular width.
 Timeline's pinned ribbon uses the same limit as its rows. Calendar measures its full-width content anchor outside the modifier to preserve zoom offsets.
+The Settings list and selected preference pages, Explore Features, onboarding, region editors, and license text also use these roots.
+Native preference pages keep their Form/List containers. License text and the region appearance editor use `WhereScreen`.
 
 ### Using tokens
 

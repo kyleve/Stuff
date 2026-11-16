@@ -5,20 +5,17 @@ import SwiftUI
 /// The full license notice for one credited work, pushed from Settings > About.
 /// Permissive licenses require the notice verbatim, so it is rendered as plain
 /// monospaced text, unreflowed and untruncated.
-struct LicenseView: View {
+struct LicenseView: WhereScreen {
     let credit: SoftwareCredit
 
     @Environment(\.stylesheet) private var stylesheet
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxLarge) {
-                header
-                notice
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
+    var content: some View {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xxLarge) {
+            header
+            notice
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .navigationTitle(credit.name)
         .navigationBarTitleDisplayMode(.inline)
     }

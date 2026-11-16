@@ -26,6 +26,7 @@ struct AlertsSettingsView: View {
                 dataResolutionSection
                 findIssuesSection
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsAlertsGroup))
         .navigationBarTitleDisplayMode(.inline)

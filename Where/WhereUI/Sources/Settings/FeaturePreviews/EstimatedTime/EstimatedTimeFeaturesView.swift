@@ -122,6 +122,7 @@ private struct EstimatedTimeFeaturesContent: View {
                     .staggeredReveal(order: 9)
             }
         }
+        .whereFormRoot()
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
         .sheet(isPresented: $showingPlanner) { PlannedStaysView(report: report) }
