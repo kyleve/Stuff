@@ -3,12 +3,12 @@
 ## Planning checkpoint
 
 - Updated: 2026-11-15, integrated base `ff3f9ec8df1d7901312624cba805be868f1f7345`.
-- Operation: Execute the approved plan on `codex/content-width`.
-- Requested scope: The user approved the main-screen rollout and requested implementation after selecting both modifiers.
-- Stage: Execute the approved review follow-up.
-- Completed: The initial rollout, removal of redundant snapshot matrices, shared screen helpers, native-container support, selected screen adoptions, and their unit/image verification.
-- Pending: Publication and review-feedback reconciliation for the selected screen adoptions.
-- Next action: Publish [02 — Screen roots](02-screen-roots.md) on the existing PR branch.
+- Operation: Completed the approved plan and review follow-up on `codex/content-width`.
+- Requested scope: The user approved the main-screen rollout, then the shared screen helpers and selected additional screens after PR review.
+- Stage: Complete; PR #506 is ready for review.
+- Completed: Both deliverables, unit/image verification, publication, and review-feedback reconciliation.
+- Pending: No implementation work. PR review and merge remain external to plan delivery.
+- Next action: Review PR #506; STU-331 remains In Review until merge and acceptance verification.
 
 ## Outcome and scope
 
@@ -71,9 +71,9 @@ The existing horizontal padding counts toward each limit. Limits remain fixed ac
 ## Execution order and horizon
 
 The initial deliverable, [01 — Content width](01-content-width.md), is complete.
-The current horizon is [02 — Screen roots](02-screen-roots.md), authorized after review of PR #506.
+The follow-up, [02 — Screen roots](02-screen-roots.md), is also complete. No later deliverable is selected.
 
-## Plan review
+## Initial plan review
 
 - Reviewed: 2026-11-15 against `2193072f6a1c988f797c77c14c3b6cf0923d8ca0`.
 - Scope: All requirements, exclusions, affected layout boundaries, and verification commands.
@@ -85,4 +85,5 @@ The current horizon is [02 — Screen roots](02-screen-roots.md), authorized aft
 
 - Linear: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies). Searched 328 issues, including archives, before filing this human request.
 - Implementation PR: [#506](https://github.com/kyleve/Stuff/pull/506), ready for review.
-- Outcome: Completed and published at source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad`. All 717 WhereUI tests and 325 snapshot captures passed.
+- Initial delivery: Published at source revision `3b467e91d4cdf4583d62b4f3614c9716a0a8a1ad`. All 717 WhereUI tests and 325 snapshot captures passed.
+- Review follow-up: Published at source revision `8ffba7b465bde1a445c020ba11b46c06c927b016`. All 723 WhereUI tests and 366 selected captures passed. After the final onboarding correction, all 13 onboarding captures passed again. See plan 02 for commands, independent review, and validation limits.

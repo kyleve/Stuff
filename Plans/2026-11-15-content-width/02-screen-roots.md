@@ -1,6 +1,6 @@
 # 02 — Screen roots and broader adoption
 
-- Status: executing
+- Status: complete
 - Depends on: [01 — Content width](01-content-width.md)
 - Shared context: [Overview](README.md)
 - Issue: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies)
@@ -99,7 +99,7 @@ The final assertion uses these existing suites with recording disabled. No snaps
 - [x] Remove redundant snapshot coverage.
 - [x] Implement and verify shared helpers.
 - [x] Adopt and verify the selected screens.
-- [ ] Review, push, and reconcile PR feedback.
+- [x] Review, push, and reconcile PR feedback.
 
 ## Execution record
 
@@ -112,7 +112,9 @@ The final assertion uses these existing suites with recording disabled. No snaps
 - Visual review covered 52 intentional iPad updates across ten existing suites. The remaining 131 captures in the initial selection passed their existing references. The recorded PNG bytes match the reviewed captures.
 - The 24-suite assertion pass covered 26 image tests and 366 captures. All passed before the final onboarding scrolling correction. After that correction, all 13 onboarding captures passed again with recording disabled. Exactly 53 existing references changed: the 52 iPad captures and one iPhone AX5 capture.
 - The independent reviewer found no remaining actionable issue, including in the final onboarding source, regression test, and images. The assertion-reporter seam covers nesting fallback; the debug trap and optimized-release binary were not run directly. Scroll-indicator coverage uses UIKit insets rather than a physical-device capture.
+- Published the matrix reduction in `e82f0e1b7`, shared helpers in `ee7197314`, and selected adoptions in `8ffba7b465`. PR #506 remains ready for review. All five human review threads have replies, and STU-331 remains In Review.
+- Updated 24 screen snapshot comments and the PR description. Verified GitHub's rendered image markup and all 26 linked PNGs against their exact revision hashes. Browser UI verification was unavailable in this session. Alerts, Report Year, and the region-picker list have no dedicated image fixtures; their shared adapter has hosted coverage.
 
 ## Resume point
 
-Publish the verified screen adoptions, refresh PR screenshots and review replies, and reconcile the issue evidence.
+No implementation work remains. Review PR #506; verify acceptance after merge before closing STU-331.
