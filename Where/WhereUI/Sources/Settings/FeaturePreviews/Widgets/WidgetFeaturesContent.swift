@@ -57,6 +57,7 @@ struct WidgetFeaturesContent: View {
                 }
             }
         }
+        .whereFormRoot()
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
     }

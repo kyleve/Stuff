@@ -23,6 +23,7 @@ struct VisibleYearSettingsView: View {
                     Text(String(localized: .settingsYearFooter))
                 }
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsYearHeader))
         .navigationBarTitleDisplayMode(.inline)

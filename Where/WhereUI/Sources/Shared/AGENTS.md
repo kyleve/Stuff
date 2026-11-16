@@ -16,6 +16,10 @@ Read the [module contract](../../AGENTS.md) and [repository contract](../../../.
 - Compact form date controls use [`WhereDatePicker`](WhereDatePicker.swift).
   Its capture stand-in avoids the live control's today-relative rendering. Keep capture branches inside the shared component.
 
+- Keep one content root per scrolling surface. Ordinary screens use `whereScreenRoot`; native forms and lists use `whereFormRoot` without another scroller.
+  Reset nesting only at independent navigation or sheet destinations with `whereScreenBoundary`. Preserve inherited width and caller-owned navigation.
+  Guards: `WhereScreenRootTests`, `WhereFormRootTests`, and `WhereContentRootTests`.
+
 ## Design system — `WhereStylesheet`
 
 Use [building-ui](../../../../.agents/skills/building-ui/SKILL.md).

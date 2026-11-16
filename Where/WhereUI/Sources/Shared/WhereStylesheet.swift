@@ -36,6 +36,7 @@ struct WhereStylesheet: BStylesheet {
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
     var loggedDay = LoggedDayStyle()
+    var contentRoot = ContentRootStyle()
     var adaptivePane = AdaptivePaneStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard

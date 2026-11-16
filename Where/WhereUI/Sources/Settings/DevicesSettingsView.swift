@@ -80,6 +80,7 @@ struct DevicesSettingsView: View {
                         }
                 }
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsDevicesTitle))
         .navigationBarTitleDisplayMode(.inline)

@@ -45,8 +45,8 @@ struct OnboardingThemeSelectionView: View {
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.vertical, stylesheet.spacing.xxxLarge)
-                .frame(maxWidth: 720, minHeight: geometry.size.height)
-                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
+                .whereContentRoot()
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
@@ -83,10 +83,19 @@ struct OnboardingThemeSelectionView: View {
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             let cache = RegionOutlinePathCache()
-            let configurations = [SnapshotConfiguration].fullContentScreenRepresentative + [
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhoneFullContent),
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
-            ]
+            let configurations = [SnapshotConfiguration]
+                .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
+                    // Keep the wider-column wrapping and picker placement at AX5.
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPadFullContent),
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
+                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
+                ]
             return [
                 whereSnapshot(
                     name: "Standard",

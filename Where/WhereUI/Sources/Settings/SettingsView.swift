@@ -117,11 +117,13 @@ struct SettingsView: View {
         .background(.background)
         .sheet(isPresented: $navigation.showRegions) {
             RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                .whereScreenBoundary()
         }
     }
 
     private func destination(for route: SettingsRoute) -> some View {
         SettingsDestinationView(route: route, report: report, backup: backup, reminders: reminders)
+            .whereScreenBoundary()
     }
 
     /// Regions with days in the selected report year, so the region editor can
@@ -248,7 +250,10 @@ private struct SettingsDestinationView: View {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative + [
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                     SnapshotConfiguration(
                         layoutDirection: .rightToLeft,
                         device: .iPhoneFullContent,

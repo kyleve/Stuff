@@ -62,6 +62,7 @@ struct AboutSettingsView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
         .navigationBarTitleDisplayMode(.inline)
@@ -138,6 +139,7 @@ struct AboutSettingsView: View {
                     // one group would need its own `navigationDestination`.
                     NavigationLink {
                         LicenseView(credit: credit)
+                            .whereScreenBoundary()
                     } label: {
                         LabeledContent(credit.name) {
                             Text(credit.version)

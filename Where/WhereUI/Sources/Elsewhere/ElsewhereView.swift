@@ -113,6 +113,7 @@ struct ElsewhereView: View {
                     }
                 }
                 .padding()
+                .whereContentRoot()
             }
             .defaultScrollAnchor(.center, for: .alignment)
             .scrollBounceBehavior(.basedOnSize)

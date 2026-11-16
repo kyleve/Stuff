@@ -144,6 +144,7 @@ struct AppearanceSettingsView: View {
                     }
                 #endif
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
@@ -246,7 +247,11 @@ extension AppearanceSettingsView: SettingsSection {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
+                ],
                 measurementReadiness: .immediate,
                 // Native navigation adapts when the Form reaches its full height.
                 // Reparse accessibility after that preparation pass, as About does.

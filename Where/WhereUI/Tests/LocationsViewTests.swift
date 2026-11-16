@@ -210,6 +210,16 @@ struct LocationsViewTestsDuo {
                         "top anchoring after inset \(previousInset) -> requested \(topInset)",
                     ) {
                         guard let current = currentScroll() else { return false }
+                        // The synthetic host's inset change also needs a layout pass in
+                        // its embedded navigation controller before child insets converge.
+                        var responder: UIResponder? = current
+                        while let next = responder, !(next is UIViewController) {
+                            responder = next.next
+                        }
+                        let navigationController = (responder as? UIViewController)?
+                            .navigationController
+                        navigationController?.view.setNeedsLayout()
+                        navigationController?.view.layoutIfNeeded()
                         // Initial navigation layout can change an inset before the requested
                         // safe area reaches the scroll view. Wait for both native frames.
                         return hasAppliedSafeArea(current)

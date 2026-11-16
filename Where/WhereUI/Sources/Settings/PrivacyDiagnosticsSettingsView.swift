@@ -112,6 +112,7 @@ struct PrivacyDiagnosticsSettingsView: View {
                     }
                 #endif
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsDiagnosticsTitle))
         .navigationBarTitleDisplayMode(.inline)

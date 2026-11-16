@@ -91,6 +91,7 @@ struct SettingsContent: View {
                 }
             }
         }
+        .whereFormRoot()
         .navigationTitle(String(localized: .settingsTitle))
         .searchable(
             text: $navigation.searchText,

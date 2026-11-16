@@ -440,6 +440,65 @@ tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 The rules for what may and may not live in the sheet are in
 [`AGENTS.md`](Sources/Shared/AGENTS.md#design-system--wherestylesheet).
 
+### Content width
+
+Use `.whereScreenRoot()` for an ordinary vertical scrolling screen. It supplies one scroll view, standard padding, and a centered content column.
+An omitted width inherits the surrounding policy. An explicit argument overrides that policy for the screen.
+
+```swift
+content.whereScreenRoot()
+content.whereScreenRoot(.wide)
+content.whereScreenRoot(padding: .none)
+```
+
+`WhereContentPadding` supports `.standard`, `.none`, and `.custom(EdgeInsets)`.
+Standard padding comes from `WhereStylesheet.contentRoot.standardPadding`. Padding counts toward the width limit.
+`WhereScreenRoot { content }` uses the same implementation.
+Simple screen types can conform to `WhereScreen` and supply `content` instead of `body`.
+Its optional `contentWidth` and `contentPadding` properties customize the defaults.
+
+Apply `.whereFormRoot()` directly to a native `Form` or `List`.
+It adds centered safe-area gutters while retaining the full viewport, scroll indicators, and section styling.
+The system's own margins and row padding remain inside the width limit. Narrow containers and `.fluid` receive no extra gutters.
+Keep presentation modifiers outside this adapter.
+
+At a navigation or sheet destination, use `.whereScreenBoundary()` to start an independent root scope.
+The boundary preserves the inherited width. It must not separate roots within one scrolling surface.
+Nested screen roots assert in debug builds and pass content through without another scroller or padding in release builds.
+
+Apply `.whereContentRoot()` to padded content inside a scroll view. The modifier centers the content and limits its width to 600 points.
+The scroll view, its background, and native navigation retain the available width.
+
+```swift
+ScrollView {
+    VStack {
+        // Screen content
+    }
+    .padding()
+    .whereContentRoot()
+}
+.whereContentWidth(.wide)
+```
+
+`.whereContentWidth(_:)` selects an inherited policy for descendant content roots. It does not size the modified view.
+The nearest ancestor override wins. Each root also respects the width available from its parent.
+
+| Policy | Maximum width, including existing padding |
+| --- | --- |
+| `.regular` (default) | 600 points |
+| `.wide` | 900 points |
+| `.fluid` | Available width |
+
+`WhereStylesheet.contentRoot` owns the limits. They stay fixed across themes and text sizes.
+The root modifier adds no padding, scrolling, clipping, or height limit. Apply it separately to pinned headers that must align with scrolling content.
+Nested roots assert in debug builds. In release builds, an inner root passes its content through, so only the outer root controls layout.
+Sibling roots remain independent. Width overrides can be nested without adding another root.
+
+Calendar, Elsewhere, Locations cards and states, and the full Timeline use regular width.
+Timeline's pinned ribbon uses the same limit as its rows. Calendar measures its full-width content anchor outside the modifier to preserve zoom offsets.
+The Settings list and selected preference pages, Explore Features, onboarding, region editors, and license text also use these roots.
+Native preference pages keep their Form/List containers. License text and the region appearance editor use `WhereScreen`.
+
 ### Using tokens
 
 For a component with more than one look, resolve the variant once: vend a

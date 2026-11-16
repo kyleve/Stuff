@@ -10,8 +10,12 @@ import WhereCore
 @MainActor
 @Suite(.serialized)
 struct CalendarContentViewTests {
-    @Test(arguments: [false, true])
-    func zoomReturnsToTheSelectedMonthAndEstimate(reduceMotion: Bool) async throws {
+    @Test(arguments: [false, true], [CGFloat(402), 1210])
+    func zoomReturnsToTheSelectedMonthAndEstimate(
+        reduceMotion: Bool,
+        viewportWidth: CGFloat,
+    ) async throws {
+        let frames = CalendarFrameProbe()
         let root = NavigationStack {
             CalendarContentView(
                 report: PreviewSupport.plannedStayYearReportModel(
@@ -22,10 +26,26 @@ struct CalendarContentViewTests {
             .bTraitOverrides { _, overrides in
                 overrides.accessibility = BAccessibility(isReduceMotionEnabled: reduceMotion)
             }
+            .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
+                Color.clear
+                    .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
+                        CalendarZoomFrames.measure(
+                            anchors[.detail] ?? [:],
+                            in: proxy,
+                            mode: .detail,
+                            scrollOffset: .zero,
+                        )
+                    } action: { frames.measurement = $0 }
+                    .allowsHitTesting(false)
+            }
         }
         .whereBroadwayRoot()
 
-        try await show(UIHostingController(rootView: root)) { host in
+        let host = UIHostingController(rootView: root)
+        host.safeAreaRegions = []
+        try await show(host) { host in
+            host.view.frame.size = CGSize(width: viewportWidth, height: 834)
+            host.view.layoutIfNeeded()
             host.view.window?.layer.speed = 1
             try await waitForCalendar("overview to load") {
                 element("November", in: host.view) != nil && isEnabled("Show Months", in: host.view)
@@ -41,6 +61,30 @@ struct CalendarContentViewTests {
                 try await waitForCalendar("November to expand on iteration \(iteration)") {
                     isEnabled("Show Year", in: host.view)
                         && isVisible("November", in: host.view, expanded: true)
+                }
+                let monthFrame = try #require(element("November", in: host.view)?
+                    .accessibilityFrame)
+                let viewport = host.view.convert(host.view.bounds, to: nil)
+                #expect(monthFrame.width <= 600)
+                #expect(abs(monthFrame.midX - viewport.midX) < 1)
+                let november = CalendarPresentationState.Target.month(CalendarDay(
+                    year: PreviewSupport.year,
+                    month: 11,
+                    day: 1,
+                ))
+                try await waitForCalendar("zoom measurement matches the visible column") {
+                    guard let measured = frames.measurement?.frames[november] else { return false }
+                    return abs(measured.width - monthFrame.width) < 1
+                }
+                let measured = try #require(frames.measurement?.frames[november])
+                #expect(abs(measured.minX + viewport.minX - monthFrame.minX) < 1)
+                if iteration == 2 {
+                    // Keep the same calendar mounted while changing the gutter width.
+                    host.view.frame.size.width = viewportWidth == 402 ? 1210 : 402
+                    host.view.layoutIfNeeded()
+                    try await waitForCalendar("selected month after resizing") {
+                        isVisible("November", in: host.view, expanded: true)
+                    }
                 }
                 try activate(#require(element("Show Year", in: host.view)))
                 if !reduceMotion {
@@ -63,6 +107,11 @@ struct CalendarContentViewTests {
         }
     }
 
+    @MainActor
+    private final class CalendarFrameProbe {
+        var measurement: CalendarZoomTransitionState.Measurement?
+    }
+
     private func element(_ prefix: String, in view: UIView) -> NSObject? {
         HostedAccessibility.objects(in: view)
             .first { $0.accessibilityLabel?.hasPrefix(prefix) == true }
@@ -75,10 +124,13 @@ struct CalendarContentViewTests {
 
     private func isVisible(_ label: String, in view: UIView, expanded: Bool) -> Bool {
         guard let frame = element(label, in: view)?.accessibilityFrame else { return false }
+        let columnWidth = min(
+            view.bounds.width,
+            WhereStylesheet.default.contentRoot.regularMaximumWidth,
+        )
         return frame.intersects(view.convert(view.bounds, to: nil))
             &&
-            (expanded ? frame.width > view.bounds.width / 2 : frame.width < view.bounds
-                .width / 2)
+            (expanded ? frame.width > columnWidth / 2 : frame.width < columnWidth / 2)
     }
 
     private func activate(_ element: NSObject) throws {

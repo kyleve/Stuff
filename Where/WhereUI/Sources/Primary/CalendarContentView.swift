@@ -261,6 +261,9 @@ struct CalendarContentView: View {
                 }
             }
             .padding()
+            .whereContentRoot()
+            // Keep the content origin at the full scroll width so zoom measurements
+            // retain the centered column's horizontal offset.
             .transformAnchorPreference(
                 key: CalendarZoomFrames.self,
                 value: .bounds,

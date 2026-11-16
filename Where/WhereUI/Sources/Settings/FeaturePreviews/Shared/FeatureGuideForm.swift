@@ -21,6 +21,7 @@ struct FeatureGuideForm<Content: View>: View {
             content
             Section {} footer: { FeatureDiscoveryDataFooter() }
         }
+        .whereFormRoot()
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
     }

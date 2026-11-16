@@ -138,7 +138,7 @@ struct LocationsCardsView: View {
                 LocationsEstimatePanel(report: report, planningAction: planningAction)
             }
             .padding()
-            .frame(maxWidth: .infinity)
+            .whereContentRoot()
         }
         .defaultScrollAnchor(.top, for: .initialOffset)
         .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
