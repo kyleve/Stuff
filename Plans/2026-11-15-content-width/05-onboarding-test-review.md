@@ -1,6 +1,6 @@
 # 05 — Onboarding test review
 
-- Status: executing
+- Status: complete
 - Depends on: [04 — Accessibility coverage](04-accessibility-coverage.md)
 - Shared context: [Overview](README.md)
 - Issue: [STU-331](https://linear.app/kve/issue/STU-331/center-main-screen-content-with-inherited-width-policies)
@@ -16,8 +16,8 @@ No product API, layout, or architecture change is required.
 ## Verification and publication
 
 - [x] Regenerate the project, compile the remaining unit bundle, and run the catalog tests and retained onboarding image suite.
-- [ ] Review the deletion and unchanged rendering inputs; commit and push the correction.
-- [ ] Reply on the review thread and update current PR/screenshot/issue descriptions that refer to the removed test.
+- [x] Review the deletion and unchanged rendering inputs; commit and push `8404606dae1d18c4adf2fb2e1721a4d66a30fea6`.
+- [x] [Reply on the review thread](https://github.com/kyleve/Stuff/pull/506#discussion_r4587588902) and verify the corrected PR, onboarding screenshot caption, and issue description.
 
 The source change is a mechanical test deletion; a separate agent review is not required by the code-review skill.
 Keep earlier plans' historical validation counts unchanged.
@@ -37,4 +37,4 @@ Keep earlier plans' historical validation counts unchanged.
 
 ## Resume point
 
-Verification is complete. Commit and push the deletion, then publish the review reply and correct current coverage descriptions.
+Published to [PR #506](https://github.com/kyleve/Stuff/pull/506), ready for review. Feedback refreshed at `2026-11-16T15:19:40+00:00` against head `8404606dae1d18c4adf2fb2e1721a4d66a30fea6`; no additional human comments arrived. The issue remains In Review. Implementation, validation, and publication are complete; await CI and PR review.
