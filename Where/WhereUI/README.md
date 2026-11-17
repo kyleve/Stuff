@@ -804,6 +804,12 @@ existing geometry. The final captures retain their original 0.5s settle floor.
 Use `prepareForCapture` for fixture or artwork readiness before the first capture
 settle. Height-changing loads use `onReadyToMeasure`; actions that need settled
 UI retain `onReadyToSnapshot`.
+The 17 welcome/update MainTabs captures await the existing mounted activation task
+before settling. Their DEBUG-only hook consumes one completion receipt per mount;
+rehosting retains the receipt, while capture retries create a new one. Cancellation
+ends the wait and prevents the mounted task from publishing completion. This hook
+assumes the fixtures' fixed scene phase and unchanged data; it is not a general
+scene-idle signal. Other MainTabs families keep their existing readiness and floors.
 Device, appearance, Dynamic Type, contrast, and annotation configurations cover specific rendering risks.
 Additional states can use one baseline or focused traits. Preview and Flyover states do not each require a recorded image.
 Explore Features shares a representative gallery matrix with

@@ -205,7 +205,7 @@ struct ElsewhereView: View {
                 onReadyToMeasure: {
                     if let input = report.elsewhereInput { await model.refresh(input) }
                 },
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(
                         for: model.content(for: report.selectedYear)?.regions.map(\.region) ?? [],
                         cache: cache,
