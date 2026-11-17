@@ -1,7 +1,7 @@
 # 03 — Lockout presentation and runtime lifecycle
 
-- Status: draft
-- Depends on: [01](01-unified-access.md), complete in `ddcc4a2f3`, and [02](02-widget-access.md), verification in progress.
+- Status: ready
+- Depends on: [01](01-unified-access.md), complete in `ddcc4a2f3`, and [02](02-widget-access.md), complete in `ee67c64d7`.
 - Shared context: [Overview](README.md)
 
 ## Deliverable
@@ -76,16 +76,16 @@ Repair failures before publishing. Preserve the previously verified access and w
 
 ## Refinement and review
 
-2026-11-17: source refinement triggered by plan 01's published admission API and plan 02's implemented callback. The launcher owns its drive task, so canceling a runtime activation wait does not cancel headless recording; explicit cancellation checks must suppress the remainder. Removing RootView's runner task requires explicit preview startup. Keep the registered gate because LifecycleKitUI treats missing gate views as terminal failures. No product question is open. Final readiness review waits for plan 02 publication. Diagram syntax inspected, not rendered; Swift sketch is design, not compilation evidence.
+2026-11-17: source refinement triggered by plan 01's published admission API and plan 02's implemented callback. The launcher owns its drive task, so canceling a runtime activation wait does not cancel headless recording; explicit cancellation checks must suppress the remainder. Removing RootView's runner task requires explicit preview startup. Keep the registered gate because LifecycleKitUI treats missing gate views as terminal failures. No product question is open. Final readiness review completed against `ee67c64d7`: the access-change callback stays on the monitor and the runtime remains its consumer. Reviewed the whole series for dependency/scope agreement, the active-task cancellation sequence, initial aggregate scene input, gate placeholder, preview startup, and test evidence requirements. No unresolved decision or dependency remains. Ready for the already-authorized execution. Diagram syntax inspected, not rendered; Swift sketch is design, not compilation evidence.
 
 ## Progress and resume point
 
 - [x] Refine ownership/cancellation, gate placeholder, and verification design.
-- [ ] Finish readiness review after 02 publication.
+- [x] Finish readiness review after 02 publication.
 - [ ] Implement and verify.
 - [ ] Independently review, publish, reply, and complete the series.
 
-Implementation has not started. Finish 02 and review this plan against its final callback before execution; the user already authorized this step.
+Implementation has not started. Next: execute the reviewed runtime/presentation changes; the user already authorized this step.
 
 ## Outcome
 

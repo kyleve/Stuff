@@ -1,6 +1,6 @@
 # 02 — Compatibility-aware widget access
 
-- Status: executing
+- Status: complete
 - Depends on: [01](01-unified-access.md), completed and published in `ddcc4a2f3`.
 - Shared context: [Overview](README.md)
 
@@ -81,9 +81,9 @@ Repair failures before committing. Do not reset the user's App Group data. Tests
 - [x] Finish review/readiness after 01 publication.
 - [x] Implement reader/writer, publisher admission, and reload.
 - [x] Implement blocked presentation and coverage (visually reviewed).
-- [ ] Verify, review, publish, and reply.
+- [x] Verify, review, publish, and reply.
 
-Implementation started after publishing the reviewed plan in `8a0390d9e`. Reader/writer, admission-bound publication, reload transitions, and blocked rendering are implemented locally. The first build exposed the Today intent's low-level snapshot consumer; it now uses shared access, preserving its existing live-service fallback. This necessary caller adaptation is within R-06, reviewed against WhereIntents' handoff contract. Next: commit/push this verified step, post the widget reply and image evidence, then mark complete and promote 03.
+Implementation started after publishing the reviewed plan in `8a0390d9e`. Reader/writer, admission-bound publication, reload transitions, and blocked rendering are implemented locally. The first build exposed the Today intent's low-level snapshot consumer; it now uses shared access, preserving its existing live-service fallback. This necessary caller adaptation is within R-06, reviewed against WhereIntents' handoff contract. Published in `ee67c64d7`; widget-thread reply and reviewed image comment are posted. Continue with reviewed plan 03.
 
 ## Verification
 
@@ -96,4 +96,4 @@ Implementation started after publishing the reviewed plan in `8a0390d9e`. Reader
 
 ## Outcome
 
-Implementation and independent review are verified; commit/push and the widget-thread reply are the remaining publication steps.
+Delivered in `ee67c64d7` on [PR #495](https://github.com/kyleve/Stuff/pull/495). Shared access, publisher provenance, reload transitions, and blocked widget rendering are verified and independently reviewed. The widget feedback thread has a reply and the new screen has image evidence. WidgetKit delivery/native rendering remain device acceptance; STU-334 stays In Review.

@@ -4,10 +4,10 @@
 
 - Updated: 2026-11-17, starting at `743f8c96a059bdee05a7f97c26e377a76f78c43c`.
 - Operation: plan and execute the second human review of [PR #495](https://github.com/kyleve/Stuff/pull/495), explicitly approved in the conversation on 2026-11-17.
-- Stage: plan 01 complete in `ddcc4a2f3`; plan 02 verified and ready to publish; 03 refined as a draft pending 02 publication.
+- Stage: plan 01 complete in `ddcc4a2f3`; plan 02 complete in `ee67c64d7`; plan 03 reviewed and ready.
 - Completed: read all 17 new comments across 14 threads and their earlier discussion; source review confirmed local bypasses, signed-out lockout, unchecked widget snapshots, and repeated lockout presentation.
-- Pending: publish [02](02-widget-access.md), then finish readiness review and execute 03. Individual access/transport/share and deferred-composition replies are posted.
-- Next action: publish the verified widget step (47 focused tests, final 4 access tests, 40 references / 43 captures) and its reply. Independent source and visual review are complete. Then mark 02 complete and promote 03 after its final readiness review.
+- Pending: execute [03](03-presentation-runtime.md). Individual access/transport/share/widget and deferred-composition replies are posted.
+- Next action: execute the reviewed runtime/presentation step, preserving headless launch and immediate lockout. Plan 02 passed 47 focused tests, 4 final access tests, and 40 references / 43 captures; independent review and publication are complete.
 
 ## Outcome and scope
 
@@ -105,4 +105,4 @@ Detail 01 first. Refine 02 against its verified receipt/access API, then 03 agai
 
 Reviewed 2026-11-17 at `743f8c96a`: all requirements have an owner; 01 is ready, 02/03 remain selected outlines. The review added admission checks to held opens and real scope reuse, and kept a registered lifecycle gate to avoid terminal missing-gate failures. No material product question remains. Mermaid diagrams and Swift sketches will describe design, not compilation evidence. Physical CloudKit account transitions, cross-device propagation, and WidgetKit refresh scheduling require device acceptance and cannot be proven by fakes or bounded models.
 
-Publish plans, implementation, and replies on [PR #495](https://github.com/kyleve/Stuff/pull/495). Implementation is authorized. Plan 01 is complete and plan 02 is executing; refinement preserves the agreed scope and no product decision is pending. Mermaid syntax was inspected but not rendered; Swift sketches are not compilation evidence.
+Publish plans, implementation, and replies on [PR #495](https://github.com/kyleve/Stuff/pull/495). Implementation is authorized. Plans 01/02 are complete and plan 03 is ready; refinement preserves the agreed scope and no product decision is pending. Mermaid syntax was inspected but not rendered; Swift sketches are not compilation evidence.
