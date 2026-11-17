@@ -25,4 +25,6 @@ Keep rejected experiments and their evidence; remove temporary probes that do no
 
 ## Resume point
 
-Implementation has not started. Refine this file after plan 02; do not infer recoverable savings from gross phase duration.
+Plan 02 is complete and the refinement trigger is met. Implementation has not started. Refine this file next with two initial tracks: explicit eligibility for skipping measurement settling, and a focused system trace of rendering/sampling. The measured probe cost is 95.652s locally / 118.493s on CI; render calls consume 72.9% / 79.8% of traced settling. These scopes overlap and are not savings estimates.
+
+Include the seven local early-stable/later-changing cases and the two CI RootView examples from plan 02 as required adversaries. Keep case-owned readiness hooks and repeated native/action stages in scope. Extra rendering or forced updates can perturb the work under test; establish the control protocol before using added captures or a cheaper renderer to make a completion claim. Pixel comparison is a low-priority target at 0.3–0.4% of traced time.

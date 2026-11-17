@@ -1,6 +1,6 @@
 # 01 — Trace settling
 
-- Status: executing
+- Status: complete
 - Depends on: None.
 - Shared context: [Overview](README.md).
 
@@ -75,7 +75,7 @@ Do not overwrite unrelated untracked files or run another simulator during measu
 
 Implementation now tags all six renderer reasons, records pass operations and pixel events, and reconciles call/pass totals in the analysis tool. Review corrected disabled-path clock/environment evaluation and excluded unsampled quiescence calls from the unchanged-pixel metric. Seven parser tests and 12 existing CI tests pass. The live-log smoke check exposed a capture-boundary truncation that still reconciled; terminal success is now required separately for each input log, with a regression guard. Framework validation completed 162 functions: 158 passed and four had intentional expected failures, with no unexpected failures. Two new Swift Testing assertions needed macro-compatible forms before the framework build could run; neither failure involved production source compilation.
 
-Full validation now passes all 935 captures and 78 functions without retries or reference recording. The capture multiset matches the through-521 baseline on suite, identifier, pixels, tiles, sizing, measurement readiness, and capture-settle policy: 4,797,647,739 pixels and 1,014 tiles. All 1,828 calls and 6,066 passes reconcile; 1,265 calls settle and 563 skip. All input logs have terminal success. The exact CI staging command, replayed against the real log and JUnit in a temporary directory, retains all records and identical JUnit bytes. Real CI upload remains pending.
+Full validation passes all 935 captures and 78 functions without retries or reference recording. The capture multiset matches the through-521 baseline on suite, identifier, pixels, tiles, sizing, measurement readiness, and capture-settle policy: 4,797,647,739 pixels and 1,014 tiles. All 1,828 calls and 6,066 passes reconcile; 1,265 calls settle and 563 skip. All input logs have terminal success. The exact CI staging command, replayed against the real log and JUnit in a temporary directory, retains all records and identical JUnit bytes. Plan 02 also verifies real CI staging, upload, and download.
 
 Commands and retained evidence:
 
@@ -85,4 +85,4 @@ Commands and retained evidence:
 - Generation, normal architecture/host checks, Swift formatting, SF Symbol lint, scoped Ruff lint/formatting, and whitespace checks pass.
 - Raw logs, xcresult export, capture/trace JSONL, reconciliation, and inventory checks are retained under `snapshot-settle-investigation-results/local-full` in the session artifact directory. Exact staging replay is `/private/tmp/stuff-settle-stage-replay-20261117`.
 
-Resume: finish independent raw-evidence review and publish the instrumentation to [PR #524](https://github.com/kyleve/Stuff/pull/524), then start the focused controls in plan 02. This is groundwork; no settling optimization or saving is claimed.
+Completed: instrumentation commit `f60c1c974` is published in [PR #524](https://github.com/kyleve/Stuff/pull/524). Independent source and raw-evidence review has no remaining blockers. It verified every sampled stability/floor flag, all capture/test identities and totals, and retained staging bytes. Existing reference tolerances pass; the 153 review-diagnostic rows do not establish byte-identical captured images. This is groundwork; no settling optimization or saving is claimed. Continue with plan 02.

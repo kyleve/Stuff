@@ -5,10 +5,11 @@
 - Updated: 2026-11-17; source `cd293e851` after the snapshot shard rebalance.
 - Operation: Create a durable plan and execute the investigation.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Executing plan 01; local validation is complete and raw-evidence review is pending.
-- Completed: Observational instrumentation, initial independent review, 162 framework functions, 19 parser/CI-tool tests, 935 image captures, complete trace reconciliation, matching capture inventory, and a replay of CI artifact staging.
-- Pending: Instrumentation publication, focused overhead controls, isolated CI evidence, controlled candidate experiments, and verified improvements.
-- Next action: Publish the reviewed groundwork, then run the focused controls in plan 02.
+- Stage: Plans 01–02 are complete. Plan 03 is the next horizon for refinement.
+- Completed: Published observational instrumentation; independent source/raw-evidence review; framework, parser, and full-image checks; four matched diagnostic controls; and an isolated CI trace with matching coverage and verified artifact transport.
+- Pending: Refine and execute controlled candidate experiments, then deliver verified improvements.
+- Next action: Refine plan 03 around measurement eligibility and render work/sampling, using plan 02's cost table and late-change counterexamples.
+- Delegation: `/root/watch_settle_ci` completed read-only CI collection at `f60c1c974`; the root independently checked raw accounting and integrated the result. `/root/review_settle_investigation` completed source, local raw-evidence, and overhead-control review. No background result remains pending.
 
 ## Outcome and scope
 
@@ -35,9 +36,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 ## Review and delivery
 
-- Plan review: Plans 01–02 passed the recorded review. Independent source review is complete; runtime evidence review remains pending.
-- Implementation: Plan 01 is executing.
-- Publication: Plan commit `230c5048d` is published in [PR #524](https://github.com/kyleve/Stuff/pull/524) and linked from STU-121. Validated instrumentation awaits final evidence review and publication to the same PR.
+- Plan review: Plans 01–02 passed the recorded review. Independent source and raw-evidence review has no remaining blockers for plan 01.
+- Implementation: Plans 01–02 are complete. No settling optimization is implemented yet.
+- Publication: Plan commit `230c5048d` and instrumentation `f60c1c974` are published in [PR #524](https://github.com/kyleve/Stuff/pull/524), linked from STU-121.
 
 ## User stories and requirements
 
@@ -60,9 +61,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 ## Execution order and planning horizon
 
-1. [01 — Trace settling](01-settle-tracing.md): detailed now; observational implementation and regression checks.
-2. [02 — Classify measured costs](02-classify-costs.md): detailed now; full local trace, focused overhead controls, and isolated CI evidence.
-3. [03 — Controlled experiments](03-controlled-experiments.md): outline; refine after plan 02 identifies specific causes and affected families.
+1. [01 — Trace settling](01-settle-tracing.md): complete; observational implementation and regression checks.
+2. [02 — Classify measured costs](02-classify-costs.md): complete; full local trace, focused overhead controls, and isolated CI evidence.
+3. [03 — Controlled experiments](03-controlled-experiments.md): next outline to refine from plan 02's measured causes and affected families.
 4. [04 — Validated improvements](04-validated-improvements.md): outline; refine after successful experiments.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
@@ -82,9 +83,9 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | --- | --- | --- | --- | --- |
 | Q-01 | closed | May implementation start? | All plans | The user explicitly requested planning and execution. Integrated into the checkpoint and horizon. |
 | Q-02 | closed | How should tracing be enabled and correlated? | R-01, plan 01 | Existing timing opt-in, capture-owned identity, and call ordinal. Integrated in plan 01 and reviewed against retry reuse. |
-| Q-03 | open | Which calls are floor-, proof-, rendering-, or content-change-dominated? | R-02/R-03 | Plan 02 resolves this; it does not block observational tracing. |
-| Q-04 | deferred | Which earlier completion or removal is safe? | R-03/R-04 | Refine plan 03 after Q-03; then use explicit readiness and rendered evidence. No speculative policy change belongs in plan 01. |
-| Q-05 | open | Does trace overhead materially affect the observed timing? | R-02 | Paired on/off controls in plan 02. If material, reduce or disable trace detail before interpreting comparisons. |
+| Q-03 | closed | Which calls are floor-, proof-, rendering-, or content-change-dominated? | R-02/R-03 | Plan 02's verified local/CI traces rank measurement removal and render work/sampling first. Rendering occupies 72.9% locally and 79.8% on CI; floor/proof flags remain overlapping conditions. Deeper attribution inside the render call belongs to plan 03. |
+| Q-04 | deferred | Which earlier completion or removal is safe? | R-03/R-04 | Q-03 is resolved. Refine plan 03 next using explicit readiness, early/normal/later rendered evidence, and the seven local late-change cases. No optimization is accepted yet. |
+| Q-05 | closed | Does trace overhead materially affect the observed timing? | R-02 | Two runs per mode in a static/native pair show +0.471s (+0.594%) for combined diagnostics. Plan 02 records that this is neither a suite-wide bound nor an isolated trace-only estimate. Broad cost ranking uses the observed data; savings do not assume zero overhead. |
 
 ## Plan review
 
@@ -94,3 +95,5 @@ Pass timings overlap deadline conditions; the analyzer must not sum those condit
 Trace identities must survive failed attempts, and incomplete trace logs must not look like zero work.
 No user decision blocks plans 01–02. Q-03–Q-05 are the experiments' questions, not missing prerequisites.
 Mermaid syntax is inspected; no renderer verification is claimed. Pseudocode is not compilation evidence.
+
+2026-11-17 execution review: `f60c1c974` passes local validation and all GitHub/CircleCI checks. Independent review verifies source semantics, identities, operation accounting, seven late-change examples, and the paired controls. CI collection plus independent root recomputation verify 935 captures and 78 test identities with unchanged geometry and policies apart from the existing CI timeout multiplier. The next milestone changes behavior only after plan 03 is refined and reviewed; current work establishes evidence rather than claiming a speedup.
