@@ -1,6 +1,6 @@
 # 05 — Test Metal capture and sample scheduling
 
-- Status: executing
+- Status: complete
 - Depends on: [04](04-validated-improvements.md), complete at `1ef9b92b7`; documentation head `75978860f` is fully green.
 - Shared context: [Overview](README.md), R-05, X-02–X-04, Q-06–Q-08.
 - Owner: root agent; execution explicitly authorized by the user on 2026-11-17.
@@ -62,7 +62,7 @@ Interrupted trials resume from recorded source hashes and the last complete run;
 
 ## Progress and resume point
 
-All bounded trials are complete. Both Metal adapters, the standalone interval, and the combined format/interval candidate are rejected for adoption. The original Swift files are restored byte-for-byte to `75978860f`. Final evidence review and publication remain; plan 06 records the negative-result delivery.
+All bounded trials are complete. Both Metal adapters, the standalone interval, and the combined format/interval candidate are rejected for adoption. The original Swift files are restored byte-for-byte to `75978860f`. Final evidence review is complete and the results are published in PR #527 at `1594ea543`. Plan 06 records the negative-result delivery.
 
 ## Metal disposition
 
@@ -121,4 +121,4 @@ Raw combined logs, PNGs, traces, summaries, commands, source hashes, result bund
 
 ## Final evidence review
 
-Independent reviewer `/root/review_metal_sampling` and the root each recomputed all eight complete logs, six-function test identities, capture/geometry/policy multisets, timing totals, source hashes, and strict PNG comparisons. Both agree with the rejection criteria and reported limits. The reviewer independently verified that the four restored Swift files match `75978860f` and that retained artifacts match the original runs. Two stale checkpoint sentences were corrected; no behavior or evidence blocker remains. Final publication is the remaining step.
+Independent reviewer `/root/review_metal_sampling` and the root each recomputed all eight complete logs, six-function test identities, capture/geometry/policy multisets, timing totals, source hashes, and strict PNG comparisons. Both agree with the rejection criteria and reported limits. The reviewer independently verified that the four restored Swift files match `75978860f` and that retained artifacts match the original runs. Two stale checkpoint sentences were corrected; no behavior or evidence blocker remains. The reviewed result is published in [PR #527](https://github.com/kyleve/Stuff/pull/527) at `1594ea543b56396c2664d05249b3e432d3382ed3`. No candidate is adopted and no prototype code remains.

@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; follow-up branch `perf/snapshot-metal-sampling`, above PR #525 at `75978860f`. Both parent PRs are open and green.
+- Updated: 2026-11-17; findings published at `1594ea543` in PR #527 on `perf/snapshot-metal-sampling`, above PR #525 at `75978860f`. The final diff changes documentation only.
 - Operation: Execute the newly authorized sampling and Metal follow-up; preserve completed plans 01–04.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–04 are complete. Plan 05 has finished its trials; plan 06 is delivering the negative result. The user explicitly approved testing sampling frequency and GPU capture, with fallback for incompatible tests. The user's later request adds a separate overlap investigation in plan 07.
+- Stage: Plans 01–06 are complete. The user explicitly approved sampling/GPU experiments, including fallback; none of the follow-up candidates meets the adoption criteria. The later overlap request is recorded as a separate reviewed outline in plan 07.
 - Completed: Plans 01–04: tracing and local/CI classification, five accepted consumer changes, 163 framework functions, all 935 local captures, and isolated CI. Follow-up: Metal prerequisites, eight paired timing runs with 880 capture assertions, 23 focused framework functions, complete prototype cleanup, and independent review. No follow-up sampler change is accepted.
-- Pending: [05](05-metal-and-sampling-experiments.md) tests local feasibility and timing. [06](06-deliver-sampling-improvements.md) delivers only accepted candidates. [07](07-overlap-snapshot-work.md) plans how useful work might overlap settling. STU-121 retains unrelated readiness follow-ups.
-- Next action: Publish the independently reviewed results for plans 05–06. Preserve plan 07 as a separate outline for the user-requested overlap investigation. No merge is assumed.
+- Pending: [07](07-overlap-snapshot-work.md) requires refinement against the unchanged accepted sampler before an overlap prototype. The requested separate planned phase is recorded; no overlap implementation is claimed. STU-121 retains other readiness and CI-only questions.
+- Next action: Review PR #527 and refine plan 07, starting with independent preparation or completed-image work before multiple hosted captures. No merge is assumed.
 - Delegation: `/root/review_settling_candidates` and `/root/watch_settle_ci` completed the original implementation review and CI reconciliation. `/root/review_metal_sampling` independently reviewed all follow-up artifacts, cleanup, and the overlap outline. The root independently recomputed the evidence; no blocker remains.
 
 ## Outcome and scope
@@ -68,9 +68,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
 2. [02 — Classify measured costs](02-classify-costs.md): complete; full local trace, focused overhead controls, and isolated CI evidence.
 3. [03 — Controlled experiments](03-controlled-experiments.md): complete; evidence and regression groundwork published in [PR #525](https://github.com/kyleve/Stuff/pull/525).
 4. [04 — Validated improvements](04-validated-improvements.md): complete; explicit readiness and preparation for five providers, with full local/CI verification.
-5. [05 — Metal and sampling experiments](05-metal-and-sampling-experiments.md): executing; the current planning horizon.
-6. [06 — Deliver the sampling result](06-deliver-sampling-improvements.md): executing; all candidates are rejected, and the original Swift source is restored.
-7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): outline; requested separately by the user after discussing GPU comparison. Refine against the accepted baseline from plans 05–06 before any concurrency prototype.
+5. [05 — Metal and sampling experiments](05-metal-and-sampling-experiments.md): complete; both Metal adapters and both sampling candidates are rejected for adoption.
+6. [06 — Deliver the sampling result](06-deliver-sampling-improvements.md): complete; reviewed findings published and original Swift source restored.
+7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): outline; the next planning horizon, requested separately after discussing GPU comparison. Refine against the unchanged accepted baseline before any concurrency prototype.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
@@ -120,3 +120,5 @@ Mermaid syntax is inspected; no renderer verification is claimed. Pseudocode is 
 2026-11-17 completion review: the selected 62 captures save 18.938s (34.69%) in repeated local controls. The complete local suite saves 17.882s of capture work (2.30%) with unchanged coverage; CI verifies the same changes but does not establish an overall wall-time improvement. Both renderer prototypes remain unshipped after local trials. Their CI behavior and altered sampling frequency are still open questions in STU-121. See plan 04 for complete evidence and limits.
 
 2026-11-17 follow-up outline review: `/root/review_metal_sampling` verified plan 07 against the capture lock, MainActor comparison path, and concurrency regression tests. R-07/Q-10 map to the outline and dependencies remain acyclic. Preparation, completed-image work, and hosted overlap remain distinct candidates. Cancellation, reporting order, resource budgets, and host isolation require executable design before readiness. This review does not establish safe overlap or authorize bypassing the existing capture lock.
+
+2026-11-17 follow-up completion: plans 05–06 are published in PR #527 at `1594ea543`. Independent and root recomputation agree on all eight timing runs and prototype cleanup. Neither local Metal adapter qualifies; the 60ms interval is slower, and combined extended-color/60ms samples reduce render time without a repeatable overall gain beyond control variation. The final Swift source matches the parent exactly. Plan 07 remains a separately requested outline, not an implemented overlap feature.

@@ -1,7 +1,7 @@
 # 06 — Deliver the sampling experiment result
 
-- Status: executing
-- Depends on: [05](05-metal-and-sampling-experiments.md); all bounded trials are complete, with final review/publication pending.
+- Status: complete
+- Depends on: [05](05-metal-and-sampling-experiments.md), complete and published in PR #527 at `1594ea543`.
 - Shared context: [Overview](README.md), R-06, X-02–X-04, Q-06–Q-08.
 
 ## Outcome and refinement decision
@@ -19,4 +19,4 @@ This outline was refined after plan 05's final pair. Delivery consists of review
 
 ## Review and resume point
 
-The root reviewed the negative-result refinement against the experiment criteria. The original source is restored and verified, and all raw evidence is retained. Independent final evidence review is complete with no blockers; publication remains. After delivery, plans 05–06 can complete; plan 07 remains separately selected planning work and requires refinement before any overlap prototype.
+The root reviewed the negative-result refinement against the experiment criteria. The original source is restored and verified, and all raw evidence is retained. Independent final evidence review is complete with no blockers. The result is published as a ready-for-review PR #527 at `1594ea543b56396c2664d05249b3e432d3382ed3`, above #525. Plans 05–06 are complete as bounded negative results. Plan 07 remains separately selected planning work and requires refinement before any overlap prototype. This final checkpoint changes documentation only; no new full-suite or CI performance result is claimed.
