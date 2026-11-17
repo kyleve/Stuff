@@ -64,6 +64,7 @@ import UIKit
                 true
             case .invalidSettleTimeoutMultiplier, .measurementHookRequiresIntrinsicSizing,
                  .measurementReadinessTimedOut, .invalidMeasurementHookTimeout,
+                 .capturePreparationTimedOut, .invalidCapturePreparationTimeout,
                  .intrinsicHeightDidNotConverge, .fullContentSizeDidNotConverge,
                  .fullContentSizeExceedsLimit, .pngEncodingFailed, .missingCGImage:
                 false

@@ -13,7 +13,7 @@ import UIKit
 ///
 /// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
 /// content to load before capture — see
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``.
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:prepareForCapture:onReadyToSnapshot:)``.
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
@@ -69,6 +69,7 @@ public func assertSnapshots(
                         measurementReadiness: snapshotCase.measurementReadiness,
                         onReadyToMeasure: snapshotCase.onReadyToMeasure,
                         settle: snapshotCase.settle,
+                        prepareForCapture: snapshotCase.prepareForCapture,
                         onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
                         record: record,
                         fileID: fileID,
@@ -98,6 +99,7 @@ public func assertSnapshots(
     onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
     measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle = .settled,
+    prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
     record: SnapshotTestingConfiguration.Record? = nil,
     fileID: StaticString = #fileID,
@@ -144,6 +146,7 @@ public func assertSnapshots(
                 onReadyToMeasure: onReadyToMeasure,
                 measurementHookTimeout: measurementHookTimeout,
                 settle: settle,
+                prepareForCapture: prepareForCapture,
                 onReadyToSnapshot: onReadyToSnapshot,
                 timeoutPolicy: settleTimeoutPolicy,
             )

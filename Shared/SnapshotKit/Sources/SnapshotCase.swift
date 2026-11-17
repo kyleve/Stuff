@@ -58,6 +58,12 @@ public struct SnapshotCase: Identifiable {
     /// for synchronously measurable content; fixed-size configurations reject
     /// a hook because they do not have a measurement phase.
     public let onReadyToMeasure: (@MainActor () async -> Void)?
+    /// Runs after capture hosting and layout, before the first capture settle.
+    /// Await fixture loading or artwork here when it does not need settled UI.
+    /// For measured content, height-changing work belongs in `onReadyToMeasure`.
+    /// The hook must cooperate with cancellation and is bounded by the settle ceiling.
+    /// A thrown error aborts capture. Previews do not invoke capture hooks.
+    public let prepareForCapture: (@MainActor () async throws -> Void)?
     /// Runs in the capture pipeline after the content has settled and before
     /// the image is taken — the deterministic point to focus a field or trigger
     /// a presented state. Its effects are settled again before capture. `nil`
@@ -98,6 +104,7 @@ public struct SnapshotCase: Identifiable {
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
+        prepareForCapture: (@MainActor () async throws -> Void)? = nil,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
     ) {
@@ -107,6 +114,7 @@ public struct SnapshotCase: Identifiable {
         self.measurementReadiness = measurementReadiness
         self.onReadyToMeasure = onReadyToMeasure
         self.settle = settle
+        self.prepareForCapture = prepareForCapture
         self.onReadyToSnapshot = onReadyToSnapshot
         capture = .single { AnyView(content()) }
     }
@@ -119,6 +127,7 @@ public struct SnapshotCase: Identifiable {
         measurementReadiness: SnapshotMeasurementReadiness,
         onReadyToMeasure: (@MainActor () async -> Void)?,
         settle: SnapshotSettle,
+        prepareForCapture: (@MainActor () async throws -> Void)?,
         onReadyToSnapshot: (@MainActor () async -> Void)?,
         panels: SnapshotPanelCollection,
     ) {
@@ -128,6 +137,7 @@ public struct SnapshotCase: Identifiable {
         self.measurementReadiness = measurementReadiness
         self.onReadyToMeasure = onReadyToMeasure
         self.settle = settle
+        self.prepareForCapture = prepareForCapture
         self.onReadyToSnapshot = onReadyToSnapshot
         capture = .cutsheet(panels)
     }

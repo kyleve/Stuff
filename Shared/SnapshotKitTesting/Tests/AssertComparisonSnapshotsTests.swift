@@ -48,9 +48,10 @@ struct AssertComparisonSnapshotsTests {
         }
     }
 
-    @Test func hostsFreshPanelsAndRunsBothReadinessHooks() async throws {
+    @Test func hostsFreshPanelsAndRunsReadinessHooks() async throws {
         var builds = 0
         var measurementHooks = 0
+        var preparations = 0
         var captureHooks = 0
         let snapshotCase = SnapshotCase.cutsheet(
             name: "Hooks",
@@ -58,6 +59,7 @@ struct AssertComparisonSnapshotsTests {
             measurementReadiness: .immediate,
             onReadyToMeasure: { measurementHooks += 1 },
             settle: .immediate,
+            prepareForCapture: { preparations += 1 },
             onReadyToSnapshot: { captureHooks += 1 },
         ) {
             for identity in ["one", "two"] {
@@ -75,6 +77,7 @@ struct AssertComparisonSnapshotsTests {
         let grid = try await SnapshotImageGrid.capture(panels: result, named: "Hooks")
         #expect(builds == 2)
         #expect(measurementHooks == 2)
+        #expect(preparations == 2)
         #expect(captureHooks == 2)
         #expect(grid.layout?.panels.count == 2)
     }

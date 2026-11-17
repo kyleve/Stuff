@@ -38,7 +38,7 @@ Consumer modules own design-system root wrapping.
   Distinguish authored insets/traits from measurements and preserve identifiers. Guard: `SnapshotDeviceProfileTests`.
   Share synthetic pose geometry and localized labels through `DuoPose`; keep production geometry adapters in consumers.
 - Use two-axis full-content frames only for spatial canvases. Keep ordinary screen presets fixed-width. Guard: `SnapshotConfigurationTests`.
-- Pixel stability can still show a loading placeholder. Seed final content or await production completion through `onReadyToSnapshot`; height-changing work must complete through `onReadyToMeasure` before sizing.
+- Pixel stability can still show a loading placeholder. Seed final content or await completion through `prepareForCapture` before settling. Keep `onReadyToSnapshot` for actions that need settled UI; height-changing work must complete through `onReadyToMeasure` before sizing.
   A longer delay is not evidence of readiness.
 - Measurement readiness does not replace final capture settling. Keep `.sameAsCapture` if async work can change height, or await it in `onReadyToMeasure` and use a `.settled` probe.
   Use `.immediate` only for synchronous final height. Measurement hooks apply only to intrinsic/full-content sizing. Guards: `AsyncContentCaptureTests`, `LargeViewCaptureTests`.

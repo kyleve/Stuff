@@ -253,6 +253,7 @@ struct WhereFlyoverWebExportTests {
             measurementReadiness: request.measurementReadiness,
             onReadyToMeasure: request.onReadyToMeasure,
             settle: request.settle,
+            prepareForCapture: request.prepareForCapture,
             onReadyToSnapshot: request.onReadyToSnapshot,
         )
         return FlyoverCapturedImage(

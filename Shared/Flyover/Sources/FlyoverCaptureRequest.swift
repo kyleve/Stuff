@@ -16,6 +16,7 @@
         public let measurementReadiness: SnapshotMeasurementReadiness
         public let settle: SnapshotSettle
         public let onReadyToMeasure: (@MainActor () async -> Void)?
+        public let prepareForCapture: (@MainActor () async throws -> Void)?
         public let onReadyToSnapshot: (@MainActor () async -> Void)?
         public let captureName: String
         public let content: AnyView
@@ -43,6 +44,7 @@
             measurementReadiness = policy.measurementReadiness
             settle = policy.settle
             onReadyToMeasure = policy.onReadyToMeasure
+            prepareForCapture = policy.prepareForCapture
             onReadyToSnapshot = policy.onReadyToSnapshot
             self.captureName = captureName
             self.content = content

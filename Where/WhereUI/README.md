@@ -779,6 +779,10 @@ Distinct visual behavior has selected image coverage in [`SnapshotTests/`](Snaps
 Reference images live under `SnapshotTests/__Snapshots__/` in Git LFS.
 Each covered view declares its matrix through a colocated `SnapshotProviding` conformance,
 shared with its `#Preview` cutsheet (`Self.snapshotPreviews`).
+`whereSnapshot` and `whereThemeSnapshot` forward SnapshotKit's readiness hooks.
+Use `prepareForCapture` for fixture or artwork readiness before the first capture
+settle. Height-changing loads use `onReadyToMeasure`; actions that need settled
+UI retain `onReadyToSnapshot`.
 Device, appearance, Dynamic Type, contrast, and annotation configurations cover specific rendering risks.
 Additional states can use one baseline or focused traits. Preview and Flyover states do not each require a recorded image.
 Explore Features shares a representative gallery matrix with

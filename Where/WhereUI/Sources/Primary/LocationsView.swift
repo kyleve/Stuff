@@ -510,7 +510,7 @@ private struct ResolveToolbarLabel: View {
                 theme: theme,
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     // Keep geometry ready across the accessibility renderer's reparenting.
                     // Pixel stability alone can settle on the unloaded symbol fallback.
                     for region in regions {
