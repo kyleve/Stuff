@@ -55,6 +55,12 @@
         /// A believable `YearReport` built directly (no services needed), so
         /// `#Preview` blocks can render real content synchronously.
         public static func sampleReport() -> YearReport {
+            fixedReport
+        }
+
+        /// Fixed value data is shared; report models, services, and resolver
+        /// calendars are still constructed for each fixture.
+        private static let fixedReport: YearReport = {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -71,7 +77,7 @@
                 }
             }
             return YearReport(year: year, days: days, totals: totals)
-        }
+        }()
 
         /// A month with a shared travel day, a recording gap, and dated badges.
         static func calendarAccessibilityMonth(calendar: Calendar) -> CalendarMonth {
@@ -407,7 +413,7 @@
                         days: recordedDays,
                         totals: recordedTotals,
                     ),
-                    primaryRegionLocations: sampleRegionLocations(),
+                    primaryRegionLocations: fixedRegionLocations,
                 ),
                 selectedYear: year,
                 preferences: preferences,
@@ -483,7 +489,7 @@
             YearReportDetails(
                 primaryRegions: [.california, .newYork],
                 report: sampleReport(),
-                primaryRegionLocations: sampleRegionLocations(),
+                primaryRegionLocations: fixedRegionLocations,
             )
         }
 
@@ -514,43 +520,41 @@
 
         /// Deterministic point clouds for the Locations card constellations.
         /// Dates fall inside the corresponding region's block in `sampleReport`.
-        private static func sampleRegionLocations() -> [Region: [RegionDayLocations]] {
-            [
-                .california: [RegionDayLocations(
-                    day: CalendarDay(year: year, month: 2, day: 1),
-                    points: [
-                        regionPoint(37.7749, -122.4194),
-                        regionPoint(37.8044, -122.2712),
-                        regionPoint(37.3382, -121.8863),
-                        regionPoint(38.5816, -121.4944),
-                        regionPoint(36.7378, -119.7871),
-                        regionPoint(34.0522, -118.2437),
-                        regionPoint(33.7701, -118.1937),
-                        regionPoint(32.7157, -117.1611),
-                        regionPoint(34.4208, -119.6982),
-                        regionPoint(35.3733, -119.0187),
-                        regionPoint(39.0968, -120.0324),
-                        regionPoint(40.5865, -122.3917),
-                    ],
-                )],
-                .newYork: [RegionDayLocations(
-                    day: CalendarDay(year: year, month: 6, day: 15),
-                    points: [
-                        regionPoint(40.7128, -74.0060),
-                        regionPoint(40.6782, -73.9442),
-                        regionPoint(40.7282, -73.7949),
-                        regionPoint(40.9176, -73.7004),
-                        regionPoint(41.7004, -73.9210),
-                        regionPoint(42.6526, -73.7562),
-                        regionPoint(43.0481, -76.1474),
-                        regionPoint(43.1566, -77.6088),
-                        regionPoint(42.8864, -78.8784),
-                        regionPoint(43.0962, -79.0377),
-                        regionPoint(44.6995, -73.4529),
-                    ],
-                )],
-            ]
-        }
+        private static let fixedRegionLocations: [Region: [RegionDayLocations]] = [
+            .california: [RegionDayLocations(
+                day: CalendarDay(year: year, month: 2, day: 1),
+                points: [
+                    regionPoint(37.7749, -122.4194),
+                    regionPoint(37.8044, -122.2712),
+                    regionPoint(37.3382, -121.8863),
+                    regionPoint(38.5816, -121.4944),
+                    regionPoint(36.7378, -119.7871),
+                    regionPoint(34.0522, -118.2437),
+                    regionPoint(33.7701, -118.1937),
+                    regionPoint(32.7157, -117.1611),
+                    regionPoint(34.4208, -119.6982),
+                    regionPoint(35.3733, -119.0187),
+                    regionPoint(39.0968, -120.0324),
+                    regionPoint(40.5865, -122.3917),
+                ],
+            )],
+            .newYork: [RegionDayLocations(
+                day: CalendarDay(year: year, month: 6, day: 15),
+                points: [
+                    regionPoint(40.7128, -74.0060),
+                    regionPoint(40.6782, -73.9442),
+                    regionPoint(40.7282, -73.7949),
+                    regionPoint(40.9176, -73.7004),
+                    regionPoint(41.7004, -73.9210),
+                    regionPoint(42.6526, -73.7562),
+                    regionPoint(43.0481, -76.1474),
+                    regionPoint(43.1566, -77.6088),
+                    regionPoint(42.8864, -78.8784),
+                    regionPoint(43.0962, -79.0377),
+                    regionPoint(44.6995, -73.4529),
+                ],
+            )],
+        ]
 
         private static func regionPoint(
             _ latitude: Double,
