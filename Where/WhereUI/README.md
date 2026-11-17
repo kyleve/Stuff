@@ -789,7 +789,7 @@ caches. Geometry remains lazy; independent production roots continue to create t
 Fixed sample report and location values also initialize once per process. The
 report-details wrapper still creates its calendar on each call; models, services,
 and preferences retain their existing fixture ownership except for the two image matrices below.
-The 36 adaptive MainTabs cases outside the narrow viewport and eight Device Layout Lab cases inject
+The 33 adaptive MainTabs cases outside the narrow viewport and eight Device Layout Lab cases inject
 `SnapshotWorldFixture.shared.load` from their image suites. They initialize one
 standard demo world per test process, including its session, report, services, and
 preferences. Each case retains its own loading model, view state, navigation, and

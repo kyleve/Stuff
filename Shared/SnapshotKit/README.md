@@ -46,6 +46,8 @@ capture + comparison pipeline lives in the sibling
   Focused `WithAX5`, `WithAnnotations`, and `WithAX5AndAnnotations` variants
   add separate light-mode captures for text wrapping and accessibility annotations;
   see the [preset declarations](Sources/SnapshotConfiguration+Combinations.swift).
+  Default matrices use left-to-right layout. RTL image coverage is currently omitted;
+  explicit layout-direction support remains available when a concrete need returns.
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
