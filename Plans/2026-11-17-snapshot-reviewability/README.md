@@ -5,10 +5,10 @@
 - Updated: 2026-11-17. The user requested removal of RTL snapshots/defaults and month-sized calendar coverage with a few full-height checks.
 - Operation: Implement both changes, validate retained and reframed coverage, and publish above PR #520.
 - Branch/base: `test/snapshot-reviewability`, based on `b0dfa58cb`.
-- Stage: Both changes verified; calendar commit and publication pending.
-- Completed: Removed six RTL references in `fdb86b6bd`. Implemented and inspected plan 02's month subjects, overlap case, and mode picker. The full-year reference preserves the original image byte for byte. Final assertions pass all 162 captures and 25 calendar-related unit tests; the earlier run passes 26 configuration tests. Independent source and visual review found no actionable issues.
-- Pending: Commit the calendar step, publish the ready PR, and dispatch remote CI.
-- Next action: Publish the verified work above PR #520 and complete the plan records.
+- Stage: Complete; [PR #521](https://github.com/kyleve/Stuff/pull/521) is ready for review above #520 in [stack #522](https://github.com/kyleve/Stuff/stack/522).
+- Completed: Removed six RTL references in `fdb86b6bd`; focused calendar subjects in `2359e93e0`. The full-year reference preserves the original image byte for byte. Final assertions pass all 162 captures and 25 calendar-related unit tests; the earlier run passes 26 configuration tests. Independent source, visual, and raw-evidence review found no actionable issues. Published image comments and links are verified.
+- Pending: Remote CI results and PR review; no implementation work remains in these plans.
+- Next action: Follow PR #521's checks and review. STU-121 remains In Review for the open PR and broader performance work.
 
 ## Requirements and scope
 

@@ -1,6 +1,6 @@
 # Remove RTL image cases
 
-Status: executing
+Status: complete
 Dependencies: none.
 Requirements: [R-01, R-04, X-01](README.md#requirements-and-scope).
 
@@ -18,4 +18,4 @@ The combined validation/baseline run passes 26 SnapshotConfiguration unit tests 
 
 Command: `TEST_WORKDIR=/private/tmp/stuff-snapshot-reviewability-baseline-20261117 ./test --only SnapshotKitTests/SnapshotConfigurationTests --only WhereUISnapshotTests/MainTabsSnapshotTests --only WhereUISnapshotTests/SettingsViewSnapshotTests --only WhereUISnapshotTests/OnboardingThemeSelectionViewSnapshotTests --only WhereUISnapshotTests/CalendarContentViewSnapshotTests --only WhereUISnapshotTests/YearViewSnapshotTests --no-generate --timings --review --record never`. Normal architecture and applicable host checks pass.
 
-Committed in `fdb86b6bd`. Resume: finish the independent review and publication with plan 02.
+Committed in `fdb86b6bd` and published in [PR #521](https://github.com/kyleve/Stuff/pull/521). Independent source/inventory review reports no actionable findings. The final combined run also passes all retained images from the three affected suites. No implementation work remains in this step; remote CI and PR review are pending.

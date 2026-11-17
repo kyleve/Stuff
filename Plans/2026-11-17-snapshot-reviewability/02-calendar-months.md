@@ -1,6 +1,6 @@
 # Focus calendar content on representative months
 
-Status: executing
+Status: complete
 Dependencies: none; execute after plan 01 for separate commits and evidence.
 Requirements: [US-01, R-02–R-04, X-01–X-02](README.md#requirements-and-scope).
 
@@ -92,4 +92,4 @@ TEST_WORKDIR=/private/tmp/stuff-snapshot-reviewability-final-20261117 ./test \
 
 With the same timing/review flags, CalendarContentView capture work falls from 52.994s to 37.614s; YearView falls from 19.958s to 17.946s. Together: 72.952s → 55.560s, saving 17.392s (23.8%). The other 84 captures vary by 0.241s. This is one local debug-simulator comparison on Xcode/iOS 27.2, with intentionally smaller coverage subjects; it is not a repeated benchmark or CI wall-time result. Passing references do not establish exact captured pixels. Retained cases keep their baseline diagnostics, with small variation in the unchanged adaptive Locations case. The complete suite and physical-device behavior were not rerun for this focused matrix change.
 
-Resume: commit the verified calendar step and publish above PR #520.
+Implemented in `2359e93e0` and published in [PR #521](https://github.com/kyleve/Stuff/pull/521). [Calendar](https://github.com/kyleve/Stuff/pull/521#discussion_r4602721804) and [picker](https://github.com/kyleve/Stuff/pull/521#discussion_r4602722083) image comments link to that reviewed revision. Published HTML contains the intended image tags and alt text; the public PNG and GitHub image-proxy bytes match the reviewed files. Browser layout verification was unavailable because local browser access is disabled. No implementation work remains in this step; remote CI and PR review are pending.
