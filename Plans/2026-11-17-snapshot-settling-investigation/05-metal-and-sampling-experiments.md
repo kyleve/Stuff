@@ -39,6 +39,12 @@ return evaluateExistingFloorAndDeadlines(stable)
 
 The GPU pilot owns its device, queue, renderer, texture, and completion fence. It must not reparent or mutate the hosted root to fit a texture. Allocate for current bounds, clear output, await completed GPU work before reading, and retain resources through completion even during cancellation. Missing images break the proof. The candidate remains temporary until fidelity and end-to-end timing justify a maintained backend. Final capture still uses UIKit.
 
+## Conditional color-format control
+
+The first 60ms pair saves only 22 of 574 samples and leaves settling time unchanged. Most renders already approach or exceed the proposed interval. The user's preceding sample-rate request arose from the earlier extended-color result: faster renders increased pass counts before unchanged floors. After finishing the current repeat, run two matched pairs of standard/control versus extended-color samples with the 60ms interval. This adds no new capture backend or weakened proof. It tests the interaction identified by plan 03 rather than repeating its uncapped format trial. Keep final capture format unchanged. Build the combined probe once, record source hashes, and use the same products for both modes. The control uses standard color and the current 16ms suspension; the candidate uses extended color and a 60ms minimum start interval with at least 16ms suspension. Attribute any gain to that combination. The earlier extended-only trial predates PR #525 and cannot isolate this interaction on the current provider baseline. Apply the same fidelity, later-oracle, end-to-end acceptance, and cleanup criteria. A negative result needs no full-suite or CI rollout.
+
+This is a bounded refinement of Q-07 within the user's sampling authorization, reviewed against the prior format evidence and current source. No new user decision is needed. Independent reviewer `/root/review_metal_sampling` reviewed this refinement and independently reproduced the first pair from raw traces. It found no plan blocker; implementation acceptance still requires the color/transparency/fade/single-pixel guards, later oracle, and broader validation.
+
 ## Steps and evidence
 
 1. Save source hashes and clean copies under the session's `snapshot-metal-sampling-results` artifact directory. Keep probes in existing source/test files so temporary generation changes are unnecessary. Use `./test` serially on this checkout's simulator.
@@ -76,3 +82,20 @@ Warm direct-layer render/readback samples are roughly 1ms, with roughly 316ms fi
 Raw sources, PNGs, logs, result bundles, pixel counts, and crash reports are retained under `/private/tmp/stuff-metal-sampling/` and the durable session artifact directory `snapshot-metal-sampling-results/metal/`. `observations.json` records source hashes and limits. The extra positioning control corrects a demonstrated adapter error before rejecting fidelity; it does not expand the selected experiment into another renderer design. All Metal prototype code is removed from the working source.
 
 Independent reviewer `/root/review_metal_sampling` inspected sources, raw logs, crash reports, normalized outputs, and visible CPU/GPU images. It agrees with these bounded conclusions and identified the excluded WebKit and timing claims. Cadence review remains open pending results.
+
+## Standalone cadence result
+
+Two serial pairs use the same instrumented binary, 110 captures per run, and unchanged references. Both 60ms candidates are slower end to end, so the standalone interval is rejected.
+
+| Run | Test phase | Capture work | Settling | Render | Passes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Control 1 | 120.823s | 99.441s | 50.636s | 38.388s | 574 |
+| 60ms 1 | 122.434s | 100.808s | 50.652s | 37.765s | 552 |
+| Control 2 | 119.773s | 98.136s | 50.097s | 37.870s | 568 |
+| 60ms 2 | 120.400s | 99.098s | 50.425s | 37.433s | 553 |
+
+The mean reduces 18.5 passes and 0.530s of rendering, but adds 0.741s of suspension. Mean settling increases 0.172s, capture work 1.165s, and test phase 1.119s. The interval affects only 89 and 94 sleeps in the candidates; most samples already take longer than the proposed rate.
+
+Every run has the same 110 identities, 558,607,431 pixels, 114 tiles, readiness policies, and final floors, with no retries. The first pair differs by at most one channel unit. Pair 2 and the repeated controls each have the same one-pixel, two-unit difference in `Adaptive-Locations-innerPortrait_duoInnerPortrait_dark`; no geometry changes occur. All reference assertions pass. This is a negative performance result, not a new general readiness proof; no delayed oracle, full-suite rollout, or CI trial is needed for this rejected candidate.
+
+Raw logs, PNGs, traces, summaries, commands, source hashes, and comparisons are retained under the session's `snapshot-metal-sampling-results/cadence/`. The combined format/cadence candidate passes 23 functions in three focused framework suites, including all six real hierarchy color/transparency/fade/single-pixel cases, cancellation, and timeout/starvation guards. Its paired end-to-end runs remain in progress.
