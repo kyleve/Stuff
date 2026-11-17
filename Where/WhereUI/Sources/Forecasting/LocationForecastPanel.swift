@@ -121,7 +121,7 @@ struct LocationForecastPanel: View {
                 name: "Expanded",
                 configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await artwork.load(for: regions) {
                         await LocationForecastArtworkLoader.load(regions: regions, cache: cache)
                     }

@@ -1,12 +1,12 @@
 # 02 — Prepare artwork before settling
 
-- Status: ready
+- Status: executing
 - Depends on: None; measure after the verified cache-only step in [plan 01](01-shared-cache.md). The callback migration also works with separate caches.
 - Shared requirements: [Overview](README.md), R-02–R-05; exclusions X-01 and X-02.
 
 ## Deliverable
 
-Move artwork loading from `onReadyToSnapshot` to `prepareForCapture` in Appearance settings, LocationForecastSummary, LocationForecastPanel, LocationsBackground, and RegionWelcomeCard. All five already declare immediate measurement; their artwork decorates fixed geometry. Preserve every final settle policy and each view's own artwork publication. No new architecture is required: this uses PR #511's existing readiness phase.
+Move artwork loading from `onReadyToSnapshot` to `prepareForCapture` in Appearance settings, LocationForecastSummary, LocationForecastPanel, LocationsBackground, and RegionWelcomeCard. All five already declare immediate measurement; their artwork decorates fixed geometry. Preserve every final settle policy and existing artwork model ownership. No new architecture is required: this uses PR #511's existing readiness phase.
 
 ## Steps and acceptance
 
@@ -19,12 +19,16 @@ Move artwork loading from `onReadyToSnapshot` to `prepareForCapture` in Appearan
 
 ## Recovery and evidence
 
-Revert only an unsupported callback migration while preserving verified cache reuse. Preserve raw logs outside Git; record concise commands, counts, revisions, and decisions here. Fresh fixture state and actual artwork publication remain mandatory even on cache hits.
+Revert only an unsupported callback migration while preserving verified cache reuse. Preserve raw logs outside Git; record concise commands, counts, revisions, and decisions here. Actual artwork publication remains mandatory even on cache hits; the path cache does not hold fixture models or worlds.
 
 ## Execution record
 
-Not started.
+The cache-only step passes at `c42e9456d`. The five selected providers now use `prepareForCapture` (six label replacements); all floors, measurement policies, capture configurations, and callback bodies are unchanged.
+
+The first combined profile passes five tests and 63 captures with no retries. It totals 37.346s versus the 65.589s baseline: 28.243s saved (43.1%). The preparation phase takes 0.455s; the earlier post-settle hook phase took 26.163s because it included another settle. Settle passes fall from 911 to 445. All capture identities, policies, dimensions, pixel counts, tiles, and all 22 diagnostic payloads match the baseline. Independent review verified these raw results.
+
+A separate-process repeat passes the same five tests and 63 captures with no retries. Capture time is 37.319s (28.270s saved, 43.1%); preparation takes 0.465s, with 444 settle passes. All 22 diagnostic payloads again match baseline exactly. Full Swift formatting and symbol lint pass.
 
 ## Resume point
 
-Wait for plan 01's cache-only validation, then migrate the five selected hooks.
+The callback step is verified. Run full image integration and review the final diff before publication.

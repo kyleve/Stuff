@@ -5,10 +5,10 @@
 - Updated: 2026-11-17; parent PR #514 at `c5cd82626a141df985635868024b159633ce879f`.
 - Operation: Execute the user's requested shared artwork cache and preparation changes.
 - Scope: One reusable outline-path cache for Where snapshot fixtures, followed by the five identified artwork-hook migrations.
-- Stage: Cache implementation validated; preparing the callback migration.
-- Completed: Stack checks, baseline, shared-cache implementation, and cache-only focused images. All 18 focused unit tests pass, and the three hosted tests pass again after the review fix.
-- Pending: Callback migration, combined measurements, broad image validation, final review, and publication.
-- Next action: Commit the verified cache step, migrate the five hooks, and compare the combined result.
+- Stage: Both steps and the focused repeat pass; broad image integration is next.
+- Completed: Stack checks, baseline, cache-only images, two combined profiles, plus 18 focused unit tests. Three hosted tests pass again after the review fix. Cache step committed at `c42e9456d`.
+- Pending: Broad image integration, final review, and publication.
+- Next action: Run all snapshot captures, complete independent review, and publish above PR #514.
 
 ## Outcome and requirements
 
@@ -43,12 +43,12 @@ The prior full profile records 26.342s in post-settle artwork hooks and their ad
 | ID | Status | Question | Resolution |
 | --- | --- | --- | --- |
 | Q-01 | closed | Can fixtures share artwork without sharing their mutable world? | User approved a process-lived path cache. Keys contain region/resolution only; inject at DEBUG snapshot composition, preserve existing model ownership. Broadway roots reuse an inherited cache so nested roots do not replace that dependency. |
-| Q-02 | open | How much does cache reuse save separately from hook migration? | Cache-only: 66.223s versus 65.589s baseline, no demonstrated speedup. Reuse and correctness pass. The combined measurement remains pending. |
+| Q-02 | closed | How much does cache reuse save separately from hook migration? | Cache-only: 66.223s versus 65.589s baseline, no demonstrated speedup. Combined profiles take 37.346s and 37.319s (43.1% lower than baseline); readiness relocation provides the measured benefit. |
 | Q-03 | open | Do earlier readiness and warm paths preserve pixels and dimensions? | Require unchanged references, matching identities/dimensions, reviewed diagnostics, and full image integration. |
 
 ## Plan review
 
-Reviewed 2026-11-17 against `c5cd82626`: composition ownership, actor reentrancy, cache keys, view publication, modifier ordering, cancellation, explicit fixture caches, and image coverage. Plans 01–02 are ready. Guard the actual hosted environment so Broadway cannot silently replace the injected cache. Runtime results remain unverified; the diagram below is source-level design, not rendering evidence.
+Reviewed 2026-11-17 against `c5cd82626`: composition ownership, actor reentrancy, cache keys, view publication, modifier ordering, cancellation, explicit fixture caches, and image coverage. Plans 01–02 are ready. Guard the actual hosted environment so Broadway cannot silently replace the injected cache. Hosted runtime tests and the first two focused image profiles pass. The diagram in plan 01 describes source ownership; image evidence is recorded separately.
 
 ## Review and delivery
 

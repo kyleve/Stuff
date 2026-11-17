@@ -79,7 +79,7 @@ struct LocationForecastSummary: View {
                 name: name,
                 configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await artwork.load(for: regions) {
                         await LocationForecastArtworkLoader.loadSummary(
                             regions: regions,

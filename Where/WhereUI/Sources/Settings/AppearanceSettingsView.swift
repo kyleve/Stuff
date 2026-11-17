@@ -232,7 +232,7 @@ extension AppearanceSettingsView: SettingsSection {
                 configurations: .fullContentPhoneLightDark,
                 theme: .alternate,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {
@@ -256,7 +256,7 @@ extension AppearanceSettingsView: SettingsSection {
                 // Native navigation adapts when the Form reaches its full height.
                 // Reparse accessibility after that preparation pass, as About does.
                 settle: .settledAtLeast(minDuration: 1.5),
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {

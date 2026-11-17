@@ -214,7 +214,7 @@ struct RegionWelcomeCard: View {
                 name: "Welcome",
                 configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     _ = await cache.path(for: .newYork, resolution: .medium)
                     _ = await cache.path(for: .newYork, resolution: .micro)
                 },
