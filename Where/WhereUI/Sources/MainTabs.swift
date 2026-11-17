@@ -257,6 +257,12 @@ struct MainTabs: View {
 #if DEBUG
     extension MainTabs: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            snapshots(buildWorld: WhereFlyoverWorld.build)
+        }
+
+        static func snapshots(
+            buildWorld: @escaping @MainActor () async throws -> WhereFlyoverWorld,
+        ) -> [SnapshotCase] {
             let fastConfigurations: [SnapshotConfiguration] = .phoneLightDark + [
                 SnapshotConfiguration(device: .iPhone, snapshotType: .accessibility),
             ]
@@ -277,7 +283,7 @@ struct MainTabs: View {
                     includeWelcomeYear: false,
                 )
             } + [elsewhereSnapshot()]
-                + adaptiveSnapshots(includingEquivalentPoses: false)
+                + adaptiveSnapshots(includingEquivalentPoses: false, buildWorld: buildWorld)
         }
 
         /// One case per preview identity; capture-only trait repetitions stay in `snapshots`.
@@ -397,6 +403,8 @@ struct MainTabs: View {
         private static func adaptiveSnapshots(
             includingEquivalentPoses: Bool,
             includingTraits: Bool = true,
+            buildWorld: @escaping @MainActor () async throws
+                -> WhereFlyoverWorld = WhereFlyoverWorld.build,
         ) -> [SnapshotCase] {
             let tabs: [MainTabSelection.TabID] = [.locations, .year, .settings]
             var cases = tabs.flatMap { tab in
@@ -415,6 +423,7 @@ struct MainTabs: View {
                         pose: pose,
                         configuration: SnapshotConfiguration(device: pose.frame),
                         selection: .none,
+                        buildWorld: buildWorld,
                     )
                 }
             }
@@ -433,6 +442,7 @@ struct MainTabs: View {
                         pose: pose,
                         configuration: configuration,
                         selection: .none,
+                        buildWorld: buildWorld,
                     )
                 }
             }
@@ -442,6 +452,7 @@ struct MainTabs: View {
                     pose: pose,
                     configuration: SnapshotConfiguration(device: pose.frame),
                     selection: .region,
+                    buildWorld: buildWorld,
                 ))
                 if includingEquivalentPoses || pose != .tabletop {
                     cases.append(adaptiveSnapshot(
@@ -449,6 +460,7 @@ struct MainTabs: View {
                         pose: pose,
                         configuration: SnapshotConfiguration(device: pose.frame),
                         selection: .timeline,
+                        buildWorld: buildWorld,
                     ))
                 }
             }
@@ -457,6 +469,7 @@ struct MainTabs: View {
                 pose: .innerPortrait,
                 configuration: SnapshotConfiguration(device: .duoInnerPortrait),
                 selection: .settings,
+                buildWorld: buildWorld,
             ))
             return cases
         }
@@ -466,6 +479,7 @@ struct MainTabs: View {
             pose: SnapshotConfiguration.DuoPose,
             configuration: SnapshotConfiguration,
             selection: DuoLayoutSnapshotFixture.Selection,
+            buildWorld: @escaping @MainActor () async throws -> WhereFlyoverWorld,
         ) -> SnapshotCase {
             let tabName = switch tab {
                 case .locations: "Locations"
@@ -473,7 +487,14 @@ struct MainTabs: View {
                 case .year: "Year"
                 case .settings: "Settings"
             }
-            let fixture = DuoLayoutSnapshotFixture(tab: tab, selection: selection)
+            let fixture = DuoLayoutSnapshotFixture(
+                tab: tab,
+                selection: selection,
+                // The detached compact-pad viewport lays out native tab chrome differently
+                // with a warm world, even after 1.5s settling (Xcode/iOS 27.2, 2026-11-17).
+                // Keep these three cold starts until the renderer's warm geometry is fixed.
+                buildWorld: pose == .narrow ? WhereFlyoverWorld.build : buildWorld,
+            )
             let selectionName = switch selection {
                 case .none: ""
                 case .region, .settings: "-Selected"
