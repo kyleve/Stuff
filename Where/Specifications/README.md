@@ -40,6 +40,8 @@ unchanged before returning.
 
 - [CompatibilityLockout](CompatibilityLockout/README.md) checks current-decision admission,
   suspended completions, repeated lockouts during recovery, and scope/GPS retirement.
+- [CompatibilityPublication](CompatibilityPublication/README.md) checks recording eligibility,
+  monotonic conditional writes, uncertain saves, and account-bound offline receipts.
 
 ## PlusCal migration result
 

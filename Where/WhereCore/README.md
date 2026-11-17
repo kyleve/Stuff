@@ -24,6 +24,7 @@ The private CloudKit control record lives outside SwiftData's zone. Conditional 
 Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
 Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
 A newer shared version requires an app update.
+The [publication model](../Specifications/CompatibilityPublication/README.md) checks bounded competing writes, recording eligibility, and receipt-based admission.
 
 The atomic App Group receipt preserves the highest observed version and excludes itself from backups.
 Transient failures permit offline access only after the same account and version passed verification.

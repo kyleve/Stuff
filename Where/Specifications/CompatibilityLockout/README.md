@@ -18,6 +18,8 @@ Run from the repository root:
 
 Source baseline: `04cb13b2cf83b01e617f3f0bd569d2c7aec2dd6a`, with the
 `WhereCompatibilityModel.bind` recovery fix committed alongside this model.
+The publication/receipt protocol is checked separately in
+[CompatibilityPublication](../CompatibilityPublication/README.md).
 
 The admission point is the synchronous access check before launching a store
 open. An open already in flight may finish physically; its result must pass
