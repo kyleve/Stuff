@@ -574,7 +574,12 @@ struct CalendarContentView: View {
                 .padding()
                 .background(Color(.systemBackground))
             }
-            whereSnapshot(name: "MonthAccessibility", configurations: .componentRepresentative) {
+            whereSnapshot(
+                name: "MonthAccessibility",
+                configurations: .componentRepresentative,
+                // This standalone month receives its complete layout synchronously.
+                measurementReadiness: .immediate,
+            ) {
                 let calendar = Calendar(identifier: .gregorian)
                 MonthGridView(
                     month: PreviewSupport.calendarAccessibilityMonth(calendar: calendar),

@@ -46,8 +46,10 @@ On a failure, restore only the unsupported candidate and retain the evidence. Do
 
 - 2026-11-16: Reviewed source, mounted tasks, geometry, test coverage, and scope at parent `f4e3b4c8c`.
 - Q-01 resolved for these candidates; other measurement waits remain outside this deliverable.
-- Pending: implementation, focused measurements, integration, independent review, and publication.
+- Implemented the three declaration changes. Focused `--timings --review --record never` run passed 3 tests and 155 captures with no retries; every capture identity and pixel count matches the parent.
+- Intrinsic measurement: RegionSummaryCard 16.549s → 0.533s; FlightDayDetailView 11.116s → 1.624s; CalendarContentView 32.906s → 31.713s. The calendar change covers only standalone MonthAccessibility. Total measurement reduction is 26.701s. The new focused run includes review work, so its total time is not compared directly with the parent full run.
+- `./swiftformat --lint` passes. Pending: full integration, independent review, and publication.
 
 ## Resume point
 
-Run the focused profile for all three changed declarations, then compare capture identities, dimensions, and references.
+Focused validation passed. Complete the final stack integration run and independent review before publication.
