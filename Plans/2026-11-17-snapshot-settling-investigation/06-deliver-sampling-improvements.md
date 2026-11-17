@@ -1,19 +1,22 @@
-# 06 — Deliver accepted sampling improvements
+# 06 — Deliver the sampling experiment result
 
-- Status: outline
-- Depends on: [05](05-metal-and-sampling-experiments.md).
+- Status: executing
+- Depends on: [05](05-metal-and-sampling-experiments.md); all bounded trials are complete, with final review/publication pending.
 - Shared context: [Overview](README.md), R-06, X-02–X-04, Q-06–Q-08.
 
-## Intended outcome
+## Outcome and refinement decision
 
-Ship only a candidate supported by plan 05, or document the bounded negative result and restore the unchanged renderer. Explicit fallback for incompatible tests is authorized by the user. A general Metal default is provisional, not required.
+Keep the existing UIKit sampler and cadence. Neither Metal adapter satisfies the local prerequisite; neither tested scheduling candidate establishes an end-to-end benefit beyond the controls. A negative experiment was explicitly allowed by this plan. There is no accepted content class requiring a maintained fallback selector.
 
-## Requirements and exclusions
+This outline was refined after plan 05's final pair. Delivery consists of reviewed findings, complete prototype cleanup, and the separately requested overlap outline. No production behavior or public API changes are selected. The architectural diagram in plan 05 describes the rejected prototype boundary; the existing renderer remains the implementation.
 
-Preserve coverage, references, final capture rendering, geometry, readiness hooks, quiet proof, minimum durations, cancellation, timeout/starvation behavior, retries, and cleanup. Keep resource ownership bounded; avoid hidden per-class readiness inference. Remove experiment flags and dump code. The existing pipeline in plan 05 remains the architectural boundary; accepted results determine whether any new maintained component is needed.
+## Delivery steps and acceptance
 
-## Refinement trigger and evidence
+1. Retain every prototype revision, failed and successful run, raw images, crash reports, timing source, and limits outside Git. The session's `snapshot-metal-sampling-results/{metal,cadence,combination}/` directories contain that evidence.
+2. Restore `SnapshotRenderingSupport.swift`, `CaptureConfiguredSnapshot.swift`, `SnapshotImageRendering.swift`, and `SnapshotRenderingSupportTests.swift` to the parent. Verify byte equality and confirm no Swift, reference, matrix, target, or tool change remains in the PR. `restored-source.json` records hashes against `75978860f`.
+3. Review the complete diff and raw evidence independently. Validate plan links/statuses and `git diff --check`. No Swift formatting or new full iOS/CI gate is required for the resulting documentation-only diff. The experiments themselves executed 880 image assertions and 23 focused framework functions; rejected Metal probes retain their failures explicitly.
+4. Publish the findings through `gh stack` in PR #527 above #525. Keep the issue In Review and preserve the new [overlap phase](07-overlap-snapshot-work.md) as an outline. Verify the published head and documentation classification. Do not merge or claim a new speedup.
 
-Refine after plan 05 establishes fidelity, local timing, and any explicit fallback eligibility. Select meaningful retained regressions for demonstrated failures. A renderer-wide accepted change requires framework and complete 935-capture local validation, actual isolated-CI capability evidence, and matched CI timing before claiming a CI gain. Keep repeated focused savings separate from full-run observations.
+## Review and resume point
 
-Review the final diff with a fresh independent reviewer, publish a ready PR above #525, and update STU-121 without closing its unrelated remaining work. A negative experiment can finish this delivery through documented findings and any useful regression coverage; it does not establish feasibility or a speedup.
+The root reviewed the negative-result refinement against the experiment criteria. The original source is restored and verified, and all raw evidence is retained. Independent final evidence review is complete with no blockers; publication remains. After delivery, plans 05–06 can complete; plan 07 remains separately selected planning work and requires refinement before any overlap prototype.

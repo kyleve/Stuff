@@ -62,7 +62,7 @@ Interrupted trials resume from recorded source hashes and the last complete run;
 
 ## Progress and resume point
 
-Metal prerequisites are complete; both tested adapters are rejected. Serial UIKit control/candidate trials are running with a 60ms minimum start interval and at least 16ms suspension. The temporary flags, PNG output, and later oracle stay uncommitted. Complete paired timing and correctness review before selecting any cadence change.
+All bounded trials are complete. Both Metal adapters, the standalone interval, and the combined format/interval candidate are rejected for adoption. The original Swift files are restored byte-for-byte to `75978860f`. Final evidence review and publication remain; plan 06 records the negative-result delivery.
 
 ## Metal disposition
 
@@ -81,7 +81,7 @@ Warm direct-layer render/readback samples are roughly 1ms, with roughly 316ms fi
 
 Raw sources, PNGs, logs, result bundles, pixel counts, and crash reports are retained under `/private/tmp/stuff-metal-sampling/` and the durable session artifact directory `snapshot-metal-sampling-results/metal/`. `observations.json` records source hashes and limits. The extra positioning control corrects a demonstrated adapter error before rejecting fidelity; it does not expand the selected experiment into another renderer design. All Metal prototype code is removed from the working source.
 
-Independent reviewer `/root/review_metal_sampling` inspected sources, raw logs, crash reports, normalized outputs, and visible CPU/GPU images. It agrees with these bounded conclusions and identified the excluded WebKit and timing claims. Cadence review remains open pending results.
+Independent reviewer `/root/review_metal_sampling` inspected sources, raw logs, crash reports, normalized outputs, and visible CPU/GPU images. It agrees with these bounded conclusions and identified the excluded WebKit and timing claims. The final cadence and combined-result reviews also agree with the raw evidence, as recorded below.
 
 ## Standalone cadence result
 
@@ -98,4 +98,27 @@ The mean reduces 18.5 passes and 0.530s of rendering, but adds 0.741s of suspens
 
 Every run has the same 110 identities, 558,607,431 pixels, 114 tiles, readiness policies, and final floors, with no retries. The first pair differs by at most one channel unit. Pair 2 and the repeated controls each have the same one-pixel, two-unit difference in `Adaptive-Locations-innerPortrait_duoInnerPortrait_dark`; no geometry changes occur. All reference assertions pass. This is a negative performance result, not a new general readiness proof; no delayed oracle, full-suite rollout, or CI trial is needed for this rejected candidate.
 
-Raw logs, PNGs, traces, summaries, commands, source hashes, and comparisons are retained under the session's `snapshot-metal-sampling-results/cadence/`. The combined format/cadence candidate passes 23 functions in three focused framework suites, including all six real hierarchy color/transparency/fade/single-pixel cases, cancellation, and timeout/starvation guards. Its paired end-to-end runs remain in progress.
+Raw logs, PNGs, traces, summaries, commands, source hashes, and comparisons are retained under the session's `snapshot-metal-sampling-results/cadence/`. The combined format/cadence candidate passes 23 functions in three focused framework suites, including all six real hierarchy color/transparency/fade/single-pixel cases, cancellation, and timeout/starvation guards. Its completed paired end-to-end result follows.
+
+## Combined format and cadence result
+
+The control uses standard samples and the current 16ms suspension. The candidate uses extended-color samples plus the 60ms minimum start interval. Both modes use one rebuilt binary and the current PR #525 provider baseline. These results measure the combination; they do not isolate its interaction from an extended-only arm.
+
+| Run | Test phase | Test bodies | Capture work | Settling | Render | Passes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Control 1 | 118.306s | 104.449s | 98.133s | 49.892s | 37.715s | 570 |
+| Extended + 60ms 1 | 116.622s | 103.673s | 98.449s | 49.299s | 32.220s | 642 |
+| Control 2 | 121.369s | 105.843s | 99.540s | 51.417s | 39.083s | 575 |
+| Extended + 60ms 2 | 121.008s | 105.757s | 99.349s | 49.312s | 32.150s | 640 |
+
+Mean rendering falls 38.399s → 32.185s (16.18%), while suspension rises 10.603s → 15.044s and pass count rises 572.5 → 641. Mean settling falls 1.349s (2.66%). Capture work is unchanged within noise: 98.837s → 98.899s, 0.063s slower. Test phases average 1.023s faster and test bodies 0.431s faster, smaller than the controls' respective 3.063s and 1.394s spreads. This does not establish repeatable end-to-end improvement beyond control variation. Reject the combined default; faster inner rendering alone does not satisfy acceptance.
+
+Each of these four runs passes 110 captures and six test functions, including the mounted-activation regression beside the five image providers. Identities, 558,607,431 pixels, 114 tiles, policies, and floors match, with no retries. Pair 1 differs by at most one channel unit. Pair 2 and the repeated controls each contain one two-unit pixel; all other differences remain within one unit. No reference is recorded. The 23-function combined guard run includes the real color, translucency, fade, and single-pixel cases. A delayed oracle, full-suite rollout, and isolated-CI candidate trial are gated out by the negative timing result; no broader readiness or CI performance claim is made.
+
+All eight timing runs reconcile through `snapshot_settle_profile.py --require-complete`: 880 capture assertions across repeated 110-capture matrices. Every run contains six test functions; test-body totals sum their reported durations without double-counting the two bundle summaries. Both paired experiments retain identical source hashes within their respective four-run binaries. Their PNG differences are compared directly, independently of reference tolerances.
+
+Raw combined logs, PNGs, traces, summaries, commands, source hashes, result bundles, guard identities, and comparison reports are retained in the session's `snapshot-metal-sampling-results/combination/`. `restored-source.json` proves that all four touched Swift files match the parent. The complete PR contains documentation only. The earlier full local/CI coverage remains evidence for that unchanged source, not a new full-suite run by this experiment.
+
+## Final evidence review
+
+Independent reviewer `/root/review_metal_sampling` and the root each recomputed all eight complete logs, six-function test identities, capture/geometry/policy multisets, timing totals, source hashes, and strict PNG comparisons. Both agree with the rejection criteria and reported limits. The reviewer independently verified that the four restored Swift files match `75978860f` and that retained artifacts match the original runs. Two stale checkpoint sentences were corrected; no behavior or evidence blocker remains. Final publication is the remaining step.
