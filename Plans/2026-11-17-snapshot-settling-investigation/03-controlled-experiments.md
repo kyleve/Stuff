@@ -29,7 +29,7 @@ These descriptions motivate experiments; they do not prove correctness or saving
 Use separate serial invocations for old and candidate policies, with fresh host processes and controllers. The control must not flush a candidate host before capture.
 For candidates that can shorten readiness, capture the candidate result, the normal result on a fresh host, and a later result on another fresh host (an added 500ms before measurement settling and another 500ms before final capture). Compare dimensions and normalized images, inspect differing content, and retain raw diagnostics.
 The added delay is an experimental oracle, never a production sleep. Include every Settings variant because its width observer can change gutters and row wrapping. Run Onboarding alone in a fresh process for a cold-cache comparison; cache completion does not itself prove that mounted cards have published their artwork, so final settling remains. Native noise may prevent byte equality; quantify it against repeated control captures and require current reference assertions plus direct content/geometry evidence. Reject unexplained differences.
-Use two repetitions per control/candidate mode on focused families and one separate later-capture oracle. Alternate modes when feasible. Full-suite results validate coverage, not a statistically precise speed estimate.
+Before accepting a candidate, use two repetitions per control/candidate mode on focused families and one separate later-capture oracle. Alternate modes when feasible. A pilot without a useful gain can stop early as a negative result. Full-suite results validate coverage, not a statistically precise speed estimate.
 For renderer reuse, preserve every draw and deadline. Compare focused runs before deciding whether the gain warrants keeping the extra state. Require changing-bounds and fresh-sample guards before accepting that candidate.
 Temporary experimental switches and captures live in an isolated patch or local artifact directory and are removed before publication. Retain commands, source hashes, logs, result exports, image comparisons, and supported negative findings.
 
@@ -82,9 +82,9 @@ A 20-second simulator-scoped Time Profiler trace recorded 22.344s of CPU sample 
 | Control 2 | 110 | 134.979 | 113.315 | 64.463 | 48.295 | 799 |
 | Extended 2 | 110 | 138.731 | 117.884 | 62.383 | 42.302 | 975 |
 
-Extended color reduced mean traced rendering by 6.071s (12.55%) and settling by 1.930s (2.99%), but increased mean test time by 1.873s. Faster samples produced more passes before the unchanged floor. Renderer reuse's single result was within control variation; stop that candidate before adding production state or further acceptance guards.
+Extended color reduced mean traced rendering by 6.071s (12.55%) and settling by 1.930s (2.99%), but increased mean test time by 1.873s. Faster samples produced more passes before the unchanged floor. Renderer reuse's single result was within control variation. The experiment was narrowed after that pilot: stop before another repetition, production state, or further acceptance guards. This is a supported rejection of the tested prototype, not proof that all renderer reuse is ineffective.
 
-Both extended runs and repeated controls had identical dimensions and no normalized image differences above one channel unit. Both formats passed nine renderer test functions, including six real hierarchy cases for wide color, transparency, cumulative fades, one bottom-edge sample pixel, and fractional neighbors of saturated color. The diagnostic contexts confirmed 8-bit sRGB versus 16-bit extended sRGB. No correctness failure was observed in these bounded checks. Reject both optimizations because neither showed repeatable end-to-end benefit.
+Both extended runs and repeated controls had identical dimensions and no normalized image differences above one channel unit. Both formats passed nine renderer test functions, including six real hierarchy cases for wide color, transparency, cumulative fades, one bottom-edge sample pixel, and fractional neighbors of saturated color. The diagnostic contexts confirmed 8-bit sRGB versus 16-bit extended sRGB. No correctness failure was observed in these bounded checks. Do not ship either prototype: neither showed repeatable end-to-end benefit in the local trials. These renderer candidates were not tested on CI. CI has slower samples, so the local floor-limited result does not establish their CI performance.
 
 ### Measurement and preparation
 
@@ -110,7 +110,7 @@ A separate first-in-process Onboarding control/candidate passed ten pixel-identi
 
 Source review retained native inset and accessibility preparation. They reconcile geometry or parsing state and have no replacement readiness signal proven by this experiment.
 
-Root's launcher and Device Layout's shared world preparation await owner-held `Task.value`. Cancelling the waiter does not cancel the owner. Moving them into a bounded preparation task group requires owner-aware waiting and targeted cancellation checks. Device Layout's preloaded test must also forward a moved hook. DevicesSettings can change height during session start and requires overlapping/cancelled-start coverage. PlacesYear's artwork-only hook is another source-eligible candidate. These unselected follow-ups remain in [STU-121](https://linear.app/kve/issue/STU-121), not implicit acceptance of a mechanical hook rename.
+Root's launcher and Device Layout's shared world preparation await owner-held `Task.value`. Cancelling the waiter does not cancel the owner. Moving them into a bounded preparation task group requires owner-aware waiting and targeted cancellation checks. Device Layout's preloaded test must also forward a moved hook. DevicesSettings can change height during session start and requires overlapping/cancelled-start coverage. PlacesYear's artwork-only hook is another source-eligible candidate. A matched CI trial of extended-color intermediates and a separate sampling-cadence experiment remain open. Preserve current-frame rendering and the full quiet-window proof; fewer early draws may also affect how hosted UI progresses. These unselected follow-ups remain in [STU-121](https://linear.app/kve/issue/STU-121), not implicit acceptance of a mechanical hook rename.
 
 ## Evidence, cleanup, and review
 
@@ -126,4 +126,4 @@ Independent review by `/root/review_settling_candidates` corrected the async siz
 
 ## Resume point
 
-Evidence supports the five-provider implementation in plan 04. Clean-source guard verification, independent review, and publication are complete. Continue plan 04 without further authorization. The full image suite and isolated CI in plan 04 cover the retained MainTabs, PlanningRegionPicker, Root, and Flyover late-change identities.
+Evidence supports the five-provider implementation in plan 04. Clean-source guard verification, independent review, and publication are complete. Plan 04 has delivered the accepted changes and verified all retained MainTabs, PlanningRegionPicker, Root, and Flyover late-change identities locally and on CI. Later rendering/sampling experiments remain in STU-121.

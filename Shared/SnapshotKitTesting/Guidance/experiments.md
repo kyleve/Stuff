@@ -64,7 +64,10 @@ captures. Extended color reduced mean traced rendering by 12.55% and settling
 by 2.99%, but did not improve end-to-end time: the test phases averaged 134.044s
 for the controls and 135.916s for the candidate. Faster samples produced more
 passes before the unchanged floors. A renderer-reuse trial was within control
-variation. Neither candidate became the default.
+variation. Neither candidate became the default. These trials were local; a matched
+CI trial remains open because slower CI samples can change the effect of the
+unchanged floor. Sampling frequency is also untested here. Keep these limits
+explicit when using this result to choose further work.
 
 Both formats passed real hierarchy-render checks for color, transparency,
 cumulative fading, a bottom-edge sample pixel, and fractional patches beside

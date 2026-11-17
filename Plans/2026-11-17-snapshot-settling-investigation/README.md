@@ -2,14 +2,14 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; groundwork published at `433450cba` on `perf/snapshot-render-settling`, stacked on PR #524.
+- Updated: 2026-11-17; implementation published at `1ef9b92b7` on `perf/snapshot-render-settling`, stacked on PR #524.
 - Operation: Create a durable plan and execute the investigation.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–03 are complete; plan 04 is executing. The user renewed authorization to execute the remaining plan.
-- Completed: Published tracing and local/CI classification; process-scoped render attribution; bounded renderer experiments; repeated measurement controls and delayed captures; cold Onboarding artwork check; and clean-source hierarchy guards.
-- Pending: Full image-suite reconciliation and isolated CI; final evidence publication and STU-121 update.
-- Next action: Publish the reviewed implementation while the full image suite runs, then reconcile its coverage and isolated CI.
-- Delegation: Prior tracing review/CI collection are integrated. `/root/review_settling_candidates` owns independent review of the current experiment evidence and implementation; the root owns execution, publication, and reporting.
+- Stage: All four plans are complete. The user authorized and renewed execution of the series.
+- Completed: Tracing and local/CI classification; bounded renderer and readiness experiments; five accepted consumer changes; independent review; 163 framework functions and all 935 image captures locally; and isolated CI at the implementation revision.
+- Pending: None within this selected series. STU-121 retains the unselected CI color-format/sampling experiments and readiness follow-ups.
+- Next action: Review PR #525 above #524. Future optimization starts from the explicit remaining scope in STU-121; no merge is assumed.
+- Delegation: `/root/review_settling_candidates` completed source and raw local-evidence review. `/root/watch_settle_ci` completed exact-head CI collection and reconciliation; the root independently verified the records. All implementation results are integrated.
 
 ## Outcome and scope
 
@@ -20,10 +20,10 @@ Later changes follow observed causes rather than assuming that every wait is rem
 Track this work in [STU-121](https://linear.app/kve/issue/STU-121).
 The existing WebKit navigation investigation remains in [STU-122](https://linear.app/kve/issue/STU-122).
 
-## Research and evidence
+## Starting evidence
 
-The latest full local profile on Xcode/iOS 27.2 passes 935 captures and 78 functions without retries.
-Its test phase takes 809.765s. Capture settling costs 352.494s; intrinsic measurement, including probe settling, costs 130.496s.
+The full local profile before this investigation on Xcode/iOS 27.2 passes 935 captures and 78 functions without retries.
+Its test phase takes 809.765s. That timing-only run omitted `--review`; it is not the comparable control for plan 04. Capture settling costs 352.494s; intrinsic measurement, including probe settling, costs 130.496s.
 The run makes 6,010 settle passes. Existing totals merge several reasons for settling and do not separate sleep, layout, rendering, and pixel comparison.
 
 The renderer can settle during measurement, initial capture, inset reconciliation, a post-capture action, scroll restoration, and accessibility preparation.
@@ -36,9 +36,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 ## Review and delivery
 
-- Plan review: Plans 01–02 passed the recorded review. Independent source and raw-evidence review has no remaining blockers for plan 01.
-- Implementation: Plans 01–03 are complete. Plan 04 changes only the five accepted providers; final validation remains pending.
-- Publication: Plan commit `230c5048d` and instrumentation `f60c1c974` are published in [PR #524](https://github.com/kyleve/Stuff/pull/524), linked from STU-121.
+- Plan review: All four plans have recorded reviews. Independent source, local raw-evidence, and CI reconciliation have no remaining blockers.
+- Implementation: All plans are complete. PR #525 at `1ef9b92b7` passes local and isolated-CI checks; the final checkpoint changes documentation only.
+- Publication: Plan commit `230c5048d` and instrumentation `f60c1c974` are in [PR #524](https://github.com/kyleve/Stuff/pull/524). Experiment groundwork `433450cba` and implementation `1ef9b92b7` are in [PR #525](https://github.com/kyleve/Stuff/pull/525). Both are linked from STU-121.
 
 ## User stories and requirements
 
@@ -64,7 +64,7 @@ Repository source and the pinned-runtime measurements suffice for this observati
 1. [01 — Trace settling](01-settle-tracing.md): complete; observational implementation and regression checks.
 2. [02 — Classify measured costs](02-classify-costs.md): complete; full local trace, focused overhead controls, and isolated CI evidence.
 3. [03 — Controlled experiments](03-controlled-experiments.md): complete; evidence and regression groundwork published in [PR #525](https://github.com/kyleve/Stuff/pull/525).
-4. [04 — Validated improvements](04-validated-improvements.md): executing; explicit readiness and preparation for five providers.
+4. [04 — Validated improvements](04-validated-improvements.md): complete; explicit readiness and preparation for five providers, with full local/CI verification.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
@@ -97,3 +97,5 @@ No user decision blocks plans 01–02. Q-03–Q-05 are the experiments' question
 Mermaid syntax is inspected; no renderer verification is claimed. Pseudocode is not compilation evidence.
 
 2026-11-17 execution review: `f60c1c974` passes local validation and all GitHub/CircleCI checks. Independent review verifies source semantics, identities, operation accounting, seven late-change examples, and the paired controls. CI collection plus independent root recomputation verify 935 captures and 78 test identities with unchanged geometry and policies apart from the existing CI timeout multiplier. The next milestone changes behavior only after plan 03 is refined and reviewed; current work establishes evidence rather than claiming a speedup.
+
+2026-11-17 completion review: the selected 62 captures save 18.938s (34.69%) in repeated local controls. The complete local suite saves 17.882s of capture work (2.30%) with unchanged coverage; CI verifies the same changes but does not establish an overall wall-time improvement. Both renderer prototypes remain unshipped after local trials. Their CI behavior and altered sampling frequency are still open questions in STU-121. See plan 04 for complete evidence and limits.
