@@ -54,7 +54,13 @@ struct PrivacyPassportCard: View {
 
     extension PrivacyPassportCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereThemeSnapshot(name: "Privacy", configurations: .componentRepresentative) {
+            // Supplied disclosure content determines height; tilt only affects the
+            // surface. Final settling still verifies the rendered card.
+            whereThemeSnapshot(
+                name: "Privacy",
+                configurations: .componentRepresentative,
+                measurementReadiness: .immediate,
+            ) {
                 PrivacyPassportCard(
                     presentation: PrivacyPassportPresentation(
                         configuration: .defaults(isDebugBuild: false),

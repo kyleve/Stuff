@@ -1,14 +1,14 @@
 # 04 — Deliver validated improvements
 
-- Status: draft
-- Depends on: [03](03-controlled-experiments.md), evidence accepted; clean-source checks and publication pending.
+- Status: executing
+- Depends on: [03](03-controlled-experiments.md), complete and published in [PR #525](https://github.com/kyleve/Stuff/pull/525) at `433450cba`.
 - Shared context: [Overview](README.md), R-04 and X-02–X-04.
 
 ## Intended outcome
 
 Remove proven redundant measurement settles and place artwork preparation before final settling. Preserve the complete image matrix, geometry, reference data, tolerances, cancellation, retry freshness, and all final capture floors.
 
-## Proposed selected changes
+## Selected changes
 
 Settings was rejected: all 16 early measurements changed capture height. Its existing measurement settle remains necessary even with synchronous data.
 
@@ -44,4 +44,15 @@ These are case declarations and regression coverage, with no new architecture or
 
 ## Review and resume point
 
-All five-family controls and the delayed oracle pass with 62 pixel-identical images. Review confirms explicit fixture eligibility, preserved final settling, and excluded Settings/native paths. Await plan 03 publication before implementation. User authorization already covers execution; no additional approval is required.
+All five-family controls and the delayed oracle pass with 62 pixel-identical images. Review confirms explicit fixture eligibility, preserved final settling, and excluded Settings/native paths. Plan 03 is published. The explicit declarations and Onboarding hook move are implemented; focused/framework/full-image checks and final review are next. User authorization already covers execution; no additional approval is required.
+
+## Implementation evidence
+
+The five provider declarations now explicitly skip measurement settling, and Onboarding loads its existing artwork through `prepareForCapture`. No model construction, matrix, reference, final settle, or shared renderer code changed.
+
+- `./test SnapshotKitTestingTests --no-generate --no-build`, after the clean-source guard rebuild: 163 functions in 30 suites pass; seven expected issues belong to four assertion/retry probes.
+- `./test --snapshots --no-generate --record never --review --timings` with the five selected `--only` suites: 62 captures in five functions pass after rebuilding. Capture time is 35.899s, settle time 18.466s, and test phase 53.753s. All 62 measurements skip sampling; all 62 final content settles remain; no post-action call or retry remains in this selection.
+- `./swiftformat --lint` for all six changed Swift files and `git diff --check` pass.
+- Independent review of the consumer diff against `433450cba` and the complete PR against `2fd1cdfaa` found no blockers. It checked model lifecycles, helper forwarding, cutsheet panels, matrix preservation, and final settling. Full-suite and isolated-CI evidence remain pending.
+
+Final artifacts: `/private/tmp/stuff-settle-final-{guards,framework,focused,full}/`, with console logs alongside. The complete image suite is running serially using the rebuilt products. Resume with full capture-multiset reconciliation, isolated CI, and publication of the final evidence.

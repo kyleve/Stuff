@@ -1,6 +1,6 @@
 # 03 — Evaluate controlled settling improvements
 
-- Status: executing
+- Status: complete
 - Depends on: [02](02-classify-costs.md), complete at `2fd1cdfaa`.
 - Shared context: [Overview](README.md), R-03/R-04 and X-02–X-04.
 
@@ -120,10 +120,10 @@ Raw evidence is retained at `/Users/kve/.codex/visualizations/2026/11/17/01a1e71
 - `experiments/`: per-run logs, result bundles, PNGs, commands/source hashes, normalized comparisons, timing tables, scripts, and the final prototype patch.
 - `experiments/excluded-runs.json`: two failed temporary-adapter builds and the stale-product guard run. They are excluded from passing counts and timings. Both guard formats were subsequently rebuilt and passed.
 
-The temporary renderer/capture adapters have been restored byte-for-byte to the base. Retain only actual hierarchy regression guards and findings; remove export code, flags, delays, and format prints. The clean-source rebuild passes all nine `SnapshotRenderingSupportTests` functions, including all six hierarchy arguments; `./swiftformat --lint Shared/SnapshotKitTesting/Tests/SnapshotRenderingSupportTests.swift` and `git diff --check` pass. Final guard artifacts are `/private/tmp/stuff-settle-final-guards/` with the console log alongside. Independent final review found no blockers. It recomputed raw traces and image inventories, confirmed all 62 selected PNGs and ten cold Onboarding PNGs are byte-identical between their controls, and verified that content settle floors, quiet proof, maximum budgets, and retries remain unchanged. Groundwork publication is next.
+The temporary renderer/capture adapters have been restored byte-for-byte to the base. Retain only actual hierarchy regression guards and findings; remove export code, flags, delays, and format prints. The clean-source rebuild passes all nine `SnapshotRenderingSupportTests` functions, including all six hierarchy arguments; `./swiftformat --lint Shared/SnapshotKitTesting/Tests/SnapshotRenderingSupportTests.swift` and `git diff --check` pass. Final guard artifacts are `/private/tmp/stuff-settle-final-guards/` with the console log alongside. Independent final review found no blockers. It recomputed raw traces and image inventories, confirmed all 62 selected PNGs and ten cold Onboarding PNGs are byte-identical between their controls, and verified that content settle floors, quiet proof, maximum budgets, and retries remain unchanged. Groundwork is published at `433450cba` in [PR #525](https://github.com/kyleve/Stuff/pull/525), stacked on #524.
 
 Independent review by `/root/review_settling_candidates` corrected the async sizing sketch, required actual hierarchy-render guards, identified Settings' geometry risk, and required the cold Onboarding check. The original plan review covered requirements, independent-host controls, cancellation, cleanup, and prior late-change counterexamples. Mermaid syntax was inspected; no rendered-diagram check is claimed.
 
 ## Resume point
 
-Evidence supports the five-provider implementation in plan 04. Finish clean-source guard verification, review, and publication for this groundwork, then execute plan 04 without further authorization. The full image suite and isolated CI in plan 04 cover the retained MainTabs, PlanningRegionPicker, Root, and Flyover late-change identities.
+Evidence supports the five-provider implementation in plan 04. Clean-source guard verification, independent review, and publication are complete. Continue plan 04 without further authorization. The full image suite and isolated CI in plan 04 cover the retained MainTabs, PlanningRegionPicker, Root, and Flyover late-change identities.

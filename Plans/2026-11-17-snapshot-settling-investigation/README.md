@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; resuming at `2fd1cdfaa` on `perf/snapshot-render-settling`, stacked on PR #524.
+- Updated: 2026-11-17; groundwork published at `433450cba` on `perf/snapshot-render-settling`, stacked on PR #524.
 - Operation: Create a durable plan and execute the investigation.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–02 are complete. Plan 03 has accepted evidence and is awaiting groundwork publication; plan 04 is refined. The user renewed authorization to execute the remaining plan.
+- Stage: Plans 01–03 are complete; plan 04 is executing. The user renewed authorization to execute the remaining plan.
 - Completed: Published tracing and local/CI classification; process-scoped render attribution; bounded renderer experiments; repeated measurement controls and delayed captures; cold Onboarding artwork check; and clean-source hierarchy guards.
-- Pending: Publish the completed controlled experiments, then deliver and verify the five accepted consumer changes.
-- Next action: Finish clean-source regression checks and publish plan 03 groundwork, then execute plan 04.
+- Pending: Full image-suite reconciliation and isolated CI; final evidence publication and STU-121 update.
+- Next action: Publish the reviewed implementation while the full image suite runs, then reconcile its coverage and isolated CI.
 - Delegation: Prior tracing review/CI collection are integrated. `/root/review_settling_candidates` owns independent review of the current experiment evidence and implementation; the root owns execution, publication, and reporting.
 
 ## Outcome and scope
@@ -37,7 +37,7 @@ Repository source and the pinned-runtime measurements suffice for this observati
 ## Review and delivery
 
 - Plan review: Plans 01–02 passed the recorded review. Independent source and raw-evidence review has no remaining blockers for plan 01.
-- Implementation: Plans 01–02 are complete; plan 03 accepts five explicit consumer changes. Production policy remains unchanged until plan 04.
+- Implementation: Plans 01–03 are complete. Plan 04 changes only the five accepted providers; final validation remains pending.
 - Publication: Plan commit `230c5048d` and instrumentation `f60c1c974` are published in [PR #524](https://github.com/kyleve/Stuff/pull/524), linked from STU-121.
 
 ## User stories and requirements
@@ -63,8 +63,8 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 1. [01 — Trace settling](01-settle-tracing.md): complete; observational implementation and regression checks.
 2. [02 — Classify measured costs](02-classify-costs.md): complete; full local trace, focused overhead controls, and isolated CI evidence.
-3. [03 — Controlled experiments](03-controlled-experiments.md): executing; render attribution and explicit measurement eligibility.
-4. [04 — Validated improvements](04-validated-improvements.md): draft; five accepted providers, awaiting plan 03 publication.
+3. [03 — Controlled experiments](03-controlled-experiments.md): complete; evidence and regression groundwork published in [PR #525](https://github.com/kyleve/Stuff/pull/525).
+4. [04 — Validated improvements](04-validated-improvements.md): executing; explicit readiness and preparation for five providers.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
