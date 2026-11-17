@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; findings published at `1594ea543` in PR #527 on `perf/snapshot-metal-sampling`, above PR #525 at `75978860f`. The final diff changes documentation only.
-- Operation: Execute the newly authorized sampling and Metal follow-up; preserve completed plans 01–04.
+- Updated: 2026-11-17; phase 7 starts on `perf/snapshot-overlap`, above PR #527 at `64e349f14`. The sampling experiments remain complete with no sampler change.
+- Operation: Refine and execute phase 7 after the user's explicit request, “Let’s move onto phase 7!” Preserve completed plans 01–06.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–06 are complete. The user explicitly approved sampling/GPU experiments, including fallback; none of the follow-up candidates meets the adoption criteria. The later overlap request is recorded as a separate reviewed outline in plan 07.
+- Stage: Plans 01–06 are complete. Plan 07 has a reviewed executable experiment for one completed-image worker within a serial provider; overlap implementation has not started.
 - Completed: Plans 01–04: tracing and local/CI classification, five accepted consumer changes, 163 framework functions, all 935 local captures, and isolated CI. Follow-up: Metal prerequisites, eight paired timing runs with 880 capture assertions, 23 focused framework functions, complete prototype cleanup, and independent review. No follow-up sampler change is accepted.
-- Pending: [07](07-overlap-snapshot-work.md) requires refinement against the unchanged accepted sampler before an overlap prototype. The requested separate planned phase is recorded; no overlap implementation is claimed. STU-121 retains other readiness and CI-only questions.
-- Next action: Review PR #527 and refine plan 07, starting with independent preparation or completed-image work before multiple hosted captures. No merge is assumed.
+- Pending: Select and review a bounded overlap experiment, then run correctness and paired timing controls. STU-121 retains other readiness and CI-only questions.
+- Next action: Trace completed-image computation and independent preparation, refine [07](07-overlap-snapshot-work.md), and review its executable design before prototyping. PR #527 has no conversation, review, or inline feedback at this checkpoint; all stack parents remain open. No merge is assumed.
 - Delegation: `/root/review_settling_candidates` and `/root/watch_settle_ci` completed the original implementation review and CI reconciliation. `/root/review_metal_sampling` independently reviewed all follow-up artifacts, cleanup, and the overlap outline. The root independently recomputed the evidence; no blocker remains.
 
 ## Outcome and scope
@@ -36,7 +36,7 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 ## Review and delivery
 
-- Plan review: Plans 01–04 have completed reviews. Plan 05 and its bounded color-format refinement are reviewed for execution. Plan 06 has a reviewed negative-result delivery procedure. Plan 07 remains a reviewed outline, with its implementation design deliberately unresolved.
+- Plan review: Plans 01–04 have completed reviews. Plan 05 and its bounded color-format refinement are reviewed for execution. Plan 06 has a reviewed negative-result delivery procedure. Plan 07 now has a reviewed bounded experiment; preparation and multiple-host alternatives remain outside its first prototype.
 - Implementation: Plans 01–04 are complete. PR #525 at `1ef9b92b7` passes local and isolated-CI checks; its final checkpoint changes documentation only. Follow-up plan and Metal findings are published in [PR #527](https://github.com/kyleve/Stuff/pull/527).
 - Publication: Plan commit `230c5048d` and instrumentation `f60c1c974` are in [PR #524](https://github.com/kyleve/Stuff/pull/524). Experiment groundwork `433450cba` and implementation `1ef9b92b7` are in [PR #525](https://github.com/kyleve/Stuff/pull/525). Both are linked from STU-121.
 
@@ -70,7 +70,7 @@ Repository source and the pinned-runtime measurements suffice for this observati
 4. [04 — Validated improvements](04-validated-improvements.md): complete; explicit readiness and preparation for five providers, with full local/CI verification.
 5. [05 — Metal and sampling experiments](05-metal-and-sampling-experiments.md): complete; both Metal adapters and both sampling candidates are rejected for adoption.
 6. [06 — Deliver the sampling result](06-deliver-sampling-improvements.md): complete; reviewed findings published and original Swift source restored.
-7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): outline; the next planning horizon, requested separately after discussing GPU comparison. Refine against the unchanged accepted baseline before any concurrency prototype.
+7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): ready; current horizon. Measure comparison costs, then test one background image comparison while the next serial capture settles.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
