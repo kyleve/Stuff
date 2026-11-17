@@ -4,10 +4,10 @@
 
 - Updated: 2026-11-17, starting at `743f8c96a059bdee05a7f97c26e377a76f78c43c`.
 - Operation: plan and execute the second human review of [PR #495](https://github.com/kyleve/Stuff/pull/495), explicitly approved in the conversation on 2026-11-17.
-- Stage: plan 01 executing; reviewed plan published in `a0f844ec9`.
+- Stage: plan 01 complete in `ddcc4a2f3`; plan 02 refined and ready; 03 remains an outline.
 - Completed: read all 17 new comments across 14 threads and their earlier discussion; source review confirmed local bypasses, signed-out lockout, unchecked widget snapshots, and repeated lockout presentation.
-- Pending: finish verification and publication for [01](01-unified-access.md); refine 02/03 at their recorded triggers.
-- Next action: publish verified 01 and its replies, then review/promote the refined 02 draft. The final 55-test rerun passed after the full-suite fixture fixes; 53 formal outcomes matched expectations and independent source/model review is complete.
+- Pending: execute [02](02-widget-access.md), then refine and execute 03. Individual access/transport/share and deferred-composition replies are posted.
+- Next action: implement the shared widget reader/writer and admission-bound publisher. Plan 01's final 55-test rerun passed after the full-suite fixture fixes; all 53 formal outcomes matched expectations and independent source/model review is complete.
 
 ## Outcome and scope
 
@@ -105,4 +105,4 @@ Detail 01 first. Refine 02 against its verified receipt/access API, then 03 agai
 
 Reviewed 2026-11-17 at `743f8c96a`: all requirements have an owner; 01 is ready, 02/03 remain selected outlines. The review added admission checks to held opens and real scope reuse, and kept a registered lifecycle gate to avoid terminal missing-gate failures. No material product question remains. Mermaid diagrams and Swift sketches will describe design, not compilation evidence. Physical CloudKit account transitions, cross-device propagation, and WidgetKit refresh scheduling require device acceptance and cannot be proven by fakes or bounded models.
 
-Publish plans, implementation, and replies on [PR #495](https://github.com/kyleve/Stuff/pull/495). Implementation is authorized and plan 01 is executing. Mermaid syntax was inspected but not rendered; Swift sketches are not compilation evidence.
+Publish plans, implementation, and replies on [PR #495](https://github.com/kyleve/Stuff/pull/495). Implementation is authorized. Plan 01 is complete and plan 02 is ready; refinement preserves the agreed scope and no product decision is pending. Mermaid syntax was inspected but not rendered; Swift sketches are not compilation evidence.
