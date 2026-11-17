@@ -780,6 +780,13 @@ Reference images live under `SnapshotTests/__Snapshots__/` in Git LFS.
 Each covered view declares its matrix through a colocated `SnapshotProviding` conformance,
 shared with its `#Preview` cutsheet (`Self.snapshotPreviews`).
 `whereSnapshot` and `whereThemeSnapshot` forward SnapshotKit's readiness hooks.
+They inject `PreviewSupport.snapshotArtworkCache`, one actor per process for
+paths keyed by region and resolution. Explicit artwork preparation uses the
+same cache. Broadway roots reuse an inherited cache and own a fallback when
+none is supplied, so nested roots preserve the injected dependency. The shared
+cache stores only paths. Reports, worlds, navigation, and artwork models retain
+their existing fixture ownership. Unit tests for initial loading inject fresh
+caches. Geometry remains lazy; independent production roots continue to create their own caches.
 Use `prepareForCapture` for fixture or artwork readiness before the first capture
 settle. Height-changing loads use `onReadyToMeasure`; actions that need settled
 UI retain `onReadyToSnapshot`.

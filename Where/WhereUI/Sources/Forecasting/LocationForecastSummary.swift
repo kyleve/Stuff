@@ -71,7 +71,7 @@ struct LocationForecastSummary: View {
             expanded: Bool,
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let artwork = RegionArtworkModel<[Region], [LocationForecastArtworkLoader.Item]>()
             let report = PreviewSupport.plannedStayYearReportModel()
             let regions = report.ranking.primary.map(\.region)
@@ -79,7 +79,7 @@ struct LocationForecastSummary: View {
                 name: name,
                 configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await artwork.load(for: regions) {
                         await LocationForecastArtworkLoader.loadSummary(
                             regions: regions,

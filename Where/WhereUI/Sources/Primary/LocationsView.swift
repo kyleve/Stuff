@@ -502,7 +502,7 @@ private struct ResolveToolbarLabel: View {
             selectedRegion: Region? = nil,
             openElsewhere _: (() -> Void)? = nil,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
             return whereSnapshot(
                 name: name,

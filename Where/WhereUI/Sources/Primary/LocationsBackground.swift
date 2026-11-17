@@ -100,12 +100,12 @@ struct LocationsBackground: View {
             regions: [Region],
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             return whereSnapshot(
                 name: name,
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     _ = await LocationsBackgroundArtwork.load(regions: regions, cache: cache)
                 },
             ) {

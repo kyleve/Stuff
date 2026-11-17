@@ -226,13 +226,13 @@ extension AppearanceSettingsView: SettingsSection {
 #if DEBUG
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             whereSnapshot(
                 name: "FlatSelected",
                 configurations: .fullContentPhoneLightDark,
                 theme: .alternate,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {
@@ -256,7 +256,7 @@ extension AppearanceSettingsView: SettingsSection {
                 // Native navigation adapts when the Form reaches its full height.
                 // Reparse accessibility after that preparation pass, as About does.
                 settle: .settledAtLeast(minDuration: 1.5),
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {

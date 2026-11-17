@@ -298,7 +298,7 @@ struct MainTabs: View {
             theme: WhereTheme = .standard,
             isPreview: Bool = false,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let session = PreviewSupport.loadedSession()
             session.preferences.showsLocationWelcome = false
             let report = YearReportModel(

@@ -193,7 +193,7 @@ struct ElsewhereView: View {
             theme: WhereTheme = .standard,
             resolver: (any ElsewhereResolving)? = nil,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let model = ElsewhereModel(
                 resolver: resolver ?? report.services.elsewhere,
                 namer: PreviewPlaceNamer(),
