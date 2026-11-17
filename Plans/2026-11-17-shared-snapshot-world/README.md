@@ -5,10 +5,10 @@
 - Updated: 2026-11-17, starting at PR #516 revision `d366fd1cf`.
 - Operation: Execute the user's approved reuse of initialization across visual snapshot variants.
 - Scope: Evaluate 39 adaptive MainTabs variants and eight Device Layout Lab variants; retain the three narrow-window cold starts after failed warm-layout probes. Keep the cold/preloaded regression, world/lifecycle/mutation tests, and interactive Flyover behavior independent.
-- Stage: Final integration validation for [01 — shared world](01-shared-world.md).
-- Completed: Counted 47 repeated visual worlds with the same fixed demo scenario. MainTabs preparation totals 45.077s in the latest profile.
-- Pending: Complete the full WhereUI image bundle and publish. Matched 70/reversed 69 images and eight unit tests pass; independent source review is complete. Stack synchronized after #514 and #515 merged; parent is `2c24c3415`.
-- Next action: Finish full-bundle validation, then publish and dispatch CI gates.
+- Stage: Complete; [PR #517](https://github.com/kyleve/Stuff/pull/517) is ready for review.
+- Completed: Share one initialization across 44 visual cases; retain three narrow cold starts. Eight unit tests, 70 matched images, 69 reversed-order images, and all 801 WhereUI images pass. Matched capture savings: 42.478s (27.7%).
+- Pending: Remote CI results and the separately recorded warm narrow-viewport renderer limitation. The issue remains In Review. After #516 merged, stack synchronization preserved the tested tree exactly on `e07e95cee`.
+- Next action: Review PR #517 and its remote CI results; no further implementation is planned in this slice.
 
 ## Outcome and constraints
 
@@ -23,16 +23,16 @@ X-01: No shared worlds in mutation/lifecycle tests or ordinary interactive Flyov
 
 ## Evidence and questions
 
-The current `DuoLayoutSnapshotFixture` constructs `WhereDemoWorldModel` per case, and that model calls `WhereFlyoverWorld.build()`. The same standard scenario and reference date are repeated. Different captures use different tabs, navigation selections, traits, and viewports. A separate Device Layout Lab regression builds a ninth fresh world and must remain fresh.
+Before this change, `DuoLayoutSnapshotFixture` constructed `WhereDemoWorldModel` per case, and that model called `WhereFlyoverWorld.build()`. The same standard scenario and reference date are repeated. Different captures use different tabs, navigation selections, traits, and viewports. A separate Device Layout Lab regression builds a ninth fresh world and must remain fresh.
 
-Q-01 (closed): The selected image suites inject one test-owned world through fresh demo-model wrappers, except for three narrow-window cases retained after warm-layout failures. Views own navigation and selection. Session, report, services, and preferences are shared only for these noninteractive captures. Source inspection on 2026-11-17 supports this boundary; opposite-order image validation is required.
-Q-02 (closed): The bounded measurement in plan 01 will determine the benefit. Acceptance requires lower preparation and runner time without output regressions; no savings are assumed in advance.
+Q-01 (closed): The selected image suites inject one test-owned world through fresh demo-model wrappers, except for three narrow-window cases retained after warm-layout failures. Views own navigation and selection. Session, report, services, and preferences are shared only for these noninteractive captures. Source inspection and 69 reversed-order image assertions on 2026-11-17 support this fixed matrix. Mounted Locations reconciliation can update last-seen counts automatically; the world is not immutable.
+Q-02 (closed): Matched 70-capture time falls from 153.241s to 110.763s; runner time falls from 165.430s to 124.253s. The full run passes all references, but it uses `--review` while the prior full profile omitted that diagnostic work. Those full runs do not establish overall or CI wall-clock savings. See plan 01 for exact phase evidence.
 
 This follows [fixture data measurements](../2026-11-17-snapshot-fixture-data/README.md) and [STU-121](https://linear.app/kve/issue/STU-121). The user approved implementation on 2026-11-17. Repository source and measured profiles own this design; no new external platform API is planned.
 
 ## Review and delivery
 
-Branch `perf/snapshot-shared-world`, stack #513. Implementation and publication pending. Preserve the unrelated untracked simple-english skill.
+Branch `perf/snapshot-shared-world`, stack #513, [PR #517](https://github.com/kyleve/Stuff/pull/517), based on `main` after #516 merged. Implementation `6e3ec2062` has the same tested tree as reviewed `ce78104d7`. The unrelated untracked simple-english skill remains unchanged.
 
 ## Plan review
 

@@ -1,6 +1,6 @@
 # 01 — Share the visual matrices' demo initialization
 
-- Status: executing
+- Status: complete
 - Depends on: None; follows the measured fixtures in PR #516.
 - Shared context: [Overview](README.md).
 
@@ -63,10 +63,21 @@ Keep the existing baseline artifacts. On capture drift, inspect the images and s
 - Final bounded candidate passes all 70 captures, with the same identities, dimensions, pixels, tiles, and comparison settings. Capture time 153.241s → 110.763s (42.478s / 27.7% saved); runner phase 165.430s → 124.253s (41.177s / 24.9%). Both runs have the same single recovered first-lab settling retry. MainTabs preparation 44.635s → 6.519s. These are matched debug-simulator observations, not a CI wall-clock estimate.
 - MainTabs captures 124.142s → 89.315s; Device Layout Lab 29.099s → 21.448s. Two pre-existing Locations native-material diagnostics differ by 32 and 27 pixels in their counts; all assertions pass. Do not describe this as pixel-exact equivalence.
 - Opposite-order check passes all 69 matrix captures in 105.700s, zero retries. All 61 MainTabs captures run in reverse first, followed by the eight reversed Device Layout Lab captures, against the original reference paths. Identities, dimensions, pixels, and tiles match the baseline matrix. Temporary probes are removed.
-- Eight unit tests in three suites pass, including cancellation, retry, world ownership, and Reset Demo. Architecture, Swift formatting, symbol lint, and tracked-guidance checks pass. Full 801-image bundle is running.
+- Eight unit tests in three suites pass, including cancellation, retry, world ownership, and Reset Demo. Architecture, Swift formatting, symbol lint, and tracked-guidance checks pass. Full 801-image bundle passes: 67 tests in 62 suites, zero retries. All identities, sizing, 4,414,294,494 pixels, and 902 tiles match the prior full profile.
 - Independent review against parent `2c24c3415` found the warm narrow-window regression and then reviewed the explicit cold fallback without further findings. The world is mutable: mounted Locations reconciliation updates last-seen counts, so the opposite-order evidence supports this fixed noninteractive matrix, not arbitrary user actions.
 - Guidance checks pass with the unrelated oversized untracked simple-english skill temporarily excluded and restored byte-for-byte. The full working-directory check reports only that pre-existing 19,768-byte skill limit violation.
 
 ## Resume point
 
-Finish the full WhereUI image bundle, attach final review evidence, then publish the slice and dispatch final CI gates.
+Complete. Implementation and evidence are published in [PR #517](https://github.com/kyleve/Stuff/pull/517). Remote CI remains a separate result; STU-121 stays In Review.
+
+
+## Final evidence and outcome
+
+Full capture time is 693.290s and the runner phase is 768.385s. The prior full profile was 677.761s/732.243s, but it omitted `--review`; this run enables the extra pixel diagnostics. These full profiles are not a matched benchmark. The final audit verified the command difference in the prior plan and the diagnostic gate in `AssertSnapshotReference.swift`. Across these runs, comparison increases 57.584s while preparation falls 38.420s and settling falls 9.388s. The affected suites take 139.100s and 110.172s respectively. Claim only the matched two-suite saving, not a full-suite or CI wall-clock improvement.
+
+The three narrow cases reproduce their baseline diagnostics in the matched run; Settings matches byte for byte. All other reference assertions pass. Independent review found no remaining source defects after the cold fallback and independently verified the full raw inventory, zero failures/retries, identical rebase trees, and the diagnostic-mode caveat. No temporary probes, changed references, relaxed thresholds, or altered floors remain.
+
+Raw logs, timing rows, comparisons, failing-probe images, review notes, and source-tree manifests are retained under `/Users/kve/.codex/visualizations/2026/11/17/01a1e71b-13f1-7c80-8aee-e46d45c92d5b/shared-world-results/`. Baseline and candidate runs are also under `/private/tmp/stuff-shared-world-*-20261117`.
+
+PR #516 merged during validation. Stack synchronization rebased the implementation from `ce78104d7` to `6e3ec2062`, preserving the complete tested tree `034a8fc97630f57672500e4af2a01d077393718a`. PR #517 is ready for review against `main`; final CI is dispatched at its published tip. The warm narrow-viewport renderer limitation and broader timing opportunities remain documented in STU-121.
