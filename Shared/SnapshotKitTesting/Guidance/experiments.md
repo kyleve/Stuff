@@ -98,3 +98,15 @@ No maintained Metal backend or fallback selector was added, and no CI GPU capabi
 The WebKit probe did not establish navigation readiness and supplies no WebKit fidelity evidence.
 Raw captures and limits are recorded in [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md).
 A future candidate must preserve the hosted layer tree and demonstrate current, nonempty content before performance trials.
+
+## Sample rate and extended color — 2026-11-17
+
+On the PR #525 provider baseline, two paired 110-capture trials rejected a 60ms minimum sample-start interval while retaining at least 16ms suspension.
+Mean rendering fell 0.530s, but capture work rose 1.165s and test time rose 1.119s.
+Two further pairs combined extended-color samples with that interval: rendering fell 16.18%, while capture work stayed flat (0.063s slower).
+The small test/body reductions were below control variation; no default changed.
+
+All eight runs preserved capture identities, geometry, policies, references, and floors, with no retries.
+The combined candidate passed 23 framework functions, including real hierarchy color, transparency, fade, and one-pixel guards.
+No candidate reached a delayed-oracle/full-suite/CI rollout, so this is a bounded local result rather than a general rejection of scheduling or CI color-format experiments.
+See [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md) for raw-evidence provenance and [plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) for the separately requested overlap investigation.
