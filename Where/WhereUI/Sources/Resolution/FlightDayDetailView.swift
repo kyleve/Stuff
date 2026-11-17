@@ -210,6 +210,8 @@ struct FlightDayDetailView: View {
                 whereSnapshot(
                     name: state == .ready ? "Default" : state.rawValue,
                     configurations: configurations(for: state),
+                    // The review is seeded; the fixture report has no later scan to publish.
+                    measurementReadiness: .immediate,
                 ) {
                     NavigationStack {
                         FlightDayDetailView(
@@ -227,6 +229,7 @@ struct FlightDayDetailView: View {
                     configurations: review
                         .proposal == nil ? .fullContentPhoneLightDark :
                         .fullContentScreenRepresentative,
+                    measurementReadiness: .immediate,
                 ) {
                     NavigationStack {
                         FlightDayDetailView(

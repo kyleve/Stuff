@@ -638,7 +638,9 @@ private struct ArcText: View {
             return whereThemeSnapshot(
                 name: name + (reduceTransparency ? "ReduceTransparency" : ""),
                 configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
-                onReadyToMeasure: {
+                // Artwork changes only the fixed stamp and backgrounds, never card height.
+                measurementReadiness: .immediate,
+                prepareForCapture: {
                     _ = await cache.path(for: .california, resolution: .medium)
                     _ = await cache.path(for: .california, resolution: .small)
                     _ = await cache.path(for: .california, resolution: .micro)
