@@ -5,10 +5,10 @@
 - Updated: 2026-11-17 UTC; parent PR #512 at `bbbff2a430edbe8b1786f4748202016d0d1cabfe`.
 - Operation: Execute the user's requested next performance improvement.
 - Scope: MainTabs adaptive settling and fixture preparation, above PR #512.
-- Stage: Reviewed bounded experiments; implementation authorized by “let’s do that.”
-- Completed: Parent stack verification; both existing PRs are green. Source and baseline timing review.
-- Pending: Candidate captures, preparation subphase measurements, independent review, and publication.
-- Next action: Collect a focused baseline with temporary preparation timers, then test a 0.5s floor.
+- Stage: Local validation and independent review complete; preparing publication.
+- Completed: Parent stack verification, baseline, passing 0.5s candidate, and bounded preparation profiling.
+- Pending: Publication and manual CI dispatch.
+- Next action: Publish the verified 0.5s policy and dispatch manual CI.
 
 ## Outcome and requirements
 
@@ -18,7 +18,7 @@ US-01: As a maintainer, I want faster snapshot feedback with the same captured c
 | --- | --- | --- |
 | R-01 | Measure costs and validate a faster adaptive capture policy. | 01 |
 | R-02 | Preserve all identities, dimensions, references, tolerances, native chrome, and accessibility passes. | 01–02 |
-| R-03 | Preserve independent fixture state, readiness, cancellation, and cleanup. | 01–02 |
+| R-03 | Preserve independent fixture state, awaited readiness, cancellation, cleanup, and the existing timeout derivation. | 01–02 |
 | R-04 | Publish verified changes above PR #512, with reproducible evidence. | 01–02 |
 
 X-01: No reference recording, matrix reduction, global mutable fixture reuse, or relaxed pixel proof.
@@ -47,17 +47,18 @@ The experiments share a baseline but run serially on the same simulator. No arch
 
 | ID | Status | Question | Requirements | Blocking impact | Next action |
 | --- | --- | --- | --- | --- | --- |
-| Q-01 | open | What smaller floor preserves adaptive chrome on the pinned runtime? | R-01–R-03 | Blocks retaining a smaller floor, not the experiment | Test 0.5s, then 0.25s if supported; repeat the selected candidate. |
-| Q-02 | open | Which preparation stage consumes the 46s, and can redundant work be removed? | R-01–R-03 | Blocks a retained preparation change | Measure scope creation, session start, report activation, and artwork; refine plan 02 before implementation. |
+| Q-01 | closed | What smaller floor preserves adaptive chrome on the pinned runtime? | R-01–R-03 | Resolved by repetition | Two 0.5s runs pass; larger repeat diagnostics match successful parent CI. Reject 0.25s for new drift and slower comparisons. |
+| Q-02 | closed | Which preparation stage consumes the 46s, and can redundant work be removed? | R-01–R-03 | Resolved to a measured negative result | Plan 02 records scope/session/report timings and the isolated comparison. Retain fresh worlds; no preparation API change is selected. |
+| Q-03 | closed | Does lowering the floor change the timeout? | R-03 | Resolved by explicit policy choice | Review identified the coupled ceiling. Plan 01 now records 3s local / 6s CI, local maxima, and the pending CI limit. |
 
 ## Plan review
 
-Reviewed 2026-11-17 UTC against `bbbff2a43`: requirements, fixture isolation, mounted-task behavior, native glass floor, repeated annotation settling, recovery, and exact capture coverage. Plans 01 and 02 are executable bounded experiments. The unknowns are their subjects, not prerequisites. No product choices are unresolved. No new architecture sketch is needed for a duration declaration and temporary timers.
+Reviewed 2026-11-17 UTC against `bbbff2a43`: requirements, fixture isolation, mounted-task behavior, native glass floor, repeated annotation settling, recovery, and exact capture coverage. Plans 01 and 02 are executable bounded experiments. The unknowns are their subjects, not prerequisites. No product choices are unresolved. No new architecture sketch is needed for a duration declaration and temporary timers. Independent review later identified the coupled timeout ceiling; the corrected plan explicitly accepts the derived values and preserves the validation limit.
 
 ## Review and delivery
 
 Branch: `perf/adaptive-snapshot-readiness`, tracked above `perf/snapshot-measurement` in stack #513.
-Independent source review and final publication remain pending. No PR is open for this layer yet.
+Independent review covered the full parent-to-working-tree diff, source consumers, raw timing and diagnostic logs, parent CI, and the PNG probe. No residual source findings remain after correcting the timeout claim. Publication and slow-CI validation remain pending.
 
 ## Outcome
 
