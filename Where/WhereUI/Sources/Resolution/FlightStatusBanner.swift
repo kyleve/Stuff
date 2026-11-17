@@ -93,6 +93,9 @@ struct FlightStatusBanner: View {
                     name: state.rawValue,
                     configurations: state == .uncertainArrival ? .componentRepresentative :
                         .componentLightDark,
+                    // The fixture's text and layout are synchronous, with no native chrome.
+                    measurementReadiness: .immediate,
+                    settle: .immediate,
                 ) {
                     FlightStatusBanner(
                         review: PreviewSupport.flightReview(state: state),
@@ -109,6 +112,8 @@ struct FlightStatusBanner: View {
                     // Multiple banners have a distinct wrapping and accessibility layout.
                     configurations: review
                         .proposal == nil ? .componentLightDark : .componentRepresentative,
+                    measurementReadiness: .immediate,
+                    settle: .immediate,
                 ) {
                     VStack {
                         ForEach(review.flights) { flight in
