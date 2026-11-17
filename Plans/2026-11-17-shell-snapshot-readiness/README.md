@@ -5,10 +5,10 @@
 - Updated: 2026-11-17. User approved investigating both opportunities after PR #518.
 - Operation: Measure two bounded readiness changes and retain improvements supported by unchanged image output.
 - Scope: Elsewhere artwork before capture settling; completion of MainTabs' mounted activation before capture settling. Preserve final pixel checks and measured native floors.
-- Stage: Elsewhere verified; MainTabs completion design.
+- Stage: Both changes verified; review and publication.
 - Completed: Synchronized the parent after #517 merged; `49712814b` has the same complete tree as the previously tested `5691ed10f`. Baseline passed all 79 captures. Elsewhere saved 6.206s with identical images; see plan 01.
-- Pending: MainTabs completion design/probe, focused regression coverage, independent review, and publication.
-- Next action: Commit the verified Elsewhere change, then refine and execute plan 02.
+- Pending: Complete independent review and publication. PR #518 has merged with passing checks; synchronize the stack after committing and compare the tested tree.
+- Next action: Publish the verified changes. Elsewhere is committed as `c4843ee05`; MainTabs code and validation are recorded in plan 02.
 
 ## Outcome and constraints
 
@@ -29,10 +29,12 @@ Each retained change gets its own verified commit on `perf/snapshot-shell-readin
 
 Q-01 (closed, plan 01/R-01): Does moving Elsewhere artwork preparation before final settling preserve every image and remove the second settle? The matched experiment preserved all 18 images exactly and saved 6.206s. Measurement already awaits the resolved model. Integrated into plan 01's execution evidence on 2026-11-17.
 
-Q-02 (open, plan 02/R-02): What signals completion of the actual mounted MainTabs activation without accepting a preloaded, canceled, superseded, or previous-host result? Seventeen welcome/update captures still call `report.activate()` after settling. The latest focused profile attributes 8.557s to that hook and second settle.
+Q-02 (closed, plan 02/R-02): What signals completion of the actual mounted MainTabs activation without accepting a preloaded, canceled, superseded, or previous-host result? Source inspection supports a DEBUG-only per-mount receipt completed after the existing activation task returns without cancellation. The 17 affected fixtures have fixed scene phases and perform no writes or year changes; this is not a general scene-idle signal. Plan 02 records cancellation, rehosting, and retry coverage. The baseline attributes 8.567s to the existing hook and second settle. Integrated and reviewed on 2026-11-17.
 
-Q-03 (open, both/R-03): What savings survive matched output checks? Native adaptation remains separate: the adaptive MainTabs cases already prepare before capture and retain their measured 0.5s floor.
+Q-03 (closed, both/R-03): What savings survive matched output checks? The final matched 79-image comparison falls from 113.220s to 89.639s, saving 23.581s (20.8%). Elsewhere saves 6.200s; MainTabs saves 17.381s. Plan 02 records output limits and the separately corrected retry fixture. Native adaptation remains separate: adaptive MainTabs cases retain their measured 0.5s floor. Integrated on 2026-11-17.
 
 ## Plan review
 
 2026-11-17, parent `49712814b`: source and contract review supports the bounded Elsewhere experiment. Its callback only loads geometry into the injected cache and does not need settled UI. MainTabs cannot use its initial loaded flag: the mounted task starts a lifecycle revision and asynchronously refreshes multiple models. Plan 02 remains an outline until a specific completion boundary is reviewed. No new product decisions are required for these authorized experiments.
+
+2026-11-17, completed-diff review: a fresh independent reviewer examined `49712814b` through `c4843ee05` plus the uncommitted MainTabs implementation, tests, documentation, and raw artifacts. No actionable findings remain. The review verified per-mount ownership, fixed-scene scope, cancellation, retry behavior, unchanged image metadata and floors, and the measured savings. It retained the corrected retry-fixture finding: selecting Settings requires a `WhereModel` environment; the focused regression passed after that dependency was supplied. Plan 02 records the failed combined invocation and subsequent successful checks separately.

@@ -36,6 +36,13 @@ struct MainTabs: View {
     @State private var selection = MainTabSelection()
     private var previewConfiguration = PreviewConfiguration()
 
+    #if DEBUG
+        private var snapshotReadiness: MainTabsSnapshotReadiness?
+        /// Create after mounting: retries reuse this view value but need a fresh receipt.
+        /// Rehosting the same controller retains its receipt without another registration.
+        @State private var snapshotMount: MainTabsSnapshotReadiness.Mount?
+    #endif
+
     /// Initial tab content for lab and snapshot fixtures; each tab owns its live state.
     private struct PreviewConfiguration {
         var region: Region?
@@ -144,7 +151,17 @@ struct MainTabs: View {
         // Subscribe + pull once the scene is on screen, and again whenever it
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
-        .task { await report.activate() }
+        .task {
+            #if DEBUG
+                if snapshotMount == nil, !Task.isCancelled {
+                    snapshotMount = snapshotReadiness?.registerMount()
+                }
+            #endif
+            await report.activate()
+            #if DEBUG
+                if !Task.isCancelled { snapshotMount?.didActivate = true }
+            #endif
+        }
         .task(id: isUpdateCheckActive) {
             guard isUpdateCheckActive else { return }
             await updates?.refresh(force: false)
@@ -210,11 +227,12 @@ struct MainTabs: View {
     }
 
     #if DEBUG
-        private init(
+        init(
             session: WhereSession,
             report: YearReportModel,
             welcome: LocationWelcomeModel,
             selection: TabID,
+            snapshotReadiness: MainTabsSnapshotReadiness? = nil,
         ) {
             let recordingWarningSource = RecordingConfigurationWarningModel.Source(session: session)
             self.recordingWarningSource = recordingWarningSource
@@ -225,6 +243,7 @@ struct MainTabs: View {
             ))
             _welcome = State(initialValue: welcome)
             _selection = State(initialValue: MainTabSelection(selected: selection))
+            self.snapshotReadiness = snapshotReadiness
         }
 
         /// Retains the production shell around a separately built in-memory lab world.
@@ -603,21 +622,21 @@ struct MainTabs: View {
                 now: session.now,
             )
             configure(welcome)
+            let readiness = MainTabsSnapshotReadiness()
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
                 theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
-                // Keep this post-settle so the mounted activation starts before this refresh;
-                // a later activation can supersede this hook's lifecycle revision.
-                onReadyToSnapshot: { await report.activate() },
+                prepareForCapture: { await readiness.waitForActivation() },
             ) {
                 MainTabs(
                     session: session,
                     report: report,
                     welcome: welcome,
                     selection: selection,
+                    snapshotReadiness: readiness,
                 )
                 .environment(session)
                 .environment(updates)
