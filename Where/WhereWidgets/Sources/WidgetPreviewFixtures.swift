@@ -10,6 +10,10 @@
     extension WhereWidgetEntry {
         /// A multi-region day (CA + NY) so the Today accessories show their
         /// joined / overflow rendering.
+        static var previewBlocked: WhereWidgetEntry {
+            .init(date: Date(), content: .blocked, theme: .standard)
+        }
+
         static var previewMultiRegion: WhereWidgetEntry {
             entry(dayRegions: [.california, .newYork], totals: [.california: 132, .newYork: 41])
         }

@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@testable import WhereCore
 
 struct WidgetSnapshotStoreTests {
     private let directory: URL
@@ -29,9 +29,9 @@ struct WidgetSnapshotStoreTests {
         let store = WidgetSnapshotStore(directory: directory)
         let snapshot = makeSnapshot()
 
-        try store.write(snapshot)
+        try store.write(.init(snapshot: snapshot, version: .current, domain: .local))
 
-        #expect(store.read() == snapshot)
+        #expect(store.read()?.snapshot == snapshot)
     }
 
     @Test func snapshotRoundTripsThroughCodable() throws {
@@ -69,10 +69,14 @@ struct WidgetSnapshotStoreTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = WidgetSnapshotStore(directory: directory)
 
-        try store.write(makeSnapshot(dayRegions: [.california], totals: [.california: 1]))
+        try store.write(.init(
+            snapshot: makeSnapshot(dayRegions: [.california], totals: [.california: 1]),
+            version: .current,
+            domain: .local,
+        ))
         let latest = makeSnapshot(dayRegions: [.newYork], totals: [.newYork: 9])
-        try store.write(latest)
+        try store.write(.init(snapshot: latest, version: .current, domain: .local))
 
-        #expect(store.read() == latest)
+        #expect(store.read()?.snapshot == latest)
     }
 }

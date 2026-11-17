@@ -37,12 +37,25 @@ struct WhereBuildEnvironment: Equatable {
         }
     }
 
-    func makeWidgetRefresher() -> any WidgetTimelineRefreshing {
+    @MainActor
+    func makeWidgetRefresher(
+        coordinator: DataCompatibilityCoordinator,
+        admission: DataCompatibilityAdmission,
+    ) -> any WidgetTimelineRefreshing {
         if isRunningTests {
             NoopWidgetTimelineRefresher()
         } else {
-            WidgetCenterTimelineRefresher(appGroupIdentifier: appGroupIdentifier)
+            WidgetCenterTimelineRefresher(
+                appGroupIdentifier: appGroupIdentifier,
+                coordinator: coordinator,
+                admission: admission,
+            )
         }
+    }
+
+    func makeWidgetReloader() -> any WidgetTimelineReloading {
+        if isRunningTests { NoopWidgetTimelineReloader() }
+        else { WidgetCenterTimelineReloader() }
     }
 
     static func current(

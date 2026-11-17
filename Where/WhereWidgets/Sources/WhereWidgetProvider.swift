@@ -2,21 +2,42 @@ import PeriscopeCore
 import WhereCore
 import WidgetKit
 
+enum WhereWidgetContent {
+    case available(WidgetSnapshot)
+    case absent
+    case blocked
+}
+
 struct WhereWidgetEntry: TimelineEntry {
     let date: Date
-    let snapshot: WidgetSnapshot
+    let content: WhereWidgetContent
     let theme: WhereTheme
 
     init(date: Date, snapshot: WidgetSnapshot, theme: WhereTheme = .standard) {
+        self.init(date: date, content: .available(snapshot), theme: theme)
+    }
+
+    init(date: Date, content: WhereWidgetContent, theme: WhereTheme) {
         self.date = date
-        self.snapshot = snapshot
+        self.content = content
         self.theme = theme
+    }
+
+    var isBlocked: Bool {
+        if case .blocked = content { true } else { false }
+    }
+
+    var snapshot: WidgetSnapshot {
+        switch content {
+            case let .available(snapshot): snapshot
+            case .absent, .blocked: WidgetSnapshotFixtures.emptySnapshot(referenceDate: date)
+        }
     }
 }
 
 /// Shared timeline provider for every Where widget. Reads the latest
 /// `WidgetSnapshot` the app published to the shared App Group file
-/// (`WidgetSnapshotStore`) — the widget never opens the SwiftData store
+/// through `AppGroupDataAccess` — the widget never opens the SwiftData store
 /// itself. Asks to be re-run after the next midnight so `date` stays fresh
 /// even if the app never wakes; the snapshot's data is refreshed by the app
 /// process after each committed write (see `WidgetTimelineRefreshing`).
@@ -49,34 +70,23 @@ struct WhereWidgetProvider: TimelineProvider {
         completion(Timeline(entries: [entry], policy: .after(nextMidnight)))
     }
 
-    /// Read the latest published snapshot. When none exists yet (fresh
-    /// install, unreadable file) we render an empty snapshot rather than
-    /// failing. We deliberately do *not* invalidate a snapshot whose `day`
-    /// has rolled past today — slightly stale data beats showing nothing.
+    /// Theme publication is independent. History requires a matching verified receipt and envelope.
     private func loadEntry() -> WhereWidgetEntry {
         let now = Date()
         var theme = WhereTheme.standard
         do {
-            let store = try WidgetSnapshotStore.shared(
-                appGroupIdentifier: appGroupIdentifier,
-            )
-            theme = try WidgetPresentationStore.shared(
-                appGroupIdentifier: appGroupIdentifier,
-            ).readTheme()
-            if let snapshot = store.read() {
+            theme = try WidgetPresentationStore.shared(appGroupIdentifier: appGroupIdentifier)
+                .readTheme()
+            let access = AppGroupDataAccess(appGroupIdentifier: appGroupIdentifier)
+            if let snapshot = try access.readWidgetSnapshot(version: .current) {
                 return WhereWidgetEntry(date: now, snapshot: snapshot, theme: theme)
             }
             Self.logger.noPublishedSnapshot()
+            return WhereWidgetEntry(date: now, content: .absent, theme: theme)
         } catch {
-            Self.logger.appGroupUnavailable(
-                error: .restricted(.errorDetails, error),
-            )
+            Self.logger.compatibilityBlocked(error: .restricted(.errorDetails, error))
+            return WhereWidgetEntry(date: now, content: .blocked, theme: theme)
         }
-        return WhereWidgetEntry(
-            date: now,
-            snapshot: WidgetSnapshotFixtures.emptySnapshot(referenceDate: now),
-            theme: theme,
-        )
     }
 }
 

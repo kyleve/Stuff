@@ -24,6 +24,7 @@ Read matching contracts before changing or reviewing the behavior, including tes
   Require an explicit transport and receipt store in every environment. Local operation uses the same verification path.
   Keep the receipt atomic, domain-bound, App Group-specific, and excluded from backups. A confirmed absent account can use local storage; unavailable/restricted accounts cannot. Preserve the version floor across domain changes and verify cloud evidence before enabling sync.
   Guards: `DataCompatibilityCoordinatorTests`, `DataCompatibilityReceiptTests`, `DataModelVersionTests`.
+- Widget history reads require a verified receipt matching the payload's version and domain, checked again after reading. Bind each production publisher to its captured scope admission and check it before writing; never label a retired scope's data with a newer grant. Theme publication remains independent. Guard: `WidgetDataAccessTests`.
 - Retire ingestion before joining recording operations. A retired scope must never restart GPS, including after an import completes.
   Preserve consent and the durable location outbox. Guards: `LocationIngestorTests`, `DeviceRecordingControllerTests`.
 

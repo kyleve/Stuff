@@ -14,6 +14,8 @@ public final class WhereCompatibilityModel {
     @ObservationIgnored private var foregroundTask: Task<Void, Never>?
     @ObservationIgnored private var remoteTask: Task<Void, Never>?
     @ObservationIgnored private var retirement: Task<Void, Never>?
+    @ObservationIgnored public var onAccessChanged: @MainActor () -> Void = {}
+    @ObservationIgnored private var lastPublishedAccess: Bool?
     @ObservationIgnored private var wasAllowed = false
     @ObservationIgnored private var waitForNextPoll: @Sendable () async throws -> Void = {
         try await Task.sleep(for: .seconds(60))
@@ -35,6 +37,10 @@ public final class WhereCompatibilityModel {
             guard let self, let model, let launcher else { return }
             let previouslyAllowed = wasAllowed
             wasAllowed = coordinator.state.allowsStore
+            if lastPublishedAccess != wasAllowed {
+                lastPublishedAccess = wasAllowed
+                onAccessChanged()
+            }
             if case let .blocked(failure) = coordinator.state {
                 Task { [weak self] in
                     guard let self, !coordinator.state.allowsStore else { return }

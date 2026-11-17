@@ -378,7 +378,10 @@ journal intent.
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
   exposes one explicit accessibility label/value pair rather than its visual
-  rows as separate elements.
+  rows as separate elements. `WidgetCompatibilityView` provides history-free
+  Open Where guidance for blocked home-screen and accessory entries. The app's
+  compatibility monitor reports initial access, withdrawal, and recovery so the
+  runtime can request a timeline reload without a live store.
 - **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by

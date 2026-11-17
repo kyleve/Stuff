@@ -39,7 +39,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - On compatibility lockout, clear the installed handoff and fail pending and new intents with the compatibility error.
   Restore access only through the next verified session installation. Guard: `IntentServicesTests`.
 - **Inject the host App Group into `IntentServices`.** The Today intent's
-  optional widget-snapshot fast path uses it; no package target owns an
+  optional widget-snapshot fast path uses `AppGroupDataAccess` to check receipt
+  and payload provenance before returning cached history; no package target owns an
   audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.

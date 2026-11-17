@@ -118,7 +118,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         let receipts: any DataCompatibilityReceiptStoring = buildEnvironment.isRunningTests
             ? InMemoryDataCompatibilityReceiptStore(receipt: nil)
             :
-            AppGroupDataCompatibilityReceipt(appGroupIdentifier: buildEnvironment
+            AppGroupDataAccess(appGroupIdentifier: buildEnvironment
                 .appGroupIdentifier)
         let coordinator = DataCompatibilityCoordinator(
             transport: transport,
@@ -126,6 +126,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             version: .current,
         )
         let compatibility = WhereCompatibilityModel(coordinator: coordinator)
+        let widgetReloader = buildEnvironment.makeWidgetReloader()
+        compatibility.onAccessChanged = { widgetReloader.reload() }
         return WhereModel(
             preferences: preferences,
             installationContextStore: installationContextStore,
@@ -133,7 +135,12 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: storeStorage,
-                    widgetRefresher: buildEnvironment.makeWidgetRefresher(),
+                    makeWidgetRefresher: {
+                        buildEnvironment.makeWidgetRefresher(
+                            coordinator: coordinator,
+                            admission: $0,
+                        )
+                    },
                     locationOutbox: locationOutbox,
                     compatibility: coordinator,
                     installationLocation: installationLocation,

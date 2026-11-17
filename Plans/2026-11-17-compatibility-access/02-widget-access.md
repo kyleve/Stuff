@@ -1,6 +1,6 @@
 # 02 — Compatibility-aware widget access
 
-- Status: ready
+- Status: executing
 - Depends on: [01](01-unified-access.md), completed and published in `ddcc4a2f3`.
 - Shared context: [Overview](README.md)
 
@@ -51,6 +51,7 @@ let content = try access.readWidgetSnapshot(version: .current)
 1. Add a version/domain envelope and shared App Group read/write boundary. Preserve low-level stores as implementation details and the separately published theme. Keep missing/corrupt evidence handling explicit and logged.
 2. Bind the production widget refresher to its scope admission through bootstrap composition; reject stale writes before serialization. Request timeline reload when compatibility first resolves, withdraws, or recovers, without rebuilding history for a blocked state.
 3. Change widget entries/provider to carry available/absent/blocked content. Add one shared WhereUI blocked view adapted to inline, circular, rectangular, and home-screen families. Use existing stylesheet tokens, safe symbols, and localized Open Where guidance. Preserve ordinary widget rendering.
+   Route the Today intent's optional snapshot fast path through the same reader; retain its existing live-service fallback after the required intent handoff.
 4. Add deterministic receipt/payload mismatch and read-interleaving tests, stale-publisher tests, and reload transition tests. Add focused blocked-widget snapshots; retain ordinary widget coverage.
 5. Update module contracts/docs and this evidence. Verify, independently review, commit/push, and reply to thread [4605233370](https://github.com/kyleve/Stuff/pull/495#discussion_r4605233370), including why aggregated JSON remains appropriate. Refine 03 against the final runtime callback.
 
@@ -78,12 +79,21 @@ Repair failures before committing. Do not reset the user's App Group data. Tests
 ## Progress and resume point
 
 - [x] Finish review/readiness after 01 publication.
-- [ ] Implement reader/writer, publisher admission, and reload.
-- [ ] Implement blocked presentation and coverage.
+- [x] Implement reader/writer, publisher admission, and reload.
+- [x] Implement blocked presentation and coverage (visually reviewed).
 - [ ] Verify, review, publish, and reply.
 
-Implementation has not started. Next: implement the reader/writer and admission-bound publisher within the user's existing authorization.
+Implementation started after publishing the reviewed plan in `8a0390d9e`. Reader/writer, admission-bound publication, reload transitions, and blocked rendering are implemented locally. The first build exposed the Today intent's low-level snapshot consumer; it now uses shared access, preserving its existing live-service fallback. This necessary caller adaptation is within R-06, reviewed against WhereIntents' handoff contract. Next: commit/push this verified step, post the widget reply and image evidence, then mark complete and promote 03.
+
+## Verification
+
+- Selected widget/access/presentation, compatibility/reload, Flyover, build-environment, and intent-reader suites: 47 tests passed with a rebuilt product (`./test` with the nine `--only` suite selections).
+- Final read-interleaving refinement: rebuilt `WhereCoreTests/WidgetDataAccessTests`, 4 tests passed, including both present and absent cache cases.
+- Initial focused `--record missing` capture created 9 references / 12 captures. The recording-only failures were expected. Visual review found a clipped AX5 title; changed the fallback to retain the full title and added fixture backgrounds for visible light/dark inspection. Recaptured the corrected layout and inspected all nine references in both themes/appearances. AX5 now shows the complete title on two lines.
+- Fresh independent source review caught the Today intent consumer at the same time as the first build. It now uses `AppGroupDataAccess`; its existing live-report fallback tests pass. Follow-up source review found no remaining issue. Independent visual review of all nine references found no remaining issue.
+- Final `./test --snapshots` selection of WidgetCompatibilityView, TodayWidgetView, YearTotalsWidgetView, TodayInlineAccessoryView, TodayCircularAccessoryView, and YearTotalsRectangularAccessoryView suites with `--record never --no-build --no-generate --review --timings`: 40 references / 43 captures passed. Three theme sheets differed in encoding only (zero changed pixels).
+- Architecture (30 rule tests plus enforcement), SwiftFormat, SF Symbols, catalog normalization/lint, guidance checks, and whitespace checks passed. Final UI source lint also passed.
 
 ## Outcome
 
-Pending.
+Implementation and independent review are verified; commit/push and the widget-thread reply are the remaining publication steps.

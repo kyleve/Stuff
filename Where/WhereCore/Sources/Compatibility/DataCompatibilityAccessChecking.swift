@@ -3,19 +3,6 @@ public protocol DataCompatibilityAccessChecking: Sendable {
     func requireAccess(version: DataModelVersion) throws -> DataCompatibilityReceipt
 }
 
-public struct AppGroupDataAccess: DataCompatibilityAccessChecking {
-    private let appGroupIdentifier: String
-
-    public init(appGroupIdentifier: String) {
-        self.appGroupIdentifier = appGroupIdentifier
-    }
-
-    public func requireAccess(version: DataModelVersion) throws -> DataCompatibilityReceipt {
-        try FileDataCompatibilityReceipt.shared(appGroupIdentifier: appGroupIdentifier)
-            .requireAccess(version: version)
-    }
-}
-
 extension FileDataCompatibilityReceipt: DataCompatibilityAccessChecking {
     public nonisolated func requireAccess(version: DataModelVersion) throws
         -> DataCompatibilityReceipt

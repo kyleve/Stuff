@@ -11783,6 +11783,30 @@
         }
       }
     },
+    "widget.compatibility.message" : {
+      "comment" : "Widget recovery explanation; the widget does not open history while access is blocked.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your data needs to be checked before it can appear here."
+          }
+        }
+      }
+    },
+    "widget.compatibility.title" : {
+      "comment" : "Widget recovery title when the app must verify access to history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Where"
+          }
+        }
+      }
+    },
     "widget.today.accessibility.label" : {
       "comment" : "Accessibility label for a Today widget, including its localized month and day.",
       "extractionState" : "manual",

@@ -266,7 +266,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
 
     private let installationContextStore: any InstallationRecordingContextStoring
     private let storeStorage: SwiftDataStore.Storage
-    private let widgetRefresher: any WidgetTimelineRefreshing
+    private let makeWidgetRefresher: @MainActor (DataCompatibilityAdmission)
+        -> any WidgetTimelineRefreshing
     private let locationOutbox: any LocationOutbox
     private let installationLocation: InstallationLocation
     private enum StoreState {
@@ -298,14 +299,15 @@ public final class WhereBootstrap: WhereScopeAssembling {
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
         storeStorage: SwiftDataStore.Storage,
-        widgetRefresher: any WidgetTimelineRefreshing,
+        makeWidgetRefresher: @escaping @MainActor (DataCompatibilityAdmission)
+            -> any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox,
         compatibility: DataCompatibilityCoordinator,
         installationLocation: InstallationLocation,
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
-        self.widgetRefresher = widgetRefresher
+        self.makeWidgetRefresher = makeWidgetRefresher
         self.locationOutbox = locationOutbox
         self.compatibility = compatibility
         self.installationLocation = installationLocation
@@ -336,7 +338,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 installationContext.automaticRecordingEnabled != nil,
                 "A real scope cannot open before this installation confirms recording.",
             )
+            let admission = try compatibility.requireAccess()
             let store = try await prepareStore()
+            try compatibility.requireAccess(admission)
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
@@ -348,7 +352,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 reminderScheduler: UserNotificationReminderScheduler(),
                 summaryScheduler: UserNotificationDailySummaryScheduler(),
                 issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
-                widgetRefresher: widgetRefresher,
+                widgetRefresher: makeWidgetRefresher(admission),
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
             )

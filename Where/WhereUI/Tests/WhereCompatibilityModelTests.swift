@@ -324,16 +324,21 @@ struct WhereCompatibilityModelTests {
             harness: harness,
             transport: transport,
         )
+        var reloads = 0
+        model.compatibility.onAccessChanged = { reloads += 1 }
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let launch = Task { await launcher.run() }
         try await waitForAsync { launcher.phase.isAwaitingGate(LaunchStepID.compatibility) }
         #expect(harness.opens == 0)
+        #expect(reloads == 1, "Initial blocked evidence invalidates an existing widget timeline")
         await transport.setVersion(2)
         await model.compatibility.refresh(model: model)
         await launch.value
         #expect(launcher.phase.isReady)
         #expect(harness.opens == 1)
         #expect(model.installationRecordingContext.automaticRecordingEnabled == false)
+        await model.compatibility.refresh(model: model)
+        #expect(reloads == 2, "Recovery reloads once; repeated allowed decisions do not")
         await model.session?.shutdown()
     }
 
@@ -346,9 +351,12 @@ struct WhereCompatibilityModelTests {
             harness: harness,
             transport: transport,
         )
+        var reloads = 0
+        model.compatibility.onAccessChanged = { reloads += 1 }
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(model.session?.isTracking == true)
+        #expect(reloads == 1)
         weak var oldSession = model.session
         let storeReference = try #require(harness.stores.first)
         var blocked = false
@@ -357,6 +365,8 @@ struct WhereCompatibilityModelTests {
         await model.compatibility.refresh(model: model)
         try await waitForAsync { launcher.phase.isAwaitingGate(LaunchStepID.compatibility) }
         #expect(blocked)
+        await model.compatibility.refresh(model: model)
+        #expect(reloads == 2, "Withdrawal reloads once; repeated blocks do not")
         #expect(model.session == nil)
         #expect(model.hasOnboarded)
         #expect(model.installationRecordingContext.automaticRecordingEnabled == true)

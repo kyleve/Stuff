@@ -5,8 +5,8 @@ It provides home-screen and lock-screen widgets that show today's region presenc
 
 Widgets never open the SwiftData store. The app publishes an aggregated
 [`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetDataReader.swift) JSON file
-into its audience's shared App Group; this extension reads it via
-[`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
+into its audience's shared App Group with a version/domain envelope; this extension reads it via
+[`AppGroupDataAccess`](../WhereCore/Sources/Compatibility/AppGroupDataAccess.swift).
 The device-local theme is independently published through `WidgetPresentationStore`.
 An appearance change does not rebuild the data snapshot.
 All rendering lives in [`WhereUI`](../WhereUI). This target only wires
@@ -23,11 +23,11 @@ WidgetKit configuration, the timeline provider, and family-specific layout.
 
 ```
 Where app (WidgetSnapshotPublisher)
-    └─▶ WidgetSnapshotStore.write (App Group JSON)
+    └─▶ Admission-checked AppGroupDataAccess.writeWidgetSnapshot (App Group JSON)
 Where app (WidgetPresentationPublisher)
     └─▶ WidgetPresentationStore.write (App Group JSON)
-Both files
-    └─▶ WhereWidgetProvider.loadEntry (widget extension read)
+Receipt + matching snapshot envelope; separate theme file
+    └─▶ WhereWidgetProvider.loadEntry (verified read, no store open)
             └─▶ WhereUI widget views
 ```
 
@@ -36,6 +36,13 @@ The app refreshes the snapshot after each committed store write and calls
 after the next local midnight so the timeline `date` stays current even if the
 app never wakes. Missing or unknown presentation values resolve to Standard.
 Appearance changes publish only that small value before reloading timelines.
+
+An exact verified receipt must match the snapshot's version and local/cloud
+domain. The shared reader rechecks the receipt after loading the envelope.
+Missing, blocked, or mismatched access shows a history-free “Open Where” view in
+every family. Missing or old-format JSON is an absent cache after verification;
+the next app publication replaces it. Compatibility withdrawal and recovery also
+request reloads without rebuilding history.
 
 ## Localization
 
@@ -62,3 +69,6 @@ Each widget file ships `#Preview` timelines at the bottom (DEBUG only), using `W
 - There is no dedicated widget test bundle.
   Timeline logic is covered indirectly via **WhereCore** store tests and **WhereUI** widget view hosting tests.
 - Cross-process publish → read integration is not exercised in CI (see [`AGENTS.md`](AGENTS.md)).
+- Receipt and payload are independently atomic files, not a two-file transaction.
+  Observable mismatches fail closed. WidgetKit may retain an already delivered
+  timeline until it processes a reload request.

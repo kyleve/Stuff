@@ -35,23 +35,6 @@ public protocol DataCompatibilityReceiptStoring {
     func save(_ receipt: DataCompatibilityReceipt) throws
 }
 
-/// Resolves the host-injected group lazily so entitlement/I/O failures reach the gate.
-public struct AppGroupDataCompatibilityReceipt: DataCompatibilityReceiptStoring {
-    private let appGroupIdentifier: String
-    public init(appGroupIdentifier: String) {
-        self.appGroupIdentifier = appGroupIdentifier
-    }
-
-    public func load() throws -> DataCompatibilityReceipt? {
-        try FileDataCompatibilityReceipt.shared(appGroupIdentifier: appGroupIdentifier).load()
-    }
-
-    public func save(_ receipt: DataCompatibilityReceipt) throws {
-        try FileDataCompatibilityReceipt.shared(appGroupIdentifier: appGroupIdentifier)
-            .save(receipt)
-    }
-}
-
 /// Atomic App Group sidecar. Only the app writes; extensions read before opening history.
 public nonisolated struct FileDataCompatibilityReceipt: DataCompatibilityReceiptStoring, Sendable {
     private static let directoryName = "DataCompatibility"
@@ -66,10 +49,11 @@ public nonisolated struct FileDataCompatibilityReceipt: DataCompatibilityReceipt
         guard let group = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupIdentifier,
         ) else { throw WidgetSnapshotStore.AppGroupUnavailableError() }
-        return Self(directory: group.appending(
-            path: directoryName,
-            directoryHint: .isDirectory,
-        ))
+        return inAppGroup(directory: group)
+    }
+
+    static func inAppGroup(directory: URL) -> Self {
+        Self(directory: directory.appending(path: directoryName, directoryHint: .isDirectory))
     }
 
     public func load() throws -> DataCompatibilityReceipt? {

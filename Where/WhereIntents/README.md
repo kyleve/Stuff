@@ -21,7 +21,8 @@ always discovers it.
 
 The host injects its audience-specific App Group through `IntentServices`.
 `TodayRegionsIntent` uses that group for the optional widget-snapshot fast path
-and logs an App Group-open failure before falling back to the store report.
+through `AppGroupDataAccess`; missing or rejected evidence falls back to the
+already-admitted service report. The intent still resolves `currentContext()` first.
 
 A compatibility lockout releases installed services and fails pending and new intents with an actionable error.
 An intent that already resolved services can finish. The next verified session installs fresh services for later intents.
@@ -34,7 +35,7 @@ An intent that already resolved services can finish. The next verified session i
 |--------|---------|-------|
 | `DaysInRegionIntent` | "How many days in California this year?" | `ReportReader.yearReport` → `totals[region]` |
 | `RegionOnDateIntent` | "What region was I in on June 3?" | `yearReport.days` for that day |
-| `TodayRegionsIntent` | "Where am I today?" | `WidgetSnapshotStore` fast path, `yearReport` fallback |
+| `TodayRegionsIntent` | "Where am I today?" | `AppGroupDataAccess` verified snapshot fast path, `yearReport` fallback |
 
 ### Action (write)
 

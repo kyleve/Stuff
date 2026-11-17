@@ -3,7 +3,7 @@ import PeriscopeCore
 
 /// Reads and writes the widgets' published `WidgetSnapshot` as a small JSON
 /// file in the App Group container shared by the app and the widget
-/// extension.
+/// extension. Production callers go through `AppGroupDataAccess` for verification.
 ///
 /// Only the app process writes (after each committed store change, via
 /// `WidgetCenterTimelineRefresher`); the widget process only reads. This is
@@ -11,35 +11,22 @@ import PeriscopeCore
 /// so a plain `Codable` file avoids the widget paying SwiftData container
 /// startup — and keeps the user's real, CloudKit-synced store private to
 /// the app's own sandbox.
-public struct WidgetSnapshotStore: Sendable {
+struct WidgetSnapshotStore {
     /// Thrown when the App Group container can't be resolved, which means
     /// the running process is missing the
     /// `com.apple.security.application-groups` entitlement (or the group
     /// identifier is misspelled).
-    public struct AppGroupUnavailableError: Error {
-        public init() {}
+    struct AppGroupUnavailableError: Error {
+        init() {}
     }
 
     private static let fileName = "widget-snapshot.json"
 
-    /// Directory the snapshot file lives in. Exposed via `init` so tests can
-    /// point at a temp directory; production resolves the App Group via
-    /// `shared()`.
+    /// The shared access boundary resolves the App Group; tests use temporary directories.
     private let directory: URL
 
-    public init(directory: URL) {
+    init(directory: URL) {
         self.directory = directory
-    }
-
-    /// App Group-backed store shared by the app and widget. Throws
-    /// `AppGroupUnavailableError` when the container can't be resolved.
-    public static func shared(appGroupIdentifier: String) throws -> WidgetSnapshotStore {
-        guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: appGroupIdentifier,
-        ) else {
-            throw AppGroupUnavailableError()
-        }
-        return WidgetSnapshotStore(directory: container)
     }
 
     private var fileURL: URL {
@@ -48,7 +35,7 @@ public struct WidgetSnapshotStore: Sendable {
 
     /// Atomically replace the published snapshot. Atomic so the widget never
     /// reads a half-written file.
-    public func write(_ snapshot: WidgetSnapshot) throws {
+    func write(_ snapshot: PersistedWidgetSnapshot) throws {
         let data = try JSONEncoder().encode(snapshot)
         try data.write(to: fileURL, options: .atomic)
     }
@@ -64,10 +51,12 @@ public struct WidgetSnapshotStore: Sendable {
     /// still the honest thing to render either way — the next publish replaces
     /// the bad file — so the signature stays non-throwing for the widget's
     /// timeline provider.
-    public func read() -> WidgetSnapshot? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+    func read() -> PersistedWidgetSnapshot? {
         do {
-            return try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+            let data = try Data(contentsOf: fileURL)
+            return try JSONDecoder().decode(PersistedWidgetSnapshot.self, from: data)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return nil
         } catch {
             Self.logger.unreadableSnapshot(
                 error: .restricted(.errorDetails, error),

@@ -46,27 +46,31 @@ private struct TodayWidgetContent: View {
     let entry: WhereWidgetEntry
 
     var body: some View {
-        switch family {
-            case .accessoryInline:
-                // Inline draws no container; the background modifier is
-                // still required for the widget to render on iOS 17+.
-                TodayInlineAccessoryView(snapshot: entry.snapshot)
-                    .containerBackground(.clear, for: .widget)
-            case .accessoryCircular:
-                // `TodayCircularAccessoryView` supplies its own
-                // `AccessoryWidgetBackground`.
-                TodayCircularAccessoryView(snapshot: entry.snapshot)
-                    .containerBackground(.clear, for: .widget)
-            case .systemSmall:
-                TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
-            case .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
-                 .accessoryRectangular, .accessoryCorner:
-                TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
-            @unknown default:
-                TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
+        if entry.isBlocked {
+            WidgetCompatibilityView(family: family)
+        } else {
+            switch family {
+                case .accessoryInline:
+                    // Inline draws no container; the background modifier is
+                    // still required for the widget to render on iOS 17+.
+                    TodayInlineAccessoryView(snapshot: entry.snapshot)
+                        .containerBackground(.clear, for: .widget)
+                case .accessoryCircular:
+                    // `TodayCircularAccessoryView` supplies its own
+                    // `AccessoryWidgetBackground`.
+                    TodayCircularAccessoryView(snapshot: entry.snapshot)
+                        .containerBackground(.clear, for: .widget)
+                case .systemSmall:
+                    TodayWidgetView(snapshot: entry.snapshot)
+                        .containerBackground(.background, for: .widget)
+                case .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
+                     .accessoryRectangular, .accessoryCorner:
+                    TodayWidgetView(snapshot: entry.snapshot)
+                        .containerBackground(.background, for: .widget)
+                @unknown default:
+                    TodayWidgetView(snapshot: entry.snapshot)
+                        .containerBackground(.background, for: .widget)
+            }
         }
     }
 }
@@ -78,6 +82,7 @@ private struct TodayWidgetContent: View {
         WhereWidgetEntry.sample
         WhereWidgetEntry.previewMultiRegion
         WhereWidgetEntry.previewEmpty
+        WhereWidgetEntry.previewBlocked
     }
 
     #Preview("Inline", as: .accessoryInline) {
@@ -85,6 +90,7 @@ private struct TodayWidgetContent: View {
     } timeline: {
         WhereWidgetEntry.previewMultiRegion
         WhereWidgetEntry.previewEmpty
+        WhereWidgetEntry.previewBlocked
     }
 
     #Preview("Circular", as: .accessoryCircular) {
@@ -93,5 +99,6 @@ private struct TodayWidgetContent: View {
         WhereWidgetEntry.previewMultiRegion
         WhereWidgetEntry.sample
         WhereWidgetEntry.previewEmpty
+        WhereWidgetEntry.previewBlocked
     }
 #endif

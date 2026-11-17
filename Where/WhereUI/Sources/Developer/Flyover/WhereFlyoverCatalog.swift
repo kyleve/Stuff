@@ -128,6 +128,7 @@
         private static var widgetRegistrations: [WhereFlyoverData] {
             [
                 TodayWidgetView.flyoverData,
+                WidgetCompatibilityView.flyoverData,
                 TodayInlineAccessoryView.flyoverData,
                 TodayCircularAccessoryView.flyoverData,
                 YearTotalsWidgetView.flyoverData,
