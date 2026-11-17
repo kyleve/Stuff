@@ -470,10 +470,7 @@ struct CalendarContentView: View {
         MonthGridView(
             month: month,
             focusedRegion: focusedRegion,
-            dateCalendar: report.calendar,
-            plannedPresence: displayedPlannedPresence(on:),
-            planningSummary: report.showsEstimatedTimeAndPlanning ? report.forecasts
-                .plannedRegionSummaries(in: month) : [],
+            report: report,
             compact: compact,
             isAvailable: isAvailable,
         )
@@ -525,26 +522,47 @@ struct CalendarContentView: View {
         }
         return report.forecasts.leadingForecasts(report: report.report)
     }
-
-    private func displayedPlannedPresence(on day: CalendarDay) -> PlanningDayPresence? {
-        guard report.showsEstimatedTimeAndPlanning else { return nil }
-        return report.forecasts.plannedPresence(on: day)
-    }
 }
 
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            snapshotCases(awaitsLayout: false)
+            snapshotCases(awaitsLayout: false, focusesMonths: false)
         }
 
         static var measuredSnapshots: [SnapshotCase] {
-            snapshotCases(awaitsLayout: true)
+            snapshotCases(awaitsLayout: true, focusesMonths: true)
+        }
+
+        /// Mirrors the image subjects without splitting preview identities per configuration.
+        fileprivate enum MonthPreviews: SnapshotProviding {
+            static var snapshots: [SnapshotCase] {
+                snapshotCases(awaitsLayout: false, focusesMonths: true)
+            }
         }
 
         @SnapshotCaseBuilder
-        private static func snapshotCases(awaitsLayout: Bool) -> [SnapshotCase] {
-            let calendar = CalendarSnapshotCases(awaitsLayout: awaitsLayout)
+        private static func snapshotCases(
+            awaitsLayout: Bool,
+            focusesMonths: Bool,
+        ) -> [SnapshotCase] {
+            let calendar = CalendarSnapshotCases(
+                awaitsLayout: awaitsLayout,
+                focusesMonths: focusesMonths,
+            )
+            if focusesMonths {
+                calendar.snapshot(
+                    name: "FullYear",
+                    configurations: [SnapshotConfiguration(device: .iPhoneFullContent)],
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            report: PreviewSupport.loadedYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
+                }
+            }
             whereSnapshot(
                 name: "HistoryColumn",
                 configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
@@ -600,67 +618,50 @@ struct CalendarContentView: View {
                 .padding()
                 .background(Color(.systemBackground))
             }
-            calendar
-                .snapshot(
-                    name: "Flights",
+            calendar.detail(
+                name: "Flights",
+                monthNumber: 7,
+                configurations: .fullContentPhoneLightDark,
+                report: PreviewSupport.flightHistoryYearReportModel,
+            )
+            calendar.detail(
+                name: "Itinerary",
+                monthNumber: 10,
+                configurations: .fullContentPhoneLightDark,
+            ) { PreviewSupport.itineraryYearReportModel() }
+            if focusesMonths {
+                // October owns flexible arrival; November also exercises overlapping regions.
+                calendar.detail(
+                    name: "ItineraryOverlap",
+                    monthNumber: 11,
                     configurations: .fullContentPhoneLightDark,
-                ) { presentation in
-                    NavigationStack {
-                        CalendarContentView(
-                            report: PreviewSupport
-                                .flightHistoryYearReportModel(),
-                            presentationState: presentation,
-                        )
-                    }
-                }
-            calendar
-                .snapshot(
-                    name: "Itinerary",
-                    configurations: .fullContentPhoneLightDark,
-                ) { presentation in
-                    NavigationStack {
-                        CalendarContentView(
-                            report: PreviewSupport.itineraryYearReportModel(),
-                            presentationState: presentation,
-                        )
-                    }
-                }
-            calendar
-                .snapshot(
-                    name: "WithData",
-                    configurations: .fullContentScreenRepresentative,
-                ) { presentation in
-                    NavigationStack {
-                        CalendarContentView(
-                            report: PreviewSupport.loadedYearReportModel(),
-                            presentationState: presentation,
-                        )
-                    }
-                }
+                ) { PreviewSupport.itineraryYearReportModel() }
+            }
+            calendar.detail(
+                name: "WithData",
+                monthNumber: 5,
+                configurations: .fullContentScreenRepresentative,
+                report: PreviewSupport.loadedYearReportModel,
+            )
             whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
             }
-            calendar
-                .snapshot(
-                    name: "Empty",
-                    configurations: .fullContentPhoneLightDark,
-                ) { presentation in
-                    NavigationStack {
-                        CalendarContentView(
-                            report: PreviewSupport.emptyYearReportModel(),
-                            presentationState: presentation,
-                        )
-                    }
-                }
-            calendar.snapshot(
-                name: "FutureWithoutPlans",
+            calendar.detail(
+                name: "Empty",
+                monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
-            ) { presentation in
+                report: PreviewSupport.emptyYearReportModel,
+            )
+            calendar.detail(
+                name: "FutureWithoutPlans",
+                monthNumber: 1,
+                configurations: .fullContentPhoneLightDark,
+            ) {
                 let base = PreviewSupport.loadedYearReportModel()
                 let year = base.selectedYear + 1
-                let future = YearReportModel(
+                return YearReportModel(
                     services: base.services,
                     details: YearReportDetails(
                         primaryRegions: [.california, .newYork],
@@ -671,60 +672,33 @@ struct CalendarContentView: View {
                     preferences: base.preferences,
                     now: base.now,
                 )
-                NavigationStack {
-                    CalendarContentView(report: future, presentationState: presentation)
-                }
             }
-            calendar
-                .snapshot(
-                    name: "MissingDays",
-                    configurations: .fullContentPhoneLightDark,
-                ) { presentation in
-                    NavigationStack {
-                        CalendarContentView(
-                            report: PreviewSupport.missingDaysYearReportModel(),
-                            presentationState: presentation,
-                        )
-                    }
-                }
-            // The Locations tab's zoom destination: one region's days only.
-            calendar
-                .snapshot(
-                    name: "Focused",
-                    configurations: .fullContentPhoneLightDark,
-                ) { presentation in
-                    NavigationStack {
-                        CalendarContentView(
-                            focusedRegion: .california,
-                            report: PreviewSupport.loadedYearReportModel(),
-                            presentationState: presentation,
-                        )
-                    }
-                }
-            calendar.snapshot(
+            calendar.detail(
+                name: "MissingDays",
+                monthNumber: 1,
+                configurations: .fullContentPhoneLightDark,
+                report: PreviewSupport.missingDaysYearReportModel,
+            )
+            // The Locations zoom destination keeps only the focused region's day markings.
+            calendar.detail(
+                name: "Focused",
+                monthNumber: 5,
+                configurations: .fullContentPhoneLightDark,
+                focusedRegion: .california,
+                report: PreviewSupport.loadedYearReportModel,
+            )
+            calendar.detail(
                 name: "FocusedPlannedStay",
+                monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
-            ) { presentation in
-                NavigationStack {
-                    CalendarContentView(
-                        focusedRegion: .newYork,
-                        report: PreviewSupport.plannedStayYearReportModel(),
-                        presentationState: presentation,
-                    )
-                }
-            }
-            calendar.snapshot(
+                focusedRegion: .newYork,
+            ) { PreviewSupport.plannedStayYearReportModel() }
+            calendar.detail(
                 name: "MultiRegionPlannedStay",
+                monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
-            ) { presentation in
-                NavigationStack {
-                    CalendarContentView(
-                        report: PreviewSupport.plannedStayYearReportModel(),
-                        presentationState: presentation,
-                    )
-                }
-            }
-            // Overview is a distinct layout and retains its full matrix alongside WithData.
+            ) { PreviewSupport.plannedStayYearReportModel(plannedRegion: .california) }
+            // Overview retains its own matrix, including the large-type column adaptation.
             calendar.snapshot(
                 name: "YearOverview",
                 configurations: .fullContentScreenRepresentative,
@@ -823,21 +797,22 @@ struct CalendarContentView: View {
                     )
                 }
             }
-            calendar.snapshot(
+            calendar.detail(
                 name: "PlannedStayHidden",
+                monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
-            ) { presentation in
-                NavigationStack {
-                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel(
-                        showsEstimatedTimeAndPlanning: false,
-                    ), presentationState: presentation)
-                }
+            ) {
+                PreviewSupport.plannedStayYearReportModel(showsEstimatedTimeAndPlanning: false)
             }
         }
     }
 
-    #Preview {
+    #Preview("Full-screen scenarios") {
         CalendarContentView.snapshotPreviews
+    }
+
+    #Preview("Snapshot subjects") {
+        CalendarContentView.MonthPreviews.snapshotPreviews
     }
 #endif
 

@@ -18,4 +18,4 @@ The combined validation/baseline run passes 26 SnapshotConfiguration unit tests 
 
 Command: `TEST_WORKDIR=/private/tmp/stuff-snapshot-reviewability-baseline-20261117 ./test --only SnapshotKitTests/SnapshotConfigurationTests --only WhereUISnapshotTests/MainTabsSnapshotTests --only WhereUISnapshotTests/SettingsViewSnapshotTests --only WhereUISnapshotTests/OnboardingThemeSelectionViewSnapshotTests --only WhereUISnapshotTests/CalendarContentViewSnapshotTests --only WhereUISnapshotTests/YearViewSnapshotTests --no-generate --timings --review --record never`. Normal architecture and applicable host checks pass.
 
-Resume: commit this verified step; independent review and publication follow plan 02.
+Committed in `fdb86b6bd`. Resume: finish the independent review and publication with plan 02.

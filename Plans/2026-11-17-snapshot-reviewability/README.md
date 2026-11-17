@@ -5,10 +5,10 @@
 - Updated: 2026-11-17. The user requested removal of RTL snapshots/defaults and month-sized calendar coverage with a few full-height checks.
 - Operation: Implement both changes, validate retained and reframed coverage, and publish above PR #520.
 - Branch/base: `test/snapshot-reviewability`, based on `b0dfa58cb`.
-- Stage: RTL inventory complete; calendar coverage design.
-- Completed: Found six RTL references and their three owning providers. Shared presets and Flyover export defaults already use left-to-right layout.
-- Pending: Remove RTL variants, map calendar states to representative months, record/review new subjects, verify retained integration coverage, and publish.
-- Next action: Execute plan 01; refine plan 02 from the calendar fixtures and existing reference dimensions.
+- Stage: Both changes verified; calendar commit and publication pending.
+- Completed: Removed six RTL references in `fdb86b6bd`. Implemented and inspected plan 02's month subjects, overlap case, and mode picker. The full-year reference preserves the original image byte for byte. Final assertions pass all 162 captures and 25 calendar-related unit tests; the earlier run passes 26 configuration tests. Independent source and visual review found no actionable issues.
+- Pending: Commit the calendar step, publish the ready PR, and dispatch remote CI.
+- Next action: Publish the verified work above PR #520 and complete the plan records.
 
 ## Requirements and scope
 
@@ -31,7 +31,7 @@ X-02: Do not crop content or add snapshot-specific production layout branches. R
 
 Q-01 (closed, R-01): Six explicit RTL PNGs belong to MainTabs (three), Settings (one), and onboarding theme selection (two). Representative presets omit RTL already; Flyover defaults to phone light/dark. Keep the explicit RTL API and its unit coverage for future opt-in use. This implements the user's image-coverage request without altering app direction handling.
 
-Q-02 (open, R-02/R-03): Which month best represents each detail state, and which whole-screen/year captures remain? Existing detail PNGs reach 17,510px; YearView's AX5 image reaches 18,102px. Overview has a distinct twelve-month composition and must retain its own coverage.
+Q-02 (closed, R-02/R-03): Plan 02 records the selected month for every detail state, two full CalendarContentView captures, two full YearView integrations, preserved overview coverage, and focused picker traits. It also preserves ordinary full-screen scenario previews/Flyover. Existing detail PNGs reach 17,510px; YearView's AX5 image reaches 18,102px. Source/fixture review and visual inspection on 2026-11-17 support the selection; plan 02 records the comparison evidence.
 
 ## Plan review
 

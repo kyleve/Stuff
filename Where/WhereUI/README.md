@@ -852,12 +852,21 @@ reference; preserve PNG metadata when copying them.
 Calendar month sections, day rows, and Timeline rows measure eagerly. This gives
 full-content snapshots their complete height before capture. Timeline measurement
 also avoids blank trailing space from lazy estimates in its bottom-anchored scroll view.
-Calendar's measured image cases await the mounted month task's presentation-state
-reconciliation before measuring. Each configuration has its own readiness holder;
-each mounted host creates fresh content, including retries and theme panels.
-Measurement-to-capture rehosting retains that content. The hook consumes one mount
-registration and then observes its year, with cancellation at both waits. Final
-pixel settling remains enabled. Ordinary providers and preview identities stay unchanged.
+Most calendar content images show one representative month built by `CalendarModel`.
+They use the production `MonthGridView` report initializer, including planning visibility,
+focus, and summaries, and shrink to their complete height at the normal content width.
+The month data is synchronous, so measurement is immediate while final pixel settling
+remains enabled. FullYear and HistoryColumn retain full month-list coverage. YearView
+keeps phone light/dark screen integration and a focused mode-picker trait matrix.
+The distinct year-overview layouts retain their existing coverage, including AX5.
+Ordinary calendar scenario previews and Flyover keep full screens; the separate
+Snapshot subjects preview mirrors the focused image matrix.
+
+Full-calendar and overview cases with explicit readiness await the mounted month
+task's presentation reconciliation before measuring. Each configuration has its own
+readiness holder; each mounted host creates fresh content, including retries and
+theme panels. Measurement-to-capture rehosting retains that content. The hook consumes
+one mount registration and observes its year, with cancellation at both waits.
 
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
