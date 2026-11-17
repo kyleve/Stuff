@@ -787,6 +787,9 @@ none is supplied, so nested roots preserve the injected dependency. The shared
 cache stores only paths. Reports, worlds, navigation, and artwork models retain
 their existing fixture ownership. Unit tests for initial loading inject fresh
 caches. Geometry remains lazy; independent production roots continue to create their own caches.
+Fixed sample report and location values also initialize once per process. The
+report-details wrapper still creates its calendar on each call; models, services,
+and preferences retain their existing fixture ownership.
 Use `prepareForCapture` for fixture or artwork readiness before the first capture
 settle. Height-changing loads use `onReadyToMeasure`; actions that need settled
 UI retain `onReadyToSnapshot`.

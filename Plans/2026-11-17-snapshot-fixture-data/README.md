@@ -4,10 +4,10 @@
 
 - Updated: 2026-11-17; parent PR #515 at `bc02a45954a642dfdd90f4701432eb23d648cdb4` after stack synchronization.
 - Operation: Execute the user's request to try fixed report reuse and demo seed reuse.
-- Stage: Ready for baseline profiling.
+- Stage: Report reuse passes focused validation and independent source review; broad image integration is running.
 - Completed: Source and contract inspection; synchronized the stack after #511 merged. The source tree matches the earlier `2736e1a7f` baseline. The parent web job stopped with a runner shutdown, not a test assertion; it was retried.
-- Pending: Separate measurements, bounded candidates, validation, independent review, and publication.
-- Next action: Measure fixed report construction and five fresh demo worlds with temporary subphase instrumentation.
+- Pending: Broad image integration, final evidence review, and publication. Demo recipe generation has a measured negligible upper bound; no seed API is retained.
+- Next action: Validate the retained report cache, record the negative demo result, and publish both step records.
 
 ## Outcome and requirements
 
@@ -42,12 +42,12 @@ Repository source and prior local profiles establish the design; no new external
 | ID | Status | Question | Resolution |
 | --- | --- | --- | --- |
 | Q-01 | closed | What can be shared without freezing mutable state or time-zone behavior? | Cache fixed report/day/point values at PreviewSupport. Keep the resolver wrapper and all models/services fresh. Demo candidates must preserve configuration, reference time, calendar, and fresh sample identity. |
-| Q-02 | open | How much setup time can report reuse remove? | Measure repeated factory calls and representative snapshot consumers. |
-| Q-03 | open | Is demo recipe generation large enough to justify an explicit prepared-value seam? | Split five fresh worlds into store/services/generation/writes/log/report phases; run at most one prepared-input candidate. A supported negative result satisfies this bounded experiment. |
+| Q-02 | closed | How much setup time can report reuse remove? | Three batches of 500 report and 500 detail calls take 0.872482s before and 0.004922s after, including first use. This proves avoided factory work; the original per-call cost is only about 0.29ms. No suite-wide saving is established. |
+| Q-03 | closed | Is demo recipe generation large enough to justify an explicit prepared-value seam? | Two processes with five fresh worlds each measure only 0.44–0.47ms median generation, versus 0.92–0.94s per world. Even eliminating generation saves about 0.02s over 39 worlds. No prepared-input API is justified; plan 02 records the supported negative result. |
 
 ## Plan review
 
-Reviewed 2026-11-17 against `bc02a4595`: value ownership, time-zone capture, sample identity, write fan-out, isolation, and existing guards. Both bounded plans are ready. The original full image profile at `2736e1a7f` is source-equivalent after rebase; timings from that run remain a single earlier sample. Mermaid below is a source sketch, not runtime evidence.
+Reviewed 2026-11-17 against `bc02a4595`: value ownership, time-zone capture, sample identity, write fan-out, isolation, and existing guards. Both bounded plans are ready. The original full image profile at `2736e1a7f` is source-equivalent after rebase; timings from that run remain a single earlier sample. The numbered plans contain design sketches, not runtime evidence.
 
 ## Review and delivery
 
