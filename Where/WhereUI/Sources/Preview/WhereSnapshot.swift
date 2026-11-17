@@ -35,7 +35,9 @@
             prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {
-            content().whereBroadwayRoot(theme: theme)
+            content()
+                .whereBroadwayRoot(theme: theme)
+                .environment(\.regionOutlinePathCache, PreviewSupport.snapshotArtworkCache)
         }
     }
 
@@ -72,7 +74,9 @@
         ) {
             for theme in WhereTheme.allCases {
                 SnapshotPanel(id: .init(rawValue: theme.rawValue), label: theme.title) {
-                    content().whereBroadwayRoot(theme: theme)
+                    content()
+                        .whereBroadwayRoot(theme: theme)
+                        .environment(\.regionOutlinePathCache, PreviewSupport.snapshotArtworkCache)
                 }
             }
         }

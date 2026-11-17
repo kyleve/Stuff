@@ -2793,8 +2793,9 @@ extension View {
     /// passes `WhereSession`'s live resolver, the widget process one built from
     /// its `WidgetSnapshot`, and intents one from their services; the default
     /// empty resolver yields fallback looks (previews, the region-map viewer).
-    /// The root also owns and injects the region-outline `Path` cache so cards
-    /// share render artifacts without a process-global UI singleton.
+    /// The root reuses an injected region-outline `Path` cache, or owns one
+    /// when none is supplied. Nested roots share render artifacts with their
+    /// parent without a process-global UI singleton.
     public func whereBroadwayRoot(
         theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
@@ -2803,19 +2804,22 @@ extension View {
     }
 }
 
-/// Owns UI render resources once per Where root and injects them alongside the
-/// Broadway/design context. Keeping the path cache here shares it across cards
-/// without introducing a process-global UI singleton.
+/// Reuses inherited render resources, with a root-owned fallback, and injects
+/// them alongside the Broadway/design context.
 private struct WhereBroadwayRootModifier: ViewModifier {
     let theme: WhereTheme
     let regionStyles: RegionStyleResolver
+    @Environment(\.regionOutlinePathCache) private var inheritedOutlinePathCache
     @State private var regionOutlinePathCache = RegionOutlinePathCache()
 
     func body(content: Content) -> some View {
         content
             .broadwayRoot(themes: WhereThemes.current(theme: theme))
             .environment(\.regionStyles, regionStyles)
-            .environment(\.regionOutlinePathCache, regionOutlinePathCache)
+            .environment(
+                \.regionOutlinePathCache,
+                inheritedOutlinePathCache ?? regionOutlinePathCache,
+            )
     }
 }
 

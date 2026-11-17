@@ -17,6 +17,11 @@
     public enum PreviewSupport {
         public static let year = 2026
 
+        /// Reuses immutable region/resolution paths across snapshot fixtures and
+        /// their previews. Fixture models and worlds retain their existing ownership;
+        /// initial-load tests can still inject a fresh cache.
+        static let snapshotArtworkCache = RegionOutlinePathCache()
+
         /// A private logging system for fixtures, so a preview's or snapshot's
         /// log sinks never join the process-wide pipeline (and a long-running
         /// snapshot host doesn't accumulate them).

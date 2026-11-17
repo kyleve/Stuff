@@ -100,7 +100,7 @@ struct LocationsBackground: View {
             regions: [Region],
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             return whereSnapshot(
                 name: name,
                 configurations: .phoneLightDark,

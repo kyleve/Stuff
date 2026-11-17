@@ -35,7 +35,7 @@
         }
 
         let model = WhereDemoWorldModel()
-        let artwork = RegionOutlinePathCache()
+        let artwork = PreviewSupport.snapshotArtworkCache
         let tab: MainTabSelection.TabID
         let selection: Selection
 

@@ -1,7 +1,7 @@
 # 02 — Prepare artwork before settling
 
 - Status: ready
-- Depends on: [Shared cache](01-shared-cache.md)
+- Depends on: None; measure after the verified cache-only step in [plan 01](01-shared-cache.md). The callback migration also works with separate caches.
 - Shared requirements: [Overview](README.md), R-02–R-05; exclusions X-01 and X-02.
 
 ## Deliverable

@@ -226,7 +226,7 @@ extension AppearanceSettingsView: SettingsSection {
 #if DEBUG
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             whereSnapshot(
                 name: "FlatSelected",
                 configurations: .fullContentPhoneLightDark,

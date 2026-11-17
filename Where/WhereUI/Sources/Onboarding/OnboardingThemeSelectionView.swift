@@ -82,7 +82,7 @@ struct OnboardingThemeSelectionView: View {
 
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let configurations = [SnapshotConfiguration]
                 .fullContentPhoneLightDarkWithAX5AndAnnotations + [
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),

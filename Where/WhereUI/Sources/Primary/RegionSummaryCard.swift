@@ -628,7 +628,7 @@ private struct ArcText: View {
             variant: WhereStylesheet.CardStyle.Variant,
             reduceTransparency: Bool,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let name = switch variant {
                 case .regular: "Regular"
                 case .compact: "Compact"

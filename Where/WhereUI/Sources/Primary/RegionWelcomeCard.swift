@@ -209,7 +209,7 @@ struct RegionWelcomeCard: View {
 
     extension RegionWelcomeCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             return [whereThemeSnapshot(
                 name: "Welcome",
                 configurations: .componentRepresentative,

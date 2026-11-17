@@ -6,34 +6,34 @@
 
 ## Design
 
-`PreviewSupport` creates one DEBUG-only `RegionOutlinePathCache`. Snapshot helpers inject it inside their Broadway wrapper so that the actual subject sees the shared cache. Explicit snapshot artwork hooks and Duo fixtures receive that same actor. Ordinary production roots, standalone non-snapshot previews, and fresh-cache unit tests retain their ownership.
+`PreviewSupport` creates one DEBUG-only `RegionOutlinePathCache`. Snapshot helpers inject it through the environment. Broadway roots reuse an inherited cache and keep a root-owned fallback when none is supplied. This prevents nested roots from replacing the shared dependency. Explicit snapshot artwork hooks and Duo fixtures receive that same actor. Independent production roots, standalone non-snapshot previews, and fresh-cache unit tests retain their own caches.
 
 ```mermaid
 flowchart LR
     P["PreviewSupport: one snapshot path cache"] --> C["Snapshot declarations and helpers"]
-    C --> V["Fresh views and artwork models"]
+    C --> V["Existing fixture models and views"]
     V -->|"region + resolution"| A["RegionOutlinePathCache actor"]
     A --> G["Existing RegionKit geometry cache"]
     A -->|"cached Path value"| V
 ```
 
-The actor stores deterministic geometry only. Each view still awaits and publishes its own artwork; cancellation cannot publish stale content. Diagram omits rendering and comparison, which do not change.
+The actor stores deterministic geometry only. Artwork publication models retain their existing ownership and cancellation guards. Diagram omits rendering and comparison, which do not change.
 
 ```swift
 // Proposed composition, not a new production singleton.
 extension PreviewSupport {
     static let snapshotArtworkCache = RegionOutlinePathCache()
 }
-// Apply the environment override inside the existing Broadway wrapper.
-content.environment(\.regionOutlinePathCache, PreviewSupport.snapshotArtworkCache)
-    .whereBroadwayRoot(theme: theme)
+// The Broadway wrapper now honors its inherited cache.
+content.whereBroadwayRoot(theme: theme)
+    .environment(\.regionOutlinePathCache, PreviewSupport.snapshotArtworkCache)
 ```
 
 ## Steps and acceptance
 
 1. Record the unchanged five-suite baseline with `./test --no-generate --only WhereUISnapshotTests/AppearanceSettingsViewSnapshotTests --only WhereUISnapshotTests/LocationForecastSummarySnapshotTests --only WhereUISnapshotTests/LocationForecastPanelSnapshotTests --only WhereUISnapshotTests/LocationsBackgroundSnapshotTests --only WhereUISnapshotTests/RegionWelcomeCardSnapshotTests --timings --review --record never`.
 2. Update snapshot composition and explicit snapshot cache consumers, including Duo fixtures. Keep the five post-settle hooks unchanged for this step.
-3. Add hosted coverage for shared-cache injection through single and theme snapshot helpers, and independent publication state. Keep existing cache/model/task tests using fresh caches. Update the module README.
+3. Add hosted coverage for shared-cache injection through single and theme snapshot helpers, and independence of the supplied publication models. Keep existing cache/model/task tests using fresh caches. Update the module README.
 4. Run the same focused image matrix, plus the relevant WhereUI cache, artwork, and composition tests. Regenerate with `./ide --no-open` if adding source/test files.
 5. Require no retries, unchanged identities/dimensions/tiles, passing references, and reviewed changed diagnostics. Record the observed cache-only delta without overstating it. Run architecture checks for the new composition boundary, formatting, and symbol lint. Commit this verified step.
 
@@ -41,8 +41,12 @@ Tests use `./test`; later snapshot invocations may use `--skip-host-tests` becau
 
 ## Execution record
 
-Baseline running. No implementation changes yet.
+The baseline at parent `c5cd82626` passes five tests and 63 captures with no retries. Timed captures total 65.589s: post-settle hooks 26.163s, final settling 31.991s. The baseline also owns applicable host checks. Raw logs are retained in the session's `artwork-snapshot-results` directory.
+
+Shared cache composition is implemented. Hosted tests confirm nested roots reuse an injected or root-owned cache, independent roots keep separate fallbacks, and single/theme snapshot helpers share the actor while independently supplied publication models remain independent. The initial test build needed a missing WhereCore import; the corrected focused run passes 18 tests. Independent review caught a concurrency warning in the local test-builder function: its explicit Sendable annotation would become an error in Swift 6. An explicitly typed MainActor/Sendable closure replaces the local function; the corrected hosted rerun passes all three tests with no concurrency diagnostics. Architecture checks and symbol lint pass. The cache-only profile passes five tests and 63 captures with zero retries and matching identities, dimensions, pixels, and tiles. It takes 66.223s versus 65.589s baseline (+0.634s, about 1%). All 22 diagnostic payloads match exactly. This pair does not establish a speedup from sharing paths; the cache is retained for the approved resource ownership and reuse, with most elapsed time still in settling.
 
 ## Resume point
 
-Implement the shared cache after the baseline build completes; keep the built baseline products unchanged during its run.
+The cache step is verified. Full image integration and independent review remain shared with plan 02 before publication.
+
+Commands: the baseline command above, then the same five suites with `--skip-host-tests` for cache-only images. Unit coverage uses `./test --no-generate --only WhereUITests/RegionArtworkTaskTests --only WhereUITests/RegionArtworkModelTests --only WhereUITests/RegionOutlinePathCacheTests --only WhereUITests/LocationForecastArtworkLoaderTests --only WhereUITests/LocationsBackgroundArtworkTests` (18 passed). The final annotation rerun uses `./test --no-generate --skip-host-tests --only WhereUITests/RegionArtworkTaskTests` (3 passed). `./swiftformat --lint`, `./sf-symbols --lint`, and `git diff --check` pass.
