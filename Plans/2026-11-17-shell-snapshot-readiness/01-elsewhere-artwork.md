@@ -1,6 +1,6 @@
 # Prepare Elsewhere artwork before final settling
 
-Status: executing
+Status: complete
 Dependencies: none.
 Requirements: [US-01, R-01–R-03, X-01](README.md#outcome-and-constraints).
 
@@ -33,4 +33,4 @@ Saving: 6.206s (28.3%). These are local capture totals, not end-to-end CI wall t
 
 Commands: `TEST_WORKDIR=/private/tmp/stuff-shell-readiness-baseline-20261117 ./test --only WhereUISnapshotTests/ElsewhereViewSnapshotTests --only WhereUISnapshotTests/MainTabsSnapshotTests --no-generate --timings --review --record never`, then the same flags with only Elsewhere and work directory `/private/tmp/stuff-shell-readiness-elsewhere-20261117`. Normal architecture and host checks passed. `./swiftformat --lint` and `./sf-symbols --lint` passed.
 
-Resume: retain the callback change. Independent review and publication remain, alongside plan 02.
+Delivered in [PR #520](https://github.com/kyleve/Stuff/pull/520), with independent source and raw-evidence review. Implementation `c4843ee05` became `ee4b36711` after the parent merged; the complete tested tree is unchanged. The final combined comparison in plan 02 confirms a 6.200s saving. No remaining work in this plan.

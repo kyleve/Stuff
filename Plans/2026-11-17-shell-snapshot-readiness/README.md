@@ -5,10 +5,11 @@
 - Updated: 2026-11-17. User approved investigating both opportunities after PR #518.
 - Operation: Measure two bounded readiness changes and retain improvements supported by unchanged image output.
 - Scope: Elsewhere artwork before capture settling; completion of MainTabs' mounted activation before capture settling. Preserve final pixel checks and measured native floors.
-- Stage: Both changes verified; review and publication.
-- Completed: Synchronized the parent after #517 merged; `49712814b` has the same complete tree as the previously tested `5691ed10f`. Baseline passed all 79 captures. Elsewhere saved 6.206s with identical images; see plan 01.
-- Pending: Complete independent review and publication. PR #518 has merged with passing checks; synchronize the stack after committing and compare the tested tree.
-- Next action: Publish the verified changes. Elsewhere is committed as `c4843ee05`; MainTabs code and validation are recorded in plan 02.
+- Stage: Complete; [PR #520](https://github.com/kyleve/Stuff/pull/520) is ready for review.
+- Completed: Both changes, all 79 reference captures, readiness/lifecycle/retry coverage, independent review, and publication. Combined capture time falls 113.220s → 89.639s; plan 02 records the comparison and limits.
+- Publication: PR #518 merged with passing checks. `gh stack sync` rebased this continuation onto `origin/main` (`161650d49`), preserving the complete tested tree. Elsewhere is `ee4b36711`; MainTabs is `ff93236f1`.
+- Pending: Remote CI and human review. STU-121 remains In Review for unmerged and broader performance work.
+- Next action: Review/merge PR #520; no implementation remains in this series.
 
 ## Outcome and constraints
 
@@ -38,3 +39,5 @@ Q-03 (closed, both/R-03): What savings survive matched output checks? The final 
 2026-11-17, parent `49712814b`: source and contract review supports the bounded Elsewhere experiment. Its callback only loads geometry into the injected cache and does not need settled UI. MainTabs cannot use its initial loaded flag: the mounted task starts a lifecycle revision and asynchronously refreshes multiple models. Plan 02 remains an outline until a specific completion boundary is reviewed. No new product decisions are required for these authorized experiments.
 
 2026-11-17, completed-diff review: a fresh independent reviewer examined `49712814b` through `c4843ee05` plus the uncommitted MainTabs implementation, tests, documentation, and raw artifacts. No actionable findings remain. The review verified per-mount ownership, fixed-scene scope, cancellation, retry behavior, unchanged image metadata and floors, and the measured savings. It retained the corrected retry-fixture finding: selecting Settings requires a `WhereModel` environment; the focused regression passed after that dependency was supplied. Plan 02 records the failed combined invocation and subsequent successful checks separately.
+
+Publication check: `git diff debf041d1 ff93236f1` is empty after synchronization; the resulting diff against `161650d49` contains only the reviewed continuation. The other main worktree's uncommitted changes remain untouched. Tracked-guidance checks pass with the unrelated oversized untracked `simple-english` skill temporarily excluded, then restored byte-for-byte with its generated link.

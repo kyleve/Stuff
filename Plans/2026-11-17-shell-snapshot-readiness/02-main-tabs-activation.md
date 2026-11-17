@@ -1,6 +1,6 @@
 # Await MainTabs' mounted activation
 
-Status: executing
+Status: complete
 Dependencies: none; execute after plan 01 to keep measurements and commits distinct.
 Requirements: [US-01, R-01–R-03, X-01](README.md#outcome-and-constraints).
 
@@ -78,4 +78,4 @@ Commands and artifacts:
 2. `TEST_WORKDIR=/private/tmp/stuff-shell-readiness-final-images-20261117 ./test --only WhereUISnapshotTests/MainTabsSnapshotTests --only WhereUISnapshotTests/ElsewhereViewSnapshotTests --no-generate --timings --review --record never` passed both reference functions. The new retry fixture then lacked `WhereModel` for its Settings tab and crashed. The fixture now supplies the same environment as existing hosted MainTabs tests.
 3. `TEST_WORKDIR=/private/tmp/stuff-shell-readiness-retry-20261117 ./test --only 'WhereUISnapshotTests/MainTabsSnapshotTests/retryWaitsForItsMountedActivationDespitePreloadedData()' --no-generate --timings --review --record never` passed the corrected regression in 1.250s. This fixture-only correction does not alter the preceding reference matrices. The failed combined invocation is not reported as green.
 
-Resume: retain the implementation; complete independent review and publication. No prototype instrumentation remains.
+Delivered in [PR #520](https://github.com/kyleve/Stuff/pull/520), ready for review on `main` after #518 merged. Independent review reports no remaining actionable findings and retains the corrected environment-fixture finding. Implementation `debf041d1` became `ff93236f1`; `git diff debf041d1 ff93236f1` is empty after stack synchronization. No prototype instrumentation or implementation work remains. Remote CI is separate from the local acceptance evidence above.
