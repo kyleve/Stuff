@@ -346,7 +346,7 @@ struct MainTabs: View {
                     ],
                 theme: theme,
                 onReadyToMeasure: prepare,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(
                         for: report.elsewhere.content(for: report.selectedYear)?.regions
                             .map(\.region) ?? [],
@@ -485,9 +485,8 @@ struct MainTabs: View {
                 // Native glass can retain its light material after the async
                 // shell appears; match the measured Appearance/About floor.
                 settle: .settledAtLeast(minDuration: 1.5),
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await fixture.prepare()
-
                 },
             ) {
                 DuoLayoutSnapshotScene(fixture: fixture, pose: pose)
@@ -587,6 +586,8 @@ struct MainTabs: View {
                 theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
+                // Keep this post-settle so the mounted activation starts before this refresh;
+                // a later activation can supersede this hook's lifecycle revision.
                 onReadyToSnapshot: { await report.activate() },
             ) {
                 MainTabs(

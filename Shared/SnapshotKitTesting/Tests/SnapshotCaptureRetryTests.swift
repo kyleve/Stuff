@@ -86,6 +86,8 @@ struct SnapshotCaptureRetryTests {
         .measurementHookRequiresIntrinsicSizing(name: "probe"),
         .measurementReadinessTimedOut(name: "probe", budget: 1),
         .invalidMeasurementHookTimeout(name: "probe", budget: 0),
+        .capturePreparationTimedOut(name: "probe", budget: 1),
+        .invalidCapturePreparationTimeout(name: "probe", budget: 0),
         .intrinsicHeightDidNotConverge(name: "probe", measuredHeights: [1, 2]),
         .fullContentSizeDidNotConverge(name: "probe", measuredSizes: [.zero]),
         .fullContentSizeExceedsLimit(

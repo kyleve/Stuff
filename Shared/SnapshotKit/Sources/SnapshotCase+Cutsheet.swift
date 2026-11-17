@@ -9,6 +9,7 @@ extension SnapshotCase {
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
+        prepareForCapture: (@MainActor () async throws -> Void)? = nil,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @SnapshotPanelBuilder panels: () -> [SnapshotPanel],
     ) -> SnapshotCase {
@@ -25,6 +26,7 @@ extension SnapshotCase {
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
             settle: settle,
+            prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
             panels: collection,
         )

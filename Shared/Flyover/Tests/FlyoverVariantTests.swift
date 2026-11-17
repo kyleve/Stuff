@@ -118,6 +118,7 @@ struct FlyoverVariantTests {
 
     @Test func cutsheetVariantsPreserveCapturePolicyAndReadiness() async throws {
         var measurements = 0
+        var preparations = 0
         var captures = 0
         let snapshotCase = SnapshotCase.cutsheet(
             name: "Panels",
@@ -128,6 +129,7 @@ struct FlyoverVariantTests {
             measurementReadiness: .immediate,
             onReadyToMeasure: { measurements += 1 },
             settle: .immediate,
+            prepareForCapture: { preparations += 1 },
             onReadyToSnapshot: { captures += 1 },
         ) {
             SnapshotPanel(id: .init(rawValue: "first"), label: "First") { Color.red }
@@ -144,9 +146,11 @@ struct FlyoverVariantTests {
             #expect(policy.measurementReadiness == .immediate)
             #expect(policy.settle == .immediate)
             await policy.onReadyToMeasure?()
+            try await policy.prepareForCapture?()
             await policy.onReadyToSnapshot?()
         }
         #expect(measurements == 2)
+        #expect(preparations == 2)
         #expect(captures == 2)
 
         let overridden = FlyoverVariant.snapshots(

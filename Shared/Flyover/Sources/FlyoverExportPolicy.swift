@@ -8,6 +8,7 @@
         public let measurementReadiness: SnapshotMeasurementReadiness
         public let settle: SnapshotSettle
         public let onReadyToMeasure: (@MainActor () async -> Void)?
+        public let prepareForCapture: (@MainActor () async throws -> Void)?
         public let onReadyToSnapshot: (@MainActor () async -> Void)?
 
         public init(
@@ -15,12 +16,14 @@
             measurementReadiness: SnapshotMeasurementReadiness,
             settle: SnapshotSettle,
             onReadyToMeasure: (@MainActor () async -> Void)?,
+            prepareForCapture: (@MainActor () async throws -> Void)? = nil,
             onReadyToSnapshot: (@MainActor () async -> Void)?,
         ) {
             self.captureExtent = captureExtent
             self.measurementReadiness = measurementReadiness
             self.settle = settle
             self.onReadyToMeasure = onReadyToMeasure
+            self.prepareForCapture = prepareForCapture
             self.onReadyToSnapshot = onReadyToSnapshot
         }
 
@@ -51,6 +54,7 @@
                 measurementReadiness: snapshotCase.measurementReadiness,
                 settle: snapshotCase.settle,
                 onReadyToMeasure: snapshotCase.onReadyToMeasure,
+                prepareForCapture: snapshotCase.prepareForCapture,
                 onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             ))
         }

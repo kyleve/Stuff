@@ -61,6 +61,8 @@ Read the root [AGENTS.md](../../AGENTS.md) and [SnapshotKit contract](../Snapsho
 - Invoke intrinsic/full-content measurement hooks after hosting/layout and before settling/height resolution; reject them for fixed sizing.
   Bound hooks by the effective settle ceiling or explicit timeout, scaled by the CI multiplier. Preserve errors, skip failed captures, and require cancellation cooperation.
   Guards: `PreMeasureHookTests`, `SnapshotMeasurementHookTests`.
+- Run `prepareForCapture` after capture hosting/layout, before the first settle. Keep the final settle, inset reconciliation, and accessibility preparation intact.
+  Bound preparation by the effective settle ceiling, preserve errors/cancellation, and restore the host on failure. Keep post-settle actions in `onReadyToSnapshot`. Guards: `CapturePreparationTests`, `PreCaptureHookTests`.
 - `.timedOut` requires observed motion. A change-free loop continues until stability is proven or the hard cap yields `.starved`, an environment failure. Guard: `SnapshotRenderingSupportTests`.
 - Every entry point acquires the FIFO `@MainActor` mutex before window discovery, environment validation, or content preparation.
   The safe-area swizzle is depth-counted; nested captures trap. Keep suites serial; CI shards on isolated VMs. Guard: `ConcurrentCaptureTests`.
