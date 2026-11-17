@@ -535,6 +535,16 @@ struct CalendarContentView: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            snapshotCases(awaitsLayout: false)
+        }
+
+        static var measuredSnapshots: [SnapshotCase] {
+            snapshotCases(awaitsLayout: true)
+        }
+
+        @SnapshotCaseBuilder
+        private static func snapshotCases(awaitsLayout: Bool) -> [SnapshotCase] {
+            let calendar = CalendarSnapshotCases(awaitsLayout: awaitsLayout)
             whereSnapshot(
                 name: "HistoryColumn",
                 configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
@@ -590,33 +600,64 @@ struct CalendarContentView: View {
                 .padding()
                 .background(Color(.systemBackground))
             }
-            whereSnapshot(name: "Flights", configurations: .fullContentPhoneLightDark) {
-                NavigationStack {
-                    CalendarContentView(report: PreviewSupport
-                        .flightHistoryYearReportModel())
+            calendar
+                .snapshot(
+                    name: "Flights",
+                    configurations: .fullContentPhoneLightDark,
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            report: PreviewSupport
+                                .flightHistoryYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
                 }
-            }
-            whereSnapshot(name: "Itinerary", configurations: .fullContentPhoneLightDark) {
-                NavigationStack {
-                    CalendarContentView(report: PreviewSupport.itineraryYearReportModel())
+            calendar
+                .snapshot(
+                    name: "Itinerary",
+                    configurations: .fullContentPhoneLightDark,
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            report: PreviewSupport.itineraryYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
                 }
-            }
-            whereSnapshot(name: "WithData", configurations: .fullContentScreenRepresentative) {
-                NavigationStack {
-                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+            calendar
+                .snapshot(
+                    name: "WithData",
+                    configurations: .fullContentScreenRepresentative,
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            report: PreviewSupport.loadedYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
                 }
-            }
             whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
             }
-            whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
-                NavigationStack {
-                    CalendarContentView(report: PreviewSupport.emptyYearReportModel())
+            calendar
+                .snapshot(
+                    name: "Empty",
+                    configurations: .fullContentPhoneLightDark,
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            report: PreviewSupport.emptyYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
                 }
-            }
-            whereSnapshot(name: "FutureWithoutPlans", configurations: .fullContentPhoneLightDark) {
+            calendar.snapshot(
+                name: "FutureWithoutPlans",
+                configurations: .fullContentPhoneLightDark,
+            ) { presentation in
                 let base = PreviewSupport.loadedYearReportModel()
                 let year = base.selectedYear + 1
                 let future = YearReportModel(
@@ -631,63 +672,93 @@ struct CalendarContentView: View {
                     now: base.now,
                 )
                 NavigationStack {
-                    CalendarContentView(report: future)
+                    CalendarContentView(report: future, presentationState: presentation)
                 }
             }
-            whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
-                NavigationStack {
-                    CalendarContentView(report: PreviewSupport.missingDaysYearReportModel())
+            calendar
+                .snapshot(
+                    name: "MissingDays",
+                    configurations: .fullContentPhoneLightDark,
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            report: PreviewSupport.missingDaysYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
                 }
-            }
             // The Locations tab's zoom destination: one region's days only.
-            whereSnapshot(name: "Focused", configurations: .fullContentPhoneLightDark) {
-                NavigationStack {
-                    CalendarContentView(
-                        focusedRegion: .california,
-                        report: PreviewSupport.loadedYearReportModel(),
-                    )
+            calendar
+                .snapshot(
+                    name: "Focused",
+                    configurations: .fullContentPhoneLightDark,
+                ) { presentation in
+                    NavigationStack {
+                        CalendarContentView(
+                            focusedRegion: .california,
+                            report: PreviewSupport.loadedYearReportModel(),
+                            presentationState: presentation,
+                        )
+                    }
                 }
-            }
-            whereSnapshot(name: "FocusedPlannedStay", configurations: .fullContentPhoneLightDark) {
+            calendar.snapshot(
+                name: "FocusedPlannedStay",
+                configurations: .fullContentPhoneLightDark,
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(
                         focusedRegion: .newYork,
                         report: PreviewSupport.plannedStayYearReportModel(),
+                        presentationState: presentation,
                     )
                 }
             }
-            whereSnapshot(
+            calendar.snapshot(
                 name: "MultiRegionPlannedStay",
                 configurations: .fullContentPhoneLightDark,
-            ) {
+            ) { presentation in
                 NavigationStack {
-                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
+                    CalendarContentView(
+                        report: PreviewSupport.plannedStayYearReportModel(),
+                        presentationState: presentation,
+                    )
                 }
             }
             // Overview is a distinct layout and retains its full matrix alongside WithData.
-            whereSnapshot(name: "YearOverview", configurations: .fullContentScreenRepresentative) {
+            calendar.snapshot(
+                name: "YearOverview",
+                configurations: .fullContentScreenRepresentative,
+                mode: .overview,
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(
                         report: PreviewSupport.loadedYearReportModel(),
+                        presentationState: presentation,
                         initialMode: .overview,
                     )
                 }
             }
-            whereThemeSnapshot(
+            calendar.snapshot(
                 name: "YearOverviewPlannedStays",
                 configurations: .fullContentPhoneLightDark,
-            ) {
+
+                mode: .overview,
+                includesThemes: true,
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(
                         report: PreviewSupport.itineraryYearReportModel(),
+                        presentationState: presentation,
                         initialMode: .overview,
                     )
                 }
             }
-            whereSnapshot(
+            calendar.snapshot(
                 name: "YearOverviewPastYear",
                 configurations: .fullContentPhoneLightDark,
-            ) {
+
+                mode: .overview,
+            ) { presentation in
                 let base = PreviewSupport.loadedYearReportModel()
                 let referenceDate = CalendarDay(year: base.selectedYear + 1, month: 1, day: 1)
                     .startOfDay(in: base.calendar)
@@ -703,46 +774,63 @@ struct CalendarContentView: View {
                     now: { referenceDate },
                 )
                 NavigationStack {
-                    CalendarContentView(report: past, initialMode: .overview)
+                    CalendarContentView(
+                        report: past,
+                        presentationState: presentation,
+                        initialMode: .overview,
+                    )
                 }
             }
-            whereSnapshot(name: "YearOverviewFocused", configurations: .fullContentPhoneLightDark) {
+            calendar.snapshot(
+                name: "YearOverviewFocused",
+                configurations: .fullContentPhoneLightDark,
+                mode: .overview,
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(
                         focusedRegion: .newYork,
                         report: PreviewSupport.plannedStayYearReportModel(),
+                        presentationState: presentation,
                         initialMode: .overview,
                     )
                 }
             }
-            whereSnapshot(name: "YearOverviewEmpty", configurations: .fullContentPhoneLightDark) {
+            calendar.snapshot(
+                name: "YearOverviewEmpty",
+                configurations: .fullContentPhoneLightDark,
+                mode: .overview,
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(
                         report: PreviewSupport.emptyYearReportModel(),
+                        presentationState: presentation,
                         initialMode: .overview,
                     )
                 }
             }
-            whereSnapshot(
+            calendar.snapshot(
                 name: "YearOverviewHiddenEstimates",
                 configurations: .fullContentPhoneLightDark,
-            ) {
+
+                mode: .overview,
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(
                         report: PreviewSupport
                             .plannedStayYearReportModel(showsEstimatedTimeAndPlanning: false),
+                        presentationState: presentation,
                         initialMode: .overview,
                     )
                 }
             }
-            whereSnapshot(
+            calendar.snapshot(
                 name: "PlannedStayHidden",
                 configurations: .fullContentPhoneLightDark,
-            ) {
+            ) { presentation in
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.plannedStayYearReportModel(
                         showsEstimatedTimeAndPlanning: false,
-                    ))
+                    ), presentationState: presentation)
                 }
             }
         }

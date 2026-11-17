@@ -31,3 +31,23 @@
 - **`CFRunLoopGetNextTimerFireDate` reports only `CFRunLoopTimer`s.** Then "is something scheduled to land in 200ms?" is unanswerable.
 - **That is why the floors exist and why they need per-case seams.**
 - **`CATransaction.addCommitHandler` is macOS-only and absent from the iOS SDK.** A commit-counting variant is not available either.
+
+## Public UI update callbacks — 2026-11-17
+
+A passive `UIUpdateLink(view:)` probe observed `.afterUpdateComplete` during
+Calendar and MainTabs captures on Xcode/iOS 27.2, starting from `445375f86`.
+All 124 captures passed with unchanged pixel settling and references.
+
+Of 221 settling phases, all 188 detached phases received no callbacks. All 33
+scene-backed phases received callbacks: the first arrived after a median 6.5ms,
+while those phases settled after a median 570.2ms. The observer did not request
+continuous updates and was disabled on every exit. The temporary probe was removed.
+
+This hook cannot replace general snapshot settling. Detached synthetic windows
+do not deliver it, and the public contract completes one UI update, not later
+async work or native material adaptation. The timing gap alone does not identify
+which later work remained. Application-owned content completion can still make
+measurement ready before final pixel settling.
+
+See the [experiment and implementation evidence](../../../Plans/2026-11-17-snapshot-completion-hooks/README.md)
+and Apple's [update-phase contract](https://developer.apple.com/documentation/uikit/uiupdateactionphase/afterupdatecomplete).
