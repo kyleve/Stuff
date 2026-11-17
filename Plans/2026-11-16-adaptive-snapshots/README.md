@@ -5,10 +5,10 @@
 - Updated: 2026-11-17 UTC; parent PR #512 at `bbbff2a430edbe8b1786f4748202016d0d1cabfe`.
 - Operation: Execute the user's requested next performance improvement.
 - Scope: MainTabs adaptive settling and fixture preparation, above PR #512.
-- Stage: Local validation and independent review complete; preparing publication.
-- Completed: Parent stack verification, baseline, passing 0.5s candidate, and bounded preparation profiling.
-- Pending: Publication and manual CI dispatch.
-- Next action: Publish the verified 0.5s policy and dispatch manual CI.
+- Stage: Complete; published in [PR #514](https://github.com/kyleve/Stuff/pull/514).
+- Completed: Parent stack verification, matched baseline, repeated 0.5s candidate, bounded preparation profiling, independent review, and publication.
+- Pending: Full manual CI results, tracked on PR #514.
+- Next action: Assess CI results before merge. Further preparation work remains in STU-121.
 
 ## Outcome and requirements
 
@@ -58,8 +58,21 @@ Reviewed 2026-11-17 UTC against `bbbff2a43`: requirements, fixture isolation, mo
 ## Review and delivery
 
 Branch: `perf/adaptive-snapshot-readiness`, tracked above `perf/snapshot-measurement` in stack #513.
-Independent review covered the full parent-to-working-tree diff, source consumers, raw timing and diagnostic logs, parent CI, and the PNG probe. No residual source findings remain after correcting the timeout claim. Publication and slow-CI validation remain pending.
+Independent review covered the full parent-to-working-tree diff, source consumers, raw timing and diagnostic logs, parent CI, and the PNG probe. No residual source findings remain after correcting the timeout claim. Slow-CI validation remains pending.
+
+Published [PR #514](https://github.com/kyleve/Stuff/pull/514) above [PR #512](https://github.com/kyleve/Stuff/pull/512) in [stack #513](https://github.com/kyleve/Stuff/stack/513). Implementation commit: `1651e3df7`. The clean repeat used the final behavior source; the later source comment records the derived timeout. Completion edits only change these plan records. Full manual CI runs on the final published tip; its results and the slow-CI validation limit remain tracked on the PR.
 
 ## Outcome
 
-In progress. STU-121 retains work beyond this bounded follow-up.
+Completed both bounded experiments. Only the MainTabs adaptive floor changes, from 1.5s to 0.5s for 39 of 61 captures. No preparation implementation is retained.
+
+| Matched review-enabled measurement | 1.5s baseline | 0.5s trial | Clean 0.5s repeat |
+| --- | ---: | ---: | ---: |
+| All 61 captures | 165.948s | 125.385s | 126.227s |
+| 39 adaptive captures | 130.733s | 89.960s | 91.037s |
+| Adaptive settling | 65.605s | 25.352s | 25.424s |
+| Retries | 0 | 0 | 0 |
+
+The clean repeat saves 39.721s (23.94%) for the complete MainTabs matrix. These matched runs include review diagnostics; do not compare their totals directly with the earlier full-suite run without review diagnostics. All references, capture identities, dimensions, and tolerances remain unchanged. The 0.25s candidate adds drift and comparison cost, so it is rejected.
+
+The retained source passes the full MainTabs matrix, architecture checks, Swift formatting, and symbol lint. The baseline also runs the applicable host checks. Shared rendering and production appearance do not change, so the 938-capture suite is left to the full CI gate. Preparation profiling identifies scope creation, session startup, and report activation as the remaining costs; [STU-121](https://linear.app/kve/issue/STU-121) stays In Review for broader work.

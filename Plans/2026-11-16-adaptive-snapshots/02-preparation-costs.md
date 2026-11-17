@@ -1,6 +1,6 @@
 # 02 — Locate adaptive fixture preparation costs
 
-- Status: executing
+- Status: complete
 - Depends on: None; shares the serial baseline with plan 01
 - Shared requirements and exclusions: [Overview](README.md)
 
@@ -32,7 +32,7 @@ Record the measured conclusion here and in STU-121; keep raw logs outside Git.
 
 ## Resume point
 
-Profiling is complete and temporary source changes are removed. Publish the measured negative result with plan 01 after independent review.
+Complete in [PR #514](https://github.com/kyleve/Stuff/pull/514), with profiling evidence committed in `99db9c887`. Independent review confirms the bounded negative result; no preparation implementation remains. Further work on the underlying operations stays in [STU-121](https://linear.app/kve/issue/STU-121).
 
 ## Initial profiling evidence
 
