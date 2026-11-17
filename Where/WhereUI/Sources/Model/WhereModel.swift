@@ -744,7 +744,7 @@ public final class WhereModel {
         let retirement = Task {
             await resources.scope?.services.recording.shutdown()
             await installationLocation.stop()
-            await resources.release()
+            await resources.shutdown()
             await onboarding?.value
             await installationLocation.release()
             await onLoggedOut()

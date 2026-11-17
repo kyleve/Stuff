@@ -56,8 +56,8 @@ These indicators have no separate action and remain visible after correction dis
 
 - **`WhereCompatibilityModel` / `DataCompatibilityView`** — process-owned monitoring and a history-free lockout screen.
   Verification precedes onboarding discovery, import recovery, and scope construction, including headless launches.
-  Foreground entry, a 60-second foreground poll, CloudKit pushes, remote imports, and Retry refresh the decision.
-  A lockout hides history immediately, stops recording, and tears down the old scope through the launch runner.
+  The runtime owns foreground entry and the 60-second foreground poll; CloudKit pushes, remote imports, and Retry also refresh the decision.
+  One outer lockout presentation in `RootView` hides history immediately, stops recording, and tears down the old scope through the launch runner. The registered compatibility gate uses the launch splash while the monitor completes its handle; it owns no second lockout screen.
   Recovery passes the compatibility gate and creates one fresh scope. Store openings and real scopes retain their admission domain/epoch, so recovery cannot revive a result from before an account change. The installation's consent and onboarding state remain intact.
   A second lockout also retires a replacement scope while its recovery launch is still draining.
   The [lockout model](../Specifications/CompatibilityLockout/README.md) checks admission and retirement ordering, including this repeated-lockout case.
@@ -417,7 +417,7 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 ## Quick start
 
 The app target is deliberately tiny. It selects one application runtime, then
-forwards the process launch and root view:
+forwards process launch, aggregate scene activity, and root presentation:
 
 ```swift
 import SwiftUI
@@ -425,11 +425,15 @@ import WhereUI
 
 @main
 struct WhereApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
         WindowGroup {
             appDelegate.runtime.makeRootView()
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            appDelegate.runtime.sceneActivityChanged(isActive: phase == .active)
         }
     }
 }
@@ -437,7 +441,7 @@ struct WhereApp: App {
 
 The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
-`whereBroadwayRoot()` itself, so a host doesn't wrap it. Previews and UI tests explicitly pass their fixture model and launcher. Both `WhereModel` initializers require compatibility and installation-location owners; `RootView` never creates a coordinator.
+`whereBroadwayRoot()` itself, so a host doesn't wrap it. Previews and UI tests explicitly pass their fixture model and launcher and start the fixture runner themselves. Both `WhereModel` initializers require compatibility and installation-location owners; `RootView` never creates a coordinator.
 
 ## Design system
 

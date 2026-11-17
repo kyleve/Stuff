@@ -147,14 +147,10 @@ public struct RootView: View {
                             // The gate precedes every world-building step, so there is
                             // no session (and no open store) behind it yet — onboarding
                             // builds the scope it commits regions with, through the model.
-                            GateView(for: CompatibilityGate.self) { handle, _ in
-                                DataCompatibilityView(state: model.compatibility.coordinator
-                                    .state)
-                                {
-                                    await model.compatibility.refresh(model: model)
-                                    if !model.compatibility
-                                        .isBlocking(model) { handle.complete() }
-                                }
+                            // The monitor completes this gate after admission. The outer
+                            // branch owns lockout UI; keep a registration while it drains.
+                            GateView(for: CompatibilityGate.self) { _, _ in
+                                LaunchSplashView()
                             }
                             GateView(for: OnboardingGate.self) { handle, _ in
                                 OnboardingView(
@@ -173,11 +169,7 @@ public struct RootView: View {
                         // monotonic `id` (never reused within the process) rather than
                         // its address, so a rebuilt session can't collide with a freed
                         // one and skip the rebuild.
-                        if model.compatibility.isBlocking(model) {
-                            DataCompatibilityView(state: model.compatibility.coordinator.state) {
-                                await model.compatibility.refresh(model: model)
-                            }
-                        } else if session.isCurrentDeviceRemoved {
+                        if session.isCurrentDeviceRemoved {
                             RemovedDeviceView(model: model, session: session)
                         } else {
                             MainTabs(
@@ -243,44 +235,6 @@ public struct RootView: View {
             // ask the model. Reading the model's mode tracks its scope state,
             // so entering or leaving demo mode re-renders what branches on it.
             .demoMode(of: model)
-            // Settings' "Erase all data & reset" runs the teardown through the
-            // `LifecycleProxy` that `LifecycleContainer` publishes into the
-            // environment, which wipes data + preferences and re-drives the
-            // launch plan back to onboarding.
-            //
-            // `run()` is idempotent: in the app the delegate already kicked it off,
-            // so this is a no-op there; in previews/tests it's what drives the
-            // launch.
-            //
-            // Promote the launch (`.undetermined` from the app delegate, or a
-            // genuine `.background` relaunch) only once the scene is genuinely
-            // active. SwiftUI may build this view (and run `.task`) for a scene that
-            // iOS connected in the background; promoting then would flip the launcher
-            // to foreground and build the heavy `TabView` for a launch nobody sees,
-            // defeating the headless path. The `.onChange` below handles the later
-            // background→foreground transition; this initial check covers a launch
-            // that is already active when the view first appears — and it must run
-            // *before* awaiting `run()`: when the scene arrives already active,
-            // `.onChange` never fires, and promoting only after `run()` returns
-            // would leave the user staring at the empty background surface for the
-            // entire (possibly slow) headless drive instead of the splash.
-            .task {
-                model.compatibility.setForeground(scenePhase == .active, model: model)
-                if scenePhase == .active {
-                    await launcher.enterForeground()
-                }
-                await launcher.run()
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                model.compatibility.setForeground(newPhase == .active, model: model)
-                guard newPhase == .active else { return }
-                Task {
-                    await launcher.enterForeground()
-                    await model.compatibility.refresh(model: model)
-                    guard !model.compatibility.isBlocking(model) else { return }
-                    await model.session?.appBecameActive()
-                }
-            }
     }
 
     private var isLifecyclePresentationVisible: Bool {
@@ -352,6 +306,7 @@ public struct RootView: View {
                     primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
+                .task { await launcher.run() }
             }
             whereSnapshot(
                 name: "RecordingConfigurationWarning",
@@ -365,6 +320,7 @@ public struct RootView: View {
                     primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
+                .task { await recordingWarningLauncher.run() }
             }
         }
 
@@ -379,11 +335,13 @@ public struct RootView: View {
     // cutsheet.
     #Preview {
         let model = PreviewSupport.onboardingModel()
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         RootView(
             model: model,
-            launcher: WhereLaunch.makeLauncher(model: model, reason: .userForeground),
+            launcher: launcher,
             primaryAppIconName: "AppIcon",
         )
+        .task { await launcher.run() }
     }
 
     #Preview("Logged in") {

@@ -40,7 +40,7 @@ A failed cleanup forces the Inspector runtime and keeps the request visible inst
 In the regular runtime, `didFinishLaunching` does the wiring — not a SwiftUI `.task` — because CoreLocation can relaunch the app with no UI at all, and only the delegate callback is guaranteed to run.
 It registers the App Intents dependency, starts logging, and builds a [`LifecycleKit`](../../Shared/LifecycleKit) runner with the reason `.undetermined`, since the UIScene lifecycle cannot yet distinguish a user tap from a headless wake.
 The runner drives the background-safe launch steps immediately and builds no view tree.
-When a scene actually activates, `RootView` promotes the launch to `.userForeground` and the remaining steps run.
+When any scene activates, `WhereApp` forwards its aggregate scene phase to the runtime. The runtime promotes the launch to `.userForeground`, starts compatibility polling, verifies access, and activates the admitted session. Duplicate activity values coalesce; inactive/background transitions stop polling and cancel the remaining activation work. The launcher keeps owning its background-safe drive. `RootView` only supplies its scene-specific visibility to the first-reveal presentation.
 
 Before either the regular or Inspector runtime receives that callback, the app
 captures diagnostic preferences. It starts Bitdrift only if crash reports,

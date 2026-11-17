@@ -75,7 +75,7 @@ public final class WhereCompatibilityModel {
         }
     }
 
-    func isBlocking(_ model: WhereModel) -> Bool {
+    public func isBlocking(_ model: WhereModel) -> Bool {
         // A new installation can choose recording without opening history. Discovery and Finish
         // still require admission; an established viewer has no role-change escape hatch.
         if model.permitsRecordingChoice,
@@ -91,7 +91,7 @@ public final class WhereCompatibilityModel {
         }
     }
 
-    func setForeground(_ foreground: Bool, model: WhereModel) {
+    public func setForeground(_ foreground: Bool, model: WhereModel) {
         foregroundTask?.cancel()
         foregroundTask = nil
         guard foreground else { return }

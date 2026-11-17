@@ -23,6 +23,9 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   handoff or recording. Reconcile onboarding imports before offering Restore.
   Acknowledge their preference independently of cleanup. Retain the marker
   through any failure (`WhereLaunchTests`).
+- Keep one outer lockout presentation in `RootView`; register the compatibility gate
+  with a splash placeholder and let the monitor complete it. Keep foreground business
+  work in the runtime. Guards: `WhereCompatibilityModelTests`, `WhereRuntimeActivityTests`.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is

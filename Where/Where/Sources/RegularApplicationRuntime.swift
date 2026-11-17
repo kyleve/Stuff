@@ -22,6 +22,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     private let buildEnvironment: WhereBuildEnvironment
     private let configuredStorage: SwiftDataStore.Storage
     private let widgetPresentationPublisher: WidgetPresentationPublisher
+    private var isSceneActive = false
+    private var foregroundTask: Task<Void, Never>?
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
@@ -79,6 +81,35 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
             )
+        }
+    #endif
+
+    isolated deinit {
+        foregroundTask?.cancel()
+        model.compatibility.setForeground(false, model: model)
+    }
+
+    #if DEBUG
+        /// Tests inject an ordinary model/runner without registering another App Intents handoff.
+        init(
+            forTesting model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            buildEnvironment: WhereBuildEnvironment,
+        ) {
+            self.model = model
+            self.launcher = launcher
+            self.buildEnvironment = buildEnvironment
+            configuredStorage = buildEnvironment.storage
+            updates = nil
+            developerLaunchController = nil
+            intentServices = IntentServices(appGroupIdentifier: buildEnvironment.appGroupIdentifier)
+            widgetPresentationPublisher = WidgetPresentationPublisher(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
+        }
+
+        func waitForSceneActivityForTesting() async {
+            await foregroundTask?.value
         }
     #endif
 
@@ -203,6 +234,26 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             == CloudKitDataCompatibilityTransport.subscriptionID else { return .noData }
         await model.compatibility.refresh(model: model)
         return .newData
+    }
+
+    /// App-level scene activity is aggregate: one inactive window cannot stop another active one.
+    func sceneActivityChanged(isActive: Bool) {
+        guard isActive != isSceneActive else { return }
+        isSceneActive = isActive
+        foregroundTask?.cancel()
+        model.compatibility.setForeground(isActive, model: model)
+        guard isActive, let launcher else { return }
+        foregroundTask = Task { [weak self, model, launcher] in
+            guard !Task.isCancelled, self?.isSceneActive == true else { return }
+            // Promotion precedes the first wait for admission so the splash is visible while
+            // foreground-only launch work runs. The runner still owns its headless drive.
+            await launcher.enterForeground()
+            guard !Task.isCancelled, self?.isSceneActive == true else { return }
+            await model.compatibility.refresh(model: model)
+            guard !Task.isCancelled, self?.isSceneActive == true,
+                  !model.compatibility.isBlocking(model) else { return }
+            await model.session?.appBecameActive()
+        }
     }
 
     func makeRootView() -> AnyView {

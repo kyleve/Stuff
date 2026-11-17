@@ -99,9 +99,14 @@ layering, and the domain rules this target merely starts up.
   `AppDependencyManager.shared.add(...)` call must stay at the top of
   `didFinishLaunching`. Then `@Dependency` always resolves once the system starts
   delivering intents.
+- **Forward aggregate scene activity from `WhereApp` to the runtime.** The regular
+  runtime owns activation-task cancellation, compatibility polling/refresh, and
+  session activation. Ignore duplicate activity values and recheck cancellation
+  and admission after awaits. `RootView` keeps scene-specific visibility for
+  presentation only. Guards: `WhereRuntimeActivityTests`, `LifecycleContainerTests`.
 - **The app launches `.undetermined`.** Under the UIScene lifecycle
   `applicationState` reads `.background` here even for a user tap. The reason
-  stays honest until `RootView`'s `enterForeground()` promotes it. Do not
+  stays honest until the runtime receives active scene input and promotes it. Do not
   substitute a guessed `.background(cause)` or `.userForeground`.
 - **`WhereShortcuts` lives here on purpose.** App Intents metadata extraction
   discovers phrases reliably from the main bundle. That is why the provider

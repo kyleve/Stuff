@@ -42,7 +42,7 @@ enum WhereStartupState {
     }
 
     /// Stale assembly must finish and be discarded before another store can open.
-    func release() async {
+    func shutdown() async {
         switch self {
             case let .preparing(bootstrap):
                 await bootstrap.shutdown()
