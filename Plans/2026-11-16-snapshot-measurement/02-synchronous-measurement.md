@@ -1,6 +1,6 @@
 # 02 — Skip pixel settling for synchronous measurement
 
-- Status: executing
+- Status: complete
 - Depends on: None; execute after the WebKit experiment releases the simulator.
 - Shared context: [Overview](README.md)
 
@@ -48,8 +48,9 @@ On a failure, restore only the unsupported candidate and retain the evidence. Do
 - Q-01 resolved for these candidates; other measurement waits remain outside this deliverable.
 - Implemented the three declaration changes. Focused `--timings --review --record never` run passed 3 tests and 155 captures with no retries; every capture identity and pixel count matches the parent.
 - Intrinsic measurement: RegionSummaryCard 16.549s → 0.533s; FlightDayDetailView 11.116s → 1.624s; CalendarContentView 32.906s → 31.713s. The calendar change covers only standalone MonthAccessibility. Total measurement reduction is 26.701s. The new focused run includes review work, so its total time is not compared directly with the parent full run.
-- `./swiftformat --lint` passes. Pending: full integration, independent review, and publication.
+- `./swiftformat --lint` passes. Independent review of `f4e3b4c8c..da968a6b3` found no actionable issues.
+- Full integration at `da968a6b3` passes all 76 tests and 938 captures, with no retries and matching identities, dimensions, and tiles. Published in [PR #512](https://github.com/kyleve/Stuff/pull/512); the overview records the matched full-run comparison.
 
 ## Resume point
 
-Focused validation passed. Complete the final stack integration run and independent review before publication.
+Complete: [PR #512](https://github.com/kyleve/Stuff/pull/512). Full Calendar and other asynchronous measurement candidates retain their existing policies.

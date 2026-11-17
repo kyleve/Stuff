@@ -1,6 +1,6 @@
 # 03 — Remeasure the prepared Locations capture floor
 
-- Status: executing
+- Status: complete
 - Depends on: None; the simulator run is sequenced after plan 02's focused check.
 - Shared context: [Overview](README.md)
 
@@ -50,12 +50,14 @@ Keep untouched cases and production card reconciliation unchanged.
 ## Review and progress
 
 - 2026-11-16: Reviewed fixture readiness, fresh preferences, delayed reconciliation, native chrome contracts, bounded candidates, and validation at parent `f4e3b4c8c`.
-- Q-03 resolved to a bounded toolchain remeasurement of explicitly prepared cases. A lower value is not yet proven.
+- Q-03 resolved to a bounded toolchain remeasurement of explicitly prepared cases. The candidate required the focused and repeated checks recorded below.
 - The prior outline listed plan 02 as a dependency only for simulator serialization. The implementations are independent; sequencing remains explicit without a publication dependency.
 - The 0.5s candidate passed all 54 captures with 43.449s settling, versus 64.266s at the parent.
 - The 0.25s candidate passed all 54 captures with 35.819s settling and zero retries. All identities and pixel counts match the parent. The two larger byte-difference rows exactly match baseline CI job 4413; no reference changed.
-- The separate 0.25s repetition passed 3 tests and all 54 captures, with 35.585s settling and no retries. Identities, dimensions, and tile counts match. Only 37 of 54 captures use the changed helper. Pending: full integration, final review record, and publication.
+- The separate 0.25s repetition passed 3 tests and all 54 captures, with 35.585s settling and no retries. Identities, dimensions, and tile counts match. Only 37 of 54 captures use the changed helper.
+- Full integration passes all 76 tests and 938 captures with no retries. Locations capture time is 49.481s, versus 78.297s at the parent; final settling is 35.451s. Capture identities, dimensions, sizing, and tile counts match.
+- Independent review found no actionable issues in the source or repeated diagnostic evidence. Published in [PR #512](https://github.com/kyleve/Stuff/pull/512); additional floor candidates remain in STU-121.
 
 ## Resume point
 
-Both 0.25s runs passed. Run full image integration, retain the independent review record, and publish the stack.
+Complete: [PR #512](https://github.com/kyleve/Stuff/pull/512). The smaller floor remains specific to prepared fixtures on the measured runtime.

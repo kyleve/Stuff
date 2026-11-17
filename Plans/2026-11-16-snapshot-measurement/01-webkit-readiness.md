@@ -1,6 +1,6 @@
 # 01 — Measure and reduce WebKit readiness waits
 
-- Status: executing
+- Status: complete
 - Depends on: None; begins at PR #511 revision `f4e3b4c8c`.
 - Shared context: [Overview](README.md)
 
@@ -53,8 +53,8 @@ Preserve the existing untracked `simple-english` skill.
 - Baseline passes all 24 captures. Navigation dominates at roughly 1.7–2.1s per capture; rules and double-frame paint are much smaller. First alternative reuses one ephemeral store within this profiling process, clears all website data before each fresh view, and leaves paint/convergence untouched. The temporary global owner will be removed; any retained implementation must scope ownership to a batch. Apple documents nonpersistent storage and awaited removal of all website data in `WKWebsiteDataStore`.
 - Baseline subphases: setup 0.383s (rules 0.173s), navigation 46.192s, 38 paint waits 1.712s across 24 captures. First reuse variant still spends roughly 1.5s per navigation. The second bounded alternative retains the previous stopped page until the next fresh view is constructed, to test process lifetime without reusing page state. Both prototypes clear website data before each view.
 - Both reuse alternatives pass all 24 captures but retain roughly 1.5–1.9s navigation waits. No reuse API or global cache is retained. The limited gain does not justify broader storage lifecycle and isolation contracts in this patch. Temporary source changes were removed.
-- Pending: publish this negative result with the validated measurement changes and attach the evidence to STU-122.
+- Published the experiment record in [PR #512](https://github.com/kyleve/Stuff/pull/512) and appended the measured results to [STU-122](https://linear.app/kve/issue/STU-122). Independent review confirms WebKit source matches the parent. STU-122 remains open for further navigation profiling.
 
 ## Resume point
 
-Publish the measured negative result with plan 02; WebKit production source remains identical to the parent.
+Complete: [PR #512](https://github.com/kyleve/Stuff/pull/512). Further navigation subphase work remains in STU-122.
