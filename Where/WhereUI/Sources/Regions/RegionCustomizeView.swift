@@ -9,7 +9,7 @@ import WhereCore
 /// preview that reflects the in-progress draft. Writes straight into the shared
 /// ``PrimaryRegionSelectionModel`` draft; reused by the onboarding stepping flow
 /// and the Settings editor.
-struct RegionAppearanceEditor: View {
+struct RegionAppearanceEditor: WhereScreen {
     @Bindable var model: PrimaryRegionSelectionModel
     let region: Region
 
@@ -23,23 +23,25 @@ struct RegionAppearanceEditor: View {
         model.appearance(for: region)
     }
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: stylesheet.spacing.xLarge) {
-                preview
+    var contentPadding: WhereContentPadding {
+        .none
+    }
 
-                section(String(localized: .regionCustomizeColor)) {
-                    colorGrid
-                }
-                section(String(localized: .regionCustomizeEmoji)) {
-                    emojiGrid
-                }
-                section(String(localized: .regionCustomizeSymbol)) {
-                    symbolGrid
-                }
+    var content: some View {
+        VStack(spacing: stylesheet.spacing.xLarge) {
+            preview
+
+            section(String(localized: .regionCustomizeColor)) {
+                colorGrid
             }
-            .padding(stylesheet.spacing.large)
+            section(String(localized: .regionCustomizeEmoji)) {
+                emojiGrid
+            }
+            section(String(localized: .regionCustomizeSymbol)) {
+                symbolGrid
+            }
         }
+        .padding(stylesheet.spacing.large)
         .observesTilt(tilt, enabled: stylesheet.card.regular.surface.usesReflection)
     }
 

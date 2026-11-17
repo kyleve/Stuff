@@ -128,9 +128,14 @@ public struct OnboardingView: View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
             TabView(selection: $flow.page) {
                 ForEach(pages.indices, id: \.self) { index in
-                    pageView(pages[index])
-                        .tag(index)
-                        .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                    GeometryReader { geometry in
+                        pageView(pages[index])
+                            .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                            .frame(minHeight: geometry.size.height)
+                            .whereScreenRoot(padding: .none)
+                            .scrollBounceBehavior(.basedOnSize)
+                    }
+                    .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
@@ -138,6 +143,7 @@ public struct OnboardingView: View {
             introFooter
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
+                .whereContentRoot()
         }
         .fileImporter(
             isPresented: $flow.showImporter,
@@ -191,7 +197,8 @@ public struct OnboardingView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            Spacer(minLength: 0)
+            // Keep the final line clear of the page indicator when content scrolls.
+            Spacer(minLength: stylesheet.spacing.xxxLarge)
         }
     }
 
@@ -314,6 +321,7 @@ public struct OnboardingView: View {
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
                 .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                .whereContentRoot()
             }
             .scrollBounceBehavior(.basedOnSize)
         }
@@ -445,7 +453,15 @@ struct OnboardingPage: Identifiable {
     extension OnboardingView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
             [
-                whereSnapshot(name: "Default", configurations: .screenRepresentative) {
+                whereSnapshot(name: "Default", configurations: .phoneLightDark + [
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
+                    SnapshotConfiguration(contrast: .increased, device: .iPhone),
+                    SnapshotConfiguration(device: .iPhone, snapshotType: .accessibility),
+                    SnapshotConfiguration(device: .iPad),
+                    SnapshotConfiguration(device: .iPad, snapshotType: .accessibility),
+                    // The wider text column has its own pager/footer fit at AX5.
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPad),
+                ]) {
                     // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
                     // is false and the capture lands on the intro flow.phase.
                     OnboardingView(

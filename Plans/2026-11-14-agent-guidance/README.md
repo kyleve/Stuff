@@ -66,7 +66,7 @@ Keep clean documentation PRs on the Linux fast path; repeat the validator in req
 ## Shared contracts and recovery
 
 Read the root repository contract, the Tools contract for command changes, and the guidance-authoring contract.
-Use planning, skill-creator, simple-english, running-tests, code-review, and github-workflow as applicable.
+Use planning, skill-creator, running-tests, code-review, and github-workflow as applicable.
 Deliverables 01–05 used generated mirrors. Deliverable 06 replaces them with native instructions and skill links.
 The validator reads canonical inputs and local compatibility state, then returns diagnostics and an exit status.
 External installation flows from the pinned package through exclusions and validation to staged FileTransaction replacement, then skill-link setup.

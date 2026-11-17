@@ -117,11 +117,13 @@ struct SettingsView: View {
         .background(.background)
         .sheet(isPresented: $navigation.showRegions) {
             RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                .whereScreenBoundary()
         }
     }
 
     private func destination(for route: SettingsRoute) -> some View {
         SettingsDestinationView(route: route, report: report, backup: backup, reminders: reminders)
+            .whereScreenBoundary()
     }
 
     /// Regions with days in the selected report year, so the region editor can
@@ -234,8 +236,6 @@ private struct SettingsDestinationView: View {
 
 #if DEBUG
     extension SettingsView: SnapshotProviding {
-        /// The extra right-to-left variant exercises the RTL configuration axis
-        /// on a directional screen (leading labels, trailing values/toggles).
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "BrowseColumn",
@@ -248,11 +248,10 @@ private struct SettingsDestinationView: View {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative + [
-                    SnapshotConfiguration(
-                        layoutDirection: .rightToLeft,
-                        device: .iPhoneFullContent,
-                    ),
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                 ],
             ) {
                 snapshotList(report: PreviewSupport.loadedYearReportModel())

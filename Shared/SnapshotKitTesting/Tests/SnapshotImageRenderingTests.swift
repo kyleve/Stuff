@@ -1,3 +1,4 @@
+import SFSafeSymbols
 @_spi(Testing) import SnapshotKitTesting
 import SwiftUI
 import TestHostSupport
@@ -13,10 +14,10 @@ struct SnapshotImageRenderingTests {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Overview", systemImage: "square.grid.3x3", action: {})
+                        Button("Overview", systemSymbol: .squareGrid3x3, action: {})
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Planning", systemImage: "calendar.badge.clock", action: {})
+                        Button("Planning", systemSymbol: .calendarBadgeClock, action: {})
                     }
                 }
         })
@@ -304,7 +305,7 @@ private struct NativeBarGeometryFixture: View {
 
     var body: some View {
         TabView {
-            Tab("History", systemImage: "calendar") {
+            Tab("History", systemSymbol: .calendar) {
                 NavigationSplitView(columnVisibility: .constant(.all)) {
                     Text("Controls")
                         .navigationSplitViewColumnWidth(min: 280, ideal: 280)
@@ -338,17 +339,17 @@ private struct NativeBarGeometryFixture: View {
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
-                                Button("Overview", systemImage: "square.grid.3x3", action: {})
+                                Button("Overview", systemSymbol: .squareGrid3x3, action: {})
                             }
                             ToolbarItem(placement: .topBarTrailing) {
-                                Button("Planning", systemImage: "calendar.badge.clock", action: {})
+                                Button("Planning", systemSymbol: .calendarBadgeClock, action: {})
                             }
                         }
                     }
                 }
                 .navigationSplitViewStyle(.balanced)
             }
-            Tab("Other", systemImage: "gear") { Color.gray }
+            Tab("Other", systemSymbol: .gear) { Color.gray }
         }
         .tabBarMinimizeBehavior(.never)
     }

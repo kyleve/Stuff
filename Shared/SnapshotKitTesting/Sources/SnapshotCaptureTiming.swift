@@ -17,6 +17,8 @@ import SnapshotKit
     /// Attaching the capture wrapper to the host root and laying it out — the
     /// real UIKit appearance transition, so SwiftUI `onAppear` / `.task` start.
     case host
+    /// Fixture readiness after hosting, before the first capture settle.
+    case preparationHook
     /// The content settle phase.
     case settle
     /// A case's `onReadyToSnapshot` hook plus the re-settle of its effects.

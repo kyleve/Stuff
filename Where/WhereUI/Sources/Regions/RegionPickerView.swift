@@ -90,6 +90,7 @@ struct RegionPickerView: View {
         }
         .pickerStyle(.segmented)
         .padding(.horizontal, stylesheet.spacing.large)
+        .whereContentRoot()
     }
 
     // MARK: - Map
@@ -194,6 +195,7 @@ struct RegionPickerView: View {
             }
         }
         .listStyle(.plain)
+        .whereFormRoot()
         .searchable(text: $searchText, prompt: String(localized: .regionPickerSearchPrompt))
         .overlay {
             if isSearching, filteredRegions.isEmpty {

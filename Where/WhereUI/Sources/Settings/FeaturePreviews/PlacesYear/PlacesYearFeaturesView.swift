@@ -61,7 +61,7 @@ extension PlacesYearFeaturesView: SettingsSection {
 #if DEBUG
     extension PlacesYearFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let loaded = PreviewSupport.plannedStayYearReportModel()
             let demo = PreviewSupport.loadedYearReportModel()
             whereSnapshot(

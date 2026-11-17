@@ -18,8 +18,9 @@ For a module that owns a design language:
    renders correctly inside or outside a host app.
 4. Keep fixed values in property defaults or `standard` values. Derive only the
    trait-reactive slice in `init(context:)`, starting from those defaults.
-5. Test default values, trait derivation, environment resolution, and every
-   exported root path.
+5. Test trait derivation, theme inheritance and overrides, semantic accessibility constraints,
+   environment resolution, and exported root propagation. Do not duplicate authored token values in assertions.
+   Verify appearance through the component's owning snapshot coverage.
 
 When a module separates theme definitions from its base stylesheet:
 

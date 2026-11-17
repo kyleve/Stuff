@@ -31,6 +31,7 @@ public func captureSnapshotPNG(
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle,
+    prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
 ) async throws -> SnapshotPNG {
     let timeoutPolicy = try SnapshotSettleTimeoutPolicy.fromEnvironment()
@@ -52,6 +53,7 @@ public func captureSnapshotPNG(
             onReadyToMeasure: onReadyToMeasure,
             measurementHookTimeout: measurementHookTimeout,
             settle: settle,
+            prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
             settleTimeoutPolicy: timeoutPolicy,
             timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),

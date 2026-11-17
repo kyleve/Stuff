@@ -195,6 +195,8 @@ before the exporter resets a screen, builds content, or captures an image.
 
 Hosted variants have a `FlyoverExportPolicy` with a fixed viewport by default.
 Snapshot-backed variants inherit their settle, readiness, and hook behavior.
+This includes `prepareForCapture`, which the hosted PNG adapter runs before the
+first capture settle. `onReadyToSnapshot` retains its post-settle behavior.
 Their frame matrix must resolve to one capture extent: fixed, intrinsic,
 full-content, or two-axis full-content. A mixed matrix has no resolved policy.
 The app must supply an explicit policy before export.

@@ -58,6 +58,7 @@ struct SnapshotPNGTests {
 
     @Test func runsReadinessHooksThroughTheSharedPipeline() async throws {
         var measurementHookRan = false
+        var preparationRan = false
         var finalHookRan = false
         let configuration = SnapshotConfiguration(
             device: SnapshotConfiguration.Frame(
@@ -75,10 +76,12 @@ struct SnapshotPNGTests {
             measurementReadiness: .immediate,
             onReadyToMeasure: { measurementHookRan = true },
             settle: .immediate,
+            prepareForCapture: { preparationRan = true },
             onReadyToSnapshot: { finalHookRan = true },
         )
 
         #expect(measurementHookRan)
+        #expect(preparationRan)
         #expect(finalHookRan)
     }
 

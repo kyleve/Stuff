@@ -113,7 +113,7 @@ struct LocationForecastPanel: View {
         }
 
         private static func snapshot() -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let artwork = RegionArtworkModel<[Region], [Path]>()
             let report = PreviewSupport.plannedStayYearReportModel()
             let regions = report.ranking.primary.map(\.region)
@@ -121,7 +121,7 @@ struct LocationForecastPanel: View {
                 name: "Expanded",
                 configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await artwork.load(for: regions) {
                         await LocationForecastArtworkLoader.load(regions: regions, cache: cache)
                     }

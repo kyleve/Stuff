@@ -22,7 +22,7 @@ struct LocationsStateView: View {
                 )
             }
             .padding()
-            .frame(maxWidth: .infinity)
+            .whereContentRoot()
         }
         .scrollBounceBehavior(.basedOnSize)
         .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)

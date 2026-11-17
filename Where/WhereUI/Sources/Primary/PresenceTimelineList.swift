@@ -123,6 +123,7 @@ struct PresenceTimelineList: View {
                         )
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
                         .padding(.vertical, stylesheet.spacing.large)
+                        .whereContentRoot()
                     }
                     ScrollView {
                         // Measure this year's overview, stays, and forecast together.
@@ -160,6 +161,7 @@ struct PresenceTimelineList: View {
                             pinsOverview ? 0 : stylesheet.spacing.large,
                         )
                         .padding(.bottom, stylesheet.spacing.large)
+                        .whereContentRoot()
                     }
                     .scrollPosition($position)
                     .task(id: TimelineLayoutID(

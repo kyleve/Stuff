@@ -46,6 +46,8 @@ capture + comparison pipeline lives in the sibling
   Focused `WithAX5`, `WithAnnotations`, and `WithAX5AndAnnotations` variants
   add separate light-mode captures for text wrapping and accessibility annotations;
   see the [preset declarations](Sources/SnapshotConfiguration+Combinations.swift).
+  Default matrices use left-to-right layout. RTL image coverage is currently omitted;
+  explicit layout-direction support remains available when a concrete need returns.
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
@@ -84,6 +86,12 @@ capture + comparison pipeline lives in the sibling
   a deterministic completion signal after the intrinsic probe is hosted and
   laid out but before it settles and measures. The hook is invalid for fixed
   sizing and is bounded by the capture's effective settle ceiling.
+  `prepareForCapture` awaits fixture or artwork readiness after capture hosting
+  and layout, before the first capture settle. It avoids an extra settle cycle
+  when preparation does not need settled UI. It must preserve measured height;
+  height-changing work still belongs in `onReadyToMeasure`. Preparation can throw,
+  must cooperate with cancellation, and uses the effective settle ceiling as its
+  timeout. Capture retries invoke it again. Previews ignore capture hooks.
   An optional `onReadyToSnapshot` hook runs in the capture pipeline after the
   content has settled and before the image is taken — the deterministic
   point to focus a field or trigger a presented state. its effects are settled

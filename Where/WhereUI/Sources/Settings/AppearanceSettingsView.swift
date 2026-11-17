@@ -144,6 +144,7 @@ struct AppearanceSettingsView: View {
                     }
                 #endif
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
@@ -225,13 +226,13 @@ extension AppearanceSettingsView: SettingsSection {
 #if DEBUG
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             whereSnapshot(
                 name: "FlatSelected",
                 configurations: .fullContentPhoneLightDark,
                 theme: .alternate,
                 measurementReadiness: .immediate,
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {
@@ -246,12 +247,16 @@ extension AppearanceSettingsView: SettingsSection {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
+                ],
                 measurementReadiness: .immediate,
                 // Native navigation adapts when the Form reaches its full height.
                 // Reparse accessibility after that preparation pass, as About does.
                 settle: .settledAtLeast(minDuration: 1.5),
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {

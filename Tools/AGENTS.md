@@ -75,6 +75,14 @@ These rules also apply when changing a root command or installer that calls this
   Count UTF-8 bytes with directory override precedence. Check Markdown links from both canonical and Claude skill paths.
   Guards: [agent_guidance_test.rb](Tests/agent_guidance_test.rb), [agent_markdown_test.rb](Tests/agent_markdown_test.rb), and [sync_agents_command_test.rb](Tests/sync_agents_command_test.rb).
 
+## Prototype servers
+
+Use Astro's own background lifecycle and the shared `astro_site.py` launcher.
+Keep status read-only; distinguish missing or dead processes from inspection errors.
+Before reuse or stop, require the Astro command, absolute project argument, and working directory to agree.
+Discover and HTTP-check current network addresses at handoff; cached startup URLs are not current evidence.
+Guards: [test_prototype.py](Tests/test_prototype.py) and [test_prototype_command.py](Tests/test_prototype_command.py).
+
 ## Installer publication
 
 Both websites share the root npm workspace and `astro_site.py` launcher.

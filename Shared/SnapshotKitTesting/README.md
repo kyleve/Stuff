@@ -48,7 +48,7 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   cannot certify that it did — a loading placeholder is pixel-stable too, so a
   case whose final content arrives asynchronously has to be made deterministic
   (seed the fixture so the first frame is final, or gate on
-  `onReadyToSnapshot`). 
+  `prepareForCapture` or `onReadyToSnapshot`).
   The digest permits one 8-bit color step against the quiet-window anchor to
   absorb renderer quantization noise. It keeps that anchor unchanged; any
   two-step change anywhere restarts stability. Final image tolerances are separate.
@@ -64,8 +64,14 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   `onReadyToMeasure`, which runs while the intrinsic probe is hosted and laid
   out, before its settle and size resolution. The hook must cooperate with
   cancellation and is rejected for fixed sizing. The settle ceiling bounds it
-  unless the capture API supplies an explicit `measurementHookTimeout`. A case's
-  optional `onReadyToSnapshot` hook runs after that settle and before the
+  unless the capture API supplies an explicit `measurementHookTimeout`.
+  `prepareForCapture` runs after capture hosting and layout, before the first
+  capture settle. It awaits fixture or artwork readiness without an initial
+  settle cycle. It must preserve measured height and cooperate with cancellation.
+  The effective settle ceiling bounds it. Errors abort capture and restore the
+  host. Its callback time appears as `preparationHook`; the final settle remains
+  in `settle`. Retries repeat preparation with the supplied model.
+  A case's optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or
   trigger a presented state — and its effects are settled again before the
   image is taken. Content **observed** still moving at the budget **fails the

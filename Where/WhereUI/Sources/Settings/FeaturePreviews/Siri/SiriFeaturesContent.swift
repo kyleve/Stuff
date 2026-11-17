@@ -64,6 +64,7 @@ struct SiriFeaturesContent: View {
                 .staggeredReveal(order: SiriIntentFeature.allCases.count + 2)
             }
         }
+        .whereFormRoot()
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
     }

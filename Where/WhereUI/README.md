@@ -446,6 +446,65 @@ tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 The rules for what may and may not live in the sheet are in
 [`AGENTS.md`](Sources/Shared/AGENTS.md#design-system--wherestylesheet).
 
+### Content width
+
+Use `.whereScreenRoot()` for an ordinary vertical scrolling screen. It supplies one scroll view, standard padding, and a centered content column.
+An omitted width inherits the surrounding policy. An explicit argument overrides that policy for the screen.
+
+```swift
+content.whereScreenRoot()
+content.whereScreenRoot(.wide)
+content.whereScreenRoot(padding: .none)
+```
+
+`WhereContentPadding` supports `.standard`, `.none`, and `.custom(EdgeInsets)`.
+Standard padding comes from `WhereStylesheet.contentRoot.standardPadding`. Padding counts toward the width limit.
+`WhereScreenRoot { content }` uses the same implementation.
+Simple screen types can conform to `WhereScreen` and supply `content` instead of `body`.
+Its optional `contentWidth` and `contentPadding` properties customize the defaults.
+
+Apply `.whereFormRoot()` directly to a native `Form` or `List`.
+It adds centered safe-area gutters while retaining the full viewport, scroll indicators, and section styling.
+The system's own margins and row padding remain inside the width limit. Narrow containers and `.fluid` receive no extra gutters.
+Keep presentation modifiers outside this adapter.
+
+At a navigation or sheet destination, use `.whereScreenBoundary()` to start an independent root scope.
+The boundary preserves the inherited width. It must not separate roots within one scrolling surface.
+Nested screen roots assert in debug builds and pass content through without another scroller or padding in release builds.
+
+Apply `.whereContentRoot()` to padded content inside a scroll view. The modifier centers the content and limits its width to 600 points.
+The scroll view, its background, and native navigation retain the available width.
+
+```swift
+ScrollView {
+    VStack {
+        // Screen content
+    }
+    .padding()
+    .whereContentRoot()
+}
+.whereContentWidth(.wide)
+```
+
+`.whereContentWidth(_:)` selects an inherited policy for descendant content roots. It does not size the modified view.
+The nearest ancestor override wins. Each root also respects the width available from its parent.
+
+| Policy | Maximum width, including existing padding |
+| --- | --- |
+| `.regular` (default) | 600 points |
+| `.wide` | 900 points |
+| `.fluid` | Available width |
+
+`WhereStylesheet.contentRoot` owns the limits. They stay fixed across themes and text sizes.
+The root modifier adds no padding, scrolling, clipping, or height limit. Apply it separately to pinned headers that must align with scrolling content.
+Nested roots assert in debug builds. In release builds, an inner root passes its content through, so only the outer root controls layout.
+Sibling roots remain independent. Width overrides can be nested without adding another root.
+
+Calendar, Elsewhere, Locations cards and states, and the full Timeline use regular width.
+Timeline's pinned ribbon uses the same limit as its rows. Calendar measures its full-width content anchor outside the modifier to preserve zoom offsets.
+The Settings list and selected preference pages, Explore Features, onboarding, region editors, and license text also use these roots.
+Native preference pages keep their Form/List containers. License text and the region appearance editor use `WhereScreen`.
+
 ### Using tokens
 
 For a component with more than one look, resolve the variant once: vend a
@@ -639,8 +698,8 @@ Every previewable component ships a `#Preview` (wrapped in `#if DEBUG`) built
 from **`PreviewSupport`** — synchronous, in-memory fixtures that never touch
 disk, CloudKit, or CoreLocation. Pull services and models from there rather than
 constructing them inline, and cover the empty / loaded / edge states, not just
-the happy path. See the feature
-[`Where/AGENTS.md`](../AGENTS.md#swiftui-views--previews).
+the happy path. See the feature's
+[UI construction contracts](../Guidance/presentation.md#ui-construction).
 
 ## Flyover
 
@@ -722,18 +781,48 @@ driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
 the on-disk/CloudKit store). Internal types are reached via
 `@testable import WhereUI`.
 
-How screens *look* is pinned separately: every top-level screen, widget, and
-app-flow surface has image snapshots, with representative layouts covering
-light/dark, Dynamic Type, iPhone/iPad, contrast, and VoiceOver annotations, in
-[`SnapshotTests/`](SnapshotTests), with reference images under
-`SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its matrix via a
-`SnapshotProviding` conformance **in its own source file**, shared with its
-`#Preview` cutsheet (`Self.snapshotPreviews`). Additional states use compact coverage
-or focused traits. Explore Features shares a representative gallery matrix with
+Distinct visual behavior has selected image coverage in [`SnapshotTests/`](SnapshotTests).
+Reference images live under `SnapshotTests/__Snapshots__/` in Git LFS.
+Each covered view declares its matrix through a colocated `SnapshotProviding` conformance,
+shared with its `#Preview` cutsheet (`Self.snapshotPreviews`).
+`whereSnapshot` and `whereThemeSnapshot` forward SnapshotKit's readiness hooks.
+They inject `PreviewSupport.snapshotArtworkCache`, one actor per process for
+paths keyed by region and resolution. Explicit artwork preparation uses the
+same cache. Broadway roots reuse an inherited cache and own a fallback when
+none is supplied, so nested roots preserve the injected dependency. The shared
+cache stores only paths. Unit tests for initial loading inject fresh
+caches. Geometry remains lazy; independent production roots continue to create their own caches.
+Fixed sample report and location values also initialize once per process. The
+report-details wrapper still creates its calendar on each call; models, services,
+and preferences retain their existing fixture ownership except for the two image matrices below.
+The 33 adaptive MainTabs cases outside the narrow viewport and eight Device Layout Lab cases inject
+`SnapshotWorldFixture.shared.load` from their image suites. They initialize one
+standard demo world per test process, including its session, report, services, and
+preferences. Each case retains its own loading model, view state, navigation, and
+readiness hooks. These captures perform no user edits. A canceled caller cannot
+publish loaded state or cancel another capture's initialization; a failed build
+can retry. Ordinary snapshot providers and previews still build fresh worlds,
+as do the separate cold/preloaded image regression and lifecycle/mutation tests.
+The three narrow-window cases also keep fresh worlds: warm initialization changes
+native tab-bar geometry in the detached compact iPad viewport on Xcode/iOS 27.2.
+Preparing before mounting and increasing settling to 1.5s did not restore the
+existing geometry. The final captures retain their original 0.5s settle floor.
+Use `prepareForCapture` for fixture or artwork readiness before the first capture
+settle. Height-changing loads use `onReadyToMeasure`; actions that need settled
+UI retain `onReadyToSnapshot`.
+The 17 welcome/update MainTabs captures await the existing mounted activation task
+before settling. Their DEBUG-only hook consumes one completion receipt per mount;
+rehosting retains the receipt, while capture retries create a new one. Cancellation
+ends the wait and prevents the mounted task from publishing completion. This hook
+assumes the fixtures' fixed scene phase and unchanged data; it is not a general
+scene-idle signal. Other MainTabs families keep their existing readiness and floors.
+Device, appearance, Dynamic Type, contrast, and annotation configurations cover specific rendering risks.
+Additional states can use one baseline or focused traits. Preview and Flyover states do not each require a recorded image.
+Explore Features shares a representative gallery matrix with
 large-type checks on dense content. The updater wrapper records only host integration;
 its shared fixture builder still supplies all scenarios to previews and Flyover.
-There is one `FooSnapshotTests`
-suite per view, so each view's references live in their own `__Snapshots__/`
+Each covered view has a matching `FooSnapshotTests`
+suite, so its references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job.
@@ -747,7 +836,7 @@ To re-record after an intentional UI change (see the
 for the mode values):
 
 ```bash
-./test --snapshots --record failed
+./test --snapshots --only WhereUISnapshotTests/RegionSummaryCardSnapshotTests --record failed
 ```
 
 Then review and commit the images.
@@ -769,6 +858,21 @@ reference; preserve PNG metadata when copying them.
 Calendar month sections, day rows, and Timeline rows measure eagerly. This gives
 full-content snapshots their complete height before capture. Timeline measurement
 also avoids blank trailing space from lazy estimates in its bottom-anchored scroll view.
+Most calendar content images show one representative month built by `CalendarModel`.
+They use the production `MonthGridView` report initializer, including planning visibility,
+focus, and summaries, and shrink to their complete height at the normal content width.
+The month data is synchronous, so measurement is immediate while final pixel settling
+remains enabled. FullYear and HistoryColumn retain full month-list coverage. YearView
+keeps phone light/dark screen integration and a focused mode-picker trait matrix.
+The distinct year-overview layouts retain their existing coverage, including AX5.
+Ordinary calendar scenario previews and Flyover keep full screens; the separate
+Snapshot subjects preview mirrors the focused image matrix.
+
+Full-calendar and overview cases with explicit readiness await the mounted month
+task's presentation reconciliation before measuring. Each configuration has its own
+readiness holder; each mounted host creates fresh content, including retries and
+theme panels. Measurement-to-capture rehosting retains that content. The hook consumes
+one mount registration and observes its year, with cancellation at both waits.
 
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene

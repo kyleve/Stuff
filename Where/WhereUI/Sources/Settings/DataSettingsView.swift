@@ -36,6 +36,7 @@ struct DataSettingsView: View {
                 dataSection
                 resetSection
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsDataHeader))
         .navigationBarTitleDisplayMode(.inline)
@@ -161,7 +162,10 @@ extension DataSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
             ) {
                 NavigationStack {
                     DataSettingsView(

@@ -10,10 +10,9 @@
     /// WhereUI ``SnapshotProviding`` conformances.
     ///
     /// `onReadyToMeasure` awaits content that changes the Form/List height.
-    /// `onReadyToSnapshot` passes through to ``SnapshotCase``: the capture
-    /// pipeline runs it after the content settles and re-settles its effects —
-    /// the seam for a deterministic completion signal (e.g. awaiting a launch
-    /// runner's drive) that pixel stability alone can't provide.
+    /// `prepareForCapture` awaits fixture readiness before the first capture settle.
+    /// `onReadyToSnapshot` acts on settled UI, then settles its effects before capture.
+    /// Both capture hooks must preserve measured height.
     @MainActor
     public func whereSnapshot(
         name: String,
@@ -22,6 +21,7 @@
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
+        prepareForCapture: (@MainActor () async throws -> Void)? = nil,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
     ) -> SnapshotCase {
@@ -32,9 +32,12 @@
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
             settle: settle,
+            prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {
-            content().whereBroadwayRoot(theme: theme)
+            content()
+                .whereBroadwayRoot(theme: theme)
+                .environment(\.regionOutlinePathCache, PreviewSupport.snapshotArtworkCache)
         }
     }
 
@@ -55,6 +58,7 @@
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
+        prepareForCapture: (@MainActor () async throws -> Void)? = nil,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
     ) -> SnapshotCase {
@@ -65,11 +69,14 @@
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
             settle: settle,
+            prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {
             for theme in WhereTheme.allCases {
                 SnapshotPanel(id: .init(rawValue: theme.rawValue), label: theme.title) {
-                    content().whereBroadwayRoot(theme: theme)
+                    content()
+                        .whereBroadwayRoot(theme: theme)
+                        .environment(\.regionOutlinePathCache, PreviewSupport.snapshotArtworkCache)
                 }
             }
         }

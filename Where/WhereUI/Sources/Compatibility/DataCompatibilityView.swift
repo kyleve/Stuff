@@ -34,43 +34,42 @@ struct DataCompatibilityView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: stylesheet.spacing.large) {
-                    Image(systemSymbol: .lockIcloud)
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                    Text(title)
-                        .font(.title.bold())
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityFocused($titleFocused)
-                    Text(message).foregroundStyle(.secondary)
-                    if case .checking = state {
-                        ProgressView()
-                    } else {
-                        Button(String(localized: .compatibilityRetry)) {
-                            isRetrying = true
-                            Task {
-                                await retry()
-                                isRetrying = false
-                            }
+            VStack(spacing: stylesheet.spacing.large) {
+                Image(systemSymbol: .lockIcloud)
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.title.bold())
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityFocused($titleFocused)
+                Text(message).foregroundStyle(.secondary)
+                if case .checking = state {
+                    ProgressView()
+                } else {
+                    Button(String(localized: .compatibilityRetry)) {
+                        isRetrying = true
+                        Task {
+                            await retry()
+                            isRetrying = false
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .disabled(isRetrying)
-                        if case .blocked(.locationPermissionRequired) = state {
-                            Button(String(localized: .compatibilityOpenSettings)) {
-                                if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    openURL(url)
-                                }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(isRetrying)
+                    if case .blocked(.locationPermissionRequired) = state {
+                        Button(String(localized: .compatibilityOpenSettings)) {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                openURL(url)
                             }
                         }
                     }
                 }
-                .multilineTextAlignment(.center)
-                .padding(stylesheet.spacing.xxxLarge)
-                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }
+            .multilineTextAlignment(.center)
+            .padding(stylesheet.spacing.xxxLarge)
+            .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            .whereScreenRoot(padding: .none)
             .scrollBounceBehavior(.basedOnSize)
             .background(.background)
         }

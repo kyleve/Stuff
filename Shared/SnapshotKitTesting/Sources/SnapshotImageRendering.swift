@@ -46,6 +46,10 @@ public enum SnapshotRenderingError: Error, Equatable, Sendable {
     case measurementReadinessTimedOut(name: String, budget: TimeInterval)
     /// A readiness timeout must be finite and positive.
     case invalidMeasurementHookTimeout(name: String, budget: TimeInterval)
+    /// Capture preparation did not complete before the effective settle ceiling.
+    case capturePreparationTimedOut(name: String, budget: TimeInterval)
+    /// A preparation timeout must be finite and positive.
+    case invalidCapturePreparationTimeout(name: String, budget: TimeInterval)
     /// Full-content measurement did not reach a stable height within the
     /// bounded fixed-point pass budget.
     case intrinsicHeightDidNotConverge(name: String, measuredHeights: [CGFloat])
@@ -87,6 +91,10 @@ extension SnapshotRenderingError: LocalizedError {
                 return "Snapshot \(name) has invalid measurement timeout \(budget); use a finite positive number of seconds."
             case let .measurementReadinessTimedOut(name, budget):
                 return "Snapshot \(name) measurement readiness did not complete within \(budget.formatted())s."
+            case let .capturePreparationTimedOut(name, budget):
+                return "Snapshot \(name) capture preparation did not complete within \(budget.formatted())s."
+            case let .invalidCapturePreparationTimeout(name, budget):
+                return "Snapshot \(name) has invalid capture preparation timeout \(budget); use a finite positive number of seconds."
             case let .intrinsicHeightDidNotConverge(name, measuredHeights):
                 let heights = measuredHeights.map { String(format: "%.1f", $0) }
                     .joined(separator: ", ")
@@ -131,6 +139,11 @@ extension SnapshotRenderingError: LocalizedError {
 /// trait-bridged key in `SnapshotKit`) and can render a deterministic end-state
 /// of motion that would otherwise never settle.
 ///
+/// `prepareForCapture` runs after capture hosting and layout, before the first
+/// settle. Use it for deterministic fixture readiness that does not need settled
+/// UI. It must not change measured height; use `onReadyToMeasure` for that work.
+/// The effective settle ceiling bounds preparation. Errors abort capture, and
+/// hooks must cooperate with cancellation.
 /// `onReadyToSnapshot` (a case's pre-capture hook) runs once, after the content
 /// has settled and before the accessibility parse / cursor hiding / capture —
 /// the deterministic point to focus a field or trigger a presented state. Its
@@ -184,6 +197,7 @@ public func renderSnapshotImage(
     onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
     measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle = .settled,
+    prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async throws -> UIImage {
     let settleTimeoutPolicy = try SnapshotSettleTimeoutPolicy.fromEnvironment()
@@ -198,6 +212,7 @@ public func renderSnapshotImage(
         onReadyToMeasure: onReadyToMeasure,
         measurementHookTimeout: measurementHookTimeout,
         settle: settle,
+        prepareForCapture: prepareForCapture,
         onReadyToSnapshot: onReadyToSnapshot,
         settleTimeoutPolicy: settleTimeoutPolicy,
         timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
@@ -214,7 +229,7 @@ public func renderSnapshotImage(
     public let pngData: Data
 }
 
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:prepareForCapture:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
 /// capture *and* the comparison that follows it to one line of output, and can
 /// compare the captured bytes against the reference without re-encoding.
@@ -230,6 +245,7 @@ public func renderSnapshotImage(
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle,
+    prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
@@ -247,6 +263,7 @@ public func renderSnapshotImage(
             onReadyToMeasure: onReadyToMeasure,
             measurementHookTimeout: measurementHookTimeout,
             settle: settle,
+            prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
             settleTimeoutPolicy: settleTimeoutPolicy,
             timing: timing,
@@ -255,7 +272,7 @@ public func renderSnapshotImage(
 }
 
 /// The capture body of
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``,
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:prepareForCapture:onReadyToSnapshot:)``,
 /// run while holding ``SnapshotCaptureLock``.
 @MainActor
 func renderSnapshotCaptureLocked(
@@ -270,6 +287,7 @@ func renderSnapshotCaptureLocked(
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookTimeout: TimeInterval?,
     settle: SnapshotSettle,
+    prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
@@ -380,6 +398,19 @@ func renderSnapshotCaptureLocked(
                 removeChildAfterCapture(captureViewController)
             }
             removeChildAfterCapture(wrappingViewController)
+        }
+
+        if let prepareForCapture {
+            try await timing.measure(.preparationHook) {
+                try await runSnapshotPreparationHook(
+                    named: name,
+                    maximumDuration: settleTimeoutPolicy.maximumDuration(for: settle),
+                    hook: prepareForCapture,
+                )
+            }
+            wrappingViewController.view.setNeedsLayout()
+            CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
         }
 
         try await throwIfUnsettled(

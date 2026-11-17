@@ -18,6 +18,8 @@
         }
 
         @Environment(\.stylesheet) private var stylesheet
+        /// Forward the live appearance into the synthetic UIKit and SwiftUI trait host.
+        @Environment(\.colorScheme) private var colorScheme
 
         var body: some View {
             VStack(spacing: stylesheet.spacing.medium) {
@@ -128,7 +130,10 @@
                     .background(.background)
                     .adaptivePaneReservedRegions(configuration.regions)
                     .whereBroadwayRoot()
-                    .snapshotTraits(SnapshotConfiguration(device: configuration.frame))
+                    .snapshotTraits(SnapshotConfiguration(
+                        colorScheme: colorScheme,
+                        device: configuration.frame,
+                    ))
                     .frame(width: configuration.size.width, height: configuration.size.height)
                     .clipShape(RoundedRectangle(cornerRadius: chrome.screenCornerRadius))
                     .padding(chrome.bezelWidth)
@@ -147,39 +152,54 @@
 
     extension DeviceLayoutLabView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            snapshots(buildWorld: WhereFlyoverWorld.build)
+        }
+
+        static func snapshots(
+            buildWorld: @escaping @MainActor () async throws -> WhereFlyoverWorld,
+        ) -> [SnapshotCase] {
             [
                 DeviceLayoutConfiguration.device(.iPhone17, .portrait),
                 .device(.iPadPro13, .landscape),
                 .duo(.outerPortrait),
                 .duo(.tabletop),
-            ].map { configuration in
-                let fixture = DuoLayoutSnapshotFixture(tab: .locations, selection: .region)
-                let name = switch configuration {
-                    case .device: configuration.frame.name
-                    case let .duo(pose): "duo-" + pose.rawValue
-                }
-                return whereSnapshot(
-                    name: name,
-                    configurations: [SnapshotConfiguration(device: .viewport(
-                        name: "iPad",
-                        size: CGSize(width: 834, height: 1194),
-                        layoutTraits: .init(
-                            horizontalSizeClass: .regular,
-                            verticalSizeClass: .regular,
-                            interfaceIdiom: .pad,
-                        ),
-                        scenePolicy: .retained,
-                    ))],
-                    onReadyToSnapshot: { await fixture.prepare() },
-                ) {
-                    DeviceLayoutLabView(
-                        state: DeviceLayoutLabState(
-                            model: fixture.model,
-                            configuration: configuration,
-                        ),
-                        initialRegion: .california,
+            ].flatMap { configuration in
+                [ColorScheme.light, .dark].map { colorScheme in
+                    let fixture = DuoLayoutSnapshotFixture(
+                        tab: .locations,
+                        selection: .region,
+                        buildWorld: buildWorld,
                     )
-                    .environment(\.regionOutlinePathCache, fixture.artwork)
+                    let layoutName = switch configuration {
+                        case .device: configuration.frame.name
+                        case let .duo(pose): "duo-" + pose.rawValue
+                    }
+                    return whereSnapshot(
+                        name: colorScheme == .dark ? layoutName + "-dark" : layoutName,
+                        configurations: [SnapshotConfiguration(
+                            colorScheme: colorScheme,
+                            device: .viewport(
+                                name: "iPad",
+                                size: CGSize(width: 834, height: 1194),
+                                layoutTraits: .init(
+                                    horizontalSizeClass: .regular,
+                                    verticalSizeClass: .regular,
+                                    interfaceIdiom: .pad,
+                                ),
+                                scenePolicy: .retained,
+                            ),
+                        )],
+                        onReadyToSnapshot: { await fixture.prepare() },
+                    ) {
+                        DeviceLayoutLabView(
+                            state: DeviceLayoutLabState(
+                                model: fixture.model,
+                                configuration: configuration,
+                            ),
+                            initialRegion: .california,
+                        )
+                        .environment(\.regionOutlinePathCache, fixture.artwork)
+                    }
                 }
             }
         }

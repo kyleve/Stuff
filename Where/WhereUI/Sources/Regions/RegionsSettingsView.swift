@@ -51,6 +51,7 @@ struct RegionsSettingsView: View {
             .navigationDestination(for: Destination.self) { destination in
                 if let model {
                     destinationView(destination, model: model)
+                        .whereScreenBoundary()
                 }
             }
         }
@@ -95,6 +96,7 @@ struct RegionsSettingsView: View {
                 }
             }
         }
+        .whereFormRoot()
         .disabled(isSaving)
         .navigationTitle(String(localized: .settingsRegionsSection))
         .toolbar {
@@ -212,7 +214,10 @@ extension RegionsSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Overview",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
             ) {
                 RegionsSettingsView()
                     .environment(PreviewSupport.loadedSession())

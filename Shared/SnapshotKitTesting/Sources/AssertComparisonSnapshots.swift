@@ -68,6 +68,7 @@ func captureSnapshotPanels(
             onReadyToMeasure: snapshotCase.onReadyToMeasure,
             measurementHookTimeout: nil,
             settle: snapshotCase.settle,
+            prepareForCapture: snapshotCase.prepareForCapture,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             timeoutPolicy: .fromEnvironment(),
             backgroundColor: SnapshotImageGrid.backgroundColor,

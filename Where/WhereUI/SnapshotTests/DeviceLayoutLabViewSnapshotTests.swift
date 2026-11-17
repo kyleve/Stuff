@@ -7,7 +7,13 @@ import Testing
 @Suite(.serialized)
 struct DeviceLayoutLabViewSnapshotTests {
     @Test func deviceLayoutLab() async {
-        await assertSnapshots(of: DeviceLayoutLabView.self)
+        await assertSnapshots(of: SharedWorldSnapshots.self)
+    }
+
+    private enum SharedWorldSnapshots: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            DeviceLayoutLabView.snapshots(buildWorld: SnapshotWorldFixture.shared.load)
+        }
     }
 
     @Test func preloadedTabletMatchesTheColdStartReference() async throws {

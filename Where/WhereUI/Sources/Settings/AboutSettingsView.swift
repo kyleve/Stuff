@@ -62,6 +62,7 @@ struct AboutSettingsView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
         .navigationBarTitleDisplayMode(.inline)
@@ -138,6 +139,7 @@ struct AboutSettingsView: View {
                     // one group would need its own `navigationDestination`.
                     NavigationLink {
                         LicenseView(credit: credit)
+                            .whereScreenBoundary()
                     } label: {
                         LabeledContent(credit.name) {
                             Text(credit.version)
@@ -245,7 +247,10 @@ extension AboutSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
                 measurementReadiness: .immediate,
                 // The navigation bar's scroll-edge shadow adapts after the
                 // form reaches its full-content height. Wait through that

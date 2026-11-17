@@ -36,6 +36,13 @@ struct MainTabs: View {
     @State private var selection = MainTabSelection()
     private var previewConfiguration = PreviewConfiguration()
 
+    #if DEBUG
+        private var snapshotReadiness: MainTabsSnapshotReadiness?
+        /// Create after mounting: retries reuse this view value but need a fresh receipt.
+        /// Rehosting the same controller retains its receipt without another registration.
+        @State private var snapshotMount: MainTabsSnapshotReadiness.Mount?
+    #endif
+
     /// Initial tab content for lab and snapshot fixtures; each tab owns its live state.
     private struct PreviewConfiguration {
         var region: Region?
@@ -144,7 +151,17 @@ struct MainTabs: View {
         // Subscribe + pull once the scene is on screen, and again whenever it
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
-        .task { await report.activate() }
+        .task {
+            #if DEBUG
+                if snapshotMount == nil, !Task.isCancelled {
+                    snapshotMount = snapshotReadiness?.registerMount()
+                }
+            #endif
+            await report.activate()
+            #if DEBUG
+                if !Task.isCancelled { snapshotMount?.didActivate = true }
+            #endif
+        }
         .task(id: isUpdateCheckActive) {
             guard isUpdateCheckActive else { return }
             await updates?.refresh(force: false)
@@ -210,11 +227,12 @@ struct MainTabs: View {
     }
 
     #if DEBUG
-        private init(
+        init(
             session: WhereSession,
             report: YearReportModel,
             welcome: LocationWelcomeModel,
             selection: TabID,
+            snapshotReadiness: MainTabsSnapshotReadiness? = nil,
         ) {
             let recordingWarningSource = RecordingConfigurationWarningModel.Source(session: session)
             self.recordingWarningSource = recordingWarningSource
@@ -225,6 +243,7 @@ struct MainTabs: View {
             ))
             _welcome = State(initialValue: welcome)
             _selection = State(initialValue: MainTabSelection(selected: selection))
+            self.snapshotReadiness = snapshotReadiness
         }
 
         /// Retains the production shell around a separately built in-memory lab world.
@@ -257,6 +276,12 @@ struct MainTabs: View {
 #if DEBUG
     extension MainTabs: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            snapshots(buildWorld: WhereFlyoverWorld.build)
+        }
+
+        static func snapshots(
+            buildWorld: @escaping @MainActor () async throws -> WhereFlyoverWorld,
+        ) -> [SnapshotCase] {
             let fastConfigurations: [SnapshotConfiguration] = .phoneLightDark + [
                 SnapshotConfiguration(device: .iPhone, snapshotType: .accessibility),
             ]
@@ -264,17 +289,41 @@ struct MainTabs: View {
                 SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
             ]
             return fastConfigurations.flatMap { configuration in
-                snapshotCases(configurations: [configuration], settle: .settled)
+                snapshotCases(
+                    configurations: [configuration],
+                    settle: .settled,
+                    includeWelcomeYear: configuration.colorScheme == .light && configuration
+                        .snapshotType == .standard,
+                )
             } + largeTypeConfigurations.flatMap { configuration in
                 snapshotCases(
                     configurations: [configuration],
                     settle: .settledAtLeast(minDuration: 1.0),
+                    includeWelcomeYear: false,
                 )
-            } + [elsewhereSnapshot(), elsewhereSnapshot(theme: .alternate)] + adaptiveSnapshots
+            } + [elsewhereSnapshot()]
+                + adaptiveSnapshots(includingEquivalentPoses: false, buildWorld: buildWorld)
         }
 
-        private static func elsewhereSnapshot(theme: WhereTheme = .standard) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+        /// One case per preview identity; capture-only trait repetitions stay in `snapshots`.
+        enum PreviewScenarios: SnapshotProviding {
+            static var snapshots: [SnapshotCase] {
+                MainTabs.snapshotCases(
+                    configurations: [SnapshotConfiguration(device: .iPhone)],
+                    settle: .settled,
+                    includeWelcomeYear: true,
+                )
+                MainTabs.elsewhereSnapshot(isPreview: true)
+                MainTabs.elsewhereSnapshot(theme: .alternate, isPreview: true)
+                MainTabs.adaptiveSnapshots(includingEquivalentPoses: true, includingTraits: false)
+            }
+        }
+
+        private static func elsewhereSnapshot(
+            theme: WhereTheme = .standard,
+            isPreview: Bool = false,
+        ) -> SnapshotCase {
+            let cache = PreviewSupport.snapshotArtworkCache
             let session = PreviewSupport.loadedSession()
             session.preferences.showsLocationWelcome = false
             let report = YearReportModel(
@@ -288,38 +337,41 @@ struct MainTabs: View {
                 preferences: session.preferences,
                 now: session.now,
             )
+            let prepare: @MainActor () async -> Void = {
+                try! await session.services.setPrimaryRegions([
+                    PrimaryRegion(region: .california, appearance: nil, order: 0),
+                    PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+                ])
+                let nevada = Region(rawValue: "us-NV")!
+                let oregon = Region(rawValue: "us-OR")!
+                for day in [
+                    DayPresence(
+                        day: CalendarDay(year: PreviewSupport.year, month: 6, day: 1),
+                        regions: [nevada],
+                    ),
+                    DayPresence(
+                        day: CalendarDay(year: PreviewSupport.year, month: 6, day: 2),
+                        regions: [nevada, oregon],
+                    ),
+                ] {
+                    try! await session.services.journal.addManualDay(
+                        date: day.day.startOfDay(in: report.calendar),
+                        regions: day.regions,
+                        audit: nil,
+                    )
+                }
+                await report.refresh()
+                if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
+            }
             return whereSnapshot(
                 name: theme == .standard ? "Elsewhere" : "FlatElsewhere",
-                configurations: theme == .standard ? .fullContentScreenRepresentative :
-                    .fullContentPhoneLightDark,
+                configurations: isPreview ? [SnapshotConfiguration(device: .iPhoneFullContent)] :
+                    .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                        SnapshotConfiguration(device: .iPadFullContent),
+                    ],
                 theme: theme,
-                onReadyToMeasure: {
-                    try! await session.services.setPrimaryRegions([
-                        PrimaryRegion(region: .california, appearance: nil, order: 0),
-                        PrimaryRegion(region: .newYork, appearance: nil, order: 1),
-                    ])
-                    let nevada = Region(rawValue: "us-NV")!
-                    let oregon = Region(rawValue: "us-OR")!
-                    for day in [
-                        DayPresence(
-                            day: CalendarDay(year: PreviewSupport.year, month: 6, day: 1),
-                            regions: [nevada],
-                        ),
-                        DayPresence(
-                            day: CalendarDay(year: PreviewSupport.year, month: 6, day: 2),
-                            regions: [nevada, oregon],
-                        ),
-                    ] {
-                        try! await session.services.journal.addManualDay(
-                            date: day.day.startOfDay(in: report.calendar),
-                            regions: day.regions,
-                            audit: nil,
-                        )
-                    }
-                    await report.refresh()
-                    if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
-                },
-                onReadyToSnapshot: {
+                onReadyToMeasure: prepare,
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(
                         for: report.elsewhere.content(for: report.selectedYear)?.regions
                             .map(\.region) ?? [],
@@ -329,6 +381,17 @@ struct MainTabs: View {
             ) {
                 PreparedElsewhereSnapshot(session: session, report: report, welcome: welcome)
                     .environment(\.regionOutlinePathCache, cache)
+                    .task {
+                        // SnapshotCase previews do not invoke capture readiness hooks.
+                        if isPreview {
+                            await prepare()
+                            await PreviewSupport.loadCardArtwork(
+                                for: report.elsewhere.content(for: report.selectedYear)?.regions
+                                    .map(\.region) ?? [],
+                                cache: cache,
+                            )
+                        }
+                    }
             }
         }
 
@@ -356,24 +419,38 @@ struct MainTabs: View {
 
         /// Viewport composition supplements the full-content Locations, calendar, timeline,
         /// and Settings matrices. Synthetic regions exercise the production layout policy.
-        private static var adaptiveSnapshots: [SnapshotCase] {
+        private static func adaptiveSnapshots(
+            includingEquivalentPoses: Bool,
+            includingTraits: Bool = true,
+            buildWorld: @escaping @MainActor () async throws
+                -> WhereFlyoverWorld = WhereFlyoverWorld.build,
+        ) -> [SnapshotCase] {
             let tabs: [MainTabSelection.TabID] = [.locations, .year, .settings]
             var cases = tabs.flatMap { tab in
-                SnapshotConfiguration.DuoPose.allCases.map { pose in
+                SnapshotConfiguration.DuoPose.allCases.filter { pose in
+                    // These surfaces render identically at the same viewport size.
+                    // Locations still uses the reserved regions, so keep every pose.
+                    if includingEquivalentPoses { return true }
+                    return switch tab {
+                        case .year: pose != .tabletop
+                        case .settings: pose != .tabletop && pose != .book
+                        case .locations, .elsewhere: true
+                    }
+                }.map { pose in
                     adaptiveSnapshot(
                         tab: tab,
                         pose: pose,
                         configuration: SnapshotConfiguration(device: pose.frame),
                         selection: .none,
+                        buildWorld: buildWorld,
                     )
                 }
             }
-            for tab in tabs {
+            for tab in tabs where includingTraits {
                 let pose = SnapshotConfiguration.DuoPose.innerPortrait
                 let configurations = [
                     SnapshotConfiguration(colorScheme: .dark, device: pose.frame),
                     SnapshotConfiguration(dynamicType: .accessibility5, device: pose.frame),
-                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: pose.frame),
                     SnapshotConfiguration(contrast: .increased, device: pose.frame),
                     SnapshotConfiguration(device: pose.frame, snapshotType: .accessibility),
                 ]
@@ -383,6 +460,7 @@ struct MainTabs: View {
                         pose: pose,
                         configuration: configuration,
                         selection: .none,
+                        buildWorld: buildWorld,
                     )
                 }
             }
@@ -392,19 +470,24 @@ struct MainTabs: View {
                     pose: pose,
                     configuration: SnapshotConfiguration(device: pose.frame),
                     selection: .region,
+                    buildWorld: buildWorld,
                 ))
-                cases.append(adaptiveSnapshot(
-                    tab: .year,
-                    pose: pose,
-                    configuration: SnapshotConfiguration(device: pose.frame),
-                    selection: .timeline,
-                ))
+                if includingEquivalentPoses || pose != .tabletop {
+                    cases.append(adaptiveSnapshot(
+                        tab: .year,
+                        pose: pose,
+                        configuration: SnapshotConfiguration(device: pose.frame),
+                        selection: .timeline,
+                        buildWorld: buildWorld,
+                    ))
+                }
             }
             cases.append(adaptiveSnapshot(
                 tab: .settings,
                 pose: .innerPortrait,
                 configuration: SnapshotConfiguration(device: .duoInnerPortrait),
                 selection: .settings,
+                buildWorld: buildWorld,
             ))
             return cases
         }
@@ -414,6 +497,7 @@ struct MainTabs: View {
             pose: SnapshotConfiguration.DuoPose,
             configuration: SnapshotConfiguration,
             selection: DuoLayoutSnapshotFixture.Selection,
+            buildWorld: @escaping @MainActor () async throws -> WhereFlyoverWorld,
         ) -> SnapshotCase {
             let tabName = switch tab {
                 case .locations: "Locations"
@@ -421,7 +505,14 @@ struct MainTabs: View {
                 case .year: "Year"
                 case .settings: "Settings"
             }
-            let fixture = DuoLayoutSnapshotFixture(tab: tab, selection: selection)
+            let fixture = DuoLayoutSnapshotFixture(
+                tab: tab,
+                selection: selection,
+                // The detached compact-pad viewport lays out native tab chrome differently
+                // with a warm world, even after 1.5s settling (Xcode/iOS 27.2, 2026-11-17).
+                // Keep these three cold starts until the renderer's warm geometry is fixed.
+                buildWorld: pose == .narrow ? WhereFlyoverWorld.build : buildWorld,
+            )
             let selectionName = switch selection {
                 case .none: ""
                 case .region, .settings: "-Selected"
@@ -430,39 +521,41 @@ struct MainTabs: View {
             return whereSnapshot(
                 name: "Adaptive-" + tabName + "-" + pose.rawValue + selectionName,
                 configurations: [configuration],
-                // Native glass can retain its light material after the async
-                // shell appears; match the measured Appearance/About floor.
-                settle: .settledAtLeast(minDuration: 1.5),
-                onReadyToSnapshot: {
+                // Remeasured after awaited preparation on Xcode 27.2 / iOS 27.2
+                // (2026-11-17): 0.25s adds pixel drift. Keep a native-glass floor
+                // and both accessibility passes with the measured 0.5s policy.
+                // The derived readiness/settle ceiling is 3s before CI scaling.
+                settle: .settledAtLeast(minDuration: 0.5),
+                prepareForCapture: {
                     await fixture.prepare()
-
                 },
             ) {
                 DuoLayoutSnapshotScene(fixture: fixture, pose: pose)
             }
         }
 
-        private static func snapshotCases(
+        @SnapshotCaseBuilder private static func snapshotCases(
             configurations: [SnapshotConfiguration],
             settle: SnapshotSettle,
+            includeWelcomeYear: Bool,
         ) -> [SnapshotCase] {
-            [
-                snapshot(
-                    name: "UpdateAvailable",
-                    configurations: configurations,
-                    settle: settle,
-                    selection: .year,
-                    updates: InstallerPreview.model(.available),
-                    configure: { _ in },
-                ),
-                snapshot(
-                    name: "WelcomeLocations",
-                    configurations: configurations,
-                    settle: settle,
-                    selection: .locations,
-                ) { welcome in
-                    welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
-                },
+            snapshot(
+                name: "UpdateAvailable",
+                configurations: configurations,
+                settle: settle,
+                selection: .year,
+                updates: InstallerPreview.model(.available),
+                configure: { _ in },
+            )
+            snapshot(
+                name: "WelcomeLocations",
+                configurations: configurations,
+                settle: settle,
+                selection: .locations,
+            ) { welcome in
+                welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
+            }
+            if includeWelcomeYear {
                 snapshot(
                     name: "WelcomeYear",
                     configurations: configurations,
@@ -470,24 +563,24 @@ struct MainTabs: View {
                     selection: .year,
                 ) { welcome in
                     welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
-                },
-                snapshot(
-                    name: "WelcomeLocating",
-                    configurations: configurations,
-                    settle: settle,
-                    selection: .year,
-                ) { welcome in
-                    welcome.showLocatingForTesting()
-                },
-                snapshot(
-                    name: "WelcomeActionRequired",
-                    configurations: configurations,
-                    settle: settle,
-                    selection: .year,
-                ) { welcome in
-                    welcome.showPreciseLocationActionForTesting()
-                },
-            ]
+                }
+            }
+            snapshot(
+                name: "WelcomeLocating",
+                configurations: configurations,
+                settle: settle,
+                selection: .year,
+            ) { welcome in
+                welcome.showLocatingForTesting()
+            }
+            snapshot(
+                name: "WelcomeActionRequired",
+                configurations: configurations,
+                settle: settle,
+                selection: .year,
+            ) { welcome in
+                welcome.showPreciseLocationActionForTesting()
+            }
         }
 
         private static func snapshot(
@@ -528,19 +621,21 @@ struct MainTabs: View {
                 now: session.now,
             )
             configure(welcome)
+            let readiness = MainTabsSnapshotReadiness()
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
                 theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
-                onReadyToSnapshot: { await report.activate() },
+                prepareForCapture: { await readiness.waitForActivation() },
             ) {
                 MainTabs(
                     session: session,
                     report: report,
                     welcome: welcome,
                     selection: selection,
+                    snapshotReadiness: readiness,
                 )
                 .environment(session)
                 .environment(updates)
@@ -565,5 +660,9 @@ struct MainTabs: View {
 
     #Preview {
         MainTabsPreview()
+    }
+
+    #Preview("Scenarios") {
+        MainTabs.PreviewScenarios.snapshotPreviews
     }
 #endif

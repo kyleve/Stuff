@@ -243,6 +243,31 @@ struct MonthGridView: View {
     }
 }
 
+extension MonthGridView {
+    /// Keep report-driven planning and focus identical in full calendars and month subjects.
+    init(
+        month: CalendarMonth,
+        focusedRegion: Region?,
+        report: YearReportModel,
+        compact: Bool = false,
+        isAvailable: Bool = true,
+    ) {
+        self.init(
+            month: month,
+            focusedRegion: focusedRegion,
+            dateCalendar: report.calendar,
+            plannedPresence: { day in
+                guard report.showsEstimatedTimeAndPlanning else { return nil }
+                return report.forecasts.plannedPresence(on: day)
+            },
+            planningSummary: report.showsEstimatedTimeAndPlanning
+                ? report.forecasts.plannedRegionSummaries(in: month) : [],
+            compact: compact,
+            isAvailable: isAvailable,
+        )
+    }
+}
+
 /// How to draw a day's slice of the region "stay" pill: which corners round
 /// (the run's ends) and how far to bleed into the grid gaps so a run reads as
 /// one connected shape. Empty `regions` means no pill.

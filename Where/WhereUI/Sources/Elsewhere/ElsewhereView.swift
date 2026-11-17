@@ -113,6 +113,7 @@ struct ElsewhereView: View {
                     }
                 }
                 .padding()
+                .whereContentRoot()
             }
             .defaultScrollAnchor(.center, for: .alignment)
             .scrollBounceBehavior(.basedOnSize)
@@ -192,7 +193,7 @@ struct ElsewhereView: View {
             theme: WhereTheme = .standard,
             resolver: (any ElsewhereResolving)? = nil,
         ) -> SnapshotCase {
-            let cache = RegionOutlinePathCache()
+            let cache = PreviewSupport.snapshotArtworkCache
             let model = ElsewhereModel(
                 resolver: resolver ?? report.services.elsewhere,
                 namer: PreviewPlaceNamer(),
@@ -204,7 +205,7 @@ struct ElsewhereView: View {
                 onReadyToMeasure: {
                     if let input = report.elsewhereInput { await model.refresh(input) }
                 },
-                onReadyToSnapshot: {
+                prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(
                         for: model.content(for: report.selectedYear)?.regions.map(\.region) ?? [],
                         cache: cache,

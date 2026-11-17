@@ -80,6 +80,7 @@ struct DevicesSettingsView: View {
                         }
                 }
             }
+            .whereFormRoot()
         }
         .navigationTitle(String(localized: .settingsDevicesTitle))
         .navigationBarTitleDisplayMode(.inline)
@@ -151,7 +152,10 @@ extension DevicesSettingsView: SettingsSection {
             let permissionRequiredSession = PreviewSupport.whenInUseSession()
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
+                    SnapshotConfiguration(device: .iPadFullContent),
+                ],
                 onReadyToSnapshot: { await session.start() },
             ) {
                 NavigationStack {
