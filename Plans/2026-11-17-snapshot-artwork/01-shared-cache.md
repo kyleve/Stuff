@@ -1,6 +1,6 @@
 # 01 — Share immutable snapshot paths
 
-- Status: executing
+- Status: complete
 - Depends on: None
 - Shared requirements: [Overview](README.md), R-01, R-02, R-04, R-05; exclusions X-01 and X-02.
 
@@ -47,6 +47,6 @@ Shared cache composition is implemented. Hosted tests confirm nested roots reuse
 
 ## Resume point
 
-The cache step is verified. Full image integration and independent review remain shared with plan 02 before publication.
+Complete. Cache step `c42e9456d` is published in [PR #515](https://github.com/kyleve/Stuff/pull/515). Independent source review and full image integration pass; see [plan 02](02-preparation-hooks.md) for the broad run and delivery record.
 
 Commands: the baseline command above, then the same five suites with `--skip-host-tests` for cache-only images. Unit coverage uses `./test --no-generate --only WhereUITests/RegionArtworkTaskTests --only WhereUITests/RegionArtworkModelTests --only WhereUITests/RegionOutlinePathCacheTests --only WhereUITests/LocationForecastArtworkLoaderTests --only WhereUITests/LocationsBackgroundArtworkTests` (18 passed). The final annotation rerun uses `./test --no-generate --skip-host-tests --only WhereUITests/RegionArtworkTaskTests` (3 passed). `./swiftformat --lint`, `./sf-symbols --lint`, and `git diff --check` pass.

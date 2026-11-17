@@ -1,6 +1,6 @@
 # 02 — Prepare artwork before settling
 
-- Status: executing
+- Status: complete
 - Depends on: None; measure after the verified cache-only step in [plan 01](01-shared-cache.md). The callback migration also works with separate caches.
 - Shared requirements: [Overview](README.md), R-02–R-05; exclusions X-01 and X-02.
 
@@ -10,7 +10,7 @@ Move artwork loading from `onReadyToSnapshot` to `prepareForCapture` in Appearan
 
 ## Steps and acceptance
 
-1. Change only the five selected callback labels after plan 01's cache-only measurement. Keep post-settle actions outside this selection unchanged.
+1. Change only the six callback labels across the five selected providers after plan 01's cache-only measurement. Keep post-settle actions outside this selection unchanged.
 2. Run plan 01's five-suite command with matching timing/review flags. Repeat the selected implementation in a separate process. Each run must execute five tests and 63 captures without retries.
 3. Compare capture identities, sizes, tiles, reference results, and diagnostic regions against the baseline. Investigate any new larger differences before acceptance; do not record references or relax tolerances.
 4. Run `./test --no-generate --skip-host-tests --snapshots --timings --record never` for broad integration after shared cache injection. Run affected unit tests and lint once for the final behavior source, repeating only if later changes invalidate them.
@@ -29,6 +29,10 @@ The first combined profile passes five tests and 63 captures with no retries. It
 
 A separate-process repeat passes the same five tests and 63 captures with no retries. Capture time is 37.319s (28.270s saved, 43.1%); preparation takes 0.465s, with 444 settle passes. All 22 diagnostic payloads again match baseline exactly. Full Swift formatting and symbol lint pass.
 
+Full integration at `78de9918c` passes all 76 tests and 938 captures with zero retries or failures. It records 815.668s in captures and 886.525s in the test runner. The 5,285,788,974 pixels and 1,055 tiles match the prior full-suite inventory, as do capture identities and sizing. That inventory comes from PR #512, so its timing is not a matched baseline for this slice; use the focused runs for the 43.1% saving. The full run omits `--review` and emits no difference diagnostics. No references or tolerances changed.
+
+Raw logs and JSON summaries are preserved in the session's `artwork-snapshot-results` artifact directory, with parent/cache/behavior revisions and machine metadata. Simulator: iPhone 17 / iOS 27.2; Xcode 27.2 (27B52), Apple M5 Pro, 18 cores, 64 GiB. Each run uses a separate process and `TEST_WORKDIR`. Applicable host checks ran with the baseline and 18-test unit run; subsequent runs skip them.
+
 ## Resume point
 
-The callback step is verified. Run full image integration and review the final diff before publication.
+Complete. Callback step `78de9918c` is published in [PR #515](https://github.com/kyleve/Stuff/pull/515). Independent source and raw-evidence review pass. Full CI run links and pending results are tracked on the PR; STU-121 remains open for broader work.
