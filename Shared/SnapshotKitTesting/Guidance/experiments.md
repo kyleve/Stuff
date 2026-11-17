@@ -51,3 +51,33 @@ measurement ready before final pixel settling.
 
 See the [experiment and implementation evidence](../../../Plans/2026-11-17-snapshot-completion-hooks/README.md)
 and Apple's [update-phase contract](https://developer.apple.com/documentation/uikit/uiupdateactionphase/afterupdatecomplete).
+
+## Render cost and synchronous sizing — 2026-11-17
+
+At `2fd1cdfaa` on Xcode/iOS 27.2, a process-scoped Time Profiler trace found
+color conversion in 1.740s of the 3.793s sampled CPU weight attributed to settle
+image rendering. A separate wall-stack sample also found render-server waits.
+These focused samples do not measure suite-wide CPU cost or prove buffer sizes.
+
+Two controls and two extended-color intermediate runs each passed the same 110
+captures. Extended color reduced mean traced rendering by 12.55% and settling
+by 2.99%, but did not improve end-to-end time: the test phases averaged 134.044s
+for the controls and 135.916s for the candidate. Faster samples produced more
+passes before the unchanged floors. A renderer-reuse trial was within control
+variation. Neither candidate became the default.
+
+Both formats passed real hierarchy-render checks for color, transparency,
+cumulative fading, a bottom-edge sample pixel, and fractional patches beside
+wide-color content. Keep these guards in `SnapshotRenderingSupportTests`:
+scripted drawing contexts and prebuilt sRGB images do not exercise UIKit's
+compositing and downsampling path.
+
+Synchronous data does not prove synchronous geometry. Skipping measurement
+settling for Settings made all 16 variants too short: 156 pixels (52 points)
+in ordinary variants and 219 pixels (73 points) at AX5. Their rendered content
+had not established its final hosted size. Keep that measurement settle;
+passing data-loading checks or observing no changes in later samples is
+insufficient evidence to remove it.
+
+The [controlled experiments](../../../Plans/2026-11-17-snapshot-settling-investigation/03-controlled-experiments.md)
+retain the methods, raw-evidence locations, and accepted consumer-specific changes.

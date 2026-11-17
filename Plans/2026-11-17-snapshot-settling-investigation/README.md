@@ -2,14 +2,14 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; source `cd293e851` after the snapshot shard rebalance.
+- Updated: 2026-11-17; resuming at `2fd1cdfaa` on `perf/snapshot-render-settling`, stacked on PR #524.
 - Operation: Create a durable plan and execute the investigation.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–02 are complete. Plan 03 is the next horizon for refinement.
-- Completed: Published observational instrumentation; independent source/raw-evidence review; framework, parser, and full-image checks; four matched diagnostic controls; and an isolated CI trace with matching coverage and verified artifact transport.
-- Pending: Refine and execute controlled candidate experiments, then deliver verified improvements.
-- Next action: Refine plan 03 around measurement eligibility and render work/sampling, using plan 02's cost table and late-change counterexamples.
-- Delegation: `/root/watch_settle_ci` completed read-only CI collection at `f60c1c974`; the root independently checked raw accounting and integrated the result. `/root/review_settle_investigation` completed source, local raw-evidence, and overhead-control review. No background result remains pending.
+- Stage: Plans 01–02 are complete. Plan 03 has accepted evidence and is awaiting groundwork publication; plan 04 is refined. The user renewed authorization to execute the remaining plan.
+- Completed: Published tracing and local/CI classification; process-scoped render attribution; bounded renderer experiments; repeated measurement controls and delayed captures; cold Onboarding artwork check; and clean-source hierarchy guards.
+- Pending: Publish the completed controlled experiments, then deliver and verify the five accepted consumer changes.
+- Next action: Finish clean-source regression checks and publish plan 03 groundwork, then execute plan 04.
+- Delegation: Prior tracing review/CI collection are integrated. `/root/review_settling_candidates` owns independent review of the current experiment evidence and implementation; the root owns execution, publication, and reporting.
 
 ## Outcome and scope
 
@@ -37,7 +37,7 @@ Repository source and the pinned-runtime measurements suffice for this observati
 ## Review and delivery
 
 - Plan review: Plans 01–02 passed the recorded review. Independent source and raw-evidence review has no remaining blockers for plan 01.
-- Implementation: Plans 01–02 are complete. No settling optimization is implemented yet.
+- Implementation: Plans 01–02 are complete; plan 03 accepts five explicit consumer changes. Production policy remains unchanged until plan 04.
 - Publication: Plan commit `230c5048d` and instrumentation `f60c1c974` are published in [PR #524](https://github.com/kyleve/Stuff/pull/524), linked from STU-121.
 
 ## User stories and requirements
@@ -63,8 +63,8 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 1. [01 — Trace settling](01-settle-tracing.md): complete; observational implementation and regression checks.
 2. [02 — Classify measured costs](02-classify-costs.md): complete; full local trace, focused overhead controls, and isolated CI evidence.
-3. [03 — Controlled experiments](03-controlled-experiments.md): next outline to refine from plan 02's measured causes and affected families.
-4. [04 — Validated improvements](04-validated-improvements.md): outline; refine after successful experiments.
+3. [03 — Controlled experiments](03-controlled-experiments.md): executing; render attribution and explicit measurement eligibility.
+4. [04 — Validated improvements](04-validated-improvements.md): draft; five accepted providers, awaiting plan 03 publication.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
@@ -84,7 +84,7 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-01 | closed | May implementation start? | All plans | The user explicitly requested planning and execution. Integrated into the checkpoint and horizon. |
 | Q-02 | closed | How should tracing be enabled and correlated? | R-01, plan 01 | Existing timing opt-in, capture-owned identity, and call ordinal. Integrated in plan 01 and reviewed against retry reuse. |
 | Q-03 | closed | Which calls are floor-, proof-, rendering-, or content-change-dominated? | R-02/R-03 | Plan 02's verified local/CI traces rank measurement removal and render work/sampling first. Rendering occupies 72.9% locally and 79.8% on CI; floor/proof flags remain overlapping conditions. Deeper attribution inside the render call belongs to plan 03. |
-| Q-04 | deferred | Which earlier completion or removal is safe? | R-03/R-04 | Q-03 is resolved. Refine plan 03 next using explicit readiness, early/normal/later rendered evidence, and the seven local late-change cases. No optimization is accepted yet. |
+| Q-04 | closed | Which earlier completion or removal is safe? | R-03/R-04 | Repeated normal/candidate runs and an independent delayed oracle match all 62 images for five providers. Accept their explicit immediate measurement and Onboarding preparation. Reject Settings on geometry failures and both renderer candidates on timing. Integrated in plans 03–04; remaining owner-task and native readiness work stays in STU-121. |
 | Q-05 | closed | Does trace overhead materially affect the observed timing? | R-02 | Two runs per mode in a static/native pair show +0.471s (+0.594%) for combined diagnostics. Plan 02 records that this is neither a suite-wide bound nor an isolated trace-only estimate. Broad cost ranking uses the observed data; savings do not assume zero overhead. |
 
 ## Plan review
