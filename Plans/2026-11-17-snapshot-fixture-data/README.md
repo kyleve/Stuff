@@ -2,12 +2,12 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; parent PR #515 at `bc02a45954a642dfdd90f4701432eb23d648cdb4` after stack synchronization.
+- Updated: 2026-11-17; parent PR #515 at `d3f012395d1632fc6b2f0ead9977bcaf544b1bdb` after #511 and #512 merged.
 - Operation: Execute the user's request to try fixed report reuse and demo seed reuse.
-- Stage: Report reuse passes focused validation and independent source review; broad image integration is running.
-- Completed: Source and contract inspection; synchronized the stack after #511 merged. The source tree matches the earlier `2736e1a7f` baseline. The parent web job stopped with a runner shutdown, not a test assertion; it was retried.
-- Pending: Broad image integration, final evidence review, and publication. Demo recipe generation has a measured negligible upper bound; no seed API is retained.
-- Next action: Validate the retained report cache, record the negative demo result, and publish both step records.
+- Stage: Complete; [PR #516](https://github.com/kyleve/Stuff/pull/516) is ready for review.
+- Completed: Both bounded experiments, retained report reuse, focused unit/image checks, broad WhereUI images, independent review, and publication. Parent rebases preserve the earlier `2736e1a7f` source tree. An earlier parent web job stopped with a runner shutdown and was retried.
+- Pending: Remote CI results on the final published tip. PR #516 owns the manual GitHub/CircleCI dispatch records. Broader write/reconciliation work remains in STU-121.
+- Next action: Review PR #516 and its CI results. No further local implementation is required for these experiments.
 
 ## Outcome and requirements
 
@@ -51,8 +51,10 @@ Reviewed 2026-11-17 against `bc02a4595`: value ownership, time-zone capture, sam
 
 ## Review and delivery
 
-Branch: `perf/snapshot-fixture-data`, above #515 in stack #513. Use independent completed-diff review and final manual GitHub/CircleCI gates. The unrelated untracked simple-english skill was restored byte-for-byte after stack synchronization and is outside this work.
+Branch: `perf/snapshot-fixture-data`, [PR #516](https://github.com/kyleve/Stuff/pull/516), above #515 in stack #513. Report implementation: `50a138520`; negative experiment record: `9005c92f0`. The complete tree before and after the final rebase is `f6f5b30a643ad4619ee1489c550dbf3d691bbd31`, so local evidence applies to the published implementation. Later edits only complete documentation.
+
+Independent review found no actionable source or evidence issues. It verified the raw measurements, all 33 unit tests, focused diagnostics, 801-capture inventory, and rebase equivalence. Full image assertions establish reference acceptance, not pixel-exact equality. Manual GitHub/CircleCI gates target the final publication tip; their links and remote status live in PR #516. The unrelated untracked simple-english skill was restored byte-for-byte after synchronization and is outside this work.
 
 ## Outcome
 
-In progress. Preserve experiment results and remaining work in STU-121.
+Report factories now reuse immutable values; their current-calendar wrappers and mutable dependencies retain existing ownership. Demo input caching has a supported negative result and adds no API. These experiments are delivered in PR #516. [STU-121](https://linear.app/kve/issue/STU-121) remains In Review for unmerged work and broader profiling opportunities.

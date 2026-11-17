@@ -1,6 +1,6 @@
 # 01 — Reuse fixed report values
 
-- Status: executing
+- Status: complete
 - Depends on: None
 - Requirements: [R-01, R-03–R-05](README.md); exclusions X-01–X-02.
 
@@ -44,8 +44,8 @@ The probe passes one test, consumes three batches of 500 `sampleReport()` and 50
 - Capture time is 37.301s versus 37.319s in the earlier parent repeat. The 0.018s difference does not establish a suite speedup; factory setup sits outside capture timing.
 - Architecture checks, `./swiftformat --lint`, `./sf-symbols --lint`, and `git diff --check` pass. No generation inputs changed.
 
-Independent review of `bc02a4595` through `5ada50bbc` plus this working diff found no actionable source or measurement issue. It verified value ownership, fresh calendar construction, raw arithmetic, and probe removal. Broad image integration and final publication records remain pending.
+Independent review of `bc02a4595` through `5ada50bbc` plus this working diff found no actionable source or measurement issue. It verified value ownership, fresh calendar construction, raw arithmetic, and probe removal. The final review also verified the broad image evidence and source equivalence after stack synchronization; see plan 02. The report change is `50a138520`, published in [PR #516](https://github.com/kyleve/Stuff/pull/516).
 
 ## Resume point
 
-Commit the verified report cache. Finish broad image integration and publication under plan 02, then record the final revision and PR.
+Complete. The retained change and evidence are published in PR #516. Remote CI results remain pending; the PR owns their dispatch records.

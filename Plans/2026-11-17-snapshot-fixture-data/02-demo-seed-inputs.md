@@ -1,6 +1,6 @@
 # 02 — Try reusable demo seed inputs
 
-- Status: executing
+- Status: complete
 - Depends on: None; reuse plan 01's instrumentation baseline, then measure after its verified report change.
 - Requirements: [R-02–R-05](README.md); exclusions X-01–X-02.
 
@@ -49,8 +49,14 @@ Decision: supported negative result under Q-03's bounded criterion. Do not intro
 
 Independent review recomputed both raw logs (66 rows each), checked that the generation span contains `makeScript()` including new sample identities, and found no actionable issue. Generation means extrapolated over 39 worlds are 0.017748s and 0.018970s. These are an upper-bound estimate for the measured scenario, not an implemented speedup or evidence about other scenarios.
 
-The final retained source passes 33 report/world tests and the focused 63-capture image matrix from plan 01. Core/demo behavior is unchanged, so the conditional candidate-specific Core tests are not needed. Broad WhereUI image integration is still running.
+The final retained source passes 33 report/world tests and the focused 63-capture image matrix from plan 01. Core/demo behavior is unchanged, so the conditional candidate-specific Core tests are not needed. Broad WhereUI image integration passes with the final retained source:
+
+- `./test --no-generate --skip-host-tests --only WhereUISnapshotTests --timings --record never`: 67 tests in 62 suites, 801 captures, no retries or failures. All identities, sizing, 4,414,294,494 pixels, and 902 tiles match the parent inventory.
+- Capture time is 677.761s; the test runner takes 732.243s. The earlier source-equivalent parent sample has 677.170s in captures. This integration run establishes reference acceptance and inventory preservation, not a measured timing improvement or pixel-exact equality.
+- Architecture, Swift formatting, symbol lint, and diff checks pass. No references, tolerances, readiness policies, or generation inputs changed. All temporary probes were removed before final validation.
+
+Independent review checked the complete diff and raw logs, with no actionable findings. Rebase from `5808c576f` to `9005c92f0` preserves the complete tree `f6f5b30a643ad4619ee1489c550dbf3d691bbd31`; parent `d3f012395` matches the tested `bc02a4595` source. The negative result is a separate commit, `9005c92f0`, in [PR #516](https://github.com/kyleve/Stuff/pull/516). Final publication records do not change source. The PR owns manual full-gate dispatch links and pending remote results.
 
 ## Resume point
 
-Commit this reviewed negative result separately. Finish broad image integration, final evidence review, stack reconciliation, publication, and the two manual CI dispatches.
+Complete. The supported negative result and report optimization are published in PR #516. Review its pending CI results; broader seed write/reconciliation work remains in STU-121.
