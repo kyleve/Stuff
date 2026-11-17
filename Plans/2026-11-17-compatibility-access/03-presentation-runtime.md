@@ -1,6 +1,6 @@
 # 03 — Lockout presentation and runtime lifecycle
 
-- Status: executing
+- Status: complete
 - Depends on: [01](01-unified-access.md), complete in `ddcc4a2f3`, and [02](02-widget-access.md), complete in `ee67c64d7`.
 - Shared context: [Overview](README.md)
 
@@ -84,9 +84,9 @@ Repair failures before publishing. Preserve the previously verified access and w
 - [x] Finish readiness review after 02 publication.
 - [x] Implement runtime ownership, shutdown naming, and one lockout.
 - [x] Finish verification.
-- [ ] Independently review, publish, reply, and complete the series.
+- [x] Independently review, publish, reply, and complete the series.
 
-Execution started after publishing the reviewed plan in `3c75833d6`. Runtime/presentation changes and six activity regressions are implemented and verified. Independent review found that DEBUG cutsheets do not run capture-only readiness hooks; both logged-in fixtures now start their own runners, as does the onboarding preview. The reviewer rechecked that correction and found no remaining actionable issue. Next: commit/push, post the three individual review replies, refresh PR evidence, and complete the series.
+Execution started after publishing the reviewed plan in `3c75833d6`. Runtime/presentation changes and six activity regressions are implemented and verified. Independent review found that DEBUG cutsheets do not run capture-only readiness hooks; both logged-in fixtures now start their own runners, as does the onboarding preview. The reviewer rechecked that correction and found no remaining actionable issue. Published implementation: `e908eef364c07875c963fd5065aa708465dba182`. The three review replies, updated screen evidence, final PR description, and STU-334 delivery record are published and verified. No implementation step remains in this series.
 
 ## Verification
 
@@ -95,8 +95,10 @@ Execution started after publishing the reviewed plan in `3c75833d6`. Runtime/pre
 - Inspected all four root images plus representative iPad/light and iPhone/AX5 lockout sheets. The ready root, warning badge, rosettes, and complete large text remain intact. Captures do not establish interaction, VoiceOver, motion, or physical scene scheduling.
 - `./ide --no-open`, `./swiftformat --lint`, `./sf-symbols --lint`, guidance checks, and `git diff --check` passed. The normal test runner passed all 30 architecture-rule tests, enforcement, and host helper regressions.
 - Fresh independent review covered the entire step against `3c75833d6`, host/preview callers, aggregate activity, cancellation and admission checks, retained gate, shutdown ordering, and formal correspondence. The preview correction above was rechecked; no actionable findings remain.
-- Physical account transitions, background delivery, and multiple-window scene scheduling remain device acceptance. GitHub image markup/metadata can be verified through the API; local browser access is disabled, so live PR layout and Mermaid rendering remain unverified.
+- Physical account transitions, background delivery, and multiple-window scene scheduling remain device acceptance. GitHub image markup and committed image metadata were verified through the API; local browser access is disabled, so live PR layout and Mermaid rendering remain unverified.
 
 ## Outcome
 
-Implementation and verification are complete; publication and review replies remain.
+Completed in [e908eef36](https://github.com/kyleve/Stuff/commit/e908eef364c07875c963fd5065aa708465dba182) on [PR #495](https://github.com/kyleve/Stuff/pull/495). Published individual replies for [shutdown naming](https://github.com/kyleve/Stuff/pull/495#discussion_r4606530707), [one lockout](https://github.com/kyleve/Stuff/pull/495#discussion_r4606532427), and [runtime ownership](https://github.com/kyleve/Stuff/pull/495#discussion_r4606534388). Updated the existing root and lockout image comments to this tested revision and refreshed the PR's final behavior, evidence, and rollout limits.
+
+All R-07–R-09 deliverables and X-01–X-05 exclusions are preserved. The series is delivered; STU-334 stays In Review while the PR is open. STU-335 remains the separate onboarding/session-model follow-up. Physical-device acceptance and final CI remain review/release checks; no merge, thread resolution, or Production schema deployment was performed.

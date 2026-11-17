@@ -4,10 +4,10 @@
 
 - Updated: 2026-11-17, starting at `743f8c96a059bdee05a7f97c26e377a76f78c43c`.
 - Operation: plan and execute the second human review of [PR #495](https://github.com/kyleve/Stuff/pull/495), explicitly approved in the conversation on 2026-11-17.
-- Stage: plan 01 complete in `ddcc4a2f3`; plan 02 complete in `ee67c64d7`; plan 03 executing.
-- Completed: read all 17 new comments across 14 threads and their earlier discussion; source review confirmed local bypasses, signed-out lockout, unchecked widget snapshots, and repeated lockout presentation.
-- Pending: publish verified [03](03-presentation-runtime.md), reply to its three threads, refresh PR evidence, and record completion. Individual access/transport/share/widget and deferred-composition replies are posted.
-- Next action: commit/push plan 03. Its 83 selected unit tests, 20 image references / 36 captures, and eight formal outcomes passed; independent review is complete. Plans 01/02 retain their recorded verification and publication evidence.
+- Stage: complete. Plan 01 delivered in `ddcc4a2f3`, plan 02 in `ee67c64d7`, and plan 03 in `e908eef36`.
+- Completed: all three approved plans are implemented, independently reviewed, verified, and published on PR #495. All 17 second-round comments across 14 threads have individual replies; PR description, screen evidence, and STU-334 delivery record are current.
+- Pending: no implementation or publication work remains in this series. STU-335 remains the approved separate onboarding/session-model follow-up. Physical-device acceptance and final CI are review/release checks.
+- Next action: user review of the updated PR. STU-334 and STU-333 remain In Review while it is open; no merge, thread resolution, or Production schema deployment was performed.
 
 ## Outcome and scope
 
@@ -105,4 +105,8 @@ Detail 01 first. Refine 02 against its verified receipt/access API, then 03 agai
 
 Reviewed 2026-11-17 at `743f8c96a`: all requirements have an owner; 01 is ready, 02/03 remain selected outlines. The review added admission checks to held opens and real scope reuse, and kept a registered lifecycle gate to avoid terminal missing-gate failures. No material product question remains. Mermaid diagrams and Swift sketches will describe design, not compilation evidence. Physical CloudKit account transitions, cross-device propagation, and WidgetKit refresh scheduling require device acceptance and cannot be proven by fakes or bounded models.
 
-Publish plans, implementation, and replies on [PR #495](https://github.com/kyleve/Stuff/pull/495). Implementation is authorized. Plans 01/02 are complete and plan 03 is executing; refinement preserves the agreed scope and no product decision is pending. Mermaid syntax was inspected but not rendered; Swift sketches are not compilation evidence.
+Published plans, implementation, and replies on [PR #495](https://github.com/kyleve/Stuff/pull/495). All three plans are complete. Required local/cloud verification and captured admission now govern app/share access; widget payloads require matching before/after evidence and show a blocked state when needed; one root lockout and runtime-owned activation preserve immediate masking and headless startup. The per-step records contain commands, counts, review corrections, and publication links. No product decision remains open.
+
+The final runtime selection passed 83 unit tests and 20 image references / 36 captures; widget checks passed 47 focused tests, four final access tests, and 40 references / 43 captures. Unified access passed its final rebuilt 55-test selection after fixing the two demo-fixture failures exposed by the earlier 2,986-test run. All 53 publication/lockout and eight first-reveal expected formal outcomes matched. These focused passes do not claim the full suite was rerun after the fixture corrections. Architecture and host helper checks, formatting, catalogs, and guidance checks passed.
+
+Representative images were inspected locally and the published markup/commit metadata checked through GitHub's API. Browser access is disabled, so live PR layout and Mermaid rendering remain unverified; Swift sketches are not compilation evidence. Device account transitions, two-device propagation, native WidgetKit delivery, and system scene scheduling remain device acceptance. Linear STU-334 retains In Review with this evidence; the deferred STU-335 remains Backlog.
