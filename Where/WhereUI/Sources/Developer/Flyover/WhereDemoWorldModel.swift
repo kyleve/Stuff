@@ -1,7 +1,7 @@
 #if DEBUG
     import Observation
 
-    /// Builds one separate demo world and retains its scene across synthetic layout changes.
+    /// Loads a demo world and retains its scene across synthetic layout changes.
     @MainActor @Observable
     final class WhereDemoWorldModel {
         enum State {
@@ -13,12 +13,19 @@
 
         private(set) var state = State.idle
         private(set) var request = 0
+        @ObservationIgnored private let buildWorld: @MainActor () async throws -> WhereFlyoverWorld
+
+        init(buildWorld: @escaping @MainActor () async throws
+            -> WhereFlyoverWorld = WhereFlyoverWorld.build)
+        {
+            self.buildWorld = buildWorld
+        }
 
         func load() async {
             guard case .idle = state else { return }
             state = .loading
             do {
-                let world = try await WhereFlyoverWorld.build()
+                let world = try await buildWorld()
                 try Task.checkCancellation()
                 state = .loaded(world)
             } catch is CancellationError {

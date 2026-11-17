@@ -773,6 +773,7 @@ let project = Project(
             sources: [
                 "Where/WhereUI/SnapshotTests/**",
                 "Where/WhereUI/Tests/Support/AdaptivePaneLoadFixture.swift",
+                "Where/WhereUI/Tests/Support/SnapshotWorldFixture.swift",
                 "Where/WhereUI/Tests/Support/TestStore.swift",
             ],
             extraPackageProducts: ["SnapshotKitTesting"],

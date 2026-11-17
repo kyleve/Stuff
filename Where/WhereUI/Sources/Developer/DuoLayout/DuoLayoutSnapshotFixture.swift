@@ -3,7 +3,8 @@
     import SwiftUI
     import WhereCore
 
-    /// Each capture configuration gets its own demo world, navigation, and artwork readiness.
+    /// Each configuration owns its loading state, navigation, and artwork readiness.
+    /// Image matrices can inject a shared world; ordinary consumers build a fresh one.
     @MainActor
     final class DuoLayoutSnapshotFixture {
         static let browseColumn = SnapshotConfiguration.Frame.fullContent(
@@ -34,12 +35,18 @@
             case settings
         }
 
-        let model = WhereDemoWorldModel()
+        let model: WhereDemoWorldModel
         let artwork = PreviewSupport.snapshotArtworkCache
         let tab: MainTabSelection.TabID
         let selection: Selection
 
-        init(tab: MainTabSelection.TabID, selection: Selection) {
+        init(
+            tab: MainTabSelection.TabID,
+            selection: Selection,
+            buildWorld: @escaping @MainActor () async throws
+                -> WhereFlyoverWorld = WhereFlyoverWorld.build,
+        ) {
+            model = WhereDemoWorldModel(buildWorld: buildWorld)
             self.tab = tab
             self.selection = selection
         }

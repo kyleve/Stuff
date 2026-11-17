@@ -10,8 +10,10 @@ Hosted tests that traverse SwiftUI accessibility must link and import
 `AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
 runtime. Guard: `CalendarContentViewTests`.
 
-`Tests/Support/TestStore.swift` and `AdaptivePaneLoadFixture.swift` are shared by the unit and image bundles through `Project.swift`.
+`Tests/Support/TestStore.swift`, `AdaptivePaneLoadFixture.swift`, and `SnapshotWorldFixture.swift` are shared by the unit and image bundles through `Project.swift`.
 Keep support fixtures outside `SnapshotTests/`, whose Swift files each declare one matching suite. Use the store's read gates and failures for adaptive loading snapshots. Keep fixture setup and completion independent for each configuration.
+
+Only the noninteractive MainTabs and Device Layout Lab image matrices inject `SnapshotWorldFixture.shared` to reuse standard demo initialization. The three narrow-window MainTabs cases keep fresh worlds until warm native geometry matches the references. Keep their view/loading/navigation state separate and verify output in both capture orders when changing this boundary. Ordinary providers, previews, cold/preloaded regression, and lifecycle/mutation tests keep fresh worlds. Never use the image singleton for user actions. Guards: `SnapshotWorldFixtureTests`, `DeviceLayoutLabViewTests`, and the two image suites.
 
 `WhereStylesheetTests` covers trait-aware derivation, calculations, and semantic accessibility constraints.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`

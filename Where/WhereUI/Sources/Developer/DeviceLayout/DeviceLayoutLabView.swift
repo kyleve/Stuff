@@ -152,6 +152,12 @@
 
     extension DeviceLayoutLabView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            snapshots(buildWorld: WhereFlyoverWorld.build)
+        }
+
+        static func snapshots(
+            buildWorld: @escaping @MainActor () async throws -> WhereFlyoverWorld,
+        ) -> [SnapshotCase] {
             [
                 DeviceLayoutConfiguration.device(.iPhone17, .portrait),
                 .device(.iPadPro13, .landscape),
@@ -159,7 +165,11 @@
                 .duo(.tabletop),
             ].flatMap { configuration in
                 [ColorScheme.light, .dark].map { colorScheme in
-                    let fixture = DuoLayoutSnapshotFixture(tab: .locations, selection: .region)
+                    let fixture = DuoLayoutSnapshotFixture(
+                        tab: .locations,
+                        selection: .region,
+                        buildWorld: buildWorld,
+                    )
                     let layoutName = switch configuration {
                         case .device: configuration.frame.name
                         case let .duo(pose): "duo-" + pose.rawValue

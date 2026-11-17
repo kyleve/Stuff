@@ -784,12 +784,23 @@ They inject `PreviewSupport.snapshotArtworkCache`, one actor per process for
 paths keyed by region and resolution. Explicit artwork preparation uses the
 same cache. Broadway roots reuse an inherited cache and own a fallback when
 none is supplied, so nested roots preserve the injected dependency. The shared
-cache stores only paths. Reports, worlds, navigation, and artwork models retain
-their existing fixture ownership. Unit tests for initial loading inject fresh
+cache stores only paths. Unit tests for initial loading inject fresh
 caches. Geometry remains lazy; independent production roots continue to create their own caches.
 Fixed sample report and location values also initialize once per process. The
 report-details wrapper still creates its calendar on each call; models, services,
-and preferences retain their existing fixture ownership.
+and preferences retain their existing fixture ownership except for the two image matrices below.
+The 36 adaptive MainTabs cases outside the narrow viewport and eight Device Layout Lab cases inject
+`SnapshotWorldFixture.shared.load` from their image suites. They initialize one
+standard demo world per test process, including its session, report, services, and
+preferences. Each case retains its own loading model, view state, navigation, and
+readiness hooks. These captures perform no user edits. A canceled caller cannot
+publish loaded state or cancel another capture's initialization; a failed build
+can retry. Ordinary snapshot providers and previews still build fresh worlds,
+as do the separate cold/preloaded image regression and lifecycle/mutation tests.
+The three narrow-window cases also keep fresh worlds: warm initialization changes
+native tab-bar geometry in the detached compact iPad viewport on Xcode/iOS 27.2.
+Preparing before mounting and increasing settling to 1.5s did not restore the
+existing geometry. The final captures retain their original 0.5s settle floor.
 Use `prepareForCapture` for fixture or artwork readiness before the first capture
 settle. Height-changing loads use `onReadyToMeasure`; actions that need settled
 UI retain `onReadyToSnapshot`.

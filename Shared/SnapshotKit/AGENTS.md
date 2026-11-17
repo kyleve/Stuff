@@ -22,6 +22,7 @@ Consumer modules own design-system root wrapping.
   Preview fixtures must load from their mounted view or start ready; previews do not invoke capture readiness hooks.
 - Keep content and panel builders lazy. Descriptor construction must not instantiate views/models.
   Models captured outside a builder and shared hooks still require independent cases; per-configuration builder invocation does not isolate them. See [STU-114](https://linear.app/kve/issue/STU-114).
+  The scoped demo-world reuse exception for two noninteractive WhereUI image matrices is owned by [WhereUI test contracts](../../Where/WhereUI/Tests/AGENTS.md); their case/loading/navigation state remains independent.
 - Use `\.isCapturingSnapshot` only to freeze motion at a deterministic phase. The exception is content no settle window can stabilize: externally loaded substrates or wall-clock controls/timers may use an identical-layout placeholder.
   Otherwise never change layout, content, or behavior. Preserve the hybrid SwiftUI environment/trait-bridge accessor and mirrored setter in `SnapshotCaptureFlag.swift`; a plain `@Entry` breaks it.
 - Use full-content frames for `ScrollView`, `List`, `Form`, and equivalent UIKit scrollers.
