@@ -85,6 +85,8 @@ import SnapshotKit
     private var settlePasses = 0
     private var tiles = 0
     private var pixels = 0
+    private let traceID: SnapshotCaptureTraceID?
+    private var settleCalls = 0
 
     public init(
         identifier: String,
@@ -95,6 +97,7 @@ import SnapshotKit
     ) {
         self.identifier = identifier
         self.isEnabled = isEnabled
+        traceID = isEnabled ? SnapshotCaptureTraceID() : nil
         self.sizing = sizing.timingDescription
         self.measurementReadiness = measurementReadiness.timingDescription
         self.captureSettle = captureSettle.timingDescription
@@ -133,6 +136,28 @@ import SnapshotKit
         settlePasses += count
     }
 
+    public func makeSettleTrace(
+        reason: SnapshotSettleReason,
+        mechanism: @autoclosure () -> SnapshotSettleMechanism,
+        start: @autoclosure () -> ContinuousClock.Instant,
+        minimumDuration: Double,
+        maximumDuration: Double,
+    ) -> SnapshotSettleTrace? {
+        guard let traceID else { return nil }
+        settleCalls += 1
+        return SnapshotSettleTrace(
+            identifier: identifier,
+            captureID: traceID,
+            ordinal: settleCalls,
+            reason: reason,
+            mechanism: mechanism(),
+            captureStart: self.start,
+            start: start(),
+            minimumDuration: minimumDuration,
+            maximumDuration: maximumDuration,
+        )
+    }
+
     /// Records the shape of the captured image: how many tiles
     /// ``tileAndStitchImage(of:)`` needed, and the pixel count of the result.
     /// Both let the aggregator ask whether a phase's cost tracks image area.
@@ -166,6 +191,8 @@ import SnapshotKit
         guard isEnabled else { return nil }
         let payload = SnapshotCaptureTimingLine(
             id: identifier,
+            captureID: traceID?.rawValue,
+            settleCalls: settleCalls,
             sizing: sizing,
             measurementReadiness: measurementReadiness,
             captureSettle: captureSettle,
@@ -207,6 +234,8 @@ import SnapshotKit
 /// a diagnostic format read by `./test --timings`, not a persisted one.
 private struct SnapshotCaptureTimingLine: Encodable {
     let id: String
+    let captureID: UUID?
+    let settleCalls: Int
     let sizing: String
     let measurementReadiness: String
     let captureSettle: String

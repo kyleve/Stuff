@@ -67,6 +67,7 @@ func throwIfUnsettled(
 func settleForCapture(
     _ view: UIView,
     named name: String,
+    reason: SnapshotSettleReason,
     settle: SnapshotSettle,
     timing: SnapshotCaptureTiming,
     timeoutPolicy: SnapshotSettleTimeoutPolicy,
@@ -78,6 +79,7 @@ func settleForCapture(
                 named: name,
                 maxDuration: timeoutPolicy.maximumDuration(for: settle),
                 timing: timing,
+                reason: reason,
             )
         case let .settledAtLeast(minDuration):
             // Keep the hang budget for never-quiescing content above the raised
@@ -88,11 +90,23 @@ func settleForCapture(
                 minDuration: minDuration,
                 maxDuration: timeoutPolicy.maximumDuration(for: settle),
                 timing: timing,
+                reason: reason,
             )
         case .immediate:
+            let trace = timing.makeSettleTrace(
+                reason: reason,
+                mechanism: .fromEnvironment,
+                start: .now,
+                minimumDuration: 0,
+                maximumDuration: 0,
+            )
             await Task.yield()
-            guard Task.isCancelled == false else { return .cancelled }
+            guard Task.isCancelled == false else {
+                trace?.emit(outcome: .cancelled)
+                return .cancelled
+            }
             CATransaction.performWithoutAnimation(view.layoutIfNeeded)
+            trace?.emit(outcome: .skipped)
             return .skipped
     }
 }
@@ -153,6 +167,7 @@ func settleForCapture(
     maxDuration: TimeInterval = 2.5,
     timing: SnapshotCaptureTiming? = nil,
     mechanism: SnapshotSettleMechanism = .fromEnvironment,
+    reason: SnapshotSettleReason = .standalone,
 ) async -> SettleOutcome {
     // The quiescence experiment uses the same quiet window as the pixel proof.
     let stableQuietDuration = SnapshotPixelStability.quietDuration
@@ -164,6 +179,15 @@ func settleForCapture(
 
     let clock = ContinuousClock()
     let start = clock.now
+    let trace = timing?.makeSettleTrace(
+        reason: reason,
+        mechanism: mechanism,
+        start: start,
+        minimumDuration: minDuration,
+        maximumDuration: maxDuration,
+    )
+    var tracedOutcome = SettleOutcome.cancelled
+    defer { trace?.emit(outcome: tracedOutcome) }
     let minDeadline = start.advanced(by: .seconds(minDuration))
     let maxDeadline = start.advanced(by: .seconds(maxDuration))
     let starvationDeadline = start.advanced(by: .seconds(maxDuration * starvationHeadroom))
@@ -199,11 +223,17 @@ func settleForCapture(
     }
 
     while true {
+        let sleepStart = trace.map { _ in clock.now }
         do {
             try await Task.sleep(for: .milliseconds(16))
         } catch {
+            if let sleepStart {
+                trace?.recordInterruptedSleep(sleepStart.duration(to: clock.now))
+            }
             return .cancelled
         }
+        let sleepDuration = sleepStart
+            .map { SnapshotSettleTrace.seconds($0.duration(to: clock.now)) }
         // Sampled *before* this pass lays out, because the loop performs the
         // layout itself: read afterwards, `needsLayout` is always clear and that
         // third of the signal says nothing. Dirty layout here means something
@@ -212,7 +242,10 @@ func settleForCapture(
             ? false
             : view.layer.hasPendingWork()
 
+        let layoutStart = trace.map { _ in clock.now }
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
+        let layoutDuration = layoutStart
+            .map { SnapshotSettleTrace.seconds($0.duration(to: clock.now)) }
         passCount += 1
 
         // Quiescence: the run loop went idle at least once since the last pass
@@ -234,16 +267,26 @@ func settleForCapture(
         // Skipped entirely in `.quiescence` mode — not rendering it is the whole
         // point — so the expensive path only runs where its answer is used.
         var now = clock.now
+        var renderDuration = 0.0
+        var pixelDuration = 0.0
         // The normalized anchor survives in pixelStability; the UIKit sample
         // and drawing intermediates must drain before the next suspension.
         let pixelSaysStable = autoreleasepool {
+            let renderStart = trace.map { _ in clock.now }
             let sampledImage = mechanism == .quiescence ? nil : view.renderedContentSample()
             now = clock.now
+            if let renderStart {
+                renderDuration = SnapshotSettleTrace.seconds(renderStart.duration(to: now))
+            }
             guard mechanism != .quiescence else { return false }
-            return pixelStability.observe(
+            let stable = pixelStability.observe(
                 sampledImage?.cgImage,
                 at: start.duration(to: now),
             )
+            if trace != nil {
+                pixelDuration = SnapshotSettleTrace.seconds(now.duration(to: clock.now))
+            }
+            return stable
         }
 
         var quiescenceSaysStable = false
@@ -277,7 +320,21 @@ func settleForCapture(
         let observedContentChange = isQuiescenceDeciding
             ? quiescenceObservedChange
             : pixelStability.observedChange
+        trace?.append(.init(
+            index: passCount,
+            sampleAt: SnapshotSettleTrace.seconds(start.duration(to: now)),
+            sleepRequested: 0.016,
+            sleepActual: sleepDuration ?? 0,
+            layout: layoutDuration ?? 0,
+            render: renderDuration,
+            pixelCheck: pixelDuration,
+            event: mechanism == .quiescence ? nil : pixelStability.lastEvent,
+            pixelStable: mechanism == .quiescence ? nil : pixelSaysStable,
+            stable: saysStable,
+            floorMet: now >= minDeadline,
+        ))
         if saysStable, now >= minDeadline {
+            tracedOutcome = .settled
             return .settled
         }
         // Checked after the stability check on purpose: a pass that completes
@@ -285,9 +342,11 @@ func settleForCapture(
         // content is safe to capture no matter when the proof landed.
         if now >= maxDeadline {
             if observedContentChange {
+                tracedOutcome = .timedOut(budget: maxDuration)
                 return .timedOut(budget: maxDuration)
             }
             if now >= starvationDeadline {
+                tracedOutcome = .starved(passes: passCount, cap: maxDuration * starvationHeadroom)
                 return .starved(passes: passCount, cap: maxDuration * starvationHeadroom)
             }
         }

@@ -418,6 +418,7 @@ func renderSnapshotCaptureLocked(
                 await settleForCapture(
                     wrappingViewController.view,
                     named: name,
+                    reason: .content,
                     settle: settle,
                     timing: timing,
                     timeoutPolicy: settleTimeoutPolicy,
@@ -434,6 +435,7 @@ func renderSnapshotCaptureLocked(
                     await settleForCapture(
                         wrappingViewController.view,
                         named: name,
+                        reason: .nativeInsets,
                         settle: settle,
                         timing: timing,
                         timeoutPolicy: settleTimeoutPolicy,
@@ -459,6 +461,7 @@ func renderSnapshotCaptureLocked(
                     return await settleForCapture(
                         wrappingViewController.view,
                         named: name,
+                        reason: .postAction,
                         settle: settle,
                         timing: timing,
                         timeoutPolicy: settleTimeoutPolicy,
@@ -489,6 +492,7 @@ func renderSnapshotCaptureLocked(
                     await settleForCapture(
                         wrappingViewController.view,
                         named: name,
+                        reason: .scrollReset,
                         settle: settle,
                         timing: timing,
                         timeoutPolicy: settleTimeoutPolicy,
@@ -525,6 +529,7 @@ func renderSnapshotCaptureLocked(
                         await settleForCapture(
                             wrappingViewController.view,
                             named: name,
+                            reason: .accessibilityPreparation,
                             settle: settle,
                             timing: timing,
                             timeoutPolicy: settleTimeoutPolicy,
@@ -731,6 +736,7 @@ private func resolveContentSize(
             await settleForCapture(
                 probeWrapper.view,
                 named: name,
+                reason: .measurement,
                 settle: settle,
                 timing: timing,
                 timeoutPolicy: settleTimeoutPolicy,

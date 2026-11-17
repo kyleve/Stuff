@@ -3,6 +3,26 @@ import Testing
 import UIKit
 
 struct SnapshotPixelStabilityTests {
+    @Test func diagnosticEventsDescribeTheSameAnchorTransitions() throws {
+        var stability = SnapshotPixelStability()
+        let first = try settleTestImage([100, 100, 100, 255])
+        let changed = try settleTestImage([103, 100, 100, 255])
+        #expect(stability.observe(first, at: .zero) == false)
+        #expect(stability.lastEvent == .anchor)
+        #expect(stability.observe(first, at: .milliseconds(60)) == false)
+        #expect(stability.lastEvent == .matching)
+        #expect(stability.observe(changed, at: .milliseconds(120)) == false)
+        #expect(stability.lastEvent == .changed)
+        #expect(stability.observedChange)
+        #expect(stability.observe(nil, at: .milliseconds(140)) == false)
+        #expect(stability.lastEvent == .missing)
+        #expect(stability.observe(changed, at: .milliseconds(160)) == false)
+        #expect(stability.lastEvent == .anchor)
+        #expect(stability.observe(changed, at: .milliseconds(220)) == false)
+        #expect(stability.observe(changed, at: .milliseconds(280)) == true)
+        #expect(stability.lastEvent == .matching)
+    }
+
     @Test(arguments: 0 ..< 4, -2 ... 2)
     func boundsEveryChannelToOneUnit(channel: Int, delta: Int) throws {
         let pixels: [UInt8] = [64, 64, 64, 200]

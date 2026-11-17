@@ -4,6 +4,13 @@ import Foundation
 /// Proves a quiet window against one fixed sample, allowing bounded render noise.
 /// Every normalized RGBA channel must remain within one 8-bit unit of the anchor.
 @_spi(Testing) public struct SnapshotPixelStability {
+    public enum Event: String, Codable, Sendable {
+        case anchor
+        case matching
+        case changed
+        case missing
+    }
+
     private struct Anchor {
         let sample: Sample
         let time: Duration
@@ -14,6 +21,7 @@ import Foundation
     private var anchor: Anchor?
     private var matchingPasses = 0
     public private(set) var observedChange = false
+    public private(set) var lastEvent: Event?
 
     public init() {}
 
@@ -22,12 +30,14 @@ import Foundation
     public mutating func observe(_ image: CGImage?, at elapsed: Duration) -> Bool {
         let sample = image.flatMap(Sample.init)
         if let anchor, let sample, sample.matches(anchor.sample) {
+            lastEvent = .matching
             matchingPasses += 1
             return matchingPasses >= 2 && elapsed - anchor.time >= Self.quietDuration
         }
 
         // Never advance the anchor for tolerated noise: adjacent one-unit
         // matches could otherwise hide a slow fade across the quiet window.
+        lastEvent = sample == nil ? .missing : anchor == nil ? .anchor : .changed
         if anchor != nil { observedChange = true }
         anchor = sample.map { Anchor(sample: $0, time: elapsed) }
         matchingPasses = 0

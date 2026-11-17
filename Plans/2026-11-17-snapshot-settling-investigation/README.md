@@ -5,10 +5,10 @@
 - Updated: 2026-11-17; source `cd293e851` after the snapshot shard rebalance.
 - Operation: Create a durable plan and execute the investigation.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Reviewing the executable instrumentation and measurement horizon.
-- Completed: Source inspection, existing experiment review, and baseline review.
-- Pending: Instrumentation, current traces, controlled candidate experiments, and verified improvements.
-- Next action: Review the detailed first deliverables, then implement observational tracing without changing settling decisions.
+- Stage: Executing plan 01; local validation is complete and raw-evidence review is pending.
+- Completed: Observational instrumentation, initial independent review, 162 framework functions, 19 parser/CI-tool tests, 935 image captures, complete trace reconciliation, matching capture inventory, and a replay of CI artifact staging.
+- Pending: Instrumentation publication, focused overhead controls, isolated CI evidence, controlled candidate experiments, and verified improvements.
+- Next action: Publish the reviewed groundwork, then run the focused controls in plan 02.
 
 ## Outcome and scope
 
@@ -35,9 +35,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 ## Review and delivery
 
-- Plan review: Plans 01–02 are ready after the recorded review; independent review is also in progress.
-- Implementation: Instrumentation is the next action.
-- Publication: Not yet published.
+- Plan review: Plans 01–02 passed the recorded review. Independent source review is complete; runtime evidence review remains pending.
+- Implementation: Plan 01 is executing.
+- Publication: Plan commit `230c5048d` is published in [PR #524](https://github.com/kyleve/Stuff/pull/524) and linked from STU-121. Validated instrumentation awaits final evidence review and publication to the same PR.
 
 ## User stories and requirements
 

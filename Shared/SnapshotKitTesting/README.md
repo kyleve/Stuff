@@ -262,9 +262,31 @@ breakdown — `settle`, `tileStitch`, `compare`, `pngRoundTrip`, `host`,
 `accessibilityParse`, `hook`, `measurementHook`, `intrinsicMeasure`, `drain` — plus the settle pass
 distribution, sizing/readiness/capture-settle metadata, and the slowest
 individual captures. Reach for it before optimizing
-anything here: it is what showed that `drainInFlightAnimations` was burning a
-flat second on every image, and that the settle *floor* rather than its render
-passes is what the remaining time buys.
+anything here: it showed that `drainInFlightAnimations` was burning a flat second
+on every image. The remaining settling cost depends on the case and phase.
+
+Timing also emits versioned `SNAPSHOT_SETTLE_TRACE` JSON rows, one per settling
+call. Each row carries a capture UUID, call ordinal, reason, policy, outcome,
+and ordered pass observations. Reasons distinguish measurement, content, native
+insets, post-action, scroll reset, and accessibility preparation. Call ordinals
+continue across retries. The capture timing summary supplies expected call and
+pass counts so missing trace records cannot look like savings.
+
+Each pass records requested/actual sleep, layout, low-resolution rendering,
+combined pixel normalization/comparison, and the pixel observer's anchor event.
+Stability and minimum-duration flags describe the original post-render decision
+timestamp. They overlap: do not add them as separate wait durations. Sleep is
+wall time and can contain application work or scheduling delay. Unchanged
+low-resolution pixels alone do not prove content readiness.
+
+The recorder buffers rows until each call ends, including cancellation and
+failure. It does not change settling policy or run another image comparison.
+Without timing, it allocates no pass buffers and emits no trace rows. Analyze a
+log with `python3 Tools/snapshot_settle_profile.py PATH/StuffSnapshotTests.log
+--output-dir PATH/settle-profile --require-complete`. The tool retains raw
+records and reports incomplete captures and orphaned calls. Completeness also
+requires a terminal Xcode success marker in every input log. CircleCI keeps
+these files under each shard's `snapshot-timings/settle-N` artifact directory.
 
 Synchronous autorelease pools bound settle samples, tile rendering, capture normalization, and reference comparison.
 The capture pool returns only the normalized image and PNG bytes. Pools never span an `await`.

@@ -551,6 +551,9 @@ jobs:
             mkdir -p snapshot-timing-artifact
             cp test-results-snapshots/results.xml \
               "snapshot-timing-artifact/results-$CIRCLE_NODE_INDEX.xml"
+            python3 Tools/snapshot_settle_profile.py "$TEST_WORKDIR/StuffSnapshotTests.log" \
+              --output-dir "snapshot-timing-artifact/settle-$CIRCLE_NODE_INDEX" \
+              --require-complete
       - store_artifacts:
           path: snapshot-timing-artifact
           destination: snapshot-timings
