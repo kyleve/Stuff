@@ -2,8 +2,10 @@
 
 ## Scopes and the launch
 
+- `InstallationLocation` owns the real permission source before store admission and shares it with real bootstrap assembly. Only that owner constructs `CoreLocationSource`; inject it from the regular runtime. Release its source after retiring a scope so a canceled sample stream is never reused. Guard: `where.live_location_source_ownership`.
+
 - Verify data compatibility before onboarding discovery, interrupted import recovery, or production scope construction.
-  Keep the compatibility gate active for foreground and headless launches. Local-only and demo worlds bypass CloudKit verification.
+  Keep the compatibility gate active for foreground and headless launches. Local-only builds use an explicitly injected local coordinator. Demo does not bypass lockout; its synthetic permission and recording state never authorize CloudKit publication.
   A live lockout stops recording and retires the whole scope. Guards: `WhereCompatibilityModelTests` and `WhereLaunchTests`.
 
 - **A `WhereScope` is what the app is logged in *to*.** It is one open store's

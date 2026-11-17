@@ -27,16 +27,11 @@ final class ScriptedBootstrap: WhereScopeAssembling {
     private var logStoreGate: CheckedContinuation<Void, Never>?
     private var isLogStoreGated = false
 
-    private(set) var prepareLocationCount = 0
     private(set) var makeServicesCount = 0
 
     init(services: WhereServices, logStore: PeriscopeStore? = nil) {
         self.services = services
         self.logStore = logStore
-    }
-
-    func prepareLocation() {
-        prepareLocationCount += 1
     }
 
     func makeServices() async throws -> WhereServices {
@@ -75,8 +70,6 @@ final class ScriptedBootstrap: WhereScopeAssembling {
 final class FailingBootstrap: WhereScopeAssembling {
     struct AssemblyFailure: Error, Equatable {}
 
-    func prepareLocation() {}
-
     func makeServices() async throws -> WhereServices {
         throw AssemblyFailure()
     }
@@ -107,8 +100,6 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
         self.services = services
     }
 
-    func prepareLocation() {}
-
     func makeServices() async throws -> WhereServices {
         services
     }
@@ -127,8 +118,6 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
 @MainActor
 final class UnusedBootstrap: WhereScopeAssembling {
     struct Unexpected: Error {}
-
-    func prepareLocation() {}
 
     func makeServices() async throws -> WhereServices {
         Issue.record("A suite that shouldn't log in asked for services")

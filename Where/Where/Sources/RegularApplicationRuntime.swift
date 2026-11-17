@@ -115,6 +115,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
+        let installationLocation = InstallationLocation.live()
         let coordinator = storeStorage.usesCloudKit
             ? DataCompatibilityCoordinator(
                 transport: CloudKitDataCompatibilityTransport(
@@ -136,10 +137,12 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                     widgetRefresher: buildEnvironment.makeWidgetRefresher(),
                     locationOutbox: locationOutbox,
                     compatibility: coordinator,
+                    installationLocation: installationLocation,
                 )
             },
             logSystem: .shared,
             compatibility: compatibility,
+            installationLocation: installationLocation,
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )

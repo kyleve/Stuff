@@ -71,6 +71,8 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: preferences,
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         #expect(model.theme == .alternate)
@@ -95,6 +97,8 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: makePreferences(),
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let gate = ThemeChangeGate()
         model.onThemeChanged = { await gate.receive($0) }
@@ -119,6 +123,8 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: preferences,
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let recorder = ThemeRecorder()
         model.onThemeChanged = { await recorder.receive($0) }
@@ -157,6 +163,8 @@ struct WhereModelTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         _ = try await model.resolveScope()
@@ -181,6 +189,8 @@ struct WhereModelTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         _ = try await model.resolveScope()
@@ -204,6 +214,8 @@ struct WhereModelTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         _ = try await model.resolveScope()
@@ -220,6 +232,8 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: makePreferences(),
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let store = try await PeriscopeStore.inMemory(
             session: .current(attributes: [:]),

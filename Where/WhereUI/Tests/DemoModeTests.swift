@@ -39,6 +39,8 @@ struct DemoModeTests {
                 installationContextStore: makeInstallationRecordingContextStore(),
                 makeBootstrap: { _ in bootstrap },
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .init()),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
             ),
             bootstrap,
         )
@@ -261,6 +263,8 @@ struct DemoModeTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         // Log in for real, and wait for the durable store to be routing.
@@ -312,6 +316,8 @@ struct DemoModeTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         bootstrap.gateLogStore()
 
@@ -319,10 +325,18 @@ struct DemoModeTests {
         let realScope = try await model.resolveScope()
         #expect(realScope.logStore == nil)
 
-        try await model.activateDemo(model.makeDemoScope())
-        let demoStore = try #require(model.logStore)
+        let demo = try await model.makeDemoScope()
+        var activationFinished = false
+        let activation = Task {
+            await model.activateDemo(demo)
+            activationFinished = true
+        }
+        try await waitUntil { model.activeScope == nil }
+        #expect(!activationFinished, "Retirement must drain the scope-retaining log open")
         bootstrap.releaseLogStore()
-        try await waitUntil { realScope.logStore != nil }
+        await activation.value
+        let demoStore = try #require(model.logStore)
+        #expect(realScope.logStore != nil)
 
         Log<DemoProbeLog>(system: logSystem).info("during the demo")
         await logSystem.flush()
@@ -345,6 +359,8 @@ struct DemoModeTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let abandoned = try await model.makeDemoScope()
         let itsStore = try #require(abandoned.logStore)

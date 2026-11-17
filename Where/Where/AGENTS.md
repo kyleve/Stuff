@@ -37,7 +37,7 @@ layering, and the domain rules this target merely starts up.
 ## Invariants
 
 - Construct the CloudKit compatibility transport only in the regular runtime. Inject its coordinator into the model and every bootstrap.
-  Local-only and demo worlds must not verify or publish CloudKit metadata.
+  Local-only builds must not verify or publish CloudKit metadata. Demo is subject to compatibility checks but its synthetic recording state must never publish metadata.
   Forward compatibility subscription notifications to the process-owned monitor, including headless launches.
   Guard: `where.compatibility_transport_ownership`.
 

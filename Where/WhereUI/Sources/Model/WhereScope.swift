@@ -26,7 +26,8 @@ import RegionKit
 /// reach OSLog only, as they do for the whole pre-scope window.
 @MainActor
 @Observable
-public final class WhereScope {
+public final class WhereScope: WhereShutdownable {
+    @ObservationIgnored private var logOpening: Task<Void, Never>?
     /// The service layer — the entry point to the domain for every logged-in
     /// surface. Owns this scope's store.
     ///
@@ -35,6 +36,8 @@ public final class WhereScope {
     /// Intents stack from the same services. Views still reach the domain
     /// through their view models, not through here.
     public let services: WhereServices
+    let installationContextStore: (any InstallationRecordingContextStoring)?
+    let compatibilityEvents: any ScopeCompatibilityEvents
 
     /// The persisted user intent (onboarding, tracking, reminder/summary
     /// schedules) this scope reads and writes. A reference, shared with
@@ -152,6 +155,8 @@ public final class WhereScope {
             preferences: preferences,
             logSystem: logSystem,
             sessionNow: nil,
+            installationContextStore: nil,
+            compatibilityEvents: NoopScopeCompatibilityEvents(),
         )
         scope.logRouting = .idle(store: nil)
         return scope
@@ -163,12 +168,16 @@ public final class WhereScope {
         preferences: WherePreferences,
         logSystem: Periscope,
         sessionNow: (@Sendable () -> Date)?,
+        installationContextStore: (any InstallationRecordingContextStoring)?,
+        compatibilityEvents: any ScopeCompatibilityEvents,
     ) {
         self.kind = kind
         self.services = services
         self.preferences = preferences
         self.logSystem = logSystem
         self.sessionNow = sessionNow
+        self.installationContextStore = installationContextStore
+        self.compatibilityEvents = compatibilityEvents
     }
 
     /// The user's real, persisted world: the app's **one** on-disk store (see
@@ -180,17 +189,25 @@ public final class WhereScope {
     /// the launch that's a failed drive, for onboarding a failed gate.
     static func real(
         bootstrap: any WhereScopeAssembling,
+        installationContextStore: any InstallationRecordingContextStoring,
+        compatibility: DataCompatibilityCoordinator,
         preferences: WherePreferences,
         logSystem: Periscope,
         onLogStoreStateChange:
         @escaping @MainActor (WhereScope, WhereModel.LogStoreState) -> Void,
     ) async throws -> WhereScope {
-        let scope = try await WhereScope(
+        let services = try await bootstrap.makeServices()
+        let scope = WhereScope(
             kind: .real,
-            services: bootstrap.makeServices(),
+            services: services,
             preferences: preferences,
             logSystem: logSystem,
             sessionNow: nil,
+            installationContextStore: installationContextStore,
+            compatibilityEvents: InstallationCompatibilityEvents(
+                services: services,
+                coordinator: compatibility,
+            ),
         )
         scope.openDurableLogStore(
             from: bootstrap,
@@ -278,6 +295,8 @@ public final class WhereScope {
             preferences: preferences,
             logSystem: logSystem,
             sessionNow: demoNow,
+            installationContextStore: nil,
+            compatibilityEvents: NoopScopeCompatibilityEvents(),
         )
         // Handed over, not yet routed into: activating the scope starts that
         // (see `WhereModel.activateDemo`), so a demo world built but never
@@ -342,6 +361,14 @@ public final class WhereScope {
     /// Public because whoever owns a scope has to be able to settle one it is
     /// done with — `WhereModel` on the way in and out of demo mode, and a test
     /// that builds a scope directly, which must leave no sink behind.
+    public func shutdown() async {
+        await services.shutdown()
+        await stopLogRouting()
+        // The open task retains this scope. Drain it before replacing the real store.
+        await logOpening?.value
+        logOpening = nil
+    }
+
     public func stopLogRouting() async {
         switch logRouting {
             case .pending:
@@ -379,7 +406,7 @@ public final class WhereScope {
         onStateChange:
         @escaping @MainActor (WhereScope, WhereModel.LogStoreState) -> Void,
     ) {
-        Task {
+        logOpening = Task {
             let store: PeriscopeStore?
             do {
                 store = try await Self.logger.measure(.openLogStore, budget: .seconds(1)) {

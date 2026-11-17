@@ -16,14 +16,16 @@ Run from the repository root:
 
 ## Boundary and source correspondence
 
-Source baseline: `04cb13b2cf83b01e617f3f0bd569d2c7aec2dd6a`, with the
-`WhereCompatibilityModel.bind` recovery fix committed alongside this model.
+Original source baseline: `04cb13b2cf83b01e617f3f0bd569d2c7aec2dd6a`, with the
+`WhereCompatibilityModel.bind` recovery fix in `c8eb66ecb`/`fd31d5a02`.
+The 2026-11-17 review revision replaces the stored scope epoch with an opening
+object identity and explicit startup states; correspondence was rechecked below.
 The publication/receipt protocol is checked separately in
 [CompatibilityPublication](../CompatibilityPublication/README.md).
 
 The admission point is the synchronous access check before launching a store
 open. An open already in flight may finish physically; its result must pass
-the scope epoch and current access checks before installation. Lockout masks
+the current opening identity and access checks before installation. Lockout masks
 history immediately, while GPS stop, launch drain, onboarding drain, and scope
 release remain separate actions. Release and completion of the task awaiting
 `LifecycleRunner.teardown` are also separate: that task awaits the recovery
@@ -33,13 +35,21 @@ launch, including detached work.
 | --- | --- |
 | `accountEpoch`, `decision`, `decisionEpoch` | [DataCompatibilityCoordinator](../../WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift): account invalidation, access state, and verification epoch. Allowed includes a valid offline decision. |
 | `checks`, `currentCheck`, `checkPhase`, `checkEpoch` | Coalesced verification task plus canceled tasks whose async work can still return. Bounded slots represent task identities. |
-| `scopeEpoch`, `scopes`, `opening`, `active`, `scopePhase`, `openingEpoch` | [WhereModel.resolveScope/logOut](../../WhereUI/Sources/Model/WhereModel.swift) and [WhereBootstrap.prepareStore](../../WhereUI/Sources/Launch/WhereLaunch.swift): one opening task, active scope, captured generation, discarded results, and release. An `opening` counts conservatively as a live container. |
+| `scopeEpoch`, `scopes`, `opening`, `active`, `scopePhase`, `openingEpoch` | [WhereModel.resolveScope/retireScope](../../WhereUI/Sources/Model/WhereModel.swift), [WhereStartupState](../../WhereUI/Sources/Model/WhereStartupState.swift), and [WhereBootstrap.prepareStore](../../WhereUI/Sources/Launch/WhereLaunch.swift): one identified opening, active scope/session, retired owner, discarded results, and release. The numeric epoch abstracts equality of the current opening object; it is no longer a stored Swift counter. Every coalesced waiter checks access before returning. An `opening` counts conservatively as a live container. |
 | `owner`, `callerDone` | Launch or process-owned onboarding work retaining the scope across awaits. Joining coalesced callers is abstracted into the last caller's completion. |
-| `retirement` | Stop, serialized launch drain, epoch invalidation, onboarding shutdown/drain, and logout. |
+| `retirement` | Stop, serialized launch drain, replacing startup with retiring, onboarding shutdown/drain, and release. |
 | `tasks`, `taskOwner`, `taskPhase` | [WhereCompatibilityModel.retirement](../../WhereUI/Sources/Compatibility/WhereCompatibilityModel.swift): latest task, canceled predecessors, and a task still awaiting recovery after scope release. |
 | `retired`, `commandedGPS`, `physicalGPS`, `pendingStop`, `gpsPhase` | [DeviceRecordingController.shutdown](../../WhereCore/Sources/Devices/DeviceRecordingController.swift), [LocationIngestor.start/retire](../../WhereCore/Sources/Location/LocationIngestor.swift): terminal retirement, `isMonitoring`, actual location-source effect, pending stop, and suspended authorization/start. |
 | `badOpen`, `badInstall`, `badGPS` | Ghost history of forbidden admissions. They retain a bad event even if a later operation repairs the state. |
 | `staleCheckRejected`, `staleOpenRejected`, `staleScopeEpochRejected`, `blockedOpening`, `pendingRetiredGPS`, `didRelease`, `recovered`, `failedOpen`, `repeatedLockout` | Ghost reachability witnesses. `didRelease` requires an actual active scope; recovery witnesses cannot pass by retiring an empty launch. |
+
+`active` includes a scope captured by the retirement task even after the public
+`model.activeScope` projection becomes nil. The log-opening task and bootstrap
+retry waiters are not separate model processes: their ownership is abstracted
+into completion/release readiness and opening identity. The held-log Swift
+regression checks log-task drain; bootstrap coalesced retry identity/return guards
+were source-reviewed, and their individual waiter interleavings are not explored
+by this model.
 
 Every process label is one modeled atomic boundary. Assignments using `||`
 read the same pre-state.
@@ -48,12 +58,12 @@ read the same pre-state.
 | --- | --- |
 | `BeginCheck`, `CompleteCheck`, `AccountChange` | Coordinator task creation, return from verification with `checkEpoch`, and account notification. Compatible/blocked results abstract the separate publication model. |
 | `RequestRetirement` macro | Synchronous state-change callback schedules the newest task and cancels its predecessor, distinguishing cancellation before task entry. `retainedTask` reproduces the old `retirement == nil` condition. |
-| `BeginOpen`, `CompleteOpen`, `DiscardOpen` | `resolveScope` access check, awaited assembly followed by epoch/access checks, then shutdown and disposal of a rejected result. Internal assembly awaits that do not grant access are collapsed into the open interval. |
+| `BeginOpen`, `CompleteOpen`, `DiscardOpen` | `resolveScope` access check, awaited assembly followed by opening-identity/access checks, then shutdown and disposal of a rejected result. Internal assembly awaits that do not grant access are collapsed into the open interval. |
 | `BeginGPS`, `AuthorizeGPS` | Recording request and post-authorization/outbox/output check before commanding monitoring. |
 | `PhysicalStart`, `StartReturns`, `StopLateStart` | Location source start effect, return to the ingestor, and compensating stop when retirement crossed that await. A submitted start can take effect after the first stop. |
 | `StopBeforeDrain`, `StopHardware` | Controller closes admission and retires the ingestor before joining recording/launch work. The hardware stop is a separate await. |
-| `FinishCaller`, `InvalidateScope` | [LifecycleRunner.teardownErased](../../../Shared/LifecycleKit/Sources/LifecycleRunner.swift) joins the launch drive; `shutdownForCompatibility` then increments the scope epoch and cancels onboarding. |
-| `StopAfterInvalidation`, `ReleaseScope` | Shutdown also covers a scope assembled during the initial launch drain, joins onboarding/recording work, then logs out. Release itself does **not** stop hardware. |
+| `FinishCaller`, `InvalidateScope` | [LifecycleRunner.teardownErased](../../../Shared/LifecycleKit/Sources/LifecycleRunner.swift) joins the launch drive; `shutdownForCompatibility` cancels onboarding and replaces startup ownership with a retirement task, invalidating any prior opening identity. |
+| `StopAfterInvalidation`, `ReleaseScope` | Shutdown also covers a scope assembled during the initial launch drain, joins onboarding/recording work and the scope-owned log-opening task, then publishes locked or fresh preparation. Release itself does **not** stop hardware. |
 | `FinishRetirementTask` | Return from teardown's recovery launch, or a canceled predecessor returning late. Only the current task may clear the handle. |
 | `LateCanceledTask` | Negative control only: removing the task-entry cancellation check lets an obsolete queued task retire the current replacement scope. |
 | `Parked` | Idle, ready, or blocked gate with no modeled work outstanding; intentional stuttering. |
@@ -136,14 +146,14 @@ The other inspected negative traces remove one class of guard:
 Existing Swift coverage includes `accountChangeRejectsSuspendedCompletion`,
 `blockedLaunchAndDiscoveryNeverOpenHistory`, `waitingViewerRecoversWithOneFreshScope`,
 `runningLockoutReleasesStoreAndPreservesConsent`, and the ingestor/controller
-shutdown suites. Those are complementary checks, not an executable refinement
+shutdown suites. The review revision adds `retirementDiscardsAnOpenBeforeReplacement` and makes `DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope` hold retirement until the log-open task drains. Those are complementary checks, not an executable refinement
 proof. In particular, `shutdownRejectsPhysicalStartAfterSuspendedOutput` checks
 the **pre-start** guard, not a hardware start suspended after invocation; that
 latter negative trace is model-only coverage here.
 
 ## Recorded run
 
-2026-11-17: all declared outcomes matched; every current case exhausted its
+2026-11-17 review revision: correspondence rechecked and all declared outcomes matched; every current case exhausted its
 queue with no invariant or deadlock error. Negative and reachability failures
 below are expected and inspected.
 
@@ -170,7 +180,7 @@ below are expected and inspected.
 | `StaleScopeEpoch.cfg` | `StaleScopeEpochNotReached` fails | 890 / 543 / 9 |
 | `BrokenLateRetirement.cfg` | `NoObsoleteTaskRetiresReplacement` fails | 162,377 / 70,178 / 17 |
 
-Local run: `.build/tla/runs/CompatibilityLockout.0XJ4hO/`; generated module:
+Local run: `.build/tla/runs/CompatibilityLockout.xtNkQp/`; generated module:
 `generated/CompatibilityLockout.tla`. Counts for expected failures are partial
 searches ending at their first counterexample.
 

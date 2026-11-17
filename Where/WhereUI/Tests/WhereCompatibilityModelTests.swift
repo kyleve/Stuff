@@ -8,6 +8,159 @@ import Testing
 
 @MainActor
 struct WhereCompatibilityModelTests {
+    @Test func recorderCanObtainPermissionAndPublishBeforeOpeningHistory() async throws {
+        let harness = CompatibilityLaunchHarness()
+        harness.initialAuthorization = .notDetermined
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let model = model(
+            currentVersion: 2,
+            context: .testing,
+            harness: harness,
+            transport: transport,
+        )
+        await model.compatibility.refresh(model: model)
+        guard case .blocked(.locationPermissionRequired) = model.compatibility.coordinator.state
+        else {
+            Issue.record("Recording permission must be obtained before publication")
+            return
+        }
+        #expect(harness.opens == 0)
+        try await model.installationLocation.requestPermission()
+        await model.compatibility.refresh(model: model)
+        #expect(harness.source.permissionRequests == 1)
+        #expect(await transport.version.rawValue == 2)
+        #expect(harness.opens == 0)
+        _ = try await model.resolveScope()
+        #expect(harness.opens == 1)
+        await model.shutdownForCompatibility()
+    }
+
+    @Test func demoCannotPublishOrBypassALockout() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let transport = LaunchCompatibilityTransport(version: 2)
+        let model = model(
+            currentVersion: 2,
+            context: .testing,
+            harness: harness,
+            transport: transport,
+        )
+        await model.compatibility.refresh(model: model)
+        let demo = try await model.makeDemoScope()
+        #expect(await model.activateDemo(demo))
+        _ = model.startSession(scope: demo)
+        #expect(await demo.services.ingestor.authorizationStatus() == .always)
+        await transport.setVersion(1)
+        await model.compatibility.refresh(model: model)
+        #expect(await transport.version.rawValue == 1)
+        #expect(model.compatibility.isBlocking(model))
+        #expect(harness.opens == 0)
+        await model.shutdownForCompatibility()
+    }
+
+    @Test func blockedManualDemoRemainsARecoverableLockout() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let context = InstallationRecordingContext(
+            currentDevice: InstallationRecordingContext.testing.currentDevice,
+            registeredAt: Date(),
+            recordingChoice: .unconfirmed,
+            isRejoining: false,
+        )
+        let model = model(
+            currentVersion: 2,
+            context: context,
+            harness: harness,
+            transport: transport,
+        )
+        await model.compatibility.refresh(model: model)
+        #expect(!model.compatibility.isBlocking(model))
+        let demo = try await model.makeDemoScope()
+        #expect(await model.activateDemo(demo) == false)
+        #expect(model.compatibility.isBlocking(model))
+        #expect(model.activeScope == nil)
+        #expect(harness.opens == 0)
+        await transport.setVersion(2)
+        await model.compatibility.refresh(model: model)
+        #expect(!model.compatibility.isBlocking(model))
+    }
+
+    @Test func retirementDiscardsAnOpenBeforeReplacement() async throws {
+        let harness = CompatibilityLaunchHarness()
+        harness.holdNextOpen = true
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: transport,
+        )
+        let first = Task { try await model.resolveScope() }
+        try await waitForAsync { harness.isOpening }
+        let retirement = Task { await model.shutdownForCompatibility() }
+        try await waitForAsync {
+            if case .retiring = model.startupState { true } else { false }
+        }
+        #expect(harness.opens == 1)
+        harness.releaseOpen()
+        await #expect(throws: CancellationError.self) { try await first.value }
+        await retirement.value
+        if model.activeScope == nil { _ = try await model.resolveScope() }
+        #expect(harness.opens == 2)
+        #expect(harness.stores.first?.store == nil)
+        await model.shutdownForCompatibility()
+    }
+
+    @Test func onboardingOwnedLogoutDoesNotWaitForItself() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: LaunchCompatibilityTransport(version: 1),
+        )
+        var finished = false
+        model.performOnboarding {
+            await model.endSession()
+            finished = true
+        }
+        try await waitForAsync { finished && !model.isCompletingOnboarding }
+    }
+
+    @Test func retirementCancelsOnboardingAndPreservesInstallationState() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: LaunchCompatibilityTransport(version: 1),
+        )
+        _ = try await model.resolveScope()
+        let hold = CompatibilityWorkHold()
+        var completionObservedCancellation = false
+        model.performOnboarding {
+            await hold.wait()
+            completionObservedCancellation = Task.isCancelled
+        }
+        try await waitForAsync { hold.isWaiting }
+        var retirementFinished = false
+        let retirement = Task {
+            await model.shutdownForCompatibility()
+            retirementFinished = true
+        }
+        try await waitForAsync {
+            if case .retiring = model.startupState { true } else { false }
+        }
+        #expect(!retirementFinished)
+        #expect(model.isCompletingOnboarding)
+        hold.release()
+        await retirement.value
+        #expect(completionObservedCancellation)
+        #expect(!model.isCompletingOnboarding)
+        #expect(model.session == nil)
+        #expect(model.hasOnboarded)
+        #expect(model.installationRecordingContext.automaticRecordingEnabled == true)
+    }
+
     @Test func foregroundPollDetectsAChangeWithoutAPush() async throws {
         let harness = CompatibilityLaunchHarness()
         let transport = LaunchCompatibilityTransport(version: 1)
@@ -71,6 +224,7 @@ struct WhereCompatibilityModelTests {
             makeBootstrap: { CompatibilityLaunchBootstrap(harness: harness, context: $0) },
             logSystem: .isolated(),
             compatibility: compatibility,
+            installationLocation: .init(makeSource: { harness.makeLocationSource() }),
         )
     }
 
@@ -94,7 +248,7 @@ struct WhereCompatibilityModelTests {
         }
         #expect(harness.discoveries == 0)
         #expect(model.session == nil)
-        try await waitForAsync { harness.locationStops > 0 }
+        try await waitForAsync { harness.source.stops > 0 }
     }
 
     @Test func waitingViewerRecoversWithOneFreshScope() async throws {

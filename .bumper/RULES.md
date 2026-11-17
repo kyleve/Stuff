@@ -114,7 +114,7 @@ construction in WhereCore, with one production-source exception for
 the assembled services through injection.
 
 `where.live_location_source_ownership` permits `CoreLocationSource`
-construction only in `WhereLaunch`. This makes the "intents never start GPS"
+construction only in `InstallationLocation`. This makes the "intents never start GPS"
 contract executable and keeps the live location source at the app process
 composition root.
 

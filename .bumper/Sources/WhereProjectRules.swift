@@ -9,7 +9,7 @@ let whereProjectRules = RuleSet {
     )
     Rules.constructionOwnership(
         "CoreLocationSource",
-        allowed: RuleScope.files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"])
+        allowed: RuleScope.files(["Where/WhereUI/Sources/Launch/InstallationLocation.swift"])
             .union(nonWhereProductionScope),
         id: "where.live_location_source_ownership",
     )

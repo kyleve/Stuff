@@ -91,7 +91,7 @@ report the build/install/launch plan without performing it.
 ## CloudKit rollout and device validation
 
 The regular runtime verifies a separate compatibility record before opening SwiftData.
-Local-only Development builds and demo scopes bypass this protocol.
+Local-only Development builds inject a local coordinator. Demo is subject to the same lockout screen; its simulated permission/recording and removal events never advance or invalidate real CloudKit metadata. The regular runtime creates one compatibility coordinator and one installation location owner and injects both into the model and real bootstrap.
 The control record uses the private `WhereStoreCompatibility` zone and record type, with `requiredVersion` (Int64) and `accountID` (String).
 Its `where-store-compatibility` zone subscription requests silent notifications. Notifications are advisory; foreground polling also refreshes the decision.
 

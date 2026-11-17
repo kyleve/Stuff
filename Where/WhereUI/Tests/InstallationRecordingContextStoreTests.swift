@@ -141,6 +141,8 @@ struct InstallationRecordingContextStoreTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         acknowledgedModel.completeOnboarding()
 
@@ -160,6 +162,8 @@ struct InstallationRecordingContextStoreTests {
             installationContextStore: relaunchedStore,
             makeBootstrap: { _ in UnusedBootstrap() },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .init()),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         let isNeeded = await OnboardingGate(model: relaunchedModel).isNeeded(())

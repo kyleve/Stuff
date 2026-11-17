@@ -123,7 +123,7 @@ final class OnboardingFlowModel {
             }
 
             if recordingEnabled {
-                do { try await model.requestLocationPermissionBeforeOpening() }
+                do { try await model.installationLocation.requestPermission() }
                 catch { Self.logger.locationPermissionDenied() }
             }
             guard !Task.isCancelled else { return }
@@ -192,7 +192,10 @@ final class OnboardingFlowModel {
                 async let scope = model.makeDemoScope()
                 async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
                 _ = try await settle
-                try await model.activateDemo(scope)
+                guard try await model.activateDemo(scope) else {
+                    intro.activity = .browsing
+                    return
+                }
                 gate.complete()
             } catch is CancellationError {
                 intro.activity = .browsing

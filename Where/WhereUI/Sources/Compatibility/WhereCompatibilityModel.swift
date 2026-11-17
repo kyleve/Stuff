@@ -32,7 +32,7 @@ public final class WhereCompatibilityModel {
     func bind(model: WhereModel, launcher: LifecycleRunner<WhereSession>) {
         wasAllowed = coordinator.state.allowsStore
         coordinator.onStateChange = { [weak self, weak model, weak launcher] in
-            guard let self, let model, let launcher, !model.bypassesCompatibility else { return }
+            guard let self, let model, let launcher else { return }
             let previouslyAllowed = wasAllowed
             wasAllowed = coordinator.state.allowsStore
             if case let .blocked(failure) = coordinator.state {
@@ -70,24 +70,17 @@ public final class WhereCompatibilityModel {
     }
 
     func isBlocking(_ model: WhereModel) -> Bool {
-        guard !model.bypassesCompatibility else { return false }
         // A new installation can choose recording without opening history. Discovery and Finish
         // still require admission; an established viewer has no role-change escape hatch.
-        if !model.hasConfirmedRecordingChoice || model.isCompletingOnboarding,
+        if model.permitsRecordingChoice,
            case .blocked(.recordingDeviceRequired) = coordinator.state { return false }
         return !coordinator.state.allowsStore
     }
 
     public func refresh(model: WhereModel) async {
-        guard !model.bypassesCompatibility else { return }
         await coordinator.refresh { [weak model] in
             guard let model else { throw CancellationError() }
-            let context = model.installationRecordingContext
-            guard context.automaticRecordingEnabled == true else { return .disabled }
-            guard await model.currentLocationAuthorization().allowsBackgroundTracking else {
-                return .permissionRequired
-            }
-            return .recording(context.currentDevice.id)
+            return await model.compatibilityEligibility()
         }
     }
 
@@ -107,9 +100,9 @@ public final class WhereCompatibilityModel {
         }
     }
 
-    func observeRemoteChanges(services: WhereServices, model: WhereModel) {
+    func observeRemoteChanges(events: any ScopeCompatibilityEvents, model: WhereModel) {
         stopScopeObservation()
-        let changes = services.remoteDataChangeUpdates()
+        let changes = events.changes()
         remoteTask = Task { [weak self, weak model] in
             for await _ in changes {
                 guard !Task.isCancelled else { break }

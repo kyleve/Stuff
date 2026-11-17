@@ -108,40 +108,6 @@ public struct RootView: View {
         }
     #endif
 
-    /// Convenience for previews and the hosted UI test: build a model and a
-    /// foreground runner for it. The runner isn't run by the app delegate
-    /// here, so `.task` drives it (see `body`).
-    public init() {
-        // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
-        // attaches a sink unless a scope is actually resolved, which a preview
-        // or the hosted UI test never gets to.
-        let installationContextStore = InMemoryInstallationRecordingContextStore(
-            context: .testing,
-        )
-        let model = WhereModel(
-            preferences: WherePreferences(store: UserDefaults.standard),
-            installationContextStore: installationContextStore,
-            makeBootstrap: {
-                WhereBootstrap(
-                    installationContextStore: $0,
-                    storeStorage: .inMemory,
-                    widgetRefresher: NoopWidgetTimelineRefresher(),
-                    locationOutbox: NoOpLocationOutbox(),
-                    compatibility: DataCompatibilityCoordinator(),
-                )
-            },
-            logSystem: .shared,
-        )
-        _model = State(initialValue: model)
-        launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        primaryAppIconName = "AppIcon"
-        updates = nil
-        #if DEBUG
-            developerLaunchController = nil
-            presentationVisibilityOverride = nil
-        #endif
-    }
-
     public var body: some View {
         RootStyledContent { stylesheet in
             rootContent(stylesheet: stylesheet)
@@ -412,7 +378,12 @@ public struct RootView: View {
     // only the logged-in root, so this stays as a bespoke preview alongside the
     // cutsheet.
     #Preview {
-        RootView()
+        let model = PreviewSupport.onboardingModel()
+        RootView(
+            model: model,
+            launcher: WhereLaunch.makeLauncher(model: model, reason: .userForeground),
+            primaryAppIconName: "AppIcon",
+        )
     }
 
     #Preview("Logged in") {

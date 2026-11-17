@@ -62,7 +62,7 @@ Resume from the current diff and execution record. Never repeat a store open to 
 ## Progress
 
 - [x] Shutdown ownership.
-- [ ] Required injection, installation eligibility, typed startup and demo policy.
+- [x] Required injection, installation eligibility, typed startup and demo policy.
 - [ ] Layout and individual clarifications.
 - [ ] Swift tests, formal checks, images, independent review.
 - [ ] Push and all review-thread replies.
@@ -70,3 +70,10 @@ Resume from the current diff and execution record. Never repeat a store open to 
 ## Execution record / resume point
 
 2026-11-17: shutdown ownership complete. Selected WhereCore suites passed 127 tests, followed by 11 SampleCorrectionCoordinator tests after updating its explicit live-observer fixture. Both runs included architecture checks (30 tests) and the backup-upgrader guard. Fresh independent review covered the Core diff and callers; it caught and verified a public protocol witness visibility fix and the second live-observer fixture. `git diff --check` passed. Next: required injection, installation permission, and typed startup ownership.
+
+
+2026-11-17: startup group verified with `./test --all --no-generate` (2,973 iOS tests, 28 host macro tests, 30 architecture tests, host helpers). Final compatibility suite rebuilt after adding onboarding cancellation/preservation coverage: 13 tests passed. Its name was narrowed after review because observing retirement entry alone does not prove the onboarding join. The held-log regression does verify replacement waits for scope-retaining log work. Final `./test --architecture-only` passed the changed constructor rule and its former-owner negative fixture. `./sf-symbols --lint`, formatting and diff checks passed.
+
+Fresh independent source review caught and verified fixes for ordinary retirement lacking terminal recording shutdown, a missing coalesced-waiter admission check, manual demo rejection completing onboarding, and stale bootstrap waiters clearing/returning a superseded open. It also found the existing unowned log-open lifetime gap; the scope now owns and drains that task. No remaining actionable production findings.
+
+Both PlusCal concerns reran with all 40 expected outcomes matching. Current totals: 3,667,540 generated / 1,432,817 distinct states. Artifacts: `.build/tla/runs/CompatibilityLockout.xtNkQp` and `CompatibilityPublication.qEL0mD`. Independent mapping review confirmed the opening-identity abstraction; README limits explicitly exclude bootstrap retry-waiter interleavings and eligibility mode changes during awaits. Next: publish this group and replies, then layout/clarifications and image verification.

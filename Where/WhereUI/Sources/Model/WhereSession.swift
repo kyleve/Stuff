@@ -30,16 +30,17 @@ import WhereCore
 /// view-scoped models) from the injected coordinator.
 @MainActor
 @Observable
-public final class WhereSession {
+public final class WhereSession: WhereShutdownable {
+    let scope: WhereScope
     var onDeviceRemoved: @MainActor (RecordingDeviceID) -> Void = { _ in }
 
-    func shutdown() async {
+    public func shutdown() async {
         let observers = [authorizationTask, recordingConfigurationTask, regionStyleTask]
         observers.forEach { $0?.cancel() }
         authorizationTask = nil
         recordingConfigurationTask = nil
         regionStyleTask = nil
-        await services.shutdown()
+        await scope.shutdown()
         for observer in observers {
             await observer?.value
         }
@@ -178,6 +179,7 @@ public final class WhereSession {
         installationContextStore: (any InstallationRecordingContextStoring)? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        self.scope = scope
         id = Self.mintID()
         services = scope.services
         preferences = scope.preferences

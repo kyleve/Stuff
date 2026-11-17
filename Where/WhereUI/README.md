@@ -61,7 +61,8 @@ These indicators have no separate action and remain visible after correction dis
   Recovery passes the compatibility gate and creates one fresh scope. The installation's consent and onboarding state remain intact.
   A second lockout also retires a replacement scope while its recovery launch is still draining.
   The [lockout model](../Specifications/CompatibilityLockout/README.md) checks admission and retirement ordering, including this repeated-lockout case.
-  New installations can choose recording before opening history. Established viewers cannot enable recording from the lockout screen.
+  New installations can choose recording before opening history. Established viewers cannot enable recording from the lockout screen. Demo has no lockout bypass; injected no-op scope events and installation-owned permission keep its simulated recording out of CloudKit publication.
+  `InstallationLocation` exists before history, buffers launch events, and shares the real source with bootstrap assembly. It releases that source after retirement; the next scope gets a fresh stream.
 
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.
 Local builds can browse remote builds without an automatic update badge.
@@ -242,10 +243,10 @@ The reusable panes also support iPad layouts. There is no HomeView target.
 - **`WhereModel`** — app-level state that outlives any one scope: the backed-up
   onboarding flag, the separately injected non-backed-up installation
   recording context (including stable first-profile/policy timestamps), the
-  active `WhereScope`, the owned `WhereSession`, and the lifecycle intents
+  typed startup ownership (preparing, opening, open, running, retiring, or locked), and the lifecycle intents
   (`activate(scope:)`, `startSession(scope:)` — which
   *returns* the session the launch's `start-session` step threads onward —
-  `endSession()`, `resetPreferences()`).
+  `endSession()`, `resetPreferences()`). Scope/session access derives from startup state; a shared opening has an identity and every waiter rechecks admission. Retirement is terminal and drains services, observers, onboarding completion when interrupted by lockout, and the scope-retaining log-open task.
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   per-device recording changes, `startTracking()` / `stopTracking()`,
@@ -433,9 +434,7 @@ struct WhereApp: App {
 
 The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
-`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
-a self-contained preview or UI test, the no-arg `RootView()` builds its own
-model and a foreground launch runner.
+`whereBroadwayRoot()` itself, so a host doesn't wrap it. Previews and UI tests explicitly pass their fixture model and launcher. Both `WhereModel` initializers require compatibility and installation-location owners; `RootView` never creates a coordinator.
 
 ## Design system
 

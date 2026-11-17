@@ -8,6 +8,8 @@ ASSUME /\ Implementation \in {"current", "ungatedOpen", "uncheckedVerification",
        /\ MaxChecks > 0 /\ MaxScopes > 0 /\ MaxAccountChanges > 0
 
 Checks == 1..MaxChecks
+\* scopeEpoch abstracts current opening-object identity in WhereStartupState.
+\* Invalidation replaces that owner; its numeric representation is model-only.
 Scopes == 1..MaxScopes
 Tasks == 1..(MaxChecks + MaxAccountChanges)
 ScopePhases == {"unused", "opening", "active", "discarding", "released"}

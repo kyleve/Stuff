@@ -15,7 +15,9 @@ verification of CloudKit's implementation or notification delivery.
 ## Boundary and source correspondence
 
 Modeled source: `04cb13b2cf83b01e617f3f0bd569d2c7aec2dd6a`; the publication
-implementation is unchanged by these specifications.
+coordinator/transport implementation is unchanged by these specifications.
+The installation permission and demo eligibility adapter was re-reviewed with
+the 2026-11-17 startup revision; fixed eligibility remains a model assumption.
 [DataCompatibilityCoordinator](../../WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift)
 owns the local decision; [CloudKitDataCompatibilityTransport](../../WhereCore/Sources/Compatibility/CloudKitDataCompatibilityTransport.swift)
 owns conditional metadata saves; [DataCompatibilityReceipt](../../WhereCore/Sources/Compatibility/DataCompatibilityReceipt.swift)
@@ -55,7 +57,9 @@ equal build version, and no higher known floor.
 | `Parked` | Idle/completed verifications, permitting stuttering without hiding a pending internal phase. |
 
 Boot, foreground/poll, import notifications, push, Retry, and onboarding all
-share this lane. Local-only/demo modes do not use this protocol. The share
+share this lane. Local-only builds do not use this protocol. Demo uses it with
+ineligible recording; `InstallationLocation` supplies only real permission, and
+demo scope events cannot change the receipt. The share
 extension only reads the resulting receipt; its own open race is not modeled.
 
 ## Assumptions, properties, and bounds
@@ -63,7 +67,7 @@ extension only reads the resulting receipt; its own open race is not modeled.
 Each device has a fixed build and fixed eligibility for a run. `Writers[d]`
 abstracts local recording On, Always authorization, and a nonremoved identity
 at publication admission. Disabled, permission-denied, and known-removed
-installations all map to false. Consent/permission/removal changes while an
+installations and demo scopes all map to false. Consent/permission/removal/mode changes while an
 eligibility lookup or save is suspended are **not** verified by this model.
 An eligible publication request can commit after an observed account change;
 its stale reply cannot grant local access.
@@ -137,10 +141,13 @@ with a scripted transport, not real CloudKit CAS. `receiptFailureDoesNotGrantAcc
 currently fails receipt **load**; the distinct post-save failure counterexample
 is model-only coverage here. The account/receipt test suite and these models
 are complementary, not an implementation refinement proof.
+`WhereCompatibilityModelTests.recorderCanObtainPermissionAndPublishBeforeOpeningHistory`
+and `demoCannotPublishOrBypassALockout` additionally guard the installation-level
+eligibility adapter introduced by the 2026-11-17 review revision.
 
 ## Recorded run
 
-2026-11-17: all declared outcomes matched; every current case exhausted its
+2026-11-17 review revision: correspondence rechecked and all declared outcomes matched; every current case exhausted its
 queue with no invariant, action-safety, or deadlock error. Negative and
 reachability failures below are expected and inspected.
 
@@ -167,7 +174,7 @@ reachability failures below are expected and inspected.
 | `Recovery.cfg` | `RecoveryNotReached` fails | 211 / 153 / 8 |
 | `ForeignReceipt.cfg` | `ForeignReceiptNotReached` fails | 6 / 5 / 3 |
 
-Local run: `.build/tla/runs/CompatibilityPublication.1jVGXr/`; generated module:
+Local run: `.build/tla/runs/CompatibilityPublication.qEL0mD/`; generated module:
 `generated/CompatibilityPublication.tla`. Counts for expected failures are partial
 searches ending at their first counterexample.
 

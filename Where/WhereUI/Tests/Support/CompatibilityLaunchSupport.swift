@@ -5,6 +5,23 @@ import PeriscopeCore
 @testable import WhereUI
 
 @MainActor
+final class CompatibilityWorkHold {
+    private var continuation: CheckedContinuation<Void, Never>?
+    var isWaiting: Bool {
+        continuation != nil
+    }
+
+    func wait() async {
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+@MainActor
 final class CompatibilityPollClock {
     private let stream: AsyncStream<Void>
     private let continuation: AsyncStream<Void>.Continuation
@@ -112,17 +129,35 @@ final class CompatibilityLaunchHarness {
         }
     }
 
+    var holdNextOpen = false
+    private var opening: CheckedContinuation<Void, Never>?
+    var isOpening: Bool {
+        opening != nil
+    }
+
+    func releaseOpen() {
+        opening?.resume(); opening = nil
+    }
+
     var opens = 0
     var discoveries = 0
-    var locationStops = 0
+    var initialAuthorization = LocationAuthorizationStatus.always
     var stores: [StoreReference] = []
-    var source = ScriptedLocationSource()
+    var source = CompatibilityLocationSource()
 
-    func services(context: InstallationRecordingContext) throws -> WhereServices {
+    func makeLocationSource() -> CompatibilityLocationSource {
+        source = CompatibilityLocationSource(status: initialAuthorization)
+        return source
+    }
+
+    func services(context: InstallationRecordingContext) async throws -> WhereServices {
         opens += 1
         let store = try SwiftDataStore.inMemory()
         stores.append(StoreReference(store))
-        source = ScriptedLocationSource()
+        if holdNextOpen {
+            holdNextOpen = false
+            await withCheckedContinuation { opening = $0 }
+        }
         return WhereServices(store: store, locationSource: source, installationContext: context)
     }
 }
@@ -131,18 +166,8 @@ final class CompatibilityLaunchHarness {
 struct CompatibilityLaunchBootstrap: WhereScopeAssembling {
     let harness: CompatibilityLaunchHarness
     let context: any InstallationRecordingContextStoring
-    func prepareLocation() {}
-    func stopLocation() async {
-        harness.locationStops += 1
-    }
-
-    func currentLocationAuthorization() async -> LocationAuthorizationStatus {
-        .always
-    }
-
-    func requestLocationPermission() async throws {}
     func makeServices() async throws -> WhereServices {
-        try harness
+        try await harness
             .services(context: context.resolve())
     }
 
@@ -153,5 +178,45 @@ struct CompatibilityLaunchBootstrap: WhereScopeAssembling {
 
     func makeLogStore() async throws -> PeriscopeStore? {
         nil
+    }
+}
+
+/// Permission and physical acquisition are observable without using CoreLocation.
+@MainActor
+final class CompatibilityLocationSource: LocationSource {
+    private let scripted: ScriptedLocationSource
+    private(set) var stops = 0
+    private(set) var permissionRequests = 0
+
+    init(status: LocationAuthorizationStatus = .always) {
+        scripted = ScriptedLocationSource(authorizationStatus: status)
+    }
+
+    nonisolated var sampleStream: AsyncStream<LocationSample> {
+        scripted.sampleStream
+    }
+
+    nonisolated var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        scripted.authorizationUpdates
+    }
+
+    func start() async {}
+    func stop() async {
+        stops += 1
+    }
+
+    func requestCurrentLocation() async -> CurrentLocationResult {
+        await scripted
+            .requestCurrentLocation()
+    }
+
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        await scripted
+            .currentAuthorization()
+    }
+
+    func requestPermission() async throws {
+        permissionRequests += 1
+        scripted.emitAuthorization(.always)
     }
 }
