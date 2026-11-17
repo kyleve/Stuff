@@ -116,6 +116,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
         let installationLocation = InstallationLocation.live()
+        // Match SwiftData's CloudKit container. Signing entitlements select its
+        // Development or Production environment, independently of the app audience.
         let coordinator = storeStorage.usesCloudKit
             ? DataCompatibilityCoordinator(
                 transport: CloudKitDataCompatibilityTransport(
@@ -170,7 +172,11 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         #else
             let usesCloudKit = buildEnvironment.storage.usesCloudKit
         #endif
-        if usesCloudKit { application.registerForRemoteNotifications() }
+        if usesCloudKit {
+            // Register for silent compatibility updates; this does not request
+            // authorization to display notifications.
+            application.registerForRemoteNotifications()
+        }
         model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
             await widgetPresentationPublisher.publish(theme)
             guard !Task.isCancelled else { return }

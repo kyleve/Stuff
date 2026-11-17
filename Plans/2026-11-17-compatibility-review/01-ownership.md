@@ -63,8 +63,8 @@ Resume from the current diff and execution record. Never repeat a store open to 
 
 - [x] Shutdown ownership.
 - [x] Required injection, installation eligibility, typed startup and demo policy.
-- [ ] Layout and individual clarifications.
-- [ ] Swift tests, formal checks, images, independent review.
+- [x] Layout and individual clarifications.
+- [x] Swift tests, formal checks, images, independent review.
 - [ ] Push and all review-thread replies.
 
 ## Execution record / resume point
@@ -77,3 +77,7 @@ Resume from the current diff and execution record. Never repeat a store open to 
 Fresh independent source review caught and verified fixes for ordinary retirement lacking terminal recording shutdown, a missing coalesced-waiter admission check, manual demo rejection completing onboarding, and stale bootstrap waiters clearing/returning a superseded open. It also found the existing unowned log-open lifetime gap; the scope now owns and drains that task. No remaining actionable production findings.
 
 Both PlusCal concerns reran with all 40 expected outcomes matching. Current totals: 3,667,540 generated / 1,432,817 distinct states. Artifacts: `.build/tla/runs/CompatibilityLockout.xtNkQp` and `CompatibilityPublication.qEL0mD`. Independent mapping review confirmed the opening-identity abstraction; README limits explicitly exclude bootstrap retry-waiter interleavings and eligibility mode changes during awaits. Next: publish this group and replies, then layout/clarifications and image verification.
+
+2026-11-17: published shutdown ownership as `9646b7a37` and startup ownership as `b61b7c27b`; replied on the eight associated human threads. The final UI slice uses standard `whereScreenRoot()` padding/width, alignment-only centering, and size-based bounce. Runtime comments document the shared CloudKit container and silent APNs registration; the flagged conditional is multiline. Fresh independent review found no actionable source findings.
+
+Rebuilt selected DataCompatibilityView, RootView, and OnboardingView snapshots with `./test --snapshots --only WhereUISnapshotTests/DataCompatibilityViewSnapshotTests --only WhereUISnapshotTests/RootViewSnapshotTests --only WhereUISnapshotTests/OnboardingViewSnapshotTests --record never --no-generate --review --timings`. Root/onboarding's 15 references passed unchanged. Inspected six intended lockout changes (recording-device and verification in light/dark, plus phone/iPad AX5), then recorded only failures in the lockout suite. Final `./test --snapshots --only WhereUISnapshotTests/DataCompatibilityViewSnapshotTests --record never --no-build --no-generate --skip-architecture --skip-host-tests --review --timings` passed all 16 references / 32 captures. Total selected coverage: 31 references / 47 captures. SwiftFormat and SF Symbols lint passed. Screenshots establish static layout/copy, not live scroll or VoiceOver behavior. Next: push UI, reply on the remaining three threads, refresh published screenshot comments/PR evidence, and put STU-333 In Review.

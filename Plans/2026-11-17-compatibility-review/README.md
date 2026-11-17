@@ -4,10 +4,10 @@
 
 - Updated: 2026-11-17, starting at `fd31d5a022d0171fe6f2d9c5971b9ebc3e5b4231`.
 - Operation: execute the changes approved in the conversation, including individual feedback on [PR #495](https://github.com/kyleve/Stuff/pull/495).
-- Stage: implementation; shutdown and startup ownership verified, layout/clarifications remain.
-- Completed: agreed behavior and scope reviewed against the existing launch, compatibility, and recording contracts.
-- Pending: [implementation and verification](01-ownership.md); tracked in [STU-333](https://linear.app/kve/issue/STU-333). STU-206/208 describe a different per-entity migration design.
-- Next action: publish the verified startup group, then finish lockout layout, individual clarifications, snapshots, and remaining replies.
+- Stage: publication; implementation, verification, and independent review complete.
+- Completed: shutdown (`9646b7a37`) and startup (`b61b7c27b`) published with eight thread replies; layout/clarifications and 31 snapshot references verified.
+- Pending: final UI publication and three replies; see the [execution record](01-ownership.md). Tracked in [STU-333](https://linear.app/kve/issue/STU-333). STU-206/208 describe a different per-entity migration design.
+- Next action: push UI, refresh PR/screenshots, finish replies, and move STU-333 In Review.
 
 ## Outcome, stories, and requirements
 
