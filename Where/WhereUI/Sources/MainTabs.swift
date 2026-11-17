@@ -482,9 +482,11 @@ struct MainTabs: View {
             return whereSnapshot(
                 name: "Adaptive-" + tabName + "-" + pose.rawValue + selectionName,
                 configurations: [configuration],
-                // Native glass can retain its light material after the async
-                // shell appears; match the measured Appearance/About floor.
-                settle: .settledAtLeast(minDuration: 1.5),
+                // Remeasured after awaited preparation on Xcode 27.2 / iOS 27.2
+                // (2026-11-17): 0.25s adds pixel drift. Keep a native-glass floor
+                // and both accessibility passes with the measured 0.5s policy.
+                // The derived readiness/settle ceiling is 3s before CI scaling.
+                settle: .settledAtLeast(minDuration: 0.5),
                 prepareForCapture: {
                     await fixture.prepare()
                 },
