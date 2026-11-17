@@ -59,6 +59,8 @@ These indicators have no separate action and remain visible after correction dis
   Foreground entry, a 60-second foreground poll, CloudKit pushes, remote imports, and Retry refresh the decision.
   A lockout hides history immediately, stops recording, and tears down the old scope through the launch runner.
   Recovery passes the compatibility gate and creates one fresh scope. The installation's consent and onboarding state remain intact.
+  A second lockout also retires a replacement scope while its recovery launch is still draining.
+  The [lockout model](../Specifications/CompatibilityLockout/README.md) checks admission and retirement ordering, including this repeated-lockout case.
   New installations can choose recording before opening history. Established viewers cannot enable recording from the lockout screen.
 
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.

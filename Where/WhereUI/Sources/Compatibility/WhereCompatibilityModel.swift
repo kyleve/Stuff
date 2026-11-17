@@ -43,15 +43,20 @@ public final class WhereCompatibilityModel {
                         await model.stopRecordingForCompatibility()
                     }
                 }
-                if previouslyAllowed, retirement == nil {
+                if previouslyAllowed {
                     stopScopeObservation()
+                    // Teardown also awaits the replacement launch. A second lockout must
+                    // retire that scope even while the first task is still draining it.
+                    retirement?.cancel()
                     retirement = Task { [weak self, weak model, weak launcher] in
-                        guard let model, let launcher else { return }
+                        guard !Task.isCancelled, let model, let launcher else { return }
                         await model.stopRecordingForCompatibility()
+                        guard !Task.isCancelled else { return }
                         await launcher.teardown(
                             WhereLaunch.compatibilityTeardown(for: model),
                             input: (),
                         )
+                        guard !Task.isCancelled else { return }
                         self?.retirement = nil
                     }
                 }

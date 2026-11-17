@@ -1,4 +1,5 @@
 import Foundation
+import LifecycleKit
 import PeriscopeCore
 @_spi(Testing) import WhereCore
 @testable import WhereUI
@@ -29,6 +30,7 @@ final class CompatibilityPollClock {
 
 actor LaunchCompatibilityTransport: DataCompatibilityTransport {
     var version: DataModelVersion
+    private var rejectsReads = false
     init(version: Int) {
         self.version = .init(rawValue: version)
     }
@@ -37,12 +39,17 @@ actor LaunchCompatibilityTransport: DataCompatibilityTransport {
         version = .init(rawValue: value)
     }
 
+    func setRejectsReads(_ value: Bool) {
+        rejectsReads = value
+    }
+
     func accountID() async throws -> DataCompatibilityAccountID {
         .init(rawValue: "launch-test")
     }
 
     func read(accountID _: DataCompatibilityAccountID) async throws -> SharedDataModelVersion? {
-        .init(version: version, revision: String(version.rawValue))
+        guard !rejectsReads else { throw DataCompatibilityTransportError.invalidRecord }
+        return .init(version: version, revision: String(version.rawValue))
     }
 
     func advance(
@@ -56,6 +63,30 @@ actor LaunchCompatibilityTransport: DataCompatibilityTransport {
 
     nonisolated func accountChanges() -> AsyncStream<Void> {
         AsyncStream { $0.finish() }
+    }
+}
+
+/// Keeps the recovery drive alive after it publishes ready, including across cancellation.
+@MainActor
+final class CompatibilityRecoveryHold: LifecycleStep {
+    // This teardown ID is unused in the launch plan to which the test appends this step.
+    let id = LaunchStepID.suspendCompatibility
+    private var runs = 0
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    var isWaiting: Bool {
+        continuation != nil
+    }
+
+    func run(_: WhereSession, _: LifecycleStepContext) async {
+        runs += 1
+        guard runs == 2 else { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
     }
 }
 

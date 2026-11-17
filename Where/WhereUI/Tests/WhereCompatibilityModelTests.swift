@@ -150,6 +150,55 @@ struct WhereCompatibilityModelTests {
         launcher.phase.gateHandle?.fail(CancellationError())
     }
 
+    /// CompatibilityLockout.BlockedScopeHasRetirement: recovery still owns the previous
+    /// teardown task when a detached launch step has not returned.
+    @Test func lockoutDuringRecoveryRetiresTheReplacementScope() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: transport,
+        )
+        let hold = CompatibilityRecoveryHold()
+        let launcher = LifecycleRunner(
+            reason: .userForeground,
+            plan: WhereLaunch.plan(for: model).detached { hold },
+        )
+        model.compatibility.bind(model: model, launcher: launcher)
+        defer {
+            hold.release()
+            launcher.phase.gateHandle?.fail(CancellationError())
+        }
+        await launcher.run()
+        await transport.setRejectsReads(true)
+        await model.compatibility.refresh(model: model)
+        try await waitForAsync { launcher.phase.isAwaitingGate(LaunchStepID.compatibility) }
+
+        await transport.setRejectsReads(false)
+        await model.compatibility.refresh(model: model)
+        try await waitForAsync { hold.isWaiting && launcher.phase.isReady }
+        #expect(harness.opens == 2)
+        weak var recoveredSession = model.session
+        let recoveredStore = try #require(harness.stores.last)
+        #expect(await model.session?.services.ingestor.isActive == true)
+
+        await transport.setRejectsReads(true)
+        await model.compatibility.refresh(model: model)
+        #expect(model.compatibility.isBlocking(model))
+        try await waitForAsync { !launcher.phase.isReady }
+        // GPS stops before teardown joins the held, cancellation-insensitive launch work.
+        #expect(hold.isWaiting)
+        #expect(await model.session?.services.ingestor.isActive == false)
+        hold.release()
+        try await waitForAsync { launcher.phase.isAwaitingGate(LaunchStepID.compatibility) }
+        try await waitForAsync { recoveredSession == nil && recoveredStore.store == nil }
+        #expect(model.session == nil)
+        #expect(harness.opens == 2)
+        #expect(model.installationRecordingContext.automaticRecordingEnabled == true)
+    }
+
     @Test func initialOffChoiceBecomesVisibleLockoutWithoutOpeningStore() async throws {
         let harness = CompatibilityLaunchHarness()
         let transport = LaunchCompatibilityTransport(version: 1)
