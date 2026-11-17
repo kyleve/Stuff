@@ -4,10 +4,10 @@
 
 - Updated: 2026-11-17, starting at `fd31d5a022d0171fe6f2d9c5971b9ebc3e5b4231`.
 - Operation: execute the changes approved in the conversation, including individual feedback on [PR #495](https://github.com/kyleve/Stuff/pull/495).
-- Stage: publication; implementation, verification, and independent review complete.
-- Completed: shutdown (`9646b7a37`) and startup (`b61b7c27b`) published with eight thread replies; layout/clarifications and 31 snapshot references verified.
-- Pending: final UI publication and three replies; see the [execution record](01-ownership.md). Tracked in [STU-333](https://linear.app/kve/issue/STU-333). STU-206/208 describe a different per-entity migration design.
-- Next action: push UI, refresh PR/screenshots, finish replies, and move STU-333 In Review.
+- Stage: complete; implementation, verification, independent review, and publication delivered.
+- Completed: shutdown (`9646b7a37`), startup (`b61b7c27b`), and UI/clarifications (`f10214601`) published; all 11 human review threads answered; PR and three screenshot comments refreshed and verified.
+- Pending: none in this plan; see the [completion evidence and validation limits](01-ownership.md). [STU-333](https://linear.app/kve/issue/STU-333) remains In Review with the open PR. STU-206/208 describe a different per-entity migration design.
+- Next action: human PR review and the documented device/rollout acceptance process; CI was running at implementation handoff.
 
 ## Outcome, stories, and requirements
 

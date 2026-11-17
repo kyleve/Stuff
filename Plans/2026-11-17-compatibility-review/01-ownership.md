@@ -1,6 +1,6 @@
 # 01 — Explicit lockout and startup ownership
 
-- Status: executing
+- Status: complete
 - Depends on: None
 - Shared context: [overview and requirements](README.md)
 
@@ -65,7 +65,7 @@ Resume from the current diff and execution record. Never repeat a store open to 
 - [x] Required injection, installation eligibility, typed startup and demo policy.
 - [x] Layout and individual clarifications.
 - [x] Swift tests, formal checks, images, independent review.
-- [ ] Push and all review-thread replies.
+- [x] Push and all review-thread replies.
 
 ## Execution record / resume point
 
@@ -81,3 +81,7 @@ Both PlusCal concerns reran with all 40 expected outcomes matching. Current tota
 2026-11-17: published shutdown ownership as `9646b7a37` and startup ownership as `b61b7c27b`; replied on the eight associated human threads. The final UI slice uses standard `whereScreenRoot()` padding/width, alignment-only centering, and size-based bounce. Runtime comments document the shared CloudKit container and silent APNs registration; the flagged conditional is multiline. Fresh independent review found no actionable source findings.
 
 Rebuilt selected DataCompatibilityView, RootView, and OnboardingView snapshots with `./test --snapshots --only WhereUISnapshotTests/DataCompatibilityViewSnapshotTests --only WhereUISnapshotTests/RootViewSnapshotTests --only WhereUISnapshotTests/OnboardingViewSnapshotTests --record never --no-generate --review --timings`. Root/onboarding's 15 references passed unchanged. Inspected six intended lockout changes (recording-device and verification in light/dark, plus phone/iPad AX5), then recorded only failures in the lockout suite. Final `./test --snapshots --only WhereUISnapshotTests/DataCompatibilityViewSnapshotTests --record never --no-build --no-generate --skip-architecture --skip-host-tests --review --timings` passed all 16 references / 32 captures. Total selected coverage: 31 references / 47 captures. SwiftFormat and SF Symbols lint passed. Screenshots establish static layout/copy, not live scroll or VoiceOver behavior. Next: push UI, reply on the remaining three threads, refresh published screenshot comments/PR evidence, and put STU-333 In Review.
+
+2026-11-17: delivered UI/clarifications as `f10214601` on [PR #495](https://github.com/kyleve/Stuff/pull/495). Verified all 11 human review threads have one marked reply and no individual human inline comment is unaccounted for. Updated the existing lockout/onboarding/root screenshot comments in place; all four published PNGs match reviewed local bytes, and GitHub's rendered HTML includes the expected images/revision. The PR description includes current behavior, source mapping, retained review findings, exact validation, and limits. [STU-333](https://linear.app/kve/issue/STU-333) is In Review. No threads were resolved and the PR remains open.
+
+Acceptance R-01–R-06 is complete for this implementation plan. CI was running at handoff; local verification is recorded above. Physical two-device CloudKit propagation, offline cold-launch identity, live Siri/share UI, VoiceOver/scroll interactions, and Production schema rollout remain the existing documented acceptance procedure, not claims established by snapshots or bounded models. Browser access was disabled; publication checks used the API and local image review. No implementation work or review reply remains pending in this plan.
