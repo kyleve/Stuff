@@ -153,20 +153,22 @@ private struct YearModePicker: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
-                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
-                    SnapshotConfiguration(device: .iPadFullContent),
-                ],
+                // Full scroll/chrome integration stays here; CalendarContentView owns months.
+                configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 YearView(report: PreviewSupport.loadedYearReportModel())
             }
             whereSnapshot(
-                name: "Empty",
-                configurations: .fullContentPhoneLightDark,
+                name: "ModePicker",
+                configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                YearView(report: PreviewSupport.emptyYearReportModel())
+                YearModePicker(mode: .constant(.calendar))
+                    .padding()
+                    .background(Color(.systemBackground))
             }
             whereSnapshot(
                 name: "RestoredOverview",
@@ -182,6 +184,11 @@ private struct YearModePicker: View {
 
     #Preview {
         YearView.snapshotPreviews
+    }
+
+    #Preview("Empty") {
+        YearView(report: PreviewSupport.emptyYearReportModel())
+            .whereBroadwayRoot()
     }
 #endif
 

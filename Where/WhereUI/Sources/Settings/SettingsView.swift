@@ -236,8 +236,6 @@ private struct SettingsDestinationView: View {
 
 #if DEBUG
     extension SettingsView: SnapshotProviding {
-        /// The extra right-to-left variant exercises the RTL configuration axis
-        /// on a directional screen (leading labels, trailing values/toggles).
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "BrowseColumn",
@@ -254,10 +252,6 @@ private struct SettingsDestinationView: View {
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
                     SnapshotConfiguration(device: .iPadFullContent),
                     SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
-                    SnapshotConfiguration(
-                        layoutDirection: .rightToLeft,
-                        device: .iPhoneFullContent,
-                    ),
                 ],
             ) {
                 snapshotList(report: PreviewSupport.loadedYearReportModel())

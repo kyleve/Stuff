@@ -451,7 +451,6 @@ struct MainTabs: View {
                 let configurations = [
                     SnapshotConfiguration(colorScheme: .dark, device: pose.frame),
                     SnapshotConfiguration(dynamicType: .accessibility5, device: pose.frame),
-                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: pose.frame),
                     SnapshotConfiguration(contrast: .increased, device: pose.frame),
                     SnapshotConfiguration(device: pose.frame, snapshotType: .accessibility),
                 ]

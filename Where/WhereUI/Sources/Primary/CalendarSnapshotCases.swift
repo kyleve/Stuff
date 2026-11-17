@@ -1,5 +1,6 @@
 #if DEBUG
     import Observation
+    import RegionKit
     import SnapshotKit
     import SwiftUI
 
@@ -8,6 +9,48 @@
     @MainActor
     struct CalendarSnapshotCases {
         let awaitsLayout: Bool
+        var focusesMonths = false
+
+        /// Images focus content checks on one complete production month. Ordinary
+        /// scenario previews and Flyover keep their full-screen calendar subjects.
+        func detail(
+            name: String,
+            monthNumber: Int,
+            configurations: [SnapshotConfiguration],
+            focusedRegion: Region? = nil,
+            report: @escaping @MainActor () -> YearReportModel,
+        ) -> [SnapshotCase] {
+            if focusesMonths {
+                let configurations = configurations.map { configuration in
+                    var configuration = configuration
+                    guard case let .fullContent(width, _) = configuration.device.size else {
+                        preconditionFailure("Month subjects require explicit full-content widths")
+                    }
+                    configuration.device.size = .intrinsic(maxWidth: width)
+                    return configuration
+                }
+                return [whereSnapshot(
+                    name: name,
+                    configurations: configurations,
+                    measurementReadiness: .immediate,
+                ) {
+                    CalendarMonthSnapshot(
+                        report: report(),
+                        monthNumber: monthNumber,
+                        focusedRegion: focusedRegion,
+                    )
+                }]
+            }
+            return snapshot(name: name, configurations: configurations) { presentation in
+                NavigationStack {
+                    CalendarContentView(
+                        focusedRegion: focusedRegion,
+                        report: report(),
+                        presentationState: presentation,
+                    )
+                }
+            }
+        }
 
         func snapshot(
             name: String,

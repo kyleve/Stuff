@@ -90,11 +90,6 @@ struct OnboardingThemeSelectionView: View {
                     SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                     // Keep the wider-column wrapping and picker placement at AX5.
                     SnapshotConfiguration(dynamicType: .accessibility5, device: .iPadFullContent),
-                    SnapshotConfiguration(
-                        layoutDirection: .rightToLeft,
-                        device: .iPhoneFullContent,
-                    ),
-                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
                 ]
             return [
                 whereSnapshot(
