@@ -2,13 +2,13 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; implementation published at `1ef9b92b7` on `perf/snapshot-render-settling`, stacked on PR #524.
-- Operation: Create a durable plan and execute the investigation.
+- Updated: 2026-11-17; follow-up branch `perf/snapshot-metal-sampling`, above PR #525 at `75978860f`. Both parent PRs are open and green.
+- Operation: Execute the newly authorized sampling and Metal follow-up; preserve completed plans 01–04.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: All four plans are complete. The user authorized and renewed execution of the series.
+- Stage: Plans 01–04 are complete. Plan 05 is ready for bounded experiments; plan 06 awaits their results. The user explicitly approved testing sampling frequency and GPU capture, with fallback for incompatible tests.
 - Completed: Tracing and local/CI classification; bounded renderer and readiness experiments; five accepted consumer changes; independent review; 163 framework functions and all 935 image captures locally; and isolated CI at the implementation revision.
-- Pending: None within this selected series. STU-121 retains the unselected CI color-format/sampling experiments and readiness follow-ups.
-- Next action: Review PR #525 above #524. Future optimization starts from the explicit remaining scope in STU-121; no merge is assumed.
+- Pending: [05](05-metal-and-sampling-experiments.md) tests local feasibility and timing. [06](06-deliver-sampling-improvements.md) delivers only accepted candidates. STU-121 retains unrelated readiness follow-ups.
+- Next action: Run the Metal fidelity prerequisite and paired cadence trials. No merge is assumed.
 - Delegation: `/root/review_settling_candidates` completed source and raw local-evidence review. `/root/watch_settle_ci` completed exact-head CI collection and reconciliation; the root independently verified the records. All implementation results are integrated.
 
 ## Outcome and scope
@@ -49,6 +49,8 @@ Repository source and the pinned-runtime measurements suffice for this observati
 | R-02 | Retain reproducible local and isolated-CI evidence, including instrumentation overhead and limits. | US-01 | [02](02-classify-costs.md) |
 | R-03 | Evaluate earlier completion and removed work against normal and later rendered results. | US-01 | [03](03-controlled-experiments.md) |
 | R-04 | Deliver only validated improvements; preserve failures, cancellation, retry isolation, dimensions, references, and tolerances. | US-01 | [04](04-validated-improvements.md) |
+| R-05 | Determine whether fewer samples or Metal layer rendering reduce settling time without false completion. | US-01 | [05](05-metal-and-sampling-experiments.md) |
+| R-06 | Deliver validated follow-up savings with explicit fallback where required; preserve the existing quiet proof and case floors. | US-01 | [06](06-deliver-sampling-improvements.md) |
 
 ## Exclusions
 
@@ -65,6 +67,8 @@ Repository source and the pinned-runtime measurements suffice for this observati
 2. [02 — Classify measured costs](02-classify-costs.md): complete; full local trace, focused overhead controls, and isolated CI evidence.
 3. [03 — Controlled experiments](03-controlled-experiments.md): complete; evidence and regression groundwork published in [PR #525](https://github.com/kyleve/Stuff/pull/525).
 4. [04 — Validated improvements](04-validated-improvements.md): complete; explicit readiness and preparation for five providers, with full local/CI verification.
+5. [05 — Metal and sampling experiments](05-metal-and-sampling-experiments.md): ready; the current planning horizon.
+6. [06 — Deliver sampling improvements](06-deliver-sampling-improvements.md): outline; refine after the bounded trials.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
@@ -86,6 +90,17 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-03 | closed | Which calls are floor-, proof-, rendering-, or content-change-dominated? | R-02/R-03 | Plan 02's verified local/CI traces rank measurement removal and render work/sampling first. Rendering occupies 72.9% locally and 79.8% on CI; floor/proof flags remain overlapping conditions. Deeper attribution inside the render call belongs to plan 03. |
 | Q-04 | closed | Which earlier completion or removal is safe? | R-03/R-04 | Repeated normal/candidate runs and an independent delayed oracle match all 62 images for five providers. Accept their explicit immediate measurement and Onboarding preparation. Reject Settings on geometry failures and both renderer candidates on timing. Integrated in plans 03–04; remaining owner-task and native readiness work stays in STU-121. |
 | Q-05 | closed | Does trace overhead materially affect the observed timing? | R-02 | Two runs per mode in a static/native pair show +0.471s (+0.594%) for combined diagnostics. Plan 02 records that this is neither a suite-wide bound nor an isolated trace-only estimate. Broad cost ranking uses the observed data; savings do not assume zero overhead. |
+| Q-06 | open | Can CARenderer sample hosted UIKit/SwiftUI content faithfully and faster, including late updates and native effects? | R-05/R-06 | Plan 05 first tests local availability and fidelity. Failed content classes require explicit existing-renderer fallback; an unexplained blank or stale sample cannot prove readiness. |
+| Q-07 | open | Does a minimum sample interval avoid excessive render work without delaying completion or missing changes? | R-05/R-06 | Plan 05 compares cadence alone and, only after fidelity passes, combined with Metal. Preserve anchor, two matches, 120ms quiet proof, floors, deadlines, cancellation, and async suspension. |
+| Q-08 | open | Does an accepted local candidate improve isolated CI with its actual GPU availability? | R-06 | Plan 06 requires capability evidence and matched CI controls before claiming a CI gain. Local rejection can close the bounded experiment without a CI trial. |
+
+## Follow-up research and review
+
+The user authorized these follow-ups after discussing the color-conversion profile and Metal on 2026-11-17. At `1ef9b92b7`, local settling costs 447.534s, including 326.818s rendering and 1.626s pixel checks. GPU comparison alone therefore targets little measured work.
+
+The pinned iOS Simulator 27.2 `CARenderer.h` exposes `init(mtlTexture:options:)`, output color space, and a client Metal queue. Apple's [CARenderer documentation](https://developer.apple.com/documentation/quartzcore/carenderer) establishes an offscreen layer renderer, not equivalence to UIKit's current-frame hierarchy capture. The header requires client synchronization when a queue is supplied; scheduling does not establish completion. Layer fidelity and actual CI acceleration remain experimental questions.
+
+2026-11-17, base `75978860f`: reviewed plans 05–06 against the source and completed experiments. The bounded experiment can conclude negatively; it does not promise a GPU default. Keep final capture rendering unchanged, test independent hosts before a UIKit capture can flush the candidate, include GPU readback/setup in timing, and retain explicit negative evidence. Mermaid is inspected but not renderer-verified. No product decision blocks the experiment; Q-06–Q-08 describe its unknowns. Implementation and evidence require independent review before publication.
 
 ## Plan review
 
