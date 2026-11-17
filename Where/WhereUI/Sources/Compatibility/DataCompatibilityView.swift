@@ -70,7 +70,7 @@ struct DataCompatibilityView: View {
         .whereScreenRoot()
         .defaultScrollAnchor(.center, for: .alignment)
         .scrollBounceBehavior(.basedOnSize)
-        .background(.background)
+        .background(FeatureDiscoveryBackground())
         .task { titleFocused = true }
     }
 }
