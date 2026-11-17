@@ -7,7 +7,7 @@ import PeriscopeCore
 /// relaunches), and authorization. Persisted samples are reported back through
 /// an injected post-persist hook, so this actor stays unaware of reminders and
 /// widgets — the assembler wires those in.
-public actor LocationIngestor {
+public actor LocationIngestor: WhereShutdownable {
     /// What a persist batch changed, handed to the post-persist hook so the
     /// assembler can reconcile reminders + republish widgets appropriately.
     struct IngestOutcome {
@@ -297,7 +297,7 @@ public actor LocationIngestor {
     }
 
     /// Scope retirement retains the durable outbox but joins every owned stream/capture task.
-    func shutdown() async {
+    public func shutdown() async {
         await retire()
         let ingestion = ingestTask
         let capture = captureTask

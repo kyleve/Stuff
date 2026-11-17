@@ -5,7 +5,7 @@ import Foundation
 /// Local writers await their focused reconciliation inline; remote imports have no caller in this
 /// process, so they need one long-lived observer. The source stream buffers only its newest event,
 /// which coalesces a burst of imported transactions while a rebuild is already running.
-final class RemoteDataChangeReconciler: @unchecked Sendable {
+final class RemoteDataChangeReconciler: WhereShutdownable {
     private let task: Task<Void, Never>
 
     init(
@@ -24,7 +24,7 @@ final class RemoteDataChangeReconciler: @unchecked Sendable {
         task.cancel()
     }
 
-    func stop() async {
+    func shutdown() async {
         task.cancel()
         await task.value
     }

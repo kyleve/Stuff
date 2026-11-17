@@ -7,7 +7,7 @@ import Foundation
 /// installation sidecar. Synced check-ins are advisory status, while an append-only removal
 /// tombstone permanently retires an identity. Every removal read is generation-pinned and failures
 /// stop recording rather than trusting stale state.
-public actor DeviceRecordingController {
+public actor DeviceRecordingController: WhereShutdownable {
     private let store: any WhereStore
     private let ingestor: LocationIngestor
     public nonisolated let currentDevice: CurrentRecordingDevice

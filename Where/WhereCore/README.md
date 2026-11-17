@@ -31,7 +31,7 @@ Transient failures permit offline access only after the same account and version
 CloudKit must still identify that account. Missing, corrupt, unreadable, or blocked receipts do not grant offline access.
 The share extension checks this receipt before opening its local store. It does not contact CloudKit.
 
-`WhereServices.shutdown()` permanently stops recording and drains owned observation tasks without erasing data, consent, or pending location samples.
+`WhereShutdownable.shutdown()` is terminal, idempotent retirement: cancel and join owned background tasks without erasing data, consent, or pending location samples. `WhereServices` retires recording first, then drains remote reconciliation, its explicitly owned live attribution observer, and issue invalidation. Immutable geometry readers own no observation. `LocationSource.stop()` is reversible physical acquisition control; it does not retire the source or recording authority. Derived App Intents services share the same ownership; only the app scope shuts them down.
 The app discards that service scope. Recovery creates a fresh scope after verification succeeds.
 This is a scope boundary: operations already in flight can finish, and existing data APIs have no new per-operation checks.
 
