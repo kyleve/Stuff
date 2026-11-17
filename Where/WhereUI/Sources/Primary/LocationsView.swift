@@ -509,7 +509,9 @@ private struct ResolveToolbarLabel: View {
                 configurations: configurations,
                 theme: theme,
                 measurementReadiness: .immediate,
-                settle: .settledAtLeast(minDuration: 1.0),
+                // Prepared fixtures remeasured on Xcode 27.2 / iOS 27.2 (2026-11-16).
+                // Keep this mode so annotations still settle between their two parses.
+                settle: .settledAtLeast(minDuration: 0.25),
                 prepareForCapture: {
                     // Keep geometry ready across the accessibility renderer's reparenting.
                     // Pixel stability alone can settle on the unloaded symbol fallback.

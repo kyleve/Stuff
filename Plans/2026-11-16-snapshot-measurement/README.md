@@ -5,10 +5,10 @@
 - Updated: 2026-11-16, parent revision `f4e3b4c8cb6fb26b49cb3b12fed6cc91b10dbede`.
 - Operation: Plan and execute the next measured snapshot improvements.
 - Requested scope: Continue through the largest remaining opportunities, stacked on PR #511.
-- Stage: Focused implementation and bounded floor remeasurement.
-- Completed: Adopted PR #511 into a tracked stack and created `perf/snapshot-measurement` above it.
-- Pending: Validate plans 02 and 03, review the complete diff, and publish the measured results.
-- Next action: Finish plan 02 focused checks, then run plan 03 floor candidates serially.
+- Stage: Full integration and independent review.
+- Completed: WebKit bounded experiments; validated and committed synchronous measurement changes; validated both Locations candidates and a separate 0.25s repeat.
+- Pending: Full image integration, final independent review evidence, stack publication, and Linear updates.
+- Next action: Run the full image suite at the selected source revision, then publish the stack and final measurements.
 
 ## Outcome and scope
 
@@ -64,16 +64,16 @@ Unselected candidates remain in Linear.
 
 ## Plan review
 
-Not yet reviewed. [01 — WebKit readiness](01-webkit-readiness.md) was reviewed for experiment bounds, baseline, invariants, recovery, and verification at `f4e3b4c8c`. The temporary profiling experiment is executing; its implementation choice remains open. Plan 02 is ready after tracing height ownership and task behavior. Plan 03 is ready after tracing initial counts, preference ownership, and delayed reconciliation; its candidate values remain experimental until validation. No product choices are unresolved; the user authorized these performance investigations and implementation.
+[01 — WebKit readiness](01-webkit-readiness.md) was reviewed for experiment bounds, baseline, invariants, recovery, and verification at `f4e3b4c8c`. The WebKit experiment is concluded with no retained source change. Plan 02 passed focused coverage after tracing height ownership and task behavior. Plan 03 passed both candidates and a separate 0.25s repetition after tracing initial counts, preference ownership, and delayed reconciliation. Full integration remains pending. No product choices are unresolved; the user authorized these performance investigations and implementation.
 
 ## Review and delivery
 
 The stack is `main` → `perf/snapshot-readiness` (PR #511) → `perf/snapshot-measurement`.
-Temporary profiling instrumentation is executing under plan 01. Each verified step will have its own commit.
+All temporary instrumentation is removed. Plans 02 and 03 change fixture declarations only. Each verified step will have its own commit.
 
 ## Outcome
 
-Investigation in progress.
+Focused changes pass. Final integration and publication are in progress.
 
 ## Question resolution evidence
 

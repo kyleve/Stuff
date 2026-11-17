@@ -1,6 +1,6 @@
 # 03 — Remeasure the prepared Locations capture floor
 
-- Status: ready
+- Status: executing
 - Depends on: None; the simulator run is sequenced after plan 02's focused check.
 - Shared context: [Overview](README.md)
 
@@ -52,8 +52,10 @@ Keep untouched cases and production card reconciliation unchanged.
 - 2026-11-16: Reviewed fixture readiness, fresh preferences, delayed reconciliation, native chrome contracts, bounded candidates, and validation at parent `f4e3b4c8c`.
 - Q-03 resolved to a bounded toolchain remeasurement of explicitly prepared cases. A lower value is not yet proven.
 - The prior outline listed plan 02 as a dependency only for simulator serialization. The implementations are independent; sequencing remains explicit without a publication dependency.
-- Pending: candidates, repetition, full integration, independent review, and publication.
+- The 0.5s candidate passed all 54 captures with 43.449s settling, versus 64.266s at the parent.
+- The 0.25s candidate passed all 54 captures with 35.819s settling and zero retries. All identities and pixel counts match the parent. The two larger byte-difference rows exactly match baseline CI job 4413; no reference changed.
+- The separate 0.25s repetition passed 3 tests and all 54 captures, with 35.585s settling and no retries. Identities, dimensions, and tile counts match. Only 37 of 54 captures use the changed helper. Pending: full integration, final review record, and publication.
 
 ## Resume point
 
-After plan 02's focused run finishes, test the 0.5s candidate.
+Both 0.25s runs passed. Run full image integration, retain the independent review record, and publish the stack.
