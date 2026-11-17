@@ -5,10 +5,10 @@
 - Updated: 2026-11-17, source `445375f86`, following PR #517.
 - Operation: Investigate the user's proposed completion hooks for settling and measurement; retain a bounded improvement if evidence supports it.
 - Scope: Explicit application readiness, measurement completion, and public UIKit update hooks. Preserve image correctness and cancellation.
-- Stage: Validation and publication of the reviewed [readiness experiment](01-readiness-experiment.md).
+- Stage: Complete; published in [PR #518](https://github.com/kyleve/Stuff/pull/518).
 - Completed: Public update-callback probe; Calendar mount/readiness implementation; four unit tests and 63 reference captures; forced-retry regression; independent source and raw-evidence review.
-- Pending: Publication.
-- Next action: Commit and publish the reviewed slice; update STU-121 and dispatch CI.
+- Pending: Remote CI results, tracked separately from local acceptance.
+- Next action: Review remote results when available; broader settling opportunities remain in STU-121.
 
 ## Outcome and constraints
 
@@ -28,7 +28,7 @@ Q-02 (closed, R-01–R-02, plan 01): Calendar already publishes its year from th
 
 Q-03 (closed, R-03, plan 01): Retain the Calendar change and the negative UIKit result. The uninstrumented control confirms 75.626s → 53.601s across the same 63 captures: 22.025s (29.1%) saved. Measurement plus its hook falls 32.230s → 10.345s (67.9%). Identities, dimensions, tile counts, and substantive pixel diagnostics match. This result is integrated into [the execution evidence](01-readiness-experiment.md#validation-and-outcome) and independently reviewed.
 
-[STU-121](https://linear.app/kve/issue/STU-121) owns this continuation. Existing completed plans remain unchanged. This branch is `perf/snapshot-completion-hooks` in stack #513.
+[STU-121](https://linear.app/kve/issue/STU-121) owns this continuation. Existing completed plans remain unchanged. Branch `perf/snapshot-completion-hooks` is published above #517 in [stack #519](https://github.com/kyleve/Stuff/stack/519), continuing the earlier stack #513 series.
 
 ## Execution order and review
 
@@ -38,4 +38,4 @@ The current horizon is [01 — Observe completion boundaries](01-readiness-exper
 
 The pinned Xcode 27.2 headers and Apple's [UI update phase documentation](https://developer.apple.com/documentation/uikit/uiupdateactionphase/afterupdatecomplete) define completion of one update. [Observations](https://developer.apple.com/documentation/observation/observations) tracks transactions on observable state. Neither source claims that all future work or all native rendering has completed.
 
-The completed-diff review covers the full change against `445375f86`. Its confirmed finding was stale readiness on retry: `captureConfiguredSnapshot` builds a view value once and rehosts that value in fresh controllers. The initial prototype created its presentation before mounting. The corrected wrapper starts with empty `@State`, creates concrete content once per mounted host, and consumes each mount registration once. The regression test builds the root once, forces a retry after reconciliation, and verifies two distinct presentations and a full-height result. Cancellation before and after mounting also permits a subsequent wait. The independent reviewer verified the corrected source and final/control raw logs, with no remaining findings. Publication is pending.
+The completed-diff review covers the full change against `445375f86`. Its confirmed finding was stale readiness on retry: `captureConfiguredSnapshot` builds a view value once and rehosts that value in fresh controllers. The initial prototype created its presentation before mounting. The corrected wrapper starts with empty `@State`, creates concrete content once per mounted host, and consumes each mount registration once. The regression test builds the root once, forces a retry after reconciliation, and verifies two distinct presentations and a full-height result. Cancellation before and after mounting also permits a subsequent wait. The independent reviewer verified the corrected source and final/control raw logs, with no remaining findings. Implementation `cde3fb37c` is published in PR #518.

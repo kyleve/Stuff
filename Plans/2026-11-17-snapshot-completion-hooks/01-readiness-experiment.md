@@ -1,6 +1,6 @@
 # Observe completion boundaries
 
-Status: executing
+Status: complete
 Dependencies: none.
 Requirements: [US-01, R-01–R-03, X-01](README.md#outcome-and-constraints).
 
@@ -106,4 +106,4 @@ Normal test invocations also passed architecture, Flyover command, attribution, 
 
 Raw logs, summaries, probe patch, and callback observations are retained under `/Users/kve/.codex/visualizations/2026/11/17/01a1e71b-13f1-7c80-8aee-e46d45c92d5b/completion-hooks-results/`. The local work directories are `/private/tmp/stuff-completion-hooks-{probe,calendar-final,calendar-control}-20261117`.
 
-Resume: publish the reviewed implementation and evidence above PR #517, update STU-121, and dispatch CI. No temporary probe or control substitution remains.
+Complete. Implementation `cde3fb37c` and evidence are published in [PR #518](https://github.com/kyleve/Stuff/pull/518), above #517 in stack #519. No temporary probe or control substitution remains. Remote CI results remain separate from the local acceptance above; STU-121 stays In Review for this unmerged slice and broader snapshot performance work.
