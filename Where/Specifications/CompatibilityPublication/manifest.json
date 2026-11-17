@@ -59,7 +59,7 @@
       "name": "broken-cache",
       "config": "BrokenCache.cfg",
       "expect": "fail",
-      "outputContains": "Invariant OnlineAdmissionHasServerEvidence is violated."
+      "outputContains": "Invariant OnlineAdmissionHasDomainEvidence is violated."
     },
     {
       "name": "broken-receipt",
@@ -114,6 +114,67 @@
       "config": "ForeignReceipt.cfg",
       "expect": "fail",
       "outputContains": "Invariant ForeignReceiptNotReached is violated."
+    },
+    {
+      "name": "current-local-viewer",
+      "config": "CurrentLocalViewer.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-local-recorder",
+      "config": "CurrentLocalRecorder.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-local-floor",
+      "config": "CurrentLocalFloor.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-cloud-to-local",
+      "config": "CurrentCloudToLocal.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "broken-local-floor",
+      "config": "BrokenLocalFloor.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoAdmissionBelowKnownFloor is violated."
+    },
+    {
+      "name": "broken-local-publication",
+      "config": "BrokenLocalPublication.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoLocalPublication is violated."
+    },
+    {
+      "name": "broken-local-cloud-admission",
+      "config": "BrokenLocalCloudAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OnlineAdmissionHasDomainEvidence is violated."
+    },
+    {
+      "name": "local-admission",
+      "config": "LocalAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LocalAdmissionNotReached is violated."
+    },
+    {
+      "name": "cloud-after-local",
+      "config": "CloudAfterLocal.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CloudAfterLocalNotReached is violated."
+    },
+    {
+      "name": "local-floor-blocked",
+      "config": "LocalFloorBlocked.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LocalFloorBlockedNotReached is violated."
+    },
+    {
+      "name": "current-local-waiting-viewer",
+      "config": "CurrentLocalWaitingViewer.cfg",
+      "expect": "pass"
     }
   ]
 }

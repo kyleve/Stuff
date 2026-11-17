@@ -8,9 +8,9 @@ The attachment bytes and metadata are written straight into the shared App Group
 
 ## How it works
 
-Before opening shared CloudKit-backed history locally, Save checks the app's compatibility receipt.
+Before opening shared history locally in any build, Save checks the app's compatibility receipt.
 The receipt must grant access to this exact data version. Otherwise, the extension asks the user to open Where and saves nothing.
-Local-only Development builds bypass this check. The extension never verifies with CloudKit itself.
+Development uses the same required access checker. The app publishes its local verification receipt; the extension never verifies with CloudKit itself.
 
 ```
 Host app Share sheet

@@ -1,6 +1,6 @@
 # 01 — Unified compatibility access
 
-- Status: ready
+- Status: executing
 - Depends on: none; follows the completed [ownership series](../2026-11-17-compatibility-review/README.md).
 - Shared context: [Overview](README.md)
 
@@ -103,14 +103,24 @@ Use Git status and this execution record to identify uncommitted work. Do not di
 
 ## Progress
 
-- [ ] Implement domain/backend/coordinator and receipt access.
-- [ ] Integrate storage, host policy, scope ownership, and share access.
-- [ ] Add Swift and formal coverage; update docs.
+- [x] Implement domain/backend/coordinator and receipt access.
+- [x] Integrate storage, host policy, scope ownership, and share access.
+- [x] Add Swift and formal coverage; update docs.
 - [ ] Verify, independently review, and publish with individual replies.
 
 ## Execution record and resume point
 
-Ready at `743f8c96a`; no implementation changes yet. Begin the domain/backend/coordinator change. Existing snapshot and test evidence from the previous review does not establish these new behaviors.
+Plan published in `a0f844ec9`. Implementation remains uncommitted pending full verification and independent review.
+
+- Focused `./test` selection passed 63 tests: coordinator, receipt/access, account-status adapter, model version, compatibility lifecycle, launch, and build environment. Architecture and host checks passed in the same run.
+- `TLA_JAVA="$PWD/.build/tla/mise/data/installs/java/temurin-21.0.8+9.0.LTS/bin/java" ./tla-check CompatibilityPublication CompatibilityLockout` passed all 50 declared outcomes (30 publication, 20 lockout). Added 10 local/transition cases; inspected their three deliberate-failure traces. Artifacts: `CompatibilityPublication.99savO` and `CompatibilityLockout.E9u5N2` under `.build/tla/runs/`.
+- `./swiftformat` and `git diff --check` passed. First Swift build exposed non-Sendable helper closures; explicit Sendable actor-isolated operations fixed it. Initial sandboxed TLC run was unable to open its local Java management socket; the authorized run outside that sandbox passed.
+- `./test --all --no-generate` exercised 2,986 iOS tests: 2,984 passed, with two demo fixture failures identified by independent review. Both fixtures now perform ordinary local verification before activation and assert activation succeeds. All other unit tests and 28 host macro tests passed; the final rebuilt affected-suite run passed all 55 tests.
+- Independent source review against `a0f844ec9` found only those fixture regressions; the reviewer confirmed their source fix and the audit of other activation callers. Formal review found a missing captured admission-generation boundary and a missing matching local-viewer configuration. Both are now modeled and verified: 31 publication outcomes in `CompatibilityPublication.xUKzT9`, 22 lockout outcomes in `CompatibilityLockout.DbwL0F`, with the new traces inspected. The source/model reviewer confirmed no remaining substantive findings.
+- Final reuse audit also bound onboarding discovery's active-scope fallback to its original admission; independent review confirmed the guard and regression assertion. The held-open regression now covers both same-account invalidation and ordinary blocked/recovered verification.
+- Final SwiftFormat, safe-symbol lint, guidance validation, and diff whitespace checks passed. No dependency or string-catalog changes in this step.
+- Final command: `./test --only WhereCoreTests/DataCompatibilityCoordinatorTests --only WhereCoreTests/DataCompatibilityReceiptTests --only WhereCoreTests/DataCompatibilityAccessTests --only WhereCoreTests/CloudKitDataCompatibilityTransportTests --only WhereUITests/WhereCompatibilityModelTests --only WhereUITests/DemoModeTests --only WhereUITests/DemoModeEnvironmentTests --no-generate`: 55 tests passed, including both formerly failing fixtures and the added cold-local-receipt/held-opening cases. Architecture and host helper checks also passed.
+- Resume: commit/push 01 and reply to its nine threads plus the deferred model-composition thread; then promote the refined 02 draft.
 
 ## Outcome
 

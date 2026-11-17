@@ -14,10 +14,7 @@ verification of CloudKit's implementation or notification delivery.
 
 ## Boundary and source correspondence
 
-Modeled source: `04cb13b2cf83b01e617f3f0bd569d2c7aec2dd6a`; the publication
-coordinator/transport implementation is unchanged by these specifications.
-The installation permission and demo eligibility adapter was re-reviewed with
-the 2026-11-17 startup revision; fixed eligibility remains a model assumption.
+Source correspondence rechecked for the 2026-11-17 unified-access revision following `a0f844ec9`. The model now includes a local domain and transitions between local and cloud operation. Fixed recording eligibility remains a model assumption.
 [DataCompatibilityCoordinator](../../WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift)
 owns the local decision; [CloudKitDataCompatibilityTransport](../../WhereCore/Sources/Compatibility/CloudKitDataCompatibilityTransport.swift)
 owns conditional metadata saves; [DataCompatibilityReceipt](../../WhereCore/Sources/Compatibility/DataCompatibilityReceipt.swift)
@@ -33,8 +30,8 @@ equal build version, and no higher known floor.
 
 | Model state | Production fact |
 | --- | --- |
-| `server` | Independent canonical control record per account. `0` means absent; its effective baseline is `1`. |
-| `account`, `epoch` | Observed account identity and coordinator invalidation epoch. |
+| `server` | Canonical control records for cloud accounts 1/2. `0` means absent; its effective baseline is `1`. Slot 3 is a ghost target used only to detect an erroneous local publication. |
+| `account`, `epoch` | Observed domain (cloud accounts 1/2, local 3) and coordinator invalidation epoch. |
 | `receipt`, `known`, `state` | Durable receipt, process-local maximum observed version, and public access decision; these are separate authorities. |
 | `refreshes`, `phase`, `attempt`, `capturedEpoch` | Verification trigger budget, async task phase, three-attempt conflict loop, and captured epoch. One active verification per device. |
 | `resolvedAccount`, `prior` | Account lookup result and receipt captured at verification start. Foreign receipts are discarded as offline evidence. |
@@ -48,7 +45,7 @@ equal build version, and no higher known floor.
 | `Begin` | `refresh` creates one verification; `verify` loads its receipt and raises the local floor before account lookup. Repeated triggers join this task. |
 | `ChangeAccount` | Observed account notification invalidates current access and marks an existing receipt blocked. |
 | `ResolveAccount` | Account lookup returns or fails; mismatched prior receipt is discarded. |
-| `Read`, `ReadReply` | Server fetch snapshot versus delivery and epoch check. The floor update, newer-version block, and synchronous blocked-receipt save form one main-actor action. |
+| `Read`, `ReadReply` | Cloud fetch snapshot or local build-version observation, then delivery and epoch check. The floor update, newer-version block, and synchronous blocked-receipt save form one main-actor action. |
 | `Eligibility` | Return from the injected recording check, epoch validation, and decision to wait, save, or grant. |
 | `PrepareSave`, `Commit` | Transport re-fetch/change-tag/version check followed by the separate conditional save. A competing writer can change the record between them. |
 | `SaveReply` | Acknowledged save returns; epoch is checked before raising the local floor. A committed save with a lost response instead goes to `Fail`. |
@@ -57,7 +54,7 @@ equal build version, and no higher known floor.
 | `Parked` | Idle/completed verifications, permitting stuttering without hiding a pending internal phase. |
 
 Boot, foreground/poll, import notifications, push, Retry, and onboarding all
-share this lane. Local-only builds do not use this protocol. Demo uses it with
+share this lane. Local-only builds use the same protocol with a local observation and receipt. A cloud-capable transport selects local mode only for a confirmed absent account; unavailable/restricted resolution follows the error lane. Account-status classification itself is covered by Swift adapter tests. Demo uses it with
 ineligible recording; `InstallationLocation` supplies only real permission, and
 demo scope events cannot change the receipt. The share
 extension only reads the resulting receipt; its own open race is not modeled.
@@ -91,7 +88,7 @@ modeled process, including repeated verifications, not across a crash that
 loses an unpersisted observation.
 
 All cases check `TypeOK`, `OnlyEligibleRecorderPublishes`,
-`SharedVersionNeverDecreases`, `OnlineAdmissionHasServerEvidence`,
+`SharedVersionNeverDecreases`, `NoLocalPublication`, `NoAdmissionBelowKnownFloor`, `OnlineAdmissionHasDomainEvidence`,
 `ReceiptBeforeOnlineAdmission`, and `OfflineReceiptIsAccountBound`, plus the
 action safety properties `KnownVersionNeverDecreases` and
 `ReceiptVersionNeverDecreases`. Negative controls keep the same properties and
@@ -109,8 +106,7 @@ or liveness properties are used. Deadlock checks are enabled.
 | `CurrentHigherCache.cfg` | 2 / viewer | 1 | verified A, version 2 | 2 |
 | `CurrentForeignReceipt.cfg` | 2 / viewer | 2 | verified A, version 2; current account B | 2 |
 
-Each run has two accounts, versions 1–3, and at most one account invalidation
-per device. Other configurations start on A. The retry loop retains its source
+Each run has two cloud accounts plus a local domain, versions 1–3, and at most one domain invalidation per device. `NextAccount` fixes its destination. Existing configurations start on A except the foreign receipt case. New local cases start in local mode and can enter account A; the cloud-to-local case starts on A and can sign out. The local-floor case seeds a version-3 receipt for a version-2 build. `CurrentLocalWaitingViewer.cfg` matches the broken local-to-cloud admission case with server version 1, and verifies that the viewer waits instead of treating its local observation as cloud publication. The retry loop retains its source
 limit of three attempts, but these monotonic versions do not exercise three
 successive conflicts. No claim about exhausting that budget is made.
 
@@ -129,6 +125,9 @@ All negative traces were inspected, including their final values:
   publication and admits a viewer without equal server evidence.
 - `broken-receipt`: a successful server save is followed by a failed receipt
   write, but allowed is published anyway.
+- `broken-local-floor`: both cached-floor guards are removed; local build 2 is admitted with known/receipt version 3.
+- `broken-local-publication`: local eligibility takes the save lane and commits into the ghost local target.
+- `broken-local-cloud-admission`: local version-2 evidence survives a switch to cloud version 1, and the broken cache shortcut admits the viewer without cloud publication. The first trace switches before the local receipt save, showing that even an observed local floor cannot substitute for cloud evidence.
 
 Relevant [DataCompatibilityCoordinatorTests](../../WhereCore/Tests/DataCompatibilityCoordinatorTests.swift)
 include `onlyRecorderCanAdvanceAndWaitingViewerRecovers`,
@@ -144,6 +143,8 @@ are complementary, not an implementation refinement proof.
 `WhereCompatibilityModelTests.recorderCanObtainPermissionAndPublishBeforeOpeningHistory`
 and `demoCannotPublishOrBypassALockout` additionally guard the installation-level
 eligibility adapter introduced by the 2026-11-17 review revision.
+
+The new Swift guards include `localTransportStillRequiresVerificationAndPreservesTheFloor`, `localReceiptCannotPublishOrProvideCloudOfflineAccess`, `signedOutLocalModeCannotLowerACloudFloor`, and `CloudKitDataCompatibilityTransportTests`. The model abstracts observed domain changes as invalidation, whether delivered by notification or discovered during refresh. It does not model every transport status call or the exact numeric count of process epochs on withdrawal.
 
 ## Recorded run
 
@@ -163,7 +164,7 @@ reachability failures below are expected and inspected.
 | `BrokenViewer.cfg` | `OnlyEligibleRecorderPublishes` fails | 1,744 / 828 / 8 |
 | `BrokenSave.cfg` | `SharedVersionNeverDecreases` fails | 11,767 / 5,188 / 15 |
 | `BrokenAccount.cfg` | `OfflineReceiptIsAccountBound` fails | 26 / 23 / 5 |
-| `BrokenCache.cfg` | `OnlineAdmissionHasServerEvidence` fails | 87 / 68 / 7 |
+| `BrokenCache.cfg` | `OnlineAdmissionHasDomainEvidence` fails | 87 / 68 / 7 |
 | `BrokenReceipt.cfg` | `ReceiptBeforeOnlineAdmission` fails | 4,280 / 1,910 / 10 |
 | `Conflict.cfg` | `ConflictNotReached` fails | 9,568 / 4,240 / 14 |
 | `LostReply.cfg` | `LostReplyNotReached` fails | 1,759 / 843 / 8 |
@@ -173,8 +174,19 @@ reachability failures below are expected and inspected.
 | `ReceiptFailure.cfg` | `ReceiptFailureNotReached` fails | 4,280 / 1,910 / 10 |
 | `Recovery.cfg` | `RecoveryNotReached` fails | 211 / 153 / 8 |
 | `ForeignReceipt.cfg` | `ForeignReceiptNotReached` fails | 6 / 5 / 3 |
+| `CurrentLocalViewer.cfg` | pass | 396 / 246 / 14 |
+| `CurrentLocalWaitingViewer.cfg` | pass | 383 / 231 / 14 |
+| `CurrentLocalRecorder.cfg` | pass | 590 / 373 / 17 |
+| `CurrentLocalFloor.cfg` | pass | 18 / 9 / 4 |
+| `CurrentCloudToLocal.cfg` | pass | 530 / 326 / 14 |
+| `BrokenLocalFloor.cfg` | `NoAdmissionBelowKnownFloor` fails | 52 / 38 / 7 |
+| `BrokenLocalPublication.cfg` | `NoLocalPublication` fails | 63 / 49 / 7 |
+| `BrokenLocalCloudAdmission.cfg` | `OnlineAdmissionHasDomainEvidence` fails | 341 / 218 / 13 |
+| `LocalAdmission.cfg` | `LocalAdmissionNotReached` fails | 63 / 49 / 7 |
+| `CloudAfterLocal.cfg` | `CloudAfterLocalNotReached` fails | 572 / 369 / 17 |
+| `LocalFloorBlocked.cfg` | `LocalFloorBlockedNotReached` fails | 3 / 2 / 2 |
 
-Local run: `.build/tla/runs/CompatibilityPublication.qEL0mD/`; generated module:
+Local run: `.build/tla/runs/CompatibilityPublication.xUKzT9/`; generated module:
 `generated/CompatibilityPublication.tla`. Counts for expected failures are partial
 searches ending at their first counterexample.
 

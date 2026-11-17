@@ -20,20 +20,11 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     let intentServices: IntentServices
     private let updates: UpdateModel?
     private let buildEnvironment: WhereBuildEnvironment
+    private let configuredStorage: SwiftDataStore.Storage
     private let widgetPresentationPublisher: WidgetPresentationPublisher
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
-        /// Compiled into Debug device builds created by `Where/install --cloudkit`, so every
-        /// foreground, background, and CloudKit-push relaunch uses the same store mode.
-        static let isCloudKitValidationBuild: Bool = {
-            #if WHERE_CLOUDKIT_VALIDATION
-                true
-            #else
-                false
-            #endif
-        }()
-
         private let developerLaunchController: WhereDeveloperLaunchController?
 
         init(
@@ -44,6 +35,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             self.buildEnvironment = buildEnvironment
+            configuredStorage = buildEnvironment.storage
             updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             self.developerLaunchController = developerLaunchController
             intentServices = IntentServices(
@@ -54,9 +46,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             )
             model = Self.makeModel(
                 buildEnvironment: buildEnvironment,
-                storeStorage: buildEnvironment.storage(
-                    forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
-                ),
+                storeStorage: configuredStorage,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
@@ -74,6 +64,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
         ) {
             self.buildEnvironment = buildEnvironment
+            configuredStorage = buildEnvironment.storage
             updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
@@ -83,7 +74,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             )
             model = Self.makeModel(
                 buildEnvironment: buildEnvironment,
-                storeStorage: buildEnvironment.storage,
+                storeStorage: configuredStorage,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
@@ -118,16 +109,22 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         let installationLocation = InstallationLocation.live()
         // Match SwiftData's CloudKit container. Signing entitlements select its
         // Development or Production environment, independently of the app audience.
-        let coordinator = storeStorage.usesCloudKit
-            ? DataCompatibilityCoordinator(
-                transport: CloudKitDataCompatibilityTransport(
-                    containerIdentifier: "iCloud.com.stuff.where",
-                ),
-                receipts: AppGroupDataCompatibilityReceipt(appGroupIdentifier: buildEnvironment
-                    .appGroupIdentifier),
+        let transport: any DataCompatibilityTransport = storeStorage.usesCloudKit
+            ? CloudKitDataCompatibilityTransport(
+                containerIdentifier: "iCloud.com.stuff.where",
                 version: .current,
             )
-            : DataCompatibilityCoordinator()
+            : LocalDataCompatibilityTransport(version: .current)
+        let receipts: any DataCompatibilityReceiptStoring = buildEnvironment.isRunningTests
+            ? InMemoryDataCompatibilityReceiptStore(receipt: nil)
+            :
+            AppGroupDataCompatibilityReceipt(appGroupIdentifier: buildEnvironment
+                .appGroupIdentifier)
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .current,
+        )
         let compatibility = WhereCompatibilityModel(coordinator: coordinator)
         return WhereModel(
             preferences: preferences,
@@ -165,14 +162,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 await intentServices.block(failure)
             } else { await intentServices.clear() }
         }
-        #if DEBUG
-            let usesCloudKit = buildEnvironment.storage(
-                forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
-            ).usesCloudKit
-        #else
-            let usesCloudKit = buildEnvironment.storage.usesCloudKit
-        #endif
-        if usesCloudKit {
+        if configuredStorage.usesCloudKit {
             // Register for silent compatibility updates; this does not request
             // authorization to display notifications.
             application.registerForRemoteNotifications()

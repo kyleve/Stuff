@@ -18,7 +18,7 @@ struct WhereBuildEnvironment: Equatable {
     let isRunningTests: Bool
 
     var storage: SwiftDataStore.Storage {
-        storage(forCloudKitValidationBuild: false)
+        storage(forCloudKitValidationBuild: Self.validatesCloudKit)
     }
 
     func storage(
@@ -78,6 +78,12 @@ struct WhereBuildEnvironment: Equatable {
         }
         return value
     }
+
+    #if WHERE_CLOUDKIT_VALIDATION
+        private static let validatesCloudKit = true
+    #else
+        private static let validatesCloudKit = false
+    #endif
 
     #if WHERE_DEVELOPMENT && WHERE_BETA
         #error("Exactly one Where audience compiler condition must be active")

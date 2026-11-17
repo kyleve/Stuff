@@ -3,7 +3,7 @@ EXTENDS Integers, FiniteSets
 
 CONSTANTS Implementation, MaxChecks, MaxScopes, MaxAccountChanges
 
-ASSUME /\ Implementation \in {"current", "ungatedOpen", "uncheckedVerification", "uncheckedOpening", "uncheckedScopeEpoch",
+ASSUME /\ Implementation \in {"current", "ungatedOpen", "uncheckedVerification", "uncheckedOpening", "uncheckedScopeEpoch", "uncheckedOpeningAdmission",
                               "revivableGPS", "lateGPS", "earlyRelaunch", "retainedTask", "lateRetirement"}
        /\ MaxChecks > 0 /\ MaxScopes > 0 /\ MaxAccountChanges > 0
 
@@ -16,7 +16,7 @@ ScopePhases == {"unused", "opening", "active", "discarding", "released"}
 GPSPhases == {"idle", "authorizing", "starting", "returning", "cleanup", "done"}
 
 (* --algorithm CompatibilityLockoutAlgorithm {
-variables accountEpoch = 0,
+variables accountEpoch = 0, admissionGeneration = 0,
           decision = "checking", decisionEpoch = 0,
           checks = 0, currentCheck = 0,
           checkPhase = [i \in Checks |-> "unused"],
@@ -24,13 +24,15 @@ variables accountEpoch = 0,
           scopeEpoch = 0, scopes = 0, opening = 0, active = 0,
           scopePhase = [i \in Scopes |-> "unused"],
           openingEpoch = [i \in Scopes |-> 0],
+          openingAdmission = [i \in Scopes |-> 0],
           owner = [i \in Scopes |-> "launch"],
           callerDone = [i \in Scopes |-> TRUE],
           retired = {}, commandedGPS = {}, physicalGPS = {}, pendingStop = {},
           gpsPhase = [i \in Scopes |-> "idle"],
           retirement = "idle",
           tasks = 0, taskOwner = 0, taskPhase = [i \in Tasks |-> "unused"],
-          badOpen = FALSE, badInstall = FALSE, badGPS = FALSE,
+          badOpen = FALSE, badInstall = FALSE, badGPS = FALSE, badAdmissionInstall = FALSE,
+          staleAdmissionRejected = FALSE,
           staleCheckRejected = FALSE, staleOpenRejected = FALSE, staleScopeEpochRejected = FALSE,
           blockedOpening = FALSE, pendingRetiredGPS = FALSE,
           didRelease = FALSE, recovered = FALSE, failedOpen = FALSE,
@@ -70,7 +72,10 @@ CompleteCheckStep:
             await checkPhase[i] = "waiting";
             if (checkEpoch[i] = accountEpoch \/ Implementation = "uncheckedVerification") {
                 with (compatible \in BOOLEAN) {
-                    if (Allowed /\ ~compatible) { RequestRetirement(); };
+                    if (Allowed /\ ~compatible) {
+                        RequestRetirement();
+                        admissionGeneration := admissionGeneration + 1;
+                    };
                     blockedOpening := blockedOpening \/ (~compatible /\ opening # 0) ||
                     decision := IF compatible THEN "allowed" ELSE "blocked" ||
                     decisionEpoch := checkEpoch[i];
@@ -89,7 +94,8 @@ AccountChangeStep:
     while (TRUE) {
         await accountEpoch < MaxAccountChanges;
         if (Allowed) { RequestRetirement(); };
-        accountEpoch := accountEpoch + 1 || currentCheck := 0 ||
+        accountEpoch := accountEpoch + 1 || admissionGeneration := admissionGeneration + 1 ||
+        currentCheck := 0 ||
         blockedOpening := blockedOpening \/ opening # 0 || decision := "blocked";
     }
 }
@@ -102,6 +108,7 @@ BeginOpenStep:
         with (caller \in {"launch", "onboarding"}) {
             scopes := scopes + 1 || opening := scopes + 1 ||
             scopePhase[scopes + 1] := "opening" || openingEpoch[scopes + 1] := scopeEpoch ||
+            openingAdmission[scopes + 1] := admissionGeneration ||
             owner[scopes + 1] := caller || callerDone[scopes + 1] := FALSE ||
             badOpen := badOpen \/ ~Allowed \/ decisionEpoch # accountEpoch ||
             recovered := recovered \/ didRelease;
@@ -117,12 +124,16 @@ CompleteOpenStep:
             either {
                 scopePhase[i] := "discarding" || failedOpen := TRUE;
             } or {
-                if ((Allowed /\ (openingEpoch[i] = scopeEpoch \/ Implementation = "uncheckedScopeEpoch")) \/
+                if ((Allowed /\ (openingEpoch[i] = scopeEpoch \/ Implementation = "uncheckedScopeEpoch") /\
+                     (openingAdmission[i] = admissionGeneration \/ Implementation = "uncheckedOpeningAdmission")) \/
                     Implementation = "uncheckedOpening") {
                     scopePhase[i] := "active" || active := i || opening := 0 ||
-                    badInstall := badInstall \/ ~Allowed \/ openingEpoch[i] # scopeEpoch;
+                    badInstall := badInstall \/ ~Allowed \/ openingEpoch[i] # scopeEpoch ||
+                    badAdmissionInstall := badAdmissionInstall \/ openingAdmission[i] # admissionGeneration;
                 } else {
                     scopePhase[i] := "discarding" || staleOpenRejected := TRUE ||
+                    staleAdmissionRejected := staleAdmissionRejected \/
+                        (Allowed /\ openingEpoch[i] = scopeEpoch /\ openingAdmission[i] # admissionGeneration) ||
                     staleScopeEpochRejected := staleScopeEpochRejected \/ openingEpoch[i] # scopeEpoch;
                 };
             };
@@ -299,6 +310,8 @@ TypeOK ==
     /\ checks \in 0..MaxChecks /\ currentCheck \in 0..MaxChecks
     /\ checkPhase \in [Checks -> {"unused", "waiting", "done"}]
     /\ checkEpoch \in [Checks -> 0..MaxAccountChanges]
+    /\ admissionGeneration \in 0..(MaxChecks + MaxAccountChanges)
+    /\ openingAdmission \in [Scopes -> 0..(MaxChecks + MaxAccountChanges)]
     /\ scopeEpoch \in 0..(MaxChecks + MaxAccountChanges)
     /\ scopes \in 0..MaxScopes /\ opening \in 0..MaxScopes /\ active \in 0..MaxScopes
     /\ scopePhase \in [Scopes -> ScopePhases]
@@ -309,12 +322,13 @@ TypeOK ==
     /\ retirement \in {"idle", "requested", "stopping", "launchDrain", "onboardingStop", "onboardingDrain"}
     /\ tasks \in 0..(MaxChecks + MaxAccountChanges) /\ taskOwner \in 0..(MaxChecks + MaxAccountChanges)
     /\ taskPhase \in [Tasks -> {"unused", "queued", "teardown", "relaunch", "canceledQueued", "superseded", "done"}]
-    /\ {badOpen, badInstall, badGPS, staleCheckRejected, staleOpenRejected, staleScopeEpochRejected,
+    /\ {badOpen, badInstall, badGPS, badAdmissionInstall, staleAdmissionRejected, staleCheckRejected, staleOpenRejected, staleScopeEpochRejected,
          blockedOpening, pendingRetiredGPS, didRelease, recovered, failedOpen, repeatedLockout} \subseteq BOOLEAN
 
 CurrentDecisionOnly == Allowed => decisionEpoch = accountEpoch
 AdmissionRequiresCurrentDecision == ~badOpen
 NoStaleScopeInstallation == ~badInstall
+NoStaleAdmissionInstallation == ~badAdmissionInstall
 ReleaseBeforeReplacement == Cardinality(LiveContainers) <= 1
 RetiredScopeCannotReauthorizeGPS == ~badGPS
 ReleasedScopeHasNoGPS == \A i \in Scopes : scopePhase[i] = "released" => i \notin physicalGPS
@@ -322,6 +336,7 @@ BlockedScopeHasRetirement == decision = "blocked" /\ active # 0 => retirement # 
 NoObsoleteTaskRetiresReplacement == Allowed /\ retirement = "idle" /\ active # 0 => active \notin retired
 
 StaleVerificationNotReached == ~staleCheckRejected
+StaleAdmissionNotReached == ~staleAdmissionRejected
 OpeningLockoutNotReached == ~(blockedOpening /\ staleOpenRejected)
 StaleScopeEpochNotReached == ~staleScopeEpochRejected
 RetiredPendingGPSNotReached == ~pendingRetiredGPS

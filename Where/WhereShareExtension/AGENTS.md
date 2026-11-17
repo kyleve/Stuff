@@ -24,9 +24,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Invariants
 
-- Before a production-cloud store opens locally, require the app's verified receipt for this exact data version.
+- Before any shared store opens locally, require the app's verified receipt for this exact data version.
   Missing, unreadable, blocked, or mismatched receipts show Open Where and must not open history.
-  Keep the receipt read local. Development local-only storage bypasses this gate.
+  Keep the receipt read local and require an access checker in every build. Preview fixtures supply a concrete verified receipt.
   Guard: `DataCompatibilityReceiptTests` in WhereCore.
 
 - **Writes directly through `SwiftDataStore.perform { write(evidence:blob:) }`,

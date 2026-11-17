@@ -272,13 +272,20 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private enum StoreState {
         case empty
         case opening(StoreOpening)
-        case prepared(SwiftDataStore)
+        case prepared(PreparedStore)
         case retired
     }
 
+    private struct PreparedStore {
+        let store: SwiftDataStore
+        let admission: DataCompatibilityAdmission
+    }
+
     private final class StoreOpening {
+        let admission: DataCompatibilityAdmission
         let task: Task<SwiftDataStore, any Error>
-        init(storage: SwiftDataStore.Storage) {
+        init(storage: SwiftDataStore.Storage, admission: DataCompatibilityAdmission) {
+            self.admission = admission
             task = Task.detached(priority: .userInitiated) {
                 try SwiftDataStore.make(storage: storage)
             }
@@ -356,34 +363,42 @@ public final class WhereBootstrap: WhereScopeAssembling {
     }
 
     public func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        let admission = try compatibility.requireAccess()
+        let storage = storeStorage.admitted(for: admission.domain)
         let readiness = CloudKitImportReadiness()
-        if storeStorage.usesCloudKit { readiness.start() }
+        if storage.usesCloudKit { readiness.start() }
         let store = try await prepareStore()
-        if storeStorage.usesCloudKit, await readiness.waitForImport() == false {
+        if storage.usesCloudKit, await readiness.waitForImport() == false {
             throw CloudKitImportReadiness.Timeout()
         }
+        try compatibility.requireAccess(admission)
         return try await store.recordingDevices()
     }
 
     private func prepareStore() async throws -> SwiftDataStore {
-        try compatibility.requireAccess()
+        let admission = try compatibility.requireAccess()
         let opening: StoreOpening
         switch storeState {
             case .retired: throw CancellationError()
-            case let .prepared(store): return store
+            case let .prepared(prepared):
+                try compatibility.requireAccess(prepared.admission)
+                return prepared.store
             case let .opening(task): opening = task
             case .empty:
-                opening = StoreOpening(storage: storeStorage)
+                opening = StoreOpening(
+                    storage: storeStorage.admitted(for: admission.domain),
+                    admission: admission,
+                )
                 storeState = .opening(opening)
         }
         do {
             let store = try await opening.task.value
-            try compatibility.requireAccess()
+            try compatibility.requireAccess(opening.admission)
             switch storeState {
                 case let .opening(current) where current === opening:
-                    storeState = .prepared(store)
+                    storeState = .prepared(.init(store: store, admission: opening.admission))
                     return store
-                case let .prepared(current) where current === store:
+                case let .prepared(current) where current.store === store:
                     return store
                 case .empty, .opening, .prepared, .retired:
                     throw CancellationError()

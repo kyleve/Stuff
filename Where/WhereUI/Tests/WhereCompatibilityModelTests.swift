@@ -110,6 +110,67 @@ struct WhereCompatibilityModelTests {
         await model.shutdownForCompatibility()
     }
 
+    @Test(arguments: [true, false])
+    func recoveryCannotAdmitAnOpeningFromBeforeInvalidation(accountChanged: Bool) async throws {
+        let harness = CompatibilityLaunchHarness()
+        harness.holdNextOpen = true
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: transport,
+        )
+        let opening = Task { try await model.resolveScope() }
+        try await waitForAsync { harness.isOpening }
+        if accountChanged {
+            let domain = try model.compatibility.coordinator.requireAccess().domain
+            await transport.changeDomain(domain)
+            try await waitForAsync { model.compatibility.coordinator.state.allowsStore == false }
+        } else {
+            await transport.setRejectsReads(true)
+            await model.compatibility.refresh(model: model)
+            #expect(model.compatibility.coordinator.state.allowsStore == false)
+            await transport.setRejectsReads(false)
+        }
+        await model.compatibility.refresh(model: model)
+        #expect(model.compatibility.coordinator.state.allowsStore)
+        harness.releaseOpen()
+        await #expect(throws: DataCompatibilityFailure.self) { try await opening.value }
+        #expect(model.activeScope == nil)
+        #expect(harness.stores.first?.store == nil)
+        _ = try await model.resolveScope()
+        #expect(harness.opens == 2)
+        await model.shutdownForCompatibility()
+    }
+
+    @Test func recoveringAccessCannotRevealOrReuseThePreviousScope() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: transport,
+        )
+        _ = try await model.resolveScope()
+        await transport.changeDomain(.local)
+        try await waitForAsync { model.compatibility.coordinator.state.allowsStore == false }
+        await model.compatibility.refresh(model: model)
+        #expect(model.compatibility.coordinator.state.allowsStore)
+        #expect(model.compatibility.isBlocking(model))
+        await #expect(throws: DataCompatibilityFailure.self) { try await model.resolveScope() }
+        await #expect(throws: DataCompatibilityFailure.self) {
+            try await model.discoverRecordingRecommendation(for: .testing)
+        }
+        #expect(harness.opens == 1)
+        await model.shutdownForCompatibility()
+        _ = try await model.resolveScope()
+        #expect(harness.opens == 2)
+        #expect(model.compatibility.isBlocking(model) == false)
+        await model.shutdownForCompatibility()
+    }
+
     @Test func onboardingOwnedLogoutDoesNotWaitForItself() async throws {
         let harness = CompatibilityLaunchHarness()
         let model = model(

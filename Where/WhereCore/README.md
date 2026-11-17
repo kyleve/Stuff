@@ -29,7 +29,11 @@ The [publication model](../Specifications/CompatibilityPublication/README.md) ch
 The atomic App Group receipt preserves the highest observed version and excludes itself from backups.
 Transient failures permit offline access only after the same account and version passed verification.
 CloudKit must still identify that account. Missing, corrupt, unreadable, or blocked receipts do not grant offline access.
-The share extension checks this receipt before opening its local store. It does not contact CloudKit.
+`LocalDataCompatibilityTransport` reports this build's format through the same coordinator, which still checks the durable floor and saves a receipt. The cloud transport delegates to it only after CloudKit confirms `.noAccount`; restricted, indeterminate, and temporarily unavailable accounts remain blocking. A local receipt never substitutes for cloud publication or cloud offline evidence.
+
+`DataCompatibilityAdmission` binds an allowed decision to its domain and process epoch. Bootstrap selects local or cloud storage from that decision and checks the token after opening. An account change revokes it before a replacement container can be used, even if the same account returns.
+
+`AppGroupDataAccess` requires an exact verified receipt before the share extension opens its local store in any audience. It does not contact CloudKit. Cloud account identity retains both its container identifier and CloudKit user-record name; the wire record still stores the user-record name in `accountID`.
 
 `WhereShutdownable.shutdown()` is terminal, idempotent retirement: cancel and join owned background tasks without erasing data, consent, or pending location samples. `WhereServices` retires recording first, then drains remote reconciliation, its explicitly owned live attribution observer, and issue invalidation. Immutable geometry readers own no observation. `LocationSource.stop()` is reversible physical acquisition control; it does not retire the source or recording authority. Derived App Intents services share the same ownership; only the app scope shuts them down.
 The app discards that service scope. Recovery creates a fresh scope after verification succeeds.

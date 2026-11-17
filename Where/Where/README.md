@@ -91,7 +91,7 @@ report the build/install/launch plan without performing it.
 ## CloudKit rollout and device validation
 
 The regular runtime verifies a separate compatibility record before opening SwiftData.
-Local-only Development builds inject a local coordinator. Demo is subject to the same lockout screen; its simulated permission/recording and removal events never advance or invalidate real CloudKit metadata. The regular runtime creates one compatibility coordinator and one installation location owner and injects both into the model and real bootstrap.
+Every build injects a transport and receipt store into the same coordinator. Development uses a local transport; the cloud-capable transport also uses local mode when CloudKit confirms no account. Restricted or unavailable account states do not grant local access. The host build environment resolves compiler flags once, and the runtime retains its configured storage policy. Bootstrap applies the verified domain before opening the container. Demo is subject to the same lockout screen; its simulated permission/recording and removal events never advance or invalidate real CloudKit metadata. The regular runtime creates one compatibility coordinator and one installation location owner and injects both into the model and real bootstrap.
 The control record uses the private `WhereStoreCompatibility` zone and record type, with `requiredVersion` (Int64) and `accountID` (String).
 Its `where-store-compatibility` zone subscription requests silent notifications. Notifications are advisory; foreground polling also refreshes the decision.
 
@@ -112,7 +112,8 @@ Compatibility acceptance on two devices:
 3. Keep a version-1 device open during that publication. Verify that it hides history, stops GPS, and releases its scope.
 4. Repeat through foreground entry, a control-record push, a remote import, and Retry after a network outage.
 5. After successful verification, test offline relaunch on the same account and version. CloudKit must still resolve the account identity.
-6. Test an unverified upgrade, account change, missing permission, and malformed receipt. Each must remain blocked.
+6. Test an unverified cloud upgrade, restricted/unavailable account, missing permission for publication, and malformed receipt. Each must remain blocked.
+7. Sign out with compatible data and verify local recording, then sign in and verify that the old scope retires before CloudKit opens. Repeat with a higher cached version: signing out must not bypass the update requirement. Check Development share access after the app writes its local receipt.
 7. During lockout, invoke an intent and save from the share sheet. Verify an actionable error and no new store open.
 8. Restore network access and the matching version. Verify one fresh scope, preserved consent, and the retained location outbox.
 

@@ -39,7 +39,7 @@ struct DemoModeTests {
                 installationContextStore: makeInstallationRecordingContextStore(),
                 makeBootstrap: { _ in bootstrap },
                 logSystem: logSystem,
-                compatibility: .init(coordinator: .init()),
+                compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
             ),
             bootstrap,
@@ -105,7 +105,8 @@ struct DemoModeTests {
     @Test func demoPreferencesNeverReachTheRealOnes() async throws {
         let realPreferences = makePreferences()
         let (model, _) = try makeModel(preferences: realPreferences)
-        try await model.activateDemo(model.makeDemoScope())
+        await model.compatibility.refresh(model: model)
+        #expect(try await model.activateDemo(model.makeDemoScope()))
 
         // The demo's own preferences say onboarded; the user's still say they
         // aren't, which is what makes quitting mid-demo return to onboarding.
@@ -263,7 +264,7 @@ struct DemoModeTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -316,7 +317,7 @@ struct DemoModeTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         bootstrap.gateLogStore()
@@ -359,7 +360,7 @@ struct DemoModeTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let abandoned = try await model.makeDemoScope()

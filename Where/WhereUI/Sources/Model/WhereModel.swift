@@ -230,6 +230,7 @@ public final class WhereModel {
             startupState = .preparing(makeBootstrap(installationContextStore))
         }
         guard let bootstrap = startupState.bootstrap else {
+            try activeScope?.compatibilityEvents.requireAccess()
             let devices = try await activeScope?.services.recording.devices() ?? []
             return RecordingOnboardingRecommendation(
                 for: context.currentDevice,
@@ -509,7 +510,10 @@ public final class WhereModel {
         if case .locked = startupState {
             startupState = .preparing(makeBootstrap(installationContextStore))
         }
-        if let activeScope { return activeScope }
+        if let activeScope {
+            try activeScope.compatibilityEvents.requireAccess()
+            return activeScope
+        }
         let opening: WhereStartupState.Opening
         switch startupState {
             case let .opening(existing): opening = existing
@@ -545,14 +549,17 @@ public final class WhereModel {
             // Multiple callers share one opening. Only its current owner can install the result.
             if activeScope === scope {
                 try compatibility.coordinator.requireAccess()
+                try scope.compatibilityEvents.requireAccess()
                 return scope
             }
             guard case let .opening(current) = startupState, current === opening else {
                 await scope.shutdown()
                 throw CancellationError()
             }
-            do { try compatibility.coordinator.requireAccess() }
-            catch {
+            do {
+                try compatibility.coordinator.requireAccess()
+                try scope.compatibilityEvents.requireAccess()
+            } catch {
                 await scope.shutdown()
                 throw error
             }

@@ -52,7 +52,7 @@ struct WhereResetTests {
             services: makeServices(status: status),
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
     }
@@ -77,7 +77,7 @@ struct WhereResetTests {
                 services: services,
                 preferences: preferences,
                 logSystem: .isolated(),
-                compatibility: .init(coordinator: .init()),
+                compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
             ),
             source,
@@ -120,7 +120,7 @@ struct WhereResetTests {
             services: services,
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
@@ -175,7 +175,7 @@ struct WhereResetTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
@@ -271,7 +271,7 @@ struct WhereResetTests {
             services: services,
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
@@ -329,7 +329,7 @@ struct WhereResetTests {
             services: services,
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let original = try #require(model.session)
@@ -408,7 +408,7 @@ struct WhereResetTests {
             services: services,
             preferences: makePreferences(),
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
@@ -453,7 +453,7 @@ struct WhereResetTests {
             installationContextStore: contextStore,
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()

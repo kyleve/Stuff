@@ -4,14 +4,6 @@ import Foundation
 struct WhereShareBuildEnvironment {
     let appGroupIdentifier: String
 
-    var requiresCompatibility: Bool {
-        #if WHERE_DEVELOPMENT && !WHERE_CLOUDKIT_VALIDATION
-            false
-        #else
-            true
-        #endif
-    }
-
     static func current(
         infoDictionary: [String: Any] = Bundle.main.infoDictionary ?? [:],
     ) -> WhereShareBuildEnvironment {

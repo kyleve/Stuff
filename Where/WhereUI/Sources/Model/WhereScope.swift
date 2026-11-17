@@ -196,7 +196,13 @@ public final class WhereScope: WhereShutdownable {
         onLogStoreStateChange:
         @escaping @MainActor (WhereScope, WhereModel.LogStoreState) -> Void,
     ) async throws -> WhereScope {
+        let admission = try compatibility.requireAccess()
         let services = try await bootstrap.makeServices()
+        do { try compatibility.requireAccess(admission) }
+        catch {
+            await services.shutdown()
+            throw error
+        }
         let scope = WhereScope(
             kind: .real,
             services: services,
@@ -207,6 +213,7 @@ public final class WhereScope: WhereShutdownable {
             compatibilityEvents: InstallationCompatibilityEvents(
                 services: services,
                 coordinator: compatibility,
+                admission: admission,
             ),
         )
         scope.openDurableLogStore(

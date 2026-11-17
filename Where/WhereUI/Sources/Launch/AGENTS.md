@@ -32,3 +32,5 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   owns log retention. `LogHistoryPruner` bounds the store by age *and* event
   count. Both bounds are load-bearing. An age window alone leaves a
   heavy-logging device unbounded inside it.
+
+- Bind each real store opening and scope to its compatibility admission, including the domain and invalidation epoch. Check it when returning prepared/opened stores and reusing scopes; mask a stale scope while retirement drains. Guard: `WhereCompatibilityModelTests` held-opening and recovered-scope cases.

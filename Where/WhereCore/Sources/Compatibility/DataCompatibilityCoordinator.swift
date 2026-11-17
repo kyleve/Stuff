@@ -1,22 +1,25 @@
 import Foundation
 import Observation
 
-/// One process-wide compatibility decision. Only full server verification can restore access;
-/// a same-account, same-version receipt can preserve it during a transient outage.
+/// One process-wide decision, backed by explicit local or cloud transport and durable evidence.
 @MainActor
 @Observable
 public final class DataCompatibilityCoordinator {
     public enum State {
         case checking
-        case allowed
-        case offline(any Error)
+        case allowed(DataCompatibilityAdmission)
+        case offline(DataCompatibilityAdmission, any Error)
         case blocked(DataCompatibilityFailure)
 
-        public var allowsStore: Bool {
+        public var admission: DataCompatibilityAdmission? {
             switch self {
-                case .allowed, .offline: true
-                case .checking, .blocked: false
+                case let .allowed(admission), let .offline(admission, _): admission
+                case .checking, .blocked: nil
             }
+        }
+
+        public var allowsStore: Bool {
+            admission != nil
         }
     }
 
@@ -26,15 +29,11 @@ public final class DataCompatibilityCoordinator {
         case permissionRequired
     }
 
-    private struct Cloud {
-        let transport: any DataCompatibilityTransport
-        let receipts: any DataCompatibilityReceiptStoring
-    }
-
-    public private(set) var state: State
+    public private(set) var state = State.checking
     public let version: DataModelVersion
     @ObservationIgnored public var onStateChange: @MainActor () -> Void = {}
-    @ObservationIgnored private let cloud: Cloud?
+    @ObservationIgnored private let transport: any DataCompatibilityTransport
+    @ObservationIgnored private let receipts: any DataCompatibilityReceiptStoring
     @ObservationIgnored private var verification: Task<Void, Never>?
     @ObservationIgnored private var accountObservation: Task<Void, Never>?
     @ObservationIgnored private var epoch: UInt64 = 0
@@ -42,11 +41,14 @@ public final class DataCompatibilityCoordinator {
     @ObservationIgnored private var removedDeviceID: RecordingDeviceID?
     private static let logger = WhereLog.root(DataCompatibilityLog.self)
 
-    /// Local-only and in-memory worlds do not consult or publish CloudKit metadata.
-    public init() {
-        cloud = nil
-        version = .current
-        state = .allowed
+    /// Isolated local worlds still pass through verification. App installations use durable
+    /// receipts.
+    public static func local(version: DataModelVersion) -> DataCompatibilityCoordinator {
+        DataCompatibilityCoordinator(
+            transport: LocalDataCompatibilityTransport(version: version),
+            receipts: InMemoryDataCompatibilityReceiptStore(receipt: nil),
+            version: version,
+        )
     }
 
     public init(
@@ -54,9 +56,9 @@ public final class DataCompatibilityCoordinator {
         receipts: any DataCompatibilityReceiptStoring,
         version: DataModelVersion,
     ) {
-        cloud = Cloud(transport: transport, receipts: receipts)
+        self.transport = transport
+        self.receipts = receipts
         self.version = version
-        state = .checking
         accountObservation = Task { [weak self] in
             for await _ in transport.accountChanges() {
                 guard !Task.isCancelled else { break }
@@ -73,7 +75,6 @@ public final class DataCompatibilityCoordinator {
     public func refresh(
         recording: @escaping @MainActor () async throws -> RecordingEligibility,
     ) async {
-        guard let cloud else { return }
         if let verification {
             await verification.value
             return
@@ -82,7 +83,7 @@ public final class DataCompatibilityCoordinator {
         let task = Task { [weak self] in
             guard let self else { return }
             await Self.logger.measure(.verify, budget: .seconds(10)) {
-                await self.verify(cloud, epoch: epoch, recording: recording)
+                await self.verify(epoch: epoch, recording: recording)
             }
         }
         verification = task
@@ -90,9 +91,10 @@ public final class DataCompatibilityCoordinator {
         if self.epoch == epoch { verification = nil }
     }
 
-    public func requireAccess() throws {
+    @discardableResult
+    public func requireAccess() throws -> DataCompatibilityAdmission {
         switch state {
-            case .allowed, .offline: return
+            case let .allowed(admission), let .offline(admission, _): return admission
             case .checking:
                 throw DataCompatibilityFailure.verificationRequired(
                     DataCompatibilityTransportError.accountChanged,
@@ -101,13 +103,20 @@ public final class DataCompatibilityCoordinator {
         }
     }
 
+    public func requireAccess(_ admission: DataCompatibilityAdmission) throws {
+        guard try requireAccess() == admission else {
+            throw DataCompatibilityFailure.verificationRequired(
+                DataCompatibilityTransportError.accountChanged,
+            )
+        }
+    }
+
     public func recordRemoval(of deviceID: RecordingDeviceID) {
         removedDeviceID = deviceID
-        guard let cloud else { return }
         do {
-            if let receipt = try cloud.receipts.load() {
-                try cloud.receipts.save(DataCompatibilityReceipt(
-                    accountID: receipt.accountID,
+            if let receipt = try receipts.load() {
+                try receipts.save(DataCompatibilityReceipt(
+                    domain: receipt.domain,
                     version: receipt.version,
                     access: receipt.access,
                     removedDeviceID: deviceID,
@@ -117,50 +126,58 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func invalidateAccount() {
-        epoch &+= 1
-        verification?.cancel()
-        verification = nil
-        if let cloud {
-            do {
-                if let receipt = try cloud.receipts.load() {
-                    knownVersion = max(knownVersion, receipt.version)
-                    removedDeviceID = receipt.removedDeviceID
-                    try save(cloud, accountID: receipt.accountID, access: .blocked)
-                }
-            } catch { Self.logger.verificationFailed(error: .restricted(.errorDetails, error)) }
-        }
+        revokeAdmission()
+        do {
+            if let receipt = try receipts.load() {
+                knownVersion = max(knownVersion, receipt.version)
+                removedDeviceID = receipt.removedDeviceID
+                try save(domain: receipt.domain, access: .blocked)
+            }
+        } catch { Self.logger.verificationFailed(error: .restricted(.errorDetails, error)) }
         fail(DataCompatibilityTransportError.accountChanged)
     }
 
+    private func revokeAdmission() {
+        epoch &+= 1
+        verification?.cancel()
+        verification = nil
+    }
+
     private func verify(
-        _ cloud: Cloud,
         epoch: UInt64,
         recording: @escaping @MainActor () async throws -> RecordingEligibility,
     ) async {
-        var accountID: DataCompatibilityAccountID?
+        var domain: DataCompatibilityDomain?
         var prior: DataCompatibilityReceipt?
         do {
-            prior = try cloud.receipts.load()
+            prior = try receipts.load()
             if let prior {
                 knownVersion = max(knownVersion, prior.version)
                 removedDeviceID = prior.removedDeviceID
             }
             if knownVersion > version {
+                if let prior { try save(domain: prior.domain, access: .blocked) }
                 set(.blocked(.updateRequired(knownVersion)))
                 return
             }
-            let account = try await cloud.transport.accountID()
+            let currentDomain = try await transport.domain()
             try checkEpoch(epoch)
-            accountID = account
-            if prior?.accountID != account { prior = nil }
+            domain = currentDomain
+            // A refresh may discover an account change before CKAccountChanged arrives. Revoke
+            // the old scope first; a later verification can admit the replacement container.
+            if let admission = state.admission, admission.domain != currentDomain {
+                invalidateAccount()
+                return
+            }
+            if prior?.domain != currentDomain { prior = nil }
             // Conflicting writers are bounded: later triggers retry if contention persists.
             for _ in 0 ..< 3 {
-                let remote = try await cloud.transport.read(accountID: account)
+                let persisted = try await transport.read(domain: currentDomain)
                 try checkEpoch(epoch)
-                let sharedVersion = remote?.version ?? .baseline
-                knownVersion = max(knownVersion, sharedVersion)
+                let persistedVersion = persisted?.version ?? .baseline
+                knownVersion = max(knownVersion, persistedVersion)
                 if knownVersion > version {
-                    try save(cloud, accountID: account, access: .blocked)
+                    try save(domain: currentDomain, access: .blocked)
                     set(.blocked(.updateRequired(knownVersion)))
                     return
                 }
@@ -170,8 +187,8 @@ public final class DataCompatibilityCoordinator {
                     case let .recording(deviceID): deviceID != removedDeviceID
                     case .disabled, .permissionRequired: false
                 }
-                if sharedVersion < version, !canPublish {
-                    try save(cloud, accountID: account, access: .blocked)
+                if persistedVersion < version, !canPublish {
+                    try save(domain: currentDomain, access: .blocked)
                     if case .permissionRequired = eligibility {
                         set(.blocked(.locationPermissionRequired))
                     } else {
@@ -179,22 +196,21 @@ public final class DataCompatibilityCoordinator {
                     }
                     return
                 }
-                if sharedVersion < version || (remote == nil && canPublish) {
+                if persistedVersion < version || (persisted == nil && canPublish) {
                     do {
-                        let saved = try await cloud.transport.advance(
-                            accountID: account,
-                            from: remote,
+                        let saved = try await transport.advance(
+                            domain: currentDomain,
+                            from: persisted,
                             to: version,
                         )
                         try checkEpoch(epoch)
                         knownVersion = max(knownVersion, saved.version)
-                        // A competing newer writer can win while the save is in flight.
                         guard knownVersion == version else { continue }
                     } catch DataCompatibilityTransportError.conflict { continue }
                 }
                 try checkEpoch(epoch)
-                try save(cloud, accountID: account, access: .verified)
-                set(.allowed)
+                try save(domain: currentDomain, access: .verified)
+                set(.allowed(.init(domain: currentDomain, epoch: epoch)))
                 return
             }
             throw DataCompatibilityTransportError.conflict
@@ -203,15 +219,14 @@ public final class DataCompatibilityCoordinator {
         } catch {
             guard self.epoch == epoch else { return }
             if case DataCompatibilityTransportError.unavailable = error,
-               let prior, prior.accountID == accountID, prior.access == .verified,
+               let domain, let prior, prior.domain == domain, prior.access == .verified,
                prior.version == version, knownVersion == version
             {
                 Self.logger.verificationFailed(error: .restricted(.errorDetails, error))
-                set(.offline(error))
+                set(.offline(.init(domain: domain, epoch: epoch), error))
             } else {
-                // Persist withdrawal so a separate share process cannot trust an obsolete grant.
-                if let account = accountID ?? prior?.accountID {
-                    do { try save(cloud, accountID: account, access: .blocked) }
+                if let domain = domain ?? prior?.domain {
+                    do { try save(domain: domain, access: .blocked) }
                     catch {
                         Self.logger.verificationFailed(error: .restricted(.errorDetails, error))
                     }
@@ -222,12 +237,11 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func save(
-        _ cloud: Cloud,
-        accountID: DataCompatibilityAccountID,
+        domain: DataCompatibilityDomain,
         access: DataCompatibilityReceipt.Access,
     ) throws {
-        try cloud.receipts.save(DataCompatibilityReceipt(
-            accountID: accountID,
+        try receipts.save(DataCompatibilityReceipt(
+            domain: domain,
             version: knownVersion,
             access: access,
             removedDeviceID: removedDeviceID,
@@ -245,6 +259,7 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func set(_ state: State) {
+        if self.state.allowsStore, !state.allowsStore { revokeAdmission() }
         self.state = state
         if case let .blocked(failure) = state {
             Self.logger.blocked(reason: .restricted(.technicalState, String(describing: failure)))

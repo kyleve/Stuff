@@ -33,11 +33,3 @@ public struct DataModelVersion: RawRepresentable, Codable, Hashable, Comparable,
         lhs.rawValue < rhs.rawValue
     }
 }
-
-/// CloudKit's opaque user-record identity, scoped to the configured container.
-public struct DataCompatibilityAccountID: RawRepresentable, Codable, Hashable, Sendable {
-    public let rawValue: String
-    public init(rawValue: String) {
-        self.rawValue = rawValue
-    }
-}

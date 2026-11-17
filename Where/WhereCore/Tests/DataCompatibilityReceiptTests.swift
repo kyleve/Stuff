@@ -13,7 +13,10 @@ struct DataCompatibilityReceiptTests {
         let store = FileDataCompatibilityReceipt(directory: directory)
         #expect(try store.load() == nil)
         try store.save(.init(
-            accountID: .init(rawValue: "test-account"),
+            domain: .cloud(.init(
+                containerIdentifier: "iCloud.test",
+                userRecordName: "test-account",
+            )),
             version: .init(rawValue: 2),
             access: .verified,
             removedDeviceID: nil,
@@ -26,7 +29,7 @@ struct DataCompatibilityReceiptTests {
         #expect(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey])
             .isExcludedFromBackup == true)
         try store.save(.init(
-            accountID: receipt.accountID,
+            domain: receipt.domain,
             version: receipt.version,
             access: .blocked,
             removedDeviceID: nil,
@@ -57,7 +60,7 @@ struct DataCompatibilityReceiptTests {
         }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: [
-            "accountID": "account-a",
+            "domain": ["local": [:]],
             "version": value,
             "access": "verified",
         ])

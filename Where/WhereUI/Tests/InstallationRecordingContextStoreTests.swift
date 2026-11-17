@@ -141,7 +141,7 @@ struct InstallationRecordingContextStoreTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         acknowledgedModel.completeOnboarding()
@@ -162,7 +162,7 @@ struct InstallationRecordingContextStoreTests {
             installationContextStore: relaunchedStore,
             makeBootstrap: { _ in UnusedBootstrap() },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 

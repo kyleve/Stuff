@@ -4,88 +4,117 @@ import Foundation
 /// A single conditional record in a private zone, separate from SwiftData's mirror.
 public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
     public static let subscriptionID = "where-store-compatibility"
-    private static let zoneID = CKRecordZone.ID(zoneName: "WhereStoreCompatibility")
+    private enum Schema {
+        static let name = "WhereStoreCompatibility"
+        static let zoneID = CKRecordZone.ID(zoneName: name)
+        static let recordNamePrefix = "version-"
+        static let requiredVersion = "requiredVersion"
+        static let accountID = "accountID"
+    }
+
     private let container: CKContainer
+    private let containerIdentifier: String
     private let database: CKDatabase
+    private let local: LocalDataCompatibilityTransport
     private var subscribedAccount: DataCompatibilityAccountID?
     private var retryAfter: Date?
 
-    public init(containerIdentifier: String) {
+    public init(containerIdentifier: String, version: DataModelVersion) {
         let container = CKContainer(identifier: containerIdentifier)
         self.container = container
+        self.containerIdentifier = containerIdentifier
         database = container.privateCloudDatabase
+        local = LocalDataCompatibilityTransport(version: version)
     }
 
-    public func accountID() async throws -> DataCompatibilityAccountID {
-        do {
-            try checkBackoff()
-            return try await DataCompatibilityAccountID(rawValue: container.userRecordID()
-                .recordName)
-        } catch { throw classify(error) }
+    public func domain() async throws -> DataCompatibilityDomain {
+        try await perform { transport in try await transport.resolveDomain() }
     }
 
-    public func read(accountID: DataCompatibilityAccountID) async throws
-        -> SharedDataModelVersion?
-    {
-        do {
-            try checkBackoff()
-            try await requireAccount(accountID)
-            if subscribedAccount != accountID {
-                _ = try await database.save(CKRecordZone(zoneID: Self.zoneID))
-                let subscription = CKRecordZoneSubscription(
-                    zoneID: Self.zoneID,
-                    subscriptionID: Self.subscriptionID,
-                )
-                let notification = CKSubscription.NotificationInfo()
-                notification.shouldSendContentAvailable = true
-                subscription.notificationInfo = notification
-                _ = try await database.save(subscription)
-                try await requireAccount(accountID)
-                subscribedAccount = accountID
+    private func resolveDomain() async throws -> DataCompatibilityDomain {
+        try await Self.resolveDomain(
+            status: container.accountStatus(),
+            containerIdentifier: containerIdentifier,
+            userRecordName: { try await self.container.userRecordID().recordName },
+        )
+    }
+
+    /// Only a confirmed absent account permits local operation. Authentication errors alone do not.
+    static func resolveDomain(
+        status: CKAccountStatus,
+        containerIdentifier: String,
+        userRecordName: @Sendable () async throws -> String,
+    ) async throws -> DataCompatibilityDomain {
+        switch status {
+            case .available:
+                return try await .cloud(.init(
+                    containerIdentifier: containerIdentifier,
+                    userRecordName: userRecordName(),
+                ))
+            case .noAccount: return .local
+            case .restricted: throw CKError(.managedAccountRestricted)
+            case .couldNotDetermine: throw CKError(.notAuthenticated)
+            case .temporarilyUnavailable: throw CKError(.accountTemporarilyUnavailable)
+            @unknown default: throw CKError(.notAuthenticated)
+        }
+    }
+
+    public func read(domain: DataCompatibilityDomain) async throws -> PersistedDataModelVersion? {
+        try await withDomain(domain) { transport in
+            switch domain {
+                case .local: return try await transport.local.read(domain: domain)
+                case let .cloud(account):
+                    try await transport.subscribe(account)
+                    return try await transport.fetch(account).map {
+                        try Self.decode($0, accountID: account)
+                    }
             }
-            let record = try await fetch(accountID)
-            try await requireAccount(accountID)
-            return try record.map { try Self.decode($0, accountID: accountID) }
-        } catch { throw classify(error) }
+        }
     }
 
     public func advance(
-        accountID: DataCompatibilityAccountID,
-        from previous: SharedDataModelVersion?,
+        domain: DataCompatibilityDomain,
+        from previous: PersistedDataModelVersion?,
         to version: DataModelVersion,
-    ) async throws -> SharedDataModelVersion {
-        do {
-            try checkBackoff()
-            try await requireAccount(accountID)
-            let record: CKRecord
-            if let previous {
-                guard let fetched = try await fetch(accountID),
-                      fetched.recordChangeTag == previous.revision,
-                      try Self.decode(fetched, accountID: accountID).version <= version
-                else { throw DataCompatibilityTransportError.conflict }
-                record = fetched
-            } else {
-                record = CKRecord(
-                    recordType: "WhereStoreCompatibility",
-                    recordID: Self.recordID(accountID),
-                )
+    ) async throws -> PersistedDataModelVersion {
+        try await withDomain(domain) { transport in
+            switch domain {
+                case .local:
+                    return try await transport.local.advance(
+                        domain: domain,
+                        from: previous,
+                        to: version,
+                    )
+                case let .cloud(account):
+                    let record: CKRecord
+                    if let previous {
+                        guard let fetched = try await transport.fetch(account),
+                              fetched.recordChangeTag == previous.revision,
+                              try Self.decode(fetched, accountID: account).version <= version
+                        else { throw DataCompatibilityTransportError.conflict }
+                        record = fetched
+                    } else {
+                        record = CKRecord(
+                            recordType: Schema.name,
+                            recordID: Self.recordID(account),
+                        )
+                    }
+                    try Task.checkCancellation()
+                    try await transport.requireDomain(domain)
+                    record[Schema.requiredVersion] = version.rawValue
+                    record[Schema.accountID] = account.userRecordName
+                    let result = try await transport.database.modifyRecords(
+                        saving: [record],
+                        deleting: [],
+                        savePolicy: .ifServerRecordUnchanged,
+                        atomically: true,
+                    )
+                    guard let saved = result.saveResults[record.recordID] else {
+                        throw DataCompatibilityTransportError.invalidRecord
+                    }
+                    return try Self.decode(saved.get(), accountID: account)
             }
-            try Task.checkCancellation()
-            try await requireAccount(accountID)
-            record["requiredVersion"] = version.rawValue
-            record["accountID"] = accountID.rawValue
-            let result = try await database.modifyRecords(
-                saving: [record],
-                deleting: [],
-                savePolicy: .ifServerRecordUnchanged,
-                atomically: true,
-            )
-            guard let saved = result.saveResults[record.recordID] else {
-                throw DataCompatibilityTransportError.invalidRecord
-            }
-            try await requireAccount(accountID)
-            return try Self.decode(saved.get(), accountID: accountID)
-        } catch { throw classify(error) }
+        }
     }
 
     public nonisolated func accountChanges() -> AsyncStream<Void> {
@@ -102,11 +131,47 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
         return stream
     }
 
-    private func requireAccount(_ expected: DataCompatibilityAccountID) async throws {
-        guard try await accountID() == expected else {
+    private func perform<T: Sendable>(
+        _ operation: @Sendable (isolated CloudKitDataCompatibilityTransport) async throws -> T,
+    ) async throws -> T {
+        do {
+            try checkBackoff()
+            return try await operation(self)
+        } catch { throw classify(error) }
+    }
+
+    private func withDomain<T: Sendable>(
+        _ domain: DataCompatibilityDomain,
+        operation: @Sendable (isolated CloudKitDataCompatibilityTransport) async throws -> T,
+    ) async throws -> T {
+        try await perform { transport in
+            try await transport.requireDomain(domain)
+            let result = try await operation(transport)
+            try await transport.requireDomain(domain)
+            return result
+        }
+    }
+
+    private func requireDomain(_ expected: DataCompatibilityDomain) async throws {
+        guard try await resolveDomain() == expected else {
             subscribedAccount = nil
             throw DataCompatibilityTransportError.accountChanged
         }
+    }
+
+    private func subscribe(_ account: DataCompatibilityAccountID) async throws {
+        guard subscribedAccount != account else { return }
+        _ = try await database.save(CKRecordZone(zoneID: Schema.zoneID))
+        let subscription = CKRecordZoneSubscription(
+            zoneID: Schema.zoneID,
+            subscriptionID: Self.subscriptionID,
+        )
+        let notification = CKSubscription.NotificationInfo()
+        notification.shouldSendContentAvailable = true
+        subscription.notificationInfo = notification
+        _ = try await database.save(subscription)
+        try await requireDomain(.cloud(account))
+        subscribedAccount = account
     }
 
     private func fetch(_ accountID: DataCompatibilityAccountID) async throws -> CKRecord? {
@@ -115,19 +180,22 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
     }
 
     private static func recordID(_ accountID: DataCompatibilityAccountID) -> CKRecord.ID {
-        // A request crossing an account switch cannot overwrite the other account's canonical head.
-        CKRecord.ID(recordName: "version-" + accountID.rawValue, zoneID: zoneID)
+        // Account-specific names fence a request that crosses a switch before its conditional save.
+        CKRecord.ID(
+            recordName: Schema.recordNamePrefix + accountID.userRecordName,
+            zoneID: Schema.zoneID,
+        )
     }
 
     static func decode(
         _ record: CKRecord,
         accountID: DataCompatibilityAccountID,
-    ) throws -> SharedDataModelVersion {
-        guard record["accountID"] as? String == accountID.rawValue,
-              let value = record["requiredVersion"] as? Int, value > 0,
+    ) throws -> PersistedDataModelVersion {
+        guard record[Schema.accountID] as? String == accountID.userRecordName,
+              let value = record[Schema.requiredVersion] as? Int, value > 0,
               let revision = record.recordChangeTag
         else { throw DataCompatibilityTransportError.invalidRecord }
-        return SharedDataModelVersion(version: .init(rawValue: value), revision: revision)
+        return PersistedDataModelVersion(version: .init(rawValue: value), revision: revision)
     }
 
     private func checkBackoff() throws {
@@ -151,7 +219,8 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
                    errors.values.contains(where: { ($0 as? CKError)?.code == .serverRecordChanged })
                 { return DataCompatibilityTransportError.conflict }
                 return error
-            case .internalError, .badContainer, .missingEntitlement, .notAuthenticated,
+            case .internalError, .badContainer, .badDatabase, .serverRejectedRequest,
+                 .participantAlreadyInvited, .missingEntitlement, .notAuthenticated,
                  .permissionFailure, .unknownItem, .invalidArguments, .resultsTruncated,
                  .assetFileNotFound, .assetFileModified, .incompatibleVersion, .constraintViolation,
                  .operationCancelled, .changeTokenExpired, .batchRequestFailed, .zoneNotFound,

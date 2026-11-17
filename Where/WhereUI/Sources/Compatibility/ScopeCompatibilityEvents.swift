@@ -4,6 +4,8 @@ import WhereCore
 @MainActor
 protocol ScopeCompatibilityEvents {
     var permitsVersionPublication: Bool { get }
+    var isAdmitted: Bool { get }
+    func requireAccess() throws
     func changes() -> AsyncStream<Void>
     func deviceRemoved(_ deviceID: RecordingDeviceID)
 }
@@ -11,6 +13,15 @@ protocol ScopeCompatibilityEvents {
 struct InstallationCompatibilityEvents: ScopeCompatibilityEvents {
     let services: WhereServices
     let coordinator: DataCompatibilityCoordinator
+    let admission: DataCompatibilityAdmission
+    var isAdmitted: Bool {
+        coordinator.state.admission == admission
+    }
+
+    func requireAccess() throws {
+        try coordinator.requireAccess(admission)
+    }
+
     let permitsVersionPublication = true
 
     func changes() -> AsyncStream<Void> {
@@ -24,6 +35,8 @@ struct InstallationCompatibilityEvents: ScopeCompatibilityEvents {
 
 struct NoopScopeCompatibilityEvents: ScopeCompatibilityEvents {
     let permitsVersionPublication = false
+    let isAdmitted = true
+    func requireAccess() throws {}
     func changes() -> AsyncStream<Void> {
         AsyncStream { $0.finish() }
     }

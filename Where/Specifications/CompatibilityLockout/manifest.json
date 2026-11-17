@@ -101,10 +101,9 @@
       "outputContains": "Invariant AdmissionRequiresCurrentDecision is violated."
     },
     {
-      "name": "broken-scope-epoch",
+      "name": "redundant-scope-epoch",
       "config": "BrokenScopeEpoch.cfg",
-      "expect": "fail",
-      "outputContains": "Invariant NoStaleScopeInstallation is violated."
+      "expect": "pass"
     },
     {
       "name": "stale-scope-epoch",
@@ -117,6 +116,18 @@
       "config": "BrokenLateRetirement.cfg",
       "expect": "fail",
       "outputContains": "Invariant NoObsoleteTaskRetiresReplacement is violated."
+    },
+    {
+      "name": "broken-opening-admission",
+      "config": "BrokenOpeningAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleAdmissionInstallation is violated."
+    },
+    {
+      "name": "stale-admission",
+      "config": "StaleAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleAdmissionNotReached is violated."
     }
   ]
 }

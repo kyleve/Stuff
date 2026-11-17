@@ -2,21 +2,21 @@ import Foundation
 
 /// Device-local evidence shared with the share extension. It never belongs in a backup.
 /// The version is a monotonic floor even when access has been withdrawn.
-public struct DataCompatibilityReceipt: Codable, Sendable {
-    public enum Access: String, Codable, Sendable { case verified, blocked }
+public struct DataCompatibilityReceipt: Codable, Equatable, Sendable {
+    public enum Access: String, Codable, Equatable, Sendable { case verified, blocked }
 
-    public let accountID: DataCompatibilityAccountID
+    public let domain: DataCompatibilityDomain
     public let version: DataModelVersion
     public let access: Access
     public let removedDeviceID: RecordingDeviceID?
 
     public init(
-        accountID: DataCompatibilityAccountID,
+        domain: DataCompatibilityDomain,
         version: DataModelVersion,
         access: Access,
         removedDeviceID: RecordingDeviceID?,
     ) {
-        self.accountID = accountID
+        self.domain = domain
         self.version = version
         self.access = access
         self.removedDeviceID = removedDeviceID
@@ -53,7 +53,9 @@ public struct AppGroupDataCompatibilityReceipt: DataCompatibilityReceiptStoring 
 }
 
 /// Atomic App Group sidecar. Only the app writes; extensions read before opening history.
-public struct FileDataCompatibilityReceipt: DataCompatibilityReceiptStoring, Sendable {
+public nonisolated struct FileDataCompatibilityReceipt: DataCompatibilityReceiptStoring, Sendable {
+    private static let directoryName = "DataCompatibility"
+    private static let fileName = "receipt.json"
     private let directory: URL
 
     public init(directory: URL) {
@@ -65,16 +67,16 @@ public struct FileDataCompatibilityReceipt: DataCompatibilityReceiptStoring, Sen
             forSecurityApplicationGroupIdentifier: appGroupIdentifier,
         ) else { throw WidgetSnapshotStore.AppGroupUnavailableError() }
         return Self(directory: group.appending(
-            path: "DataCompatibility",
+            path: directoryName,
             directoryHint: .isDirectory,
         ))
     }
 
     public func load() throws -> DataCompatibilityReceipt? {
         do {
-            let data = try Data(contentsOf: directory.appending(path: "receipt.json"))
+            let data = try Data(contentsOf: directory.appending(path: Self.fileName))
             let receipt = try JSONDecoder().decode(DataCompatibilityReceipt.self, from: data)
-            guard receipt.version.rawValue > 0, !receipt.accountID.rawValue.isEmpty else {
+            guard receipt.version.rawValue > 0, receipt.domain.isValid else {
                 throw DataCompatibilityTransportError.invalidRecord
             }
             return receipt
@@ -90,7 +92,7 @@ public struct FileDataCompatibilityReceipt: DataCompatibilityReceiptStoring, Sen
         attributes.isExcludedFromBackup = true
         try url.setResourceValues(attributes)
         try JSONEncoder().encode(receipt).write(
-            to: directory.appending(path: "receipt.json"),
+            to: directory.appending(path: Self.fileName),
             options: .atomic,
         )
     }

@@ -61,7 +61,7 @@
                 selectedYear: PreviewSupport.year,
                 preferences: scope.preferences,
                 logSystem: logSystem,
-                compatibility: .init(coordinator: .init()),
+                compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: now,
             )
@@ -113,7 +113,7 @@
                 selectedYear: PreviewSupport.year,
                 preferences: preferences,
                 logSystem: logSystem,
-                compatibility: .init(coordinator: .init()),
+                compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: now,
             )

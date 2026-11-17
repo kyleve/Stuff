@@ -71,7 +71,7 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -97,7 +97,7 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: makePreferences(),
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let gate = ThemeChangeGate()
@@ -123,7 +123,7 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let recorder = ThemeRecorder()
@@ -163,7 +163,7 @@ struct WhereModelTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -189,7 +189,7 @@ struct WhereModelTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -214,7 +214,7 @@ struct WhereModelTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -232,7 +232,7 @@ struct WhereModelTests {
             services: makeServices(),
             preferences: makePreferences(),
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         let store = try await PeriscopeStore.inMemory(

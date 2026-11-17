@@ -81,7 +81,7 @@ struct WhereLaunchTests {
             services: services,
             preferences: preferences,
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
     }
@@ -107,7 +107,7 @@ struct WhereLaunchTests {
                 services: services,
                 preferences: preferences,
                 logSystem: .isolated(),
-                compatibility: .init(coordinator: .init()),
+                compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
             ),
             store,
@@ -148,7 +148,7 @@ struct WhereLaunchTests {
                 installationContextStore: installationContextStore,
                 makeBootstrap: { _ in bootstrap },
                 logSystem: .isolated(),
-                compatibility: .init(coordinator: .init()),
+                compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: now,
             ),
@@ -342,7 +342,7 @@ struct WhereLaunchTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -373,7 +373,7 @@ struct WhereLaunchTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -397,7 +397,7 @@ struct WhereLaunchTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in FailingBootstrap() },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -509,7 +509,7 @@ struct WhereLaunchTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in FailingBootstrap() },
             logSystem: .isolated(),
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
@@ -555,7 +555,7 @@ struct WhereLaunchTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: logSystem,
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.activate(scope: .fake(
@@ -596,7 +596,7 @@ struct WhereLaunchTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: logSystem,
-            compatibility: .init(coordinator: .init()),
+            compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.activate(scope: .fake(

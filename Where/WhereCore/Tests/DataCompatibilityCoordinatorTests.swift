@@ -180,7 +180,7 @@ struct DataCompatibilityCoordinatorTests {
     @Test func accountNotificationBeforeFirstCheckPreservesTheCachedFloor() async throws {
         let transport = ScriptedDataCompatibilityTransport(version: 1)
         let receipts = InMemoryDataCompatibilityReceipt(receipt: .init(
-            accountID: .init(rawValue: "account-a"),
+            domain: .cloud(.init(containerIdentifier: "iCloud.test", userRecordName: "account-a")),
             version: .init(rawValue: 3),
             access: .verified,
             removedDeviceID: deviceID,
@@ -237,7 +237,7 @@ struct DataCompatibilityCoordinatorTests {
     func higherCacheCannotSubstituteForSharedPublication(shared: Int?) async {
         let transport = ScriptedDataCompatibilityTransport(version: shared)
         let receipts = InMemoryDataCompatibilityReceipt(receipt: .init(
-            accountID: .init(rawValue: "account-a"),
+            domain: .cloud(.init(containerIdentifier: "iCloud.test", userRecordName: "account-a")),
             version: .init(rawValue: 2),
             access: .verified,
             removedDeviceID: nil,
@@ -251,5 +251,117 @@ struct DataCompatibilityCoordinatorTests {
         #expect(!coordinator.state.allowsStore)
         #expect(await transport.saveCount == 0)
         #expect(receipts.receipt?.access == .blocked)
+    }
+
+    @Test func localTransportStillRequiresVerificationAndPreservesTheFloor() async throws {
+        let receipts = InMemoryDataCompatibilityReceipt()
+        let newer = DataCompatibilityCoordinator(
+            transport: LocalDataCompatibilityTransport(version: .init(rawValue: 2)),
+            receipts: receipts,
+            version: .init(rawValue: 2),
+        )
+        #expect(newer.state.allowsStore == false)
+        await newer.refresh { .disabled }
+        #expect(try newer.requireAccess().domain == .local)
+        #expect(receipts.receipt?.version.rawValue == 2)
+        #expect(receipts.receipt?.access == .verified)
+        let older = DataCompatibilityCoordinator(
+            transport: LocalDataCompatibilityTransport(version: .baseline),
+            receipts: receipts,
+            version: .baseline,
+        )
+        await older.refresh { .recording(deviceID) }
+        #expect(older.state.allowsStore == false)
+        #expect(receipts.receipt?.version.rawValue == 2)
+        #expect(receipts.receipt?.access == .blocked)
+    }
+
+    @Test func localReceiptCannotPublishOrProvideCloudOfflineAccess() async throws {
+        let transport = ScriptedDataCompatibilityTransport(version: 2)
+        await transport.setDomain(.local, notify: false)
+        let receipts = InMemoryDataCompatibilityReceipt()
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .init(rawValue: 2),
+        )
+        await coordinator.refresh { .disabled }
+        let localAdmission = try coordinator.requireAccess()
+        await transport.setDomain(.cloud(.init(
+            containerIdentifier: "iCloud.test",
+            userRecordName: "account-a",
+        )), notify: false)
+        await transport.setVersion(1)
+        await coordinator.refresh { .disabled }
+        #expect(coordinator.state.allowsStore == false, "Domain changes first retire local access")
+        await coordinator.refresh { .disabled }
+        #expect(
+            coordinator.state.allowsStore == false,
+            "The local floor is not a remote publication",
+        )
+        #expect(await transport.saveCount == 0)
+        await transport.setReadError(offline)
+        await coordinator.refresh { .disabled }
+        #expect(coordinator.state.allowsStore == false)
+        await transport.setReadError(nil)
+        await coordinator.refresh { .recording(deviceID) }
+        #expect(coordinator.state.allowsStore)
+        #expect(await transport.saveCount == 1)
+        #expect(throws: DataCompatibilityFailure.self) {
+            try coordinator.requireAccess(localAdmission)
+        }
+    }
+
+    @Test func signedOutLocalModeCannotLowerACloudFloor() async {
+        let receipts = InMemoryDataCompatibilityReceipt(receipt: .init(
+            domain: .cloud(.init(containerIdentifier: "iCloud.test", userRecordName: "account-a")),
+            version: .init(rawValue: 3),
+            access: .verified,
+            removedDeviceID: nil,
+        ))
+        let coordinator = DataCompatibilityCoordinator(
+            transport: LocalDataCompatibilityTransport(version: .init(rawValue: 2)),
+            receipts: receipts,
+            version: .init(rawValue: 2),
+        )
+        await coordinator.refresh { .disabled }
+        #expect(coordinator.state.allowsStore == false)
+        #expect(receipts.receipt?.version.rawValue == 3)
+    }
+
+    @Test func returningToTheSameAccountDoesNotRestoreAnOldAdmission() async throws {
+        let transport = ScriptedDataCompatibilityTransport(version: 1)
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: InMemoryDataCompatibilityReceipt(),
+            version: .baseline,
+        )
+        await coordinator.refresh { .disabled }
+        let original = try coordinator.requireAccess()
+        await transport.setDomain(original.domain, notify: true)
+        try await waitForCompatibility { coordinator.state.allowsStore == false }
+        await coordinator.refresh { .disabled }
+        #expect(coordinator.state.allowsStore)
+        #expect(throws: DataCompatibilityFailure.self) { try coordinator.requireAccess(original) }
+    }
+
+    @Test func coldCloudVerificationCannotUseAVerifiedLocalReceiptOffline() async {
+        let transport = ScriptedDataCompatibilityTransport(version: 2)
+        await transport.setReadError(offline)
+        let receipts = InMemoryDataCompatibilityReceipt(receipt: .init(
+            domain: .local,
+            version: .init(rawValue: 2),
+            access: .verified,
+            removedDeviceID: nil,
+        ))
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .init(rawValue: 2),
+        )
+        await coordinator.refresh { .disabled }
+        #expect(coordinator.state.allowsStore == false)
+        #expect(receipts.receipt?.access == .blocked)
+        #expect(await transport.saveCount == 0)
     }
 }

@@ -75,6 +75,7 @@ public final class WhereCompatibilityModel {
         if model.permitsRecordingChoice,
            case .blocked(.recordingDeviceRequired) = coordinator.state { return false }
         return !coordinator.state.allowsStore
+            || model.activeScope?.compatibilityEvents.isAdmitted == false
     }
 
     public func refresh(model: WhereModel) async {

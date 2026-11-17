@@ -2,8 +2,11 @@ import Foundation
 @testable import WhereCore
 
 actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
-    var account = DataCompatibilityAccountID(rawValue: "account-a")
-    var remote: SharedDataModelVersion?
+    var currentDomain = DataCompatibilityDomain.cloud(.init(
+        containerIdentifier: "iCloud.test",
+        userRecordName: "account-a",
+    ))
+    var remote: PersistedDataModelVersion?
     var readError: (any Error)?
     var saveError: (any Error)?
     var saveCount = 0
@@ -19,15 +22,15 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
         (stream, continuation) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))
     }
 
-    func accountID() async throws -> DataCompatibilityAccountID {
-        account
+    func domain() async throws -> DataCompatibilityDomain {
+        currentDomain
     }
 
     nonisolated func accountChanges() -> AsyncStream<Void> {
         stream
     }
 
-    func read(accountID _: DataCompatibilityAccountID) async throws -> SharedDataModelVersion? {
+    func read(domain _: DataCompatibilityDomain) async throws -> PersistedDataModelVersion? {
         readCount += 1
         let captured = remote
         if holdsRead { await withCheckedContinuation { heldRead = $0 } }
@@ -36,10 +39,10 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
     }
 
     func advance(
-        accountID _: DataCompatibilityAccountID,
-        from previous: SharedDataModelVersion?,
+        domain _: DataCompatibilityDomain,
+        from previous: PersistedDataModelVersion?,
         to version: DataModelVersion,
-    ) async throws -> SharedDataModelVersion {
+    ) async throws -> PersistedDataModelVersion {
         saveCount += 1
         if let conflictVersion {
             self.conflictVersion = nil
@@ -83,8 +86,16 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
         holdsRead = false; heldRead?.resume(); heldRead = nil
     }
 
+    func setDomain(_ domain: DataCompatibilityDomain, notify: Bool) {
+        currentDomain = domain
+        if notify { continuation.yield() }
+    }
+
     func changeAccount() {
-        account = .init(rawValue: "account-b")
+        currentDomain = .cloud(.init(
+            containerIdentifier: "iCloud.test",
+            userRecordName: "account-b",
+        ))
         continuation.yield()
     }
 }

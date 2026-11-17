@@ -48,8 +48,21 @@ final class CompatibilityPollClock {
 actor LaunchCompatibilityTransport: DataCompatibilityTransport {
     var version: DataModelVersion
     private var rejectsReads = false
+    private var currentDomain = DataCompatibilityDomain.cloud(.init(
+        containerIdentifier: "iCloud.test",
+        userRecordName: "launch-test",
+    ))
+    private nonisolated let stream: AsyncStream<Void>
+    private nonisolated let continuation: AsyncStream<Void>.Continuation
+
     init(version: Int) {
         self.version = .init(rawValue: version)
+        (stream, continuation) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))
+    }
+
+    func changeDomain(_ domain: DataCompatibilityDomain) {
+        currentDomain = domain
+        continuation.yield()
     }
 
     func setVersion(_ value: Int) {
@@ -60,26 +73,26 @@ actor LaunchCompatibilityTransport: DataCompatibilityTransport {
         rejectsReads = value
     }
 
-    func accountID() async throws -> DataCompatibilityAccountID {
-        .init(rawValue: "launch-test")
+    func domain() async throws -> DataCompatibilityDomain {
+        currentDomain
     }
 
-    func read(accountID _: DataCompatibilityAccountID) async throws -> SharedDataModelVersion? {
+    func read(domain _: DataCompatibilityDomain) async throws -> PersistedDataModelVersion? {
         guard !rejectsReads else { throw DataCompatibilityTransportError.invalidRecord }
         return .init(version: version, revision: String(version.rawValue))
     }
 
     func advance(
-        accountID _: DataCompatibilityAccountID,
-        from _: SharedDataModelVersion?,
+        domain _: DataCompatibilityDomain,
+        from _: PersistedDataModelVersion?,
         to version: DataModelVersion,
-    ) async throws -> SharedDataModelVersion {
+    ) async throws -> PersistedDataModelVersion {
         self.version = max(self.version, version)
         return .init(version: self.version, revision: String(self.version.rawValue))
     }
 
     nonisolated func accountChanges() -> AsyncStream<Void> {
-        AsyncStream { $0.finish() }
+        stream
     }
 }
 

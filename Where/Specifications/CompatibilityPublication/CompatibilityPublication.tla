@@ -1,10 +1,11 @@
 ---- MODULE CompatibilityPublication ----
 EXTENDS Integers, Sequences, FiniteSets
 
-CONSTANTS Implementation, Builds, Writers, InitialServer, InitialReceipts, InitialAccount, MaxRefreshes
+CONSTANTS Implementation, Builds, Writers, InitialServer, InitialReceipts, InitialAccount, NextAccount, InitialReceiptAccount, MaxRefreshes
 
 Devices == 1..Len(Builds)
-Accounts == {1, 2}
+Accounts == {1, 2, 3}
+Local == 3
 Versions == 0..3
 Max(a, b) == IF a > b THEN a ELSE b
 Version(record) == Max(1, record)
@@ -19,21 +20,25 @@ UpgradedBuild == <<2>>
 BothWriters == <<TRUE, TRUE>>
 ViewerAndWriter == <<FALSE, TRUE>>
 Viewer == <<FALSE>>
+Recorder == <<TRUE>>
+HigherReceipts == [d \in Devices |-> 3]
 Phases == {"idle", "account", "read", "readReply", "eligibility", "prepareSave",
            "commit", "saveReply", "persist", "error", "done"}
 
 ASSUME /\ Implementation \in {"current", "viewerPublishes", "unconditionalSave",
-                              "wrongAccountOffline", "cacheAdmits", "failedReceiptAdmits"}
+                              "wrongAccountOffline", "cacheAdmits", "failedReceiptAdmits",
+                              "localIgnoresFloor", "localPublishes"}
        /\ Builds \in Seq(1..3) /\ Len(Builds) > 0
        /\ Writers \in Seq(BOOLEAN) /\ Len(Writers) = Len(Builds)
        /\ InitialServer \in Versions /\ InitialReceipts \in [Devices -> Versions]
-       /\ InitialAccount \in Accounts /\ MaxRefreshes > 0
+       /\ InitialAccount \in Accounts /\ NextAccount \in Accounts
+       /\ InitialReceiptAccount \in Accounts /\ MaxRefreshes > 0
 
 (* --algorithm CompatibilityPublicationAlgorithm {
 variables server = [a \in Accounts |-> InitialServer],
           account = [d \in Devices |-> InitialAccount], epoch = [d \in Devices |-> 0],
           receipt = [d \in Devices |-> IF InitialReceipts[d] = 0 THEN EmptyReceipt
-                      ELSE Receipt(1, InitialReceipts[d], TRUE)],
+                      ELSE Receipt(InitialReceiptAccount, InitialReceipts[d], TRUE)],
           known = [d \in Devices |-> 1], state = [d \in Devices |-> "checking"],
           refreshes = [d \in Devices |-> 0], phase = [d \in Devices |-> "idle"],
           attempt = [d \in Devices |-> 0], capturedEpoch = [d \in Devices |-> 0],
@@ -41,7 +46,8 @@ variables server = [a \in Accounts |-> InitialServer],
           observed = [d \in Devices |-> 0], eligible = [d \in Devices |-> FALSE],
           evidence = [d \in Devices |-> 0], error = [d \in Devices |-> "none"],
           grantAccount = [d \in Devices |-> 0], offlineReceipt = [d \in Devices |-> EmptyReceipt],
-          badPublisher = FALSE, badServerDecrease = FALSE,
+          badPublisher = FALSE, badServerDecrease = FALSE, badLocalPublisher = FALSE,
+          sawLocalAdmission = FALSE, sawCloudAfterLocal = FALSE, sawLocalFloorBlocked = FALSE,
           sawConflict = FALSE, sawLostReply = FALSE, sawOffline = FALSE,
           sawAccountDuringRequest = FALSE, sawViewerBaseline = FALSE,
           sawReceiptFailure = FALSE, sawRecovery = FALSE, sawForeignReceipt = FALSE;
@@ -51,11 +57,16 @@ BeginStep:
     while (TRUE) {
         with (d = self[2]) {
             await phase[d] \in {"idle", "done"} /\ refreshes[d] < MaxRefreshes;
-            refreshes[d] := refreshes[d] + 1 || capturedEpoch[d] := epoch[d] ||
-            prior[d] := receipt[d] || resolvedAccount[d] := 0 || attempt[d] := 1 ||
-            known[d] := Max(known[d], receipt[d].version) ||
-            phase[d] := IF Max(known[d], receipt[d].version) > Builds[d] THEN "done" ELSE "account" ||
-            state[d] := IF Max(known[d], receipt[d].version) > Builds[d] THEN "blocked" ELSE state[d];
+            sawLocalFloorBlocked := sawLocalFloorBlocked \/
+                (account[d] = Local /\ Max(known[d], receipt[d].version) > Builds[d]);
+            with (reject = Max(known[d], receipt[d].version) > Builds[d] /\
+                         ~(account[d] = Local /\ Implementation = "localIgnoresFloor")) {
+                refreshes[d] := refreshes[d] + 1 || capturedEpoch[d] := epoch[d] ||
+                prior[d] := receipt[d] || resolvedAccount[d] := 0 || attempt[d] := 1 ||
+                known[d] := Max(known[d], receipt[d].version) ||
+                phase[d] := IF reject THEN "done" ELSE "account" ||
+                state[d] := IF reject THEN "blocked" ELSE state[d];
+            };
         };
     }
 }
@@ -65,7 +76,7 @@ ChangeAccountStep:
     while (TRUE) {
         with (d = self[2]) {
             await epoch[d] = 0;
-            account[d] := 2 || epoch[d] := 1 || state[d] := "blocked" ||
+            account[d] := NextAccount || epoch[d] := 1 || state[d] := "blocked" ||
             known[d] := Max(known[d], receipt[d].version) ||
             receipt[d] := IF receipt[d].account = 0 THEN receipt[d]
                           ELSE Receipt(receipt[d].account, Max(known[d], receipt[d].version), FALSE) ||
@@ -102,11 +113,15 @@ ReadStep:
             await phase[d] = "read";
             if (capturedEpoch[d] # epoch[d]) { phase[d] := "done"; }
             else {
-                either {
-                    observed[d] := server[resolvedAccount[d]] || phase[d] := "readReply";
-                } or {
-                    with (failure \in {"unavailable", "hard"}) {
-                        error[d] := failure || phase[d] := "error";
+                if (resolvedAccount[d] = Local) {
+                    observed[d] := Builds[d] || phase[d] := "readReply";
+                } else {
+                    either {
+                        observed[d] := server[resolvedAccount[d]] || phase[d] := "readReply";
+                    } or {
+                        with (failure \in {"unavailable", "hard"}) {
+                            error[d] := failure || phase[d] := "error";
+                        };
                     };
                 };
             };
@@ -122,7 +137,8 @@ ReadReplyStep:
             if (capturedEpoch[d] # epoch[d]) { phase[d] := "done"; }
             else {
                 known[d] := Max(known[d], Version(observed[d])) || evidence[d] := Version(observed[d]);
-                if (known[d] > Builds[d]) {
+                if (known[d] > Builds[d] /\
+                    ~(resolvedAccount[d] = Local /\ Implementation = "localIgnoresFloor")) {
                     with (saveOK \in BOOLEAN) {
                         receipt[d] := IF saveOK THEN Receipt(resolvedAccount[d], known[d], FALSE) ELSE receipt[d] ||
                         state[d] := "blocked" || phase[d] := "done";
@@ -141,7 +157,9 @@ EligibilityStep:
             if (capturedEpoch[d] # epoch[d]) { phase[d] := "done"; }
             else {
                 eligible[d] := Writers[d];
-                if (Version(observed[d]) < Builds[d] /\ ~eligible[d] /\ Implementation # "viewerPublishes") {
+                if (resolvedAccount[d] = Local /\ Implementation = "localPublishes") {
+                    phase[d] := "commit";
+                } else if (Version(observed[d]) < Builds[d] /\ ~eligible[d] /\ Implementation # "viewerPublishes") {
                     if (Implementation = "cacheAdmits" /\ known[d] = Builds[d]) {
                         phase[d] := "persist";
                     } else {
@@ -181,7 +199,8 @@ CommitStep:
             either {
                 error[d] := "unavailable" || phase[d] := "error";
             } or {
-                if (server[resolvedAccount[d]] = observed[d] \/ Implementation = "unconditionalSave") {
+                if (server[resolvedAccount[d]] = observed[d] \/ Implementation \in {"unconditionalSave", "localPublishes"}) {
+                    badLocalPublisher := badLocalPublisher \/ resolvedAccount[d] = Local ||
                     badPublisher := badPublisher \/ ~eligible[d] ||
                     badServerDecrease := badServerDecrease \/ server[resolvedAccount[d]] > Builds[d] ||
                     server[resolvedAccount[d]] := Builds[d];
@@ -221,6 +240,9 @@ PersistStep:
                 with (saveOK \in BOOLEAN) {
                     receipt[d] := IF saveOK THEN Receipt(resolvedAccount[d], known[d], TRUE) ELSE receipt[d] ||
                     state[d] := IF saveOK \/ Implementation = "failedReceiptAdmits" THEN "allowed" ELSE "blocked" ||
+                    sawLocalAdmission := sawLocalAdmission \/ (saveOK /\ resolvedAccount[d] = Local) ||
+                    sawCloudAfterLocal := sawCloudAfterLocal \/
+                        (saveOK /\ resolvedAccount[d] # Local /\ sawLocalAdmission) ||
                     sawRecovery := sawRecovery \/ (saveOK /\ state[d] = "blocked") ||
                     sawReceiptFailure := sawReceiptFailure \/ ~saveOK ||
                     sawViewerBaseline := sawViewerBaseline \/ (saveOK /\ ~eligible[d] /\ observed[d] = 0 /\ Builds[d] = 1) ||
@@ -266,7 +288,7 @@ ParkedStep:
 }
 } *)
 
-ReceiptType == [account : 0..2, version : Versions, verified : BOOLEAN]
+ReceiptType == [account : 0..3, version : Versions, verified : BOOLEAN]
 TypeOK ==
     /\ server \in [Accounts -> Versions] /\ account \in [Devices -> Accounts]
     /\ epoch \in [Devices -> 0..1] /\ capturedEpoch \in [Devices -> 0..1]
@@ -274,16 +296,21 @@ TypeOK ==
     /\ offlineReceipt \in [Devices -> ReceiptType] /\ known \in [Devices -> 1..3]
     /\ state \in [Devices -> {"checking", "blocked", "allowed", "offline"}]
     /\ refreshes \in [Devices -> 0..MaxRefreshes] /\ phase \in [Devices -> Phases]
-    /\ attempt \in [Devices -> 0..4] /\ resolvedAccount \in [Devices -> 0..2]
+    /\ attempt \in [Devices -> 0..4] /\ resolvedAccount \in [Devices -> 0..3]
     /\ observed \in [Devices -> Versions] /\ evidence \in [Devices -> Versions]
     /\ eligible \in [Devices -> BOOLEAN] /\ error \in [Devices -> {"none", "hard", "unavailable"}]
-    /\ grantAccount \in [Devices -> 0..2]
-    /\ {badPublisher, badServerDecrease, sawConflict, sawLostReply, sawOffline,
+    /\ grantAccount \in [Devices -> 0..3]
+    /\ {badPublisher, badServerDecrease, badLocalPublisher, sawLocalAdmission,
+         sawCloudAfterLocal, sawLocalFloorBlocked, sawConflict, sawLostReply, sawOffline,
          sawAccountDuringRequest, sawViewerBaseline, sawReceiptFailure, sawRecovery, sawForeignReceipt} \subseteq BOOLEAN
+
+NoLocalPublication == ~badLocalPublisher
+NoAdmissionBelowKnownFloor == \A d \in Devices :
+    state[d] \in {"allowed", "offline"} => known[d] <= Builds[d]
 
 OnlyEligibleRecorderPublishes == ~badPublisher
 SharedVersionNeverDecreases == ~badServerDecrease
-OnlineAdmissionHasServerEvidence == \A d \in Devices : state[d] = "allowed" => evidence[d] = Builds[d]
+OnlineAdmissionHasDomainEvidence == \A d \in Devices : state[d] = "allowed" => evidence[d] = Builds[d]
 ReceiptBeforeOnlineAdmission == \A d \in Devices : state[d] = "allowed" =>
     /\ receipt[d].verified /\ receipt[d].account = account[d] /\ receipt[d].version = Builds[d]
 OfflineReceiptIsAccountBound == \A d \in Devices : state[d] = "offline" =>
@@ -291,6 +318,10 @@ OfflineReceiptIsAccountBound == \A d \in Devices : state[d] = "offline" =>
     /\ grantAccount[d] = account[d] /\ offlineReceipt[d].version = Builds[d] /\ known[d] = Builds[d]
 KnownVersionNeverDecreases == [][\A d \in Devices : known'[d] >= known[d]]_vars
 ReceiptVersionNeverDecreases == [][\A d \in Devices : receipt'[d].version >= receipt[d].version]_vars
+
+LocalAdmissionNotReached == ~sawLocalAdmission
+CloudAfterLocalNotReached == ~sawCloudAfterLocal
+LocalFloorBlockedNotReached == ~sawLocalFloorBlocked
 
 ConflictNotReached == ~sawConflict
 LostReplyNotReached == ~sawLostReply
