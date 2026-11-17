@@ -84,3 +84,17 @@ insufficient evidence to remove it.
 
 The [controlled experiments](../../../Plans/2026-11-17-snapshot-settling-investigation/03-controlled-experiments.md)
 retain the methods, raw-evidence locations, and accepted consumer-specific changes.
+
+## Metal sample capture — 2026-11-17
+
+Two public CARenderer adapters were rejected locally on Xcode/iOS 27.2, starting from `75978860f`.
+Assigning a live UIView layer detaches it from UIKit; later hierarchy capture fails and cleanup crashes.
+Rendering a `snapshotView(afterScreenUpdates: true)` through an independently owned offscreen root preserves the host, but loses the snapshot content.
+After correcting transaction flushing and root positioning, the GPU renders the sentinel background alone at both full and quarter scale.
+The visible UIKit and SwiftUI comparison subjects contain colors, text, effects, and navigation chrome.
+
+These results reject the tested adapters, not every possible Metal approach.
+No maintained Metal backend or fallback selector was added, and no CI GPU capability claim is made.
+The WebKit probe did not establish navigation readiness and supplies no WebKit fidelity evidence.
+Raw captures and limits are recorded in [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md).
+A future candidate must preserve the hosted layer tree and demonstrate current, nonempty content before performance trials.

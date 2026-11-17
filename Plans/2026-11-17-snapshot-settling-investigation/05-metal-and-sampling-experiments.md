@@ -1,6 +1,6 @@
 # 05 — Test Metal capture and sample scheduling
 
-- Status: ready
+- Status: executing
 - Depends on: [04](04-validated-improvements.md), complete at `1ef9b92b7`; documentation head `75978860f` is fully green.
 - Shared context: [Overview](README.md), R-05, X-02–X-04, Q-06–Q-08.
 - Owner: root agent; execution explicitly authorized by the user on 2026-11-17.
@@ -56,4 +56,23 @@ Interrupted trials resume from recorded source hashes and the last complete run;
 
 ## Progress and resume point
 
-Plan reviewed against `75978860f`. Begin the Metal capability/fidelity pilot and cadence baseline. No experiment has run yet.
+Metal prerequisites are complete; both tested adapters are rejected. Serial UIKit control/candidate trials are running with a 60ms minimum start interval and at least 16ms suspension. The temporary flags, PNG output, and later oracle stay uncommitted. Complete paired timing and correctness review before selecting any cadence change.
+
+## Metal disposition
+
+The local simulator exposes `Apple iOS simulator GPU`. A direct live-layer pilot produces changing colored pixels, but assigning that layer to `CARenderer` detaches it from its UIKit superlayer. Subsequent UIKit capture fails; cleanup crashes in `CALayerGetSuperlayer` / `removeFromSuperview`. This adapter violates hosted ownership even for a plain colored view.
+
+The public `snapshotView(afterScreenUpdates: true)` adapter preserves the live hierarchy. Its first wrapper trial yields empty pixels despite successful command buffers. An explicit transaction flush and sentinel background expose an offscreen root-position error. A final corrective control sets the position to the texture center: the complete sentinel renders, while all source content is still absent. The visible host is 402×874, unhidden, with alpha 1. The snapshot retains the expected 320×480 bounds. The same failure occurs at 1× and 0.25× for quadrants, text, blur, SwiftUI content, and navigation. UIKit comparison images contain the expected content. The 0.25× sample also follows a successful full-size UIKit capture, so a missing first flush does not explain that result.
+
+| Adapter | Actual evidence | Decision |
+| --- | --- | --- |
+| Live UIView layer | Changing pixels; source layer detached; UIKit rendering fails; cleanup crashes | Reject: violates host ownership |
+| Public snapshot view with corrected wrapper | Full sentinel background, no source pixels; live hierarchy unchanged | Reject: cannot observe content |
+
+The successful snapshot-view test function checks command completion and ownership, not image fidelity. Independent normalized pixel analysis and visual inspection establish its failure. WebKit's CPU image remains white because the probe did not await navigation; no WebKit fidelity result is claimed. Maps were not reached after the basic prerequisite failed.
+
+Warm direct-layer render/readback samples are roughly 1ms, with roughly 316ms first use. These exclude setup; snapshot-view timings also exclude adapter construction. None is an accepted end-to-end speedup. No CI GPU trial ran, and actual CI acceleration remains unknown. This result rejects these adapters on iOS 27.2, not every possible Metal approach. There is no validated content class for a maintained Metal opt-in or fallback selector.
+
+Raw sources, PNGs, logs, result bundles, pixel counts, and crash reports are retained under `/private/tmp/stuff-metal-sampling/` and the durable session artifact directory `snapshot-metal-sampling-results/metal/`. `observations.json` records source hashes and limits. The extra positioning control corrects a demonstrated adapter error before rejecting fidelity; it does not expand the selected experiment into another renderer design. All Metal prototype code is removed from the working source.
+
+Independent reviewer `/root/review_metal_sampling` inspected sources, raw logs, crash reports, normalized outputs, and visible CPU/GPU images. It agrees with these bounded conclusions and identified the excluded WebKit and timing claims. Cadence review remains open pending results.
