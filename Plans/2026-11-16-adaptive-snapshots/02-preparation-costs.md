@@ -32,4 +32,14 @@ Record the measured conclusion here and in STU-121; keep raw logs outside Git.
 
 ## Resume point
 
-Add temporary timers to the existing boundaries and collect the baseline. Refine the design from its evidence before implementation.
+Profiling is complete and temporary source changes are removed. Publish the measured negative result with plan 01 after independent review.
+
+## Initial profiling evidence
+
+The 1.5s baseline passes all 61 captures without retries. Its 39 worlds spend 24.776s creating scopes, 10.252s starting sessions, and 5.210s activating reports. Capture preparation totals 46.159s. There are 78 preparation callers; their load/wait/artwork timers overlap and must not be added. One caller repeatedly yields for roughly a second while the other constructs the world.
+
+Before selecting a retained change, run five isolated fixture preparations through one caller, with the same timers and fresh worlds. This bounded diagnostic distinguishes useful construction work from contention caused by the readiness waiter. It does not establish capture readiness or authorize a global cache. No lifecycle implementation changes are selected yet.
+
+The isolated probe passes five fresh-world preparations. Total load time is 4.985s (median 0.926s): scopes 3.068s, sessions 1.271s, and reports 0.641s; artwork takes 0.148s. No caller spins waiting for another load. Construction still takes roughly a second, so this probe does not support a large saving from replacing the readiness waiter. It also omits the mounted scene, so the small timing difference cannot be assigned solely to polling.
+
+Decision: retain the current world lifecycle and preparation APIs. Scope creation performs the real demo seed, session startup reconciles the seeded services, and report activation reads the loaded world. Reducing those costs needs further work on the underlying operations; sharing worlds or replacing them with lighter fixtures would violate this experiment's isolation and content requirements. Record those subphase costs in STU-121. Remove temporary timers and the isolated probe before final verification.
