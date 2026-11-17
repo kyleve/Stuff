@@ -22,6 +22,22 @@ Later changes follow observed causes rather than assuming that every wait is rem
 Track this work in [STU-121](https://linear.app/kve/issue/STU-121).
 The existing WebKit navigation investigation remains in [STU-122](https://linear.app/kve/issue/STU-122).
 
+## Bounded overlap investigation
+
+[PR 528](https://github.com/kyleve/Stuff/pull/528) investigates comparison of a completed capture while the next view is hosted. The [sampler decision](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/06-deliver-sampling-improvements.md) establishes its historical baseline.
+
+7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): ready; current horizon. Measure comparison costs, then test one background image comparison while the next serial capture settles.
+
+| Requirement | Outcome to verify | Story | Plan |
+| --- | --- | --- | --- |
+| R-07 | Determine whether useful work can overlap settling without corrupting host state, delaying required UI work, or changing snapshots. | US-01 | [07](07-overlap-snapshot-work.md) |
+
+| Question | Status | Question to resolve | Requirement | Finding |
+| --- | --- | --- | --- | --- |
+| Q-10 | open | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | The user requested a separate planned phase. Plan 07 distinguishes preparation overlap from multiple hosted captures and retains existing serialization until an isolated design proves correct. |
+
+The [original phase 7 overview](https://github.com/kyleve/Stuff/blob/f833ba79120bcb9af9e83b9155fbcaf7570cd424/Plans/2026-11-17-snapshot-settling-investigation/README.md) retains the full checkpoint, review record and dated local and CI evidence.
+
 ## Starting evidence
 
 The full local profile before this investigation on Xcode/iOS 27.2 passes 935 captures and 78 functions without retries.
