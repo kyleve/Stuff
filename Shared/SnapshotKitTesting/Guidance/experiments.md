@@ -84,3 +84,29 @@ insufficient evidence to remove it.
 
 The [controlled experiments](../../../Plans/2026-11-17-snapshot-settling-investigation/03-controlled-experiments.md)
 retain the methods, raw-evidence locations, and accepted consumer-specific changes.
+
+## Metal sample capture — 2026-11-17
+
+Two public CARenderer adapters were rejected locally on Xcode/iOS 27.2, starting from `75978860f`.
+Assigning a live UIView layer detaches it from UIKit; later hierarchy capture fails and cleanup crashes.
+Rendering a `snapshotView(afterScreenUpdates: true)` through an independently owned offscreen root preserves the host, but loses the snapshot content.
+After correcting transaction flushing and root positioning, the GPU renders the sentinel background alone at both full and quarter scale.
+The visible UIKit and SwiftUI comparison subjects contain colors, text, effects, and navigation chrome.
+
+These results reject the tested adapters, not every possible Metal approach.
+No maintained Metal backend or fallback selector was added, and no CI GPU capability claim is made.
+The WebKit probe did not establish navigation readiness and supplies no WebKit fidelity evidence.
+Raw captures and limits are recorded in [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md).
+A future candidate must preserve the hosted layer tree and demonstrate current, nonempty content before performance trials.
+
+## Sample rate and extended color — 2026-11-17
+
+On the PR #525 provider baseline, two paired 110-capture trials rejected a 60ms minimum sample-start interval while retaining at least 16ms suspension.
+Mean rendering fell 0.530s, but capture work rose 1.165s and test time rose 1.119s.
+Two further pairs combined extended-color samples with that interval: rendering fell 16.18%, while capture work stayed flat (0.063s slower).
+The small test/body reductions were below control variation; no default changed.
+
+All eight runs preserved capture identities, geometry, policies, references, and floors, with no retries.
+The combined candidate passed 23 framework functions, including real hierarchy color, transparency, fade, and one-pixel guards.
+No candidate reached a delayed-oracle/full-suite/CI rollout, so this is a bounded local result rather than a general rejection of scheduling or CI color-format experiments.
+See [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md) for raw-evidence provenance and [plan 07](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) for the separately requested overlap investigation.
