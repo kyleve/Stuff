@@ -5,12 +5,12 @@
 - Updated: 2026-11-18, starting from PR #529 checkpoint `05bb537a1`.
 - Operation: Measure the combined full local suite benefit after the user asked to see the speedup from the two retained improvements.
 - Requested scope: Compare the complete suite before PRs #525/#528 with their accepted implementation. Preserve completed plans 01–10 and their evidence.
-- Stage: Executing [11 — Combined local measurement](11-combined-local-measurement.md). No new runtime change is selected. Retain the 8M comparison bound, eager PNG processing, and 16ms cadence.
-- Completed: Plans 01–10 and inserted plan 08a. The final follow-up result is published in PR #529 at `e54daf62b`; its net Swift source/test diff against PR #528 is empty. Earlier phase-7 local savings remain 41.859s / 4.91%; the CI repeats establish no additional elapsed-gain claim.
-- Pending: One fresh full-suite control/candidate pair and its evidence report. Updating the existing Linear report still awaits explicit destination approval after automatic review rejected that write.
+- Stage: Complete. [11 — Combined local measurement](11-combined-local-measurement.md) measures 55.063s / 6.40% saved across the full local suite. No new runtime change is selected. Retain the 8M comparison bound, eager PNG processing, and 16ms cadence.
+- Completed: Plans 01–11 and inserted plan 08a. The final experiment result is published in PR #529 at `e54daf62b`; its net Swift source/test diff against PR #528 is empty. Plan 11 adds a direct local pair at `c6ad51144` and `05bb537a1`: 860.623s → 805.560s, with all 935 captures and 78 functions passing without retries. Earlier per-PR measurements remain separate evidence; no overall CI elapsed-gain claim is established.
+- Pending: No experiment implementation or local measurement. Updating the existing Linear report still awaits explicit destination approval after automatic review rejected that write.
 - Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
 - Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
-- Next action: Run control `c6ad51144` and candidate `05bb537a1` serially on the same simulator, excluding build/generation time. Restore this branch and publish the measurement record in PR #529. The prepared Linear update remains local; no merge is performed.
+- Next action: PR #529 includes the combined measurement and is ready for review. The branch and accepted generated project are restored. The prepared Linear update remains local; no merge is performed.
 - Delegation: Root completed source, local trials, cleanup, and publication. `/root/watch_settle_ci` completed the bounded CI evidence assignment. `/root/review_snapshot_followups` completed independent source, raw-evidence, and cleanup reviews.
 
 ## Outcome and scope
@@ -81,9 +81,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
    [08a — Preserve complete traces beside native logs](08a-trace-log-framing.md): complete; strict transport passes fresh full CI, while historical failed samples remain excluded.
 9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
 10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): complete; retain the ordinary cadence after render savings fail the repeated elapsed-benefit gate.
-11. [11 — Combined local measurement](11-combined-local-measurement.md): executing; measure the retained readiness/preparation and bounded comparison improvements together against their common control.
+11. [11 — Combined local measurement](11-combined-local-measurement.md): complete; the retained readiness/preparation and bounded comparison improvements save 55.063s / 6.40% in one direct full local pair.
 
-Plans 01–10 are complete. The current horizon is plan 11's additional measurement. All retained behavior passes its applicable gates; rejected prototypes are removed and their evidence remains available.
+The selected horizon is complete. All retained behavior passes its applicable gates; rejected prototypes are removed and their evidence remains available. Plan 11 measures the accepted changes together without selecting another optimization.
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Further candidate work requires its own reviewed refinement; this bounded series retains its original exclusions.
 The first PR contains the plan and observational groundwork; subsequent commits/PRs keep each verified change separate.
