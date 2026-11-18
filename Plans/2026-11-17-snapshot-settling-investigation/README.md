@@ -26,7 +26,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 
 [PR 528](https://github.com/kyleve/Stuff/pull/528) investigates comparison of a completed capture while the next view is hosted. The [sampler decision](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/06-deliver-sampling-improvements.md) establishes its historical baseline.
 
-7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): ready; current horizon. Measure comparison costs, then test one background image comparison while the next serial capture settles.
+7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): executing; current horizon. Comparison-cost pilot and initial framework guards pass; paired background/MainActor overlap trials are next.
 
 | Requirement | Outcome to verify | Story | Plan |
 | --- | --- | --- | --- |
