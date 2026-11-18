@@ -73,19 +73,6 @@ commands:
             git checkout --detach "<< pipeline.git.revision >>"
             git config gc.auto 0
 
-  hydrate_snapshot_references:
-    steps:
-      - run:
-          name: Hydrate snapshot references
-          command: |
-            env -u GIT_LFS_SKIP_SMUDGE git lfs pull
-            pointer_files="$(git grep -Il '^version https://git-lfs.github.com/spec/v1$' -- ':(glob)**/__Snapshots__/**/*.png' || true)"
-            if [[ -n "$pointer_files" ]]; then
-              echo "Snapshot references remain as Git LFS pointers:" >&2
-              printf '%s\n' "$pointer_files" >&2
-              exit 1
-            fi
-
   configure_test_workdir:
     parameters:
       test_workdir:
@@ -524,7 +511,9 @@ jobs:
               echo "The snapshot intake shard is empty."
               circleci-agent step halt
             fi
-      - hydrate_snapshot_references
+      - run:
+          name: Hydrate snapshot references
+          command: ./snapshot-shards hydrate --assignment "$TEST_WORKDIR/shard.txt"
       - attach_workspace:
           at: ci-test-build
       - validate_runner_environment
