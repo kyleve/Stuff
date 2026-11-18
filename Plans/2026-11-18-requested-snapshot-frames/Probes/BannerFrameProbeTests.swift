@@ -6,31 +6,7 @@ import Testing
 import UIKit
 @testable import WhereUI
 
-/// A request always rebuilds the production view from its existing snapshot fixture.
-@MainActor
-enum BannerPortrait {
-    enum Backend: String, CaseIterable {
-        case direct
-        case native
-    }
-
-    struct Frame {
-        let png: Data
-        let width: Int
-        let height: Int
-        let backend: Backend
-        let mounts: Int
-        let fullDraws: Int
-    }
-
-    enum Failure: Error {
-        case missingOutputDirectory
-        case unsupportedRequest(String)
-        case invalidSize(CGSize)
-        case unavailableRenderer
-        case incompleteDraw
-    }
-
+extension SnapshotPortrait {
     static func render(
         caseName: String,
         configuration: SnapshotConfiguration,
@@ -38,99 +14,6 @@ enum BannerPortrait {
     ) throws -> Frame {
         let snapshotCase = try #require(FlightStatusBanner.snapshots.first { $0.name == caseName })
         return try render(snapshotCase, configuration: configuration, backend: backend)
-    }
-
-    static func render(
-        _ snapshotCase: SnapshotCase,
-        configuration: SnapshotConfiguration,
-        backend: Backend,
-        extraPadding: CGFloat? = nil,
-    ) throws -> Frame {
-        guard configuration.snapshotType == .standard,
-              case let .intrinsic(.some(width)) = configuration.device.size,
-              case let .single(build) = snapshotCase.capture,
-              snapshotCase.measurementReadiness == .immediate, snapshotCase.settle == .immediate,
-              snapshotCase.onReadyToMeasure == nil, snapshotCase.prepareForCapture == nil,
-              snapshotCase.onReadyToSnapshot == nil
-        else { throw Failure.unsupportedRequest(snapshotCase.name) }
-
-        let scale = try #require(hostKeyWindow()?.traitCollection.displayScale)
-        let regular = build()
-        let view = extraPadding.map { AnyView(regular.padding($0)) } ?? regular
-        let styled = view
-            .environment(\.colorScheme, configuration.colorScheme)
-            .dynamicTypeSize(configuration.dynamicType)
-            .environment(\.layoutDirection, configuration.layoutDirection)
-            .environment(\.legibilityWeight, configuration.legibilityWeight)
-            .environment(\.displayScale, scale)
-            .snapshotLayoutTraits(configuration)
-            .transaction { $0.disablesAnimations = true; $0.animation = nil }
-
-        var mounts = 0
-        var draws = 0
-        let image: UIImage
-        switch backend {
-            case .direct:
-                let renderer = ImageRenderer(content: styled)
-                renderer.proposedSize = ProposedViewSize(width: width, height: nil)
-                renderer.scale = scale
-                var rendered: UIImage?
-                configuration.uiTraitCollection.performAsCurrent {
-                    draws += 1
-                    rendered = renderer.uiImage
-                }
-                guard let rendered else { throw Failure.unavailableRenderer }
-                image = rendered
-            case .native:
-                let parent = try #require(hostKeyWindow()?.rootViewController)
-                let controller = UIHostingController(rootView: styled)
-                controller.safeAreaRegions = []
-                controller.traitOverrides[SnapshotCaptureTrait.self] = true
-                configuration.applyTraits(to: controller)
-                let subject = controller.view!
-                subject.backgroundColor = .clear
-                subject.frame = CGRect(x: 0, y: 0, width: width, height: parent.view.bounds.height)
-                parent.addChild(controller)
-                parent.view.addSubview(subject)
-                controller.didMove(toParent: parent)
-                mounts += 1
-                defer {
-                    controller.willMove(toParent: nil)
-                    subject.removeFromSuperview()
-                    controller.removeFromParent()
-                }
-                let proposal = CGSize(width: width, height: .greatestFiniteMagnitude)
-                subject.setNeedsLayout()
-                subject.layoutIfNeeded()
-                let size = CGSize(width: width, height: subject.sizeThatFits(proposal).height)
-                guard size.height.isFinite, size.height > 0, size.height < 2000 else {
-                    throw Failure.invalidSize(size)
-                }
-                subject.frame.size = size
-                subject.setNeedsLayout()
-                subject.layoutIfNeeded()
-                guard abs(subject.sizeThatFits(proposal).height - size.height) < 0.5 else {
-                    throw Failure.invalidSize(size)
-                }
-                let format = UIGraphicsImageRendererFormat()
-                format.preferredRange = .standard
-                format.scale = scale
-                var complete = false
-                image = UIGraphicsImageRenderer(bounds: subject.bounds, format: format).image { _ in
-                    draws += 1
-                    complete = subject.drawHierarchy(in: subject.bounds, afterScreenUpdates: true)
-                }
-                guard complete else { throw Failure.incompleteDraw }
-        }
-        let pixels = try #require(image.cgImage)
-        return try Frame(
-            png: #require(image.pngData()),
-            width: pixels.width,
-            height: pixels.height,
-            backend: backend,
-            mounts: mounts,
-            fullDraws: draws,
-        )
     }
 }
 
@@ -151,7 +34,7 @@ struct BannerFrameProbeTests {
 
     @Test func portraits() async throws {
         guard let directory = ProcessInfo.processInfo.environment["REQUESTED_FRAME_OUTPUT"],
-              !directory.isEmpty else { throw BannerPortrait.Failure.missingOutputDirectory }
+              !directory.isEmpty else { throw SnapshotPortrait.Failure.missingOutputDirectory }
         let output = URL(fileURLWithPath: directory).appendingPathComponent("banner")
         let suite = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("FlightStatusBannerSnapshotTests.swift")
@@ -159,7 +42,7 @@ struct BannerFrameProbeTests {
         let cases = FlightStatusBanner.snapshots
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         try await benchmark(cases: cases, directory: output)
-        for backend in BannerPortrait.Backend.allCases {
+        for backend in SnapshotPortrait.Backend.allCases {
             let folder = output.appendingPathComponent(backend.rawValue)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             for sample in cases {
@@ -175,7 +58,7 @@ struct BannerFrameProbeTests {
                         referenceGroup: sample.referenceGroup,
                     )
                     let start = CACurrentMediaTime()
-                    let frame = try BannerPortrait.render(
+                    let frame = try SnapshotPortrait.render(
                         sample,
                         configuration: configuration,
                         backend: backend,
@@ -309,7 +192,7 @@ struct BannerFrameProbeTests {
     ) async throws -> (Data, CGSize) {
         switch backend {
             case .native:
-                let frame = try BannerPortrait.render(
+                let frame = try SnapshotPortrait.render(
                     request.sample,
                     configuration: request.configuration,
                     backend: .native,
@@ -318,7 +201,7 @@ struct BannerFrameProbeTests {
             case .production:
                 guard case let .single(build) = request.sample.capture,
                       case let .intrinsic(.some(width)) = request.configuration.device.size
-                else { throw BannerPortrait.Failure.unsupportedRequest(request.id) }
+                else { throw SnapshotPortrait.Failure.unsupportedRequest(request.id) }
                 let output = try await captureSnapshotPNG(
                     of: build(),
                     configuration: request.configuration,
@@ -341,18 +224,18 @@ struct BannerFrameProbeTests {
         let configuration = SnapshotConfiguration()
         let reference = try Data(contentsOf: directory
             .appendingPathComponent("native/UncertainArrival.png"))
-        let correctAgain = try BannerPortrait.render(
+        let correctAgain = try SnapshotPortrait.render(
             correct,
             configuration: configuration,
             backend: .native,
         )
         #expect(try Self.accepts(correctAgain.png, reference: reference))
-        let wrongState = try BannerPortrait.render(
+        let wrongState = try SnapshotPortrait.render(
             wrong,
             configuration: configuration,
             backend: .native,
         )
-        let changedLayout = try BannerPortrait.render(
+        let changedLayout = try SnapshotPortrait.render(
             correct,
             configuration: configuration,
             backend: .native,

@@ -2,15 +2,39 @@
 # Run from this checkout with its pinned simulator. Keep these experiments out of normal CI.
 set -euo pipefail
 
+case "$#" in
+    0) mode=frames ;;
+    1)
+        if [[ "$1" != --mount-matrix ]]; then
+            echo "Usage: run-prototype [--mount-matrix]" >&2
+            exit 2
+        fi
+        mode=matrix
+        ;;
+    *) echo "Usage: run-prototype [--mount-matrix]" >&2; exit 2 ;;
+esac
+
 probe_dir=$(cd "$(dirname "$0")/Probes" && pwd)
 repo=$(git -C "$probe_dir" rev-parse --show-toplevel)
 output=$(mktemp -d /private/tmp/stuff-requested-frames.XXXXXX)
 echo "Experiment output: $output"
 cd "$repo"
 
-banner="$repo/Where/WhereUI/SnapshotTests/BannerFrameProbeTests.swift"
-locations="$repo/Where/WhereUI/Tests/LocationsFrameProbeTests.swift"
-reuse="$repo/Where/WhereUI/SnapshotTests/FrameReuseProbeTests.swift"
+where_images="$repo/Where/WhereUI/SnapshotTests"
+installer_images="$repo/Shared/InstallerKitUI/SnapshotTests"
+sources=("$where_images/MountMatrix.swift")
+controls=(--only WhereUISnapshotTests/FlightStatusBannerSnapshotTests)
+if [[ "$mode" == matrix ]]; then
+    sources+=("$where_images/WhereMountMatrixTests.swift" "$installer_images/MountMatrix.swift"
+        "$installer_images/InstallerKitUIMountMatrixTests.swift")
+    controls+=(--only InstallerKitUISnapshotTests/UpdateFailureCardSnapshotTests)
+    schemes=(matrix)
+else
+    sources+=("$where_images/BannerFrameProbeTests.swift" "$repo/Where/WhereUI/Tests/LocationsFrameProbeTests.swift"
+        "$where_images/FrameReuseProbeTests.swift")
+    controls+=(--only WhereUITests/FlightReviewPresentationTests)
+    schemes=(banner locations)
+fi
 
 # Register each destination before linking, so an interrupt cannot strand a probe.
 # Private source inodes let cleanup distinguish this run from another invocation.
@@ -25,8 +49,7 @@ restore_products() {
     ./ide --no-open > "$output/restore-project.log" 2>&1 || return 1
     {
         TEST_WORKDIR="$output/restored" ./test --no-generate --skip-architecture --skip-host-tests \
-            --record never --only WhereUITests/FlightReviewPresentationTests \
-            --only WhereUISnapshotTests/FlightStatusBannerSnapshotTests
+            --record never "${controls[@]}"
     } > "$output/restore-products.log" 2>&1
 }
 cleanup() {
@@ -54,9 +77,9 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-for name in "$banner" "$locations" "$reuse"; do
+for name in "${sources[@]}"; do
     source="$staging/${name##*/}"
-    cp "$probe_dir/${name##*/}" "$source"
+    if [[ ! -e "$source" ]]; then cp "$probe_dir/${name##*/}" "$source"; fi
     installed+=("$name")
     ln "$source" "$name"
 done
@@ -65,7 +88,7 @@ restore_project=true
 # Both schemes build StuffTestHost.app at the same path. Complete each scheme's
 # two process launches before the other scheme can replace its host executable.
 mkdir "$output/first" "$output/repeat"
-for scheme in banner locations; do
+for scheme in "${schemes[@]}"; do
     for pass in first repeat; do
         flags=()
         if [[ "$pass" == repeat ]]; then
@@ -73,7 +96,9 @@ for scheme in banner locations; do
         elif [[ "$scheme" == locations ]]; then
             flags+=(--no-generate --skip-architecture --skip-host-tests)
         fi
-        if [[ "$scheme" == banner ]]; then
+        if [[ "$scheme" == matrix ]]; then
+            cases=(--only WhereUISnapshotTests/WhereMountMatrixTests --only InstallerKitUISnapshotTests/InstallerKitUIMountMatrixTests)
+        elif [[ "$scheme" == banner ]]; then
             cases=(--only WhereUISnapshotTests/BannerFrameProbeTests --only WhereUISnapshotTests/FrameReuseProbeTests)
         else
             cases=(--only WhereUITests/LocationsFrameProbeTests)
@@ -85,5 +110,9 @@ for scheme in banner locations; do
     done
 done
 
-swiftc -O "$probe_dir/../audit-frames.swift" -o "$output/audit-frames"
-"$output/audit-frames" "$output" | tee "$output/pixels.txt"
+if [[ "$mode" == matrix ]]; then
+    python3 "$probe_dir/../audit-mount-matrix.py" "$output" | tee "$output/matrix-summary.txt"
+else
+    swiftc -O "$probe_dir/../audit-frames.swift" -o "$output/audit-frames"
+    "$output/audit-frames" "$output" | tee "$output/pixels.txt"
+fi

@@ -148,7 +148,7 @@ struct FrameReuseProbeTests {
                 outcome = "corrupt"
             }
             renders += 1
-            let frame = try BannerPortrait.render(
+            let frame = try SnapshotPortrait.render(
                 caseName: "UncertainArrival",
                 configuration: variant.configuration,
                 backend: .native,
@@ -230,7 +230,7 @@ struct FrameReuseProbeTests {
         }
 
         let independentStart = CACurrentMediaTime()
-        let fresh = try BannerPortrait.render(
+        let fresh = try SnapshotPortrait.render(
             caseName: "UncertainArrival",
             configuration: light.configuration,
             backend: .native,
