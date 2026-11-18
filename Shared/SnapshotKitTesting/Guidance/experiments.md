@@ -74,6 +74,16 @@ The other is an unreproduced pixel in a small phone glyph on the unchanged seria
 No references or tolerances change. The [plan-08 investigation](../../../Plans/2026-11-17-snapshot-settling-investigation/08-expand-bounded-comparison.md) records exact values and limits.
 The bounded phase-7 CI repeat yields two clean candidates but no new complete pair, so it establishes no CI elapsed improvement.
 
+## Background PNG processing — 2026-11-17
+
+Keep eager PNG normalization. The prototype moves a finished immutable `UIImage` into the existing single worker, then encodes and compares it.
+All 179 framework functions pass, including color/alpha/scale, cancellation during encoding, ordered errors, and worker lifetime.
+At the retained 8M cap, two 110-capture pairs have zero retries and preserve geometry. Mean test-body time improves 1.19%,
+but the second pair's 0.907s gain is below 1.003s control variation. Test-phase evidence also misses the repeated-benefit gate.
+The result is inconclusive; no full-suite or CI adoption claim follows. The prototype and its controls are removed.
+[Plan 09](../../../Plans/2026-11-17-snapshot-settling-investigation/09-overlap-png-processing.md) retains all measurements, image evidence,
+and the earlier conditional 12M trials. This does not prove background encoding can never help; remeasure if the accepted pipeline or workload changes materially.
+
 ## Public UI update callbacks — 2026-11-17
 
 A passive `UIUpdateLink(view:)` probe observed `.afterUpdateComplete` during

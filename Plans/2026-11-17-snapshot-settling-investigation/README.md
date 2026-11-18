@@ -27,7 +27,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 [PR 528](https://github.com/kyleve/Stuff/pull/528) investigates comparison of a completed capture while the next view is hosted. The [sampler decision](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/06-deliver-sampling-improvements.md) establishes its historical baseline.
 
 7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
-8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): executing; repeat CI evidence and compare 8M, 12M, and 16M pixel budgets.
+8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): complete; retain 8M after local gains fail the final retry gate. Bounded CI repeats remain inconclusive.
 9. [09 — Overlap PNG processing](09-overlap-png-processing.md): executing; author an isolated prototype from phase 7, then use the plan-08 budget for paired validation.
 10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing an isolated conservative floor-wait prototype; integrate after plan 09 establishes the accepted pipeline baseline.
 
@@ -43,7 +43,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 | Question | Status | Question to resolve | Requirement | Finding |
 | --- | --- | --- | --- | --- |
 | Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
-| Q-11 | open | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 repeats isolated CI and tests bounded pixel limits separately. |
+| Q-11 | closed | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 completes within its bounded method: no new valid CI pair, and 12M fails the no-added-retry gate despite local gains. Retain 8M; reviewed and published at `edb688245`. |
 | Q-12 | open | Can PNG processing safely leave the capture critical path? | R-09 | Refine plan 09 against immutable image ownership, normalization, cancellation, and memory. |
 | Q-13 | open | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | Refine plan 10 with adversarial traces and independent delayed captures. |
 

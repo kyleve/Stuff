@@ -1,6 +1,6 @@
 # 08a — Preserve complete traces beside native logs
 
-- Status: executing
+- Status: complete
 - Depends on: [01](01-settle-tracing.md), which owns the collector.
 - Shared context: [Overview](README.md), R-01, R-02, R-08.
 - Authorization: The requested experiments require reliable trace collection. This repairs a defect found during their execution.
@@ -54,3 +54,5 @@ The repair is committed and pushed as `c6ad51144` on PR #524; all dependent bran
 ## Final transport evidence
 
 CI #2554 at `f509814bb` includes the published repair `c6ad51144`. Strict staging and independent reconciliation succeed for all 935 captures, 78 functions, and 1,820 settling calls, including both timeout attempts. The collector preserves their failure evidence rather than dropping or repairing partial records. All 31 relevant framework guards pass in CI. The complete-line writer remains a mitigation, not a guarantee against downstream corruption; strict transport validation remains required. The larger comparison budget fails its separate reliability gate, which does not invalidate this transport result. Final evidence is hash-verified under `snapshot-followup-results/cap-ci/`.
+
+Delivery: retained-default decision and validation records are published in PR #529 at `edb688245`. The trace implementation remains published on PR #524 at `c6ad51144`. Independent cleanup review reports no blockers.
