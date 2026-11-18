@@ -13,10 +13,12 @@
 
         /// Images focus content checks on one complete production month. Ordinary
         /// scenario previews and Flyover keep their full-screen calendar subjects.
+        /// Months with planned-stay hatching need a settled draw for consistent pixels.
         func detail(
             name: String,
             monthNumber: Int,
             configurations: [SnapshotConfiguration],
+            monthSettle: SnapshotSettle = .settled,
             focusedRegion: Region? = nil,
             report: @escaping @MainActor () -> YearReportModel,
         ) -> [SnapshotCase] {
@@ -33,6 +35,7 @@
                     name: name,
                     configurations: configurations,
                     measurementReadiness: .immediate,
+                    settle: monthSettle,
                 ) {
                     CalendarMonthSnapshot(
                         report: report(),
