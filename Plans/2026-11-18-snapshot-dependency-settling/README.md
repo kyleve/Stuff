@@ -4,13 +4,13 @@
 
 ## Checkpoint
 
-On November 18 the user requested testing newer snapshot packages as a route to faster settling, then approved publishing the updates together against `main`. The [dependency trial](01-dependency-trial.md) is complete. [PR 539](https://github.com/kyleve/Stuff/pull/539) contains the accepted package and reference changes. Independent review checked the package pins, attribution, reference pixels and timing evidence against the delivery base. All 159 framework tests and all 979 image captures passed locally. The PR is ready for review.
+On November 18 the user requested testing newer snapshot packages as a route to faster settling, then approved publishing the updates together against `main`. The [dependency trial](01-dependency-trial.md) is complete. After reviewing the 0.13 badge and legend changes, the user approved adopting that release in [PR 539](https://github.com/kyleve/Stuff/pull/539). The [annotation refresh](02-annotation-refresh.md) is complete. All 159 framework tests and 979 image captures passed. The updated run establishes the next settling baseline.
 
 ## Scope and questions
 
-US-01. A maintainer wants to capture settled geometry and pixels sooner while retaining meaningful image comparisons. R-01 identifies changes to rendering, accessibility and readiness in the two direct snapshot dependencies. R-02 validates any proposed upgrade against existing references and records whether the measured evidence supports a speedup. X-01 fixes references, tolerances and settle policies for every performance comparison. A separate, reviewed recording corrects one reference affected by the upstream tiled-marker bug.
+US-01. A maintainer wants to capture settled geometry and pixels sooner while retaining meaningful image comparisons. R-01 identifies changes to rendering, accessibility and readiness in the two direct snapshot dependencies. R-02 validates any proposed upgrade against existing references and records whether the measured evidence supports a speedup. X-01 fixes references, tolerances and settle policies for every performance comparison. The initial upgrade corrected the tall-view reference. The subsequent [annotation refresh](02-annotation-refresh.md) adopts the 0.13 design across accessibility configurations.
 
-Q-01 (closed, R-01/R-02). Do the current releases expose a readiness signal or reduce measured settling? Inspection of the tagged sources found no new signal on the capture path. In four local runs, both updated timings fell inside the range of the two controls. The accepted change fixes annotated tall views. The [results](01-dependency-trial.md#timing-result) distinguish that correctness benefit from the timing evidence.
+Q-01 (closed, R-01/R-02). Do the current releases expose a readiness signal or reduce measured settling? Inspection of the tagged sources found no new signal on the capture path. In four local runs, both 0.12.1 timings fell inside the range of the two 0.12.0 controls. The [results](01-dependency-trial.md#timing-result) distinguish the tall-view fix from the timing evidence.
 
 ## Where a future settling experiment could start
 

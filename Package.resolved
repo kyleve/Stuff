@@ -1,13 +1,13 @@
 {
-  "originHash" : "d4f828e91afe80b7fd95c873d5416f05d72046d9abc2adc31ef8a6acad7077fb",
+  "originHash" : "7df603fa314a057eed0caeb594780ca1a4c428589950413cc2f040aaedd3a1a5",
   "pins" : [
     {
       "identity" : "accessibilitysnapshot",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cashapp/AccessibilitySnapshot",
       "state" : {
-        "revision" : "5b03db81f49275312ea1a56914dbe9aa1608e3f0",
-        "version" : "0.12.1"
+        "revision" : "7a1d34aea8966c10b5002e17df954a171d6c3149",
+        "version" : "0.13.1"
       }
     },
     {

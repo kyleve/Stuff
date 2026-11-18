@@ -42,11 +42,7 @@ let package = Package(
         // Snapshot-testing engine + accessibility parser. Consumed only by
         // SnapshotKitTesting and test bundles, never a shipping app.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.7"),
-        // 0.13 changes the badges and legends in our annotated reference images.
-        .package(
-            url: "https://github.com/cashapp/AccessibilitySnapshot",
-            .upToNextMinor(from: "0.12.1"),
-        ),
+        .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.13.1"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
     ],
