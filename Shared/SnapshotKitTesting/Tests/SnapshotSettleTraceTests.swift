@@ -23,6 +23,27 @@ struct SnapshotSettleTraceTests {
         #expect(timing.line() == nil)
     }
 
+    @Test func layoutTraceFindsMarkedGrandchildrenAndBoundsItsExamples() {
+        let root = UIView()
+        let container = UIView()
+        root.addSubview(container)
+        for _ in 0 ..< 6 {
+            container.addSubview(UIView())
+        }
+        for view in [root, container] + container.subviews {
+            view.layer.layoutIfNeeded()
+        }
+
+        for leaf in container.subviews {
+            leaf.setNeedsLayout()
+        }
+        let observation = SnapshotSettleTrace.PendingLayout(in: root)
+        #expect(observation.viewCount == 8)
+        #expect(observation.dirtyCount == 6)
+        #expect(observation.examples == (0 ..< 5).map { "root/0/\($0) UIView" })
+        #expect(container.subviews.allSatisfy { $0.layer.needsLayout() })
+    }
+
     @Test func repeatedLabelsKeepDistinctOwnersAndContinuousCallOrdinals() throws {
         let first = SnapshotCaptureTiming(identifier: "same-label", isEnabled: true)
         let second = SnapshotCaptureTiming(identifier: "same-label", isEnabled: true)

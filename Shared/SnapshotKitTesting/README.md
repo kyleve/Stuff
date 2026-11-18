@@ -290,6 +290,24 @@ records and reports incomplete captures and orphaned calls. Completeness also
 requires a terminal Xcode success marker in every input log. CircleCI keeps
 these files under each shard's `snapshot-timings/settle-N` artifact directory.
 
+To investigate layout during a settle pass, run a suite with both timing and
+the layout diagnostic enabled:
+
+```sh
+TEST_RUNNER_SNAPSHOT_TRACE_LAYOUT=1 ./test --timings --record never --only WhereUISnapshotTests/SettingsViewSnapshotTests
+```
+
+Look for `SNAPSHOT_LAYOUT_TRACE` in the raw test log. Each sampled pass records
+the number of views inspected, the number whose backing layer still reports
+`needsLayout()`, and up to five examples with their class and root-relative
+subview index path. `afterLayout` is sampled when the root layout transaction
+returns. `afterDraw` is sampled after the normal pixel draw and comparison,
+before the next suspension. Passes that skip drawing omit `afterDraw`.
+The capture UUID, call ordinal and pass index join the row to its settle trace.
+The walk includes hidden and offscreen descendants in the hosted subtree.
+Deferred SwiftUI work or a layer without a corresponding view can change the
+next frame while all inspected views report clean.
+
 Synchronous autorelease pools bound settle samples, tile rendering, capture normalization, and reference comparison.
 The capture pool returns only the normalized image and PNG bytes. Pools never span an `await`.
 
