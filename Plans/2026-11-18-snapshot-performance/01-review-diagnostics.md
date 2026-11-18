@@ -1,6 +1,6 @@
 # 01 — Skip unchanged pixels when describing a difference
 
-- Status: ready
+- Status: executing
 - Dependencies: none. [Overview and scope](README.md)
 
 ## Deliverable and design
@@ -33,4 +33,10 @@ if bytesDiffer(captureSpan, referenceSpan) {
 
 ## Progress and resume point
 
-Ready for implementation. The root owns snapshot runs, timing interpretation and publication. No other plan depends on the result.
+The implemented fast path compares one complete normalized RGBA row with `memcmp` and applies the scalar RGB calculation on every unequal row. The focused simulator build passed all eight `SnapshotReferenceDiffTests` functions, including an odd-width image, its last pixel, a full-image change, and an alpha-only change. SwiftFormat and whitespace checks passed.
+
+A macOS Swift debug replay compared the parent and candidate magnitude functions on the same decoded inputs, alternating their order per image. The 93 ordinary captured/reference pairs from the retained PR 528 run contained 597,279,951 pixels. All 93 complete magnitudes matched, including counts, maximum channel differences and bounds from the historical reports. Summed scan time fell from 76.992s to 6.799s (91.2%). Image decoding and normalization took another 6.253s outside the scans. The replay shared the machine with a framework build. These are isolated diagnostic timings.
+
+The three focused suites passed before and after. Their test bodies fell from 65.425s to 52.354s (20.0%). The runner test phase fell from 81.091s to 64.622s. All 77 capture identities, 215,727,762 pixels, 85 tiles and 149 settle calls matched, with zero retries. Forty-four of 45 diagnostic reports matched exactly across the live captures. One sheet in each run differed from the approved file at the PNG byte level only. The retained fixed-input replay above isolates algorithm equivalence from live capture variability.
+
+Full-suite and CI measurements are in progress.

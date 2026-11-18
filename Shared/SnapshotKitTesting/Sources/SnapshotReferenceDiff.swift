@@ -131,16 +131,19 @@ private func normalizedPixels(of image: CGImage) -> [UInt8]? {
 }
 
 private func magnitude(
-    _ captured: [UInt8],
-    _ reference: [UInt8],
+    _ captured: UnsafePointer<UInt8>,
+    _ reference: UnsafePointer<UInt8>,
     width: Int,
     height: Int,
 ) -> SnapshotDiffMagnitude {
     var differing = 0
     var maxDelta = 0
     var minX = width, minY = height, maxX = -1, maxY = -1
+    let bytesPerRow = width * 4
     for y in 0 ..< height {
-        let row = y * width * 4
+        let row = y * bytesPerRow
+        // Equal RGBA rows contribute nothing. On other rows only RGB counts toward the report.
+        guard memcmp(captured + row, reference + row, bytesPerRow) != 0 else { continue }
         for x in 0 ..< width {
             let index = row + x * 4
             let deltaR = abs(Int(captured[index]) - Int(reference[index]))
@@ -172,8 +175,7 @@ private func magnitude(
 ///
 /// Gated on `SNAPSHOT_DIFF` (reaching the test process as
 /// `TEST_RUNNER_SNAPSHOT_DIFF=1`) because the pixel walk costs real time on a
-/// capture that differs, and a normal run shouldn't pay it. `./test` turns it on
-/// for snapshot runs.
+/// capture that differs. `./test --review` turns it on.
 @_spi(Testing) public enum SnapshotDiffReporting {
     public static var isEnabledByEnvironment: Bool {
         isEnabled(forEnvironmentValue: ProcessInfo.processInfo.environment["SNAPSHOT_DIFF"])
