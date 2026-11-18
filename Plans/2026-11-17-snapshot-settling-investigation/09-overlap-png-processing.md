@@ -1,6 +1,6 @@
 # 09 — Overlap immutable PNG processing
 
-- Status: executing
+- Status: complete
 - Depends on: [07](07-overlap-snapshot-work.md), for the existing one-worker pipeline.
 - Integration prerequisite: use the selected or retained plan-[08](08-expand-bounded-comparison.md) budget before the PNG performance trials and adoption. The image-ownership prototype itself uses the already accepted 8M baseline.
 - Shared context: [Overview](README.md), R-04, R-09, Q-12, X-02–X-04.
@@ -140,3 +140,5 @@ Restore the exact retained 8M source from `edb688245`, including eager PNG norma
 Cleanup source verification succeeds: every SnapshotKitTesting Swift file is byte-identical to `retained-cap-source/`. Regeneration, focused checks, independent evidence/cleanup review, and publication remain before completion.
 
 Final cleanup passes generation, 31 focused reference/pipeline/timing/trace functions (18.738s test phase), whitespace checks, and independent completed-diff review. All 70 module Swift files match `edb688245`. The artifact directory `snapshot-followup-results/png/` preserves 1,224 files with verified SHA-256 hashes, including both budgets' exact source, all eight timing runs, 179-function guard logs, strict PNG comparisons, and cleanup logs. Publish the inconclusive result, then integrate plan 10 against eager PNG/8M.
+
+Delivery: the inconclusive result and accepted eager-PNG/8M baseline are published in PR #529 at `afe231667`. All required cleanup and review steps are complete; no PNG behavior is adopted.

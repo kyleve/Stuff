@@ -28,8 +28,8 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 
 7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
 8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): complete; retain 8M after local gains fail the final retry gate. Bounded CI repeats remain inconclusive.
-9. [09 — Overlap PNG processing](09-overlap-png-processing.md): executing; author an isolated prototype from phase 7, then use the plan-08 budget for paired validation.
-10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing an isolated conservative floor-wait prototype; integrate after plan 09 establishes the accepted pipeline baseline.
+9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing the conservative floor-wait prototype against eager PNG/8M.
 
 [08a — Trace log framing](08a-trace-log-framing.md) records the trace-transport repair delivered with PR 524.
 
@@ -44,7 +44,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 | --- | --- | --- | --- | --- |
 | Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
 | Q-11 | closed | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 completes within its bounded method: no new valid CI pair, and 12M fails the no-added-retry gate despite local gains. Retain 8M; reviewed and published at `edb688245`. |
-| Q-12 | open | Can PNG processing safely leave the capture critical path? | R-09 | Refine plan 09 against immutable image ownership, normalization, cancellation, and memory. |
+| Q-12 | closed | Can PNG processing safely leave the capture critical path? | R-09 | Plan 09 passes ownership/cancellation/fidelity guards but misses the repeated-benefit gate at retained 8M. Keep eager normalization; reviewed result and cleanup are published at `afe231667`. |
 | Q-13 | open | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | Refine plan 10 with adversarial traces and independent delayed captures. |
 
 [PR 529](https://github.com/kyleve/Stuff/pull/529) records the follow-up experiments on the phase 7 implementation. The [original follow-up overview](https://github.com/kyleve/Stuff/blob/9d988b282ed1ba45d301f7c446a4d4c8689dd3dd/Plans/2026-11-17-snapshot-settling-investigation/README.md) retains the complete checkpoints, review record and dated measurements.
