@@ -24,13 +24,19 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
    snapshot, writes JSON, and calls `WidgetCenter.reloadAllTimelines()`.
 2. When the device theme changes, `WidgetPresentationPublisher` writes the separate
    presentation JSON and reloads timelines without rebuilding data.
-3. The provider reads both files on each timeline request and schedules
+3. Compatibility withdrawal/recovery also requests a timeline reload. The provider
+   reads history through `AppGroupDataAccess`, requiring a matching verified receipt
+   and snapshot envelope; blocked evidence renders `WidgetCompatibilityView`.
+4. The provider reads the separate theme file on each timeline request and schedules
    `.after(nextMidnight)` so WidgetKit re-queries even without an app reload.
 
 ## Invariants
 
 - **Read-only App Group access** — only the app writes `widget-snapshot.json`
   and `widget-presentation.json`.
+- Preserve available/absent/blocked entry states. Missing legacy payloads can be
+  empty after verification; withdrawn or mismatched evidence must never render
+  cached history. Core access tests and UI snapshots guard this boundary.
 - **Resolve the host App Group from `WhereWidgetBuildEnvironment`.** Inject it
   into providers and both stores; never put an audience default in a package
   target.

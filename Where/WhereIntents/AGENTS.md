@@ -25,7 +25,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   reliably discovers the phrases from there. Intent/entity types are `public`
   for it.
 - **Intents never start GPS.** `WhereServices.forIntents(sharingStoreOf:)`
-  wires an `IdleLocationSource`. An intent-logged manual entry records a
+  shares the app's exact service stack. Intent handlers never drive its recording lifecycle. An intent-logged manual entry records a
   "Logged with Siri" audit and no captured location.
 - **Resolve services through the `@Dependency`-injected `IntentServices`.
   Intents never open a store.** The app's `AppDelegate` owns the one instance
@@ -36,8 +36,11 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `current()` (cancellation-aware). There is deliberately no self-open
   fallback. A `LogDayIntent` write therefore pings the same `changes()`
   signal the running UI refreshes from.
+- On compatibility lockout, clear the installed handoff and fail pending and new intents with the compatibility error.
+  Restore access only through the next verified session installation. Guard: `IntentServicesTests`.
 - **Inject the host App Group into `IntentServices`.** The Today intent's
-  optional widget-snapshot fast path uses it; no package target owns an
+  optional widget-snapshot fast path uses `AppGroupDataAccess` to check receipt
+  and payload provenance before returning cached history; no package target owns an
   audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.

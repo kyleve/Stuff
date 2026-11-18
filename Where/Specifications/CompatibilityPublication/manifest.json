@@ -1,0 +1,180 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityPublication.tla",
+  "cases": [
+    {
+      "name": "current-writers",
+      "config": "CurrentWriters.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-repeated-writers",
+      "config": "CurrentRepeatedWriters.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-viewer",
+      "config": "CurrentViewer.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-baseline",
+      "config": "CurrentBaseline.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-receipts",
+      "config": "CurrentReceipts.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-higher-cache",
+      "config": "CurrentHigherCache.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-foreign-receipt",
+      "config": "CurrentForeignReceipt.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "broken-viewer",
+      "config": "BrokenViewer.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OnlyEligibleRecorderPublishes is violated."
+    },
+    {
+      "name": "broken-save",
+      "config": "BrokenSave.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant SharedVersionNeverDecreases is violated."
+    },
+    {
+      "name": "broken-account",
+      "config": "BrokenAccount.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OfflineReceiptIsAccountBound is violated."
+    },
+    {
+      "name": "broken-cache",
+      "config": "BrokenCache.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OnlineAdmissionHasDomainEvidence is violated."
+    },
+    {
+      "name": "broken-receipt",
+      "config": "BrokenReceipt.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReceiptBeforeOnlineAdmission is violated."
+    },
+    {
+      "name": "conflict",
+      "config": "Conflict.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ConflictNotReached is violated."
+    },
+    {
+      "name": "lost-reply",
+      "config": "LostReply.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LostReplyNotReached is violated."
+    },
+    {
+      "name": "offline",
+      "config": "Offline.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OfflineNotReached is violated."
+    },
+    {
+      "name": "account-in-flight",
+      "config": "AccountInFlight.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant AccountChangeDuringRequestNotReached is violated."
+    },
+    {
+      "name": "baseline-viewer",
+      "config": "BaselineViewer.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant BaselineViewerNotReached is violated."
+    },
+    {
+      "name": "receipt-failure",
+      "config": "ReceiptFailure.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReceiptFailureNotReached is violated."
+    },
+    {
+      "name": "recovery",
+      "config": "Recovery.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryNotReached is violated."
+    },
+    {
+      "name": "foreign-receipt",
+      "config": "ForeignReceipt.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ForeignReceiptNotReached is violated."
+    },
+    {
+      "name": "current-local-viewer",
+      "config": "CurrentLocalViewer.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-local-recorder",
+      "config": "CurrentLocalRecorder.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-local-floor",
+      "config": "CurrentLocalFloor.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-cloud-to-local",
+      "config": "CurrentCloudToLocal.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "broken-local-floor",
+      "config": "BrokenLocalFloor.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoAdmissionBelowKnownFloor is violated."
+    },
+    {
+      "name": "broken-local-publication",
+      "config": "BrokenLocalPublication.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoLocalPublication is violated."
+    },
+    {
+      "name": "broken-local-cloud-admission",
+      "config": "BrokenLocalCloudAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OnlineAdmissionHasDomainEvidence is violated."
+    },
+    {
+      "name": "local-admission",
+      "config": "LocalAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LocalAdmissionNotReached is violated."
+    },
+    {
+      "name": "cloud-after-local",
+      "config": "CloudAfterLocal.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CloudAfterLocalNotReached is violated."
+    },
+    {
+      "name": "local-floor-blocked",
+      "config": "LocalFloorBlocked.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LocalFloorBlockedNotReached is violated."
+    },
+    {
+      "name": "current-local-waiting-viewer",
+      "config": "CurrentLocalWaitingViewer.cfg",
+      "expect": "pass"
+    }
+  ]
+}

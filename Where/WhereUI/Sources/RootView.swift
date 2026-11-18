@@ -108,39 +108,6 @@ public struct RootView: View {
         }
     #endif
 
-    /// Convenience for previews and the hosted UI test: build a model and a
-    /// foreground runner for it. The runner isn't run by the app delegate
-    /// here, so `.task` drives it (see `body`).
-    public init() {
-        // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
-        // attaches a sink unless a scope is actually resolved, which a preview
-        // or the hosted UI test never gets to.
-        let installationContextStore = InMemoryInstallationRecordingContextStore(
-            context: .testing,
-        )
-        let model = WhereModel(
-            preferences: WherePreferences(store: UserDefaults.standard),
-            installationContextStore: installationContextStore,
-            makeBootstrap: {
-                WhereBootstrap(
-                    installationContextStore: $0,
-                    storeStorage: .inMemory,
-                    widgetRefresher: NoopWidgetTimelineRefresher(),
-                    locationOutbox: NoOpLocationOutbox(),
-                )
-            },
-            logSystem: .shared,
-        )
-        _model = State(initialValue: model)
-        launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        primaryAppIconName = "AppIcon"
-        updates = nil
-        #if DEBUG
-            developerLaunchController = nil
-            presentationVisibilityOverride = nil
-        #endif
-    }
-
     public var body: some View {
         RootStyledContent { stylesheet in
             rootContent(stylesheet: stylesheet)
@@ -153,53 +120,66 @@ public struct RootView: View {
 
     private func rootContent(stylesheet: WhereStylesheet) -> some View {
         ZStack {
-            LifecycleContainer(
-                launcher,
-                transition: stylesheet.launch.reveal.transition,
-                animation: stylesheet.launch.revealAnimation,
-                minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
-                isPresentationVisible: isLifecyclePresentationVisible,
-                splash: { _ in
-                    if model.isBuildingLaunchDemo {
-                        LaunchSplashView(caption: .work(
-                            title: String(localized: .demoBuildingTitle),
-                            subtitle: String(localized: .demoBuildingSubtitle),
-                        ))
-                    } else {
-                        LaunchSplashView()
+            Group {
+                if model.compatibility.isBlocking(model) {
+                    DataCompatibilityView(state: model.compatibility.coordinator.state) {
+                        await model.compatibility.refresh(model: model)
                     }
-                },
-                failure: { WhereLifecycleFailureView(failure: $0) },
-                gates: {
-                    // The gate precedes every world-building step, so there is
-                    // no session (and no open store) behind it yet — onboarding
-                    // builds the scope it commits regions with, through the model.
-                    GateView(for: OnboardingGate.self) { handle, _ in
-                        OnboardingView(
-                            gate: handle,
-                            installationContext: model.installationRecordingContext,
-                            startsAtRecordingChoice: model.hasOnboarded,
-                            initialTheme: model.theme,
-                        )
-                    }
-                },
-            ) { session in
-                // `.ready` carries the session the launch produced — the app
-                // surface cannot render without it. `MainTabs` owns the
-                // scene-scoped `YearReportModel` and gets a fresh one whenever
-                // a reset rebuilds the session. Keyed on the session's
-                // monotonic `id` (never reused within the process) rather than
-                // its address, so a rebuilt session can't collide with a freed
-                // one and skip the rebuild.
-                if session.isCurrentDeviceRemoved {
-                    RemovedDeviceView(model: model, session: session)
                 } else {
-                    MainTabs(
-                        session: session,
-                        initialDetails: model.initialYearDetails,
-                        selectedYear: model.initialSelectedYear,
-                    )
-                    .id(session.id)
+                    LifecycleContainer(
+                        launcher,
+                        transition: stylesheet.launch.reveal.transition,
+                        animation: stylesheet.launch.revealAnimation,
+                        minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
+                        isPresentationVisible: isLifecyclePresentationVisible,
+                        splash: { _ in
+                            if model.isBuildingLaunchDemo {
+                                LaunchSplashView(caption: .work(
+                                    title: String(localized: .demoBuildingTitle),
+                                    subtitle: String(localized: .demoBuildingSubtitle),
+                                ))
+                            } else {
+                                LaunchSplashView()
+                            }
+                        },
+                        failure: { WhereLifecycleFailureView(failure: $0) },
+                        gates: {
+                            // The gate precedes every world-building step, so there is
+                            // no session (and no open store) behind it yet — onboarding
+                            // builds the scope it commits regions with, through the model.
+                            // The monitor completes this gate after admission. The outer
+                            // branch owns lockout UI; keep a registration while it drains.
+                            GateView(for: CompatibilityGate.self) { _, _ in
+                                LaunchSplashView()
+                            }
+                            GateView(for: OnboardingGate.self) { handle, _ in
+                                OnboardingView(
+                                    gate: handle,
+                                    installationContext: model.installationRecordingContext,
+                                    startsAtRecordingChoice: model.hasOnboarded,
+                                    initialTheme: model.theme,
+                                )
+                            }
+                        },
+                    ) { session in
+                        // `.ready` carries the session the launch produced — the app
+                        // surface cannot render without it. `MainTabs` owns the
+                        // scene-scoped `YearReportModel` and gets a fresh one whenever
+                        // a reset rebuilds the session. Keyed on the session's
+                        // monotonic `id` (never reused within the process) rather than
+                        // its address, so a rebuilt session can't collide with a freed
+                        // one and skip the rebuild.
+                        if session.isCurrentDeviceRemoved {
+                            RemovedDeviceView(model: model, session: session)
+                        } else {
+                            MainTabs(
+                                session: session,
+                                initialDetails: model.initialYearDetails,
+                                selectedYear: model.initialSelectedYear,
+                            )
+                            .id(session.id)
+                        }
+                    }
                 }
             }
             // Extend the app content's safe area by the floating HUD's footprint so
@@ -255,40 +235,6 @@ public struct RootView: View {
             // ask the model. Reading the model's mode tracks its scope state,
             // so entering or leaving demo mode re-renders what branches on it.
             .demoMode(of: model)
-            // Settings' "Erase all data & reset" runs the teardown through the
-            // `LifecycleProxy` that `LifecycleContainer` publishes into the
-            // environment, which wipes data + preferences and re-drives the
-            // launch plan back to onboarding.
-            //
-            // `run()` is idempotent: in the app the delegate already kicked it off,
-            // so this is a no-op there; in previews/tests it's what drives the
-            // launch.
-            //
-            // Promote the launch (`.undetermined` from the app delegate, or a
-            // genuine `.background` relaunch) only once the scene is genuinely
-            // active. SwiftUI may build this view (and run `.task`) for a scene that
-            // iOS connected in the background; promoting then would flip the launcher
-            // to foreground and build the heavy `TabView` for a launch nobody sees,
-            // defeating the headless path. The `.onChange` below handles the later
-            // background→foreground transition; this initial check covers a launch
-            // that is already active when the view first appears — and it must run
-            // *before* awaiting `run()`: when the scene arrives already active,
-            // `.onChange` never fires, and promoting only after `run()` returns
-            // would leave the user staring at the empty background surface for the
-            // entire (possibly slow) headless drive instead of the splash.
-            .task {
-                if scenePhase == .active {
-                    await launcher.enterForeground()
-                }
-                await launcher.run()
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                guard newPhase == .active else { return }
-                Task {
-                    await launcher.enterForeground()
-                    await model.session?.appBecameActive()
-                }
-            }
     }
 
     private var isLifecyclePresentationVisible: Bool {
@@ -360,6 +306,7 @@ public struct RootView: View {
                     primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
+                .task { await launcher.run() }
             }
             whereSnapshot(
                 name: "RecordingConfigurationWarning",
@@ -373,6 +320,7 @@ public struct RootView: View {
                     primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
+                .task { await recordingWarningLauncher.run() }
             }
         }
 
@@ -386,7 +334,14 @@ public struct RootView: View {
     // only the logged-in root, so this stays as a bespoke preview alongside the
     // cutsheet.
     #Preview {
-        RootView()
+        let model = PreviewSupport.onboardingModel()
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        RootView(
+            model: model,
+            launcher: launcher,
+            primaryAppIconName: "AppIcon",
+        )
+        .task { await launcher.run() }
     }
 
     #Preview("Logged in") {

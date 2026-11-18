@@ -4,7 +4,7 @@ import RegionKit
 /// Publishes issues and informational GPS reviews from one evidence snapshot.
 /// Cache invalidation has its own epoch so a suspended scan cannot republish
 /// evidence that was invalidated while its reads were in flight.
-public actor DataIssueScanner {
+public actor DataIssueScanner: WhereShutdownable {
     private static let logger = WhereLog.reporting(DataIssueScannerLog.self)
 
     private let reportReader: ReportReader
@@ -36,8 +36,8 @@ public actor DataIssueScanner {
     /// alive to force a rescan (e.g. a headless background GPS ingest).
     ///
     /// `nonisolated(unsafe)` because it's assigned once in the (nonisolated)
-    /// initializer and only read by `deinit` — there is no concurrent access to
-    /// guard.
+    /// initializer and read by shutdown/deinit; it is never reassigned after
+    /// initialization. Task cancellation and joining are safe concurrently.
     private nonisolated(unsafe) var invalidationTask: Task<Void, Never>?
 
     public init(
@@ -72,6 +72,11 @@ public actor DataIssueScanner {
 
     deinit {
         invalidationTask?.cancel()
+    }
+
+    public func shutdown() async {
+        invalidationTask?.cancel()
+        await invalidationTask?.value
     }
 
     public func issues(

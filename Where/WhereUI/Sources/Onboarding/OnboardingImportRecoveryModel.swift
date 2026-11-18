@@ -54,6 +54,7 @@ final class OnboardingImportRecoveryModel {
         endSession: () async -> Void,
         completeOnboarding: () -> Void,
     ) async -> Bool {
+        interruptedImportError = nil
         guard hasInterruptedImport else {
             return requiresOnboarding
         }
@@ -73,6 +74,10 @@ final class OnboardingImportRecoveryModel {
                     try await scope.services.backup.acknowledgeOnboardingImport()
                     return false
             }
+        } catch is DataCompatibilityFailure {
+            return false
+        } catch is CancellationError {
+            return false
         } catch {
             interruptedImportError = error
             return false

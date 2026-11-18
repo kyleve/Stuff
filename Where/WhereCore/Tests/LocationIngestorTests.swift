@@ -6,6 +6,44 @@ import Testing
 /// Covers the GPS ingestion lifecycle, the post-persist hook, and the retry
 /// queue the controller delegates all of `startGPS`/`stopGPS`/auth to.
 struct LocationIngestorTests {
+    @Test func shutdownRejectsAuthorizationSuspendedInOutboxLoad() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SuspendingLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        let start = Task { try await ingestor.start() }
+        try await waitForCompatibility { await outbox.suspension.isHeld }
+        await ingestor.shutdown()
+        await outbox.suspension.release()
+        await #expect(throws: CancellationError.self) { try await start.value }
+        #expect(await !ingestor.isActive)
+        await #expect(throws: CancellationError.self) { try await ingestor.start() }
+    }
+
+    @Test func shutdownRejectsPhysicalStartAfterSuspendedOutput() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let output = RecordingRetirementSuspension()
+        let ingestor = LocationIngestor(
+            store: store,
+            locationSource: source,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
+            calendar: WhereCoreTestSupport.calendar(),
+            onPersisted: { _ in await output.hold() },
+        )
+        let start = Task { try await ingestor.start() }
+        try await waitForCompatibility { await output.isHeld }
+        await ingestor.shutdown()
+        await output.release()
+        await #expect(throws: CancellationError.self) { try await start.value }
+        #expect(await !ingestor.isActive)
+    }
+
     private enum OutboxFailure: Error {
         case clear
         case save

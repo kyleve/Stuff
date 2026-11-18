@@ -33,7 +33,7 @@ private struct DerivedDataReconciler {
 /// collaborator is `reset()` (pause GPS, erase synced user data, retire recording
 /// authority, then discard pending fixes) — it lives here so teardown stays in
 /// Core rather than leaking into the UI layer.
-public struct WhereServices: Sendable {
+public struct WhereServices: WhereShutdownable {
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
     /// Lazy, read-only expansion of non-primary history for Elsewhere browsing.
@@ -102,7 +102,25 @@ public struct WhereServices: Sendable {
     let installationContext: InstallationRecordingContext
     /// Owns the remote-import observation task for this service lifetime.
     private let remoteDataChangeReconciler: RemoteDataChangeReconciler
-    /// Synchronous assembly with an explicitly-provided `attributor` (default:
+    /// Present only when this stack owns live tracked-region observation.
+    private let liveAttribution: RegionAttribution?
+
+    /// Lifecycle observation only; consumers do not use this as a second data read path.
+    public func remoteDataChangeUpdates() -> AsyncStream<Void> {
+        store.remoteChanges()
+    }
+
+    /// Retire owned loops and GPS without erasing user data or the durable retry outbox.
+    public func shutdown() async {
+        await recording.shutdown()
+        await remoteDataChangeReconciler.shutdown()
+        await liveAttribution?.shutdown()
+        await resolution.shutdown()
+    }
+
+    /// Synchronous assembly with a fixed geometry reader; it owns no attribution observer.
+    /// Live attribution is assembled with its explicit lifecycle by `make(...)`.
+    /// The explicitly-provided `attributor` (default:
     /// the historical four via `RegionAttributor.shared`). For **tests and
     /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without
     /// an async store read. Production wiring (the app launch, the App Intents
@@ -120,6 +138,39 @@ public struct WhereServices: Sendable {
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext = .testing,
         attributor: any RegionAttributing = RegionAttributor.shared,
+        aggregator: DayAggregator = DayAggregator(),
+        reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
+        summaryScheduler: any DailySummaryScheduling = NoopDailySummaryScheduler(),
+        issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
+        widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
+        locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
+        importRecoveryPersistence: any BackupImportRecoveryPersisting =
+            NoopBackupImportRecoveryPersistence(),
+        now: @escaping @Sendable () -> Date = { Date() },
+    ) {
+        self.init(
+            store: store,
+            locationSource: locationSource,
+            installationContext: installationContext,
+            attributor: attributor,
+            liveAttribution: nil,
+            aggregator: aggregator,
+            reminderScheduler: reminderScheduler,
+            summaryScheduler: summaryScheduler,
+            issueAlertScheduler: issueAlertScheduler,
+            widgetRefresher: widgetRefresher,
+            locationOutbox: locationOutbox,
+            importRecoveryPersistence: importRecoveryPersistence,
+            now: now,
+        )
+    }
+
+    init(
+        store: any WhereStore,
+        locationSource: any LocationSource,
+        installationContext: InstallationRecordingContext = .testing,
+        attributor: any RegionAttributing,
+        liveAttribution: RegionAttribution?,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = NoopDailySummaryScheduler(),
@@ -181,7 +232,7 @@ public struct WhereServices: Sendable {
             now: now,
         )
         let derivedData = DerivedDataReconciler(
-            liveAttribution: attributor as? RegionAttribution,
+            liveAttribution: liveAttribution,
             resolution: resolution,
             reminders: reminders,
             summary: summary,
@@ -305,6 +356,7 @@ public struct WhereServices: Sendable {
         )
         self.store = store
         self.attributor = attributor
+        self.liveAttribution = liveAttribution
         self.aggregator = aggregator
         self.reminderScheduler = reminderScheduler
         self.summaryScheduler = summaryScheduler
@@ -352,6 +404,7 @@ public struct WhereServices: Sendable {
             locationSource: locationSource,
             installationContext: installationContext,
             attributor: attribution,
+            liveAttribution: attribution,
             aggregator: aggregator,
             reminderScheduler: reminderScheduler,
             summaryScheduler: summaryScheduler,

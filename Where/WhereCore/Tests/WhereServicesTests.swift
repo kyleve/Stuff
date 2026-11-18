@@ -1110,6 +1110,7 @@ struct WhereServicesTests {
             store: destinationStore,
             locationSource: ScriptedLocationSource(),
             attributor: attribution,
+            liveAttribution: attribution,
             aggregator: Self.makeAggregator(),
             widgetRefresher: widget,
             now: { austin.timestamp },

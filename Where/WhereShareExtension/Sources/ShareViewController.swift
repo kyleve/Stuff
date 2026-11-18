@@ -25,6 +25,9 @@ final class ShareViewController: UIViewController {
             storage: .localOnly(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             ),
+            compatibilityAccess: AppGroupDataAccess(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            ),
         )
         let root = ShareEvidenceView(
             model: model,

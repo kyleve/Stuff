@@ -16,6 +16,29 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 ## What you get
 
+### Data compatibility
+
+`DataCompatibilityCoordinator` decides whether the app can open history before SwiftData starts.
+`DataModelVersion.current` describes data semantics independently of the app version. Version 1 also covers data from builds without this gate.
+The private CloudKit control record lives outside SwiftData's zone. Conditional saves only advance its version.
+Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
+Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
+A newer shared version requires an app update.
+The [publication model](../Specifications/CompatibilityPublication/README.md) checks bounded competing writes, recording eligibility, and receipt-based admission.
+
+The atomic App Group receipt preserves the highest observed version and excludes itself from backups.
+Transient failures permit offline access only after the same account and version passed verification.
+CloudKit must still identify that account. Missing, corrupt, unreadable, or blocked receipts do not grant offline access.
+`LocalDataCompatibilityTransport` reports this build's format through the same coordinator, which still checks the durable floor and saves a receipt. The cloud transport delegates to it only after CloudKit confirms `.noAccount`; restricted, indeterminate, and temporarily unavailable accounts remain blocking. A local receipt never substitutes for cloud publication or cloud offline evidence.
+
+`DataCompatibilityAdmission` binds an allowed decision to its domain and process epoch. Bootstrap selects local or cloud storage from that decision and checks the token after opening. An account change revokes it before a replacement container can be used, even if the same account returns.
+
+`AppGroupDataAccess` owns the durable receipt and requires an exact verified receipt before the share extension opens its local store in any audience. Widget reads use this same boundary: the published envelope must match the receipt's version and local/cloud domain, and a second receipt read rejects changes observed during the read. Missing or old-format payloads are empty caches; missing, withdrawn, or mismatched access is blocked. It does not contact CloudKit. Cloud account identity retains both its container identifier and CloudKit user-record name; the wire record still stores the user-record name in `accountID`.
+
+`WhereShutdownable.shutdown()` is terminal, idempotent retirement: cancel and join owned background tasks without erasing data, consent, or pending location samples. `WhereServices` retires recording first, then drains remote reconciliation, its explicitly owned live attribution observer, and issue invalidation. Immutable geometry readers own no observation. `LocationSource.stop()` is reversible physical acquisition control; it does not retire the source or recording authority. Derived App Intents services share the same ownership; only the app scope shuts them down.
+The app discards that service scope. Recovery creates a fresh scope after verification succeeds.
+This is a scope boundary: operations already in flight can finish, and existing data APIs have no new per-operation checks.
+
 `WhereServices` is a small struct of focused collaborators — add behavior to the
 one it belongs to rather than to a god-object:
 
@@ -276,7 +299,11 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy for the independently aggregated data.
+  read, with a freshness policy for the independently aggregated data. The production
+  refresher captures its scope's admission and checks it before writing a
+  `PersistedWidgetSnapshot` envelope through `AppGroupDataAccess`. A retired
+  publisher cannot overwrite the recovered scope's payload. Access withdrawal and
+  recovery also request timeline reloads; WidgetKit owns delivery timing.
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins

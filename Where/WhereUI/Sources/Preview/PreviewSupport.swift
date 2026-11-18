@@ -841,6 +841,8 @@
                 selectedYear: year,
                 preferences: preferences,
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: { referenceNow },
             )
         }
@@ -861,6 +863,8 @@
                 selectedYear: year,
                 preferences: preferences,
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReporting,
                 now: { referenceNow },
             )
@@ -895,6 +899,8 @@
                 selectedYear: year,
                 preferences: preferences,
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: { referenceNow },
             )
         }
@@ -914,6 +920,8 @@
                 services: previewServices(),
                 preferences: previewPreferences(),
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: { referenceNow },
             )
         }

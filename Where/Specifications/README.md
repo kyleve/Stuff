@@ -36,6 +36,13 @@ generated module. The run directory retains the module, TLC logs and state, and
 `summary.json`. The checker verifies that the tracked source's SHA-256 is
 unchanged before returning.
 
+## Compatibility verification
+
+- [CompatibilityLockout](CompatibilityLockout/README.md) checks current-decision admission,
+  suspended completions, repeated lockouts during recovery, and scope/GPS retirement.
+- [CompatibilityPublication](CompatibilityPublication/README.md) checks recording eligibility,
+  monotonic conditional writes, uncertain saves, and account-bound offline receipts.
+
 ## PlusCal migration result
 
 The nine raw-TLA models at commit `2a6c695bdb8d` on 2026-08-13 were checked

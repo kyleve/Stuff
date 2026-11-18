@@ -4,6 +4,17 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DeviceRecordingControllerTests {
+    @Test func committedImportCannotResumeRetiredRecording() async throws {
+        let (controller, _, ingestor, _) = try makeController(enabled: true)
+        _ = try await controller.register(authorization: .always)
+        await controller.shutdown()
+        await #expect(throws: CancellationError.self) {
+            try await controller.resumeAfterImport(discardPendingSamples: false)
+        }
+        await controller.resumeAfterImportRollback()
+        #expect(await !ingestor.isActive)
+    }
+
     private struct WaitTimeout: Error {}
 
     private static let now = Date(timeIntervalSinceReferenceDate: 1000)

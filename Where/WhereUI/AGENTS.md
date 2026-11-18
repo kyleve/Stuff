@@ -11,7 +11,7 @@ Read the matching instructions before changing or reviewing that behavior, inclu
 | --- | --- |
 | Unit tests, image snapshots, test fixtures, or coverage changes | [Test contracts](Tests/AGENTS.md) |
 | Settings, feature discovery, icons, updates, backup export, or diagnostic controls | [Settings contracts](Sources/Settings/AGENTS.md) |
-| Launch, reset, installation sidecars, log retention, or scope models | [Launch and installation-context contracts](Sources/Launch/AGENTS.md) |
+| Launch, compatibility, reset, installation sidecars, log retention, or scope models | [Launch and installation-context contracts](Sources/Launch/AGENTS.md) |
 | Developer tools, Inspector, demo controls, or Flyover | [Developer and Flyover contracts](Sources/Developer/AGENTS.md) |
 | Calendar, Your Year, Timeline, or scene report publication | [Calendar and timeline contracts](Sources/Year/AGENTS.md) |
 | GPS correction reviews, flight notices, or point actions | [Flight-review contracts](Sources/Resolution/AGENTS.md) |

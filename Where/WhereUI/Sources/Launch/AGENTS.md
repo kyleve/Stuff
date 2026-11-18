@@ -2,6 +2,11 @@
 
 Read the [module contract](../../AGENTS.md) and the [repository contract](../../../../AGENTS.md) first.
 
+- Keep compatibility monitoring outside disposable scopes. Gate discovery, import recovery, and scope creation before any store open.
+  Mask blocked history before teardown. Stop GPS before waiting for launch work or output cleanup.
+  Own onboarding completion as one process-model task and drain it during compatibility retirement.
+  Guards: `WhereCompatibilityModelTests`, `WhereLaunchTests`, `OnboardingImportRecoveryModelTests`.
+
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.
@@ -18,6 +23,9 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   handoff or recording. Reconcile onboarding imports before offering Restore.
   Acknowledge their preference independently of cleanup. Retain the marker
   through any failure (`WhereLaunchTests`).
+- Keep one outer lockout presentation in `RootView`; register the compatibility gate
+  with a splash placeholder and let the monitor complete it. Keep foreground business
+  work in the runtime. Guards: `WhereCompatibilityModelTests`, `WhereRuntimeActivityTests`.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
@@ -27,3 +35,5 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   owns log retention. `LogHistoryPruner` bounds the store by age *and* event
   count. Both bounds are load-bearing. An age window alone leaves a
   heavy-logging device unbounded inside it.
+
+- Bind each real store opening and scope to its compatibility admission, including the domain and invalidation epoch. Check it when returning prepared/opened stores and reusing scopes; mask a stale scope while retirement drains. Guard: `WhereCompatibilityModelTests` held-opening and recovered-scope cases.

@@ -27,21 +27,51 @@ public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
 /// same snapshot, so any committed change can affect all of them.
 public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
     private static let logger = WhereLog.widgets(WidgetTimelineRefresherLog.self)
-    private let appGroupIdentifier: String
+    private let access: AppGroupDataAccess
+    private let coordinator: DataCompatibilityCoordinator
+    private let admission: DataCompatibilityAdmission
+    private let reloader: any WidgetTimelineReloading
 
-    public init(appGroupIdentifier: String) {
-        self.appGroupIdentifier = appGroupIdentifier
+    @MainActor
+    public init(
+        appGroupIdentifier: String,
+        coordinator: DataCompatibilityCoordinator,
+        admission: DataCompatibilityAdmission,
+    ) {
+        access = AppGroupDataAccess(appGroupIdentifier: appGroupIdentifier)
+        self.coordinator = coordinator
+        self.admission = admission
+        reloader = WidgetCenterTimelineReloader()
+    }
+
+    @_spi(Testing)
+    public init(
+        access: AppGroupDataAccess,
+        coordinator: DataCompatibilityCoordinator,
+        admission: DataCompatibilityAdmission,
+        reloader: any WidgetTimelineReloading,
+    ) {
+        self.access = access
+        self.coordinator = coordinator
+        self.admission = admission
+        self.reloader = reloader
     }
 
     public func publish(_ snapshot: WidgetSnapshot) async {
-        do {
-            try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier).write(snapshot)
-            Self.logger.wroteSnapshot()
-        } catch {
-            Self.logger.publishFailed(
-                error: .restricted(.errorDetails, error),
-            )
+        // No suspension between checking this scope's grant and writing its envelope.
+        await MainActor.run {
+            do {
+                try coordinator.requireAccess(admission)
+                try access.writeWidgetSnapshot(
+                    snapshot,
+                    version: coordinator.version,
+                    domain: admission.domain,
+                )
+                Self.logger.wroteSnapshot()
+            } catch {
+                Self.logger.publishFailed(error: .restricted(.errorDetails, error))
+            }
+            reloader.reload()
         }
-        WidgetCenter.shared.reloadAllTimelines()
     }
 }

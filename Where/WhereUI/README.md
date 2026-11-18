@@ -54,6 +54,16 @@ These indicators have no separate action and remain visible after correction dis
 
 ### App shell & view models
 
+- **`WhereCompatibilityModel` / `DataCompatibilityView`** — process-owned monitoring and a history-free lockout screen.
+  Verification precedes onboarding discovery, import recovery, and scope construction, including headless launches.
+  The runtime owns foreground entry and the 60-second foreground poll; CloudKit pushes, remote imports, and Retry also refresh the decision.
+  One outer lockout presentation in `RootView` hides history immediately, stops recording, and tears down the old scope through the launch runner. The registered compatibility gate uses the launch splash while the monitor completes its handle; it owns no second lockout screen.
+  Recovery passes the compatibility gate and creates one fresh scope. Store openings and real scopes retain their admission domain/epoch, so recovery cannot revive a result from before an account change. The installation's consent and onboarding state remain intact.
+  A second lockout also retires a replacement scope while its recovery launch is still draining.
+  The [lockout model](../Specifications/CompatibilityLockout/README.md) checks admission and retirement ordering, including this repeated-lockout case.
+  New installations can choose recording before opening history. Established viewers cannot enable recording from the lockout screen. Demo has no lockout bypass; injected no-op scope events and installation-owned permission keep its simulated recording out of CloudKit publication.
+  `InstallationLocation` exists before history, buffers launch events, and shares the real source with bootstrap assembly. It releases that source after retirement; the next scope gets a fresh stream.
+
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.
 Local builds can browse remote builds without an automatic update badge.
 **Other Builds** opens the shared Main/PR browser and retained build history.
@@ -213,8 +223,7 @@ The reusable panes also support iPad layouts. There is no HomeView target.
   plan through `.measured()`, so each run is one Periscope span named after
   the step (`step(resolve-scope)`) that warns while it overruns its budget — 
   the launch's cost breaks down per step instead of arriving as one slow
-  splash. (The onboarding gate is the one unmeasured node: it parks on the
-  user.)
+  splash. The onboarding and compatibility gates are unmeasured while they wait for recovery or user input.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -234,10 +243,10 @@ The reusable panes also support iPad layouts. There is no HomeView target.
 - **`WhereModel`** — app-level state that outlives any one scope: the backed-up
   onboarding flag, the separately injected non-backed-up installation
   recording context (including stable first-profile/policy timestamps), the
-  active `WhereScope`, the owned `WhereSession`, and the lifecycle intents
+  typed startup ownership (preparing, opening, open, running, retiring, or locked), and the lifecycle intents
   (`activate(scope:)`, `startSession(scope:)` — which
   *returns* the session the launch's `start-session` step threads onward —
-  `endSession()`, `resetPreferences()`).
+  `endSession()`, `resetPreferences()`). Scope/session access derives from startup state; a shared opening has an identity and every waiter rechecks admission. Retirement is terminal and drains services, observers, onboarding completion when interrupted by lockout, and the scope-retaining log-open task.
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   per-device recording changes, `startTracking()` / `stopTracking()`,
@@ -329,7 +338,7 @@ journal intent.
   there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
-  choice. The final page opens the real store in a dormant state to inspect recent synced advisory
+  choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
   other installation recently reported recording. Tablets, other devices, and explicit rejoins
   recommend Off. Only an enabled confirmation requests location permission. A restored device can
@@ -369,7 +378,10 @@ journal intent.
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
   exposes one explicit accessibility label/value pair rather than its visual
-  rows as separate elements.
+  rows as separate elements. `WidgetCompatibilityView` provides history-free
+  Open Where guidance for blocked home-screen and accessory entries. The app's
+  compatibility monitor reports initial access, withdrawal, and recovery so the
+  runtime can request a timeline reload without a live store.
 - **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
@@ -405,7 +417,7 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 ## Quick start
 
 The app target is deliberately tiny. It selects one application runtime, then
-forwards the process launch and root view:
+forwards process launch, aggregate scene activity, and root presentation:
 
 ```swift
 import SwiftUI
@@ -413,11 +425,15 @@ import WhereUI
 
 @main
 struct WhereApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
         WindowGroup {
             appDelegate.runtime.makeRootView()
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            appDelegate.runtime.sceneActivityChanged(isActive: phase == .active)
         }
     }
 }
@@ -425,9 +441,7 @@ struct WhereApp: App {
 
 The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
-`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
-a self-contained preview or UI test, the no-arg `RootView()` builds its own
-model and a foreground launch runner.
+`whereBroadwayRoot()` itself, so a host doesn't wrap it. Previews and UI tests explicitly pass their fixture model and launcher and start the fixture runner themselves. Both `WhereModel` initializers require compatibility and installation-location owners; `RootView` never creates a coordinator.
 
 ## Design system
 

@@ -30,7 +30,22 @@ import WhereCore
 /// view-scoped models) from the injected coordinator.
 @MainActor
 @Observable
-public final class WhereSession {
+public final class WhereSession: WhereShutdownable {
+    let scope: WhereScope
+    var onDeviceRemoved: @MainActor (RecordingDeviceID) -> Void = { _ in }
+
+    public func shutdown() async {
+        let observers = [authorizationTask, recordingConfigurationTask, regionStyleTask]
+        observers.forEach { $0?.cancel() }
+        authorizationTask = nil
+        recordingConfigurationTask = nil
+        regionStyleTask = nil
+        await scope.shutdown()
+        for observer in observers {
+            await observer?.value
+        }
+    }
+
     /// A process-unique, monotonically increasing identity for this session.
     /// `RootView` keys `MainTabs` (and thus the scene-scoped `YearReportModel`) on
     /// it, so a reset that rebuilds the session forces a fresh scene. Unlike an
@@ -164,6 +179,7 @@ public final class WhereSession {
         installationContextStore: (any InstallationRecordingContextStoring)? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        self.scope = scope
         id = Self.mintID()
         services = scope.services
         preferences = scope.preferences
@@ -410,6 +426,7 @@ public final class WhereSession {
             didRegisterRecordingDevice = false
         } else if case .removed = update.state {
             didRegisterRecordingDevice = false
+            onDeviceRemoved(services.recording.currentDevice.id)
         }
     }
 

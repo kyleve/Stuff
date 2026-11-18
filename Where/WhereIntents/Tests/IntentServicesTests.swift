@@ -26,6 +26,20 @@ struct IntentServicesTests {
         #expect(resolved.journal === stack.journal)
     }
 
+    @Test func lockoutFailsPendingAndNewIntentsUntilFreshInstallation() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let parked = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+        await handoff.block(.updateRequired(.init(rawValue: 2)))
+        await #expect(throws: DataCompatibilityFailure.self) { try await parked.value }
+        await #expect(throws: DataCompatibilityFailure.self) { try await handoff.current() }
+        #expect(await handoff.waiterCount == 0)
+        let replacement = try makeStack()
+        await handoff.install(replacement, theme: .standard)
+        let current = try await handoff.current()
+        #expect(current.journal === replacement.journal)
+    }
+
     @Test func currentParksUntilAStackIsInstalled() async throws {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let parked = Task { try await handoff.current() }

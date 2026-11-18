@@ -61,6 +61,17 @@
         }
       }
     },
+    "share.compatibility.openWhere" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where to verify or update your data before saving this item, then share it again."
+          }
+        }
+      }
+    },
     "share.form.date" : {
       "comment" : "Date picker label for when the evidence was captured.",
       "extractionState" : "manual",

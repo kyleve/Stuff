@@ -7,7 +7,7 @@ import Foundation
 /// installation sidecar. Synced check-ins are advisory status, while an append-only removal
 /// tombstone permanently retires an identity. Every removal read is generation-pinned and failures
 /// stop recording rather than trusting stale state.
-public actor DeviceRecordingController {
+public actor DeviceRecordingController: WhereShutdownable {
     private let store: any WhereStore
     private let ingestor: LocationIngestor
     public nonisolated let currentDevice: CurrentRecordingDevice
@@ -34,6 +34,7 @@ public actor DeviceRecordingController {
     private var isExclusive = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var acceptsOperations = true
+    private var isRetired = false
     private var recordingLifecycleStarted = false
     private var shouldResumeAfterPause = false
     private var isRewritePaused = false
@@ -91,6 +92,7 @@ public actor DeviceRecordingController {
 
     /// Observe local commits and CloudKit imports for removal, status, and heartbeat changes.
     public func startMonitoringChanges() {
+        guard !isRetired else { return }
         recordingLifecycleStarted = true
         guard observationTask == nil else { return }
         let updates = store.changes()
@@ -272,6 +274,10 @@ public actor DeviceRecordingController {
 
     func resumeAfterImport(discardPendingSamples: Bool) async throws {
         await beginExclusive()
+        guard !isRetired else {
+            endExclusive()
+            throw CancellationError()
+        }
         acceptsOperations = true
         let shouldResume = shouldResumeAfterPause
         if discardPendingSamples {
@@ -345,7 +351,23 @@ public actor DeviceRecordingController {
         }
     }
 
+    /// Permanently stop this scope, retaining consent and accepted outbox entries for recovery.
+    public func shutdown() async {
+        isRetired = true
+        acceptsOperations = false
+        await ingestor.retire()
+        await beginExclusive()
+        recordingLifecycleStarted = false
+        let observation = observationTask
+        observation?.cancel()
+        observationTask = nil
+        await ingestor.shutdown()
+        endExclusive()
+        await observation?.value
+    }
+
     private func resumeLocked() async {
+        guard !isRetired else { return }
         acceptsOperations = true
         isRewritePaused = false
         let shouldResume = shouldResumeAfterPause
@@ -604,7 +626,7 @@ public actor DeviceRecordingController {
     }
 
     private func requireActive() throws {
-        guard acceptsOperations else { throw CancellationError() }
+        guard acceptsOperations, !isRetired else { throw CancellationError() }
     }
 
     private func beginExclusive() async {

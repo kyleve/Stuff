@@ -40,7 +40,7 @@ A failed cleanup forces the Inspector runtime and keeps the request visible inst
 In the regular runtime, `didFinishLaunching` does the wiring — not a SwiftUI `.task` — because CoreLocation can relaunch the app with no UI at all, and only the delegate callback is guaranteed to run.
 It registers the App Intents dependency, starts logging, and builds a [`LifecycleKit`](../../Shared/LifecycleKit) runner with the reason `.undetermined`, since the UIScene lifecycle cannot yet distinguish a user tap from a headless wake.
 The runner drives the background-safe launch steps immediately and builds no view tree.
-When a scene actually activates, `RootView` promotes the launch to `.userForeground` and the remaining steps run.
+When any scene activates, `WhereApp` forwards its aggregate scene phase to the runtime. The runtime promotes the launch to `.userForeground`, starts compatibility polling, verifies access, and activates the admitted session. Duplicate activity values coalesce; inactive/background transitions stop polling and cancel the remaining activation work. The launcher keeps owning its background-safe drive. `RootView` only supplies its scene-specific visibility to the first-reveal presentation.
 
 Before either the regular or Inspector runtime receives that callback, the app
 captures diagnostic preferences. It starts Bitdrift only if crash reports,
@@ -89,6 +89,33 @@ Use `./Where/install --dry-run` to resolve the exact paired physical device and
 report the build/install/launch plan without performing it.
 
 ## CloudKit rollout and device validation
+
+The regular runtime verifies a separate compatibility record before opening SwiftData.
+Every build injects a transport and receipt store into the same coordinator. Development uses a local transport; the cloud-capable transport also uses local mode when CloudKit confirms no account. Restricted or unavailable account states do not grant local access. The host build environment resolves compiler flags once, and the runtime retains its configured storage policy. Bootstrap applies the verified domain before opening the container. Demo is subject to the same lockout screen; its simulated permission/recording and removal events never advance or invalidate real CloudKit metadata. The regular runtime creates one compatibility coordinator and one installation location owner and injects both into the model and real bootstrap.
+The control record uses the private `WhereStoreCompatibility` zone and record type, with `requiredVersion` (Int64) and `accountID` (String).
+Its `where-store-compatibility` zone subscription requests silent notifications. Notifications are advisory; foreground polling also refreshes the decision.
+
+Before the first incompatible release:
+
+1. Use a recording-enabled validation build with Always permission to create the control record in the Development CloudKit environment.
+2. Deploy its record schema to Production through CloudKit Console before distributing the cloud-enabled build.
+3. Ship `DataModelVersion.current == 1` and the compatibility gate to all supported installations.
+4. Increase `DataModelVersion.current` only when a later release changes data incompatibly.
+
+Builds that predate the gate cannot obey it. A version increase does not make an existing unsupported build safe.
+The protocol stops the entire session after detection. It does not make metadata and SwiftData synchronization atomic across devices.
+
+Compatibility acceptance on two devices:
+
+1. Keep one recording device on version 1. Install a version-2 validation build on a viewer and verify that it waits without opening history.
+2. Install version 2 on the recording device. Verify that it publishes before opening history and that the viewer recovers.
+3. Keep a version-1 device open during that publication. Verify that it hides history, stops GPS, and releases its scope.
+4. Repeat through foreground entry, a control-record push, a remote import, and Retry after a network outage.
+5. After successful verification, test offline relaunch on the same account and version. CloudKit must still resolve the account identity.
+6. Test an unverified cloud upgrade, restricted/unavailable account, missing permission for publication, and malformed receipt. Each must remain blocked.
+7. Sign out with compatible data and verify local recording, then sign in and verify that the old scope retires before CloudKit opens. Repeat with a higher cached version: signing out must not bypass the update requirement. Check Development share access after the app writes its local receipt.
+7. During lockout, invoke an intent and save from the share sheet. Verify an actionable error and no new store open.
+8. Restore network access and the matching version. Verify one fresh scope, preserved consent, and the retained location outbox.
 
 The app target owns `iCloud.com.stuff.where`, the Push Notifications
 entitlement, and the remote-notification background mode. Widgets and the share

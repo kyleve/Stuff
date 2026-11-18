@@ -7,7 +7,7 @@ import PeriscopeCore
 /// relaunches), and authorization. Persisted samples are reported back through
 /// an injected post-persist hook, so this actor stays unaware of reminders and
 /// widgets — the assembler wires those in.
-public actor LocationIngestor {
+public actor LocationIngestor: WhereShutdownable {
     /// What a persist batch changed, handed to the post-persist hook so the
     /// assembler can reconcile reminders + republish widgets appropriately.
     struct IngestOutcome {
@@ -64,6 +64,7 @@ public actor LocationIngestor {
     /// separately from `ingestTask` because the ingestion task outlives a
     /// `stop()` pause (see `start()` for why).
     private var isMonitoring = false
+    private var isRetired = false
 
     /// Whether the resolved device policy currently authorizes automatic samples. Closed before
     /// registration, while policy is Off/unavailable, and during teardown. This is independent
@@ -139,9 +140,14 @@ public actor LocationIngestor {
     /// already-finished stream and silently drop every subsequent sample.
     public func start(effectiveAt: Date, dataGenerationID: WhereDataGenerationID) async throws {
         try await authorizeRecording(effectiveAt: effectiveAt, dataGenerationID: dataGenerationID)
+        guard !isRetired else { throw CancellationError() }
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
+        guard !isRetired else {
+            await locationSource.stop()
+            throw CancellationError()
+        }
         guard isMonitoring else { return }
         Self.logger.monitoringStarted()
         installIngestTaskIfNeeded()
@@ -154,6 +160,7 @@ public actor LocationIngestor {
         effectiveAt: Date,
         dataGenerationID: WhereDataGenerationID,
     ) async throws {
+        guard !isRetired else { throw CancellationError() }
         let currentGenerationID: WhereDataGenerationID
         do {
             currentGenerationID = try await store
@@ -162,6 +169,7 @@ public actor LocationIngestor {
             await closeRecordingAuthority()
             throw error
         }
+        guard !isRetired else { throw CancellationError() }
         guard currentGenerationID == dataGenerationID else {
             await closeRecordingAuthority()
             throw RecordingPersistenceError.dataGenerationChanged
@@ -190,6 +198,7 @@ public actor LocationIngestor {
         guard confirmedGenerationID == dataGenerationID else {
             throw RecordingPersistenceError.dataGenerationChanged
         }
+        guard !isRetired else { throw CancellationError() }
         recordingAuthority = .open(dataGenerationID: dataGenerationID, effectiveAt: effectiveAt)
         await Self.logger.measure(.postPersist, budget: .seconds(2)) {
             await onPersisted(IngestOutcome(
@@ -217,7 +226,7 @@ public actor LocationIngestor {
     }
 
     private func installIngestTaskIfNeeded() {
-        guard ingestTask == nil else { return }
+        guard !isRetired, ingestTask == nil else { return }
         let stream = locationSource.sampleStream
         ingestTask = Task { [weak self] in
             for await sample in stream {
@@ -279,6 +288,25 @@ public actor LocationIngestor {
     /// samples captured during an earlier persistence outage.
     public func pause() async {
         await revokeRecordingAuthorization()
+    }
+
+    /// Permanently closes this scope before its controller joins work already in flight.
+    func retire() async {
+        isRetired = true
+        await pause()
+    }
+
+    /// Scope retirement retains the durable outbox but joins every owned stream/capture task.
+    public func shutdown() async {
+        await retire()
+        let ingestion = ingestTask
+        let capture = captureTask
+        ingestion?.cancel()
+        capture?.cancel()
+        await ingestion?.value
+        await capture?.value
+        ingestTask = nil
+        captureTask = nil
     }
 
     /// Pause GPS ingestion by stopping the underlying location monitoring.

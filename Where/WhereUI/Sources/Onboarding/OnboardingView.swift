@@ -313,7 +313,10 @@ public struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
-                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
+                    .disabled(
+                        flow.isFinishing || model.isCompletingOnboarding
+                            || flow.deviceDiscovery == .loading,
+                    )
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)

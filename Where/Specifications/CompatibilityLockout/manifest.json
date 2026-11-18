@@ -1,0 +1,133 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityLockout.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-more-checks",
+      "config": "CurrentMoreChecks.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-more-accounts",
+      "config": "CurrentMoreAccounts.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-repeated-recovery",
+      "config": "CurrentRepeatedRecovery.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "broken-verification",
+      "config": "BrokenVerification.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CurrentDecisionOnly is violated."
+    },
+    {
+      "name": "broken-opening",
+      "config": "BrokenOpening.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleScopeInstallation is violated."
+    },
+    {
+      "name": "broken-gps",
+      "config": "BrokenGPS.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RetiredScopeCannotReauthorizeGPS is violated."
+    },
+    {
+      "name": "broken-release",
+      "config": "BrokenRelease.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReleaseBeforeReplacement is violated."
+    },
+    {
+      "name": "stale-verification",
+      "config": "StaleVerification.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleVerificationNotReached is violated."
+    },
+    {
+      "name": "opening-lockout",
+      "config": "OpeningLockout.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OpeningLockoutNotReached is violated."
+    },
+    {
+      "name": "retired-pending-gps",
+      "config": "RetiredPendingGPS.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RetiredPendingGPSNotReached is violated."
+    },
+    {
+      "name": "recovery",
+      "config": "Recovery.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryNotReached is violated."
+    },
+    {
+      "name": "failed-open",
+      "config": "FailedOpen.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant FailedOpenNotReached is violated."
+    },
+    {
+      "name": "broken-recovery",
+      "config": "BrokenRecovery.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant BlockedScopeHasRetirement is violated."
+    },
+    {
+      "name": "broken-late-gps",
+      "config": "BrokenLateGPS.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReleasedScopeHasNoGPS is violated."
+    },
+    {
+      "name": "repeated-lockout",
+      "config": "RepeatedLockout.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RepeatedLockoutNotReached is violated."
+    },
+    {
+      "name": "broken-admission",
+      "config": "BrokenAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant AdmissionRequiresCurrentDecision is violated."
+    },
+    {
+      "name": "redundant-scope-epoch",
+      "config": "BrokenScopeEpoch.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "stale-scope-epoch",
+      "config": "StaleScopeEpoch.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleScopeEpochNotReached is violated."
+    },
+    {
+      "name": "broken-late-retirement",
+      "config": "BrokenLateRetirement.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoObsoleteTaskRetiresReplacement is violated."
+    },
+    {
+      "name": "broken-opening-admission",
+      "config": "BrokenOpeningAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleAdmissionInstallation is violated."
+    },
+    {
+      "name": "stale-admission",
+      "config": "StaleAdmission.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleAdmissionNotReached is violated."
+    }
+  ]
+}

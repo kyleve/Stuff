@@ -106,7 +106,7 @@ final class OnboardingFlowModel {
             phase = .intro
         }
         isFinishing = true
-        Task {
+        model.performOnboarding { [self] in
             do {
                 let context = try model.confirmInitialRecordingChoice(
                     isEnabled: recordingEnabled,
@@ -122,9 +122,20 @@ final class OnboardingFlowModel {
                 return
             }
 
+            if recordingEnabled {
+                do { try await model.installationLocation.requestPermission() }
+                catch { Self.logger.locationPermissionDenied() }
+            }
+            guard !Task.isCancelled else { return }
             let scope: WhereScope
             do {
                 scope = try await model.resolveScope()
+            } catch is DataCompatibilityFailure {
+                isFinishing = false
+                return
+            } catch is CancellationError {
+                isFinishing = false
+                return
             } catch {
                 Self.logger.scopeCreationFailed(
                     error: .restricted(.errorDetails, error),
@@ -136,10 +147,12 @@ final class OnboardingFlowModel {
             if let readyImport {
                 guard await importBackup(readyImport, into: scope, using: model) else { return }
             }
+            guard !Task.isCancelled else { return }
 
             do {
                 try await configureRecording(in: scope)
             } catch {
+                guard !Task.isCancelled else { return }
                 Self.logger.recordingConfigurationFailed(
                     error: .restricted(.errorDetails, error),
                 )
@@ -163,6 +176,7 @@ final class OnboardingFlowModel {
                     )
                 }
             }
+            guard !Task.isCancelled else { return }
             if !model.hasOnboarded {
                 model.completeOnboarding()
             }
@@ -178,7 +192,10 @@ final class OnboardingFlowModel {
                 async let scope = model.makeDemoScope()
                 async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
                 _ = try await settle
-                try await model.activateDemo(scope)
+                guard try await model.activateDemo(scope) else {
+                    intro.activity = .browsing
+                    return
+                }
                 gate.complete()
             } catch is CancellationError {
                 intro.activity = .browsing
@@ -276,6 +293,7 @@ final class OnboardingFlowModel {
             gate.fail(error)
             return false
         } catch {
+            guard !Task.isCancelled else { return false }
             restoreSelection.discardUncommittedSelection()
             await model.endSession()
             intro.activity = .failed(.init(flow: .restoreBackup, error: error))

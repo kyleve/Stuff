@@ -61,6 +61,8 @@
                 selectedYear: PreviewSupport.year,
                 preferences: scope.preferences,
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: now,
             )
             if let logStore = scope.logStore {
@@ -111,6 +113,8 @@
                 selectedYear: PreviewSupport.year,
                 preferences: preferences,
                 logSystem: logSystem,
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: now,
             )
             let report = YearReportModel(

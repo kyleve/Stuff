@@ -29,9 +29,9 @@ public struct TodayRegionsIntent: AppIntent {
                 services: services,
                 todaySnapshot: { [appGroupIdentifier = intentServices.appGroupIdentifier] in
                     do {
-                        return try WidgetSnapshotStore.shared(
+                        return try AppGroupDataAccess(
                             appGroupIdentifier: appGroupIdentifier,
-                        ).read()
+                        ).readWidgetSnapshot(version: .current)
                     } catch {
                         WhereIntentsLog.logger.widgetSnapshotReadFailed(
                             error: .restricted(

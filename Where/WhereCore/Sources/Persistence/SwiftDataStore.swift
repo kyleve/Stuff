@@ -476,6 +476,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }
         }
 
+        /// A configured cloud store stays local until this account has been verified.
+        public func admitted(for domain: DataCompatibilityDomain) -> Storage {
+            switch (self, domain) {
+                case let (.cloudKit(group), .local): .localOnly(appGroupIdentifier: group)
+                case (.inMemory, _), (.localOnly, _), (.cloudKit, .cloud): self
+            }
+        }
+
         /// Whether this mode opens a CloudKit-backed container.
         public var usesCloudKit: Bool {
             switch self {

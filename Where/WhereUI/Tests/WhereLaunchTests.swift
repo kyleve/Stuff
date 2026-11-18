@@ -77,7 +77,13 @@ struct WhereLaunchTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(services: services, preferences: preferences, logSystem: .isolated())
+        return WhereModel(
+            services: services,
+            preferences: preferences,
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+        )
     }
 
     /// Like `makeModel`, but returns the backing store and location source so a
@@ -97,7 +103,13 @@ struct WhereLaunchTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return (
-            WhereModel(services: services, preferences: preferences, logSystem: .isolated()),
+            WhereModel(
+                services: services,
+                preferences: preferences,
+                logSystem: .isolated(),
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            ),
             store,
             source,
         )
@@ -136,6 +148,8 @@ struct WhereLaunchTests {
                 installationContextStore: installationContextStore,
                 makeBootstrap: { _ in bootstrap },
                 logSystem: .isolated(),
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
                 now: now,
             ),
             bootstrap,
@@ -159,6 +173,7 @@ struct WhereLaunchTests {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
+            .compatibility,
             .activateDemo,
             .onboarding,
             .resolveScope,
@@ -327,6 +342,8 @@ struct WhereLaunchTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         let isNeeded = await OnboardingGate(model: model).isNeeded(())
@@ -356,6 +373,8 @@ struct WhereLaunchTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         let isNeeded = await OnboardingGate(model: model).isNeeded(())
@@ -378,6 +397,8 @@ struct WhereLaunchTests {
             installationContextStore: installationStore,
             makeBootstrap: { _ in FailingBootstrap() },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         let isNeeded = await OnboardingGate(model: model).isNeeded(())
@@ -488,6 +509,8 @@ struct WhereLaunchTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in FailingBootstrap() },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
@@ -532,6 +555,8 @@ struct WhereLaunchTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: logSystem,
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.activate(scope: .fake(
             services: services,
@@ -571,6 +596,8 @@ struct WhereLaunchTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: logSystem,
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.activate(scope: .fake(
             services: services,

@@ -441,6 +441,7 @@ struct SampleCorrectionCoordinatorTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             attributor: live,
+            liveAttribution: live,
             aggregator: SampleCorrectionTestSupport.aggregator,
             now: { FlightTrajectoryFixtures.date(minutes: 150) },
         )

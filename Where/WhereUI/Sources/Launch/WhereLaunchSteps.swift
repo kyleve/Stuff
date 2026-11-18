@@ -36,7 +36,7 @@ struct ActivateLaunchDemoStep: BudgetedLaunchStep {
 
 /// First-run onboarding and this installation's recording choice.
 /// Placed after the side-effect-free demo preflight and before every step that
-/// builds the user's world: no store is opened, no CloudKit is contacted, and no
+/// builds the user's world: no history store is opened and no
 /// session exists behind this while the user has not chosen.
 ///
 /// Unlike most gates it applies to **all** launch reasons rather than the
@@ -300,5 +300,27 @@ struct ResetPreferencesStep: BudgetedLaunchStep {
             // installation-context failure is therefore partial success, not a generic rollback.
             throw WhereServices.ResetCleanupError(underlying: error)
         }
+    }
+}
+
+/// Compatibility is recoverable, unlike a thrown launch step. It also parks headless launches.
+struct CompatibilityGate: LifecycleGate {
+    let model: WhereModel
+    let id = LaunchStepID.compatibility
+    let modes: LifecycleModeSet = .all
+
+    func isNeeded(_: Void) async -> Bool {
+        await model.compatibility.refresh(model: model)
+        return model.compatibility.isBlocking(model)
+    }
+}
+
+/// Void input prevents the runner from retaining the old session while its new gate is parked.
+struct SuspendCompatibilityStep: BudgetedLaunchStep {
+    let model: WhereModel
+    let id = LaunchStepID.suspendCompatibility
+    let budget: Duration = .seconds(3)
+    func run(_: Void, _: LifecycleStepContext) async throws {
+        await model.shutdownForCompatibility()
     }
 }

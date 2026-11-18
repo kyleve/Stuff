@@ -2505,6 +2505,138 @@
         }
       }
     },
+    "compatibility.checking.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking that this version of Where can use your data."
+          }
+        }
+      }
+    },
+    "compatibility.checking.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking iCloud"
+          }
+        }
+      }
+    },
+    "compatibility.openSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        }
+      }
+    },
+    "compatibility.permission.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device has recording turned on. Allow Always location access in Settings before it updates your shared data."
+          }
+        }
+      }
+    },
+    "compatibility.permission.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Background Recording"
+          }
+        }
+      }
+    },
+    "compatibility.recording.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version of Where needs a data update. Open the latest version on a device that records your location, then try again here."
+          }
+        }
+      }
+    },
+    "compatibility.recording.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Your Recording Device"
+          }
+        }
+      }
+    },
+    "compatibility.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "compatibility.update.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A recording device has updated your data. Install a newer version of Where to open it on this device. Your data has not been erased."
+          }
+        }
+      }
+    },
+    "compatibility.update.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Where"
+          }
+        }
+      }
+    },
+    "compatibility.verification.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to the internet and check that you are signed in to iCloud, then try again. Your data will stay closed until Where can verify its version."
+          }
+        }
+      }
+    },
+    "compatibility.verification.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to Verify Your Data"
+          }
+        }
+      }
+    },
     "demo.building.subtitle" : {
       "comment" : "Interstitial subtitle shown while demo mode's sample year is generated.",
       "extractionState" : "manual",
@@ -11647,6 +11779,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App Updates"
+          }
+        }
+      }
+    },
+    "widget.compatibility.message" : {
+      "comment" : "Widget recovery explanation; the widget does not open history while access is blocked.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your data needs to be checked before it can appear here."
+          }
+        }
+      }
+    },
+    "widget.compatibility.title" : {
+      "comment" : "Widget recovery title when the app must verify access to history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Where"
           }
         }
       }

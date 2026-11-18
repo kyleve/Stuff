@@ -75,6 +75,13 @@ through injection. Add another owner only when a genuinely separate process is
 introduced and its module documentation names that composition root. Delete the
 rule if production store construction becomes compiler-enforced by the API.
 
+## Compatibility transport ownership
+
+`where.compatibility_transport_ownership` confines production construction of `CloudKitDataCompatibilityTransport` to `RegularApplicationRuntime`.
+Inject its coordinator into consumers. The mutation test accepts runtime construction and rejects a competing UI owner with error severity.
+This rule checks construction ownership, not runtime admission or shutdown ordering. `WhereCompatibilityModelTests` and Core compatibility tests cover those decisions.
+Remove the rule if the type system enforces construction ownership.
+
 ## Checked concurrency boundaries
 
 `where.checked_concurrency_boundaries` rejects `@preconcurrency` throughout
@@ -107,7 +114,7 @@ construction in WhereCore, with one production-source exception for
 the assembled services through injection.
 
 `where.live_location_source_ownership` permits `CoreLocationSource`
-construction only in `WhereLaunch`. This makes the "intents never start GPS"
+construction only in `InstallationLocation`. This makes the "intents never start GPS"
 contract executable and keeps the live location source at the app process
 composition root.
 

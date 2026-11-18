@@ -36,6 +36,11 @@ layering, and the domain rules this target merely starts up.
 
 ## Invariants
 
+- Construct the CloudKit compatibility transport only in the regular runtime. Inject its coordinator into the model and every bootstrap.
+  Local-only builds must not verify or publish CloudKit metadata. Demo is subject to compatibility checks but its synthetic recording state must never publish metadata.
+  Forward compatibility subscription notifications to the process-owned monitor, including headless launches.
+  Guard: `where.compatibility_transport_ownership`.
+
 - Construct InstallerKit’s update service and model once in the regular runtime.
   Require the Development audience, valid local or published InstallerKit metadata, and a non-test
   process. Inject through `RootView`; foreground UI owns checking.
@@ -94,9 +99,14 @@ layering, and the domain rules this target merely starts up.
   `AppDependencyManager.shared.add(...)` call must stay at the top of
   `didFinishLaunching`. Then `@Dependency` always resolves once the system starts
   delivering intents.
+- **Forward aggregate scene activity from `WhereApp` to the runtime.** The regular
+  runtime owns activation-task cancellation, compatibility polling/refresh, and
+  session activation. Ignore duplicate activity values and recheck cancellation
+  and admission after awaits. `RootView` keeps scene-specific visibility for
+  presentation only. Guards: `WhereRuntimeActivityTests`, `LifecycleContainerTests`.
 - **The app launches `.undetermined`.** Under the UIScene lifecycle
   `applicationState` reads `.background` here even for a user tap. The reason
-  stays honest until `RootView`'s `enterForeground()` promotes it. Do not
+  stays honest until the runtime receives active scene input and promotes it. Do not
   substitute a guessed `.background(cause)` or `.userForeground`.
 - **`WhereShortcuts` lives here on purpose.** App Intents metadata extraction
   discovers phrases reliably from the main bundle. That is why the provider

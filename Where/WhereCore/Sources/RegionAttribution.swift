@@ -12,7 +12,7 @@ import RegionKit
 /// snapshot. Rebuilding (re-parsing the per-region GeoJSON) happens only when
 /// the tracked *set* actually changes, so reacting to every `changes()` ping
 /// stays cheap on the GPS hot path (a fetch + a set compare).
-final class RegionAttribution: RegionAttributing {
+final class RegionAttribution: RegionAttributing, WhereShutdownable {
     /// Serializes the background observer with explicit full-fan-out reconciliations. Actor
     /// isolation alone would still be reentrant across the store read, so ownership is handed
     /// directly to one waiter at a time.
@@ -47,8 +47,8 @@ final class RegionAttribution: RegionAttributing {
     private let store: any WhereStore
     private let state: OSAllocatedUnfairLock<State>
     private let reconciliationGate = ReconciliationGate()
-    /// Set once in `init` and only cancelled in `deinit`, so there's no
-    /// concurrent access to guard.
+    /// Assigned once in `init`, then only read by shutdown/deinit. Task cancellation
+    /// and joining are safe concurrently; the property is never reassigned.
     private nonisolated(unsafe) var observer: Task<Void, Never>?
 
     /// - Parameters:
@@ -78,6 +78,11 @@ final class RegionAttribution: RegionAttributing {
 
     deinit {
         observer?.cancel()
+    }
+
+    func shutdown() async {
+        observer?.cancel()
+        await observer?.value
     }
 
     private var current: RegionAttributor {

@@ -9,7 +9,7 @@ let whereProjectRules = RuleSet {
     )
     Rules.constructionOwnership(
         "CoreLocationSource",
-        allowed: RuleScope.files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"])
+        allowed: RuleScope.files(["Where/WhereUI/Sources/Launch/InstallationLocation.swift"])
             .union(nonWhereProductionScope),
         id: "where.live_location_source_ownership",
     )
@@ -17,6 +17,12 @@ let whereProjectRules = RuleSet {
         suffix: "Log",
         owner: whereLoggingScope.union(nonWhereProductionScope),
         id: "where.logging_type_ownership",
+    )
+    Rules.constructionOwnership(
+        "CloudKitDataCompatibilityTransport",
+        allowed: RuleScope.files(["Where/Where/Sources/RegularApplicationRuntime.swift"])
+            .union(nonWhereProductionScope),
+        id: "where.compatibility_transport_ownership",
     )
     reservedRegionLayoutOwnershipRule
     productionStoreOpeningRule

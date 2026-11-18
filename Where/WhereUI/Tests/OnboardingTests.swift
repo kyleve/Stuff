@@ -67,6 +67,8 @@ struct OnboardingModelTests {
             installationContextStore: contextStore,
             makeBootstrap: { _ in UnusedBootstrap() },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
     }
 

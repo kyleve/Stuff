@@ -56,6 +56,8 @@ struct DemoModeEnvironmentTests {
             services: makeServices(),
             preferences: makePreferences(),
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         #expect(try !readValue(from: model))
     }
@@ -67,8 +69,11 @@ struct DemoModeEnvironmentTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
-        try await model.activateDemo(model.makeDemoScope())
+        await model.compatibility.refresh(model: model)
+        #expect(try await model.activateDemo(model.makeDemoScope()))
 
         #expect(try readValue(from: model))
 

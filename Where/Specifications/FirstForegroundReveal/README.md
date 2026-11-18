@@ -7,10 +7,14 @@ launching phase or coalesces directly to ready, and must an interruption before
 the first uncovered frame keep that reveal owed without replaying on ordinary
 scene resumes afterward?
 
-The model represents production source at commit
-`0b80b463ebb3520cf902e9bbe2ee8e4a6b356976`. It is design evidence for the
+The original source mapping was captured at commit
+`0b80b463ebb3520cf902e9bbe2ee8e4a6b356976`. The 2026-11-17 runtime follow-up in
+[PR #495](https://github.com/kyleve/Stuff/pull/495) moves the promotion entry point
+from RootView to the regular runtime while retaining scene-specific visibility
+in RootView. That mapping was rechecked and all eight cases rerun; their
+verdicts and state counts remain unchanged. It is design evidence for the
 stated bounds and assumptions, not proof that SwiftUI or the implementation is
-correct. Changes to `RootView` foreground promotion, `LifecycleRunner` phase
+correct. Changes to runtime foreground promotion, `LifecycleRunner` phase
 publication, `LifecycleContainer`'s observation/task identities, or
 `LifecycleReadyRevealState` invalidate the result until this mapping is checked
 again.
@@ -27,7 +31,7 @@ case's verdict, generated/distinct-state count, and graph depth exactly.
 | `reason` | `LifecycleReason.buildsNoViewTree`; headless until `enterForeground()` changes the reason to `.userForeground` |
 | `sceneActive` | `LifecycleContainer.isPresentationVisible`, supplied by `RootView` from `scenePhase == .active`; unlike the launch reason, it may become false again |
 | `runnerPhase` | The `.launching` and `.ready` surfaces published by `LifecycleRunner.drive(reason:)` |
-| `BeginPromotion` | `RootView`'s active-scene entry into `LifecycleRunner.enterForeground()`, through the synchronous reason/launching publication before its first suspension |
+| `BeginPromotion` | `RegularApplicationRuntime`'s aggregate-active-scene entry into `LifecycleRunner.enterForeground()`, through the synchronous reason/launching publication before its first suspension |
 | `CompletePromotion` | The replacement foreground drive publishing `.ready`; `Render` may or may not interleave before it |
 | `dirty` / `Render` | A pending SwiftUI update and one evaluation of `LifecycleContainer.body` |
 | `installedTaskKey` | The identity installed by `.task(id: isReadyAndVisible)` |
@@ -41,10 +45,12 @@ case's verdict, generated/distinct-state count, and graph depth exactly.
 | `OrdinaryResume` | Later scene background/active cycles after promotion; the launch reason and ready phase stay unchanged |
 | `ResignActiveBeforeReveal` / `ReactivateBeforeReveal` | An active-scene interruption before content is committed, followed by the inactive render resetting an unrevealed positive-duration presentation and a later active presentation |
 
-The source entry points represented are `RootView.body`'s initial active-scene
-task and `scenePhase` change handler, `LifecycleRunner.enterForeground()`, and
-`LifecycleContainer.body`'s `onChange` and keyed task. The runner and reveal
-state execute on the main actor. `enterForeground()` splits where it awaits its
+The source entry points represented are `WhereApp`'s initial/changed aggregate
+scene input, the regular runtime's activation task, `LifecycleRunner.enterForeground()`, and
+`LifecycleContainer.body`'s `onChange` and keyed task. The runtime, runner, and reveal
+state execute on the main actor. The activation task checks cancellation and activity
+before promotion; input canceled before that point leaves the runner headless.
+RootView still supplies scene-specific presentation visibility. `enterForeground()` splits where it awaits its
 replacement drive; the reveal task splits at `Task.sleep`. The synchronous
 `onChange` callback is atomic with its modeled render because it has no
 suspension at which another main-actor action can interleave.

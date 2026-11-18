@@ -52,6 +52,8 @@ struct WhereResetTests {
             services: makeServices(status: status),
             preferences: preferences,
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
     }
 
@@ -71,7 +73,13 @@ struct WhereResetTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return (
-            WhereModel(services: services, preferences: preferences, logSystem: .isolated()),
+            WhereModel(
+                services: services,
+                preferences: preferences,
+                logSystem: .isolated(),
+                compatibility: .init(coordinator: .local(version: .current)),
+                installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            ),
             source,
         )
     }
@@ -108,7 +116,13 @@ struct WhereResetTests {
     @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
+        let model = WhereModel(
+            services: services,
+            preferences: preferences,
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+        )
         model.completeOnboarding()
         let session = try #require(model.session)
         // The scene's report model shares the coordinator's services (its store).
@@ -161,6 +175,8 @@ struct WhereResetTests {
             installationContextStore: makeInstallationRecordingContextStore(),
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
 
@@ -251,7 +267,13 @@ struct WhereResetTests {
     @Test func resetReturnsToOnboardingWithDataErased() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
+        let model = WhereModel(
+            services: services,
+            preferences: preferences,
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+        )
         model.completeOnboarding()
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
@@ -303,7 +325,13 @@ struct WhereResetTests {
         // reminders/summary off, and logged a day runs "Erase all data & reset".
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
+        let model = WhereModel(
+            services: services,
+            preferences: preferences,
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+        )
         let original = try #require(model.session)
         model.completeOnboarding()
         preferences.remindersEnabled = false
@@ -380,6 +408,8 @@ struct WhereResetTests {
             services: services,
             preferences: makePreferences(),
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
         var logOuts = 0
@@ -423,6 +453,8 @@ struct WhereResetTests {
             installationContextStore: contextStore,
             makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
         )
         model.completeOnboarding()
         var logOuts = 0

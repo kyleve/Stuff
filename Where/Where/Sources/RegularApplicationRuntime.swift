@@ -1,4 +1,5 @@
 import AppIntents
+import CloudKit
 import InstallerKit
 import LifecycleKit
 import PeriscopeCore
@@ -19,20 +20,13 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     let intentServices: IntentServices
     private let updates: UpdateModel?
     private let buildEnvironment: WhereBuildEnvironment
+    private let configuredStorage: SwiftDataStore.Storage
     private let widgetPresentationPublisher: WidgetPresentationPublisher
+    private var isSceneActive = false
+    private var foregroundTask: Task<Void, Never>?
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
-        /// Compiled into Debug device builds created by `Where/install --cloudkit`, so every
-        /// foreground, background, and CloudKit-push relaunch uses the same store mode.
-        static let isCloudKitValidationBuild: Bool = {
-            #if WHERE_CLOUDKIT_VALIDATION
-                true
-            #else
-                false
-            #endif
-        }()
-
         private let developerLaunchController: WhereDeveloperLaunchController?
 
         init(
@@ -43,6 +37,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             self.buildEnvironment = buildEnvironment
+            configuredStorage = buildEnvironment.storage
             updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             self.developerLaunchController = developerLaunchController
             intentServices = IntentServices(
@@ -53,9 +48,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             )
             model = Self.makeModel(
                 buildEnvironment: buildEnvironment,
-                storeStorage: buildEnvironment.storage(
-                    forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
-                ),
+                storeStorage: configuredStorage,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
@@ -73,6 +66,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
         ) {
             self.buildEnvironment = buildEnvironment
+            configuredStorage = buildEnvironment.storage
             updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
@@ -82,11 +76,40 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             )
             model = Self.makeModel(
                 buildEnvironment: buildEnvironment,
-                storeStorage: buildEnvironment.storage,
+                storeStorage: configuredStorage,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
             )
+        }
+    #endif
+
+    isolated deinit {
+        foregroundTask?.cancel()
+        model.compatibility.setForeground(false, model: model)
+    }
+
+    #if DEBUG
+        /// Tests inject an ordinary model/runner without registering another App Intents handoff.
+        init(
+            forTesting model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            buildEnvironment: WhereBuildEnvironment,
+        ) {
+            self.model = model
+            self.launcher = launcher
+            self.buildEnvironment = buildEnvironment
+            configuredStorage = buildEnvironment.storage
+            updates = nil
+            developerLaunchController = nil
+            intentServices = IntentServices(appGroupIdentifier: buildEnvironment.appGroupIdentifier)
+            widgetPresentationPublisher = WidgetPresentationPublisher(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
+        }
+
+        func waitForSceneActivityForTesting() async {
+            await foregroundTask?.value
         }
     #endif
 
@@ -114,6 +137,28 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
+        let installationLocation = InstallationLocation.live()
+        // Match SwiftData's CloudKit container. Signing entitlements select its
+        // Development or Production environment, independently of the app audience.
+        let transport: any DataCompatibilityTransport = storeStorage.usesCloudKit
+            ? CloudKitDataCompatibilityTransport(
+                containerIdentifier: "iCloud.com.stuff.where",
+                version: .current,
+            )
+            : LocalDataCompatibilityTransport(version: .current)
+        let receipts: any DataCompatibilityReceiptStoring = buildEnvironment.isRunningTests
+            ? InMemoryDataCompatibilityReceiptStore(receipt: nil)
+            :
+            AppGroupDataAccess(appGroupIdentifier: buildEnvironment
+                .appGroupIdentifier)
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .current,
+        )
+        let compatibility = WhereCompatibilityModel(coordinator: coordinator)
+        let widgetReloader = buildEnvironment.makeWidgetReloader()
+        compatibility.onAccessChanged = { widgetReloader.reload() }
         return WhereModel(
             preferences: preferences,
             installationContextStore: installationContextStore,
@@ -121,25 +166,45 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: storeStorage,
-                    widgetRefresher: buildEnvironment.makeWidgetRefresher(),
+                    makeWidgetRefresher: {
+                        buildEnvironment.makeWidgetRefresher(
+                            coordinator: coordinator,
+                            admission: $0,
+                        )
+                    },
                     locationOutbox: locationOutbox,
+                    compatibility: coordinator,
+                    installationLocation: installationLocation,
                 )
             },
             logSystem: .shared,
+            compatibility: compatibility,
+            installationLocation: installationLocation,
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )
     }
 
     func didFinishLaunching(
-        application _: UIApplication,
+        application: UIApplication,
         options _: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool {
         AppDependencyManager.shared
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
 
         WhereLaunch.startAmbientLogging(on: .shared)
-        model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.compatibility
+            .onBlocked = { [intentServices] failure in await intentServices.block(failure) }
+        model.onLoggedOut = { [intentServices, weak compatibility = model.compatibility] in
+            if case let .blocked(failure) = compatibility?.coordinator.state {
+                await intentServices.block(failure)
+            } else { await intentServices.clear() }
+        }
+        if configuredStorage.usesCloudKit {
+            // Register for silent compatibility updates; this does not request
+            // authorization to display notifications.
+            application.registerForRemoteNotifications()
+        }
         model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
             await widgetPresentationPublisher.publish(theme)
             guard !Task.isCancelled else { return }
@@ -160,6 +225,35 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
         return true
+    }
+
+    func didReceiveRemoteNotification(_ userInfo: [AnyHashable: Any]) async
+        -> UIBackgroundFetchResult
+    {
+        guard CKNotification(fromRemoteNotificationDictionary: userInfo)?.subscriptionID
+            == CloudKitDataCompatibilityTransport.subscriptionID else { return .noData }
+        await model.compatibility.refresh(model: model)
+        return .newData
+    }
+
+    /// App-level scene activity is aggregate: one inactive window cannot stop another active one.
+    func sceneActivityChanged(isActive: Bool) {
+        guard isActive != isSceneActive else { return }
+        isSceneActive = isActive
+        foregroundTask?.cancel()
+        model.compatibility.setForeground(isActive, model: model)
+        guard isActive, let launcher else { return }
+        foregroundTask = Task { [weak self, model, launcher] in
+            guard !Task.isCancelled, self?.isSceneActive == true else { return }
+            // Promotion precedes the first wait for admission so the splash is visible while
+            // foreground-only launch work runs. The runner still owns its headless drive.
+            await launcher.enterForeground()
+            guard !Task.isCancelled, self?.isSceneActive == true else { return }
+            await model.compatibility.refresh(model: model)
+            guard !Task.isCancelled, self?.isSceneActive == true,
+                  !model.compatibility.isBlocking(model) else { return }
+            await model.session?.appBecameActive()
+        }
     }
 
     func makeRootView() -> AnyView {

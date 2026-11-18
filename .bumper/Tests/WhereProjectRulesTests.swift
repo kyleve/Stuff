@@ -4,6 +4,26 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `compatibility transport belongs to the regular runtime`() throws {
+        let source = "func assemble() { _ = CloudKitDataCompatibilityTransport(containerIdentifier: \"test\") }"
+        let allowed = try evaluate(
+            path: "Where/Where/Sources/RegularApplicationRuntime.swift",
+            component: .app,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Model/CompetingCompatibilityOwner.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        let violation = try #require(rejected.violations.first)
+        #expect(rejected.violations.count == 1)
+        #expect(violation.rule.id == "where.compatibility_transport_ownership")
+        #expect(violation.rule.severity == .error)
+    }
+
+    @Test
     func `system reserved regions use one geometry adapter`() throws {
         let source = "let regions = proxy.reservedRegions(kind: .division, options: .includeInactive, layoutDirectionBehavior: .fixed)"
         let allowed = try evaluate(
@@ -118,11 +138,11 @@ struct WhereProjectRulesTests {
     }
 
     @Test
-    func `only WhereLaunch constructs the live location source`() throws {
+    func `only InstallationLocation constructs the live location source`() throws {
         let allowed = try evaluate(
-            path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
+            path: "Where/WhereUI/Sources/Launch/InstallationLocation.swift",
             component: .whereUI,
-            source: "func assemble() { _ = CoreLocationSource() }",
+            source: "func assemble() { _ = InstallationLocation(makeSource: { CoreLocationSource() }) }",
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereIntents/Sources/CompetingLocationSource.swift"
@@ -132,11 +152,19 @@ struct WhereProjectRulesTests {
             source: "func assemble() { _ = CoreLocationSource() }",
         )
 
+        let formerOwner = try evaluate(
+            path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
+            component: .whereUI,
+            source: "func assemble() { _ = InstallationLocation(makeSource: { CoreLocationSource() }) }",
+        )
+        #expect(formerOwner.violations.count == 1)
+        #expect(formerOwner.violations.first?.rule.id == "where.live_location_source_ownership")
         #expect(allowed.violations.isEmpty)
         let violation = try #require(rejected.violations.first)
         #expect(rejected.violations.count == 1)
         #expect(violation.rule.id == "where.live_location_source_ownership")
         #expect(violation.path == rejectedPath)
+        #expect(violation.rule.severity == .error)
     }
 
     @Test
