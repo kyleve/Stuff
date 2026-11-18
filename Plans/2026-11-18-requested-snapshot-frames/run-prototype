@@ -10,6 +10,7 @@ cd "$repo"
 
 banner="$repo/Where/WhereUI/SnapshotTests/BannerFrameProbeTests.swift"
 locations="$repo/Where/WhereUI/Tests/LocationsFrameProbeTests.swift"
+reuse="$repo/Where/WhereUI/SnapshotTests/FrameReuseProbeTests.swift"
 
 # Register each destination before linking, so an interrupt cannot strand a probe.
 # Private source inodes let cleanup distinguish this run from another invocation.
@@ -53,7 +54,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-for name in "$banner" "$locations"; do
+for name in "$banner" "$locations" "$reuse"; do
     source="$staging/${name##*/}"
     cp "$probe_dir/${name##*/}" "$source"
     installed+=("$name")
@@ -73,11 +74,11 @@ for scheme in banner locations; do
             flags+=(--no-generate --skip-architecture --skip-host-tests)
         fi
         if [[ "$scheme" == banner ]]; then
-            cases=(--only WhereUISnapshotTests/BannerFrameProbeTests)
+            cases=(--only WhereUISnapshotTests/BannerFrameProbeTests --only WhereUISnapshotTests/FrameReuseProbeTests)
         else
             cases=(--only WhereUITests/LocationsFrameProbeTests)
         fi
-        TEST_RUNNER_REQUESTED_FRAME_PASS="$pass" \
+        TEST_RUNNER_REQUESTED_FRAME_CACHE="$output/cache" TEST_RUNNER_REQUESTED_FRAME_PASS="$pass" \
             TEST_RUNNER_REQUESTED_FRAME_OUTPUT="$output/$pass" \
             TEST_WORKDIR="$output/$pass/$scheme-test" ./test ${flags[@]+"${flags[@]}"} \
             --record never --timings --review "${cases[@]}"
