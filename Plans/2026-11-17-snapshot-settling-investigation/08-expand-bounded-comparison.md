@@ -1,6 +1,6 @@
 # 08 — Expand bounded reference comparison
 
-- Status: executing
+- Status: complete
 - Depends on: [07](07-overlap-snapshot-work.md).
 - Shared context: [Overview](README.md), R-04, R-08, Q-11, X-02–X-04.
 - Authorization: The user requested all proposed follow-ups on 2026-11-17.
@@ -137,3 +137,5 @@ Worker test phases are 300.789 / 335.817 / 368.115 / 364.230s, aggregate work 1,
 The bounded experiment therefore closes with promising local evidence but insufficient reliability evidence for adoption. The trace repair remains. PNG processing must be evaluated again at the retained 8M budget; its completed 12M trials are conditional evidence only. Cleanup review, focused checks, and publication of this retained default are the remaining delivery steps.
 
 The restored source passes the same 31 focused framework functions (`cap-retained-tests`, 18.721s test phase). Swift formatting and whitespace checks pass. Independent cleanup review verifies every module Swift file is byte-identical to parent `6d55f21e5`, including the 8M constant and real 9M fallback. The trace writer/collector remain; all prototype controls are absent. All 103 CI evidence hashes and raw capture/call/test counts reconcile. Publish this retained default and continue PNG trials at 8M.
+
+Delivery: retained-default decision and validation records are published in PR #529 at `edb688245`. The trace implementation remains published on PR #524 at `c6ad51144`. Independent cleanup review reports no blockers.

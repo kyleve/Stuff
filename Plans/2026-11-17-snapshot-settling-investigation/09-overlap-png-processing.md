@@ -112,3 +112,31 @@ All four integrated trials finish with 110 captures, six functions, matching sou
 Test-body savings recur (1.665683s and 1.654862s), exceeding the 0.220634s control variation. End-to-end gains are 0.184s and 3.763s; the first is below control variation. Strict comparisons preserve all dimensions. One Adaptive Locations pixel varies by two units in both the first pair and control/control, matching the known two-variant investigation. Other changes stay within one unit. Memory remains below the existing gate.
 
 These results use 12M, whose separate CI validation recovers two settling timeouts. Plan 08 therefore retains 8M. The four runs remain conditional evidence; they do not establish the PNG candidate's accepted-baseline benefit. Save the exact source at `png-timed-source/`, restore the accepted cap, then repeat two pairs at 8M before deciding whether full-suite gates are justified. No PNG implementation is selected yet.
+
+### Retained-baseline execution
+
+Plan 08 completes with 8M retained at `edb688245`. `retained-cap-source/` preserves that clean module. The reviewed PNG prototype is reapplied with the 8M constant and original 9M serial-fallback guard; `png8-timed-source/` freezes it. Regenerate for the added test file, rerun the framework guards, and then execute eager / worker / worker / eager without rebuilding between timing runs. Results must stand on this baseline independently of the earlier 12M trials.
+
+The retained-baseline framework run passes all 179 functions (`png8-framework`, 89.182s test phase). The four same-binary timing runs now proceed at 8M. The earlier 12M Adaptive Locations variants also match both known independent serial PNG hashes exactly; `png12-drift-oracle.json` records those paths and hashes. No performance conclusion is carried across the cap change.
+
+
+## Retained-baseline result: keep eager PNG processing
+
+All four 8M runs pass 110 captures / six functions without retries. Source hashes, identities, 558,607,431 pixels, 114 tiles, and policies match.
+
+| Mode | Test phase | Exact test bodies | Sampled host peak |
+| --- | ---: | ---: | ---: |
+| Eager 1 | 107.765s | 92.510568s | 1,601.15625MiB |
+| Worker 1 | 104.381s | 91.197600s | 1,653.09375MiB |
+| Worker 2 | 107.886s | 92.606123s | 1,424.640625MiB |
+| Eager 2 | 108.677s | 93.513350s | 1,397.71875MiB |
+
+Mean test-body time improves 1.110098s (1.19%), but the second pair's 0.907227s improvement is below the 1.002782s control variation. Test-phase gains are 3.384s and 0.791s, with 0.912s control variation. The predeclared repeated-benefit gate is not met. This is inconclusive evidence for a small gain, not proof that background PNG processing cannot help. Do not advance to the conditional full-suite or CI adoption gates.
+
+Peak sampled host memory rises 51.9375MiB against the larger control, below the 256MiB gate. Strict comparisons preserve every dimension. One Adaptive Locations pixel differs by two units in the first pair; each whole PNG matches a known independent delayed serial variant. The second pair and control/control stay within one unit. No reference or tolerance changes are made.
+
+Restore the exact retained 8M source from `edb688245`, including eager PNG normalization and its existing API. Remove every PNG experiment switch, exporter, source change, and added test. Preserve both budgets' source copies, all eight runs, strict comparisons, exact test durations, and framework evidence. The prototype's normalization-cancellation defect was fixed and guarded before timing; the retained implementation already has its original cancellation boundary. Plan 10 now uses the accepted eager-PNG/8M pipeline.
+
+Cleanup source verification succeeds: every SnapshotKitTesting Swift file is byte-identical to `retained-cap-source/`. Regeneration, focused checks, independent evidence/cleanup review, and publication remain before completion.
+
+Final cleanup passes generation, 31 focused reference/pipeline/timing/trace functions (18.738s test phase), whitespace checks, and independent completed-diff review. All 70 module Swift files match `edb688245`. The artifact directory `snapshot-followup-results/png/` preserves 1,224 files with verified SHA-256 hashes, including both budgets' exact source, all eight timing runs, 179-function guard logs, strict PNG comparisons, and cleanup logs. Publish the inconclusive result, then integrate plan 10 against eager PNG/8M.
