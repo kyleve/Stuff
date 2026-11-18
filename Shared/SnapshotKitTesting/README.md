@@ -275,6 +275,15 @@ sheet composition and PNG encoding. Reference comparison and artifact writes are
 outside the timer. A comparator mismatch produces a measurement, while a capture
 or export error fails the test. The experiment writes only to its output directory.
 
+The [remaining-suite experiment](../../Plans/2026-11-18-requested-snapshot-frames/05-suite-coverage.md)
+uses the same arms. Fixed viewports already attach once and keep their usual
+settle. For measured accessibility captures, the retained arms attach the annotation
+controller before measuring the subject. They apply the annotation padding after
+measurement, keep the original capture and parsing waits, and size the final
+image from the parsed annotations. The attachment count measures the outer
+wrapper on the host root. AccessibilitySnapshot can also temporarily move a
+tall subject while tiling its annotated image.
+
 Timing also emits versioned `SNAPSHOT_SETTLE_TRACE` JSON rows, one per settling
 call. Each row carries a capture UUID, call ordinal, reason, policy, outcome,
 and ordered pass observations. Reasons distinguish measurement, content, native

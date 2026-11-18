@@ -371,15 +371,16 @@ func renderSnapshotCaptureLocked(
                 ?? settleTimeoutPolicy.maximumDuration(for: settle),
             safeAreaInsets: safeAreaInsets,
             hostedIn: hostRoot,
-            retainWrapper: timing.mountTrial?.retainsMeasuredWrapper == true && !isAccessibility,
+            retainWrapper: timing.mountTrial?.retainsMeasuredWrapper == true,
+            isAccessibility: isAccessibility,
             window: window,
             timing: timing,
             settleTimeoutPolicy: settleTimeoutPolicy,
         )
 
-        let captureViewController: UIViewController = isAccessibility
+        let captureViewController = measuredWrapper?.content ?? (isAccessibility
             ? AccessibilitySnapshotViewController(wrapping: viewController)
-            : viewController
+            : viewController)
         let wrappingViewController = measuredWrapper ??
             SnapshotWrappingViewController(captureViewController)
 
@@ -392,6 +393,8 @@ func renderSnapshotCaptureLocked(
             if measuredWrapper == nil {
                 hostChildForCapture(wrappingViewController, in: hostRoot, timing: timing)
             } else {
+                (captureViewController as? AccessibilitySnapshotViewController)?
+                    .fitRetainedSubject(addingAnnotationPadding: true)
                 wrappingViewController.view.frame.size = captureViewController.view.frame.size
             }
             wrappingViewController.view.setNeedsLayout()
@@ -408,7 +411,9 @@ func renderSnapshotCaptureLocked(
 
         if timing.mountTrial != nil {
             if isAccessibility {
-                timing.recordMountPath("accessibility")
+                timing
+                    .recordMountPath(measuredWrapper == nil ? "accessibility" :
+                        "retainedAccessibility")
             } else if case .fixed = sizing {
                 timing.recordMountPath("fixed")
             } else {
@@ -432,7 +437,8 @@ func renderSnapshotCaptureLocked(
         // The early arm changes only ordinary content settling. Insets, actions,
         // scroll reset, accessibility and raised floors keep the declared policy.
         let earlyContent = timing
-            .mountTrial == .early && measuredWrapper != nil && settle == .settled
+            .mountTrial == .early && measuredWrapper != nil && !isAccessibility && settle ==
+            .settled
             && prepareForCapture == nil && onReadyToSnapshot == nil
         if earlyContent { timing.recordEarlyContent() }
         try await throwIfUnsettled(
@@ -703,6 +709,7 @@ private func resolveContentSize(
     safeAreaInsets: UIEdgeInsets?,
     hostedIn hostRoot: UIViewController,
     retainWrapper: Bool,
+    isAccessibility: Bool,
     window: UIWindow,
     timing: SnapshotCaptureTiming,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
@@ -723,11 +730,18 @@ private func resolveContentSize(
             )
     }
 
+    let annotationHost = isAccessibility && retainWrapper
+        ? AccessibilitySnapshotViewController(wrapping: viewController)
+        : nil
+    func setMeasurementFrame(_ size: CGSize) {
+        viewController.view.frame = CGRect(origin: .zero, size: size)
+        annotationHost?.fitRetainedSubject(addingAnnotationPadding: false)
+    }
     let probeWrapper = timing.measure(.intrinsicMeasure) {
         resizeHostWindow(window, root: hostRoot, to: probeSize)
-        viewController.view.frame = CGRect(origin: .zero, size: probeSize)
+        setMeasurementFrame(probeSize)
 
-        let wrapper = SnapshotWrappingViewController(viewController)
+        let wrapper = SnapshotWrappingViewController(annotationHost ?? viewController)
         hostChildForCapture(wrapper, in: hostRoot, timing: timing)
         wrapper.view.setNeedsLayout()
         CATransaction.performWithoutAnimation(wrapper.view.layoutIfNeeded)
@@ -739,6 +753,10 @@ private func resolveContentSize(
         if !transferred {
             viewController.willMove(toParent: nil)
             viewController.removeFromParent()
+            if let annotationHost {
+                viewController.view.removeFromSuperview()
+                removeChildAfterCapture(annotationHost)
+            }
             removeChildAfterCapture(probeWrapper)
         }
     }
@@ -802,7 +820,7 @@ private func resolveContentSize(
                 var didConverge = false
                 for _ in 0 ..< 10 {
                     resizeHostWindow(window, root: hostRoot, to: measured)
-                    viewController.view.frame = CGRect(origin: .zero, size: measured)
+                    setMeasurementFrame(measured)
                     probeWrapper.view.frame.size = measured
                     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
                     let remeasured = measureIntrinsicContent(
@@ -827,7 +845,7 @@ private func resolveContentSize(
             }
 
             timing.measure(.intrinsicMeasure) {
-                viewController.view.frame = CGRect(origin: .zero, size: measurement.0)
+                setMeasurementFrame(measurement.0)
                 CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
             }
         case let .fullContent2D(minimumSize):
@@ -864,7 +882,7 @@ private func resolveContentSize(
                 )
                 timing.measure(.intrinsicMeasure) {
                     resizeHostWindow(window, root: hostRoot, to: measurement.size)
-                    viewController.view.frame = CGRect(origin: .zero, size: measurement.size)
+                    setMeasurementFrame(measurement.size)
                     probeWrapper.view.frame.size = measurement.size
                     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
                 }
@@ -890,7 +908,7 @@ private func resolveContentSize(
             )
 
             timing.measure(.intrinsicMeasure) {
-                viewController.view.frame = CGRect(origin: .zero, size: measurement.size)
+                setMeasurementFrame(measurement.size)
                 CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
                 if let scrollView = measurement.scrollView {
                     scrollView.setContentOffset(
