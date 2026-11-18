@@ -35,15 +35,16 @@ struct SnapshotReferenceDiffTests {
         #expect(reason.contains("sizes differ"))
     }
 
-    @Test func magnitudeLocalizesTheChangedRegion() throws {
-        let size = CGSize(width: 20, height: 20)
+    @Test(arguments: [
+        CGRect(x: 3, y: 2, width: 5, height: 4),
+        CGRect(x: 18, y: 6, width: 1, height: 1),
+        CGRect(x: 0, y: 0, width: 19, height: 7),
+    ])
+    func magnitudeLocalizesTheChangedRegion(_ patch: CGRect) throws {
+        let size = CGSize(width: 19, height: 7)
         let reference = try #require(solidImage(.black, size: size).pngData())
         let url = try write(reference, named: "region.png")
-        // A 5x4 white patch at (3, 2) on an otherwise black field.
-        let captured = try #require(
-            solidImage(.black, size: size, patch: CGRect(x: 3, y: 2, width: 5, height: 4))
-                .pngData(),
-        )
+        let captured = try #require(solidImage(.black, size: size, patch: patch).pngData())
 
         guard case let .differs(magnitude) = compareAgainstReference(
             capturedPNG: captured,
@@ -52,13 +53,29 @@ struct SnapshotReferenceDiffTests {
             Issue.record("expected a patched image to differ")
             return
         }
-        #expect(magnitude.changedRegion == CGRect(x: 3, y: 2, width: 5, height: 4))
-        #expect(magnitude.differingPixels == 20)
-        #expect(magnitude.totalPixels == 400)
-        #expect(magnitude.differingFraction == 0.05)
+        let changedPixelCount = Int(patch.width * patch.height)
+        #expect(magnitude.changedRegion == patch)
+        #expect(magnitude.differingPixels == changedPixelCount)
+        #expect(magnitude.totalPixels == 133)
+        #expect(magnitude.differingFraction == Double(changedPixelCount) / 133)
         // Black to white is the full range, which is what separates a moved
         // region from drifted antialiasing at the same pixel count.
         #expect(magnitude.maxChannelDelta == 255)
+    }
+
+    @Test func alphaOnlyChangesReportZeroRGBDifference() throws {
+        let size = CGSize(width: 19, height: 7)
+        let reference = try #require(solidImage(.black, size: size).pngData())
+        let url = try write(reference, named: "alpha.png")
+        let captured = try #require(solidImage(.black.withAlphaComponent(0.5), size: size)
+            .pngData())
+
+        #expect(compareAgainstReference(capturedPNG: captured, referenceURL: url) == .differs(.init(
+            differingPixels: 0,
+            totalPixels: 133,
+            maxChannelDelta: 0,
+            changedRegion: .zero,
+        )))
     }
 
     @Test func reportEmitsNothingForAByteIdenticalCapture() {

@@ -123,7 +123,7 @@ It cannot distinguish slower motion inside that allowance from noise, or detect 
 Readiness hooks and measured minimum durations remain necessary for asynchronous content and native glass adaptation.
 Final reference comparisons keep their existing tolerances and use the full capture after PNG encoding and decoding.
 Ordinary assertions reuse those PNG bytes for comparison, diagnostics, and recording.
-Comparison sheets encode a new PNG after composition to include their panel map.
+Comparison sheets attach their panel map to the composed PNG with ImageIO's lossless metadata copy.
 
 ## Quick start
 
@@ -346,6 +346,7 @@ its metadata when copying references; image optimizers that strip metadata inval
 cutsheet references.
 
 Single views and cutsheets share configured capture and reference recording helpers.
+The final SwiftUI grid contains captured images and fixed-font labels. It uses immediate hosted layout and validates the observed panel bounds before writing the sheet.
 Each panel's hosting view uses the sheet's fixed white background, including in dark mode.
 This fills transparent margins without changing component layout. A component's own background remains visible above it.
 Panels retain independent settling and fresh fixtures. The runner compares panels

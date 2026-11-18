@@ -19,18 +19,20 @@ struct SnapshotImageGridTests {
         #expect(layout.panels.map(\.identity) == panels.map(\.identity))
         #expect(layout.panels[2].bounds.minX == layout.panels[0].bounds.minX)
         #expect(layout.panels[2].bounds.minY > layout.panels[0].bounds.maxY)
+        let diff = Snapshotting<UIImage, UIImage>.image(precision: 1, perceptualPrecision: 1)
         for (panel, placement) in zip(panels, layout.panels) {
             let crop = try #require(pixels.cropping(to: placement.bounds))
             let original = try #require(panel.image.cgImage)
             #expect(crop.width == original.width)
             #expect(crop.height == original.height)
-            let diff = Snapshotting<UIImage, UIImage>.image(precision: 1, perceptualPrecision: 1)
             #expect(diff.diffing.diffV2(
                 UIImage(cgImage: original),
                 UIImage(cgImage: crop),
             ) == nil)
         }
-        #expect(try SnapshotImageReference(png: capture.pngData()).layout == layout)
+        let encoded = try SnapshotImageReference(png: capture.pngData())
+        #expect(encoded.layout == layout)
+        #expect(diff.diffing.diffV2(UIImage(cgImage: pixels), encoded.image) == nil)
     }
 
     @Test func wrapsLongLabelsWithoutClippingOrMovingPanelPixels() async throws {

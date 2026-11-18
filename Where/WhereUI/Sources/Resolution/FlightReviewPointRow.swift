@@ -49,6 +49,8 @@ extension FlightPointCorrection.Action {
 
     extension FlightReviewPointRow: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            // Point content is supplied synchronously and the map has a fixed height.
+            // Keep final settling for the hosted Form and map surface.
             let review = PreviewSupport.flightReview(state: .ready)
             let point = review.points[1]
             let include = FlightPointCorrection(
@@ -63,6 +65,7 @@ extension FlightPointCorrection.Action {
                     SnapshotConfiguration(contrast: .increased, device: .iPhoneFullContent),
                     SnapshotConfiguration(device: .iPadFullContent),
                 ],
+                measurementReadiness: .immediate,
             ) {
                 Form {
                     FlightReviewPointRow(point: .init(
@@ -75,7 +78,11 @@ extension FlightPointCorrection.Action {
                     ), select: { _ in })
                 }
             }
-            whereSnapshot(name: "Restore", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "Restore",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 Form {
                     FlightReviewPointRow(point: .init(
                         point: SampleCorrectionPoint(sample: point.sample, regions: []),
@@ -89,7 +96,11 @@ extension FlightPointCorrection.Action {
                     ), select: { _ in })
                 }
             }
-            whereSnapshot(name: "Ground", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "Ground",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 Form {
                     FlightReviewPointRow(point: .init(
                         point: review.points[0],
