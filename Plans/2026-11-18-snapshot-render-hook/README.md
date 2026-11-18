@@ -2,7 +2,7 @@
 
 ## Checkpoint
 
-The repository owner approved a real-host experiment with SwiftUI’s test-render hook and asked whether the 250ms default might be necessary only for Liquid Glass controls. This follows [PR 533](https://github.com/kyleve/Stuff/pull/533) at `c23b824da`. The [experiment](01-render-hook-and-glass.md) runs on `perf/snapshot-render-hook`. The coordinator owns serial simulator runs, acceptance and publication. Separate investigators own the temporary renderer, hosted controls and image/trace analysis. [STU-121](https://linear.app/kve/issue/STU-121) tracks snapshot performance.
+The repository owner approved a real-host experiment with SwiftUI’s test-render hook and asked whether the 250ms default might be necessary only for Liquid Glass controls. This follows [PR 533](https://github.com/kyleve/Stuff/pull/533) at `c23b824da`. The [experiment](01-render-hook-and-glass.md) runs on `perf/snapshot-render-hook`. The coordinator owns serial simulator runs, acceptance and publication. Separate investigators own the temporary renderer, hosted controls and image/trace analysis. The matched hosted witness disproved the universal glass-only rule. Ordinary and floor-only output matched a fresh delayed control for all 60 focused captures. The remaining checks cover the second private hook, early measurement frames, the error-card opt-in and a full-suite floor-only run. [STU-121](https://linear.app/kve/issue/STU-121) tracks snapshot performance.
 
 ## Questions and acceptance
 
