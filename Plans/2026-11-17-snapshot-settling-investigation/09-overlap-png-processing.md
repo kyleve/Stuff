@@ -88,3 +88,27 @@ Status advanced through ready to executing after this source/contract review. Sc
 The isolated prototype initially moved configured normalization outside `SnapshotCaptureRetry.capture` without retaining its post-operation cancellation check. Cancellation during synchronous PNG encoding could therefore return a successful one-off capture. The prototype now checks cancellation before and after normalization, and gives cancellation precedence when encoding also fails. A deterministic configured-capture guard cancels inside the injected encoder for both successful and failed encodes. This is a source fix awaiting compilation and runtime evidence; it is not claimed verified yet.
 
 Independent re-review clears this source finding and confirms that both new parameterized cases exercise the actual facade task. Compilation and runtime evidence remain pending; no source has been applied to the active benchmark.
+
+## Integrated prototype
+
+The selected 12M baseline is published at `f509814bb`; its final CI gate runs independently. The PNG prototype is now applied locally against that budget, preserving the inherited complete-line diagnostic writer. `accepted-cap-source/` retains the clean baseline; `png-timed-source/` freezes the tested prototype. No sampling changes are applied.
+
+Generation and compilation succeed. `TEST_RUNNER_SNAPSHOT_EXPERIMENT_BACKGROUND_PNG=1 ./test --no-generate --only SnapshotKitTestingTests` passes all 179 framework functions, including rendered PNG equality at three scales, off-main encoding, cancellation during both successful and failed normalization, ordered encoding failure, bounded worker lifetime, and existing capture/restoration guards. The previously reported cancellation source finding is now covered by runtime evidence.
+
+Two same-binary focused pairs are running in eager / background / background / eager order, with 12M fixed and identical completed-result PNG export. Source and simulator workloads remain isolated until they finish. This is experiment execution, not adoption; elapsed, fidelity, resources, full-suite, and CI gates remain pending.
+
+
+### Conditional 12M results and baseline correction
+
+All four integrated trials finish with 110 captures, six functions, matching source/identity/geometry/policy, and zero retries:
+
+| Mode | Test phase | Exact test bodies | Sampled host peak |
+| --- | ---: | ---: | ---: |
+| Eager 1 | 103.999s | 90.356812s | 1,465.625MiB |
+| Worker 1 | 103.815s | 88.691129s | 1,484.203MiB |
+| Worker 2 | 101.638s | 88.481317s | 1,489.8125MiB |
+| Eager 2 | 105.401s | 90.136178s | 1,460.421875MiB |
+
+Test-body savings recur (1.665683s and 1.654862s), exceeding the 0.220634s control variation. End-to-end gains are 0.184s and 3.763s; the first is below control variation. Strict comparisons preserve all dimensions. One Adaptive Locations pixel varies by two units in both the first pair and control/control, matching the known two-variant investigation. Other changes stay within one unit. Memory remains below the existing gate.
+
+These results use 12M, whose separate CI validation recovers two settling timeouts. Plan 08 therefore retains 8M. The four runs remain conditional evidence; they do not establish the PNG candidate's accepted-baseline benefit. Save the exact source at `png-timed-source/`, restore the accepted cap, then repeat two pairs at 8M before deciding whether full-suite gates are justified. No PNG implementation is selected yet.

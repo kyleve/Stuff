@@ -49,3 +49,8 @@ Both #2544 and #2545 finish 78 functions but recover the same DeviceLayoutLab ti
 ## Resume point
 
 The repair is committed and pushed as `c6ad51144` on PR #524; all dependent branches rebased cleanly. Ten collector tests, 13 hosted trace/timing functions, the old-parser mutation, generation, scoped Ruff/Swift formatting, and independent completed-diff review pass. The source preserves payload schemas and rejects the second raw mid-record failure. Fresh CI transport validation remains pending with the selected 12M candidate.
+
+
+## Final transport evidence
+
+CI #2554 at `f509814bb` includes the published repair `c6ad51144`. Strict staging and independent reconciliation succeed for all 935 captures, 78 functions, and 1,820 settling calls, including both timeout attempts. The collector preserves their failure evidence rather than dropping or repairing partial records. All 31 relevant framework guards pass in CI. The complete-line writer remains a mitigation, not a guarantee against downstream corruption; strict transport validation remains required. The larger comparison budget fails its separate reliability gate, which does not invalidate this transport result. Final evidence is hash-verified under `snapshot-followup-results/cap-ci/`.

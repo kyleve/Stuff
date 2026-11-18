@@ -60,15 +60,18 @@ retains the paired controls, independent delayed oracle, full-suite gates, raw a
 
 ## Comparison pixel budget — 2026-11-17
 
-The current follow-up selects a 12-million-pixel worker limit. Interleaved 8M/12M/16M trials favor 12M as the smaller promising budget.
-The full local 8M/12M pair preserves 935 captures, geometry, policies, and zero retries; test elapsed falls 808.627s → 791.816s (2.08%).
-Sampled host RSS rises 25.766MiB, below the unchanged resource gate. Settling render work remains essentially flat.
-Real 9M and 16M reference guards cover the expanded eligibility and retained serial fallback.
+Retain the 8-million-pixel worker limit. Interleaved 8M/12M/16M trials favored 12M locally, and the full local 8M/12M pair
+preserved 935 captures, geometry, policies, and zero retries. Test elapsed fell 808.627s → 791.816s (2.08%);
+sampled host RSS rose 25.766MiB. These results did not satisfy the final reliability gate.
 
-Strict comparisons retain two one-pixel, two-unit exceptions. Adaptive Locations matches independent delayed serial variants.
-The other is an unreproduced two-unit pixel in a small phone glyph on the unchanged serial HTML path; renderer/environment variation is inferred.
+[CI #2554](https://app.circleci.com/pipeline/0efb76ac-3355-4b74-a809-bd8645c67707) at `f509814bb` passes every job,
+but DeviceLayoutLab and MainTabs each recover one settling timeout. This does not establish that the larger cap caused either retry.
+It fails the experiment's no-added-retry gate, so the default and real 9M serial-fallback guard return to 8M.
+Complete traces reconcile all 935 captures, 78 functions, and 1,820 settling calls, validating the inherited trace transport repair.
+
+Strict local comparisons retain two one-pixel, two-unit exceptions. Adaptive Locations matches independent delayed serial variants.
+The other is an unreproduced pixel in a small phone glyph on the unchanged serial HTML path; renderer/environment variation is inferred.
 No references or tolerances change. The [plan-08 investigation](../../../Plans/2026-11-17-snapshot-settling-investigation/08-expand-bounded-comparison.md) records exact values and limits.
-Thirty-one focused framework functions pass, including the area guards, bounded overlap, cancellation, recording, and timing. Isolated CI validation of 12M remains pending.
 The bounded phase-7 CI repeat yields two clean candidates but no new complete pair, so it establishes no CI elapsed improvement.
 
 ## Public UI update callbacks — 2026-11-17
