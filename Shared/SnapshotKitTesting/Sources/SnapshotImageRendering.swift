@@ -229,6 +229,16 @@ public func renderSnapshotImage(
     public let pngData: Data
 }
 
+extension SnapshotCapture {
+    /// Preserve scale so comparison sees the same pixels as the PNG on disk.
+    init(normalizing image: UIImage, named name: String) throws {
+        guard let pngData = image.pngData(),
+              let decoded = UIImage(data: pngData, scale: image.scale)
+        else { throw SnapshotRenderingError.pngEncodingFailed(name: name) }
+        self.init(image: decoded, pngData: pngData)
+    }
+}
+
 /// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:scenePolicy:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:prepareForCapture:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
 /// capture *and* the comparison that follows it to one line of output, and can
@@ -245,6 +255,7 @@ public func renderSnapshotImage(
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle,
+    captureAfterMeasurement: Bool = false,
     prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
@@ -263,6 +274,7 @@ public func renderSnapshotImage(
             onReadyToMeasure: onReadyToMeasure,
             measurementHookTimeout: measurementHookTimeout,
             settle: settle,
+            captureAfterMeasurement: captureAfterMeasurement,
             prepareForCapture: prepareForCapture,
             onReadyToSnapshot: onReadyToSnapshot,
             settleTimeoutPolicy: settleTimeoutPolicy,
@@ -287,6 +299,7 @@ func renderSnapshotCaptureLocked(
     onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookTimeout: TimeInterval?,
     settle: SnapshotSettle,
+    captureAfterMeasurement: Bool = false,
     prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
@@ -360,7 +373,7 @@ func renderSnapshotCaptureLocked(
             resizeHostWindow(window, root: hostRoot, to: initialContentFrame.size)
         }
 
-        try await resolveContentSize(
+        let measuredWrapper = try await resolveContentSize(
             of: viewController,
             named: name,
             sizing: sizing,
@@ -371,6 +384,8 @@ func renderSnapshotCaptureLocked(
                 ?? settleTimeoutPolicy.maximumDuration(for: settle),
             safeAreaInsets: safeAreaInsets,
             hostedIn: hostRoot,
+            retainWrapper: captureAfterMeasurement && !isAccessibility && settle == .settled
+                && prepareForCapture == nil && onReadyToSnapshot == nil,
             window: window,
             timing: timing,
             settleTimeoutPolicy: settleTimeoutPolicy,
@@ -379,18 +394,24 @@ func renderSnapshotCaptureLocked(
         let captureViewController: UIViewController = isAccessibility
             ? AccessibilitySnapshotViewController(wrapping: viewController)
             : viewController
-        let wrappingViewController = SnapshotWrappingViewController(captureViewController)
+        let wrappingViewController = measuredWrapper ??
+            SnapshotWrappingViewController(captureViewController)
 
         // Host inside the already-appeared StuffTestHost root VC. Adding a child VC
         // (and its view) to an on-screen, appeared parent drives the real UIKit
         // appearance lifecycle (verified: `viewWillAppear`/`viewDidAppear`/SwiftUI
         // `onAppear` all fire through the containment forwarding — no manual
         // `beginAppearanceTransition` needed).
-        timing.measure(.host) {
-            hostChildForCapture(wrappingViewController, in: hostRoot)
+        let adjustedInsetsAfterHosting = timing.measure(.host) {
+            if measuredWrapper != nil {
+                wrappingViewController.view.frame.size = viewController.view.frame.size
+                timing.captureMode = .afterMeasurement
+            } else {
+                hostChildForCapture(wrappingViewController, in: hostRoot)
+            }
             wrappingViewController.view.setNeedsLayout()
             CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
-            reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
+            return reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
         }
         defer {
             removeChildAfterCapture(viewController)
@@ -413,12 +434,17 @@ func renderSnapshotCaptureLocked(
             reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
         }
 
+        // A detached measurement host can apply its synthetic insets during layout.
+        // Native scene chrome can continue moving after a correction. In either case,
+        // check the insets again after yielding to UIKit below.
+        let canDrawAfterLayout = measuredWrapper != nil &&
+            !(adjustedInsetsAfterHosting && window.windowScene != nil)
         try await throwIfUnsettled(
             timing.measure(.settle) {
                 await settleForCapture(
                     wrappingViewController.view,
                     named: name,
-                    settle: settle,
+                    settle: canDrawAfterLayout ? .immediate : settle,
                     timing: timing,
                     timeoutPolicy: settleTimeoutPolicy,
                 )
@@ -555,14 +581,8 @@ func renderSnapshotCaptureLocked(
                 let image = timing.measure(.tileStitch) {
                     tileAndStitchImage(of: wrappingViewController, timing: timing)
                 }
-                // Preserve scale so comparison sees the same pixels as the disk artifact.
                 return try timing.measure(.pngRoundTrip) {
-                    guard let pngData = image.pngData(),
-                          let decoded = UIImage(data: pngData, scale: image.scale)
-                    else {
-                        throw SnapshotRenderingError.pngEncodingFailed(name: name)
-                    }
-                    return SnapshotCapture(image: decoded, pngData: pngData)
+                    try SnapshotCapture(normalizing: image, named: name)
                 }
             }
         }
@@ -577,7 +597,7 @@ func renderSnapshotCaptureLocked(
 }
 
 extension SnapshotMeasurementReadiness {
-    fileprivate func resolvedSettle(captureSettle: SnapshotSettle) -> SnapshotSettle {
+    func resolvedSettle(captureSettle: SnapshotSettle) -> SnapshotSettle {
         switch self {
             case .sameAsCapture:
                 captureSettle
@@ -593,7 +613,7 @@ extension SnapshotMeasurementReadiness {
 /// via the full `addChild` → attach-view → `didMove` contract, so the child — and
 /// the SwiftUI content it hosts — runs its real appearance lifecycle.
 @MainActor
-private func hostChildForCapture(_ child: UIViewController, in hostRoot: UIViewController) {
+func hostChildForCapture(_ child: UIViewController, in hostRoot: UIViewController) {
     hostRoot.addChild(child)
     child.view.frame = CGRect(origin: .zero, size: child.view.frame.size)
     hostRoot.view.addSubview(child.view)
@@ -602,7 +622,7 @@ private func hostChildForCapture(_ child: UIViewController, in hostRoot: UIViewC
 
 /// Tears down a controller hosted by ``hostChildForCapture(_:in:)``.
 @MainActor
-private func removeChildAfterCapture(_ child: UIViewController) {
+func removeChildAfterCapture(_ child: UIViewController) {
     child.willMove(toParent: nil)
     child.view.removeFromSuperview()
     child.removeFromParent()
@@ -657,11 +677,8 @@ private func resizeHostWindow(_ window: UIWindow, root: UIViewController, to siz
 /// follows the same bounded process with one viewport-filling scroll descendant
 /// supplying both dimensions, then validates the rendered pixel allocation.
 ///
-/// The content is hosted through a throwaway wrapper added as a child of the
-/// appeared host root (not a bare subview): only a real appearance transition
-/// starts the content's `.task`/`onAppear`. The wrapper is torn down and the
-/// content detached before returning, so the caller can re-parent the same view
-/// controller into the capture wrapper.
+/// The appeared host root drives the content's `.task` and `onAppear`. When
+/// requested, successful measurement transfers the attached wrapper to capture.
 @MainActor
 private func resolveContentSize(
     of viewController: UIViewController,
@@ -672,17 +689,18 @@ private func resolveContentSize(
     measurementHookMaximumDuration: TimeInterval,
     safeAreaInsets: UIEdgeInsets?,
     hostedIn hostRoot: UIViewController,
+    retainWrapper: Bool,
     window: UIWindow,
     timing: SnapshotCaptureTiming,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
-) async throws {
+) async throws -> SnapshotWrappingViewController? {
     let probeSize: CGSize
     switch sizing {
         case .fixed:
             if onReadyToMeasure != nil {
                 throw SnapshotRenderingError.measurementHookRequiresIntrinsicSizing(name: name)
             }
-            return
+            return nil
         case let .intrinsic(width, _):
             probeSize = CGSize(width: width, height: max(window.bounds.height, 1))
         case let .fullContent2D(minimumSize):
@@ -703,13 +721,13 @@ private func resolveContentSize(
         reconcileCaptureInsets(safeAreaInsets, in: hostRoot)
         return wrapper
     }
+    var transferred = false
     defer {
-        // Detach the content VC from the probe wrapper first (so the caller can
-        // re-wrap it), then tear the probe wrapper down — including on a hook
-        // timeout or cancellation.
-        viewController.willMove(toParent: nil)
-        viewController.removeFromParent()
-        removeChildAfterCapture(probeWrapper)
+        if !transferred {
+            viewController.willMove(toParent: nil)
+            viewController.removeFromParent()
+            removeChildAfterCapture(probeWrapper)
+        }
     }
 
     if let onReadyToMeasure {
@@ -871,6 +889,8 @@ private func resolveContentSize(
                 }
             }
     }
+    transferred = retainWrapper
+    return retainWrapper ? probeWrapper : nil
 }
 
 private let maximumTwoAxisPixelDimension = 32000
@@ -935,7 +955,7 @@ extension UIView {
     /// does not reliably report its full height through `sizeThatFits`. Restricting the
     /// fallback to full-width scrolling content avoids expanding an intentionally
     /// narrow nested scroller inside an otherwise intrinsic component.
-    fileprivate func fullScrollContentHeight(exceeding intrinsicHeight: CGFloat) -> CGFloat? {
+    func fullScrollContentHeight(exceeding intrinsicHeight: CGFloat) -> CGFloat? {
         scrollMeasurementDescendants
             .compactMap { view -> CGFloat? in
                 guard let scrollView = view as? UIScrollView else { return nil }

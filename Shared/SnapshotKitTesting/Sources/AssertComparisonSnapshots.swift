@@ -8,6 +8,7 @@ import UIKit
 @MainActor
 func assertComparisonSnapshots(
     _ snapshotCase: SnapshotCase,
+    captureMode: (SnapshotCase, SnapshotConfiguration) -> SnapshotCaptureMode,
     record: SnapshotTestingConfiguration.Record?,
     fileID: StaticString,
     file filePath: StaticString,
@@ -22,7 +23,11 @@ func assertComparisonSnapshots(
                 caseName: snapshotCase.name,
                 configuration: configuration,
             )
-            let panels = try await captureSnapshotPanels(snapshotCase, configuration: configuration)
+            let panels = try await captureSnapshotPanels(
+                snapshotCase,
+                configuration: configuration,
+                captureMode: captureMode(snapshotCase, configuration),
+            )
             await assertSnapshotReference(
                 .panels(panels),
                 identifier: identifier,
@@ -50,6 +55,7 @@ func assertComparisonSnapshots(
 func captureSnapshotPanels(
     _ snapshotCase: SnapshotCase,
     configuration: SnapshotConfiguration,
+    captureMode: SnapshotCaptureMode = .standard,
 ) async throws -> [SnapshotPanelCapture] {
     let identifier = fullSnapshotIdentifier(
         caseName: snapshotCase.name,
@@ -70,6 +76,7 @@ func captureSnapshotPanels(
             settle: snapshotCase.settle,
             prepareForCapture: snapshotCase.prepareForCapture,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
+            captureMode: captureMode,
             timeoutPolicy: .fromEnvironment(),
             backgroundColor: SnapshotImageGrid.backgroundColor,
         )

@@ -28,28 +28,57 @@ struct AsyncContentCaptureTests {
         #expect(center.red < 0.5)
     }
 
-    @Test func immediateMeasurementStillRunsFinalCaptureSettle() async throws {
+    enum MeasuredCapture: CaseIterable {
+        case standard, afterMeasurement, afterSettledMeasurement, nativeInsetChange,
+             syntheticInsetChange,
+             prepareForCapture,
+             onReadyToSnapshot, raisedFloor,
+             accessibility, fixed
+    }
+
+    @Test(arguments: MeasuredCapture.allCases)
+    func captureAfterMeasurementHonorsReadiness(_ scenario: MeasuredCapture) async throws {
         try waitFor { hostKeyWindow() != nil }
-        let host = UIHostingController(rootView: Color.green.frame(width: 100, height: 100))
-        host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 1)
-        let timing = SnapshotCaptureTiming(
-            identifier: "immediate-measurement-settle-probe",
-            isEnabled: true,
-            sizing: .intrinsic(width: 100, minimumHeight: 0),
-            measurementReadiness: .immediate,
-            captureSettle: .settled,
+        let host = MountCountingHost(rootView: Color.green.frame(width: 100, height: 100))
+        host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let timing = SnapshotCaptureTiming(identifier: "measured-capture", isEnabled: true)
+        let changesInsets = scenario == .nativeInsetChange || scenario == .syntheticInsetChange
+        let measurementHook: (@MainActor @Sendable () async throws -> Void)? = if scenario ==
+            .afterSettledMeasurement
+        {
+            { #expect(host.view.window != nil) }
+        } else if changesInsets {
+            { try Self.changeTopInset(of: host) }
+        } else {
+            nil
+        }
+        let sizing: SnapshotSizing = scenario == .fixed ? .fixed : .intrinsic(
+            width: 100,
+            minimumHeight: 0,
         )
+        let readiness: SnapshotMeasurementReadiness = scenario == .afterSettledMeasurement ?
+            .sameAsCapture : .immediate
+        let settle: SnapshotSettle = scenario == .raisedFloor ? .settledAtLeast(minDuration: 0.25) :
+            .settled
+        var prepare: (@MainActor @Sendable () async throws -> Void)?
+        var ready: (@MainActor @Sendable () async -> Void)?
+        if scenario == .prepareForCapture { prepare = { #expect(host.view.window != nil) } }
+        if scenario == .onReadyToSnapshot { ready = { #expect(host.view.window != nil) } }
+        let timeoutPolicy = try SnapshotSettleTimeoutPolicy.parse(nil)
         let capture = try await renderSnapshotCapture(
             of: host,
-            named: "immediate-measurement-settle-probe",
-            sizing: .intrinsic(width: 100, minimumHeight: 0),
+            named: "measured-capture",
+            sizing: sizing,
             safeAreaInsets: .zero,
-            isAccessibility: false,
-            measurementReadiness: .immediate,
-            onReadyToMeasure: nil,
-            settle: .settled,
-            onReadyToSnapshot: nil,
-            settleTimeoutPolicy: SnapshotSettleTimeoutPolicy.parse(nil),
+            scenePolicy: scenario == .nativeInsetChange ? .retained : .automatic,
+            isAccessibility: scenario == .accessibility,
+            measurementReadiness: readiness,
+            onReadyToMeasure: measurementHook,
+            settle: settle,
+            captureAfterMeasurement: scenario != .standard,
+            prepareForCapture: prepare,
+            onReadyToSnapshot: ready,
+            settleTimeoutPolicy: timeoutPolicy,
             timing: timing,
         )
         let line = try #require(timing.line())
@@ -57,11 +86,34 @@ struct AsyncContentCaptureTests {
             SettleTiming.self,
             from: Data(line.utf8),
         )
-        let center = capture.image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.5))
-        #expect(capture.image.size.height == 100)
-        #expect(decoded.settlePasses >= 3)
-        #expect(center.green > 0.5)
-        #expect(center.red < 0.5)
+        let retained = scenario == .afterMeasurement || scenario == .afterSettledMeasurement
+            || changesInsets
+        #expect(decoded.captureMode == (retained ? "afterMeasurement" : "standard"))
+        if scenario == .afterMeasurement || scenario == .syntheticInsetChange {
+            #expect(decoded.settlePasses == 0)
+        } else {
+            #expect(decoded.settlePasses >= 3)
+        }
+        let expectedMounts = retained || scenario == .fixed ? 1 : 2
+        #expect(host.mountCount == expectedMounts)
+        #expect(host.parent == nil)
+        #expect(host.view.window == nil)
+        if scenario != .accessibility {
+            let center = capture.image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.5))
+            // The measurement hook adds 20 points above the 100-point view.
+            let expectedHeight: CGFloat = changesInsets ? 120 : 100
+            #expect(capture.image.size == CGSize(width: 100, height: expectedHeight))
+            #expect(center.green > 0.5 && center.red < 0.5)
+        }
+    }
+
+    /// Simulates native chrome changing clearance after the initial measurement layout.
+    private static func changeTopInset(of host: UIViewController) throws {
+        let root = try #require(host.view.window?.rootViewController)
+        root.additionalSafeAreaInsets.top += 20
+        root.view.setNeedsLayout()
+        root.view.layoutIfNeeded()
+        #expect(root.view.safeAreaInsets.top > 0)
     }
 
     @Test func immediateMeasurementDoesNotShortenRaisedCaptureFloor() async throws {
@@ -83,7 +135,17 @@ struct AsyncContentCaptureTests {
 }
 
 private struct SettleTiming: Decodable {
+    let captureMode: String
     let settlePasses: Int
+}
+
+private final class MountCountingHost<Content: View>: UIHostingController<Content> {
+    private(set) var mountCount = 0
+
+    override func didMove(toParent parent: UIViewController?) {
+        super.didMove(toParent: parent)
+        if parent != nil { mountCount += 1 }
+    }
 }
 
 private struct TaskProbeView: View {

@@ -23,6 +23,18 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   nothing — when the live simulator doesn't match the scheme's
   `SNAPSHOT_EXPECTED_*` pins or when two variants would collide on one
   reference name.
+- **Capture modes.** Assertions default to `.standard`. An owning test can pass
+  `captureMode: .afterMeasurement` when the measured view already contains
+  the final pixels. The renderer fits and draws the same native view hierarchy.
+  It still runs measurement readiness and any scroll or inset corrections.
+  Annotations, fixed viewports, explicit settle floors, and final capture hooks
+  use the standard renderer. For a synchronous intrinsic component with a known
+  width and immediate readiness, `.immediateComponent` fits and draws the view
+  directly on the native host. General sizing handles components that cannot
+  produce a stable size there. A mixed provider can choose a mode with
+  `captureMode: { snapshotCase, configuration in … }`. Compare the resulting images
+  to settled controls before opting in, especially where loading, scrolling, or
+  native glass affects the final pixels.
 - **The rendering pipeline** — async `renderSnapshotCapture(...)` returns the
   normalized image and PNG bytes. `renderSnapshotImage(...)` wraps it for callers
   needing only the image. Native assertions, hosted PNG export, and HTML snapshots
@@ -261,7 +273,8 @@ default plain output.
 breakdown — `settle`, `tileStitch`, `compare`, `pngRoundTrip`, `host`,
 `accessibilityParse`, `hook`, `measurementHook`, `intrinsicMeasure`, `drain` — plus the settle pass
 distribution, sizing/readiness/capture-settle metadata, and the slowest
-individual captures. Reach for it before optimizing
+individual captures. Each timing row also reports the actual `captureMode`,
+including a fallback to `standard`. Reach for it before optimizing
 anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.

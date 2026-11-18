@@ -76,6 +76,7 @@ import SnapshotKit
 
     private let identifier: String
     private let isEnabled: Bool
+    var captureMode: SnapshotCaptureMode = .standard
     private let sizing: String
     private let measurementReadiness: String
     private let captureSettle: String
@@ -166,6 +167,7 @@ import SnapshotKit
         guard isEnabled else { return nil }
         let payload = SnapshotCaptureTimingLine(
             id: identifier,
+            captureMode: captureMode.rawValue,
             sizing: sizing,
             measurementReadiness: measurementReadiness,
             captureSettle: captureSettle,
@@ -207,6 +209,7 @@ import SnapshotKit
 /// a diagnostic format read by `./test --timings`, not a persisted one.
 private struct SnapshotCaptureTimingLine: Encodable {
     let id: String
+    let captureMode: String
     let sizing: String
     let measurementReadiness: String
     let captureSettle: String

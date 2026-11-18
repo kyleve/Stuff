@@ -33,17 +33,28 @@ struct PreMeasureHookTests {
         #expect(image.size.height == 180)
     }
 
-    @Test func failedHookTearsDownTheHostAndPreservesTheOriginalError() async throws {
+    @Test(arguments: [false, true])
+    func failedHookTearsDownTheHostAndPreservesTheOriginalError(
+        captureAfterMeasurement: Bool,
+    ) async throws {
         try waitFor { hostKeyWindow() != nil }
         let root = try #require(hostKeyWindow()?.rootViewController)
         let initialChildren = root.children
         let host = UIHostingController(rootView: Color.green.frame(width: 100, height: 100))
         await #expect(throws: URLError(.fileDoesNotExist)) {
-            try await renderSnapshotImage(
+            try await renderSnapshotCapture(
                 of: host,
                 named: "failed-readiness",
                 sizing: .intrinsic(width: 100, minimumHeight: 0),
+                safeAreaInsets: .zero,
+                isAccessibility: false,
+                measurementReadiness: .sameAsCapture,
                 onReadyToMeasure: { throw URLError(.fileDoesNotExist) },
+                settle: .settled,
+                captureAfterMeasurement: captureAfterMeasurement,
+                onReadyToSnapshot: nil,
+                settleTimeoutPolicy: .parse(nil),
+                timing: SnapshotCaptureTiming(identifier: "failed-readiness", isEnabled: false),
             )
         }
         #expect(host.parent == nil)

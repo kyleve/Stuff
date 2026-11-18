@@ -4,7 +4,7 @@ import UIKit
 /// returns a blank image (a long-standing UIKit bug, still reproducing on the
 /// target toolchain — verified by a probe during development). Views at or above
 /// it are captured in tiles no larger than this and stitched back together.
-private let tileDimension: CGFloat = 2000
+let tileDimension: CGFloat = 2000
 
 /// Hosts a content view controller inside a plain wrapper view that acts as a
 /// movable viewport into the (potentially larger) content view — the mechanism

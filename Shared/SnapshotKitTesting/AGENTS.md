@@ -18,8 +18,7 @@ Read the root [AGENTS.md](../../AGENTS.md) and [SnapshotKit contract](../Snapsho
 
 - Use `snapshotReferenceURL` for recording, comparison, and review; preserve filenames when directories change.
   Standard non-default Dynamic Type, contrast, RTL, and bold captures go under `other/`. Accessibility annotations stay at the selected group root; device, frame, name, and light/dark do not select `other/`. Guard: `SnapshotReferenceURLTests`.
-- All standard, accessibility, and hosted PNG captures use async `renderSnapshotCapture` and its capture lock; `renderSnapshotImage` is the image-only wrapper.
-  PNG export requires the host window, with no headless renderer. A synchronous pullback cannot settle task-driven content.
+- All image assertions and PNG exports acquire the capture lock and draw on the host window. The immediate component path requires synchronous content and a verified intrinsic fit. A synchronous pullback cannot settle task-driven content.
 - Compare PNG-round-tripped bytes to prevent wide-gamut/sRGB drift. Reuse captured PNG bytes for ordinary assertions/recording and preserve the composed image data when adding a cutsheet map.
   Keep autorelease pools synchronous and drain intermediates before async suspension. See `renderSnapshotImage`'s documentation.
 - Keep `defaultSnapshotPerceptualPrecision` at 0.90 (ΔE 10). `CILabDeltaE` exaggerates near-black channel noise; loosen per-pixel tolerance, never the pixel-area budget, for environmental noise.
