@@ -17,10 +17,10 @@ The prototype tested both capture orders. The early measured arm reproduced the 
 | --- | --- |
 | Q-01 (closed, R-01) Which earlier images qualify? | Use distinct reference paths across all three runs. Count the six InstallerKit cards and eight hatched calendars once, in the measured arm. Keep all four Year picker references on their declared floor. |
 | Q-02 (closed, R-02) Where is the capture decision made? | The owning test opts in. The renderer checks sizing and readiness. Keep the final wait for WebKit, the iPad Flyover list, and the populated AX5 Presence Timeline. |
-| Q-03 (closed, R-03) How does the inventory transfer to main? | Comparing Git objects found 25 new references and 97 updated existing references at `e19c63f77`. Audit these and all selected paths during verification. |
+| Q-03 (closed, R-03) How does the inventory transfer to main? | Comparing Git objects found 25 new references and 97 updated existing references at `e19c63f77`. All 478 selected files matched the trial blobs. The live capture audit verified selection across all 902 reference files. |
 
 Review of the prototype manifest, fixture registrations and native renderer established the two separate execution paths and their fallbacks. A live main run is the control for the production result.
 
 ## Checkpoint
 
-The user authorized planning, implementation, and a ready-for-review PR into main. [01 — Adopt and verify capture](01-adopt-and-verify.md) is the full planning horizon. Work runs on `perf/production-snapshot-capture`. The renderer, component, and fixture owners implement their respective paths. The coordinating agent owns integration, simulator verification, independent review, and publication.
+The user authorized planning, implementation, and a ready-for-review PR into main. The renderer and fixture changes passed hosted tests, full-suite comparison, and independent review. The test phase fell from 762.8 s to 647.0 s. [Execution and verification](01-adopt-and-verify.md#execution) · [PR 541](https://github.com/kyleve/Stuff/pull/541)
