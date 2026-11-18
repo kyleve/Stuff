@@ -49,10 +49,12 @@ struct UpdateHistoryView: View {
 #if DEBUG
     extension UpdateHistoryView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            // Cached fixture history is complete before mounting; automatic refresh
+            // stays cache-only. Final settling still covers native navigation chrome.
             SnapshotCase(
                 name: "History",
                 configurations: .fullContentScreenRepresentative,
-                measurementReadiness: .sameAsCapture,
+                measurementReadiness: .immediate,
             ) {
                 InstallerBrowserPreview.navigation(
                     to: .history(InstallerPreview.channel),
@@ -62,7 +64,7 @@ struct UpdateHistoryView: View {
             SnapshotCase(
                 name: "Retired",
                 configurations: .fullContentPhoneLightDark,
-                measurementReadiness: .sameAsCapture,
+                measurementReadiness: .immediate,
             ) {
                 InstallerBrowserPreview.navigation(
                     to: .history(InstallerPreview.channel),
