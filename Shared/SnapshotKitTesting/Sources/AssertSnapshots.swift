@@ -45,42 +45,15 @@ public func assertSnapshots(
         )
         return
     }
-    for snapshotCase in snapshots {
-        guard Task.isCancelled == false else { return }
-        switch snapshotCase.capture {
-            case .cutsheet:
-                await assertComparisonSnapshots(
-                    snapshotCase,
-                    record: record,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
-            case let .single(content):
-                for configuration in snapshotCase.configurations {
-                    guard !Task.isCancelled else { return }
-                    await assertSnapshots(
-                        of: content(),
-                        named: snapshotCase.name,
-                        configurations: [configuration],
-                        referenceGroup: snapshotCase.referenceGroup,
-                        measurementReadiness: snapshotCase.measurementReadiness,
-                        onReadyToMeasure: snapshotCase.onReadyToMeasure,
-                        settle: snapshotCase.settle,
-                        prepareForCapture: snapshotCase.prepareForCapture,
-                        onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
-                        record: record,
-                        fileID: fileID,
-                        file: filePath,
-                        testName: testName,
-                        line: line,
-                        column: column,
-                    )
-                }
-        }
-    }
+    await assertOverlappingSnapshots(
+        snapshots,
+        record: record ?? environmentRecordMode(),
+        fileID: fileID,
+        file: filePath,
+        testName: testName,
+        line: line,
+        column: column,
+    )
 }
 
 /// Asserts a single view across a set of configurations, for one-off views that

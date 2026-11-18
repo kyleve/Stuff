@@ -70,6 +70,18 @@ import UIKit
     guard let referencePNG = try? Data(contentsOf: referenceURL) else {
         return .referenceMissing(referenceURL)
     }
+    return compareSnapshotPNGs(
+        capturedPNG: capturedPNG,
+        referencePNG: referencePNG,
+        referenceURL: referenceURL,
+    )
+}
+
+func compareSnapshotPNGs(
+    capturedPNG: Data,
+    referencePNG: Data,
+    referenceURL: URL,
+) -> SnapshotReferenceComparison {
     guard capturedPNG != referencePNG else { return .identicalBytes }
     guard let captured = UIImage(data: capturedPNG)?.cgImage else {
         return .incomparable(reason: "the capture could not be decoded")

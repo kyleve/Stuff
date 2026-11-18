@@ -33,7 +33,7 @@ class SnapshotReportsTests(unittest.TestCase):
         concise = timing_report(rows, detailed=False, empty_message="none")
         detailed = timing_report(rows, detailed=True, empty_message="none")
 
-        self.assertIn("2 captures, 3.0s total, 1.500s per image", concise)
+        self.assertIn("2 captures, 3.0s summed capture work, 1.500s per image", concise)
         self.assertIn("render", concise)
         self.assertIn("settle passes: min 1, max 2, mean 1.5", concise)
         self.assertNotIn("measurement readiness", concise)

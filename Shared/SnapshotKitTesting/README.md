@@ -125,6 +125,23 @@ Final reference comparisons keep their existing tolerances and use the full capt
 Ordinary assertions reuse those PNG bytes for comparison, diagnostics, and recording.
 Comparison sheets attach their panel map to the composed PNG with ImageIO's lossless metadata copy.
 
+## Comparison overlap
+
+Provider assertions prepare one completed image's comparison while the next view captures.
+The worker receives immutable PNG bytes and a reference URL. It never hosts views or changes window state.
+Hosting remains serial under the existing capture lock. Cutsheets and images above 8 million pixels use serial comparison.
+
+Only a successful comparison can be reused. The main actor still runs the authoritative reference verifier,
+which checks that both PNG byte sequences match the worker's inputs before reusing success.
+Changed, missing, malformed, or mismatching references take the original comparison path.
+Recording modes, attachments, and comparison issues remain owned by the verifier.
+An explicit or environment `record: .all` skips background preparation; inherited recording policy remains intact.
+
+The provider retains at most one pending comparison and one current capture. It drains the worker before
+cutsheets and provider exit, and joins cancelled work before returning. Comparison results and caught capture
+errors retain case order. Issues emitted directly by readiness hooks can arrive before an earlier comparison.
+One-off view and HTML assertions retain serial comparison.
+
 ## Quick start
 
 ```swift
@@ -264,6 +281,12 @@ distribution, sizing/readiness/capture-settle metadata, and the slowest
 individual captures. Reach for it before optimizing
 anything here: it showed that `drainInFlightAnimations` was burning a flat second
 on every image. The remaining settling cost depends on the case and phase.
+
+The summary reports **summed capture work**, including readiness waits and comparison execution.
+A provider freezes each capture's duration before waiting to report the preceding comparison.
+The comparison phase includes worker execution and final serial verification, but excludes queue delay.
+Capture and comparison can overlap, so this total is not suite elapsed time. Use test/process elapsed time
+from the runner or `.xcresult` to assess throughput.
 
 Timing also emits versioned `SNAPSHOT_SETTLE_TRACE` JSON rows, one per settling
 call. Each row carries a capture UUID, call ordinal, reason, policy, outcome,

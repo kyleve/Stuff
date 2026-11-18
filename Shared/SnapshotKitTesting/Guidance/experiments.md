@@ -32,6 +32,32 @@
 - **That is why the floors exist and why they need per-case seams.**
 - **`CATransaction.addCommitHandler` is macOS-only and absent from the iOS SDK.** A commit-counting variant is not available either.
 
+## Bounded reference-comparison overlap — 2026-11-17
+
+Two paired 110-capture runs measured immutable PNG comparison while the following capture retained the sole host.
+Background preparation saved 14.433s (11.80%) of test elapsed time on average.
+A second prototype ran comparison on MainActor after the next capture's first sample, using its suspension.
+That saved 7.307s (5.98%), but delayed subsequent samples and produced a smaller gain.
+The complete local 935-capture pair saves 41.859s (4.91%) of test elapsed time, with unchanged geometry, zero retries, and a 113MiB increase in sampled test-host RSS.
+Select background preparation; retain the MainActor result as a tested alternative.
+
+The isolated CI pair preserves all 935 captures, 78 test identities, geometry, and settle policies with zero retries.
+Candidate checks pass at `689cef15c`. Summed worker test time falls 1.23%, but the longest test phase rises
+338.998s → 354.057s and snapshot job wall rises 464.843s → 484.093s. This pair does not establish a CI elapsed-time gain.
+Highest sampled executor memory rises 19.486GiB → 19.704GiB. These 15-second whole-executor samples are not test-host RSS
+and can miss shorter peaks. CI throughput uncertainty remains in STU-121; local strict/oracle checks own the additional image-fidelity evidence.
+
+The adopted boundary permits one worker and one current capture inside a provider.
+Workers receive PNG bytes and a reference URL. Successful comparisons can be reused only after the verifier rechecks both original byte sequences.
+The main actor still owns authoritative verification, recording, and issues. Cutsheets and captures above
+8 million pixels keep serial comparison. Structured scope exit joins workers, including cancellation.
+The existing capture lock and all hosted-state restoration remain unchanged.
+
+Retest throughput, image fidelity, cancellation, and resource peaks after changing this boundary, its pixel budget,
+the image-comparison dependency, or test serialization. Summed capture work excludes pipeline queue delay and
+is not elapsed suite time. [Plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md)
+retains the paired controls, independent delayed oracle, full-suite gates, raw artifacts, and validation limits.
+
 ## Public UI update callbacks — 2026-11-17
 
 A passive `UIUpdateLink(view:)` probe observed `.afterUpdateComplete` during

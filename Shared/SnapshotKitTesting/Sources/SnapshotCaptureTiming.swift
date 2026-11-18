@@ -37,7 +37,8 @@ import SnapshotKit
     case compare
 }
 
-/// Attributes a single capture's wall time across ``SnapshotCapturePhase``,
+/// Attributes a single capture's work, including its readiness waits, across
+/// ``SnapshotCapturePhase``,
 /// emitting one line per capture when `SNAPSHOT_TIMING` is set.
 ///
 /// This exists because per-*test* durations (which the `.xcresult` already
@@ -87,6 +88,7 @@ import SnapshotKit
     private var pixels = 0
     private let traceID: SnapshotCaptureTraceID?
     private var settleCalls = 0
+    private var captureDuration: TimeInterval?
 
     public init(
         identifier: String,
@@ -126,6 +128,19 @@ import SnapshotKit
         let began = clock.now
         defer { record(phase, since: began) }
         return try await body()
+    }
+
+    /// Freeze capture work before waiting to report an earlier comparison.
+    /// Comparison work is added separately; another capture's queue delay is not.
+    func finishCapture() {
+        guard isEnabled, captureDuration == nil else { return }
+        captureDuration = elapsed(since: start)
+    }
+
+    /// Includes worker execution in comparison cost, even when it overlaps capture.
+    func recordPreparedComparison(duration: TimeInterval) {
+        guard isEnabled else { return }
+        durations[.compare, default: 0] += duration
     }
 
     /// Records how many render/quiescence passes the settle loops ran in total.
@@ -200,7 +215,8 @@ import SnapshotKit
             settlePasses: settlePasses,
             tiles: tiles,
             pixels: pixels,
-            total: rounded(elapsed(since: start)),
+            total: rounded(captureDuration.map { $0 + durations[.compare, default: 0] }
+                ?? elapsed(since: start)),
         )
         guard let data = try? JSONEncoder.snapshotTiming.encode(payload),
               let json = String(data: data, encoding: .utf8)
