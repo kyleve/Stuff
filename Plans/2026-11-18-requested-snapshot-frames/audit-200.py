@@ -3,6 +3,7 @@
 
 import argparse
 from collections import Counter
+import csv
 from functools import cache
 import hashlib
 import json
@@ -29,20 +30,46 @@ def check(condition, detail):
         raise ValueError(detail)
 
 
-def selected():
-    lines = (PLAN / "mount-200.txt").read_text().splitlines()
+def read_manifest(filename, count):
+    lines = (PLAN / filename).read_text().splitlines()
     paths = [
         line.strip() for line in lines if line.strip() and not line.startswith("#")
     ]
-    check(len(paths) == len(set(paths)) == 200, "Expected 200 unique manifest entries")
-    old = runpy.run_path(str(PLAN / "audit-mount-matrix.py"))["reference_inventory"]()[
-        1
-    ]
+    check(
+        len(paths) == len(set(paths)) == count,
+        f"Expected {count} distinct paths in {filename}",
+    )
+    return paths
+
+
+@cache
+def component_paths():
+    requests = runpy.run_path(str(PLAN / "audit-mount-matrix.py"))[
+        "reference_inventory"
+    ]()[1]
+    paths = {p.relative_to(REPO).as_posix() for p in requests}
+    check(len(paths) == 92, "Expected 92 earlier component references")
+    return paths
+
+
+def selected(remaining=False):
+    first = read_manifest("mount-200.txt", 200)
+    old = component_paths()
     tracked = set(
         subprocess.check_output(
             ["git", "-C", REPO, "ls-files", "--", "*__Snapshots__/*.png"], text=True
         ).splitlines()
     )
+    check(
+        set(first) <= tracked and not old.intersection(first),
+        "Plan 04 coverage changed",
+    )
+    paths = read_manifest("mount-remaining.txt", 677) if remaining else first
+    if remaining:
+        check(
+            set(paths) == tracked - set(first) and old <= set(paths),
+            "Plan 04 and Plan 05 must partition all tracked references and include the earlier 92 components",
+        )
     for name in paths:
         path = Path(name)
         check(
@@ -53,9 +80,8 @@ def selected():
             and path.suffix == ".png"
             and name in tracked
             and (REPO / path).is_file()
-            and (REPO / path) not in old
-            and not path.stem.endswith("_accessibility"),
-            f"Invalid or previously tested reference: {name}",
+            and (remaining or not path.stem.endswith("_accessibility")),
+            f"Invalid reference: {name}",
         )
     return paths
 
@@ -78,8 +104,6 @@ def png(path):
 def panels(name):
     # Layout metadata is part of the reference identity. Read real panel names
     # from the sheet instead of assuming every sheet contains two themes.
-    if "themes" not in Path(name).parts:
-        return ()
     with (REPO / name).open("rb") as f:
         f.read(8)
         while chunk := f.read(8):
@@ -102,7 +126,8 @@ def panels(name):
                             f"Malformed panel map: {name}",
                         )
                         return ids
-    raise ValueError(f"Missing panel map: {name}")
+    check("themes" not in Path(name).parts, f"Missing panel map: {name}")
+    return ()
 
 
 def load_timings(root):
@@ -136,7 +161,37 @@ def incomplete_inventory(root, suffix, missing, extra):
     )
 
 
-def check_arm(root, arm, names):
+def expected_capture_path(name, arm, row, remaining):
+    sizing = row["sizing"]
+    check(
+        sizing in ("intrinsic", "fullContent2D") or (remaining and sizing == "fixed"),
+        f"{name}: unexpected sizing {sizing}",
+    )
+    if name.endswith("_accessibility.png"):
+        check(
+            "accessibilityParse" in row["phases"], f"{name}: missing annotation parse"
+        )
+        if arm == "baseline" or sizing == "fixed":
+            return "accessibility", 1 if sizing == "fixed" else 2, False
+        return "retainedAccessibility", 1, False
+    check(
+        "accessibilityParse" not in row["phases"],
+        f"{name}: unexpected annotation parse",
+    )
+    if sizing == "fixed":
+        return "fixed", 1, False
+    if arm == "baseline":
+        return "remounted", 2, False
+    early = (
+        arm == "early"
+        and row["captureSettle"] == "settled"
+        and "preparationHook" not in row["phases"]
+        and "hook" not in row["phases"]
+    )
+    return "retained", 1, early
+
+
+def check_arm(root, arm, names, remaining=False):
     artifacts = root / "images"
     expected = set(names)
     for suffix in [".png", ".json"]:
@@ -186,23 +241,15 @@ def check_arm(root, arm, names):
             mounts = row["wrapperMounts"]
             mode = row["mountPath"]
             early = row["earlyContent"]
+            expected_path = expected_capture_path(name, arm, row, remaining)
             check(
                 row["id"] == capture["name"]
                 and mounts == capture["wrapperMounts"]
                 and mode == capture["mountPath"]
-                and mode == ("remounted" if arm == "baseline" else "retained")
                 and type(mounts) is int
-                and mounts == (2 if arm == "baseline" else 1)
-                and row["sizing"] in ("intrinsic", "fullContent2D")
                 and type(early) is bool
                 and early == capture["earlyContent"]
-                and early
-                == (
-                    arm == "early"
-                    and row["captureSettle"] == "settled"
-                    and "preparationHook" not in row["phases"]
-                    and "hook" not in row["phases"]
-                )
+                and (mode, mounts, early) == expected_path
                 and isfinite(row["total"])
                 and row["total"] >= 0,
                 f"{name}: incorrect capture path, mount count or readiness for {row['id']}: {row}",
@@ -302,6 +349,17 @@ def groups_for_pass(images, pass_name):
         ]
         if len(sizes) == 1:
             labels.append("geometry/all-arms-same-size")
+        if "cohort" in image:
+            labels.append("cohort/" + image["cohort"])
+            captures = arms["baseline"]["captures"]
+            sizing = {c["sizing"] for c in captures}
+            check(len(sizing) == 1, f"{name}: unsupported mixed sizing in one image")
+            labels.append("sizing/" + sizing.pop())
+            annotations = name.endswith("_accessibility.png")
+            labels.append("capture/" + ("accessibility" if annotations else "standard"))
+            modes = {c["mountPath"] for c in arms["retained"]["captures"]}
+            check(len(modes) == 1, f"{name}: inconsistent capture path across panels")
+            labels.append("mount/" + modes.pop())
         for label in labels:
             group = groups.setdefault(
                 label, {"images": 0, "seconds": Counter(), "accepted": Counter()}
@@ -313,13 +371,13 @@ def groups_for_pass(images, pass_name):
     return groups
 
 
-def audit(args):
-    names = selected()
+def audit(args, *, write_report=True):
+    names = selected(args.remaining)
     passes = [args.pass_name] if args.pass_name else list(ORDER)
     if args.check_arm:
         pass_name, arm = args.check_arm
         check(pass_name in ORDER and arm in ORDER[pass_name], "Unknown pass or arm")
-        one = check_arm(args.run / pass_name / arm, arm, names)
+        one = check_arm(args.run / pass_name / arm, arm, names, args.remaining)
         print(
             f"{pass_name}/{arm}: {len(one)} exports, {sum(len(v['captures']) for v in one.values())} verified timings"
         )
@@ -338,6 +396,9 @@ def audit(args):
             executed == eras, f"Arm order mismatch: expected {eras}, found {executed}"
         )
     summary = {name: {"runs": {}, "comparisons": {}} for name in names}
+    if args.remaining:
+        for name, image in summary.items():
+            image["cohort"] = "previous-92" if name in component_paths() else "new-585"
     diffs = {}
     totals = {}
     seen_uuids = set()
@@ -350,7 +411,7 @@ def audit(args):
         totals[p] = {}
         for a in ORDER[p]:
             root = args.run / p / a
-            records = check_arm(root, a, names)
+            records = check_arm(root, a, names, args.remaining)
             for name, row in records.items():
                 summary[name]["runs"].setdefault(p, {})[a] = row
                 label = f"{p}.{a}VsReference"
@@ -413,6 +474,22 @@ def audit(args):
                 f"{key}: {pair_stats([s['comparisons'][key] for s in summary.values()])}",
                 flush=True,
             )
+        if args.remaining or args.include_200:
+            for name, record in summary.items():
+                comparisons = record["comparisons"]
+                if comparisons["baseline.repeat"]["kind"] in ("bytes", "pixels"):
+                    continue
+                for order, other in [("first", "reverse"), ("reverse", "first")]:
+                    for arm in ("retained", "early"):
+                        # A variable production frame can reproduce the candidate from the
+                        # opposite process. Compare every such pair before attributing drift.
+                        key = f"{order}.{arm}VsOtherBaseline"
+                        comparisons[key] = compare(
+                            args.pixels,
+                            args.run / other / "baseline/images" / name,
+                            args.run / order / arm / "images" / name,
+                            diffs,
+                        )
     # Require the same fixtures and declared readiness in each arm and order, so
     # a speed difference cannot come from measuring a different panel.
     for name, image in summary.items():
@@ -438,20 +515,154 @@ def audit(args):
             all(totals[p]["early"]["earlyContent"] > 0 for p in passes),
             "Early arm never exercised its early content path",
         )
-    destination = args.run / (
-        "summary-200.json" if len(passes) == 2 else f"summary-200-{passes[0]}.json"
-    )
+    selection = "remaining" if args.remaining else "200"
+    suffix = "" if len(passes) == 2 else f"-{passes[0]}"
+    destination = args.run / f"summary-{selection}{suffix}.json"
     groups = {p: groups_for_pass(summary, p) for p in passes}
-    destination.write_text(
-        json.dumps({"totals": totals, "groups": groups, "images": summary}, indent=2)
-        + "\n"
+    report = {"totals": totals, "groups": groups, "images": summary}
+    if write_report:
+        destination.write_text(json.dumps(report, indent=2) + "\n")
+        print(f"Verified {len(names)} references; wrote {destination}.")
+    return report
+
+
+def csv_row(name, image):
+    runs, diffs = image["runs"], image["comparisons"]
+    captures = runs["first"]["early"]["captures"]
+    row = {
+        "reference": name,
+        "cohort": image["cohort"],
+        "native_captures": len(captures),
+        "sizing": captures[0]["sizing"],
+        "mount_path": captures[0]["mountPath"],
+        "early_draw": any(c["earlyContent"] for c in captures),
+    }
+    for arm in ("retained", "early"):
+        paired = [diffs[f"{order}.{arm}VsBaseline"] for order in ORDER]
+        if any(d["kind"] == "size" for d in paired):
+            result = "different dimensions"
+        elif all(d["kind"] in ("bytes", "pixels") for d in paired):
+            result = "pixel-exact in both orders"
+        else:
+            result = f"max delta {max(d['max'] for d in paired)}/255"
+        row[arm + "_vs_live_controls"] = result
+    row["mean_early_seconds_saved"] = round(
+        sum(runs[o]["baseline"]["seconds"] - runs[o]["early"]["seconds"] for o in ORDER)
+        / len(ORDER),
+        6,
     )
-    print(f"Verified {len(names)} references; wrote {destination}.")
+    for arm in ORDER["first"]:
+        row[f"{arm}_repeat"] = diffs[f"{arm}.repeat"]["kind"]
+        signals = set()
+        for order in ORDER:
+            observed = runs[order][arm]
+            prefix = f"{arm}_{order}"
+            row[prefix + "_seconds"] = round(observed["seconds"], 6)
+            row[prefix + "_accepted"] = observed["accepted"]
+            reference = diffs[f"{order}.{arm}VsReference"]["kind"]
+            row[prefix + "_vs_reference"] = reference
+            if not observed["accepted"]:
+                signals.add("ordinary comparator rejected")
+            if arm == "baseline":
+                continue
+            paired = diffs[f"{order}.{arm}VsBaseline"]
+            row[prefix + "_vs_baseline"] = paired["kind"]
+            control_repeat = diffs.get(f"{order}.{arm}VsOtherBaseline", paired)
+            row[prefix + "_matches_either_baseline"] = any(
+                d["kind"] in ("bytes", "pixels") for d in (paired, control_repeat)
+            )
+            same_size = paired["kind"] != "size"
+            row[prefix + "_max_delta"] = paired["max"] if same_size else None
+            row[prefix + "_changed_pixels"] = paired["changed"] if same_size else None
+            row[prefix + "_over8_pixels"] = paired["over8"] if same_size else None
+            if paired["kind"] == "size":
+                signals.add("size changed")
+            elif paired["kind"] == "changed":
+                signals.add("inspect differing pixels")
+        if arm != "baseline":
+            # Perceptual acceptance cannot prove that asynchronously loaded content is present.
+            row[f"{arm}_review"] = (
+                ", ".join(sorted(signals)) or "matches both live controls"
+            )
+    return row
+
+
+def combine(run, previous, remaining):
+    earlier = previous["images"]
+    later = remaining["images"]
+    check(
+        len(earlier) == 200 and len(later) == 677 and earlier.keys().isdisjoint(later),
+        "The source reports must cover 877 distinct references",
+    )
+    images = {
+        **{
+            name: {**image, "cohort": "previous-200"} for name, image in earlier.items()
+        },
+        **later,
+    }
+    seen = set()
+    for name, image in images.items():
+        for arms in image["runs"].values():
+            for result in arms.values():
+                for capture in result["captures"]:
+                    identity = uuid.UUID(capture["captureID"])
+                    check(
+                        identity not in seen,
+                        f"{name}: repeated capture UUID across trials",
+                    )
+                    seen.add(identity)
+    totals = {}
+    for order in ORDER:
+        totals[order] = {}
+        for arm in ORDER[order]:
+            first = previous["totals"][order][arm]
+            second = remaining["totals"][order][arm]
+            totals[order][arm] = {
+                k: (
+                    {
+                        sub: v.get(sub, 0) + second[k].get(sub, 0)
+                        for sub in sorted(v.keys() | second[k].keys())
+                    }
+                    if isinstance(v, dict)
+                    else v + second[k]
+                )
+                for k, v in first.items()
+            }
+    report = {
+        "timingBasis": "Summed matched capture and composition times from separately executed Plan 04 and Plan 05 trials.",
+        "cohorts": dict(Counter(image["cohort"] for image in images.values())),
+        "captures": len(seen),
+        "totals": totals,
+        "groups": {p: groups_for_pass(images, p) for p in ORDER},
+        "images": images,
+    }
+    destination = run / "summary-suite.json"
+    destination.write_text(json.dumps(report, indent=2) + "\n")
+    table = run / "suite-images.csv"
+    rows = [csv_row(name, images[name]) for name in sorted(images)]
+    with table.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0], lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    print(
+        f"Verified {len(images)} distinct references and {len(seen)} capture IDs; wrote {destination} and {table}."
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
+    parser.add_argument(
+        "--remaining",
+        action="store_true",
+        help="Audit the 677 Plan 05 paths, including the earlier 92 component subjects",
+    )
+    parser.add_argument(
+        "--include-200",
+        type=Path,
+        metavar="PLAN04_RUN",
+        help="Re-audit the original 200-image run and combine all 877 into one report and CSV",
+    )
     parser.add_argument(
         "pixels", type=Path, help="Path to compiled pixel-comparison executable"
     )
@@ -464,7 +675,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     try:
-        audit(args)
+        if args.include_200:
+            check(
+                args.remaining and not args.check_arm and not args.pass_name,
+                "--include-200 requires a complete --remaining audit",
+            )
+        result = audit(args)
+        if args.include_200:
+            previous_args = argparse.Namespace(
+                **{**vars(args), "run": args.include_200, "remaining": False}
+            )
+            previous = audit(previous_args, write_report=False)
+            combine(args.run, previous, result)
     except (
         OSError,
         ValueError,
