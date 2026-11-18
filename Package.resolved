@@ -1,13 +1,13 @@
 {
-  "originHash" : "50f5c006bb5b3e164cef24425f9464618baa354aeac574f74d2034161d47c135",
+  "originHash" : "7df603fa314a057eed0caeb594780ca1a4c428589950413cc2f040aaedd3a1a5",
   "pins" : [
     {
       "identity" : "accessibilitysnapshot",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cashapp/AccessibilitySnapshot",
       "state" : {
-        "revision" : "c1605f10124733eed116b4737147ed4e2bd7e2e3",
-        "version" : "0.12.0"
+        "revision" : "7a1d34aea8966c10b5002e17df954a171d6c3149",
+        "version" : "0.13.1"
       }
     },
     {
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-snapshot-testing",
       "state" : {
-        "revision" : "1bc16f430d8410e7f087d4c787767b26fd32fe30",
-        "version" : "1.19.3"
+        "revision" : "1488390b0735e726564b948bf08b384398bdab5c",
+        "version" : "1.19.7"
       }
     },
     {
