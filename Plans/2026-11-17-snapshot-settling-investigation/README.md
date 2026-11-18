@@ -26,7 +26,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 
 [PR 528](https://github.com/kyleve/Stuff/pull/528) investigates comparison of a completed capture while the next view is hosted. The [sampler decision](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/06-deliver-sampling-improvements.md) establishes its historical baseline.
 
-7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): executing; current horizon. Local framework, paired trials, delayed oracle, and full-suite gates pass; implementation publication and candidate CI are next.
+7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
 
 | Requirement | Outcome to verify | Story | Plan |
 | --- | --- | --- | --- |
@@ -34,7 +34,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 
 | Question | Status | Question to resolve | Requirement | Finding |
 | --- | --- | --- | --- | --- |
-| Q-10 | answered | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | The user requested a separate planned phase. Plan 07 distinguishes preparation overlap from multiple hosted captures and retains existing serialization until an isolated design proves correct. |
+| Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
 
 The [original phase 7 overview](https://github.com/kyleve/Stuff/blob/f833ba79120bcb9af9e83b9155fbcaf7570cd424/Plans/2026-11-17-snapshot-settling-investigation/README.md) retains the full checkpoint, review record and dated local and CI evidence.
 
