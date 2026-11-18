@@ -4,11 +4,14 @@
 
 The user requested a plan, execution, and iteration on a greenfield frame runner for Flight Status Banner and Locations. The implementation is on `perf/snapshot-requested-frames` in [PR 540](https://github.com/kyleve/Stuff/pull/540), an independent child of PR 524. Plan 01 verified the same 20 Banner references using a single native mount and refined the Locations selection condition until the real screen matched its delayed independent control. Plan 02 verified bounded, cross-process reuse and measured the cost of opening the session. Both plans are complete. The final Locations timing trial reversed execution order and showed that the timing winner changed with the order. The supported production candidate is single-mount native capture for the verified Banner cases. [STU-121](https://linear.app/kve/issue/STU-121) tracks the measurements.
 
+On November 18 the user requested an extension to additional views. Plan 03 is the current horizon on the same branch and PR. Root coordinates the two fixture investigators and the renderer investigator, runs both simulator passes, then records and publishes the results.
+
 ## User stories and requirements
 
 - US-01. A test author specifies an immutable flight state and environment and receives the ordinary production frame. R-01 measures mounts, explicit sleeps, full renders, geometry and pixels against existing references.
 - US-02. A test author drives a real Locations screen through loading, data delivery and a visible selection. R-02 retains one host for the sequence, associates each frame with visible semantics, and compares it to an independent host at the same milestone. R-03 distinguishes label, layout and transition regressions.
 - US-03. A reviewer can assert geometry and image content from the same output. R-04 explores reusing immutable portrait output under declared inputs while always comparing against the current expectation. Count cold renders and warm hits separately from independent lifecycle checks.
+- US-04. A test author can see which additional production fixtures qualify for single-mount capture. R-05 compares identical requests in two processes, isolating the effect of skipped waits where the current policy settles.
 
 The user approved the two examples and authorized implementation and iteration on November 18. The prototype retains the production views and fixtures. X-01 keeps product behavior, capture defaults and reviewed references intact. X-02 limits reuse to experimental inputs on the local machine. Project-wide adoption, remote caching, and a virtual clock for Apple's compositor require separate decisions.
 
@@ -18,6 +21,7 @@ The user approved the two examples and authorized implementation and iteration o
 | --- | --- |
 | [01 — State portraits and named frames](01-state-and-scenario.md) | Root coordinates. The Banner and Locations investigators own separate probe files in the same worktree. Root runs the simulator serially, reviews results and publishes. |
 | [02 — Reuse and falsification](02-frame-reuse.md) | The artifact investigator owns the offline experiment. It consumes a real frame and the verification results from 01. |
+| [03 — Broader single-mount trial](03-broader-single-mount.md) | Extend 01 to real intrinsic component fixtures in WhereUI and InstallerKitUI. |
 
 ## Reproduce
 
@@ -44,6 +48,7 @@ The production Banner takes immutable review data. Locations already supports a 
 | Q-01 | closed | The user authorized a prototype and iteration. Accepted or rejected approaches need reproducible evidence. Adoption is outside X-01. |
 | Q-02 | closed | Plan 01 reproduced all 20 ordinary Banner references on one native mount. Real navigation completion and the entire target month on screen reproduced the selected Locations frame. The title alone captured mid-transition pixels. |
 | Q-03 | closed | Plan 02 replayed an immutable portrait across two processes and rejected the wrong expectation. Local session setup costs more than one fresh portrait. Broader reuse remains outside X-02. |
+| Q-04 | open | Which additional intrinsic views keep their pixels, and how much of the timing difference persists under matched readiness? Plan 03 compares both capture paths. |
 
 ## Design
 
@@ -62,3 +67,5 @@ flowchart LR
 ## Review
 
 On 2026-11-18 the artifact investigator independently reviewed both plans against e479fa140. The review added pre/post-draw selection evidence, fresh native image controls, explicit repeat counts, and a limited cache namespace with real miss invocations and a changed-reference witness. Root checked the ordinary reference inventories, plan links and dependency order. The Mermaid flow was source-reviewed. The final independent review checked the raw PNGs, native controls, changed-expectation failures and scope timings. It caught a navigation predicate that could pass with zero attached controllers and a cleanup race if a second invocation started during restoration. The corrected probe requires a real controller. The launcher holds an exclusive checkout directory through the rebuild. Injected interruptions, conflicting sources and concurrent invocations exercised the cleanup paths.
+
+The Where investigator checked Plan 03 against the fixture declarations and checked-in references. The review distinguished the original Banner control from 54 additional already-immediate frames, and identified the planned-stay hatching, native Year picker and above-viewport Dynamic Type card as useful tests of fidelity.
