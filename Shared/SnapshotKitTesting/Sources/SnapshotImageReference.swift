@@ -6,8 +6,12 @@ import UniformTypeIdentifiers
 /// One PNG reference. Cutsheets carry their approved panel map in PNG Description;
 /// ordinary captures retain the standard PNG encoding and comparison behavior.
 struct SnapshotImageReference {
-    let image: UIImage
+    let capture: SnapshotCapture
     let layout: SnapshotComparisonLayout?
+
+    var image: UIImage {
+        capture.image
+    }
 
     private struct Metadata: Codable {
         let version: Int
@@ -22,9 +26,9 @@ struct SnapshotImageReference {
     }
 
     func pngData() throws -> Data {
-        guard let png = image.pngData() else { throw Failure.invalidPNG }
+        let png = capture.pngData
         guard let layout else { return png }
-        let metadata = try JSONEncoder().encode(Metadata(version: 1, layout: layout))
+        let description = try JSONEncoder().encode(Metadata(version: 1, layout: layout))
         guard let source = CGImageSourceCreateWithData(png as CFData, nil) else {
             throw Failure.invalidPNG
         }
@@ -37,17 +41,29 @@ struct SnapshotImageReference {
         ) else {
             throw Failure.encodingFailed
         }
-        CGImageDestinationAddImageFromSource(destination, source, 0, [
-            kCGImagePropertyPNGDictionary: [
-                kCGImagePropertyPNGDescription: String(decoding: metadata, as: UTF8.self),
-            ],
-        ] as CFDictionary)
-        guard CGImageDestinationFinalize(destination) else { throw Failure.encodingFailed }
+        // Merge the panel map into the source tags, including its color-space metadata.
+        // CopyImageSource writes the compressed image data directly to the destination.
+        let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil)
+            .flatMap(CGImageMetadataCreateMutableCopy) ?? CGImageMetadataCreateMutable()
+        guard CGImageMetadataSetValueMatchingImageProperty(
+            metadata,
+            kCGImagePropertyPNGDictionary,
+            kCGImagePropertyPNGDescription,
+            String(decoding: description, as: UTF8.self) as CFString,
+        ) else { throw Failure.encodingFailed }
+        var error: Unmanaged<CFError>?
+        guard CGImageDestinationCopyImageSource(destination, source, [
+            kCGImageDestinationMetadata: metadata,
+            kCGImageDestinationMergeMetadata: true,
+        ] as CFDictionary, &error) else {
+            if let error { throw error.takeRetainedValue() }
+            throw Failure.encodingFailed
+        }
         return data as Data
     }
 
-    init(image: UIImage, layout: SnapshotComparisonLayout?) {
-        self.image = image
+    init(capture: SnapshotCapture, layout: SnapshotComparisonLayout) {
+        self.capture = capture
         self.layout = layout
     }
 
@@ -55,7 +71,7 @@ struct SnapshotImageReference {
         guard let image = UIImage(data: png),
               let source = CGImageSourceCreateWithData(png as CFData, nil)
         else { throw Failure.invalidPNG }
-        self.image = image
+        capture = SnapshotCapture(image: image, pngData: png)
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         let dictionary = properties?[kCGImagePropertyPNGDictionary] as? [CFString: Any]
         if let description = dictionary?[kCGImagePropertyPNGDescription] as? String {

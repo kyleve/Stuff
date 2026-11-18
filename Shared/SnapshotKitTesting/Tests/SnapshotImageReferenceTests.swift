@@ -1,3 +1,4 @@
+import ImageIO
 import SnapshotKit
 import SnapshotTesting
 @_spi(Testing) @testable import SnapshotKitTesting
@@ -126,13 +127,21 @@ struct SnapshotImageReferenceTests {
         let data = try reference.pngData()
         let decoded = try SnapshotImageReference(png: data)
         #expect(decoded.layout == reference.layout)
-        let bare = try #require(reference.image.pngData())
+        let bare = reference.capture.pngData
+        #expect(try exifColorSpace(in: bare) == exifColorSpace(in: data))
         #expect(SnapshotImageReference.comparePanels(referencePNG: bare, panels: sheet)?.message
             .contains("missing") == true)
         #expect(SnapshotImageReference.strategy(panelFailure: nil).diffing
             .diffV2(bare, bare) == nil)
         #expect(SnapshotImageReference.strategy(panelFailure: nil).diffing
             .diffV2(data, bare)?.0.contains("metadata changed") == true)
+    }
+
+    private func exifColorSpace(in png: Data) throws -> NSNumber {
+        let source = try #require(CGImageSourceCreateWithData(png as CFData, nil))
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let exif = properties?[kCGImagePropertyExifDictionary] as? [CFString: Any]
+        return try #require(exif?[kCGImagePropertyExifColorSpace] as? NSNumber)
     }
 
     @Test func corruptPNGProducesExplicitFailure() {
@@ -157,9 +166,8 @@ struct SnapshotImageReferenceTests {
 
     @Test func invalidBoundsAndDuplicateIdentitiesFailExplicitly() async throws {
         let sheet = [comparisonPanel("a")]
-        let capture = try await SnapshotImageGrid.capture(panels: sheet, named: "Invalid")
-        let image = capture.image
-        let layout = try #require(capture.layout)
+        let sheetReference = try await SnapshotImageGrid.capture(panels: sheet, named: "Invalid")
+        let layout = try #require(sheetReference.layout)
         let panel = layout.panels[0]
         let invalidLayouts = [
             SnapshotComparisonLayout(panels: [panel, panel], pixelSize: layout.pixelSize),
@@ -171,7 +179,8 @@ struct SnapshotImageReferenceTests {
             SnapshotComparisonLayout(panels: [panel], pixelSize: .zero),
         ]
         for layout in invalidLayouts {
-            let data = try SnapshotImageReference(image: image, layout: layout).pngData()
+            let data = try SnapshotImageReference(capture: sheetReference.capture, layout: layout)
+                .pngData()
             #expect(throws: (any Error).self) { try SnapshotImageReference(png: data) }
             #expect(SnapshotImageReference.comparePanels(referencePNG: data, panels: sheet)?
                 .message.contains("Cannot compare") == true)
