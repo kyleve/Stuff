@@ -186,6 +186,7 @@ func settleForCapture(
         minimumDuration: minDuration,
         maximumDuration: maxDuration,
     )
+    let layoutTrace = trace.flatMap { SnapshotSettleTrace.recordsPendingLayout ? $0 : nil }
     var tracedOutcome = SettleOutcome.cancelled
     defer { trace?.emit(outcome: tracedOutcome) }
     let minDeadline = start.advanced(by: .seconds(minDuration))
@@ -235,9 +236,7 @@ func settleForCapture(
         let sleepDuration = sleepStart
             .map { SnapshotSettleTrace.seconds($0.duration(to: clock.now)) }
         // Sampled *before* this pass lays out, because the loop performs the
-        // layout itself: read afterwards, `needsLayout` is always clear and that
-        // third of the signal says nothing. Dirty layout here means something
-        // changed since the previous pass, which is exactly the question.
+        // layout itself. Reading first preserves pending work that this pass clears.
         let hadPendingWorkBeforeLayout = mechanism == .pixel
             ? false
             : view.layer.hasPendingWork()
@@ -246,6 +245,7 @@ func settleForCapture(
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         let layoutDuration = layoutStart
             .map { SnapshotSettleTrace.seconds($0.duration(to: clock.now)) }
+        let afterLayout = layoutTrace.map { _ in SnapshotSettleTrace.PendingLayout(in: view) }
         passCount += 1
 
         // Quiescence: the run loop went idle at least once since the last pass
@@ -269,11 +269,13 @@ func settleForCapture(
         var now = clock.now
         var renderDuration = 0.0
         var pixelDuration = 0.0
+        var drewSample = false
         // The normalized anchor survives in pixelStability; the UIKit sample
         // and drawing intermediates must drain before the next suspension.
         let pixelSaysStable = autoreleasepool {
             let renderStart = trace.map { _ in clock.now }
             let sampledImage = mechanism == .quiescence ? nil : view.renderedContentSample()
+            drewSample = sampledImage != nil
             now = clock.now
             if let renderStart {
                 renderDuration = SnapshotSettleTrace.seconds(renderStart.duration(to: now))
@@ -287,6 +289,14 @@ func settleForCapture(
                 pixelDuration = SnapshotSettleTrace.seconds(now.duration(to: clock.now))
             }
             return stable
+        }
+
+        if let layoutTrace, let afterLayout {
+            layoutTrace.emitLayout(
+                pass: passCount,
+                afterLayout: afterLayout,
+                afterDraw: drewSample ? SnapshotSettleTrace.PendingLayout(in: view) : nil,
+            )
         }
 
         var quiescenceSaysStable = false
