@@ -2,15 +2,15 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17, starting from PR #528 checkpoint `7ccd0383e`; its tested runtime is `689cef15c`.
-- Operation: Revise and execute follow-up experiments after the user requested, “let’s do them all and see what helps.”
-- Requested scope: Repeat the mixed CI comparison, evaluate a larger bounded comparison worker, move immutable PNG processing off the capture path, and test deadline-aware settling samples. Preserve completed plans 01–07.
-- Stage: Complete. All four follow-ups are executed, reviewed, and published. Retain the 8M comparison bound, eager PNG processing, and 16ms cadence. The trace transport repair remains and passes full CI reconciliation.
+- Updated: 2026-11-18, starting from PR #529 checkpoint `05bb537a1`.
+- Operation: Measure the combined full local suite benefit after the user asked to see the speedup from the two retained improvements.
+- Requested scope: Compare the complete suite before PRs #525/#528 with their accepted implementation. Preserve completed plans 01–10 and their evidence.
+- Stage: Executing [11 — Combined local measurement](11-combined-local-measurement.md). No new runtime change is selected. Retain the 8M comparison bound, eager PNG processing, and 16ms cadence.
 - Completed: Plans 01–10 and inserted plan 08a. The final follow-up result is published in PR #529 at `e54daf62b`; its net Swift source/test diff against PR #528 is empty. Earlier phase-7 local savings remain 41.859s / 4.91%; the CI repeats establish no additional elapsed-gain claim.
-- Pending: No experiment implementation. Updating the existing Linear report awaits explicit destination approval after automatic review rejected that write.
+- Pending: One fresh full-suite control/candidate pair and its evidence report. Updating the existing Linear report still awaits explicit destination approval after automatic review rejected that write.
 - Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
 - Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
-- Next action: PR #529 is ready for review. The prepared Linear update remains local until the pending approval is answered; no merge is performed.
+- Next action: Run control `c6ad51144` and candidate `05bb537a1` serially on the same simulator, excluding build/generation time. Restore this branch and publish the measurement record in PR #529. The prepared Linear update remains local; no merge is performed.
 - Delegation: Root completed source, local trials, cleanup, and publication. `/root/watch_settle_ci` completed the bounded CI evidence assignment. `/root/review_snapshot_followups` completed independent source, raw-evidence, and cleanup reviews.
 
 ## Outcome and scope
@@ -81,8 +81,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
    [08a — Preserve complete traces beside native logs](08a-trace-log-framing.md): complete; strict transport passes fresh full CI, while historical failed samples remain excluded.
 9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
 10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): complete; retain the ordinary cadence after render savings fail the repeated elapsed-benefit gate.
+11. [11 — Combined local measurement](11-combined-local-measurement.md): executing; measure the retained readiness/preparation and bounded comparison improvements together against their common control.
 
-The selected horizon is complete. All retained behavior passes its applicable gates; rejected prototypes are removed and their evidence remains available.
+Plans 01–10 are complete. The current horizon is plan 11's additional measurement. All retained behavior passes its applicable gates; rejected prototypes are removed and their evidence remains available.
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Further candidate work requires its own reviewed refinement; this bounded series retains its original exclusions.
 The first PR contains the plan and observational groundwork; subsequent commits/PRs keep each verified change separate.
