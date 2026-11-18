@@ -126,7 +126,7 @@ Candidate checks pass at `689cef15c`. Summed worker test time falls 1.23%, but t
 Highest sampled executor memory rises 19.486GiB → 19.704GiB. These 15-second whole-executor samples are not test-host RSS
 and can miss shorter peaks. CI throughput uncertainty remains in STU-121; local strict/oracle checks own the additional image-fidelity evidence.
 
-The adopted boundary permits one worker and one current capture inside a provider.
+The phase-7 boundary permits one worker and one current capture inside a provider.
 Workers receive PNG bytes and a reference URL. Successful comparisons can be reused only after the verifier rechecks both original byte sequences.
 The main actor still owns authoritative verification, recording, and issues. Cutsheets and captures above
 8 million pixels keep serial comparison. Structured scope exit joins workers, including cancellation.
@@ -136,3 +136,16 @@ Retest throughput, image fidelity, cancellation, and resource peaks after changi
 the image-comparison dependency, or test serialization. Summed capture work excludes pipeline queue delay and
 is not elapsed suite time. [Plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md)
 retains the paired controls, independent delayed oracle, full-suite gates, raw artifacts, and validation limits.
+
+## Comparison pixel budget — 2026-11-17
+
+The current follow-up selects a 12-million-pixel worker limit. Interleaved 8M/12M/16M trials favor 12M as the smaller promising budget.
+The full local 8M/12M pair preserves 935 captures, geometry, policies, and zero retries; test elapsed falls 808.627s → 791.816s (2.08%).
+Sampled host RSS rises 25.766MiB, below the unchanged resource gate. Settling render work remains essentially flat.
+Real 9M and 16M reference guards cover the expanded eligibility and retained serial fallback.
+
+Strict comparisons retain two one-pixel, two-unit exceptions. Adaptive Locations matches independent delayed serial variants.
+The other is an unreproduced two-unit pixel in a small phone glyph on the unchanged serial HTML path; renderer/environment variation is inferred.
+No references or tolerances change. The [plan-08 investigation](../../../Plans/2026-11-17-snapshot-settling-investigation/08-expand-bounded-comparison.md) records exact values and limits.
+Thirty-one focused framework functions pass, including the area guards, bounded overlap, cancellation, recording, and timing. Isolated CI validation of 12M remains pending.
+The bounded phase-7 CI repeat yields two clean candidates but no new complete pair, so it establishes no CI elapsed improvement.

@@ -5,13 +5,13 @@
 - Updated: 2026-11-17, starting from PR #528 checkpoint `7ccd0383e`; its tested runtime is `689cef15c`.
 - Operation: Revise and execute follow-up experiments after the user requested, “let’s do them all and see what helps.”
 - Requested scope: Repeat the mixed CI comparison, evaluate a larger bounded comparison worker, move immutable PNG processing off the capture path, and test deadline-aware settling samples. Preserve completed plans 01–07.
-- Stage: Plans 08–10 are reviewed for scope; plan 08 is executing. Plans 09–10 remain outlines until their source boundaries and falsifiable checks are refined.
+- Stage: Plan 08 has completed local timing, pixel, resource, and framework checks; selected 12M CI validation is next. The bounded phase-7 CI repeat is complete and inconclusive for paired throughput. Plans 09–10 have reviewed isolated source prototypes. Plan 08a's trace repair is published, with fresh CI transport evidence pending.
 - Completed: Plans 01–07 and PR #528 are published. Local phase-7 savings are 41.859s / 4.91%. Its isolated CI pair preserves all captures but establishes no elapsed-time gain.
 - Pending: [08](08-expand-bounded-comparison.md), [09](09-overlap-png-processing.md), and [10](10-deadline-aware-sampling.md). Keep accepted changes only after timing, fidelity, cancellation, and resource gates.
 - Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
 - Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
-- Next action: Record same-binary experiment controls and start bounded larger-image trials while isolated CI repeats run separately.
-- Delegation: Root owns local prototypes, tests, plan integration, and publication. `/root/watch_settle_ci` owns only the explicitly assigned repeat-CI watch and raw evidence; it must not change repository files or publish. Independent implementation review is required before publication.
+- Next action: Finish clean 12M framework/CI validation and apply the PNG prototype against that selected budget. Full local comparisons and the bounded CI repeat are complete; the trace repair is published on PR #524 and inherited by the stack.
+- Delegation: Root owns local prototypes, tests, plan integration, and publication. `/root/watch_settle_ci` owns only the explicitly assigned repeat-CI watch and raw evidence; it must not change repository files or publish. `/root/review_snapshot_followups` owns fresh read-only implementation/evidence review before publication.
 
 ## Outcome and scope
 
@@ -78,10 +78,11 @@ Repository source and the pinned-runtime measurements suffice for this observati
 7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
 
 8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): executing; repeat CI evidence and compare 8M, 12M, and 16M pixel budgets.
-9. [09 — Overlap PNG processing](09-overlap-png-processing.md): outline; refine after plan 08 fixes the accepted worker budget.
-10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): outline; refine after plan 09 establishes the accepted pipeline baseline.
+   [08a — Preserve complete traces beside native logs](08a-trace-log-framing.md): executing; repair a collector defect exposed by the CI repeat without reclassifying that failed run as a clean timing sample.
+9. [09 — Overlap PNG processing](09-overlap-png-processing.md): executing; author an isolated prototype from phase 7, then use the plan-08 budget for paired validation.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing an isolated conservative floor-wait prototype; integrate after plan 09 establishes the accepted pipeline baseline.
 
-The current horizon details plan 08. Plans 09–10 are authorized experiments, with their implementation boundaries still provisional.
+The current horizon measures plan 08 and authors independent source prototypes for plans 09–10. Their timing and adoption remain sequential, against each preceding experiment's selected baseline.
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
 The first PR contains the plan and observational groundwork; subsequent commits/PRs keep each verified change separate.

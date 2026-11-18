@@ -15,7 +15,7 @@ struct SnapshotPreparedMatch {
 struct SnapshotPreparedComparison {
     /// Keep comparison buffers bounded while another capture is hosted.
     /// Larger images retain the serial path measured by the overlap experiment.
-    static let maximumPixelCount = 8_000_000
+    static let maximumPixelCount = 12_000_000
 
     enum Outcome {
         case matched(SnapshotPreparedMatch)
