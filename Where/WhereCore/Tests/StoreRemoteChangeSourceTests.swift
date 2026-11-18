@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftData
 import Testing
 @_spi(Testing) @testable import WhereCore
@@ -38,23 +39,31 @@ struct StoreRemoteChangeSourceTests {
         #expect(await firstPing(stream, within: .seconds(5)))
     }
 
-    /// A commit between the history baseline and observer startup can miss the
-    /// observer's first event. The source's catch-up must still forward it.
-    @Test func historyObserverCatchesCommitBetweenBaselineAndObservation() async throws {
+    /// The first tracked read catches a commit made before observation starts.
+    /// A later invalidation can report the same counter even after another save.
+    @Test func historyObserverCatchesUpAndForwardsARepeatedCounter() async throws {
         let store = try TemporaryHistoryStore()
         defer { store.remove() }
         let sibling = try store.makeContainer()
+        let external = ModelContext(sibling)
+        external.author = "where-other-process"
         let source = try HistoryObserverRemoteChangeSource(
             modelContainer: store.container,
             localTransactionAuthor: "where-local",
-            testingAfterHistoryBaseline: {
-                let external = ModelContext(sibling)
-                external.author = "where-other-process"
+            testingMakeObservations: {
                 external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
                 try external.save()
+                let observer = try HistoryObserver(modelContainer: store.container)
+                return Observations {
+                    _ = observer.eventCounter
+                    return 0
+                }
             },
         )
 
+        try #require(await firstPing(source.remoteChanges, within: .seconds(5)))
+        external.insert(SDTrackedRegion(regionID: "us-CA", generationID: .initial))
+        try external.save()
         #expect(await firstPing(source.remoteChanges, within: .seconds(5)))
     }
 

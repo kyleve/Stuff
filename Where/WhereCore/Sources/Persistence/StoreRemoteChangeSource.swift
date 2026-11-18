@@ -40,10 +40,7 @@ final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
 
     let remoteChanges: AsyncStream<Void>
 
-    private let observer: HistoryObserver
     private let continuation: AsyncStream<Void>.Continuation
-    private let candidateContinuation: AsyncStream<Void>.Continuation
-    private let classificationTask: Task<Void, Never>
     private let observationTask: Task<Void, Never>
 
     convenience init(
@@ -53,22 +50,24 @@ final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
         try self.init(
             modelContainer: modelContainer,
             localTransactionAuthor: localTransactionAuthor,
-            afterHistoryBaseline: {},
+            makeObservations: {
+                let observer = try HistoryObserver(modelContainer: modelContainer)
+                return Observations { observer.eventCounter }
+            },
         )
     }
 
     #if DEBUG
-        /// Test seam for committing a transaction in the narrow interval after the history
-        /// baseline is captured but before history observation begins.
+        /// Supplies a controlled observation sequence after the classifier captures its baseline.
         convenience init(
             modelContainer: ModelContainer,
             localTransactionAuthor: String,
-            testingAfterHistoryBaseline: () throws -> Void,
+            testingMakeObservations: () throws -> Observations<Int, Never>,
         ) throws {
             try self.init(
                 modelContainer: modelContainer,
                 localTransactionAuthor: localTransactionAuthor,
-                afterHistoryBaseline: testingAfterHistoryBaseline,
+                makeObservations: testingMakeObservations,
             )
         }
     #endif
@@ -76,7 +75,7 @@ final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
     private init(
         modelContainer: ModelContainer,
         localTransactionAuthor: String,
-        afterHistoryBaseline: () throws -> Void,
+        makeObservations: () throws -> Observations<Int, Never>,
     ) throws {
         let (stream, continuation) = AsyncStream.makeStream(
             of: Void.self,
@@ -84,20 +83,16 @@ final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
         )
         remoteChanges = stream
         self.continuation = continuation
-        let (candidates, candidateContinuation) = AsyncStream.makeStream(
-            of: Void.self,
-            bufferingPolicy: .bufferingNewest(1),
-        )
-        self.candidateContinuation = candidateContinuation
         let classifier = try PersistentHistoryRemoteChangeClassifier(
             modelContainer: modelContainer,
             localTransactionAuthor: localTransactionAuthor,
         )
-        try afterHistoryBaseline()
-        let observer = try HistoryObserver(modelContainer: modelContainer)
-        self.observer = observer
-        classificationTask = Task {
-            for await _ in candidates {
+        let observations = try makeObservations()
+        observationTask = Task {
+            // The counter wakes us to check durable history. Observation can
+            // deliver the same value twice when a sibling save races a read.
+            // Check after every tracked read, including the first for catch-up.
+            for await _ in observations {
                 do {
                     if try await classifier.hasExternalTransactionsSinceLastCheck() {
                         continuation.yield()
@@ -113,25 +108,10 @@ final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
                 }
             }
         }
-        let initialCounter = observer.eventCounter
-        observationTask = Task {
-            var previousCounter = initialCounter
-            for await counter in Observations({ observer.eventCounter }) {
-                guard counter != previousCounter else { continue }
-                previousCounter = counter
-                candidateContinuation.yield()
-            }
-        }
-        // A transaction between the history baseline and observation startup
-        // may have no event left to deliver. Its durable history row is visible
-        // to this catch-up pass.
-        candidateContinuation.yield()
     }
 
     deinit {
         observationTask.cancel()
-        candidateContinuation.finish()
-        classificationTask.cancel()
         continuation.finish()
     }
 }
