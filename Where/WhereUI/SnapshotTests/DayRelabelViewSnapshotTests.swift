@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct DayRelabelViewSnapshotTests {
     @Test func dayRelabel() async {
-        await assertSnapshots(of: DayRelabelView.self)
+        await assertSnapshots(of: DayRelabelView.self, captureMode: .afterMeasurement)
     }
 }

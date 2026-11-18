@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct RegionsSettingsViewSnapshotTests {
     @Test func regionsSettings() async {
-        await assertSnapshots(of: RegionsSettingsView.self)
+        await assertSnapshots(of: RegionsSettingsView.self, captureMode: .afterMeasurement)
     }
 }

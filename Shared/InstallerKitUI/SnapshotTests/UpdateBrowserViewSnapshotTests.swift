@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct UpdateBrowserViewSnapshotTests {
     @Test func browser() async {
-        await assertSnapshots(of: UpdateBrowserView.self)
+        await assertSnapshots(of: UpdateBrowserView.self, captureMode: .afterMeasurement)
     }
 }

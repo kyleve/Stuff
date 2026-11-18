@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct ShareEvidenceFeaturesViewSnapshotTests {
     @Test func shareEvidenceFeatures() async {
-        await assertSnapshots(of: ShareEvidenceFeaturesView.self)
+        await assertSnapshots(of: ShareEvidenceFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

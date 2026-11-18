@@ -36,6 +36,7 @@ struct InspectorSnapshotTests {
                 devices: [.iPhoneFullContent],
                 colorSchemes: [.light],
             ),
+            captureMode: .afterMeasurement,
         )
 
         let controlSuiteName = "inspector.snapshot.control"
@@ -85,6 +86,7 @@ struct InspectorSnapshotTests {
             of: rootView,
             named: "Root",
             configurations: .fullContentPhoneLightDark,
+            captureMode: .afterMeasurement,
         )
     }
 

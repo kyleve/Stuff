@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct DeveloperCrashTestingViewSnapshotTests {
     @Test func developerCrashTestingView() async {
-        await assertSnapshots(of: DeveloperCrashTestingView.self)
+        await assertSnapshots(of: DeveloperCrashTestingView.self, captureMode: .afterMeasurement)
     }
 }

@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct TodayWidgetViewSnapshotTests {
     @Test func todayWidget() async {
-        await assertSnapshots(of: TodayWidgetView.self)
+        await assertSnapshots(of: TodayWidgetView.self, captureMode: .immediateComponent)
     }
 }

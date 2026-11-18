@@ -9,7 +9,9 @@ import UIKit
 @MainActor
 struct CalendarContentViewSnapshotTests {
     @Test func calendarContent() async {
-        await assertSnapshots(of: MeasuredCalendarSnapshots.self)
+        await assertSnapshots(of: MeasuredCalendarSnapshots.self, captureMode: { snapshotCase, _ in
+            snapshotCase.settle == .immediate ? .immediateComponent : .afterMeasurement
+        })
     }
 
     @Test func retryAwaitsTheNewlyMountedCalendar() async throws {

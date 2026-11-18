@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct FlightDayDetailViewSnapshotTests {
     @Test func flightDayDetail() async {
-        await assertSnapshots(of: FlightDayDetailView.self)
+        await assertSnapshots(of: FlightDayDetailView.self, captureMode: .afterMeasurement)
     }
 }

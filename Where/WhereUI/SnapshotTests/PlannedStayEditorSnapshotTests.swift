@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PlannedStayEditorSnapshotTests {
     @Test func plannedStayEditor() async {
-        await assertSnapshots(of: PlannedStayEditor.self)
+        await assertSnapshots(of: PlannedStayEditor.self, captureMode: .afterMeasurement)
     }
 }

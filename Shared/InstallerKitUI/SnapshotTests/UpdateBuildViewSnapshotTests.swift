@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct UpdateBuildViewSnapshotTests {
     @Test func build() async {
-        await assertSnapshots(of: UpdateBuildView.self)
+        await assertSnapshots(of: UpdateBuildView.self, captureMode: .afterMeasurement)
     }
 }

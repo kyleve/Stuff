@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct ManualDayViewSnapshotTests {
     @Test func manualDay() async {
-        await assertSnapshots(of: ManualDayView.self)
+        await assertSnapshots(of: ManualDayView.self, captureMode: .afterMeasurement)
     }
 }

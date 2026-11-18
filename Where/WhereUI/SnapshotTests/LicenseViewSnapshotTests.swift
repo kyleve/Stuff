@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct LicenseViewSnapshotTests {
     @Test func license() async {
-        await assertSnapshots(of: LicenseView.self)
+        await assertSnapshots(of: LicenseView.self, captureMode: .afterMeasurement)
     }
 }

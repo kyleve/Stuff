@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct FlightStatusBannerSnapshotTests {
     @Test func flightStatusBanner() async {
-        await assertSnapshots(of: FlightStatusBanner.self)
+        await assertSnapshots(of: FlightStatusBanner.self, captureMode: .immediateComponent)
     }
 }

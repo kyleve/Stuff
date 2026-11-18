@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct CardDesignerStudioViewSnapshotTests {
     @Test func cardDesignerStudio() async {
-        await assertSnapshots(of: CardDesignerStudioView.self)
+        await assertSnapshots(of: CardDesignerStudioView.self, captureMode: .afterMeasurement)
     }
 }

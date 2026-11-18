@@ -6,6 +6,9 @@ import Testing
 @MainActor
 struct AppUpdatesViewSnapshotTests {
     @Test func updates() async {
-        await assertSnapshots(of: AppUpdatesView<EmptyModifier>.self)
+        await assertSnapshots(
+            of: AppUpdatesView<EmptyModifier>.self,
+            captureMode: .afterMeasurement,
+        )
     }
 }

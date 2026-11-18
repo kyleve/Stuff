@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PlannedStaysViewSnapshotTests {
     @Test func plannedStays() async {
-        await assertSnapshots(of: PlannedStaysView.self)
+        await assertSnapshots(of: PlannedStaysView.self, captureMode: .afterMeasurement)
     }
 }

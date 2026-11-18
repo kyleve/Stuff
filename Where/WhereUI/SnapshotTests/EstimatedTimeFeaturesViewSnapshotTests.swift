@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct EstimatedTimeFeaturesViewSnapshotTests {
     @Test func snapshots() async {
-        await assertSnapshots(of: EstimatedTimeFeaturesView.self)
+        await assertSnapshots(of: EstimatedTimeFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

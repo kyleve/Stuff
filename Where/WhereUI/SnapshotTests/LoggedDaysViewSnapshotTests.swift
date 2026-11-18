@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct LoggedDaysViewSnapshotTests {
     @Test func loggedDays() async {
-        await assertSnapshots(of: LoggedDaysView.self)
+        await assertSnapshots(of: LoggedDaysView.self, captureMode: .afterMeasurement)
     }
 }

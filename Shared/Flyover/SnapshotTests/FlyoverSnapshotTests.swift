@@ -36,6 +36,7 @@ struct FlyoverSnapshotTests {
             configurations: SnapshotConfiguration.combinations(
                 devices: [.iPhoneFullContent],
             ),
+            captureMode: .afterMeasurement,
         )
 
         let fullCanvasModel = FlyoverModel(catalog: catalog)

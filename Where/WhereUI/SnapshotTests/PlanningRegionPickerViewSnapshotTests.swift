@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PlanningRegionPickerViewSnapshotTests {
     @Test func planningRegionPicker() async {
-        await assertSnapshots(of: PlanningRegionPickerView.self)
+        await assertSnapshots(of: PlanningRegionPickerView.self, captureMode: .afterMeasurement)
     }
 }

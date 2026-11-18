@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PrivacyBackupsFeaturesViewSnapshotTests {
     @Test func gallery() async {
-        await assertSnapshots(of: PrivacyBackupsFeaturesView.self)
+        await assertSnapshots(of: PrivacyBackupsFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

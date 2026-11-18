@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct UpdateFailureCardSnapshotTests {
     @Test func failure() async {
-        await assertSnapshots(of: UpdateFailureCard.self)
+        await assertSnapshots(of: UpdateFailureCard.self, captureMode: .afterMeasurement)
     }
 }

@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct DataSettingsViewSnapshotTests {
     @Test func data() async {
-        await assertSnapshots(of: DataSettingsView.self)
+        await assertSnapshots(of: DataSettingsView.self, captureMode: .afterMeasurement)
     }
 }
