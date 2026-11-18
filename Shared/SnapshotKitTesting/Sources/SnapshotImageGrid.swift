@@ -84,7 +84,9 @@ struct SnapshotImageGrid: View {
                 measurementReadiness: .sameAsCapture,
                 onReadyToMeasure: nil,
                 measurementHookTimeout: nil,
-                settle: .settled,
+                // The panels are finished images and the labels have synchronous layout.
+                // The grid needs one mounted layout pass to report their bounds.
+                settle: .immediate,
                 onReadyToSnapshot: nil,
                 settleTimeoutPolicy: .fromEnvironment(),
                 timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
@@ -115,7 +117,7 @@ struct SnapshotImageGrid: View {
                     bounds: pixelBounds,
                 )
             }
-            return SnapshotImageReference(image: image, layout: .init(
+            return SnapshotImageReference(capture: capture, layout: .init(
                 panels: placements,
                 pixelSize: CGSize(width: pixels.width, height: pixels.height),
             ))
