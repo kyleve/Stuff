@@ -2,17 +2,16 @@
 
 ## Planning checkpoint
 
-- Updated: 2026-11-17; phase 7 implementation `689cef15c` is published in ready-for-review PR #528 on `perf/snapshot-overlap`, above PR #527 at `64e349f14`. Local acceptance, isolated CI validation, and independent review pass; the final checkpoint changes documentation only.
-- Operation: Refine and execute phase 7 after the user's explicit request, “Let’s move onto phase 7!” Preserve completed plans 01–06.
-- Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–07 are complete. Plan 07 adopts bounded background image comparison for its repeatable local gain. Background saves 11.80% and MainActor interleaving saves 5.98% on the selected workload; neither adds a second host.
-- Completed: Plans 01–04: tracing and local/CI classification, five accepted consumer changes, 163 framework functions, all 935 local captures, and isolated CI. Follow-up: Metal prerequisites, eight paired timing runs with 880 capture assertions, 23 focused framework functions, complete prototype cleanup, and independent review. No follow-up sampler change is accepted.
-- Completed locally in phase 7: six focused timing runs, independent 110-capture delayed oracle, 173 framework functions plus 28 final focused functions, and a same-binary 935-capture pair. Full test time improves 851.900s → 810.041s (4.91%); capture identity and geometry stay unchanged. Independent review and lint pass.
-- Completed CI: both revisions pass 935 captures / 78 functions with zero retries and matching geometry/policies. Candidate runtime `689cef15c` passes all CircleCI and manual GitHub gates. Summed worker test time falls 16.293s, but the longest test phase rises 15.059s and snapshot job wall rises 19.250s. No CI elapsed-time gain is established.
-- Pending: No selected phase remains. STU-121 retains CI throughput uncertainty, independent fixture preparation, additional hosted slots, and other readiness questions.
-- Validation exception: The user explicitly requested ignoring the known intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure in the control unit job. Snapshot jobs and all other failures remain part of acceptance.
-- Next action: Normal review and merge of the open stack; no merge is assumed or performed. Candidate CircleCI pipeline #2540 and GitHub run 44213751266 test implementation `689cef15c`. The final evidence checkpoint is documentation only, and STU-121 remains In Review.
-- Delegation: `/root/review_settling_candidates` and `/root/watch_settle_ci` completed the original implementation review and CI reconciliation. `/root/review_metal_sampling` independently reviewed all follow-up artifacts, cleanup, and the overlap outline. The root independently recomputed that evidence. `/root/watch_settle_ci` completed the phase-7 CI and publication handoff. `/root/review_snapshot_overlap` independently reviewed phase-7 source, local evidence, and raw CI accounting; its timing-accounting and resource-bound findings are tracked in plan 07.
+- Updated: 2026-11-17, starting from PR #528 checkpoint `7ccd0383e`; its tested runtime is `689cef15c`.
+- Operation: Revise and execute follow-up experiments after the user requested, “let’s do them all and see what helps.”
+- Requested scope: Repeat the mixed CI comparison, evaluate a larger bounded comparison worker, move immutable PNG processing off the capture path, and test deadline-aware settling samples. Preserve completed plans 01–07.
+- Stage: Plans 08–10 are reviewed for scope; plan 08 is executing. Plans 09–10 remain outlines until their source boundaries and falsifiable checks are refined.
+- Completed: Plans 01–07 and PR #528 are published. Local phase-7 savings are 41.859s / 4.91%. Its isolated CI pair preserves all captures but establishes no elapsed-time gain.
+- Pending: [08](08-expand-bounded-comparison.md), [09](09-overlap-png-processing.md), and [10](10-deadline-aware-sampling.md). Keep accepted changes only after timing, fidelity, cancellation, and resource gates.
+- Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
+- Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
+- Next action: Record same-binary experiment controls and start bounded larger-image trials while isolated CI repeats run separately.
+- Delegation: Root owns local prototypes, tests, plan integration, and publication. `/root/watch_settle_ci` owns only the explicitly assigned repeat-CI watch and raw evidence; it must not change repository files or publish. Independent implementation review is required before publication.
 
 ## Outcome and scope
 
@@ -55,6 +54,9 @@ Repository source and the pinned-runtime measurements suffice for this observati
 | R-05 | Determine whether fewer samples or Metal layer rendering reduce settling time without false completion. | US-01 | [05](05-metal-and-sampling-experiments.md) |
 | R-06 | Deliver validated follow-up savings with explicit fallback where required; preserve the existing quiet proof and case floors. | US-01 | [06](06-deliver-sampling-improvements.md) |
 | R-07 | Determine whether useful work can overlap settling without corrupting host state, delaying required UI work, or changing snapshots. | US-01 | [07](07-overlap-snapshot-work.md) |
+| R-08 | Distinguish CI variation from throughput effects and evaluate larger bounded comparisons. | US-01 | [08](08-expand-bounded-comparison.md) |
+| R-09 | Determine whether immutable PNG processing can overlap capture without changing normalized pixels or reporting. | US-01 | [09](09-overlap-png-processing.md) |
+| R-10 | Reduce premature settling renders without weakening the anchor proof, floors, late-change detection, or failure policy. | US-01 | [10](10-deadline-aware-sampling.md) |
 
 ## Exclusions
 
@@ -75,6 +77,11 @@ Repository source and the pinned-runtime measurements suffice for this observati
 6. [06 — Deliver the sampling result](06-deliver-sampling-improvements.md): complete; reviewed findings published and original Swift source restored.
 7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
 
+8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): executing; repeat CI evidence and compare 8M, 12M, and 16M pixel budgets.
+9. [09 — Overlap PNG processing](09-overlap-png-processing.md): outline; refine after plan 08 fixes the accepted worker budget.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): outline; refine after plan 09 establishes the accepted pipeline baseline.
+
+The current horizon details plan 08. Plans 09–10 are authorized experiments, with their implementation boundaries still provisional.
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
 The first PR contains the plan and observational groundwork; subsequent commits/PRs keep each verified change separate.
@@ -100,6 +107,9 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-08 | closed | Does an accepted local candidate improve isolated CI with its actual GPU availability? | R-06 | No candidate passes the local adoption gate, so no CI candidate trial is selected. Actual CI GPU availability and color-format performance remain unmeasured follow-ups in STU-121; the negative local result is not a CI claim. |
 | Q-09 | closed | Would Metal image comparison materially reduce settling cost? | R-05 | Current local normalization and pixel checks total 1.626s, about 0.2% of capture work. Do not add a settling comparison kernel. Full reference comparison is a separate 100.057s phase in the review-enabled run, including PNG handling and diagnostics; its library already has a conditional Metal/MPS path. Profiling that path remains separate STU-121 scope. |
 | Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
+| Q-11 | open | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 repeats isolated CI and tests bounded pixel limits separately. |
+| Q-12 | open | Can PNG processing safely leave the capture critical path? | R-09 | Refine plan 09 against immutable image ownership, normalization, cancellation, and memory. |
+| Q-13 | open | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | Refine plan 10 with adversarial traces and independent delayed captures. |
 
 ## Follow-up research and review
 
@@ -131,3 +141,6 @@ repeated focused trials, the independent delayed oracle, and the 935-capture loc
 reproduces identities, geometry, policies, retries, timing, and sampled resources. The full local pair saves 41.859s (4.91%).
 The isolated CI pair has lower summed test work but a slower longest worker and job wall, so no CI elapsed gain is claimed.
 The final checkpoint changes documentation only; STU-121 remains In Review with the remaining unselected investigations.
+
+
+2026-11-17 follow-up plan review, base `7ccd0383e`: the user explicitly authorizes all three experiments and the CI repeat. Root checked plans 08–10 against the source and completed phase-7 evidence. Plan 08 preserves one worker, serial hosting, current reference policy, and recorded resource limits; the bounded experiment may conclude negative or inconclusive. Plans 09–10 retain explicit refinement triggers and do not prescribe an unverified immutable-image transfer or sample schedule. No product answer blocks plan 08. Mermaid is syntax-inspected, not renderer-verified. Implementation requires fresh independent review before publication.
