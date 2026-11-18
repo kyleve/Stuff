@@ -27,16 +27,28 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 [PR 528](https://github.com/kyleve/Stuff/pull/528) investigates comparison of a completed capture while the next view is hosted. The [sampler decision](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/06-deliver-sampling-improvements.md) establishes its historical baseline.
 
 7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
+8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): complete; retain 8M after local gains fail the final retry gate. Bounded CI repeats remain inconclusive.
+9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): complete; retain the ordinary cadence after render savings fail the repeated elapsed-benefit gate.
+11. [11 — Combined local measurement](11-combined-local-measurement.md): complete; the retained readiness/preparation and bounded comparison improvements save 55.063s / 6.40% in one direct full local pair.
+
+[08a — Trace log framing](08a-trace-log-framing.md) records the trace-transport repair delivered with PR 524.
 
 | Requirement | Outcome to verify | Story | Plan |
 | --- | --- | --- | --- |
 | R-07 | Determine whether useful work can overlap settling without corrupting host state, delaying required UI work, or changing snapshots. | US-01 | [07](07-overlap-snapshot-work.md) |
+| R-08 | Distinguish CI variation from throughput effects and evaluate larger bounded comparisons. | US-01 | [08](08-expand-bounded-comparison.md) |
+| R-09 | Determine whether immutable PNG processing can overlap capture without changing normalized pixels or reporting. | US-01 | [09](09-overlap-png-processing.md) |
+| R-10 | Reduce premature settling renders without weakening the anchor proof, floors, late-change detection, or failure policy. | US-01 | [10](10-deadline-aware-sampling.md) |
 
 | Question | Status | Question to resolve | Requirement | Finding |
 | --- | --- | --- | --- | --- |
 | Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
+| Q-11 | closed | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 completes within its bounded method: no new valid CI pair, and 12M fails the no-added-retry gate despite local gains. Retain 8M; reviewed and published at `edb688245`. |
+| Q-12 | closed | Can PNG processing safely leave the capture critical path? | R-09 | Plan 09 passes ownership/cancellation/fidelity guards but misses the repeated-benefit gate at retained 8M. Keep eager normalization; reviewed result and cleanup are published at `afe231667`. |
+| Q-13 | closed | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | The conservative candidate passes fresh-proof/cancellation guards and reduces renders, but elapsed gains do not repeat. Retain 16ms cadence; reviewed result and cleanup are published at `e54daf62b`. No full-suite or CI candidate is selected. |
 
-The [original phase 7 overview](https://github.com/kyleve/Stuff/blob/f833ba79120bcb9af9e83b9155fbcaf7570cd424/Plans/2026-11-17-snapshot-settling-investigation/README.md) retains the full checkpoint, review record and dated local and CI evidence.
+[PR 529](https://github.com/kyleve/Stuff/pull/529) records the follow-up experiments on the phase 7 implementation. The [original follow-up overview](https://github.com/kyleve/Stuff/blob/9d988b282ed1ba45d301f7c446a4d4c8689dd3dd/Plans/2026-11-17-snapshot-settling-investigation/README.md) retains the complete checkpoints, review record and dated measurements.
 
 ## Starting evidence
 

@@ -47,7 +47,7 @@ Candidate checks pass at `689cef15c`. Summed worker test time falls 1.23%, but t
 Highest sampled executor memory rises 19.486GiB → 19.704GiB. These 15-second whole-executor samples are not test-host RSS
 and can miss shorter peaks. CI throughput uncertainty remains in STU-121; local strict/oracle checks own the additional image-fidelity evidence.
 
-The adopted boundary permits one worker and one current capture inside a provider.
+The phase-7 boundary permits one worker and one current capture inside a provider.
 Workers receive PNG bytes and a reference URL. Successful comparisons can be reused only after the verifier rechecks both original byte sequences.
 The main actor still owns authoritative verification, recording, and issues. Cutsheets and captures above
 8 million pixels keep serial comparison. Structured scope exit joins workers, including cancellation.
@@ -57,6 +57,44 @@ Retest throughput, image fidelity, cancellation, and resource peaks after changi
 the image-comparison dependency, or test serialization. Summed capture work excludes pipeline queue delay and
 is not elapsed suite time. [Plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md)
 retains the paired controls, independent delayed oracle, full-suite gates, raw artifacts, and validation limits.
+
+## Comparison pixel budget — 2026-11-17
+
+Retain the 8-million-pixel worker limit. Interleaved 8M/12M/16M trials favored 12M locally, and the full local 8M/12M pair
+preserved 935 captures, geometry, policies, and zero retries. Test elapsed fell 808.627s → 791.816s (2.08%);
+sampled host RSS rose 25.766MiB. These results did not satisfy the final reliability gate.
+
+[CI #2554](https://app.circleci.com/pipeline/0efb76ac-3355-4b74-a809-bd8645c67707) at `f509814bb` passes every job,
+but DeviceLayoutLab and MainTabs each recover one settling timeout. This does not establish that the larger cap caused either retry.
+It fails the experiment's no-added-retry gate, so the default and real 9M serial-fallback guard return to 8M.
+Complete traces reconcile all 935 captures, 78 functions, and 1,820 settling calls, validating the inherited trace transport repair.
+
+Strict local comparisons retain two one-pixel, two-unit exceptions. Adaptive Locations matches independent delayed serial variants.
+The other is an unreproduced pixel in a small phone glyph on the unchanged serial HTML path; renderer/environment variation is inferred.
+No references or tolerances change. The [plan-08 investigation](../../../Plans/2026-11-17-snapshot-settling-investigation/08-expand-bounded-comparison.md) records exact values and limits.
+The bounded phase-7 CI repeat yields two clean candidates but no new complete pair, so it establishes no CI elapsed improvement.
+
+## Background PNG processing — 2026-11-17
+
+Keep eager PNG normalization. The prototype moves a finished immutable `UIImage` into the existing single worker, then encodes and compares it.
+All 179 framework functions pass, including color/alpha/scale, cancellation during encoding, ordered errors, and worker lifetime.
+At the retained 8M cap, two 110-capture pairs have zero retries and preserve geometry. Mean test-body time improves 1.19%,
+but the second pair's 0.907s gain is below 1.003s control variation. Test-phase evidence also misses the repeated-benefit gate.
+The result is inconclusive; no full-suite or CI adoption claim follows. The prototype and its controls are removed.
+[Plan 09](../../../Plans/2026-11-17-snapshot-settling-investigation/09-overlap-png-processing.md) retains all measurements, image evidence,
+and the earlier conditional 12M trials. This does not prove background encoding can never help; remeasure if the accepted pipeline or workload changes materially.
+
+## Deadline-aware settling samples — 2026-11-17
+
+Keep the ordinary 16ms cadence. A conservative prototype waits through part of a raised floor after initial proof,
+then requires a new anchor and two matches over 120ms. All 182 framework functions pass. Removing the loop's proof reset
+makes both hosted delayed-content cases fail; the correct source is restored before measurement.
+
+Two interleaved 110-capture pairs preserve geometry and zero retries. Each candidate exercises four extended waits.
+It reduces mean render work by 4.73%, but the first body-time gain reverses in the second pair; mean test-phase time rises 1.45%.
+The repeated-benefit gate fails. The prototype, controls, and added tests are removed; no full-suite or CI speedup is claimed.
+[Plan 10](../../../Plans/2026-11-17-snapshot-settling-investigation/10-deadline-aware-sampling.md) retains the schedule, guard/mutation evidence,
+per-call traces, pixels, timing limits, and source copies. Reduced rendering alone does not justify this scheduling change.
 
 ## Public UI update callbacks — 2026-11-17
 
