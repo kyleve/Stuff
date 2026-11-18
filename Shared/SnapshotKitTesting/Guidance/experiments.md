@@ -109,4 +109,4 @@ The small test/body reductions were below control variation; no default changed.
 All eight runs preserved capture identities, geometry, policies, references, and floors, with no retries.
 The combined candidate passed 23 framework functions, including real hierarchy color, transparency, fade, and one-pixel guards.
 No candidate reached a delayed-oracle/full-suite/CI rollout, so this is a bounded local result rather than a general rejection of scheduling or CI color-format experiments.
-See [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md) for raw-evidence provenance and [plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) for the separately requested overlap investigation.
+See [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md) for raw-evidence provenance and [plan 07](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) for the separately requested overlap investigation.

@@ -2,15 +2,15 @@
 
 These records describe the original #524–525 stack. The [controlled experiments](03-controlled-experiments.md) and [verified fixture changes](04-validated-improvements.md) from #525 are included independently in [PR 535](https://github.com/kyleve/Stuff/pull/535). Earlier tracing and classification records are linked at the original revision.
 
-## Planning checkpoint
+## Sampler investigation checkpoint
 
 - Updated: 2026-11-17; findings published at `1594ea543` in PR #527 on `perf/snapshot-metal-sampling`, above PR #525 at `75978860f`. The final diff changes documentation only.
 - Operation: Execute the newly authorized sampling and Metal follow-up; preserve completed plans 01–04.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
 - Stage: Plans 01–06 are complete. The user explicitly approved sampling/GPU experiments, including fallback; none of the follow-up candidates meets the adoption criteria. The later overlap request is recorded as a separate reviewed outline in plan 07.
 - Completed: Plans 01–04: tracing and local/CI classification, five accepted consumer changes, 163 framework functions, all 935 local captures, and isolated CI. Follow-up: Metal prerequisites, eight paired timing runs with 880 capture assertions, 23 focused framework functions, complete prototype cleanup, and independent review. No follow-up sampler change is accepted.
-- Pending: [07](07-overlap-snapshot-work.md) requires refinement against the unchanged accepted sampler before an overlap prototype. The requested separate planned phase is recorded; no overlap implementation is claimed. STU-121 retains other readiness and CI-only questions.
-- Next action: Review PR #527 and refine plan 07, starting with independent preparation or completed-image work before multiple hosted captures. No merge is assumed.
+- Original handoff: [07](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) recorded the proposed overlap experiment against the unchanged sampler. [PR 528](https://github.com/kyleve/Stuff/pull/528) owns its execution and completed plan. STU-121 retains other readiness and CI-only questions.
+- The sampler investigation is complete. The separate overlap work is tracked in PR 528.
 - Delegation: `/root/review_settling_candidates` and `/root/watch_settle_ci` completed the original implementation review and CI reconciliation. `/root/review_metal_sampling` independently reviewed all follow-up artifacts, cleanup, and the overlap outline. The root independently recomputed the evidence; no blocker remains.
 
 ## Outcome and scope
@@ -53,7 +53,6 @@ Repository source and the pinned-runtime measurements suffice for this observati
 | R-04 | Deliver only validated improvements; preserve failures, cancellation, retry isolation, dimensions, references, and tolerances. | US-01 | [04](04-validated-improvements.md) |
 | R-05 | Determine whether fewer samples or Metal layer rendering reduce settling time without false completion. | US-01 | [05](05-metal-and-sampling-experiments.md) |
 | R-06 | Deliver validated follow-up savings with explicit fallback where required; preserve the existing quiet proof and case floors. | US-01 | [06](06-deliver-sampling-improvements.md) |
-| R-07 | Determine whether useful work can overlap settling without corrupting host state, delaying required UI work, or changing snapshots. | US-01 | [07](07-overlap-snapshot-work.md) |
 
 ## Exclusions
 
@@ -72,7 +71,6 @@ Repository source and the pinned-runtime measurements suffice for this observati
 4. [04 — Validated improvements](04-validated-improvements.md): complete; explicit readiness and preparation for five providers, with full local/CI verification.
 5. [05 — Metal and sampling experiments](05-metal-and-sampling-experiments.md): complete; both Metal adapters and both sampling candidates are rejected for adoption.
 6. [06 — Deliver the sampling result](06-deliver-sampling-improvements.md): complete; reviewed findings published and original Swift source restored.
-7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): outline; the next planning horizon, requested separately after discussing GPU comparison. Refine against the unchanged accepted baseline before any concurrency prototype.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
@@ -98,7 +96,6 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-07 | closed | Does a minimum sample interval avoid excessive render work without delaying completion or missing changes? | R-05/R-06 | Plan 05 rejects standalone 60ms scheduling after both pairs are slower. Extended-color samples plus 60ms reduce rendering 16.18% but leave capture work flat; the small end-to-end difference is within control variation. The existing cadence and format remain unchanged. |
 | Q-08 | closed | Does an accepted local candidate improve isolated CI with its actual GPU availability? | R-06 | No candidate passes the local adoption gate, so no CI candidate trial is selected. Actual CI GPU availability and color-format performance remain unmeasured follow-ups in STU-121; the negative local result is not a CI claim. |
 | Q-09 | closed | Would Metal image comparison materially reduce settling cost? | R-05 | Current local normalization and pixel checks total 1.626s, about 0.2% of capture work. Do not add a settling comparison kernel. Full reference comparison is a separate 100.057s phase in the review-enabled run, including PNG handling and diagnostics; its library already has a conditional Metal/MPS path. Profiling that path remains separate STU-121 scope. |
-| Q-10 | open | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | The user requested a separate planned phase. Plan 07 distinguishes preparation overlap from multiple hosted captures and retains existing serialization until an isolated design proves correct. |
 
 ## Follow-up research and review
 
@@ -123,4 +120,4 @@ Mermaid syntax is inspected; no renderer verification is claimed. Pseudocode is 
 
 2026-11-17 follow-up outline review: `/root/review_metal_sampling` verified plan 07 against the capture lock, MainActor comparison path, and concurrency regression tests. R-07/Q-10 map to the outline and dependencies remain acyclic. Preparation, completed-image work, and hosted overlap remain distinct candidates. Cancellation, reporting order, resource budgets, and host isolation require executable design before readiness. This review does not establish safe overlap or authorize bypassing the existing capture lock.
 
-2026-11-17 follow-up completion: plans 05–06 are published in PR #527 at `1594ea543`. Independent and root recomputation agree on all eight timing runs and prototype cleanup. Neither local Metal adapter qualifies; the 60ms interval is slower, and combined extended-color/60ms samples reduce render time without a repeatable overall gain beyond control variation. The final Swift source matches the parent exactly. Plan 07 remains a separately requested outline, not an implemented overlap feature.
+2026-11-17 follow-up completion: plans 05–06 are published in PR #527 at `1594ea543`. Independent and root recomputation agree on all eight timing runs and prototype cleanup. Neither local Metal adapter qualifies; the 60ms interval is slower, and combined extended-color/60ms samples reduce render time without a repeatable overall gain beyond control variation. The final Swift source matches the parent exactly. The original outline was handed to PR 528 for execution.

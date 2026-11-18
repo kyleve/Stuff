@@ -15,7 +15,7 @@ This outline was refined after plan 05's final pair. Delivery consists of review
 1. Retain every prototype revision, failed and successful run, raw images, crash reports, timing source, and limits outside Git. The session's `snapshot-metal-sampling-results/{metal,cadence,combination}/` directories contain that evidence.
 2. Restore `SnapshotRenderingSupport.swift`, `CaptureConfiguredSnapshot.swift`, `SnapshotImageRendering.swift`, and `SnapshotRenderingSupportTests.swift` to the parent. Verify byte equality and confirm no Swift, reference, matrix, target, or tool change remains in the PR. `restored-source.json` records hashes against `75978860f`.
 3. Review the complete diff and raw evidence independently. Validate plan links/statuses and `git diff --check`. No Swift formatting or new full iOS/CI gate is required for the resulting documentation-only diff. The experiments themselves executed 880 image assertions and 23 focused framework functions; rejected Metal probes retain their failures explicitly.
-4. Publish the findings through `gh stack` in PR #527 above #525. Keep the issue In Review and preserve the new [overlap phase](07-overlap-snapshot-work.md) as an outline. Verify the published head and documentation classification. Do not merge or claim a new speedup.
+4. Publish the findings through `gh stack` in PR #527 above #525. Keep the issue In Review and preserve the new [overlap phase](https://github.com/kyleve/Stuff/blob/0f4fddcb4c8ba356f2349ad3b987bfb19a92ac29/Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) as an outline. Verify the published head and documentation classification. Do not merge or claim a new speedup.
 
 ## Review and resume point
 
