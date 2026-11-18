@@ -22,9 +22,22 @@ func assertComparisonSnapshots(
                 caseName: snapshotCase.name,
                 configuration: configuration,
             )
-            let panels = try await captureSnapshotPanels(snapshotCase, configuration: configuration)
+            guard case let .capture(request) = try SnapshotMountExperiment.select(
+                identifier: identifier,
+                configuration: configuration,
+                group: snapshotCase.referenceGroup,
+                file: filePath,
+                testName: testName,
+            ) else { continue }
+            let panels = try await captureSnapshotPanels(
+                snapshotCase,
+                configuration: configuration,
+                experiment: request,
+            )
+            request?.finishCapture()
             await assertSnapshotReference(
                 .panels(panels),
+                experiment: request,
                 identifier: identifier,
                 configuration: configuration,
                 referenceGroup: snapshotCase.referenceGroup,
@@ -50,6 +63,7 @@ func assertComparisonSnapshots(
 func captureSnapshotPanels(
     _ snapshotCase: SnapshotCase,
     configuration: SnapshotConfiguration,
+    experiment: SnapshotMountExperiment.Request? = nil,
 ) async throws -> [SnapshotPanelCapture] {
     let identifier = fullSnapshotIdentifier(
         caseName: snapshotCase.name,
@@ -73,6 +87,7 @@ func captureSnapshotPanels(
             timeoutPolicy: .fromEnvironment(),
             backgroundColor: SnapshotImageGrid.backgroundColor,
         )
+        try experiment?.observe(capture.timing, named: "\(identifier)/\(panel.id.rawValue)")
         capture.timing.emit()
         let image = capture.capture.image
         panels.append(.init(identity: panel.id, label: panel.label, image: image))

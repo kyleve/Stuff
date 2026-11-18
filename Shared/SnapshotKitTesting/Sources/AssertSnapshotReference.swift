@@ -14,6 +14,7 @@ enum SnapshotReferenceSubject {
 @MainActor
 func assertSnapshotReference(
     _ subject: SnapshotReferenceSubject,
+    experiment: SnapshotMountExperiment.Request? = nil,
     identifier: String,
     configuration: SnapshotConfiguration,
     referenceGroup: SnapshotReferenceGroup?,
@@ -50,8 +51,25 @@ func assertSnapshotReference(
                 } else {
                     panelFailure = nil // The shared recorder handles missing references.
                 }
+                let compositionStart = experiment.map { _ in ContinuousClock.now }
                 let capture = try await SnapshotImageGrid.capture(panels: panels, named: identifier)
                 png = try autoreleasepool { try capture.pngData() }
+                if let compositionStart { experiment?.addComposition(since: compositionStart) }
+        }
+        if let experiment {
+            let count = switch subject {
+                case .imagePNG: 0
+                case let .panels(panels): panels.count
+            }
+            try autoreleasepool {
+                try experiment.export(
+                    png,
+                    reviewed: reference,
+                    panelFailure: panelFailure,
+                    panels: count,
+                )
+            }
+            return
         }
     } catch is CancellationError {
         return

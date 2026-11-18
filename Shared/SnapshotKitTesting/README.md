@@ -265,6 +265,16 @@ individual captures. Reach for it before optimizing
 anything here: it showed that `drainInFlightAnimations` was burning a flat second
 on every image. The remaining settling cost depends on the case and phase.
 
+The [200-image mount experiment](../../Plans/2026-11-18-requested-snapshot-frames/04-two-hundred-more.md)
+sets `SNAPSHOT_MOUNT_TRIAL` to `baseline`, `retained`, or `early` and supplies
+`SNAPSHOT_MOUNT_MANIFEST` and a fresh `SNAPSHOT_MOUNT_OUTPUT` directory under
+`--timings`. Each selected PNG has a JSON observation beside it with the ordinary
+comparator verdict and the actual capture IDs, wrapper counts and readiness flags
+for the subject or its individual sheet panels. Elapsed time includes rendering,
+sheet composition and PNG encoding. Reference comparison and artifact writes are
+outside the timer. A comparator mismatch produces a measurement, while a capture
+or export error fails the test. The experiment writes only to its output directory.
+
 Timing also emits versioned `SNAPSHOT_SETTLE_TRACE` JSON rows, one per settling
 call. Each row carries a capture UUID, call ordinal, reason, policy, outcome,
 and ordered pass observations. Reasons distinguish measurement, content, native

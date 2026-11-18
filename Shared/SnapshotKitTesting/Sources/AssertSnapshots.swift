@@ -137,7 +137,16 @@ public func assertSnapshots(
         guard Task.isCancelled == false else { return }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let capture: ConfiguredSnapshotCapture
+        let request: SnapshotMountExperiment.Request?
         do {
+            guard case let .capture(selected) = try SnapshotMountExperiment.select(
+                identifier: identifier,
+                configuration: configuration,
+                group: referenceGroup,
+                file: filePath,
+                testName: testName,
+            ) else { continue }
+            request = selected
             capture = try await captureConfiguredSnapshot(
                 of: view,
                 configuration: configuration,
@@ -150,6 +159,8 @@ public func assertSnapshots(
                 onReadyToSnapshot: onReadyToSnapshot,
                 timeoutPolicy: settleTimeoutPolicy,
             )
+            request?.finishCapture()
+            try request?.observe(capture.timing, named: identifier)
         } catch is CancellationError {
             return
         } catch {
@@ -159,6 +170,7 @@ public func assertSnapshots(
         await capture.timing.measure(.compare) {
             await assertSnapshotReference(
                 .imagePNG(capture.capture.pngData),
+                experiment: request,
                 identifier: identifier,
                 configuration: configuration,
                 referenceGroup: referenceGroup,

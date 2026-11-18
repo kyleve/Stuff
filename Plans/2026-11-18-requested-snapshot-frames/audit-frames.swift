@@ -33,33 +33,61 @@ private struct Bitmap {
     }
 }
 
+/// Pixel equality includes alpha. The over8 count describes the larger differences.
+private struct PixelDifference: Encodable {
+    let kind: String
+    let width: Int
+    let height: Int
+    let rightWidth: Int
+    let rightHeight: Int
+    let changed: Int
+    let alpha: Int
+    let max: Int
+    let over8: Int
+
+    init(_ left: URL, _ right: URL) throws {
+        let a = try Bitmap(left)
+        let b = try Bitmap(right)
+        (width, height, rightWidth, rightHeight) = (a.width, a.height, b.width, b.height)
+        guard a.width == b.width, a.height == b.height else {
+            (kind, changed, alpha, max, over8) = ("size", 0, 0, 0, 0)
+            return
+        }
+        var changedPixels = 0
+        var alphaPixels = 0
+        var largerDeltas = 0
+        var maximum = 0
+        for i in stride(from: 0, to: a.bytes.count, by: 4) {
+            var delta = 0
+            for channel in i ..< i + 4 {
+                delta = Swift.max(delta, abs(Int(a.bytes[channel]) - Int(b.bytes[channel])))
+            }
+            if a.bytes[i + 3] != b.bytes[i + 3] { alphaPixels += 1 }
+            if delta > 0 { changedPixels += 1 }
+            if delta > 8 { largerDeltas += 1 }
+            maximum = Swift.max(maximum, delta)
+        }
+        kind = changedPixels == 0 ? "pixels" : "changed"
+        (changed, alpha, max, over8) = (changedPixels, alphaPixels, maximum, largerDeltas)
+    }
+}
+
 private func compare(_ left: URL, _ right: URL, label: String) throws -> Bool {
     if try Data(contentsOf: left) == Data(contentsOf: right) {
         print("\(label) — identical PNG")
         return true
     }
-    let a = try Bitmap(left)
-    let b = try Bitmap(right)
-    guard a.width == b.width, a.height == b.height else {
-        print("\(label) — size \(a.width)×\(a.height) versus \(b.width)×\(b.height)")
+    let diff = try PixelDifference(left, right)
+    if diff.kind == "size" {
+        print(
+            "\(label) — size \(diff.width)×\(diff.height) versus \(diff.rightWidth)×\(diff.rightHeight)",
+        )
         return false
     }
-    var changed = 0
-    var changedAlpha = 0
-    var maximum = 0
-    for i in stride(from: 0, to: a.bytes.count, by: 4) {
-        var delta = 0
-        for channel in i ..< i + 4 {
-            delta = max(delta, abs(Int(a.bytes[channel]) - Int(b.bytes[channel])))
-        }
-        if a.bytes[i + 3] != b.bytes[i + 3] { changedAlpha += 1 }
-        if delta > 0 { changed += 1 }
-        maximum = max(maximum, delta)
-    }
     print(
-        "\(label) — \(changed)/\(a.width * a.height) changed pixels, \(changedAlpha) alpha differences, max channel delta \(maximum)",
+        "\(label) — \(diff.changed)/\(diff.width * diff.height) changed pixels, \(diff.alpha) alpha differences, max channel delta \(diff.max)",
     )
-    return changed == 0
+    return diff.changed == 0
 }
 
 private struct Portrait: Decodable {
@@ -69,9 +97,16 @@ private struct Portrait: Decodable {
 }
 
 let args = CommandLine.arguments
+// The 200-image auditor short-circuits identical file digests before requesting a pixel walk.
+if args.count == 3 {
+    let diff = try PixelDifference(URL(fileURLWithPath: args[1]), URL(fileURLWithPath: args[2]))
+    try FileHandle.standardOutput.write(JSONEncoder().encode(diff))
+    exit(0)
+}
+
 guard args.count == 2 else {
     FileHandle.standardError
-        .write(Data("Usage: swift audit-frames.swift <experiment-output>\n".utf8))
+        .write(Data("Usage: audit-frames <experiment-output> | <first.png> <second.png>\n".utf8))
     exit(2)
 }
 
