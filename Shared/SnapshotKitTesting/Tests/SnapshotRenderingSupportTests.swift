@@ -12,6 +12,22 @@ import UIKit
 /// can never be sampled ends `.starved` at the hard cap instead of hanging.
 @MainActor
 struct SnapshotRenderingSupportTests {
+    /// Exercise UIKit's compositing and downsampling before sRGB normalization.
+    /// The scripted-context tests below bypass that path, so they cannot catch
+    /// changes lost while converting a colored or translucent hierarchy.
+    @Test(arguments: HierarchyChange.allCases)
+    func hierarchyChangesSurviveSampling(change: HierarchyChange) async throws {
+        let window = try hostWindow()
+        let view = ChangingHierarchyView(change: change)
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.25)
+
+        #expect(outcome == .timedOut(budget: 0.25))
+        #expect(view.sampleCount >= 2)
+    }
+
     @Test(arguments: [SnapshotSettleMechanism.pixel, .both])
     func oneUnitRenderNoiseSettlesWithoutShorteningTheFloor(
         mechanism: SnapshotSettleMechanism,
@@ -162,5 +178,75 @@ struct SnapshotRenderingSupportTests {
     private func hostWindow() throws -> UIWindow {
         try waitFor { hostKeyWindow() != nil }
         return try #require(hostKeyWindow())
+    }
+}
+
+enum HierarchyChange: CaseIterable {
+    case color
+    case translucentColor
+    case cumulativeFade
+    case lastSamplePixel
+    case clippedColorNeighbor
+    case translucentClippedColorNeighbor
+}
+
+/// Change real layers, then use UIKit's actual hierarchy renderer. Updating at
+/// the sample boundary avoids a timer racing or aliasing with the sampler.
+@MainActor
+private final class ChangingHierarchyView: UIView {
+    private let change: HierarchyChange
+    private let patch = UIView()
+    private(set) var sampleCount = 0
+
+    init(change: HierarchyChange) {
+        self.change = change
+        super.init(frame: CGRect(x: 0, y: 0, width: 64, height: 64))
+        backgroundColor = UIColor(white: 0.8, alpha: 1)
+        // Four points occupy one pixel in the 0.25-scale settle sample. Put it
+        // at the far end to guard against comparing only a prefix or most pixels.
+        patch.frame = change == .lastSamplePixel
+            ? CGRect(x: 60, y: 60, width: 4, height: 4)
+            : bounds
+        if change == .clippedColorNeighbor || change == .translucentClippedColorNeighbor {
+            // Both colors contribute to one downsampled pixel. Converting and
+            // clipping wide color before versus after averaging can hide the
+            // small green change beside saturated P3 red.
+            backgroundColor = UIColor(displayP3Red: 1, green: 0, blue: 0, alpha: 1)
+            patch.frame = CGRect(x: 60.5, y: 60, width: 1, height: 4)
+        }
+        addSubview(patch)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) is unavailable")
+    }
+
+    override func drawHierarchy(in rect: CGRect, afterScreenUpdates afterUpdates: Bool) -> Bool {
+        sampleCount += 1
+        switch change {
+            case .color, .translucentColor:
+                patch.backgroundColor = UIColor(
+                    displayP3Red: 0.8,
+                    green: sampleCount.isMultiple(of: 2) ? 0.2 : 0.4,
+                    blue: 0.1,
+                    alpha: change == .translucentColor ? 0.35 : 1,
+                )
+            case .cumulativeFade:
+                patch.backgroundColor = UIColor(
+                    white: CGFloat(180 + min(sampleCount, 60)) / 255,
+                    alpha: 1,
+                )
+            case .lastSamplePixel:
+                patch.backgroundColor = sampleCount.isMultiple(of: 2) ? .black : .white
+            case .clippedColorNeighbor, .translucentClippedColorNeighbor:
+                patch.backgroundColor = UIColor(
+                    red: 0,
+                    green: sampleCount.isMultiple(of: 2) ? 0.1 : 0.2,
+                    blue: 0,
+                    alpha: change == .translucentClippedColorNeighbor ? 0.5 : 1,
+                )
+        }
+        return super.drawHierarchy(in: rect, afterScreenUpdates: afterUpdates)
     }
 }

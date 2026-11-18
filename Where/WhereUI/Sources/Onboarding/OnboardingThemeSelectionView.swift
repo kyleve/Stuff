@@ -82,6 +82,8 @@ struct OnboardingThemeSelectionView: View {
 
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            // Selection is supplied and specimen artwork preserves layout. Load it
+            // before final settling, which still covers publication into mounted cards.
             let cache = PreviewSupport.snapshotArtworkCache
             let configurations = [SnapshotConfiguration]
                 .fullContentPhoneLightDarkWithAX5AndAnnotations + [
@@ -95,7 +97,8 @@ struct OnboardingThemeSelectionView: View {
                 whereSnapshot(
                     name: "Standard",
                     configurations: configurations,
-                    onReadyToSnapshot: {
+                    measurementReadiness: .immediate,
+                    prepareForCapture: {
                         await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                     },
                 ) {
@@ -106,7 +109,8 @@ struct OnboardingThemeSelectionView: View {
                     name: "Alternate",
                     configurations: .fullContentPhoneLightDark,
                     theme: .alternate,
-                    onReadyToSnapshot: {
+                    measurementReadiness: .immediate,
+                    prepareForCapture: {
                         await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                     },
                 ) {
