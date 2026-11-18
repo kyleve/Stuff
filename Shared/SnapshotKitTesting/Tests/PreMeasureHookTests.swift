@@ -33,7 +33,36 @@ struct PreMeasureHookTests {
         #expect(image.size.height == 180)
     }
 
-    @Test func failedHookTearsDownTheHostAndPreservesTheOriginalError() async throws {
+    @Test(arguments: [false, true])
+    func measurementAndPreparationUseTheExpectedWrapper(isAccessibility: Bool) async throws {
+        let host = UIHostingController(rootView: Color.green.frame(width: 100, height: 100))
+        var measuredParent: UIViewController?
+        let mode = ProcessInfo.processInfo.environment["SNAPSHOT_MOUNT_TRIAL"]
+        let retainsParent = mode == "retained" || mode == "early"
+
+        _ = try await renderSnapshotImage(
+            of: host,
+            named: "measured-wrapper-lifecycle",
+            sizing: .intrinsic(width: 100, minimumHeight: 0),
+            isAccessibility: isAccessibility,
+            measurementReadiness: .immediate,
+            onReadyToMeasure: {
+                measuredParent = try #require(host.parent)
+            },
+            settle: .immediate,
+            prepareForCapture: {
+                let captureParent = try #require(host.parent)
+                #expect((captureParent === measuredParent) == retainsParent)
+                #expect(host.view.window != nil)
+            },
+        )
+        #expect(measuredParent != nil)
+        #expect(host.parent == nil)
+        #expect(host.view.window == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func failedHookTearsDownTheHostAndPreservesTheOriginalError(isAccessibility: Bool) async throws {
         try waitFor { hostKeyWindow() != nil }
         let root = try #require(hostKeyWindow()?.rootViewController)
         let initialChildren = root.children
@@ -43,10 +72,12 @@ struct PreMeasureHookTests {
                 of: host,
                 named: "failed-readiness",
                 sizing: .intrinsic(width: 100, minimumHeight: 0),
+                isAccessibility: isAccessibility,
                 onReadyToMeasure: { throw URLError(.fileDoesNotExist) },
             )
         }
         #expect(host.parent == nil)
+        #expect(host.view.window == nil)
         #expect(root.children == initialChildren)
         let recovered = try await renderSnapshotImage(
             of: host,

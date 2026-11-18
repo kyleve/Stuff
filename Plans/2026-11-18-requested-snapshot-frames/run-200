@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Run the three production-harness experiments in forward and reverse order."""
+
+import argparse
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--remaining",
+    action="store_true",
+    help="Run the 677 references outside the original 200-image production trial",
+)
+parser.add_argument(
+    "--include-200",
+    type=Path,
+    metavar="PLAN_04_OUTPUT",
+    help="Combine a complete 200-image run with the remaining references",
+)
+args = parser.parse_args()
+if args.include_200 and not args.remaining:
+    parser.error("--include-200 requires --remaining")
+if args.include_200 and not (args.include_200 / "order.txt").is_file():
+    parser.error("Expected a completed Plan 04 output directory")
+
+plan = Path(__file__).resolve().parent
+repo = plan.parents[1]
+selection = "remaining" if args.remaining else "200"
+manifest = plan / f"mount-{selection}.txt"
+references = [
+    Path(line)
+    for line in manifest.read_text().splitlines()
+    if line and not line.startswith("#")
+]
+expected = 677 if args.remaining else 200
+if len(references) != expected or len(set(references)) != expected:
+    raise ValueError(f"Expected {expected} distinct references")
+selectors = set()
+for reference in references:
+    index = reference.parts.index("__Snapshots__")
+    bundle = reference.parts[index - 2] + "SnapshotTests"
+    suite = reference.parts[index + 1]
+    method = reference.name.split(".", 1)[0]
+    selectors.add(f"{bundle}/{suite}/{method}()")
+
+output = Path(tempfile.mkdtemp(prefix=f"stuff-{selection}-", dir="/private/tmp"))
+print(f"Experiment output: {output}", flush=True)
+for order, arms in (
+    ("first", ("baseline", "retained", "early")),
+    ("reverse", ("early", "retained", "baseline")),
+):
+    for arm in arms:
+        target = output / order / arm
+        images = target / "images"
+        images.mkdir(parents=True)
+        command = ["./test", "--timings", "--record", "never"]
+        if (order, arm) != ("first", "baseline"):
+            command.extend(
+                [
+                    "--no-build",
+                    "--no-generate",
+                    "--skip-architecture",
+                    "--skip-host-tests",
+                ]
+            )
+        for selector in sorted(selectors):
+            command.extend(["--only", selector])
+        print(f"Running {order}/{arm}", flush=True)
+        subprocess.run(
+            command,
+            cwd=repo,
+            env={
+                **os.environ,
+                "TEST_WORKDIR": str(target / "test"),
+                "TEST_RUNNER_SNAPSHOT_MOUNT_TRIAL": arm,
+                "TEST_RUNNER_SNAPSHOT_MOUNT_MANIFEST": str(manifest),
+                "TEST_RUNNER_SNAPSHOT_MOUNT_OUTPUT": str(images),
+            },
+            check=True,
+        )
+        with (output / "order.txt").open("a") as ledger:
+            ledger.write(f"{order} {arm}\n")
+
+pixels = output / "pixels"
+subprocess.run(
+    ["swiftc", "-O", str(plan / "audit-frames.swift"), "-o", str(pixels)], check=True
+)
+audit = ["python3", str(plan / "audit-200.py"), str(output), str(pixels)]
+if args.remaining:
+    audit.append("--remaining")
+if args.include_200:
+    audit.extend(["--include-200", str(args.include_200.resolve())])
+subprocess.run(audit, check=True)

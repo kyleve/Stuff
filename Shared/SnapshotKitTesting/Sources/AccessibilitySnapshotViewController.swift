@@ -47,6 +47,13 @@ final class AccessibilitySnapshotViewController: UIViewController {
         view = container
     }
 
+    /// Keep the annotation controller and subject on screen while measuring the
+    /// unpadded subject. Restore the normal eight-point border before capture.
+    func fitRetainedSubject(addingAnnotationPadding: Bool) {
+        insetView.fit(content.view, addingAnnotationPadding: addingAnnotationPadding)
+        view.frame.size = insetView.bounds.size
+    }
+
     /// Parses accessibility without expanding the capture viewport.
     /// Must be called while the view is in the hierarchy. Rendering
     /// failures surface loudly rather than producing a blank image.
@@ -104,17 +111,15 @@ private final class InsetView: UIView {
     }
 
     init(content: UIView) {
-        let frame = content.frame.inset(
-            by: UIEdgeInsets(
-                top: -Self.inset,
-                left: -Self.inset,
-                bottom: -Self.inset,
-                right: -Self.inset,
-            ),
-        )
-        super.init(frame: frame)
+        super.init(frame: content.frame.insetBy(dx: -Self.inset, dy: -Self.inset))
         content.frame.origin = CGPoint(x: Self.inset, y: Self.inset)
         addSubview(content)
+    }
+
+    func fit(_ content: UIView, addingAnnotationPadding: Bool) {
+        let padding = addingAnnotationPadding ? Self.inset : 0
+        frame = CGRect(origin: .zero, size: content.bounds.size).insetBy(dx: -padding, dy: -padding)
+        content.frame.origin = CGPoint(x: padding, y: padding)
     }
 
     @available(*, unavailable)

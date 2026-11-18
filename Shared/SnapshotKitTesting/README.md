@@ -265,6 +265,25 @@ individual captures. Reach for it before optimizing
 anything here: it showed that `drainInFlightAnimations` was burning a flat second
 on every image. The remaining settling cost depends on the case and phase.
 
+The [200-image mount experiment](../../Plans/2026-11-18-requested-snapshot-frames/04-two-hundred-more.md)
+sets `SNAPSHOT_MOUNT_TRIAL` to `baseline`, `retained`, or `early` and supplies
+`SNAPSHOT_MOUNT_MANIFEST` and a fresh `SNAPSHOT_MOUNT_OUTPUT` directory under
+`--timings`. Each selected PNG has a JSON observation beside it with the ordinary
+comparator verdict and the actual capture IDs, wrapper counts and readiness flags
+for the subject or its individual sheet panels. Elapsed time includes rendering,
+sheet composition and PNG encoding. Reference comparison and artifact writes are
+outside the timer. A comparator mismatch produces a measurement, while a capture
+or export error fails the test. The experiment writes only to its output directory.
+
+The [remaining-suite experiment](../../Plans/2026-11-18-requested-snapshot-frames/05-suite-coverage.md)
+uses the same arms. Fixed viewports already attach once and keep their usual
+settle. For measured accessibility captures, the retained arms attach the annotation
+controller before measuring the subject. They apply the annotation padding after
+measurement, keep the original capture and parsing waits, and size the final
+image from the parsed annotations. The attachment count measures the outer
+wrapper on the host root. AccessibilitySnapshot can also temporarily move a
+tall subject while tiling its annotated image.
+
 Timing also emits versioned `SNAPSHOT_SETTLE_TRACE` JSON rows, one per settling
 call. Each row carries a capture UUID, call ordinal, reason, policy, outcome,
 and ordered pass observations. Reasons distinguish measurement, content, native
