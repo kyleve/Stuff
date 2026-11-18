@@ -1,6 +1,6 @@
 # Render-hook and glass controls
 
-Status: complete. Published in [PR 534](https://github.com/kyleve/Stuff/pull/534). Depends on the [completed descendant layout investigation](../2026-11-18-snapshot-pending-layout/README.md).
+Status: complete. Published in [PR 534](https://github.com/kyleve/Stuff/pull/534). The original trial followed the [completed descendant layout investigation](https://github.com/kyleve/Stuff/blob/c23b824dab9d462d7ca2d0b8969e952ed8916985/Plans/2026-11-18-snapshot-pending-layout/README.md).
 
 1. Compare the ordinary path, a separately launched delayed control, one immediate hierarchy draw, and that same draw after calling `UIHostingController._render(seconds:)` on the mounted content controller. Include measurement and final hosting. Log successful invocations and unsupported hosts separately. Exercise Root, Settings and Planning Region Picker, known glass-free content and a synthetic delayed subject. The immediate arms intentionally bypass declared minimums to test the hook. Keep those arms out of the shipped framework.
 2. Separately run with only the ordinary 250ms minimum removed, keeping the existing 120ms anchor rule, cadence and explicit per-case policies. Test the hypothesis with a late task that changes a plain SwiftUI view, a static control, and source-identified native/effect controls. Use traces and fixture construction to distinguish visible chrome from unrelated deferred work. A clean runtime class scan cannot establish the absence of glass.
