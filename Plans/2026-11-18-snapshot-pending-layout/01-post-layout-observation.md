@@ -1,6 +1,6 @@
 # Observe and test pending descendant layout
 
-Status: executing. Depends on the [completed settlement investigation](../2026-11-18-settlement-clocks/README.md).
+Status: complete. Published in [PR 533](https://github.com/kyleve/Stuff/pull/533). Depends on the [completed settlement investigation](../2026-11-18-settlement-clocks/README.md).
 
 ```mermaid
 flowchart LR
@@ -71,3 +71,22 @@ For the post-draw trial, on each continuing pass we called `layoutIfNeeded()` di
 The extra calls cleared 2,987 and 2,992 marked view occurrences. In the first pair, time inside the ordinary root layout fell from 0.726s to 0.265s. Some work moved forward, and both trials used 13 fewer samples. Total settlement still increased in both. A layout after drawing cannot update the bitmap already sampled. The next draw establishes whether the image has changed, and the quiet interval and elapsed-time floor still apply.
 
 All 46 ordinary reference comparisons passed in every run. All 37 images from the four suites where the post-draw treatment executed matched the respective observation run byte for byte in both pairs. In each post-draw treatment, 45 final PNGs matched the control byte for byte. The remaining Device Layout Lab image differed by two pixels, one channel unit each. The ordinary observational runs also showed differences of this size on that fixture family.
+
+## Full-suite result and decision
+
+At `69559e7b4`, the enabled diagnostic ran on iPhone 17 / iOS 27.2 with `TEST_RUNNER_SNAPSHOT_TRACE_LAYOUT=1 ./test --no-build --no-generate --snapshots --timings --review --record never --skip-architecture --skip-host-tests`. The preceding focused invocation owned the build, architecture and host checks. All 78 tests in 71 suites passed in 12m 7s. All 935 capture identities and sizing configurations matched the PR 532 inventory. The trace joined one layout record to every one of the 5,604 sample passes. All 1,161 sampled calls settled and 657 calls explicitly skipped sampling.
+
+| Settlement reason | Sampled calls | Sample passes | Passes dirty after root layout | Passes dirty after drawing |
+| --- | ---: | ---: | ---: | ---: |
+| Measurement | 246 | 990 | 0 | 968 |
+| Content | 840 | 4,175 | 0 | 3,857 |
+| Native insets, post-action or accessibility | 75 | 439 | 0 | 397 |
+| **All** | **1,161** | **5,604** | **0** | **5,222** |
+
+The post-layout walk checked 424,876 views. Across the post-draw walks, 17,920 view occurrences were marked, often SwiftUI hosting and scrolling views or UIKit collection views. Of the 1,161 passes that accepted a stability proof, 1,094 still had marks after drawing. Of 4,128 continuing passes with post-draw marks, only 39 next samples exceeded their pixel anchor tolerance. Another 29 next samples exceeded it after a completely clean post-draw tree. These occurred in Device Layout Lab, Developer Overlay, Main Tabs and Periscope Viewer.
+
+Keep the recursive diagnostic behind `TEST_RUNNER_SNAPSHOT_TRACE_LAYOUT=1` with `--timings`. The full census found no work for an immediate second root layout, and the two after-draw trials increased elapsed settlement. Continue using the pixel proof. The observations cover hosted UIView backing layers on this simulator. Tasks, changes inside SwiftUI, and layers without a corresponding UIView can still alter a later frame.
+
+The retained trace and quiescence unit suites passed all 14 tests. Settings passed 16 images in each opt-in check. With tracing enabled all 113 sample passes had a record. With the switch omitted all 111 passes emitted zero layout records. Independent source review against `f12cb58d8` caught a skipped-draw logging edge case and a disabled-path environment read. Both were corrected before publication. Repository SwiftFormat and diff checks passed. [Implementation PR 533](https://github.com/kyleve/Stuff/pull/533)
+
+The diagnostic-off CircleCI snapshot job at the same revision passed 935 images, with 1,161 sampled calls, 657 immediate skips and zero retries. All four active shards reconciled to the PR 532 inventory. [CircleCI workflow](https://app.circleci.com/workflow/4e423ff9-86a1-4f4c-9c41-abeccc8aae19) · [GitHub checks](https://github.com/kyleve/Stuff/actions/runs/44339821146)
