@@ -124,3 +124,16 @@ The original paired comparison therefore remains mixed, with no established CI e
 The delegated watcher completed its bounded assignment without further dispatches. Its hash-verified report, raw evidence, and inventories are under `snapshot-followup-results/ci-repeat/` in the session's durable artifact directory. This conclusion does not replace CI validation of the new 12M source.
 
 Final independent review at `d86e3711` plus the clean cap diff finds no blocker for publication. It verifies the real area arguments, 31 passing functions, removal of experiment controls, and all local claims including the explicit HTML pixel inference. Thirteen cap runs, source copies, exported PNGs, exact test JSON, memory samples, and comparisons are retained with SHA-256 hashes under `snapshot-followup-results/cap/`. Publish for the remaining CI gate; plan 08 is not complete yet.
+
+
+### Final CI decision: retain 8M
+
+The exact clean 12M source, `f509814bb405ef014d9766a29cf03a1caefb8c96`, completes [CircleCI #2554](https://app.circleci.com/pipeline/0efb76ac-3355-4b74-a809-bd8645c67707) and [GitHub CI](https://github.com/kyleve/Stuff/actions/runs/44229297251). All jobs pass, including 2,955 unit functions (two skipped) and the 31 relevant framework guards. Strict trace transport reconciles 935 captures, 78 snapshot functions, and 1,820 settling calls.
+
+Two snapshots recover on attempt 2/3: DeviceLayoutLab `iPhone17-portrait_iPad` times out at 5.082s, and MainTabs `Adaptive-Locations-innerPortrait_duoInnerPortrait_accessibility` at 6.408s. Both fit 12M, but one unpaired run cannot establish causality. The result fails the predeclared no-added-retry gate. Retain 8M and the original real 9M serial-fallback guard; do not extend the experiment with selective retries.
+
+Worker test phases are 300.789 / 335.817 / 368.115 / 364.230s, aggregate work 1,368.951s, and snapshot job wall 476.037s. These unpaired observations include retries and establish no CI savings. The highest 15-second whole-executor memory sample is 20.393GiB; it is separate from local test-host RSS. The hash-verified `snapshot-followup-results/cap-ci/` report preserves raw logs, resources, provenance, and reconciliation.
+
+The bounded experiment therefore closes with promising local evidence but insufficient reliability evidence for adoption. The trace repair remains. PNG processing must be evaluated again at the retained 8M budget; its completed 12M trials are conditional evidence only. Cleanup review, focused checks, and publication of this retained default are the remaining delivery steps.
+
+The restored source passes the same 31 focused framework functions (`cap-retained-tests`, 18.721s test phase). Swift formatting and whitespace checks pass. Independent cleanup review verifies every module Swift file is byte-identical to parent `6d55f21e5`, including the 8M constant and real 9M fallback. The trace writer/collector remain; all prototype controls are absent. All 103 CI evidence hashes and raw capture/call/test counts reconcile. Publish this retained default and continue PNG trials at 8M.

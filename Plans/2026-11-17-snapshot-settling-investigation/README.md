@@ -5,12 +5,12 @@
 - Updated: 2026-11-17, starting from PR #528 checkpoint `7ccd0383e`; its tested runtime is `689cef15c`.
 - Operation: Revise and execute follow-up experiments after the user requested, “let’s do them all and see what helps.”
 - Requested scope: Repeat the mixed CI comparison, evaluate a larger bounded comparison worker, move immutable PNG processing off the capture path, and test deadline-aware settling samples. Preserve completed plans 01–07.
-- Stage: Plan 08 has completed local timing, pixel, resource, and framework checks; selected 12M CI validation is next. The bounded phase-7 CI repeat is complete and inconclusive for paired throughput. Plans 09–10 have reviewed isolated source prototypes. Plan 08a's trace repair is published, with fresh CI transport evidence pending.
+- Stage: Plan 08 retains 8M after exact-source 12M CI recovers two settling timeouts. Local gains remain documented but are not adopted. The bounded phase-7 repeat is inconclusive for paired throughput. Plan 09 passes 179 framework functions and finishes conditional 12M timing trials; it must repeat at retained 8M. Plan 10 remains an isolated reviewed source prototype. Plan 08a has complete fresh CI transport evidence.
 - Completed: Plans 01–07 and PR #528 are published. Local phase-7 savings are 41.859s / 4.91%. Its isolated CI pair preserves all captures but establishes no elapsed-time gain.
 - Pending: [08](08-expand-bounded-comparison.md), [09](09-overlap-png-processing.md), and [10](10-deadline-aware-sampling.md). Keep accepted changes only after timing, fidelity, cancellation, and resource gates.
 - Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
 - Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
-- Next action: Finish clean 12M framework/CI validation and apply the PNG prototype against that selected budget. Full local comparisons and the bounded CI repeat are complete; the trace repair is published on PR #524 and inherited by the stack.
+- Next action: Verify and publish the restored 8M default, then repeat the PNG pairs at that budget before judging adoption. Linear reporting awaits the explicit destination approval requested after automatic review rejected that update; repository work continues.
 - Delegation: Root owns local prototypes, tests, plan integration, and publication. `/root/watch_settle_ci` owns only the explicitly assigned repeat-CI watch and raw evidence; it must not change repository files or publish. `/root/review_snapshot_followups` owns fresh read-only implementation/evidence review before publication.
 
 ## Outcome and scope
