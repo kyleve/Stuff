@@ -1,6 +1,6 @@
 # 07 — Investigate overlapping snapshot work
 
-- Status: executing
+- Status: complete
 - Depends on: [05](05-metal-and-sampling-experiments.md) and [06](06-deliver-sampling-improvements.md), for the accepted sampling baseline and measured costs.
 - Shared context: [Overview](README.md), R-07, Q-10, X-02–X-04.
 - Request: On 2026-11-17 the user proposed doing useful work for another snapshot while the current snapshot settles, then explicitly requested execution: “Let’s move onto phase 7!” This authorizes the bounded investigation and implementation of a validated result; it does not establish a safe parallel-capture architecture.
@@ -227,14 +227,48 @@ agree on the bounded worker, authoritative verification, exact inputs, counts, t
 Experiment flags and the MainActor signal are removed. Renderer, rendering-support, and configured-capture source
 match the parent exactly. Prototype and full-cohort source copies remain outside Git for reproduction.
 
-### CI control
+### Isolated CI validation
 
-The fresh parent control at `64e349f14` verifies 935 captures, 78 functions, and 71 suites with zero snapshot retries.
-All four nonempty workers pass complete trace staging and preserve the same geometry as local runs.
-Test phases are 334.815 / 338.998 / 320.641 / 329.205s: 1,323.659s summed and 338.998s maximum.
-The snapshot job takes 464.843s. Actual 15-second CPU/memory samples are retained; these measure whole executors,
-not the local test-host RSS, and can miss shorter peaks. Candidate CI remains pending publication.
-Control: [pipeline 2538](https://app.circleci.com/pipelines/circleci/HfkN3cJ2hk23YfG42g3oS1/E7hn5FALiSX67sknpk9SZu/2538).
+The fresh parent control at `64e349f14bba3351f115dfc2266dfe3f00b42ff5` and candidate
+`689cef15cac7c28451f13a8f74a0999dc7be248d` each pass 935 captures, 78 functions, and 71 suites
+with zero snapshot retries. All four nonempty workers pass original-log `--require-complete` staging.
+Capture identities, geometry, readiness, test identities, and all 1,818 settling-call policies match.
+Both retain 1,193 sampled calls and 625 skipped calls. The fifth intake worker is explicitly empty.
+
+| Metric | Parent control | Background comparison |
+| --- | ---: | ---: |
+| Worker 0 test phase | 334.815s | 321.875s |
+| Worker 1 test phase | 338.998s | 354.057s |
+| Worker 2 test phase | 320.641s | 308.733s |
+| Worker 3 test phase | 329.205s | 322.701s |
+| Summed worker test phases | 1,323.659s | 1,307.366s |
+| Longest worker test phase | 338.998s | 354.057s |
+| Longest observed worker step span | 462.184s | 484.909s |
+| Snapshot job wall time | 464.843s | 484.093s |
+| Highest sampled executor memory | 19.486GiB | 19.704GiB |
+
+**This CI pair does not demonstrate an elapsed-time improvement.** Summed test phases fall 16.293s (1.23%),
+but the longest test phase rises 15.059s (4.44%) and job wall time rises 19.250s (4.14%).
+The candidate's worker 3 also spends 39.836s more in checkout and reference hydration.
+These are observations from one isolated pair, not proof that either the implementation or runner variation causes the differences.
+Summed capture work and summed worker time do not measure parallel-job throughput.
+
+Actual executor CPU/memory series use 15-second intervals. Their highest memory sample rises
+222.75MiB (1.12%); all four workers reach six sampled CPU cores in both runs.
+These measure whole executors, not test-host RSS, and can miss shorter peaks.
+They do not directly measure render-server contention. The separate local 500ms RSS gate remains the process-memory evidence.
+Successful CI retains diagnostic JSONL, JUnit, and available step output; it does not upload PNGs, full logs, or `.xcresult` bundles.
+Local strict image comparisons and the delayed oracle own the additional image-fidelity evidence.
+
+All candidate [CircleCI checks](https://app.circleci.com/workflow/1b2ba126-fd61-4605-86f2-75b6d72ca7d3)
+and the [GitHub manual gate](https://github.com/kyleve/Stuff/actions/runs/44213751266) pass at `689cef15c`.
+The older duplicate GitHub run was cancelled after verifying its identical head and full-gate selection;
+its cancelled jobs are not counted as passed checks.
+The control is retained as [pipeline 2538](https://app.circleci.com/pipelines/circleci/HfkN3cJ2hk23YfG42g3oS1/E7hn5FALiSX67sknpk9SZu/2538).
+
+Independent raw-evidence review reproduces the local and CI counts, timing, policies, and resource summaries.
+Retain the bounded background pipeline for its repeatable local benefit and passing correctness/resource guards.
+CI validation is complete, with no CI elapsed-speedup claim. Further CI throughput measurement remains in STU-121.
 
 ### CI validation exception
 
@@ -254,7 +288,14 @@ all PNGs, strict normalized comparisons, test-body extraction, sampled process m
 `full-source/` holds the same-binary full cohort; `final-source/` holds the cleaned implementation.
 The scratch collection remains `/private/tmp/stuff-snapshot-overlap`.
 
-Plan commits `c07770cee` and `bbbf78cc6` are published in PR #528. The background implementation has passed
-local acceptance and independent review; its implementation commit and isolated candidate CI are next.
-Plan 07 remains executing until final CI reconciliation and publication evidence are recorded.
-Track through [STU-121](https://linear.app/kve/issue/STU-121).
+Plan 07 is complete. Implementation `689cef15c` is published in ready-for-review [PR #528](https://github.com/kyleve/Stuff/pull/528),
+after plan commits `c07770cee` and `bbbf78cc6`. Local acceptance, isolated CI validation, and independent review pass
+with the explicit CI performance limits above. `/root/watch_settle_ci` completed the delegated CI reconciliation;
+`/root/review_snapshot_overlap` independently audited the raw evidence. The final checkpoint changes documentation only;
+CI tested runtime revision `689cef15c`, and its compiled source remains unchanged.
+
+`ci-control/` and `ci-candidate/` retain original artifacts, real staging commands, inventories, resource samples,
+and recomputed comparisons. The companion `analyze-ci.py`, `analyze-ci-resources.py`, and `compare-ci.py` reproduce the accounting.
+No selected execution remains. Preparation overlap, additional hosted slots, CI throughput uncertainty, and other
+readiness questions remain in [STU-121](https://linear.app/kve/issue/STU-121). The open implementation PR keeps that issue In Review;
+completion does not assert a merge or issue closure.
