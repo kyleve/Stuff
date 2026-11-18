@@ -8,16 +8,18 @@ import UIKit
 
 @MainActor
 struct SnapshotImageReferenceTests {
-    @Test func oversizedMatchingReferenceKeepsTheSerialPath() async throws {
+    @Test(arguments: [3000, 4000])
+    func boundsPreparedComparisonByImageArea(side: Int) async throws {
         let fixture = try SnapshotReferenceTestFixture()
         defer { fixture.remove() }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.preferredRange = .standard
-        let png = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 3000), format: format)
+        let size = CGSize(width: CGFloat(side), height: CGFloat(side))
+        let png = UIGraphicsImageRenderer(size: size, format: format)
             .pngData { context in
                 UIColor.red.setFill()
-                context.fill(CGRect(x: 0, y: 0, width: 3000, height: 3000))
+                context.fill(CGRect(origin: .zero, size: size))
             }
         let reference = fixture.directory.appendingPathComponent("oversized.png")
         try png.write(to: reference)
@@ -26,10 +28,13 @@ struct SnapshotImageReferenceTests {
             referenceURL: reference,
             diagnostics: true,
         )
-        guard case .serial = result.outcome else {
-            Issue
-                .record("A matching image above eight million pixels must retain serial comparison")
-            return
+        switch (side, result.outcome) {
+            case (3000, .matched), (4000, .serial): break
+            default:
+                Issue
+                    .record(
+                        "Nine million pixels should prepare; sixteen million must remain serial",
+                    )
         }
     }
 

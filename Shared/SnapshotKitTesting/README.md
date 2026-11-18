@@ -129,7 +129,7 @@ Comparison sheets attach their panel map to the composed PNG with ImageIO's loss
 
 Provider assertions prepare one completed image's comparison while the next view captures.
 The worker receives immutable PNG bytes and a reference URL. It never hosts views or changes window state.
-Hosting remains serial under the existing capture lock. Cutsheets and images above 8 million pixels use serial comparison.
+Hosting remains serial under the existing capture lock. Cutsheets and images above 12 million pixels use serial comparison.
 
 Only a successful comparison can be reused. The main actor still runs the authoritative reference verifier,
 which checks that both PNG byte sequences match the worker's inputs before reusing success.

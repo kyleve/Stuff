@@ -28,8 +28,10 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 
 7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): complete; bounded background comparison is published in PR #528 with local gains, full correctness/resource validation, and explicit mixed CI timing results.
 8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): executing; repeat CI evidence and compare 8M, 12M, and 16M pixel budgets.
-9. [09 — Overlap PNG processing](09-overlap-png-processing.md): outline; refine after plan 08 fixes the accepted worker budget.
-10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): outline; refine after plan 09 establishes the accepted pipeline baseline.
+9. [09 — Overlap PNG processing](09-overlap-png-processing.md): executing; author an isolated prototype from phase 7, then use the plan-08 budget for paired validation.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing an isolated conservative floor-wait prototype; integrate after plan 09 establishes the accepted pipeline baseline.
+
+[08a — Trace log framing](08a-trace-log-framing.md) records the trace-transport repair delivered with PR 524.
 
 | Requirement | Outcome to verify | Story | Plan |
 | --- | --- | --- | --- |
