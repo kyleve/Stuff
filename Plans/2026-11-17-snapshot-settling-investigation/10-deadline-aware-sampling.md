@@ -97,3 +97,44 @@ The isolated prototype is in `/private/tmp/stuff-snapshot-followups/sampling-pro
 Independent source review found no incorrect observer or deadline transition, but identified a validation gap: the initial hosted tests could pass without enabling the candidate or resetting proof. The revised tests call an internal explicit-policy overload and observe requested sleeps and actual sample events. A transient changes and returns during a confirmed extended wait. Its first resumed sample must establish a new anchor, followed by two matches spanning 120ms. A persistent update occurs after resumption and must restart proof again. Cancellation waits for an actual extended suspension and permits no later sample. Observations are internal, optional, MainActor-owned, and print no synthetic profile records.
 
 Independent follow-up review confirms that the revised source tests explicitly exercise the candidate and guard proof reset and cancellation. Before acceptance, build these guards and show that removing the loop's proof-reset call makes the hosted regression fail. Runtime and mutation evidence remain pending.
+
+
+## Integrated execution
+
+Plan 09 completes at `afe231667` with eager PNG/8M retained. The five-file reviewed schedule/observer/test prototype is applied to that baseline. Temporary export, serial-oracle, and delayed-capture controls use the previously reviewed experiment helpers; they are off unless explicitly requested. Both timing arms retain the same pipeline and export path. `sampling-baseline-source/` preserves the clean accepted source.
+
+First compile and run the pure schedule and hosted floor-wait guards. Then remove only the loop's `requireFreshProofAfterGap()` call and confirm that the hosted regression fails for the intended assertion. Restore the exact source before the complete framework run. Freeze the passing source before two interleaved timing pairs. No other candidate is included.
+
+The first build finds four test-only Swift Testing macro errors: a bare mutating `observe` call inside `#expect` is expanded through an immutable closure parameter. Evaluate those calls into local results before asserting. The failed build and original test file remain in `sampling-guards/` and `sampling-initial-compile-test.swift`; no runtime result is claimed for that attempt.
+
+All eight focused functions pass after the test-only macro correction. The mutation then builds and fails the intended hosted function in both parameter cases: the resumed sample is matching/stable instead of a new anchor, with zero subsequent matches and zero quiet duration. Cancellation still passes. `sampling-mutation-result.json` records exit 65, the expected assertion cause, and identical original/restored source hashes. The correct source is restored before further tests.
+
+Independent integrated-source review finds no blockers and verifies the actual eight-function log, deadline semantics, preserved motion history, explicit candidate tests, and disabled-by-default oracle controls. Freeze the corrected module at `sampling-timed-source/`, run every framework function with the candidate enabled, then execute control / deadline / deadline / control. Only the deadline schedule and its proof reset differ between timing arms.
+
+The complete candidate-enabled framework run passes all 182 functions (`sampling-framework`, 92.429s test phase). Independent review confirms the mutation's exact build/test cause and original/restored/frozen hash equality. All live Swift files still match `sampling-timed-source/`. The four focused timing runs now proceed in the declared order, with eager PNG, the 8M cap, and no other simulator workload.
+
+
+## Result: retain the existing cadence
+
+Each of the four runs passes 110 captures / six functions with zero retries, identical source hashes, geometry, 558,607,431 pixels, 114 tiles, and 170 call policies. Controls take no extended waits. Each candidate takes four waits in raised-floor Main Tabs cases; each resumed sample is a fresh nonstable anchor. Serial and delayed-oracle controls are off in both arms.
+
+| Mode | Test phase | Exact test bodies | Render work | Samples |
+| --- | ---: | ---: | ---: | ---: |
+| Control 1 | 108.115s | 94.949402s | 39.327893s | 573 |
+| Deadline 1 | 108.117s | 92.720838s | 36.770425s | 548 |
+| Deadline 2 | 109.278s | 93.948913s | 36.907227s | 544 |
+| Control 2 | 106.181s | 92.869889s | 38.011197s | 561 |
+
+The candidate removes 25 and 17 samples. Mean render work falls 1.830719s (4.73%), but the test-body benefit reverses: 2.228564s faster in the first pair, 1.079024s slower in the second. Control body variation is 2.079513s. Test-phase time is unchanged in the first pair and 3.097s slower in the second; its mean rises 1.5495s (1.45%). The repeated-benefit gate fails. Fewer renders do not establish an elapsed improvement, so retain the ordinary 16ms cadence and remove the prototype.
+
+Sampled peak host RSS rises only 0.09375MiB against the larger control. All strict comparisons preserve dimensions. The first pair's single two-unit Adaptive Locations pixel matches the known independent delayed serial PNG variants; the other pair and control/control stay within one unit. No references, floors, quiet windows, or tolerances change.
+
+The selected cohort exercises four extended-wait calls per run, all with one-second floors. This result applies to the bounded candidate and selection; it does not measure a full-suite benefit or rule out every future scheduler. Full-suite, fresh-oracle, and CI adoption trials are not selected because the focused elapsed gate fails. `schedule-trace-verification.json` and `schedule-active-call-summary.json` retain actual activation, fresh-proof events, policies, and changed-call accounting.
+
+Restore the exact `afe231667` module source and remove all schedule/oracle/export controls and added tests. Source identity checks now match `sampling-baseline-source/` for every Swift file. Regeneration, focused cleanup checks, independent evidence/cleanup review, artifact retention, and publication remain before completion.
+
+Changed-call accounting sharpens the result: the four affected calls save 1.113875s / 1.027209s of rendering but only 0.122927s / 0.032821s of elapsed time. Their unchanged one-second floors still govern completion. This is observed local accounting, not a full-suite estimate.
+
+Cleanup passes generation, 27 existing stability/rendering/timeout/trace functions (16.341s test phase), and whitespace checks. Independent review reconciles all raw timing, policy, pixel, memory, and mutation evidence; confirms all 70 restored Swift files and removed prototype files; and reports no blockers. Preserve the archive hashes and publish the rejected-adoption result before closing the checkpoint.
+
+The final sampling archive contains 677 hash-verified files under `snapshot-followup-results/sampling/`. A separate 10-file `trace-transport/` archive preserves the collector reproductions and mutation evidence. The net Swift source/test diff against parent PR #528 (`6d55f21e5`) is empty. Publish this result; only the final lifecycle checkpoint remains.

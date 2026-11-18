@@ -162,3 +162,15 @@ but the second pair's 0.907s gain is below 1.003s control variation. Test-phase 
 The result is inconclusive; no full-suite or CI adoption claim follows. The prototype and its controls are removed.
 [Plan 09](../../../Plans/2026-11-17-snapshot-settling-investigation/09-overlap-png-processing.md) retains all measurements, image evidence,
 and the earlier conditional 12M trials. This does not prove background encoding can never help; remeasure if the accepted pipeline or workload changes materially.
+
+## Deadline-aware settling samples — 2026-11-17
+
+Keep the ordinary 16ms cadence. A conservative prototype waits through part of a raised floor after initial proof,
+then requires a new anchor and two matches over 120ms. All 182 framework functions pass. Removing the loop's proof reset
+makes both hosted delayed-content cases fail; the correct source is restored before measurement.
+
+Two interleaved 110-capture pairs preserve geometry and zero retries. Each candidate exercises four extended waits.
+It reduces mean render work by 4.73%, but the first body-time gain reverses in the second pair; mean test-phase time rises 1.45%.
+The repeated-benefit gate fails. The prototype, controls, and added tests are removed; no full-suite or CI speedup is claimed.
+[Plan 10](../../../Plans/2026-11-17-snapshot-settling-investigation/10-deadline-aware-sampling.md) retains the schedule, guard/mutation evidence,
+per-call traces, pixels, timing limits, and source copies. Reduced rendering alone does not justify this scheduling change.

@@ -5,12 +5,12 @@
 - Updated: 2026-11-17, starting from PR #528 checkpoint `7ccd0383e`; its tested runtime is `689cef15c`.
 - Operation: Revise and execute follow-up experiments after the user requested, “let’s do them all and see what helps.”
 - Requested scope: Repeat the mixed CI comparison, evaluate a larger bounded comparison worker, move immutable PNG processing off the capture path, and test deadline-aware settling samples. Preserve completed plans 01–07.
-- Stage: Plans 08 and 08a are complete. Plan 09 retains eager PNG processing: its 8M pairs show a small mean gain but miss the repeated-benefit gate. Source is restored for cleanup checks and publication. Plan 10 remains an isolated reviewed source prototype, ready to integrate against eager PNG/8M.
+- Stage: Plans 08, 08a, and 09 are complete. Plan 10 finishes its bounded trials: fewer renders do not yield repeatable elapsed savings. The accepted 16ms cadence, eager PNG, and 8M bound are restored for final checks and publication; the trace repair remains.
 - Completed: Plans 01–07 and PR #528 are published. Local phase-7 savings are 41.859s / 4.91%. Its isolated CI pair preserves all captures but establishes no elapsed-time gain.
-- Pending: [09](09-overlap-png-processing.md) and [10](10-deadline-aware-sampling.md). Keep accepted changes only after timing, fidelity, cancellation, and resource gates.
+- Pending: [10](10-deadline-aware-sampling.md). Keep accepted changes only after timing, fidelity, cancellation, and resource gates.
 - Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
 - Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
-- Next action: Publish the PNG experiment result after cleanup review, then build and exercise the sampling prototype and its mutation guard. Linear reporting awaits the explicit destination approval requested after automatic review rejected that update; repository work continues.
+- Next action: Complete the sampling cleanup checks, independent review, and evidence archive, then publish the final result and close the series checkpoint. Linear reporting awaits the explicit destination approval requested after automatic review rejected that update; repository work continues.
 - Delegation: Root owns local prototypes, tests, plan integration, and publication. `/root/watch_settle_ci` owns only the explicitly assigned repeat-CI watch and raw evidence; it must not change repository files or publish. `/root/review_snapshot_followups` owns fresh read-only implementation/evidence review before publication.
 
 ## Outcome and scope
@@ -79,10 +79,10 @@ Repository source and the pinned-runtime measurements suffice for this observati
 
 8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): complete; retain 8M after local gains fail the final retry gate. Bounded CI repeats remain inconclusive.
    [08a — Preserve complete traces beside native logs](08a-trace-log-framing.md): complete; strict transport passes fresh full CI, while historical failed samples remain excluded.
-9. [09 — Overlap PNG processing](09-overlap-png-processing.md): executing; author an isolated prototype from phase 7, then use the plan-08 budget for paired validation.
-10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing an isolated conservative floor-wait prototype; integrate after plan 09 establishes the accepted pipeline baseline.
+9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing the conservative floor-wait prototype against eager PNG/8M.
 
-The current horizon measures PNG processing at the retained 8M budget, then integrates the reviewed sampling prototype. Timing and adoption remain sequential, against each preceding experiment's accepted baseline.
+The current horizon measures the reviewed sampling prototype against the accepted eager-PNG/8M baseline. A qualifying candidate needs full fidelity, resource, and CI validation; an inconclusive or negative result restores that baseline.
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
 The first PR contains the plan and observational groundwork; subsequent commits/PRs keep each verified change separate.
@@ -109,7 +109,7 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-09 | closed | Would Metal image comparison materially reduce settling cost? | R-05 | Current local normalization and pixel checks total 1.626s, about 0.2% of capture work. Do not add a settling comparison kernel. Full reference comparison is a separate 100.057s phase in the review-enabled run, including PNG handling and diagnostics; its library already has a conditional Metal/MPS path. Profiling that path remains separate STU-121 scope. |
 | Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
 | Q-11 | closed | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 completes within its bounded method: no new valid CI pair, and 12M fails the no-added-retry gate despite local gains. Retain 8M; reviewed and published at `edb688245`. |
-| Q-12 | open | Can PNG processing safely leave the capture critical path? | R-09 | Refine plan 09 against immutable image ownership, normalization, cancellation, and memory. |
+| Q-12 | closed | Can PNG processing safely leave the capture critical path? | R-09 | Plan 09 passes ownership/cancellation/fidelity guards but misses the repeated-benefit gate at retained 8M. Keep eager normalization; reviewed result and cleanup are published at `afe231667`. |
 | Q-13 | open | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | Refine plan 10 with adversarial traces and independent delayed captures. |
 
 ## Follow-up research and review
