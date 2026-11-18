@@ -1,6 +1,6 @@
 # 01 — Skip unchanged pixels when describing a difference
 
-- Status: executing
+- Status: complete
 - Dependencies: none. [Overview and scope](README.md)
 
 ## Deliverable and design
@@ -39,4 +39,12 @@ A macOS Swift debug replay compared the parent and candidate magnitude functions
 
 The three focused suites passed before and after. Their test bodies fell from 65.425s to 52.354s (20.0%). The runner test phase fell from 81.091s to 64.622s. All 77 capture identities, 215,727,762 pixels, 85 tiles and 149 settle calls matched, with zero retries. Forty-four of 45 diagnostic reports matched exactly across the live captures. One additional sheet in each run had different PNG bytes and zero differing normalized RGB pixels. The retained fixed-input replay above isolates algorithm equivalence from live capture variability.
 
-Full-suite and CI measurements are in progress.
+A full `./test --snapshots --no-generate --review --timings --record never` run on Xcode 27.2 passed all 935 captures and 78 functions. Compared with the retained PR 529 run at `05bb537a1` (identical implementation to `4f5b9d520`), test elapsed fell from **805.560s to 757.995s**, saving **47.565s (5.90%)**. Summed instrumented comparison work fell from 103.120s to 49.726s. Background overlap and cutsheet work outside individual capture timings prevent treating this summed work as elapsed time.
+
+The full runs matched on the multiset of capture identities, 4,797,647,739 pixels, 1,014 tiles, and all 1,818 settle policies and outcomes. Both had zero retries. Of the 150 control and 151 candidate review rows, 145 matched exactly, counting duplicate reports separately. Both live runs passed their approved references. The 93-pair fixed-input replay owns the exact diagnostic equivalence check. The full local comparison uses one run per revision on the same Mac with different checkout-owned simulators. The measured improvement applies to runs that enable review diagnostics.
+
+Across the [paired CI runs](02-shard-references.md#ci-verification), ordinary captures accumulated 174.848s of comparison work in the control and 91.136s in the candidate (47.9% less). Summed test phases fell from 1,282.131s to 1,206.366s across four active workers. The full pair includes both implemented changes.
+
+## Outcome
+
+Complete in [PR 530](https://github.com/kyleve/Stuff/pull/530). Independent review reproduced the local and CI measurements. No implementation steps remain.
