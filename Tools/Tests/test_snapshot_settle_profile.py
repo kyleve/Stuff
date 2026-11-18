@@ -5,6 +5,8 @@ from copy import deepcopy
 import io
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from uuid import uuid4
@@ -207,6 +209,108 @@ class SnapshotSettleProfileTests(unittest.TestCase):
             report = profile.summarize(traces, captures, runs)
             self.assertTrue(report["reconciled"])
             self.assertFalse(report["complete"])
+
+    def test_native_log_suffix_preserves_the_complete_command_report(self):
+        native = (
+            "2026-11-17 18:19:49.998850-0800 StuffTestHost[6147:23346] "
+            "[Where] [reporting/PresenceCalendar] ◀ layoutYear succeeded (0:00:00)"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "trace results ü"
+            root.mkdir()
+            log, output = root / "test.log", root / "output"
+            row = trace()
+            for appended_to in (profile.TRACE, profile.TIMING):
+                with self.subTest(appended_to=appended_to):
+                    lines = ["◇ Suite Example started."]
+                    for prefix, value in (
+                        (profile.TRACE, row),
+                        (profile.TIMING, capture([row])),
+                    ):
+                        lines.append(
+                            prefix
+                            + json.dumps(value)
+                            + (native if prefix == appended_to else "")
+                        )
+                    lines.append("** TEST EXECUTE SUCCEEDED **")
+                    log.write_text("\n".join(lines) + "\n")
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(Path(profile.__file__).resolve()),
+                            str(log),
+                            "--output-dir",
+                            str(output),
+                            "--require-complete",
+                        ],
+                        cwd=root,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stderr, "")
+                    self.assertTrue(result.stdout)
+                    report = json.loads((output / "summary.json").read_text())
+                    self.assertTrue(report["complete"])
+                    self.assertEqual(report["captures"], 1)
+                    self.assertEqual(report["total"]["calls"], 1)
+                    self.assertEqual(report["total"]["passes"], 3)
+
+    def test_native_message_inside_json_still_fails_the_command(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            log, output = root / "split.log", root / "output"
+            row = json.dumps(trace())
+            split_at = row.index('"pixelStable"')
+            log.write_text(
+                "2026-11-17 18:38:33.178611-0800 "
+                + profile.TRACE
+                + row[:split_at]
+                + "StuffTestHost[6230:23893] [Where] [SwiftDataStore] fetchSamples succeeded\n"
+                + row[split_at:]
+                + "\n** TEST EXECUTE SUCCEEDED **\n"
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(profile.__file__).resolve()),
+                    str(log),
+                    "--output-dir",
+                    str(output),
+                    "--require-complete",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("split.log:1:", result.stderr)
+            self.assertFalse((output / "summary.json").exists())
+
+    def test_trailing_corruption_or_another_record_is_not_discarded(self):
+        native = "2026-11-17 18:19:49.998850-0800 StuffTestHost[6147:23346] "
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "broken.log"
+            row = trace()
+            for prefix, value in (
+                (profile.TRACE, row),
+                (profile.TIMING, capture([row])),
+            ):
+                for suffix in (
+                    "garbage",
+                    "{}",
+                    "42",
+                    profile.TIMING + json.dumps(capture([row])),
+                    native + profile.TRACE + json.dumps(row),
+                    native + profile.TIMING + json.dumps(capture([row])),
+                ):
+                    with self.subTest(prefix=prefix, suffix=suffix):
+                        log.write_text(prefix + json.dumps(value) + suffix + "\n")
+                        with self.assertRaisesRegex(ValueError, "broken.log:1:"):
+                            profile.parse_logs([log])
 
     def test_malformed_logs_report_source_and_line_instead_of_silently_skipping(self):
         with tempfile.TemporaryDirectory() as temporary:

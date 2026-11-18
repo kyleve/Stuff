@@ -280,7 +280,9 @@ wall time and can contain application work or scheduling delay. Unchanged
 low-resolution pixels alone do not prove content readiness.
 
 The recorder buffers rows until each call ends, including cancellation and
-failure. It does not change settling policy or run another image comparison.
+failure. Each complete diagnostic line and its newline use one output write to
+reduce interleaving with native logs. Downstream corruption still fails collection.
+The recorder does not change settling policy or run another image comparison.
 Without timing, it allocates no pass buffers and emits no trace rows. Analyze a
 log with `python3 Tools/snapshot_settle_profile.py PATH/StuffSnapshotTests.log
 --output-dir PATH/settle-profile --require-complete`. The tool retains raw

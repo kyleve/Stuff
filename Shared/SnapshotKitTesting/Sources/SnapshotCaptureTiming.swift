@@ -174,7 +174,7 @@ import SnapshotKit
     @discardableResult
     public func emit() -> String? {
         guard let json = line() else { return nil }
-        print("SNAPSHOT_TIMING \(json)")
+        writeSnapshotDiagnostic("SNAPSHOT_TIMING \(json)")
         return json
     }
 
@@ -207,7 +207,9 @@ import SnapshotKit
         else {
             // Emitting is diagnostic-only, but a silent drop would look like a
             // capture that cost nothing — say so instead.
-            print("SNAPSHOT_TIMING_ERROR could not encode timing for \(identifier)")
+            writeSnapshotDiagnostic(
+                "SNAPSHOT_TIMING_ERROR could not encode timing for \(identifier)",
+            )
             return nil
         }
         return json

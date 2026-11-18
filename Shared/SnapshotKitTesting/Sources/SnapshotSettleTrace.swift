@@ -152,9 +152,11 @@ struct SnapshotCaptureTraceID {
 
     func emit(outcome: SettleOutcome) {
         if let json = line(outcome: outcome) {
-            print("SNAPSHOT_SETTLE_TRACE \(json)")
+            writeSnapshotDiagnostic("SNAPSHOT_SETTLE_TRACE \(json)")
         } else {
-            print("SNAPSHOT_SETTLE_TRACE_ERROR could not encode \(identifier) call \(ordinal)")
+            writeSnapshotDiagnostic(
+                "SNAPSHOT_SETTLE_TRACE_ERROR could not encode \(identifier) call \(ordinal)",
+            )
         }
     }
 

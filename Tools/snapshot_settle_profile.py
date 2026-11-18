@@ -115,6 +115,24 @@ def validate_trace(row: dict) -> None:
         raise ValueError("settled outcome lacks a final stability and floor proof")
 
 
+def diagnostic_json(payload: str) -> object:
+    """Read one record, allowing an adjacent native log entry from another thread."""
+    value, end = json.JSONDecoder().raw_decode(payload.lstrip())
+    suffix = payload.lstrip()[end:].strip()
+    if suffix:
+        # NSLog can write between Swift print's JSON and its newline. Accept only
+        # that recognizable transport suffix, never arbitrary malformed data or
+        # another diagnostic that would otherwise disappear from reconciliation.
+        native_log = re.match(
+            r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+[+-]\d{4} "
+            r"[^\s\[\]]+\[\d+:\d+\] ",
+            suffix,
+        )
+        if not native_log or any(marker in suffix for marker in (TRACE, TIMING)):
+            raise ValueError("unexpected data after diagnostic JSON")
+    return value
+
+
 def parse_logs(paths: Sequence[Path]) -> tuple[list[dict], list[dict], list[dict]]:
     traces, captures, runs = [], [], []
     for path in paths:
@@ -130,13 +148,17 @@ def parse_logs(paths: Sequence[Path]) -> tuple[list[dict], list[dict], list[dict
                 suite = match.group(1)
             if "SNAPSHOT_SETTLE_TRACE_ERROR" in line:
                 raise ValueError(f"{path}:{number}: trace encoding failed")
-            prefix = TRACE if TRACE in line else TIMING if TIMING in line else None
+            prefix = min(
+                (marker for marker in (TRACE, TIMING) if marker in line),
+                key=line.index,
+                default=None,
+            )
             if prefix is None:
                 continue
             # Appended observations require their own terminal success marker.
             succeeded = False
             try:
-                row = json.loads(line.split(prefix, 1)[1])
+                row = diagnostic_json(line.split(prefix, 1)[1])
                 if not isinstance(row, dict):
                     raise ValueError("diagnostic record must be an object")
                 identity(row)

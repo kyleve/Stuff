@@ -101,6 +101,8 @@ operation times, call reasons, outcomes, and overlapping floor/proof conditions.
 Run `python3 Tools/snapshot_settle_profile.py PATH/StuffSnapshotTests.log --output-dir PATH/settle-profile --require-complete`.
 Incomplete captures and orphaned calls remain in the report; `--require-complete`
 requires reconciliation and a terminal Xcode success marker in every input log.
+The collector permits a recognizable native log after a complete JSON record.
+Split or malformed records and adjacent snapshot diagnostics still fail collection.
 It cannot establish coverage beyond the selected suites. CircleCI retains the
 files beside shard suite timings; the shard verifier owns suite coverage.
 Parameterized tests retain one test identity and sum their argument and repetition durations.
