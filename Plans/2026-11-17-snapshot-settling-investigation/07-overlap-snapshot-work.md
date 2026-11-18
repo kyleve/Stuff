@@ -1,6 +1,6 @@
 # 07 — Investigate overlapping snapshot work
 
-- Status: ready
+- Status: executing
 - Depends on: [05](05-metal-and-sampling-experiments.md) and [06](06-deliver-sampling-improvements.md), for the accepted sampling baseline and measured costs.
 - Shared context: [Overview](README.md), R-07, Q-10, X-02–X-04.
 - Request: On 2026-11-17 the user proposed doing useful work for another snapshot while the current snapshot settles, then explicitly requested execution: “Let’s move onto phase 7!” This authorizes the bounded investigation and implementation of a validated result; it does not establish a safe parallel-capture architecture.
@@ -66,7 +66,7 @@ The first bounded experiment selects completed-image work within one provider in
 2. Prototype one background comparison of immutable image bytes while the main actor captures the next ordinary case. Preserve the FIFO capture lock. Use a structured task group with at most one comparison worker and one current capture. Drain the preceding result before submitting another worker, crossing a cutsheet boundary, or returning from the provider.
 3. Only successful comparisons may bypass repeated pixel computation. The background result retains the exact reference bytes it checked; the existing serial `verifySnapshot` still owns file reads, record modes, attachments, and issues. Its strategy reuses success only when both PNG byte sequences still match the checked inputs. A mismatch, missing or malformed reference, changed file, or unsupported subject uses the existing serial comparator. Keep recording modes and cutsheets on the original path initially. Do not transfer UIKit views, controllers, timing objects, or attachments to the worker.
 4. The worker constructs images and comparison state locally, uses an explicit scale instead of querying `UIScreen`, and returns Sendable values only. Check cancellation before and after each expensive synchronous operation. A synchronous library comparison may finish before cancellation returns; await it before scope exit. The parent starts no further capture or report after cancellation. Capture errors drain earlier completed work before reporting the later error, and retries retain the existing fresh-controller behavior.
-5. Keep only one prior image payload and one current capture alive. Limit worker eligibility to ordinary captures of at most 8 million pixels; larger captures use the serial path. Measure process peak memory and reject an unbounded queue or a material resource regression. No global worker registry, detached task, or concurrency toggle ships from the prototype by default.
+5. Keep only one prior image payload and one current capture alive. Limit worker eligibility to ordinary captures of at most 8 million pixels; larger captures use the serial path. Sample the owned test-host process RSS every 500ms in every timed mode. Reject an unbounded queue, or peak RSS more than 25% or 256MiB above the larger paired control, whichever threshold is reached first. Sampling may miss shorter peaks; retain this limit. No global worker registry, detached task, or concurrency toggle ships from the prototype by default.
 
 The initial pipeline stays inside a single serial test/provider, and its structured scope ends before the next test starts. Existing UUID capture identities still join settle events to timing rows. Unlike cross-test overlap, this does not invalidate the analyzer's current suite attribution. Prototype events also carry their own test identity and absolute monotonic timestamps. If implementation expands to multiple tests, add capture-owned test/suite attribution to the production trace and analyzer first. Measure actual test/process elapsed time; summed capture latency is not throughput under overlap.
 
@@ -105,7 +105,35 @@ await withTaskGroup(of: PreparedComparison.self) { workers in
 }
 ```
 
-The implementation must pass only copied Sendable input values to `addTask`, not the actor-owned capture shown for brevity. Unsupported subjects drain first and run serially. Completed results are reported in original case/configuration order, including reference failures.
+The implementation must pass only copied Sendable input values to `addTask`, not the actor-owned capture shown for brevity. Unsupported subjects drain first and run serially. Pipeline-owned comparison results and caught capture errors are reported in original case/configuration order. Readiness hooks can directly emit Testing issues before the previous comparison completes; this experiment does not intercept or buffer arbitrary hook issues.
+
+### Main-actor suspension candidate — user refinement
+
+The user clarified that useful work may also run on MainActor while another MainActor task is suspended. Add a second scheduling candidate over the same immutable-image boundary. It keeps the comparison on MainActor and starts it only when the following capture suspends after its first settling sample. This lets the existing quiet interval accrue during useful work, while still requiring the original subsequent pixel matches. A task-local, experiment-only signal identifies that boundary; reaching capture completion also releases the signal so immediate captures and errors cannot deadlock. The comparison retains the original reference/reporting implementation and never changes hosted state. Check old-reference dimensions and the possible difference-canvas area before running it during a wait; oversized or undecodable references fall back to the post-capture join. The single hosted capture and ordered error join remain intact.
+
+```mermaid
+flowchart LR
+    A[Capture A and restore its host state] --> B[Mount B under the capture lock]
+    B --> S[B takes its first sample and suspends]
+    S --> C[MainActor compares A's completed PNG]
+    C --> R[B resumes sampling and completes capture]
+    R --> J[Join A before reporting a caught B error]
+```
+
+```swift
+// Proposed coordination; the child remains on MainActor.
+async let priorComparison = compareAfterSignal(previousPNG, signal.stream)
+let followingCapture = await withSettleSuspensionSignal(signal) {
+    captureNextCaseWithExistingLock()
+}
+signal.finish() // also releases the child when capture skips settling or fails
+await priorComparison
+handleFollowingCapture(followingCapture)
+```
+
+The implementation uses one task-group child rather than an unbounded series of `async let` bindings. Cancellation terminates the signal wait and the group joins the child. A synchronous comparison already in progress has the same non-preemptible behavior as the original comparator.
+
+Compare this candidate with background preparation and the serial control in the same binary. CPU work on MainActor can delay sample delivery, so preserve original floors, proof, timeout behavior, retry counts, and independent later-oracle checks. Do not equate actor suspension with unused time. This experiment directly evaluates cooperative interleaving without creating a second window or moving fixture construction earlier. If accepted, replace any experimental global or task-local control with the smallest explicit scheduling boundary supported by evidence; no broad test parallelism is selected.
 
 ### Verification and decision
 
@@ -125,4 +153,6 @@ Root plan review on 2026-11-17 checked source ownership, failure paths, bounded 
 
 ## Resume point
 
-Ready for the comparison-cost pilot, followed by the bounded worker prototype. Existing runtime behavior remains unchanged at this checkpoint. Track through [STU-121](https://linear.app/kve/issue/STU-121).
+The executable plan is published at `c07770cee` in PR #528. The observational pilot passes 110 captures (105 reference comparisons) with 16.094s of review diagnostics and 6.092s of verification; actual test phase 120.537s. Both prototypes are uncommitted and opt-in. The first complete framework run after correcting test-only message assumptions passes 170 functions in 31 suites. The subsequent 16 focused functions also pass with reference/canvas limits, reduced retained state, and signaling after the first sample. Six same-binary timing runs are executing: two controls and two trials per overlap mode, with reversed candidate order in the second block.
+
+Independent review found no host-state or stale-reference defect. It identified the need to keep pipeline-owned issue ordering distinct from hook-emitted issues, check old-reference/canvas area, and correct existing summed timing totals before any default ships. The first two are integrated. Prototype capture totals still include queue latency and are excluded from speedup decisions; actual test elapsed time is the gate. Raw runs and source copies live in `/private/tmp/stuff-snapshot-overlap`. Track through [STU-121](https://linear.app/kve/issue/STU-121).
