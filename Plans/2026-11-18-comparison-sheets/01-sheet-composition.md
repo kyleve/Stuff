@@ -1,6 +1,6 @@
 # Measure and reduce comparison sheet overhead
 
-Status: executing. Depends on the [PR 530 baseline](../2026-11-18-snapshot-performance/README.md). Requirements R-01 through R-03 and exclusion X-01 are defined in the [overview](README.md).
+Status: complete. Depends on the [PR 530 baseline](../2026-11-18-snapshot-performance/README.md). Requirements R-01 through R-03 and exclusion X-01 are defined in the [overview](README.md).
 
 ```mermaid
 flowchart LR
@@ -11,7 +11,7 @@ flowchart LR
   Writer --> Verdict[Review and whole-sheet verification]
 ```
 
-All stages already exist. The proposed Swift changes use `settle: .immediate` for the private fixed-content grid and supply `capture.pngData` to the existing ImageIO writer. The shared renderer still mounts and lays out the grid. Its measured panel geometry must validate before verification or recording.
+All stages already exist. The experiment uses `settle: .immediate` for the private fixed-content grid and supplies `capture.pngData` to ImageIO. It compares the existing metadata writer and ImageIO’s lossless copy. The shared renderer still mounts and lays out the grid. Its measured panel geometry must validate before verification or recording.
 
 1. Run `./test --no-generate --record never --timings --review --only-file <six owning suites>` on PR 530 and the final candidate on the same simulator. Separate the five sheet-only suites from Calendar's mixed test body. Compare coverage, elapsed time, summed test bodies and real panel counts.
 2. Use a temporary hosted probe to time composition, encoding and comparisons. Replay both policies with the same immutable inputs, alternating order. Check the normalized pixels of every complete canvas and its decoded panel map. Compare the current metadata writer and reuse of normalized bytes separately. Keep a proposal only if it saves measured work with identical output. Drop any proposal that fails this criterion. Keep temporary instrumentation out of shipping and test code.
@@ -21,20 +21,20 @@ All stages already exist. The proposed Swift changes use `settle: .immediate` fo
 
 The pinned ImageIO SDK also offers `CGImageDestinationCopyImageSource` to attach the map while copying compressed image data. A desktop probe of all 57 reference files found that copying the source metadata before changing Description preserved all decoded ImageIO properties. Include this alternative in the iOS replay alongside reuse with the original writer. Check the existing recording and review paths with real panels. A new serialization of the same map can yield a zero-RGB review diagnostic against old files.
 
-## Where PR 530 spent the time
+## Where the assertion spends its time
 
-A temporary probe around the real assertion path timed each stage once for every sheet on the iPhone 17 simulator, iOS 27.2. These are summed serial seconds after the last panel capture.
+A temporary probe around the real assertion path timed each stage once for every sheet, before and after the change, on the iPhone 17 simulator, iOS 27.2. These are summed serial seconds after the last panel capture.
 
-| Stage | All 57 sheets |
-| --- | ---: |
-| Compare independent panels against the approved crops | 3.962s |
-| Host, lay out, settle and render the grid | 20.524s |
-| Encode the sheet and write its metadata | 4.581s |
-| Describe differences for `--review` | 7.919s |
-| Run the final whole-sheet verification | 5.855s |
-| Total | 42.840s |
+| Stage across all 57 sheets | PR 530 | PR 531 |
+| --- | ---: | ---: |
+| Compare independent panels against the approved crops | 3.962s | 4.019s |
+| Host, lay out, settle and render the grid | 20.524s | 5.206s |
+| Encode the sheet and write its metadata | 4.581s | 0.045s |
+| Describe differences for `--review` | 7.919s | 7.736s |
+| Run the final whole-sheet verification | 5.855s | 4.924s |
+| Total | 42.840s | 21.930s |
 
-The five sheet-only test bodies took 78.123s in the probe and 78.243s on the uninstrumented control. Calendar also runs ordinary captures and owns the other two sheets. The affected selection is `WhereUISnapshotTests` with CalendarContentView, LocationForecastPanel, LocationForecastSummary, PrivacyPassportCard, RegionSummaryCard and RegionWelcomeCard (all suffixed `SnapshotTests`). It executes seven test functions.
+The five sheet-only test bodies took 78.123s and 58.318s in the two instrumented runs. The same selection took 78.243s and 58.173s with the probes removed. Calendar also runs ordinary captures and owns the other two sheets. The affected selection is `WhereUISnapshotTests` with CalendarContentView, LocationForecastPanel, LocationForecastSummary, PrivacyPassportCard, RegionSummaryCard and RegionWelcomeCard (all suffixed `SnapshotTests`). It executes seven test functions.
 
 ## Fixed-input replay
 
@@ -59,3 +59,17 @@ Uninstrumented control and candidate ran sequentially on the same worktree simul
 The five pure suites saved 20.070s (25.7%). RegionSummaryCard, which owns 28 sheets, fell from 36.134s to 26.762s. Both runs passed 176 captures with zero retries. The ordinary and panel capture traces reported the same 352 settle calls. The grid is profiled separately. The complete selection includes 114 panels and 62 ordinary captures. Capture identities, image dimensions, tile counts, readiness policies and settle outcomes matched the control.
 
 The full `SnapshotKitTestingTests` framework bundle passed 175 tests in 32 suites, including its expected-failure cases. SwiftFormat, agent guidance and diff checks passed. Independent review compared the final code to PR 530, the baseline stage measurements, replay rows and normal runner results. It found no outstanding correctness issue. Both changes are retained. Temporary probes were removed.
+
+## CircleCI
+
+The [PR 530 snapshot job](https://app.circleci.com/workflow/df6d565c-6c0f-450f-a067-ce45ea4fd1f5/job/e2998bf0-229f-4fe0-bb99-367433cb4bab) and the [PR 531 snapshot job](https://app.circleci.com/workflow/3d287a3e-6209-463a-b589-f15dbd3ffcbc/job/00ea1ff5-8169-43b1-8e5f-24074338a7cb) passed on the same shard assignments. JUnit bodies for the five sheet-only suites fell from 98.500s to 74.066s (24.8%). Their panel timings totaled 43.188s and 43.067s. Time outside panel captures fell from 55.312s to 30.999s, a 24.313s reduction.
+
+Both jobs executed 935 capture identities, 78 functions and 71 suites with the same output dimensions and tile counts. All 57 sheets passed. A MainTabs accessibility capture recovered on its second attempt in the candidate. The complete job went from 484.078s to 412.730s. Worker 0 owned zero sheets and ran its test phase 66.702s faster. The slowest worker changed from 0 to 2. The sheet-only suite durations provide the comparison for attributing the change.
+
+All four CircleCI jobs and six [GitHub checks](https://github.com/kyleve/Stuff/actions/runs/44321033088) passed at the implementation revision `c3f2d24c4`. The PR 530 CI sample tested `62984d360`, which has the same runtime as its final plan checkpoint.
+
+## Full local run and delivery
+
+The full `./test --no-generate --snapshots --timings --review --record never` test phase took **734.851s**, compared with **757.995s** on PR 530 (23.144s, 3.05% shorter). The summed XCTest bodies fell from 732.122s to 706.943s. Within those runs, the five sheet-only suites took 78.890s and 58.421s. Both full runs passed the same 78 test functions in 71 suites, 935 capture identities, 1,014 tiles, 4,797,647,739 pixels and 1,818 ordinary or panel settle calls with zero retries.
+
+The two changes are ready for review in [PR 531](https://github.com/kyleve/Stuff/pull/531) at `c3f2d24c4`. All planned verification and publication are complete. The [profiling issue](https://linear.app/kve/issue/STU-123) links to these stage measurements for future work on continuous reports.
