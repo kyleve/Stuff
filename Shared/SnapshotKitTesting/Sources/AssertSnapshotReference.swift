@@ -24,6 +24,7 @@ func assertSnapshotReference(
     testName: String,
     line: UInt,
     column: UInt,
+    prepared: SnapshotPreparedMatch? = nil,
 ) async {
     let reference = snapshotReferenceURL(
         testFilePath: "\(filePath)",
@@ -59,11 +60,24 @@ func assertSnapshotReference(
         Issue.record(error)
         return
     }
-    // Drain synchronous comparison buffers before the next capture can begin.
+    // Release comparison buffers before the next capture.
     autoreleasepool {
         if SnapshotDiffReporting.isEnabledByEnvironment {
+            let diagnostic: SnapshotReferenceComparison = if let prepared,
+                                                             let cached = prepared.diagnostic,
+                                                             let referencePNG =
+                                                             try? Data(contentsOf: reference),
+                                                             prepared.matches(
+                                                                 reference: referencePNG,
+                                                                 capture: png,
+                                                             )
+            {
+                cached
+            } else {
+                compareAgainstReference(capturedPNG: png, referenceURL: reference)
+            }
             SnapshotDiffReporting.report(
-                compareAgainstReference(capturedPNG: png, referenceURL: reference),
+                diagnostic,
                 identifier: identifier,
                 reference: reference,
             )
@@ -71,7 +85,7 @@ func assertSnapshotReference(
         withSnapshotTesting(record: record, diffTool: diffTool) {
             if let failure = verifySnapshot(
                 of: png,
-                as: SnapshotImageReference.strategy(panelFailure: panelFailure),
+                as: SnapshotImageReference.strategy(panelFailure: panelFailure, prepared: prepared),
                 named: identifier,
                 snapshotDirectory: reference.deletingLastPathComponent().path,
                 fileID: fileID,

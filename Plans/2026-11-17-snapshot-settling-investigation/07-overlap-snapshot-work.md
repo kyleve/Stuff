@@ -141,7 +141,7 @@ Compare this candidate with background preparation and the serial control in the
 - Use `./test --no-generate --only SnapshotKitTestingTests` for affected framework contracts. Add focused guards for actual overlap, bounded backpressure, cancellation/drain, ordered errors, stale-reference fallback, malformed/missing reference behavior, and successful-versus-failing comparison equivalence. Reuse existing inset/trait, native scene, late-content, hook-error, retry, accessibility, and recording guards. Their serial capture remains unchanged.
 - Use the five selected suites from plan 05 with `./test --snapshots --no-generate --record never --review --timings`, preserving the 110 capture identities. After a correctness pilot, run two interleaved serial/candidate pairs in one built binary. Require consistent reductions in actual test elapsed time beyond control variation, unchanged PNG geometry/content, no extra retries, no extra settle failures, and acceptable peak memory. Do not claim that overlapped phase totals are additive savings.
 - If timing fails, retain the negative evidence and remove the prototype. If it passes, run an independent delayed fresh-host oracle, the complete 935-capture serial/candidate comparison, and isolated CI validation before accepting a default. No new references, coverage reduction, floor changes, or tolerance changes are allowed. Investigate differences before proceeding.
-- Keep serial fallback for unsupported shapes and record modes. Before publication, simplify accepted code, run applicable formatting/tool checks, obtain independent review, and publish a separate stack slice above PR #527. A negative result publishes documentation and retained artifact locations only.
+- Keep serial fallback for unsupported shapes and preserve authoritative record-mode resolution. Before publication, simplify accepted code, run applicable formatting/tool checks, obtain independent review, and publish a separate stack slice above PR #527. A negative result publishes documentation and retained artifact locations only.
 
 ### Research and design review
 
@@ -151,8 +151,110 @@ Apple documents [UIImage creation and use across threads](https://developer.appl
 
 Root plan review on 2026-11-17 checked source ownership, failure paths, bounded memory, recording semantics, test attribution, and acceptance gates. Dependencies 05–06 are complete. The user authorized execution; no product decision blocks this bounded experiment. The alternatives remain measured/audited separately, and this experiment does not promise hosted overlap. Mermaid syntax is inspected, not renderer-verified. Independent implementation review remains required.
 
-## Resume point
+## Local decision and implementation refinement
 
-The executable plan is published at `c07770cee` in PR #528. The observational pilot passes 110 captures (105 reference comparisons) with 16.094s of review diagnostics and 6.092s of verification; actual test phase 120.537s. Both prototypes are uncommitted and opt-in. The first complete framework run after correcting test-only message assumptions passes 170 functions in 31 suites. The subsequent 16 focused functions also pass with reference/canvas limits, reduced retained state, and signaling after the first sample. Six same-binary timing runs are executing: two controls and two trials per overlap mode, with reversed candidate order in the second block.
+Six same-binary runs each passed 110 captures, 105 reference assertions, and six test functions with zero retries.
+The second block reversed candidate order. Both candidates retained exactly 558,607,431 captured pixels and 114 tiles.
 
-Independent review found no host-state or stale-reference defect. It identified the need to keep pipeline-owned issue ordering distinct from hook-emitted issues, check old-reference/canvas area, and correct existing summed timing totals before any default ships. The first two are integrated. Prototype capture totals still include queue latency and are excluded from speedup decisions; actual test elapsed time is the gate. Raw runs and source copies live in `/private/tmp/stuff-snapshot-overlap`. Track through [STU-121](https://linear.app/kve/issue/STU-121).
+| Run | Serial control | Background comparison | MainActor suspension comparison |
+| --- | ---: | ---: | ---: |
+| First test phase | 122.853s | 107.182s | 114.559s |
+| Second test phase | 121.705s | 108.510s | 115.385s |
+| Mean | 122.279s | 107.846s | 114.972s |
+| Mean saving | — | 14.433s (11.80%) | 7.307s (5.98%) |
+
+All 83 eligible background comparisons per run matched and ran off MainActor. Each run overlapped more than
+14.8s of worker execution with capture. Seventeen ordinary images exceeded the 8-million-pixel limit;
+cutsheets also remained serial. Background peak RSS was 1,397.5/1,414.0MiB against controls of
+1,432.8/1,394.2MiB. MainActor peaks were 1,409.4/1,434.4MiB. No candidate exceeded the resource gate.
+RSS was sampled every 500ms and can miss shorter peaks.
+
+All six logs pass the complete-trace analyzer. Each candidate/control pair preserves capture identities and
+geometry, with no normalized channel difference above one unit. The serial delayed oracle adds 500ms
+before measurement and final capture in a fresh process. It passes all 110 captures with zero retries.
+Three images each contain one pixel with a two-unit channel difference against both background runs;
+the same differences occur against both serial controls. No content or geometry regression is attributed
+to overlap. Raw image comparisons remain available for independent review.
+
+Select background comparison for the remaining gates. MainActor interleaving demonstrates the user's
+suspension idea, but delays sampling and yields less elapsed-time benefit. Remove its task-local signal
+and render-loop hook from the adopted source. Preparation and additional hosted slots remain untested follow-ups.
+
+CI normally leaves `record` unset. Broaden the accepted pipeline beyond the experiment's `.never` gate by
+forwarding `record ?? environmentRecordMode()` unchanged, including nil. The original verifier still resolves
+inherited task-local and suite-trait policies and owns all writes. Exact-byte success reuse cannot bypass
+`.all` recording or approve a changed reference. Explicit/environment `.all` avoids unnecessary preflight;
+no duplicate policy resolver or upstream private SPI is added. Cutsheets receive the same override.
+
+Freeze capture duration after the successful final retry, before joining earlier comparison work.
+Add worker and serial verification time once, excluding queue latency. Label aggregates summed capture work;
+use actual test elapsed time for throughput. Guard inherited/default recording, all four record policies,
+byte-different perceptual matches, mixed cutsheet boundaries, cancellation without writes, and timing accounting.
+
+### Complete-suite validation
+
+One fresh full-suite pair passes 935 captures and 78 test functions per run, with zero retries.
+Both use the same binary, normal unset record override, 4,797,647,739 pixels, and 1,014 tiles.
+
+| Metric | Serial control | Background comparison |
+| --- | ---: | ---: |
+| Test phase | 851.900s | 810.041s |
+| Exact test-body execution | 826.208s | 782.944s |
+| Summed capture work | 760.618s | 760.550s |
+| Comparison work | 106.589s | 101.742s |
+| Settling elapsed | 444.185s | 446.484s |
+| Settle passes | 5,814 | 5,813 |
+| Sampled test-host peak RSS | 5,307.25MiB | 5,420.30MiB |
+
+The test phase saves **41.859s (4.91%)**; exact test-body execution saves **43.264s (5.24%)**.
+`Tools.xcode_results.test_duration` supplies body totals from the retained `.xcresult` trees.
+Summed work is effectively unchanged: the benefit comes from overlap, not removing captured content or proof.
+Peak RSS rises 113.05MiB (2.13%), below both resource limits. This is one full pair, supported by the repeated focused pairs.
+
+All 935 exported PNGs preserve geometry and capture identity. Thirteen images contain normalized channel differences;
+all but one pixel remain within one unit. The single two-unit pixel is in
+`Adaptive-Locations-innerPortrait_duoInnerPortrait_dark`. That entire candidate image matches the independent
+serial delayed oracle exactly. The control image matches the earlier serial control exactly. Retain this observed
+native-render variation; no reference, settling tolerance, floor, or cadence changes are made.
+
+The adopted source passes 173 framework functions, followed by 28 final focused functions after cleanup,
+including a real 9-million-pixel matching-reference fallback guard. The final focused run also covers recording
+policy, cancellation, cutsheet boundaries, stale-reference rejection, and timing accounting.
+`./swiftformat --lint`, `mise exec -- npm run lint`, three report-tool tests, and `git diff --check` pass.
+The complete `./test --timings` runs exercise the public report label. Independent code and evidence review
+agree on the bounded worker, authoritative verification, exact inputs, counts, timing, and resource calculations.
+
+Experiment flags and the MainActor signal are removed. Renderer, rendering-support, and configured-capture source
+match the parent exactly. Prototype and full-cohort source copies remain outside Git for reproduction.
+
+### CI control
+
+The fresh parent control at `64e349f14` verifies 935 captures, 78 functions, and 71 suites with zero snapshot retries.
+All four nonempty workers pass complete trace staging and preserve the same geometry as local runs.
+Test phases are 334.815 / 338.998 / 320.641 / 329.205s: 1,323.659s summed and 338.998s maximum.
+The snapshot job takes 464.843s. Actual 15-second CPU/memory samples are retained; these measure whole executors,
+not the local test-host RSS, and can miss shorter peaks. Candidate CI remains pending publication.
+Control: [pipeline 2538](https://app.circleci.com/pipelines/circleci/HfkN3cJ2hk23YfG42g3oS1/E7hn5FALiSX67sknpk9SZu/2538).
+
+### CI validation exception
+
+The control's four nonempty snapshot workers pass. Its separate unit job failed
+`StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` on the unchanged parent.
+The user identified it as a known intermittent failure and explicitly requested that it be ignored.
+Exclude this known test from snapshot acceptance; do not change its source or investigate it further here.
+Retain the failure in the CI record and assess all other failures normally.
+
+## Evidence and resume point
+
+Local evidence is retained at:
+`/Users/kve/.codex/visualizations/2026/11/17/01a1e71b-13f1-7c80-8aee-e46d45c92d5b/snapshot-overlap-results`.
+This includes commands and environments, Swift source hashes/copies, `.xcresult` bundles, complete traces,
+all PNGs, strict normalized comparisons, test-body extraction, sampled process memory, and CI artifacts.
+`prototype/` holds both scheduling candidates; `oracle-source/` holds the independent delayed renderer;
+`full-source/` holds the same-binary full cohort; `final-source/` holds the cleaned implementation.
+The scratch collection remains `/private/tmp/stuff-snapshot-overlap`.
+
+Plan commits `c07770cee` and `bbbf78cc6` are published in PR #528. The background implementation has passed
+local acceptance and independent review; its implementation commit and isolated candidate CI are next.
+Plan 07 remains executing until final CI reconciliation and publication evidence are recorded.
+Track through [STU-121](https://linear.app/kve/issue/STU-121).

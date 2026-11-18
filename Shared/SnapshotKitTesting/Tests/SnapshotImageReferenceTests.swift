@@ -1,5 +1,6 @@
 import ImageIO
 import SnapshotKit
+import SnapshotTesting
 @_spi(Testing) @testable import SnapshotKitTesting
 import SwiftUI
 import Testing
@@ -7,6 +8,78 @@ import UIKit
 
 @MainActor
 struct SnapshotImageReferenceTests {
+    @Test func oversizedMatchingReferenceKeepsTheSerialPath() async throws {
+        let fixture = try SnapshotReferenceTestFixture()
+        defer { fixture.remove() }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.preferredRange = .standard
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 3000), format: format)
+            .pngData { context in
+                UIColor.red.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 3000, height: 3000))
+            }
+        let reference = fixture.directory.appendingPathComponent("oversized.png")
+        try png.write(to: reference)
+        let result = await prepareSnapshotReference(
+            capturedPNG: png,
+            referenceURL: reference,
+            diagnostics: true,
+        )
+        guard case .serial = result.outcome else {
+            Issue
+                .record("A matching image above eight million pixels must retain serial comparison")
+            return
+        }
+    }
+
+    @Test func preparedComparisonCannotApproveChangedBytes() async throws {
+        let fixture = try SnapshotReferenceTestFixture()
+        defer { fixture.remove() }
+        let reference = fixture.directory.appendingPathComponent("reference.png")
+        let original = try #require(fixture.image(.red).pngData())
+        let changed = try #require(fixture.image(.blue).pngData())
+        try original.write(to: reference)
+        let prepared = await prepareSnapshotReference(
+            capturedPNG: original,
+            referenceURL: reference,
+            diagnostics: true,
+        )
+        guard case let .matched(match) = prepared.outcome else {
+            Issue.record("Identical images should prepare a reusable match")
+            return
+        }
+        #expect(match.diagnostic == .identicalBytes)
+        let strategy = SnapshotImageReference.strategy(panelFailure: nil, prepared: match)
+        #expect(strategy.diffing.diffV2(original, original) == nil)
+        #expect(strategy.diffing.diffV2(changed, original) != nil)
+        #expect(strategy.diffing.diffV2(original, changed) != nil)
+        #expect(strategy.diffing.diffV2(Data([1]), original) != nil)
+    }
+
+    @Test func preparationKeepsMissingCorruptAndDifferentReferencesOnSerialPath() async throws {
+        let fixture = try SnapshotReferenceTestFixture()
+        defer { fixture.remove() }
+        let reference = fixture.directory.appendingPathComponent("reference.png")
+        let capture = try #require(fixture.image(.red).pngData())
+        let different = try #require(fixture.image(.blue).pngData())
+        for data in [nil, Data([1]), different] {
+            if let data { try data.write(to: reference) }
+            let result = await prepareSnapshotReference(
+                capturedPNG: capture,
+                referenceURL: reference,
+                diagnostics: true,
+            )
+            guard case .serial = result.outcome else {
+                Issue
+                    .record(
+                        "Missing, corrupt, and mismatched images require authoritative serial comparison",
+                    )
+                continue
+            }
+        }
+    }
+
     private func png(_ panels: [SnapshotPanelCapture]) async throws -> Data {
         try await SnapshotImageGrid.capture(panels: panels, named: "Reference").pngData()
     }
@@ -130,5 +203,57 @@ struct SnapshotImageReferenceTests {
                 png(new),
             )
         #expect(verdict?.0.contains("Panel theme-0") == true)
+    }
+}
+
+/// Prepared success must not bypass the library's authoritative recording policy.
+@MainActor
+struct SnapshotPreparedRecordingTests {
+    @Test(arguments: ["all", "failed", "missing", "never"])
+    func recordingModesPreserveFilesAndIssues(mode: String) async throws {
+        let fixture = try SnapshotReferenceTestFixture()
+        defer { fixture.remove() }
+        let captured = try #require(fixture.image(.red).pngData())
+        let nearMatch = try #require(fixture.image(UIColor(
+            red: 1,
+            green: 1.0 / 255,
+            blue: 0,
+            alpha: 1,
+        )).pngData())
+        let different = try #require(fixture.image(.blue).pngData())
+        #expect(nearMatch != captured)
+        #expect(SnapshotImageReference.strategy(panelFailure: nil).diffing
+            .diffV2(nearMatch, captured) == nil)
+        for previous in [nil, captured, nearMatch, different] {
+            let reference = fixture.directory.appendingPathComponent("policy.image.png")
+            if let previous { try previous.write(to: reference) }
+            let preparation = await prepareSnapshotReference(
+                capturedPNG: captured,
+                referenceURL: reference,
+                diagnostics: true,
+            )
+            let match: SnapshotPreparedMatch? = if case let .matched(value) = preparation
+                .outcome { value } else { nil }
+            let record = try #require(SnapshotTestingConfiguration.Record(rawValue: mode))
+            let shouldWrite = record == .all
+                || (previous == nil && record != .never)
+                || (record == .failed && previous == different)
+            let shouldFail = record == .all || previous == nil || previous == different
+            let failure = withSnapshotTesting(record: record) {
+                verifySnapshot(
+                    of: captured,
+                    as: SnapshotImageReference.strategy(panelFailure: nil, prepared: match),
+                    named: "image",
+                    snapshotDirectory: fixture.directory.path,
+                    testName: "policy",
+                )
+            }
+            #expect((failure != nil) == shouldFail)
+            let stored = try? Data(contentsOf: reference)
+            #expect(stored == (shouldWrite ? captured : previous))
+            if FileManager.default.fileExists(atPath: reference.path) {
+                try FileManager.default.removeItem(at: reference)
+            }
+        }
     }
 }

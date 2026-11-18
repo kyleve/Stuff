@@ -1,4 +1,5 @@
 import SnapshotKit
+import SnapshotTesting
 @_spi(Testing) @testable import SnapshotKitTesting
 import SwiftUI
 import Synchronization
@@ -445,5 +446,324 @@ private struct SnapshotResizeProbe: View {
             .onAppear { state.identity = identity }
             // Expand the geometry probe itself, not only its painted background.
             .ignoresSafeArea()
+    }
+}
+
+@MainActor
+struct SnapshotAssertionPipelineTests {
+    @Test(.snapshots(record: .all))
+    func providerPreservesInheritedPolicyAndExplicitOverrides() async throws {
+        try await checkProviderRecording(record: nil, shouldRecord: true)
+        try await withSnapshotTesting(record: .never) {
+            try await checkProviderRecording(record: nil, shouldRecord: false)
+        }
+        try await withSnapshotTesting(record: .all) {
+            try await checkProviderRecording(record: .never, shouldRecord: false)
+        }
+    }
+
+    @Test func providerPreservesDefaultMissingPolicy() async throws {
+        try await checkProviderRecording(record: nil, shouldRecord: true)
+    }
+
+    @Test func drainsPendingComparisonBeforeHostingCutsheet() async {
+        let issues = Mutex(0)
+        let cases = [
+            overlapCase(0) {},
+            SnapshotCase.cutsheet(
+                name: "Middle",
+                configurations: [.init()],
+                measurementReadiness: .immediate,
+                settle: .immediate,
+                prepareForCapture: { #expect(issues.withLock { $0 } == 1) },
+            ) {
+                SnapshotPanel(id: .init(rawValue: "one"), label: "One") {
+                    Color.blue.frame(width: 40, height: 40)
+                }
+            },
+            overlapCase(2) { #expect(issues.withLock { $0 } == 2) },
+        ]
+        await withKnownIssue("Temporary mixed references are missing", isIntermittent: false) {
+            await runOverlapCases(cases)
+        } matching: { issue in
+            guard issue.comments.contains(where: { $0.rawValue.contains("No reference was found") })
+            else { return false }
+            issues.withLock { $0 += 1 }
+            return true
+        }
+        #expect(issues.withLock { $0 } == 3)
+    }
+
+    private func checkProviderRecording(
+        record: SnapshotTestingConfiguration.Record?,
+        shouldRecord: Bool,
+    ) async throws {
+        let name = UUID().uuidString
+        let source: StaticString = "/tmp/SnapshotKitOverlapProbes/Policy.swift"
+        let issues = Mutex(0)
+        let references = ["Before", "Middle", "After"].map { identifier in
+            snapshotReferenceURL(
+                testFilePath: source.description,
+                testName: name,
+                identifier: identifier,
+                configuration: .init(),
+            )
+        }
+        defer {
+            for reference in references
+                where FileManager.default.fileExists(atPath: reference.path)
+            {
+                do { try FileManager.default.removeItem(at: reference) }
+                catch { Issue.record(error) }
+            }
+        }
+        await withKnownIssue(
+            "Missing/recorded temporary references report once",
+            isIntermittent: false,
+        ) {
+            await assertSnapshots(
+                of: OverlapRecordingProvider.self,
+                record: record,
+                file: source,
+                testName: name,
+            )
+        } matching: { issue in
+            guard issue.comments.contains(where: {
+                $0.rawValue.contains("No reference was found")
+                    || $0.rawValue.contains("Record mode is on")
+            }) else { return false }
+            issues.withLock { $0 += 1 }
+            return true
+        }
+        #expect(issues.withLock { $0 } == 3)
+        for reference in references {
+            #expect(FileManager.default.fileExists(atPath: reference.path) == shouldRecord)
+        }
+    }
+
+    @Test func overlapsOnlyOneWorkerAndDrainsEveryAssertion() async {
+        let state = Mutex(OverlapProbeState())
+        let releases = AsyncStream<Void>.makeStream()
+        defer { releases.continuation.finish() }
+        let cases = (0 ..< 3).map { index in
+            overlapCase(index) {
+                state.withLock { $0.captures.append(index) }
+                if index > 0 {
+                    try await waitForAsync { state.withLock { $0.workersStarted >= index } }
+                    releases.continuation.yield(())
+                }
+            }
+        }
+        await withKnownIssue(
+            "Temporary captures intentionally have no references",
+            isIntermittent: false,
+        ) {
+            await runOverlapCases(cases) { _, _, _ in
+                let ordinal = state.withLock { value in
+                    let ordinal = value.workersStarted
+                    value.workersStarted += 1
+                    value.activeWorkers += 1
+                    value.maximumWorkers = max(value.maximumWorkers, value.activeWorkers)
+                    return ordinal
+                }
+                if ordinal < 2 {
+                    for await _ in releases.stream {
+                        break
+                    }
+                }
+                state.withLock { value in
+                    value.observedFollowingCapture.append(value.captures.count >= ordinal + 2)
+                    value.activeWorkers -= 1
+                }
+                return overlapSerialResult()
+            }
+        } matching: { issue in
+            guard issue.comments
+                .contains(where: { $0.rawValue.contains("No reference was found") })
+            else { return false }
+            state.withLock { $0.issues.append(issue.comments.map(\.rawValue).joined()) }
+            return true
+        }
+        let value = state.withLock { $0 }
+        #expect(value.captures == [0, 1, 2])
+        #expect(value.workersStarted == 3)
+        #expect(value.maximumWorkers == 1)
+        #expect(value.activeWorkers == 0)
+        #expect(Array(value.observedFollowingCapture.prefix(2)) == [true, true])
+        #expect(value.issues.count == 3)
+    }
+
+    @Test func cancellationDrainsWorkerAndHostedCaptureBeforeReturning() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let root = try #require(hostKeyWindow()?.rootViewController)
+        let children = root.children
+        let animations = UIView.areAnimationsEnabled
+        let workerStarted = AsyncStream<Void>.makeStream()
+        let secondCaptureStarted = AsyncStream<Void>.makeStream()
+        let workerWait = AsyncStream<Void>.makeStream()
+        let captureWait = AsyncStream<Void>.makeStream()
+        defer {
+            workerStarted.continuation.finish()
+            secondCaptureStarted.continuation.finish()
+            workerWait.continuation.finish()
+            captureWait.continuation.finish()
+        }
+        let workerExited = Mutex(false)
+        let references = Mutex<[URL]>([])
+        var captures: [Int] = []
+        let cases = (0 ..< 3).map { index in
+            overlapCase(index) {
+                captures.append(index)
+                if index == 1 {
+                    secondCaptureStarted.continuation.yield(())
+                    for await _ in captureWait.stream {}
+                    try Task.checkCancellation()
+                }
+            }
+        }
+        let task = Task { @MainActor in
+            await runOverlapCases(cases, record: .failed) { _, reference, _ in
+                references.withLock { $0.append(reference) }
+                workerStarted.continuation.yield(())
+                for await _ in workerWait.stream {}
+                workerExited.withLock { $0 = true }
+                return SnapshotPreparedComparison(
+                    outcome: .cancelled,
+                    duration: 0,
+                )
+            }
+        }
+        for await _ in workerStarted.stream {
+            break
+        }
+        for await _ in secondCaptureStarted.stream {
+            break
+        }
+        task.cancel()
+        await task.value
+        #expect(workerExited.withLock { $0 })
+        #expect(references.withLock { $0 }.allSatisfy {
+            !FileManager.default.fileExists(atPath: $0.path)
+        })
+        #expect(captures == [0, 1])
+        #expect(root.children == children)
+        #expect(UIView.areAnimationsEnabled == animations)
+    }
+
+    @Test func reportsEarlierComparisonBeforeLaterCaptureErrorAndContinues() async {
+        let issues = Mutex<[String]>([])
+        let cases = (0 ..< 3).map { index in
+            overlapCase(index) {
+                if index == 1 { throw URLError(.cannotLoadFromNetwork) }
+            }
+        }
+        await withKnownIssue(
+            "Missing references and one deliberate readiness failure",
+            isIntermittent: false,
+        ) {
+            await runOverlapCases(cases) { _, _, _ in overlapSerialResult() }
+        } matching: { issue in
+            if issue.error as? URLError == URLError(.cannotLoadFromNetwork) {
+                issues.withLock { $0.append("capture-error") }
+                return true
+            }
+            guard issue.comments
+                .contains(where: { $0.rawValue.contains("No reference was found") })
+            else { return false }
+            issues.withLock { $0.append(issue.comments.map(\.rawValue).joined()) }
+            return true
+        }
+        let results = issues.withLock { $0 }
+        #expect(results.count == 3)
+        if results.count == 3 {
+            #expect(results[0].contains("No reference was found"))
+            #expect(results[1] == "capture-error")
+            #expect(results[2].contains("No reference was found"))
+        }
+    }
+
+    private func overlapCase(
+        _ index: Int,
+        preparation: @escaping @MainActor @Sendable () async throws -> Void,
+    ) -> SnapshotCase {
+        SnapshotCase(
+            name: "Overlap-\(index)",
+            configurations: [.init(device: .init(
+                name: "probe",
+                size: .fixed(CGSize(width: 40, height: 40)),
+            ))],
+            settle: .immediate,
+            prepareForCapture: preparation,
+        ) {
+            Color.green
+        }
+    }
+
+    private func runOverlapCases(
+        _ cases: [SnapshotCase],
+        record: SnapshotTestingConfiguration.Record? = .never,
+        prepare: @escaping @Sendable (Data, URL, Bool) async
+            -> SnapshotPreparedComparison = { png, reference, diagnostics in
+                await prepareSnapshotReference(
+                    capturedPNG: png,
+                    referenceURL: reference,
+                    diagnostics: diagnostics,
+                )
+            },
+    ) async {
+        await assertOverlappingSnapshots(
+            cases,
+            record: record,
+            fileID: #fileID,
+            file: "/tmp/SnapshotKitOverlapProbes/Probe.swift",
+            testName: UUID().uuidString,
+            line: #line,
+            column: #column,
+            prepare: prepare,
+        )
+    }
+}
+
+private struct OverlapProbeState {
+    var captures: [Int] = []
+    var workersStarted = 0
+    var activeWorkers = 0
+    var maximumWorkers = 0
+    var observedFollowingCapture: [Bool] = []
+    var issues: [String] = []
+}
+
+private func overlapSerialResult() -> SnapshotPreparedComparison {
+    SnapshotPreparedComparison(outcome: .serial, duration: 0)
+}
+
+private struct OverlapRecordingProvider: SnapshotProviding {
+    @MainActor static var snapshots: [SnapshotCase] {
+        SnapshotCase(
+            name: "Before",
+            configurations: [.init()],
+            measurementReadiness: .immediate,
+            settle: .immediate,
+        ) {
+            Color.red.frame(width: 40, height: 40)
+        }
+        SnapshotCase.cutsheet(
+            name: "Middle",
+            configurations: [.init()],
+            measurementReadiness: .immediate,
+            settle: .immediate,
+        ) {
+            SnapshotPanel(id: .init(rawValue: "one"), label: "One") {
+                Color.blue.frame(width: 40, height: 40)
+            }
+        }
+        SnapshotCase(
+            name: "After",
+            configurations: [.init()],
+            measurementReadiness: .immediate,
+            settle: .immediate,
+        ) {
+            Color.green.frame(width: 40, height: 40)
+        }
     }
 }

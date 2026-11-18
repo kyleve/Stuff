@@ -1,5 +1,5 @@
 import Foundation
-@_spi(Testing) import SnapshotKitTesting
+@_spi(Testing) @testable import SnapshotKitTesting
 import Testing
 
 /// Covers the phase recorder that attributes a capture's wall time. The
@@ -8,6 +8,22 @@ import Testing
 /// a log.
 @MainActor
 struct SnapshotCaptureTimingTests {
+    @Test func pendingComparisonDoesNotChargeAnotherCapturesQueueTime() async throws {
+        let timing = SnapshotCaptureTiming(identifier: "overlap", isEnabled: true)
+        timing.measure(.settle) { spin(for: .milliseconds(10)) }
+        timing.finishCapture()
+        let captured = try decodedLine(from: timing).total
+        try await Task.sleep(for: .milliseconds(30))
+        timing.finishCapture() // Repeated marking must not extend the capture.
+        #expect(try decodedLine(from: timing).total == captured)
+        timing.recordPreparedComparison(duration: 0.02)
+        timing.measure(.compare) { spin(for: .milliseconds(10)) }
+        let finished = try decodedLine(from: timing)
+        let comparison = try #require(finished.phases["compare"])
+        #expect(comparison >= 0.03)
+        #expect(abs(finished.total - captured - comparison) <= 0.002)
+    }
+
     @Test func disabledRecorderEmitsNothing() {
         let timing = SnapshotCaptureTiming(identifier: "disabled", isEnabled: false)
         timing.measure(.settle) {}
