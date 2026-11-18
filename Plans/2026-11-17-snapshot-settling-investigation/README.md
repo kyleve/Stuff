@@ -30,7 +30,7 @@ The existing WebKit navigation investigation remains in [STU-122](https://linear
 8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): complete; retain 8M after local gains fail the final retry gate. Bounded CI repeats remain inconclusive.
 9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
 10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): complete; retain the ordinary cadence after render savings fail the repeated elapsed-benefit gate.
-11. [11 — Combined local measurement](11-combined-local-measurement.md): executing; measure the retained readiness/preparation and bounded comparison improvements together against their common control.
+11. [11 — Combined local measurement](11-combined-local-measurement.md): complete; the retained readiness/preparation and bounded comparison improvements save 55.063s / 6.40% in one direct full local pair.
 
 [08a — Trace log framing](08a-trace-log-framing.md) records the trace-transport repair delivered with PR 524.
 
