@@ -1,6 +1,6 @@
 # Compare settlement clocks and explicit readiness
 
-Status: executing. Depends on the [completed measurement baseline](../2026-11-18-comparison-sheets/README.md). See [scope and review](README.md) for R-01 through R-03 and X-01.
+Status: complete. Published in [PR 532](https://github.com/kyleve/Stuff/pull/532). Depends on the [completed measurement baseline](../2026-11-18-comparison-sheets/README.md). See [scope and review](README.md) for R-01 through R-03 and X-01.
 
 ```mermaid
 flowchart LR
@@ -88,7 +88,7 @@ Two serial controls took 38.909s and 39.134s for the Calendar suite. Setting all
 
 The eight differing captures are `Itinerary`, `ItineraryOverlap`, `FocusedPlannedStay` and `MultiRegionPlannedStay` in light and dark. Across all eight, exactly 718 pixels differ by one color level. Alpha and dimensions agree. Pixel overlays locate every difference in the end cell of a hatched segment, on the diagonal strokes or clipped edge. Retain normal settling for those four fixtures and as the default for new months. The 32 exact captures cover the remaining seven standalone month fixtures and the two standalone badge and accessibility fixtures. The other 26 Calendar captures include the scroll-position controls. Both scroll-position captures actually changed during settlement.
 
-With just those 32 opt-ins, Calendar took **30.910s** compared with the 39.022s control mean, an 8.112s (20.8%) saving. All 66 exports were byte-identical to the control and the independently delayed host. The clean rebuild took 30.804s. On PR 531 the 32 cases spent 8.646s locally and 11.496 summed CI seconds in the final content check alone. Those CI costs are baseline measurements.
+With just those 32 opt-ins, Calendar took **30.910s** compared with the 39.022s control mean, an 8.112s (20.8%) saving. Those 32 final waits had a 250ms minimum each, totaling 8.000s. All 66 exports were byte-identical to the control and the independently delayed host. After rebuilding without the probes, the Calendar suite took 30.804s. On PR 531 the 32 cases spent 8.646s locally and 11.496 summed CI seconds in the final content check alone. Those CI costs are baseline measurements.
 
 Independent review found that Flyover also consumes the ordinary Calendar registration. Two shared component cases initially forwarded the shorter wait into an export container with different chrome. Scope their opt-in to `measuredSnapshots` and check the actual two Flyover export policies. The standalone month selections already apply only to the month subject.
 
@@ -113,3 +113,13 @@ All trials used the pinned iPhone 17 simulator with iOS 27.2, ordinary reference
 - The final production Calendar and async-content checks passed via `./test --no-generate --timings --review --record never --only WhereUISnapshotTests/CalendarContentViewSnapshotTests --only SnapshotKitTestingTests/AsyncContentCaptureTests`. They exercised 66 captures, the Calendar retry fixture and three async-content tests.
 - All three `WhereUITests/WhereFlyoverDataTests` passed against the clean source, including the guard for shared Calendar cases. The root test command also passed its architecture and host checks. Repository SwiftFormat lint and `git diff --check` passed.
 - The 16 intentionally failing references in each of the zero-draw and matched-delay trials were direct verification of the earlier viewport error. No prototype, experiment toggle or updated reference image is in the production diff. The shared testing framework is byte-identical to PR 531.
+
+### Full-suite results
+
+The complete local snapshot run passed in **727.801s**, compared with 734.851s on PR 531. Calendar itself fell from 38.027s to 29.683s in those full runs. Both exercised 935 captures, 71 suites and 78 test functions with the same 1,014 tiles and 4,797,647,739 captured pixels. Exactly 32 sampled waits became immediate, with zero retries in either run. Total local settlement fell from 443.204s to 435.988s. The paired focused runs provide the more controlled estimate of the Calendar saving.
+
+On the same CI shard, Calendar took **76.679s on PR 531 and 60.596s on PR 532**, a 21.0% reduction. The 32 changed cases spent 11.496s in final content settling on the baseline and 0.231s yielding and laying out on the candidate. That recovered **11.265 worker-seconds and 124 draws**. The other 34 captures also ran faster by 3.978s in summed capture work, so the full 16.083s suite difference includes machine variation. Both initial-position controls still observed changing pixels.
+
+The complete snapshot job took 412.730s and 406.673s, respectively. All 935 capture identities, 71 suites, 78 test functions, pixel counts and tile counts matched. Exactly 32 capture policies changed, and every PR 532 wait completed without a timeout. [PR 531 snapshot job](https://app.circleci.com/workflow/3d287a3e-6209-463a-b589-f15dbd3ffcbc/job/00ea1ff5-8169-43b1-8e5f-24074338a7cb) · [PR 532 snapshot job](https://app.circleci.com/workflow/c6b2e8ee-8cb7-46bf-b341-ffdb890c4a68/job/3d10287a-960e-4ff6-aeaf-59ddcbf7dcb9)
+
+The iOS build, unit tests, audience builds, snapshot job and GitHub checks passed at `61a6df387`. The working implementation is `0484d0016`. Subsequent commits in this PR record the experiments and verification. [CircleCI workflow](https://app.circleci.com/workflow/c6b2e8ee-8cb7-46bf-b341-ffdb890c4a68) · [GitHub Actions](https://github.com/kyleve/Stuff/actions/runs/44329863542)
