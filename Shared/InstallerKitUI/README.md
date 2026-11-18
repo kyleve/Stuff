@@ -63,5 +63,5 @@ Previews inject these fixtures into the production service and model, which reta
 
 `./test InstallerKitUITests` checks stylesheet traits, root resolution, and hosted navigation.
 `./test InstallerKitUISnapshotTests --review` covers shared screen states without Where.
-The error card also has static Dynamic Type and accessibility captures, independent of page refreshes.
+The standalone error-card cases measure and capture their fixed text immediately, including Dynamic Type and accessibility variants.
 WhereUI's `DevelopmentUpdatesView` supplies its real icon and Settings search integration.

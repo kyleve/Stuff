@@ -30,8 +30,12 @@ struct UpdateFailureCard: View {
     extension UpdateFailureCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             // OfflineCached owns text scaling and VoiceOver annotation coverage.
-            // Full-page fixtures also exercise the automatic refresh and cached-data state.
-            SnapshotCase(name: "MissingFeed", configurations: .componentLightDark) {
+            // The standalone cards render fixed error values and have no refresh to await.
+            SnapshotCase(
+                name: "MissingFeed",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
                 UpdateFailureCard(
                     error: UpdateClient.FetchError.httpStatus(404),
                     hasCachedBuilds: false,
@@ -39,7 +43,11 @@ struct UpdateFailureCard: View {
                 .background(InstallerStylesheet.default.page.background)
                 .installerBroadwayRoot()
             }
-            SnapshotCase(name: "OfflineCached", configurations: .componentRepresentative) {
+            SnapshotCase(
+                name: "OfflineCached",
+                configurations: .componentRepresentative,
+                settle: .immediate,
+            ) {
                 UpdateFailureCard(
                     error: URLError(.notConnectedToInternet),
                     hasCachedBuilds: true,
