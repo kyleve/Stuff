@@ -6,11 +6,11 @@ The user requested a plan, execution, and iteration on a greenfield frame runner
 
 On November 18 the user requested an extension to additional views. Plan 03 extended the experiment to 72 additional images in nine suites including the original control suite. The 54 additional images that already skip timed settling all matched and took 46–55% less capture time. The six InstallerKit cards also matched; the eight hatched calendars and four Year picker images still need the existing host for exact pixels. Root verified both execution orders and published the expanded results on the same PR.
 
-The user requested another 200 unique images and accepts limited capture-timing drift. [Plan 04](04-two-hundred-more.md) ran six comparisons on the production harness. Keeping the native host and drawing earlier saved 44 seconds in each order. The early draw matched 195 live production images exactly, shifted four by at most 2/255 per channel and captured a still-loading widget in the Flyover iPad list. The plan identifies 147 opt-in candidates across the measured selection. PR 540 contains all four experiments.
+The user requested another 200 unique images and accepts limited capture-timing drift. [Plan 04](04-two-hundred-more.md) ran six comparisons on the production harness. Keeping the native host and drawing earlier saved 44 seconds in each order. The early draw matched 195 live production images exactly, shifted four by at most 2/255 per channel and captured a still-loading widget in the Flyover iPad list. The plan identifies 147 opt-in candidates across the measured selection.
+
+The full-suite extension covered all 877 reviewed images. Keeping the measurement host reproduced all ordinary comparisons in both orders, with little change in runtime. Drawing earlier saved 126.5–128.2 seconds across matched cohorts. Four installer-site pages lost content intermittently, a Flyover widget remained on its loading indicator, and two large-text toolbar images drew an oversized icon. [Plan 05 and the per-image results](05-suite-coverage.md#measured-results)
 
 ## User stories and requirements
-
-The user requested coverage of the rest of the suite on November 18. [Plan 05](05-suite-coverage.md) extends the opt-in prototype to every remaining reference. Root owns the serial simulator runs and publication on PR 540. The inventory, renderer and visual investigators own the manifest and evidence audit, annotation hosting, and pixel inspection respectively.
 
 - US-01. A test author specifies an immutable flight state and environment and receives the ordinary production frame. R-01 measures mounts, explicit sleeps, full renders, geometry and pixels against existing references.
 - US-02. A test author drives a real Locations screen through loading, data delivery and a visible selection. R-02 retains one host for the sequence, associates each frame with visible semantics, and compares it to an independent host at the same milestone. R-03 distinguishes label, layout and transition regressions.
@@ -47,6 +47,8 @@ Both `run-prototype` modes temporarily include their probes in the existing test
 
 For the 200-image production-harness experiment, run `Plans/2026-11-18-requested-snapshot-frames/run-200`. It uses the checked-in test methods directly. The output directory contains six sets of PNGs, verdicts and timing logs. Read `summary-200.json` for results grouped by suite, capture policy and image type, as well as individual comparisons.
 
+For the whole-suite result, pass the 200-image output directory to the [Plan 05 reproduction command](05-suite-coverage.md#reproduce).
+
 ## Evidence and decisions
 
 On the #539 verification, the 22 Banner captures already performed zero settle samples. The intrinsic implementation hosts a measurement wrapper followed by a capture wrapper. The 54 Locations captures spent 35.663 seconds in final settling. These are historical suite costs. The prototype branch starts at [PR 524](https://github.com/kyleve/Stuff/pull/524), revision `e479fa140`. Its ordinary references for these subjects match merged #539. The six annotated references differ and remain owned by their native capture paths. The actual WhereUI fixtures, harness timings and Core flight tests supply the baseline.
@@ -62,7 +64,7 @@ The production Banner takes immutable review data. Locations already supports a 
 | Q-03 | closed | Plan 02 replayed an immutable portrait across two processes and rejected the wrong expectation. Local session setup costs more than one fresh portrait. Broader reuse remains outside X-02. |
 | Q-04 | closed | The 26 widget and 28 already-immediate calendar images reproduced every reviewed PNG in four passes. Six InstallerKit cards qualified on pixels with immediate capture. Restoring final settlement on the single mount did not consistently reproduce hatched months or the Year picker. See Plan 03 for paired timings. |
 | Q-05 | closed | On 200 new images, retaining the mount saved 0.5–2.0 seconds. Drawing earlier on 154 eligible native captures saved 44 seconds in each order. Keep the Flyover iPad list settled. Plan 04 records the visual checks and scope. |
-| Q-06 | open | What happens on the complete suite, including retained accessibility hosts, cases already mounted once and asynchronous full screens? See Plan 05. |
+| Q-06 | closed | All 877 references were compared with their native controls in both orders. A fixture-level early opt-in for 404 verified images projects 118–120 seconds saved. Plan 05 records the seven visible exceptions, the WebKit family restriction, and all per-image results. |
 
 ## Design
 
