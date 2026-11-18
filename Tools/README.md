@@ -95,6 +95,16 @@ commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
 The profiler and CI JUnit export use precise execution durations from `xcode_results.py`.
+`snapshot_settle_profile.py` validates `--timings` settling traces against capture
+identities, call ordinals, and pass totals. It writes raw JSONL and a summary of
+operation times, call reasons, outcomes, and overlapping floor/proof conditions.
+Run `python3 Tools/snapshot_settle_profile.py PATH/StuffSnapshotTests.log --output-dir PATH/settle-profile --require-complete`.
+Incomplete captures and orphaned calls remain in the report; `--require-complete`
+requires reconciliation and a terminal Xcode success marker in every input log.
+The collector permits a recognizable native log after a complete JSON record.
+Split or malformed records and adjacent snapshot diagnostics still fail collection.
+It cannot establish coverage beyond the selected suites. CircleCI retains the
+files beside shard suite timings; the shard verifier owns suite coverage.
 Parameterized tests retain one test identity and sum their argument and repetition durations.
 These sums measure elapsed test work. Concurrent executions can overlap, so the sum is not the suite wall time.
 The progress report counts completed test functions, including named tests and tests with expected issues.
