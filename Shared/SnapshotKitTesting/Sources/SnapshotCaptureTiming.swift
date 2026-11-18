@@ -74,6 +74,37 @@ import SnapshotKit
         return !["", "0", "false", "no"].contains(value.lowercased())
     }
 
+    enum MountTrial: String {
+        case baseline, retained, early
+
+        var retainsMeasuredWrapper: Bool {
+            self != .baseline
+        }
+
+        static let current = ProcessInfo.processInfo.environment["SNAPSHOT_MOUNT_TRIAL"]
+            .flatMap(Self.init(rawValue:))
+    }
+
+    let mountTrial = MountTrial.current
+    private(set) var mountPath: String?
+    private(set) var earlyContent: Bool? = MountTrial.current.map { _ in false }
+    private(set) var wrapperMounts: Int? = MountTrial.current.map { _ in 0 }
+    var captureID: UUID? {
+        traceID?.rawValue
+    }
+
+    func recordWrapperMount() {
+        wrapperMounts? += 1
+    }
+
+    func recordEarlyContent() {
+        earlyContent = true
+    }
+
+    func recordMountPath(_ path: String) {
+        mountPath = path
+    }
+
     private let identifier: String
     private let isEnabled: Bool
     private let sizing: String
@@ -191,7 +222,10 @@ import SnapshotKit
         guard isEnabled else { return nil }
         let payload = SnapshotCaptureTimingLine(
             id: identifier,
-            captureID: traceID?.rawValue,
+            captureID: captureID,
+            mountPath: mountPath,
+            earlyContent: earlyContent,
+            wrapperMounts: wrapperMounts,
             settleCalls: settleCalls,
             sizing: sizing,
             measurementReadiness: measurementReadiness,
@@ -237,6 +271,9 @@ import SnapshotKit
 private struct SnapshotCaptureTimingLine: Encodable {
     let id: String
     let captureID: UUID?
+    let mountPath: String?
+    let earlyContent: Bool?
+    let wrapperMounts: Int?
     let settleCalls: Int
     let sizing: String
     let measurementReadiness: String
