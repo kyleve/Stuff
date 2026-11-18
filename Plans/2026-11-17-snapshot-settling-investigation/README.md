@@ -5,13 +5,13 @@
 - Updated: 2026-11-17, starting from PR #528 checkpoint `7ccd0383e`; its tested runtime is `689cef15c`.
 - Operation: Revise and execute follow-up experiments after the user requested, “let’s do them all and see what helps.”
 - Requested scope: Repeat the mixed CI comparison, evaluate a larger bounded comparison worker, move immutable PNG processing off the capture path, and test deadline-aware settling samples. Preserve completed plans 01–07.
-- Stage: Plans 08, 08a, and 09 are complete. Plan 10 finishes its bounded trials: fewer renders do not yield repeatable elapsed savings. The accepted 16ms cadence, eager PNG, and 8M bound are restored for final checks and publication; the trace repair remains.
-- Completed: Plans 01–07 and PR #528 are published. Local phase-7 savings are 41.859s / 4.91%. Its isolated CI pair preserves all captures but establishes no elapsed-time gain.
-- Pending: [10](10-deadline-aware-sampling.md). Keep accepted changes only after timing, fidelity, cancellation, and resource gates.
+- Stage: Complete. All four follow-ups are executed, reviewed, and published. Retain the 8M comparison bound, eager PNG processing, and 16ms cadence. The trace transport repair remains and passes full CI reconciliation.
+- Completed: Plans 01–10 and inserted plan 08a. The final follow-up result is published in PR #529 at `e54daf62b`; its net Swift source/test diff against PR #528 is empty. Earlier phase-7 local savings remain 41.859s / 4.91%; the CI repeats establish no additional elapsed-gain claim.
+- Pending: No experiment implementation. Updating the existing Linear report awaits explicit destination approval after automatic review rejected that write.
 - Validation exception: Continue to ignore the user-identified intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure. Do not investigate or retry it. Other failures remain in scope.
 - Branch: `perf/snapshot-followup-experiments`, stacked above PR #528. The user's untracked `.agents/skills/simple-english/` remains untouched.
-- Next action: Complete the sampling cleanup checks, independent review, and evidence archive, then publish the final result and close the series checkpoint. Linear reporting awaits the explicit destination approval requested after automatic review rejected that update; repository work continues.
-- Delegation: Root owns local prototypes, tests, plan integration, and publication. `/root/watch_settle_ci` owns only the explicitly assigned repeat-CI watch and raw evidence; it must not change repository files or publish. `/root/review_snapshot_followups` owns fresh read-only implementation/evidence review before publication.
+- Next action: PR #529 is ready for review. The prepared Linear update remains local until the pending approval is answered; no merge is performed.
+- Delegation: Root completed source, local trials, cleanup, and publication. `/root/watch_settle_ci` completed the bounded CI evidence assignment. `/root/review_snapshot_followups` completed independent source, raw-evidence, and cleanup reviews.
 
 ## Outcome and scope
 
@@ -80,11 +80,11 @@ Repository source and the pinned-runtime measurements suffice for this observati
 8. [08 — Expand bounded comparison](08-expand-bounded-comparison.md): complete; retain 8M after local gains fail the final retry gate. Bounded CI repeats remain inconclusive.
    [08a — Preserve complete traces beside native logs](08a-trace-log-framing.md): complete; strict transport passes fresh full CI, while historical failed samples remain excluded.
 9. [09 — Overlap PNG processing](09-overlap-png-processing.md): complete; retain eager normalization after the repeated-benefit gate is not met.
-10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): executing the conservative floor-wait prototype against eager PNG/8M.
+10. [10 — Deadline-aware sampling](10-deadline-aware-sampling.md): complete; retain the ordinary cadence after render savings fail the repeated elapsed-benefit gate.
 
-The current horizon measures the reviewed sampling prototype against the accepted eager-PNG/8M baseline. A qualifying candidate needs full fidelity, resource, and CI validation; an inconclusive or negative result restores that baseline.
+The selected horizon is complete. All retained behavior passes its applicable gates; rejected prototypes are removed and their evidence remains available.
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
-Advance the horizon after the measurements identify candidate paths and required correctness evidence.
+Further candidate work requires its own reviewed refinement; this bounded series retains its original exclusions.
 The first PR contains the plan and observational groundwork; subsequent commits/PRs keep each verified change separate.
 
 ## Shared decisions
@@ -110,7 +110,7 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-10 | closed | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | Plan 07 validates one immutable comparison worker alongside one serial hosted capture. Repeated focused runs and the full local pair improve elapsed time; isolated CI preserves correctness but does not establish an elapsed gain. MainActor interleaving is a smaller measured alternative. Preparation and additional hosted slots remain separate STU-121 follow-ups. |
 | Q-11 | closed | Is phase-7 CI throughput repeatable, and can a larger bounded comparison improve it? | R-08 | Plan 08 completes within its bounded method: no new valid CI pair, and 12M fails the no-added-retry gate despite local gains. Retain 8M; reviewed and published at `edb688245`. |
 | Q-12 | closed | Can PNG processing safely leave the capture critical path? | R-09 | Plan 09 passes ownership/cancellation/fidelity guards but misses the repeated-benefit gate at retained 8M. Keep eager normalization; reviewed result and cleanup are published at `afe231667`. |
-| Q-13 | open | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | Refine plan 10 with adversarial traces and independent delayed captures. |
+| Q-13 | closed | Can decision-time scheduling remove render work without missing late changes or delaying proof? | R-10 | The conservative candidate passes fresh-proof/cancellation guards and reduces renders, but elapsed gains do not repeat. Retain 16ms cadence; reviewed result and cleanup are published at `e54daf62b`. No full-suite or CI candidate is selected. |
 
 ## Follow-up research and review
 
@@ -145,3 +145,12 @@ The final checkpoint changes documentation only; STU-121 remains In Review with 
 
 
 2026-11-17 follow-up plan review, base `7ccd0383e`: the user explicitly authorizes all three experiments and the CI repeat. Root checked plans 08–10 against the source and completed phase-7 evidence. Plan 08 preserves one worker, serial hosting, current reference policy, and recorded resource limits; the bounded experiment may conclude negative or inconclusive. Plans 09–10 retain explicit refinement triggers and do not prescribe an unverified immutable-image transfer or sample schedule. No product answer blocks plan 08. Mermaid is syntax-inspected, not renderer-verified. Implementation requires fresh independent review before publication.
+
+
+## Final follow-up delivery
+
+Plans 08–10 and 08a complete within their declared bounds. The larger cap improves local timings but fails the CI retry gate; PNG and sampling miss repeated elapsed-benefit gates. These outcomes support retaining the accepted pipeline, not claiming that every future variant is ruled out. The trace repair is retained on PR #524 and reconciles full CI without hiding timeout attempts or malformed records.
+
+Independent review verifies raw counts, policies, pixels, resources, expected mutation failures, and exact source restoration. Cleanup checks pass: 31 reference/pipeline/timing/trace functions after cap and PNG, and 27 stability/rendering/timeout/trace functions after sampling. All 70 module Swift files match parent `6d55f21e5`. Earlier completed plans and their measured revisions remain intact.
+
+Durable artifacts are under `/Users/kve/.codex/visualizations/2026/11/17/01a1e71b-13f1-7c80-8aee-e46d45c92d5b/snapshot-followup-results/`: `ci-repeat/`, `cap/`, `cap-ci/`, `png/`, `sampling/`, and `trace-transport/`. Each evidence collection has verified SHA-256 hashes. The Linear report is the only pending external action; automatic approval review rejected copying private repository results to that destination, and the explicit approval question remains unanswered. No rejected write occurred.
