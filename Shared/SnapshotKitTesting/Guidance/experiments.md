@@ -84,3 +84,7 @@ insufficient evidence to remove it.
 
 The [controlled experiments](../../../Plans/2026-11-17-snapshot-settling-investigation/03-controlled-experiments.md)
 retain the methods, raw-evidence locations, and accepted consumer-specific changes.
+
+## Holding the measurement host through capture — 2026-11-18
+
+Keeping one native mount through a full-content capture had little effect on 200 screens and comparison sheets while both settling policies stayed in place. Drawing immediately after measurement on eligible fixtures saved about 44 seconds. On the Flyover iPad list it also captured a loading indicator in place of a widget preview. The normal whole-image comparator accepted that image. Check asynchronous content at the final capture size before opting a fixture into an early draw. [Paired timings, exact selection and pixel evidence](../../../Plans/2026-11-18-requested-snapshot-frames/04-two-hundred-more.md)

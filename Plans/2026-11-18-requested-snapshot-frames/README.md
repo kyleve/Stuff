@@ -6,7 +6,7 @@ The user requested a plan, execution, and iteration on a greenfield frame runner
 
 On November 18 the user requested an extension to additional views. Plan 03 extended the experiment to 72 additional images in nine suites including the original control suite. The 54 additional images that already skip timed settling all matched and took 46–55% less capture time. The six InstallerKit cards also matched; the eight hatched calendars and four Year picker images still need the existing host for exact pixels. Root verified both execution orders and published the expanded results on the same PR.
 
-The user requested another 200 unique images and accepts limited capture-timing drift. [Plan 04](04-two-hundred-more.md) is the current experiment on PR 540. Its owner runs the frozen selection with the normal harness in two orders and reports timing, visual differences and adoption boundaries.
+The user requested another 200 unique images and accepts limited capture-timing drift. [Plan 04](04-two-hundred-more.md) ran six comparisons on the production harness. Keeping the native host and drawing earlier saved 44 seconds in each order. The early draw matched 195 live production images exactly, shifted four by at most 2/255 per channel and captured a still-loading widget in the Flyover iPad list. The plan identifies 147 opt-in candidates across the measured selection. PR 540 contains all four experiments.
 
 ## User stories and requirements
 
@@ -14,7 +14,6 @@ The user requested another 200 unique images and accepts limited capture-timing 
 - US-02. A test author drives a real Locations screen through loading, data delivery and a visible selection. R-02 retains one host for the sequence, associates each frame with visible semantics, and compares it to an independent host at the same milestone. R-03 distinguishes label, layout and transition regressions.
 - US-03. A reviewer can assert geometry and image content from the same output. R-04 explores reusing immutable portrait output under declared inputs while always comparing against the current expectation. Count cold renders and warm hits separately from independent lifecycle checks.
 - US-04. A test author can see which additional production fixtures qualify for single-mount capture. R-05 compares identical requests in two processes, isolating the effect of skipped waits where the current policy settles.
-
 - US-05. A reviewer can evaluate earlier capture for 200 additional references. R-06 requires 200 identities outside Plan 03, comparable timings, per-panel verdicts, and a visual explanation for material differences.
 
 The user approved the two examples and authorized implementation and iteration on November 18. The prototype retains the production views and fixtures. X-01 keeps product behavior, capture defaults and reviewed references intact. X-02 limits reuse to experimental inputs on the local machine. Project-wide adoption, remote caching, and a virtual clock for Apple's compositor require separate decisions.
@@ -40,7 +39,9 @@ To run the broader component comparison, use `Plans/2026-11-18-requested-snapsho
 
 For plans 01 and 02, each pass exports Banner images and matched timings in `banner/`, Locations images and visible witnesses in `locations/`, and individual cache lookups in `frame-reuse.json`. The host-side audit compares PNG bytes first and decodes differences into premultiplied sRGB. Read `pixels.txt` for both passes. The simulator logs include the separate per-process cache setup cost.
 
-Each mode temporarily includes its probes in the existing test bundles it uses, then regenerates the normal project and rebuilds those bundles through focused control tests. Run one invocation per checkout. Its generated images, timings, and cache stay in the printed temporary directory.
+Both `run-prototype` modes temporarily include their probes in the existing test bundles, then regenerate the normal project and rebuild those bundles through focused control tests. Run one invocation per checkout. Generated images, timings and cache stay in the printed temporary directory.
+
+For the 200-image production-harness experiment, run `Plans/2026-11-18-requested-snapshot-frames/run-200`. It uses the checked-in test methods directly. The output directory contains six sets of PNGs, verdicts and timing logs. Read `summary-200.json` for results grouped by suite, capture policy and image type, as well as individual comparisons.
 
 ## Evidence and decisions
 
@@ -56,7 +57,7 @@ The production Banner takes immutable review data. Locations already supports a 
 | Q-02 | closed | Plan 01 reproduced all 20 ordinary Banner references on one native mount. Real navigation completion and the entire target month on screen reproduced the selected Locations frame. The title alone captured mid-transition pixels. |
 | Q-03 | closed | Plan 02 replayed an immutable portrait across two processes and rejected the wrong expectation. Local session setup costs more than one fresh portrait. Broader reuse remains outside X-02. |
 | Q-04 | closed | The 26 widget and 28 already-immediate calendar images reproduced every reviewed PNG in four passes. Six InstallerKit cards qualified on pixels with immediate capture. Restoring final settlement on the single mount did not consistently reproduce hatched months or the Year picker. See Plan 03 for paired timings. |
-| Q-05 | open | How much does retaining the production measurement host save on 200 new images, and what changes when drawing earlier? See Plan 04. |
+| Q-05 | closed | On 200 new images, retaining the mount saved 0.5–2.0 seconds. Drawing earlier on 154 eligible native captures saved 44 seconds in each order. Keep the Flyover iPad list settled. Plan 04 records the visual checks and scope. |
 
 ## Design
 
