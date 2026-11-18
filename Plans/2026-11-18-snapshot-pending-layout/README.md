@@ -4,7 +4,7 @@ The repository owner requested a recursive check immediately after the settle lo
 
 ## Checkpoint
 
-The [experiment](01-post-layout-observation.md) is executing on `perf/snapshot-pending-layout` from `f12cb58d8`. The root owns simulator runs and publication. Three investigators own the experimental probe, hosted controls and trace analysis. The agreed scope includes instrumentation, measurement and evidence-based evaluation of an additional layout pass. [STU-121](https://linear.app/kve/issue/STU-121) tracks snapshot performance.
+The [experiment](01-post-layout-observation.md) runs on `perf/snapshot-pending-layout` from `f12cb58d8`. The coordinator owns simulator runs and publication. The three investigations covered the recursive probe, hosted controls and trace analysis. All focused treatments and fixture controls are complete. The next checkpoint is full-suite verification of the retained switch. [STU-121](https://linear.app/kve/issue/STU-121) tracks snapshot performance.
 
 ## Requirements and review
 
