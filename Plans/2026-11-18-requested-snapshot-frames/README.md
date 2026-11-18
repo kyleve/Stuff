@@ -2,9 +2,9 @@
 
 ## Planning checkpoint
 
-The user requested a plan, execution, and iteration on a greenfield frame runner for Flight Status Banner and Locations. The implementation is on `perf/snapshot-requested-frames` in [PR 540](https://github.com/kyleve/Stuff/pull/540), an independent child of PR 524. Plan 01 verified the same 20 Banner references using a single native mount and refined the Locations selection condition until the real screen matched its delayed independent control. Plan 02 verified bounded, cross-process reuse and measured the cost of opening the session. Both plans are complete. The final Locations timing trial reversed execution order and showed that the timing winner changed with the order. The supported production candidate is single-mount native capture for the verified Banner cases. [STU-121](https://linear.app/kve/issue/STU-121) tracks the measurements.
+The user requested a plan, execution, and iteration on a greenfield frame runner for Flight Status Banner and Locations. The implementation is on `perf/snapshot-requested-frames` in [PR 540](https://github.com/kyleve/Stuff/pull/540), an independent child of PR 524. Plan 01 verified the same 20 Banner references using a single native mount and refined the Locations selection condition until the real screen matched its delayed independent control. Plan 02 verified bounded, cross-process reuse and measured the cost of opening the session. Plans 01–02 are complete. The final Locations timing trial reversed execution order and showed that the timing winner changed with the order. The supported production candidate is single-mount native capture for the verified Banner cases. [STU-121](https://linear.app/kve/issue/STU-121) tracks the measurements.
 
-On November 18 the user requested an extension to additional views. Plan 03 is the current horizon on the same branch and PR. Root coordinates the two fixture investigators and the renderer investigator, runs both simulator passes, then records and publishes the results.
+On November 18 the user requested an extension to additional views. Plan 03 extended the experiment to 72 additional images in nine suites including the original control suite. The 54 additional images that already skip timed settling all matched and took 46–55% less capture time. The six InstallerKit cards also matched; the eight hatched calendars and four Year picker images still need the existing host for exact pixels. Root verified both execution orders and published the expanded results on the same PR.
 
 ## User stories and requirements
 
@@ -31,9 +31,11 @@ Run from the repository root on the pinned iOS simulator:
 Plans/2026-11-18-requested-snapshot-frames/run-prototype
 ```
 
-The driver prints its output directory. Each pass exports Banner images and matched timings in `banner/`, Locations images and visible witnesses in `locations/`, and individual cache lookups in `frame-reuse.json`. The host-side audit compares PNG bytes first and decodes differences into premultiplied sRGB. Read `pixels.txt` for both passes. The simulator logs include the separate per-process cache setup cost.
+To run the broader component comparison, use `Plans/2026-11-18-requested-snapshot-frames/run-prototype --mount-matrix`. Both commands print their output directory. The matrix writes one report per test bundle and process, retains differing PNGs, and prints an aggregate report in `matrix-summary.txt`.
 
-The runner temporarily includes the probes in the two existing test bundles, then regenerates the normal project and rebuilds those bundles through focused control tests. Run one invocation per checkout. Its generated images, timings, and cache stay in the printed temporary directory.
+For plans 01 and 02, each pass exports Banner images and matched timings in `banner/`, Locations images and visible witnesses in `locations/`, and individual cache lookups in `frame-reuse.json`. The host-side audit compares PNG bytes first and decodes differences into premultiplied sRGB. Read `pixels.txt` for both passes. The simulator logs include the separate per-process cache setup cost.
+
+Each mode temporarily includes its probes in the existing test bundles it uses, then regenerates the normal project and rebuilds those bundles through focused control tests. Run one invocation per checkout. Its generated images, timings, and cache stay in the printed temporary directory.
 
 ## Evidence and decisions
 
@@ -48,7 +50,7 @@ The production Banner takes immutable review data. Locations already supports a 
 | Q-01 | closed | The user authorized a prototype and iteration. Accepted or rejected approaches need reproducible evidence. Adoption is outside X-01. |
 | Q-02 | closed | Plan 01 reproduced all 20 ordinary Banner references on one native mount. Real navigation completion and the entire target month on screen reproduced the selected Locations frame. The title alone captured mid-transition pixels. |
 | Q-03 | closed | Plan 02 replayed an immutable portrait across two processes and rejected the wrong expectation. Local session setup costs more than one fresh portrait. Broader reuse remains outside X-02. |
-| Q-04 | open | Which additional intrinsic views keep their pixels, and how much of the timing difference persists under matched readiness? Plan 03 compares both capture paths. |
+| Q-04 | closed | The 26 widget and 28 already-immediate calendar images reproduced every reviewed PNG in four passes. Six InstallerKit cards qualified on pixels with immediate capture. Restoring final settlement on the single mount did not consistently reproduce hatched months or the Year picker. See Plan 03 for paired timings. |
 
 ## Design
 
@@ -66,6 +68,8 @@ flowchart LR
 
 ## Review
 
-On 2026-11-18 the artifact investigator independently reviewed both plans against e479fa140. The review added pre/post-draw selection evidence, fresh native image controls, explicit repeat counts, and a limited cache namespace with real miss invocations and a changed-reference witness. Root checked the ordinary reference inventories, plan links and dependency order. The Mermaid flow was source-reviewed. The final independent review checked the raw PNGs, native controls, changed-expectation failures and scope timings. It caught a navigation predicate that could pass with zero attached controllers and a cleanup race if a second invocation started during restoration. The corrected probe requires a real controller. The launcher holds an exclusive checkout directory through the rebuild. Injected interruptions, conflicting sources and concurrent invocations exercised the cleanup paths.
+On 2026-11-18 the artifact investigator independently reviewed both plans against e479fa140. The review added pre/post-draw selection evidence, fresh native image controls, explicit repeat counts, and a limited cache namespace with real miss invocations and a changed-reference witness. Root checked the ordinary reference inventories, plan links and dependency order. The Mermaid flow was source-reviewed. The independent review of plans 01–02 checked the raw PNGs, native controls, changed-expectation failures and scope timings. It caught a navigation predicate that could pass with zero attached controllers and a cleanup race if a second invocation started during restoration. The corrected probe requires a real controller. The launcher holds an exclusive checkout directory through the rebuild. Injected interruptions, conflicting sources and concurrent invocations exercised the cleanup paths.
 
 The Where investigator checked Plan 03 against the fixture declarations and checked-in references. The review distinguished the original Banner control from 54 additional already-immediate frames, and identified the planned-stay hatching, native Year picker and above-viewport Dynamic Type card as useful tests of fidelity.
+
+The broader trial received a separate review of the complete implementation and both pairs of simulator artifacts. The reviewer checked absolute timings, restored project membership, arm order and omissions, and inspected the glass rim in the accessibility-size Year picker. Auditing a temporary report with a missing arm, a changed digest or a substituted same-size PNG failed as expected.
