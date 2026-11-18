@@ -5,10 +5,12 @@
 - Updated: 2026-11-17; phase 7 plan `c07770cee` is published in PR #528 on `perf/snapshot-overlap`, above PR #527 at `64e349f14`. The sampling experiments remain complete with no sampler change.
 - Operation: Refine and execute phase 7 after the user's explicit request, “Let’s move onto phase 7!” Preserve completed plans 01–06.
 - Requested scope: The user approved tracing what happens during settling, then measuring ways to shorten, remove, or recognize completion earlier. The user explicitly requested planning and execution on 2026-11-17.
-- Stage: Plans 01–06 are complete. Plan 07 is executing two bounded candidates within one serial provider: background image computation and MainActor comparison during the next capture’s settling suspension. Both retain one host owner.
+- Stage: Plans 01–06 are complete. Plan 07 selects background image comparison after two paired runs per candidate. Both candidates retain one host owner; background saves 11.80% and MainActor interleaving saves 5.98% on the selected workload.
 - Completed: Plans 01–04: tracing and local/CI classification, five accepted consumer changes, 163 framework functions, all 935 local captures, and isolated CI. Follow-up: Metal prerequisites, eight paired timing runs with 880 capture assertions, 23 focused framework functions, complete prototype cleanup, and independent review. No follow-up sampler change is accepted.
-- Pending: Finish six paired timing runs; 170 framework functions and 16 subsequent focused functions pass. Only a qualifying candidate advances to independent later-oracle, full-suite, and isolated-CI checks. STU-121 retains other readiness and CI-only questions.
-- Next action: Measure the two prototypes against serial controls and reconcile [07](07-overlap-snapshot-work.md). PR #527 has no conversation, review, or inline feedback at this checkpoint; all stack parents remain open. No merge is assumed.
+- Completed locally in phase 7: six focused timing runs, independent 110-capture delayed oracle, 173 framework functions plus 28 final focused functions, and a same-binary 935-capture pair. Full test time improves 851.900s → 810.041s (4.91%); capture identity and geometry stay unchanged. Independent review and lint pass.
+- Pending: Publish the accepted background implementation, run isolated candidate CI, and reconcile it with the fresh 935-capture CI control. STU-121 retains other readiness and CI-only questions.
+- Validation exception: The user explicitly requested ignoring the known intermittent `StoreRemoteChangeSourceTests.historyObserverForwardsExternalAuthorForItsStore()` failure in the control unit job. Snapshot jobs and all other failures remain part of acceptance.
+- Next action: Publish the locally verified implementation and reconcile isolated CI in [07](07-overlap-snapshot-work.md). PR #527 has no conversation, review, or inline feedback at this checkpoint; all stack parents remain open. No merge is assumed.
 - Delegation: `/root/review_settling_candidates` and `/root/watch_settle_ci` completed the original implementation review and CI reconciliation. `/root/review_metal_sampling` independently reviewed all follow-up artifacts, cleanup, and the overlap outline. The root independently recomputed that evidence. `/root/review_snapshot_overlap` reviews phase 7; its timing-accounting and resource-bound findings are tracked in plan 07.
 
 ## Outcome and scope
@@ -70,7 +72,7 @@ Repository source and the pinned-runtime measurements suffice for this observati
 4. [04 — Validated improvements](04-validated-improvements.md): complete; explicit readiness and preparation for five providers, with full local/CI verification.
 5. [05 — Metal and sampling experiments](05-metal-and-sampling-experiments.md): complete; both Metal adapters and both sampling candidates are rejected for adoption.
 6. [06 — Deliver the sampling result](06-deliver-sampling-improvements.md): complete; reviewed findings published and original Swift source restored.
-7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): executing; current horizon. Comparison-cost pilot and initial framework guards pass; paired background/MainActor overlap trials are next.
+7. [07 — Overlap snapshot work](07-overlap-snapshot-work.md): executing; current horizon. Local framework, paired trials, delayed oracle, and full-suite gates pass; implementation publication and candidate CI are next.
 
 The user authorized this series and its execution. Later design choices remain provisional, not additional product requirements.
 Advance the horizon after the measurements identify candidate paths and required correctness evidence.
@@ -96,7 +98,7 @@ The first PR contains the plan and observational groundwork; subsequent commits/
 | Q-07 | closed | Does a minimum sample interval avoid excessive render work without delaying completion or missing changes? | R-05/R-06 | Plan 05 rejects standalone 60ms scheduling after both pairs are slower. Extended-color samples plus 60ms reduce rendering 16.18% but leave capture work flat; the small end-to-end difference is within control variation. The existing cadence and format remain unchanged. |
 | Q-08 | closed | Does an accepted local candidate improve isolated CI with its actual GPU availability? | R-06 | No candidate passes the local adoption gate, so no CI candidate trial is selected. Actual CI GPU availability and color-format performance remain unmeasured follow-ups in STU-121; the negative local result is not a CI claim. |
 | Q-09 | closed | Would Metal image comparison materially reduce settling cost? | R-05 | Current local normalization and pixel checks total 1.626s, about 0.2% of capture work. Do not add a settling comparison kernel. Full reference comparison is a separate 100.057s phase in the review-enabled run, including PNG handling and diagnostics; its library already has a conditional Metal/MPS path. Profiling that path remains separate STU-121 scope. |
-| Q-10 | open | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | The user requested a separate planned phase. Plan 07 distinguishes preparation overlap from multiple hosted captures and retains existing serialization until an isolated design proves correct. |
+| Q-10 | answered | Can another snapshot's useful work run during settle suspensions safely and profitably? | R-07 | The user requested a separate planned phase. Plan 07 distinguishes preparation overlap from multiple hosted captures and retains existing serialization until an isolated design proves correct. |
 
 ## Follow-up research and review
 

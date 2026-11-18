@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 
 /// One PNG reference. Cutsheets carry their approved panel map in PNG Description;
 /// ordinary captures retain the standard PNG encoding and comparison behavior.
-@MainActor
 struct SnapshotImageReference {
     let image: UIImage
     let layout: SnapshotComparisonLayout?
@@ -90,9 +89,11 @@ struct SnapshotImageReference {
     }
 
     private static var imageDiff: Diffing<UIImage> {
+        // An explicit scale avoids reading UIScreen from the image worker.
         Snapshotting<UIImage, UIImage>.image(
             precision: defaultSnapshotPrecision,
             perceptualPrecision: defaultSnapshotPerceptualPrecision,
+            scale: 1,
         ).diffing
     }
 
@@ -152,11 +153,19 @@ struct SnapshotImageReference {
 
     /// Delegates recording policy to SnapshotTesting after panel verification.
     /// The whole-image comparator also guards headings and spacing.
-    static func strategy(panelFailure: ComparisonFailure?) -> Snapshotting<Data, Data> {
+    static func strategy(
+        panelFailure: ComparisonFailure?,
+        prepared: SnapshotPreparedMatch? = nil,
+    ) -> Snapshotting<Data, Data> {
         Snapshotting(pathExtension: "png", diffing: .diff(
             toData: { $0 },
             fromData: { $0 },
             diffV2: { oldData, newData in
+                if panelFailure == nil,
+                   prepared?.matches(reference: oldData, capture: newData) == true
+                {
+                    return nil
+                }
                 do {
                     let old = try Self(png: oldData)
                     let new = try Self(png: newData)

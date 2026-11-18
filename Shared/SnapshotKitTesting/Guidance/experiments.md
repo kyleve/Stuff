@@ -110,3 +110,23 @@ All eight runs preserved capture identities, geometry, policies, references, and
 The combined candidate passed 23 framework functions, including real hierarchy color, transparency, fade, and one-pixel guards.
 No candidate reached a delayed-oracle/full-suite/CI rollout, so this is a bounded local result rather than a general rejection of scheduling or CI color-format experiments.
 See [plan 05](../../../Plans/2026-11-17-snapshot-settling-investigation/05-metal-and-sampling-experiments.md) for raw-evidence provenance and [plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md) for the separately requested overlap investigation.
+
+## Bounded reference-comparison overlap — 2026-11-17
+
+Two paired 110-capture runs measured immutable PNG comparison while the following capture retained the sole host.
+Background preparation saved 14.433s (11.80%) of test elapsed time on average.
+A second prototype ran comparison on MainActor after the next capture's first sample, using its suspension.
+That saved 7.307s (5.98%), but delayed subsequent samples and produced a smaller gain.
+The complete 935-capture pair saves 41.859s (4.91%) of test elapsed time, with unchanged geometry, zero retries, and a 113MiB increase in sampled test-host RSS.
+Select background preparation; retain the MainActor result as a tested alternative. Isolated candidate CI remains pending in plan 07.
+
+The adopted boundary permits one worker and one current capture inside a provider.
+Workers receive PNG bytes and a reference URL. Successful comparisons can be reused only after the verifier rechecks both original byte sequences.
+The main actor still owns authoritative verification, recording, and issues. Cutsheets and captures above
+8 million pixels keep serial comparison. Structured scope exit joins workers, including cancellation.
+The existing capture lock and all hosted-state restoration remain unchanged.
+
+Retest throughput, image fidelity, cancellation, and resource peaks after changing this boundary, its pixel budget,
+the image-comparison dependency, or test serialization. Summed capture work excludes pipeline queue delay and
+is not elapsed suite time. [Plan 07](../../../Plans/2026-11-17-snapshot-settling-investigation/07-overlap-snapshot-work.md)
+retains the paired controls, independent delayed oracle, full-suite gates, raw artifacts, and validation limits.

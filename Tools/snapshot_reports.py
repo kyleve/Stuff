@@ -27,7 +27,7 @@ def timing_report(
         phases.update(row["phases"])
 
     lines = [
-        f"  {len(rows)} captures, {grand:.1f}s total, "
+        f"  {len(rows)} captures, {grand:.1f}s summed capture work, "
         f"{grand / len(rows):.3f}s per image",
         "",
         f"  {'phase':20s} {'total':>9s} {'share':>7s} {'mean':>9s}",
