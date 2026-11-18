@@ -4,9 +4,11 @@
 import argparse
 import json
 import math
+import os
 import pathlib
 import re
 import statistics
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -16,6 +18,7 @@ from repository import repository_root
 ROOT = repository_root(__file__)
 DEFAULT_PLAN = ROOT / ".circleci" / "snapshot-shards.json"
 FORMAT_VERSION = 1
+LFS_POINTER_HEADER = b"version https://git-lfs.github.com/spec/v1"
 # Minimum reduction in the slowest worker required to move existing suites.
 MINIMUM_IMPROVEMENT = 0.05
 SNAPSHOT_TARGET_HEADER = (
@@ -74,8 +77,8 @@ def snapshot_source_roots(repo):
     return roots
 
 
-def source_inventory(repo):
-    suites = set()
+def suite_source_paths(repo):
+    suites = {}
     for source, bundle in snapshot_source_roots(repo).items():
         root = repo / source
         if not root.is_dir():
@@ -99,10 +102,14 @@ def source_inventory(repo):
             identifier = f"{bundle}/{suite}"
             if identifier in suites:
                 raise ValueError(f"duplicate snapshot suite in source: {identifier}")
-            suites.add(identifier)
+            suites[identifier] = path.relative_to(repo)
     if not suites:
         raise ValueError("snapshot sources contain no test suites")
     return suites
+
+
+def source_inventory(repo):
+    return set(suite_source_paths(repo))
 
 
 def plan_partition(plan):
@@ -169,6 +176,56 @@ def read_suites(path):
     if len(suites) != len(set(suites)):
         raise ValueError(f"suite list contains duplicate identifiers: {path}")
     return suites
+
+
+def hydrate_references(repo, assignment):
+    sources = suite_source_paths(repo)
+    suites = read_suites(assignment)
+    if unknown := sorted(set(suites) - sources.keys()):
+        raise ValueError(f"unknown snapshot suites in assignment: {unknown}")
+    directories = [
+        sources[suite].parent / "__Snapshots__" / sources[suite].stem
+        for suite in suites
+    ]
+    if not directories:
+        return 0
+    tracked = subprocess.check_output(
+        ["git", "--literal-pathspecs", "ls-files", "-z", "--", *directories], cwd=repo
+    )
+    references = [
+        pathlib.Path(os.fsdecode(path))
+        for path in tracked.split(b"\0")
+        if path.endswith(b".png")
+    ]
+    if not references:
+        return 0
+
+    # LFS takes comma-separated gitignore patterns. Keep filenames out of that
+    # syntax, including theme paths and filenames with commas or brackets.
+    if all(re.fullmatch(r"[\w./ -]+", str(directory)) for directory in directories):
+        includes = ",".join(f"{directory}/**/*.png" for directory in directories)
+    else:
+        print(
+            "A suite directory contains LFS pattern characters; "
+            "fetching snapshot references for all suites.",
+            file=sys.stderr,
+        )
+        includes = "**/__Snapshots__/**/*.png"
+    environment = os.environ.copy()
+    environment.pop("GIT_LFS_SKIP_SMUDGE", None)
+    subprocess.run(
+        ["git", "lfs", "pull", f"--include={includes}", "--exclude="],
+        cwd=repo,
+        env=environment,
+        check=True,
+    )
+    for path in references:
+        with (repo / path).open("rb") as stream:
+            if stream.read(len(LFS_POINTER_HEADER)) == LFS_POINTER_HEADER:
+                raise ValueError(
+                    f"snapshot reference remains a Git LFS pointer: {path}"
+                )
+    return len(references)
 
 
 def validate_enumeration(expected, path):
@@ -411,6 +468,12 @@ def parse_args():
     listing.add_argument("--repo", type=pathlib.Path, default=ROOT)
     listing.add_argument("--total", type=int)
 
+    hydrate = subparsers.add_parser(
+        "hydrate", help="download and verify references for an assigned suite list"
+    )
+    hydrate.add_argument("--repo", type=pathlib.Path, default=ROOT)
+    hydrate.add_argument("--assignment", type=pathlib.Path, required=True)
+
     compare = subparsers.add_parser("compare-enumeration")
     compare.add_argument("--enumeration", type=pathlib.Path, required=True)
 
@@ -453,6 +516,9 @@ def main():
             _, partition = execution_partition(plan, args.repo.resolve())
             selected = selected_shard(partition, args.shard, args.total)
             sys.stdout.write("".join(f"{suite}\n" for suite in selected))
+        elif args.command == "hydrate":
+            count = hydrate_references(args.repo.resolve(), args.assignment)
+            print(f"Verified {count} assigned snapshot references.")
         elif args.command == "compare-enumeration":
             inventory, _ = execution_partition(plan, ROOT)
             validate_enumeration(inventory, args.enumeration)
@@ -477,6 +543,9 @@ def main():
                     "Dry run; pass --write to apply a qualifying rebalance.",
                     file=sys.stderr,
                 )
+    except subprocess.CalledProcessError as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(error.returncode) from error
     except (OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         raise SystemExit(1) from error

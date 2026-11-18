@@ -227,6 +227,14 @@ Suite discovery reads each target's literal source array in `Project.swift`.
 Arrays can span lines and include shared support files. Only `SnapshotTests/**`
 paths define suite roots. Unsupported declarations fail before shard selection.
 
+`./snapshot-shards hydrate --assignment shard.txt` fetches the tracked PNGs in
+each assigned suite's `__Snapshots__` directory, including theme and trait
+subdirectories. Probes without references need no download. Each selected
+file must exist and contain hydrated content before the worker starts testing.
+If a suite directory contains Git LFS pattern characters, the command reports
+the fallback and pulls all snapshot references. Filenames inside the directory
+can contain punctuation without affecting the filter.
+
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
 places intake first, then stops existing-suite moves at a 5% reduction in the
 slowest worker. If single-suite moves cannot reach that target, it discards them.
