@@ -1,6 +1,6 @@
 # 10 — Schedule settling samples around decision times
 
-- Status: executing
+- Status: complete
 - Depends on: [07](07-overlap-snapshot-work.md), for the existing settling loop and observer.
 - Integration prerequisite: [09](09-overlap-png-processing.md) establishes the accepted pipeline before performance trials. The isolated schedule prototype does not depend on PNG processing or the comparison cap.
 - Shared context: [Overview](README.md), R-04, R-10, Q-13, X-02–X-04.
@@ -138,3 +138,5 @@ Changed-call accounting sharpens the result: the four affected calls save 1.1138
 Cleanup passes generation, 27 existing stability/rendering/timeout/trace functions (16.341s test phase), and whitespace checks. Independent review reconciles all raw timing, policy, pixel, memory, and mutation evidence; confirms all 70 restored Swift files and removed prototype files; and reports no blockers. Preserve the archive hashes and publish the rejected-adoption result before closing the checkpoint.
 
 The final sampling archive contains 677 hash-verified files under `snapshot-followup-results/sampling/`. A separate 10-file `trace-transport/` archive preserves the collector reproductions and mutation evidence. The net Swift source/test diff against parent PR #528 (`6d55f21e5`) is empty. Publish this result; only the final lifecycle checkpoint remains.
+
+Delivery: the reviewed result and full cleanup are published in PR #529 at `e54daf62b`. No deadline-sampling behavior is adopted. All required checks and artifact retention are complete; this closes Q-13 and the selected follow-up horizon.
