@@ -531,7 +531,7 @@ struct CalendarContentView: View {
         }
 
         static var measuredSnapshots: [SnapshotCase] {
-            snapshotCases(awaitsLayout: true, focusesMonths: true)
+            snapshotCases(awaitsLayout: true, focusesMonths: true, componentSettle: .immediate)
         }
 
         /// Mirrors the image subjects without splitting preview identities per configuration.
@@ -545,6 +545,7 @@ struct CalendarContentView: View {
         private static func snapshotCases(
             awaitsLayout: Bool,
             focusesMonths: Bool,
+            componentSettle: SnapshotSettle = .settled,
         ) -> [SnapshotCase] {
             let calendar = CalendarSnapshotCases(
                 awaitsLayout: awaitsLayout,
@@ -579,6 +580,7 @@ struct CalendarContentView: View {
                 name: "FlightAndEvidenceBadges",
                 configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
+                settle: componentSettle,
             ) {
                 HStack {
                     ForEach([false, true], id: \.self) { isToday in
@@ -607,6 +609,7 @@ struct CalendarContentView: View {
                 configurations: .componentRepresentative,
                 // This standalone month receives its complete layout synchronously.
                 measurementReadiness: .immediate,
+                settle: componentSettle,
             ) {
                 let calendar = Calendar(identifier: .gregorian)
                 MonthGridView(
@@ -622,6 +625,7 @@ struct CalendarContentView: View {
                 name: "Flights",
                 monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
+                monthSettle: .immediate,
                 report: PreviewSupport.flightHistoryYearReportModel,
             )
             calendar.detail(
@@ -641,6 +645,7 @@ struct CalendarContentView: View {
                 name: "WithData",
                 monthNumber: 5,
                 configurations: .fullContentScreenRepresentative,
+                monthSettle: .immediate,
                 report: PreviewSupport.loadedYearReportModel,
             )
             whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
@@ -652,12 +657,14 @@ struct CalendarContentView: View {
                 name: "Empty",
                 monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
+                monthSettle: .immediate,
                 report: PreviewSupport.emptyYearReportModel,
             )
             calendar.detail(
                 name: "FutureWithoutPlans",
                 monthNumber: 1,
                 configurations: .fullContentPhoneLightDark,
+                monthSettle: .immediate,
             ) {
                 let base = PreviewSupport.loadedYearReportModel()
                 let year = base.selectedYear + 1
@@ -677,6 +684,7 @@ struct CalendarContentView: View {
                 name: "MissingDays",
                 monthNumber: 1,
                 configurations: .fullContentPhoneLightDark,
+                monthSettle: .immediate,
                 report: PreviewSupport.missingDaysYearReportModel,
             )
             // The Locations zoom destination keeps only the focused region's day markings.
@@ -684,6 +692,7 @@ struct CalendarContentView: View {
                 name: "Focused",
                 monthNumber: 5,
                 configurations: .fullContentPhoneLightDark,
+                monthSettle: .immediate,
                 focusedRegion: .california,
                 report: PreviewSupport.loadedYearReportModel,
             )
@@ -801,6 +810,7 @@ struct CalendarContentView: View {
                 name: "PlannedStayHidden",
                 monthNumber: 7,
                 configurations: .fullContentPhoneLightDark,
+                monthSettle: .immediate,
             ) {
                 PreviewSupport.plannedStayYearReportModel(showsEstimatedTimeAndPlanning: false)
             }

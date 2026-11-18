@@ -222,8 +222,8 @@ public func renderSnapshotImage(
 /// A finished capture: the image to compare, and the PNG bytes it was
 /// round-tripped through.
 ///
-/// Cutsheet composition uses the normalized image. Ordinary reference assertions,
-/// review diagnostics, and PNG export reuse the encoded bytes without another encode.
+/// Sheets compose the normalized panel images and attach their map to the composed PNG.
+/// Ordinary reference assertions, review diagnostics, and PNG export reuse the encoded bytes.
 @_spi(Testing) public struct SnapshotCapture {
     public let image: UIImage
     public let pngData: Data

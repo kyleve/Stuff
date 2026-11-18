@@ -69,12 +69,14 @@ struct UpdateBuildView: View {
 #if DEBUG
     extension UpdateBuildView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            // Fresh cached catalogs and a fixed fixture clock make sizing synchronous.
+            // Final settling still covers the native navigation chrome.
             for scenario in InstallerBrowserPreview.BuildScenario.allCases {
                 SnapshotCase(
                     name: scenario.rawValue,
                     configurations: scenario == .otherChannel ? .fullContentScreenRepresentative :
                         .fullContentPhoneLightDark,
-                    measurementReadiness: .sameAsCapture,
+                    measurementReadiness: .immediate,
                 ) {
                     InstallerBrowserPreview.navigation(
                         to: .build(scenario.selection),

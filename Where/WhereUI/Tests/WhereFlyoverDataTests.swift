@@ -41,6 +41,16 @@
             #expect(screen.variants.map(\.id.rawValue) == ["First", "Second"])
         }
 
+        @Test func calendarComponentExportsWaitForTheFlyoverContainer() throws {
+            let screen = CalendarContentView.flyoverData.screen(in: .preview())
+            for name in ["FlightAndEvidenceBadges", "MonthAccessibility"] {
+                let variant = try #require(screen.variants.first { $0.id.rawValue == name })
+                let policy = try #require(variant.exportPolicy)
+                #expect(policy.measurementReadiness == .immediate)
+                #expect(policy.settle == .settled)
+            }
+        }
+
         private struct SnapshotScreen: View, SnapshotProviding {
             var body: some View {
                 EmptyView()
