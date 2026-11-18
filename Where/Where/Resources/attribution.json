@@ -33,7 +33,7 @@
     {
       "name": "AccessibilitySnapshot",
       "kind": "developmentTool",
-      "version": "0.12.0",
+      "version": "0.12.1",
       "homepageURL": "https://github.com/cashapp/AccessibilitySnapshot",
       "license": {
         "name": "Apache License 2.0",
@@ -43,7 +43,7 @@
     {
       "name": "swift-snapshot-testing",
       "kind": "developmentTool",
-      "version": "1.19.3",
+      "version": "1.19.7",
       "homepageURL": "https://github.com/pointfreeco/swift-snapshot-testing",
       "license": {
         "name": "MIT License",
