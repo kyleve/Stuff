@@ -30,12 +30,16 @@ struct FlyoverSnapshotTests {
             )
         }
 
+        let compactModel = FlyoverModel(catalog: catalog)
         await assertSnapshots(
-            of: FlyoverView(catalog: catalog),
+            of: FlyoverView(catalog: catalog, model: compactModel),
             named: "FlyoverCompact",
             configurations: SnapshotConfiguration.combinations(
                 devices: [.iPhoneFullContent],
             ),
+            onReadyToMeasure: {
+                await compactModel.waitUntilVisiblePreviewsAreLoaded()
+            },
             captureMode: .afterMeasurement,
         )
 
