@@ -1,7 +1,41 @@
 # CI timing and cost baseline
 
-Measured on **2026-11-06**, using UTC dates. All prices are USD.
-This is a dated reference for investigating another CI provider.
+All dates are UTC. Costs are in USD.
+
+## Snapshot worker reduction on November 20, 2026
+
+Three active snapshot workers saved **1,293 compute credits ($0.7758, 23.2%)**
+in the measured run. Snapshots took **1m 06s longer**. The iOS unit tests
+finished last in both native workflows.
+
+| CircleCI native validation | Main `dd612e9c4` | PR #542 `291111cfa` |
+| --- | ---: | ---: |
+| Snapshot workers running suites / allocated | 5 / 5 | 3 / 4 |
+| Snapshot job elapsed (CircleCI Insights) | 6m 52s | 7m 58s |
+| Snapshot job compute | 5,578 credits · $3.3468 | 4,285 credits · $2.5710 |
+| Elapsed from workflow selection through native validation | 12m 19s | 11m 59s |
+| Native validation compute, including selection | 9,973 credits · $5.9838 | 8,546 credits · $5.1276 |
+
+Both runs included the capture improvements from PR #541. Each ran the same
+80 tests across 73 suites exactly once on Xcode 27.2 and `m4pro.medium`.
+On main, four workers ran planned
+suites and the intake worker ran two new suites. PR #542 assigned all 73 to
+three workers (25, 24 and 24). The empty intake worker exited after checkout.
+[Main snapshot job](https://app.circleci.com/workflow/de858c30-7f1c-4696-864d-cbf380c36750/job/3f6fc6a6-667e-4bbb-a04d-2cdfb320b372)
+· [PR snapshot job](https://app.circleci.com/workflow/68ba3889-8541-4297-8772-df3b15e01673/job/a583fe20-5f53-4934-95ae-940d4017ccc6)
+
+Snapshots finished 1m 27s before the iOS unit tests on main and 12s before
+them on the PR. The full native gate finished 20s sooner from selection in
+this pair of runs. Builder and unit-test durations also varied, so the
+snapshot job gives the closest comparison of the shard change.
+
+CircleCI Insights reports compute credits across all workers. The dollar
+values use the Performance plan's additional-credit rate of $15 per 25,000
+credits. The comparison covers native validation and excludes storage,
+archives, GitHub Actions and plan fees. [CircleCI pricing](https://circleci.com/pricing/)
+· [Insights data](https://circleci.com/docs/guides/insights/insights/)
+
+## November 6, 2026 provider comparison
 
 Production used GitHub Actions and CircleCI at
 [`main` commit `ea950e0f`](https://github.com/kyleve/Stuff/tree/ea950e0f8272750e674929d7b01f83350cff4496).
