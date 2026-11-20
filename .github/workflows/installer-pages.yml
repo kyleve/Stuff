@@ -8,10 +8,11 @@ on:
 permissions:
   contents: read
 
-# A replaced pending deployment is safe: each run reads the entire latest feed.
+# Fresh builds coalesce. A retry must leave newer publications in the queue.
 concurrency:
   group: installer-pages
   cancel-in-progress: false
+  queue: ${{ github.run_attempt > 1 && 'max' || 'single' }}
 
 env:
   PYTHONDONTWRITEBYTECODE: '1'

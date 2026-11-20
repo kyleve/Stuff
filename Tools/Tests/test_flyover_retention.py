@@ -211,6 +211,18 @@ class FlyoverRetentionTests(unittest.TestCase):
             cleanup["run"],
         )
 
+    def test_retry_preserves_the_newer_publication_waiting_behind_an_active_run(self):
+        # A fresh build can replace pending work. Retrying an old build must
+        # queue behind it, since the freshness check will skip the old build.
+        self.assertEqual(
+            pages_workflow()["concurrency"],
+            {
+                "group": "installer-pages",
+                "cancel-in-progress": False,
+                "queue": "${{ github.run_attempt > 1 && 'max' || 'single' }}",
+            },
+        )
+
     def test_retry_reuses_only_the_latest_main_build(self):
         check = pages_workflow()["jobs"]["deploy"]["steps"][0]
         current = {
@@ -223,9 +235,9 @@ class FlyoverRetentionTests(unittest.TestCase):
             ("fresh build", "1", None, 1, True, True),
             ("latest retry", "2", {}, 0, True, True),
             (
-                "newer run on same commit",
+                "newer pending run on same commit",
                 "2",
-                {"id": 102, "run_number": 11},
+                {"id": 102, "run_number": 11, "status": "pending"},
                 0,
                 True,
                 False,
@@ -267,5 +279,5 @@ class FlyoverRetentionTests(unittest.TestCase):
                 self.assertEqual(output.read(), "current=true\n" if publish else "")
                 query = "gh api repos/owner/repo/actions/workflows/installer-pages.yml/runs?branch=main&per_page=1"
                 self.assertEqual(query in result.stderr.splitlines(), attempt != "1")
-                if case == "newer run on same commit":
+                if case == "newer pending run on same commit":
                     self.assertIn("Skipping the reused Pages build", result.stdout)
