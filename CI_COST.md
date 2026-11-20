@@ -246,7 +246,8 @@ Canceled runs consume the work completed before cancellation.
 Eligible Markdown-only PRs skip expensive validation on both existing providers.
 At the November 6 baseline, main pushes repeated full validation. A merge can now reuse a full PR run on the same Git tree.
 If the provider APIs do not yet show the merge or its full PR run, the Linux selectors check again after 65 seconds before allocating test runners.
-A Markdown-only PR that skipped native tests still requires full validation on main.
+A Markdown-only merge can reuse its lightweight PR checks when both providers passed them on the landed tree and the full main push changes only eligible Markdown.
+Between PRs #469 and #544, 10 of 47 main changes met that file policy. Their full native workflows used 111,580 compute credits ($66.95 at the report's rate), before the latest snapshot savings. [Example main run](https://app.circleci.com/workflow/6c276bee-f086-49a1-9862-e20b625de925)
 The documented [CI selection contract](Tools/AGENTS.md#ci-selection) owns eligibility.
 
 The October 7–November 5 GitHub sample contained 1,199 CI attempts:

@@ -48,7 +48,9 @@ def continue_pipeline(root, environ, transport):
         root,
         event=event,
         push_forced=push_forced(environ),
-        base=environ.get("CI_BASE_SHA", ""),
+        # CircleCI exposes the PR base but omits GitHub's push before SHA.
+        # The merged-PR verifier can read that range from main's branch activity.
+        base="" if event == "push" else environ.get("CI_BASE_SHA", ""),
         head=environ.get("CI_CHECKOUT_SHA" if event == "push" else "CI_HEAD_SHA", ""),
         branch=environ.get("CI_BRANCH", ""),
         repository=environ.get("CI_REPOSITORY", ""),

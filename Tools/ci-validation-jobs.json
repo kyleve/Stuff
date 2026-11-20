@@ -11,6 +11,7 @@
   },
   "circleci": {
     "workflow": "iOS CI",
+    "skipped_job": "Validation skipped",
     "jobs": [
       "Build iOS Tests",
       "Build & Test (iOS)",

@@ -58,6 +58,10 @@ class CIWorkflowTests(unittest.TestCase):
             for key, options in item.items()
         ]
         self.assertEqual(len({name for _, name in jobs}), len(jobs))
+        skipped_names = [name for key, name in jobs if key == "validation-skipped"]
+        self.assertEqual(
+            skipped_names, [self.validation_jobs["circleci"]["skipped_job"]]
+        )
         full_names = [name for key, name in jobs if key != "validation-skipped"]
         self.assertEqual(
             sorted(full_names), sorted(self.validation_jobs["circleci"]["jobs"])
@@ -88,7 +92,8 @@ class CIWorkflowTests(unittest.TestCase):
             "${{ github.event.pull_request.head.sha || github.sha }}",
         )
         self.assertEqual(
-            command["env"]["CI_BASE_SHA"], "${{ github.event.pull_request.base.sha }}"
+            command["env"]["CI_BASE_SHA"],
+            "${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}",
         )
 
     def test_github_uses_push_identity_and_reads_evidence_only_on_main_pushes(self):

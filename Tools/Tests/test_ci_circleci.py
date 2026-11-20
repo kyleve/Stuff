@@ -92,7 +92,7 @@ class CICircleCITests(unittest.TestCase):
             event="push",
             push_forced="false",
             branch="main",
-            base=self.repo.base,
+            base="",
             head=PUSH_SHA,
             repository="kyleve/Stuff",
             force=False,
