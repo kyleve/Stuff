@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PersonalizationFeaturesViewSnapshotTests {
     @Test func personalizationFeatures() async {
-        await assertSnapshots(of: PersonalizationFeaturesView.self)
+        await assertSnapshots(of: PersonalizationFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

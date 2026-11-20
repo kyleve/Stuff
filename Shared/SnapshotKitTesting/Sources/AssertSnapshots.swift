@@ -17,6 +17,31 @@ import UIKit
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
+    captureMode: SnapshotCaptureMode = .standard,
+    record: SnapshotTestingConfiguration.Record? = nil,
+    fileID: StaticString = #fileID,
+    file filePath: StaticString = #filePath,
+    testName: String = #function,
+    line: UInt = #line,
+    column: UInt = #column,
+) async {
+    await assertSnapshots(
+        of: provider,
+        captureMode: { _, _ in captureMode },
+        record: record,
+        fileID: fileID,
+        file: filePath,
+        testName: testName,
+        line: line,
+        column: column,
+    )
+}
+
+/// Choose capture behavior per case and configuration in a mixed fixture matrix.
+@MainActor
+public func assertSnapshots(
+    of provider: (some SnapshotProviding).Type,
+    captureMode: (SnapshotCase, SnapshotConfiguration) -> SnapshotCaptureMode,
     record: SnapshotTestingConfiguration.Record? = nil,
     fileID: StaticString = #fileID,
     file filePath: StaticString = #filePath,
@@ -51,6 +76,7 @@ public func assertSnapshots(
             case .cutsheet:
                 await assertComparisonSnapshots(
                     snapshotCase,
+                    captureMode: captureMode,
                     record: record,
                     fileID: fileID,
                     file: filePath,
@@ -71,6 +97,7 @@ public func assertSnapshots(
                         settle: snapshotCase.settle,
                         prepareForCapture: snapshotCase.prepareForCapture,
                         onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
+                        captureMode: captureMode(snapshotCase, configuration),
                         record: record,
                         fileID: fileID,
                         file: filePath,
@@ -101,6 +128,7 @@ public func assertSnapshots(
     settle: SnapshotSettle = .settled,
     prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
+    captureMode: SnapshotCaptureMode = .standard,
     record: SnapshotTestingConfiguration.Record? = nil,
     fileID: StaticString = #fileID,
     file filePath: StaticString = #filePath,
@@ -148,6 +176,7 @@ public func assertSnapshots(
                 settle: settle,
                 prepareForCapture: prepareForCapture,
                 onReadyToSnapshot: onReadyToSnapshot,
+                captureMode: captureMode,
                 timeoutPolicy: settleTimeoutPolicy,
             )
         } catch is CancellationError {

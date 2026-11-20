@@ -5,6 +5,9 @@ import Testing
 @MainActor
 struct YearTotalsRectangularAccessoryViewSnapshotTests {
     @Test func yearTotalsRectangularAccessory() async {
-        await assertSnapshots(of: YearTotalsRectangularAccessoryView.self)
+        await assertSnapshots(
+            of: YearTotalsRectangularAccessoryView.self,
+            captureMode: .immediateComponent,
+        )
     }
 }

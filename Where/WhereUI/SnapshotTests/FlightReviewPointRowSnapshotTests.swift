@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct FlightReviewPointRowSnapshotTests {
     @Test func flightReviewPointRow() async {
-        await assertSnapshots(of: FlightReviewPointRow.self)
+        await assertSnapshots(of: FlightReviewPointRow.self, captureMode: .afterMeasurement)
     }
 }

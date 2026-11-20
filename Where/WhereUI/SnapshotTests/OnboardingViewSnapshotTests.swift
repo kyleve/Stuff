@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct OnboardingViewSnapshotTests {
     @Test func onboarding() async {
-        await assertSnapshots(of: OnboardingView.self)
+        await assertSnapshots(of: OnboardingView.self, captureMode: .afterMeasurement)
     }
 }

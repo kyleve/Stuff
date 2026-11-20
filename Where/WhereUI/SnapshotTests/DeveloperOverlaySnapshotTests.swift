@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct DeveloperOverlaySnapshotTests {
     @Test func developerOverlay() async {
-        await assertSnapshots(of: DeveloperOverlay.self)
+        await assertSnapshots(of: DeveloperOverlay.self, captureMode: .afterMeasurement)
     }
 }

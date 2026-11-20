@@ -24,6 +24,7 @@ struct PeriscopeViewerSnapshotTests {
                 frame.scenePolicy = .retained
                 return SnapshotConfiguration(colorScheme: $0, device: frame)
             },
+            captureMode: .afterMeasurement,
         )
     }
 

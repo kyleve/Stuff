@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PlacesYearFeaturesViewSnapshotTests {
     @Test func gallery() async {
-        await assertSnapshots(of: PlacesYearFeaturesView.self)
+        await assertSnapshots(of: PlacesYearFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

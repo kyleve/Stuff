@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct ResolutionViewSnapshotTests {
     @Test func resolution() async {
-        await assertSnapshots(of: ResolutionView.self)
+        await assertSnapshots(of: ResolutionView.self, captureMode: .afterMeasurement)
     }
 }

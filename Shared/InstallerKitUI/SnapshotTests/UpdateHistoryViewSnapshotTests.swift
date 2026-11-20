@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct UpdateHistoryViewSnapshotTests {
     @Test func history() async {
-        await assertSnapshots(of: UpdateHistoryView.self)
+        await assertSnapshots(of: UpdateHistoryView.self, captureMode: .afterMeasurement)
     }
 }

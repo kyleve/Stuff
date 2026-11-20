@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct SiriFeaturesViewSnapshotTests {
     @Test func siriFeatures() async {
-        await assertSnapshots(of: SiriFeaturesView.self)
+        await assertSnapshots(of: SiriFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

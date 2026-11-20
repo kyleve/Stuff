@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct InsightsAccuracyFeaturesViewSnapshotTests {
     @Test func insightsAccuracyFeatures() async {
-        await assertSnapshots(of: InsightsAccuracyFeaturesView.self)
+        await assertSnapshots(of: InsightsAccuracyFeaturesView.self, captureMode: .afterMeasurement)
     }
 }

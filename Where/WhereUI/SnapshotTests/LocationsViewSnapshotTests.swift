@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct LocationsViewSnapshotTests {
     @Test func locations() async {
-        await assertSnapshots(of: LocationsView.self)
+        await assertSnapshots(of: LocationsView.self, captureMode: .afterMeasurement)
     }
 
     @Test(arguments: [AdaptivePaneLoadFixture.State.loading, .failed])

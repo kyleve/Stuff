@@ -20,6 +20,7 @@ func captureConfiguredSnapshot(
     settle: SnapshotSettle,
     prepareForCapture: (@MainActor () async throws -> Void)? = nil,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
+    captureMode: SnapshotCaptureMode = .standard,
     timeoutPolicy: SnapshotSettleTimeoutPolicy,
     backgroundColor: UIColor = .clear,
 ) async throws -> ConfiguredSnapshotCapture {
@@ -46,14 +47,34 @@ func captureConfiguredSnapshot(
                 captureSettle: settle,
             )
             retainedTiming = timing
-            let controller = makeHostingController(
-                for: view,
-                configuration: configuration,
-                hostWidth: window.bounds.width,
-            )
-            controller.view.backgroundColor = backgroundColor
+            timing.captureMode = .standard
+            let makeController = {
+                let controller = makeHostingController(
+                    for: view,
+                    configuration: configuration,
+                    hostWidth: window.bounds.width,
+                )
+                controller.view.backgroundColor = backgroundColor
+                return controller
+            }
+            if captureMode == .immediateComponent,
+               configuration.snapshotType == .standard,
+               settle == .immediate,
+               measurementReadiness.resolvedSettle(captureSettle: settle) == .immediate,
+               onReadyToMeasure == nil, prepareForCapture == nil, onReadyToSnapshot == nil,
+               let capture = try await captureImmediateComponentIfPossible(
+                   of: makeController(),
+                   in: window,
+                   configuration: configuration,
+                   named: name,
+                   timing: timing,
+                   timeoutPolicy: timeoutPolicy,
+               )
+            {
+                return ConfiguredSnapshotCapture(capture: capture, timing: timing)
+            }
             let capture = try await renderSnapshotCaptureLocked(
-                of: controller,
+                of: makeController(),
                 hostWindow: window,
                 named: name,
                 sizing: sizing,
@@ -64,6 +85,7 @@ func captureConfiguredSnapshot(
                 onReadyToMeasure: onReadyToMeasure,
                 measurementHookTimeout: measurementHookTimeout,
                 settle: settle,
+                captureAfterMeasurement: captureMode == .afterMeasurement,
                 prepareForCapture: prepareForCapture,
                 onReadyToSnapshot: onReadyToSnapshot,
                 settleTimeoutPolicy: timeoutPolicy,

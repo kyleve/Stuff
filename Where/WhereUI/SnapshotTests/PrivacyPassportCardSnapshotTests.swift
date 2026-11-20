@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct PrivacyPassportCardSnapshotTests {
     @Test func componentThemes() async {
-        await assertSnapshots(of: PrivacyPassportCard.self)
+        await assertSnapshots(of: PrivacyPassportCard.self, captureMode: .afterMeasurement)
     }
 }

@@ -20,7 +20,7 @@ func makeHostingController(
     for view: some View,
     configuration: SnapshotConfiguration,
     hostWidth: CGFloat,
-) -> UIViewController {
+) -> UIHostingController<some View> {
     let styled = view
         .environment(\.colorScheme, configuration.colorScheme)
         .dynamicTypeSize(configuration.dynamicType)

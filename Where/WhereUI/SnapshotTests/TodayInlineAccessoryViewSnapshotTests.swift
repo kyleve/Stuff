@@ -5,6 +5,6 @@ import Testing
 @MainActor
 struct TodayInlineAccessoryViewSnapshotTests {
     @Test func todayInlineAccessory() async {
-        await assertSnapshots(of: TodayInlineAccessoryView.self)
+        await assertSnapshots(of: TodayInlineAccessoryView.self, captureMode: .immediateComponent)
     }
 }
