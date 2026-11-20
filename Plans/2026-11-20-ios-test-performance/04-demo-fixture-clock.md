@@ -1,6 +1,6 @@
 # 04. Seed demo lifecycle tests in early January
 
-Status: executing. The owner approved this measured change on November 20. Reviewed against main `9dd17d9b5`, including [the completed demo journal change](01-demo-journal-batch.md).
+Status: complete. Published in [PR 553](https://github.com/kyleve/Stuff/pull/553). The owner approved this measured change on November 20. Reviewed against main `9dd17d9b5`, including [the completed demo journal change](01-demo-journal-batch.md).
 
 ## Outcome and verification
 
@@ -24,4 +24,4 @@ On a fresh iPhone 17 simulator running iOS 27.2, all 41 tests passed. The eleven
   --only WhereCoreTests/DemoDataBuilderTests
 ```
 
-The primary agent owns independent review and PR publication into `main`.
+Reviewed implementation `a6d14b004`. Independent review traced the clock through the real demo builder and verified the eleven changed cases against the fresh simulator log. [STU-340](https://linear.app/kve/issue/STU-340)
