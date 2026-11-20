@@ -4,6 +4,8 @@
 
 On November 20 the owner selected both Time Profiler findings for implementation as separate PRs into `main`. This follows the [snapshot performance work](../2026-11-18-snapshot-performance/README.md). The two experiments apply to ordinary iOS tests. They share a baseline and have independent implementations, branches, checks and merge order. The numbered records in this directory own measured results, review and delivery.
 
+PRs [549](https://github.com/kyleve/Stuff/pull/549) and [548](https://github.com/kyleve/Stuff/pull/548) have merged. On November 20 the owner selected the early-January fixture from the remaining-suite profile. The demo test agent owns [plan 04](04-demo-fixture-clock.md) on `perf/early-demo-fixture-clock`. The primary agent owns independent review and publication into `main`.
+
 | Deliverable | Outcome | Owner and execution branch |
 | --- | --- | --- |
 | [01. Demo journal batch · PR 549](https://github.com/kyleve/Stuff/pull/549) · [reviewed plan](https://github.com/kyleve/Stuff/blob/26745d86c/Plans/2026-11-20-ios-test-performance/01-demo-journal-batch.md) · [STU-203](https://linear.app/kve/issue/STU-203) | US-01 / R-01. Seed the same demo world and publish its final derived data once. | Demo implementation agent, `perf/demo-journal-batch` |
