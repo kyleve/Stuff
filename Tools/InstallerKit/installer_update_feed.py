@@ -63,6 +63,26 @@ class ClearPreparing:
     identifier: dict
     sha: str
 
+    def __post_init__(self):
+        BuildStatus("preparing", self.identifier, self.sha).metadata()
+
+    def matches(self, status):
+        return (
+            status["state"] == "preparing"
+            and status["sha"] == self.sha
+            and status["id"]["run"] == self.identifier["run"]
+            and status["id"]["attempt"] <= self.identifier["attempt"]
+        )
+
+    def retry_deployment(self, channel):
+        # A previous attempt may have saved the clear before its dispatch failed.
+        if self.identifier["attempt"] == 1 or not channel or "buildStatus" in channel:
+            return False
+        releases = channel["releases"]
+        return not releases or build_order(releases[0]["id"]) < build_order(
+            self.identifier
+        )
+
 
 def build_id(run, attempt):
     if (
@@ -115,9 +135,12 @@ def apply_change(catalog, app, channel, release):
     """Merge one channel without replacing unrelated concurrent publications."""
     result = deepcopy(read_catalog(catalog))
     if isinstance(release, ClearPreparing):
-        expected = BuildStatus("preparing", release.identifier, release.sha).metadata()
         current = channel_in(result, app.id, channel)
-        if current and current.get("buildStatus") == expected:
+        if (
+            current
+            and "buildStatus" in current
+            and release.matches(current["buildStatus"])
+        ):
             del current["buildStatus"]
         return result
     current_app = app_in(result, app.id)
@@ -272,7 +295,7 @@ class GitHubUpdateFeed:
             # Another channel can create the branch concurrently.
             self.request("GET", f"git/ref/heads/{BRANCH}")
 
-    def save(self, app, channel, make_release, is_current, *, deploy_unchanged=True):
+    def save(self, app, channel, make_release, is_current):
         self.ensure_branch()
         for _ in range(5):
             catalog, revision = self.load()
@@ -285,7 +308,9 @@ class GitHubUpdateFeed:
             release = make_release(previous)
             updated = apply_change(catalog, app, channel, release)
             if updated == catalog:
-                return deploy_unchanged
+                return not isinstance(
+                    release, ClearPreparing
+                ) or release.retry_deployment(current)
             content = json.dumps(
                 updated, ensure_ascii=False, separators=(",", ":")
             ).encode()
@@ -442,7 +467,6 @@ def main(argv=None):
                 args.channel,
                 lambda _: clearing,
                 lambda: not is_current(plan, args.repository, github_fetch),
-                deploy_unchanged=False,
             ):
                 feed.deploy()
         elif args.status:

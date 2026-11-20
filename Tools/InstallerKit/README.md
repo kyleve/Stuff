@@ -211,7 +211,8 @@ The controller runs from `main` through `pull_request_target`, including when a 
 CircleCI archives the selected commit, while GitHub publishes the returned IPA.
 The handoff verifies the successful pipeline, job, artifact path, and signed build identity.
 If `main` advances before checkout, CircleCI emits a superseded marker and stops before signing.
-GitHub confirms the new head, skips the IPA upload and publication, and clears only the superseded attempt’s preparing status.
+GitHub confirms the new head, skips the IPA upload and publication, and clears preparing status for the same commit, run, and current or earlier attempt.
+A retry can redeploy the cleared catalog if the previous attempt saved it but failed to dispatch Pages. A replacement build keeps its own progress.
 A missing IPA without that marker, an ineligible PR archive, or a failed build still fails the archive job.
 The label trusts branch build code with the signing identity. A temporary keychain does not isolate secrets from that code.
 Conflicts fail the installable build before signing. Removing the label or closing the PR still retires its channels.
