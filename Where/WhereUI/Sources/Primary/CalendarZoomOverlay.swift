@@ -7,41 +7,42 @@ struct CalendarZoomOverlay<TileContent: View>: View {
     let completion: (CalendarZoomTransitionState.ID) -> Void
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            switch phase {
-                case let .preparing(source):
-                    ForEach(
-                        source.visibleFrames.keys.sorted(by: CalendarZoomTransitionState.ordered),
-                        id: \.self,
-                    ) { target in
-                        if let frame = source.visibleFrames[target] {
-                            content(target, source.measurement.mode)
-                                .frame(width: frame.width, height: frame.height)
-                                .offset(x: frame.minX, y: frame.minY)
-                        }
-                    }
-                case let .moving(plan):
-                    CalendarZoomFlight(plan: plan, content: content, completion: completion)
-                        .id(plan.id)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .clipped()
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        CalendarZoomFlight(phase: phase, content: content, completion: completion)
+            .id(phase.source.id)
+            .clipped()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
 private struct CalendarZoomFlight<TileContent: View>: View {
-    let plan: CalendarZoomTransitionState.Plan
+    let phase: CalendarZoomTransitionState.Phase
     let content: (CalendarPresentationState.Target, CalendarPresentationState.Mode) -> TileContent
     let completion: (CalendarZoomTransitionState.ID) -> Void
     @Environment(\.stylesheet) private var stylesheet
     @State private var arrived = false
 
+    /// Keep the same target IDs and source view hierarchy while the destination is measured.
+    private var tiles: [CalendarZoomTransitionState.Tile] {
+        switch phase {
+            case let .preparing(source):
+                source.visibleFrames.sorted { CalendarZoomTransitionState.ordered($0.key, $1.key) }
+                    .map { target, frame in
+                        .init(id: target, source: frame, destination: frame, visibility: .source)
+                    }
+            case let .moving(plan):
+                plan.tiles
+        }
+    }
+
+    private var movingID: CalendarZoomTransitionState.ID? {
+        guard case let .moving(plan) = phase else { return nil }
+        return plan.id
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(plan.tiles) { tile in
+            ForEach(tiles) { tile in
                 ZStack(alignment: .topLeading) {
                     // Months remain transparent at rest. During the flight,
                     // mask neighboring tiles that pass behind this one.
@@ -51,9 +52,9 @@ private struct CalendarZoomFlight<TileContent: View>: View {
                             width: arrived ? tile.destination.width : tile.source.width,
                             height: arrived ? tile.destination.height : tile.source.height,
                         )
-                        .opacity(backgroundOpacity(for: tile.visibility))
+                        .opacity(movingID == nil ? 0 : backgroundOpacity(for: tile.visibility))
                     if tile.visibility != .destination {
-                        content(tile.id, plan.source.measurement.mode)
+                        content(tile.id, phase.source.measurement.mode)
                             .frame(width: tile.source.width, height: tile.source.height)
                             .scaleEffect(
                                 x: arrived ? tile.destination.width / tile.source.width : 1,
@@ -63,7 +64,7 @@ private struct CalendarZoomFlight<TileContent: View>: View {
                             .opacity(arrived ? 0 : 1)
                     }
                     if tile.visibility != .source {
-                        content(tile.id, plan.source.destination)
+                        content(tile.id, phase.source.destination)
                             .frame(width: tile.destination.width, height: tile.destination.height)
                             .scaleEffect(
                                 x: arrived ? 1 : tile.source.width / tile.destination.width,
@@ -78,15 +79,16 @@ private struct CalendarZoomFlight<TileContent: View>: View {
                     x: arrived ? tile.destination.minX : tile.source.minX,
                     y: arrived ? tile.destination.minY : tile.source.minY,
                 )
-                .zIndex(tile.id == plan.source.focus ? 1 : 0)
+                .zIndex(tile.id == phase.source.focus ? 1 : 0)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .onAppear {
+        .onChange(of: movingID, initial: true) { _, id in
+            guard let id else { return }
             withAnimation(stylesheet.calendar.overview.animation, completionCriteria: .removed) {
                 arrived = true
             } completion: {
-                completion(plan.id)
+                completion(id)
             }
         }
     }
@@ -94,7 +96,7 @@ private struct CalendarZoomFlight<TileContent: View>: View {
     private func cornerRadius(for target: CalendarPresentationState.Target) -> CGFloat {
         switch target {
             case .month:
-                let mode = arrived ? plan.source.destination : plan.source.measurement.mode
+                let mode = arrived ? phase.source.destination : phase.source.measurement.mode
                 return mode == .overview ? stylesheet.calendar.overview.cornerRadius
                     : stylesheet.calendar.month.cornerRadius
             case .estimate:
