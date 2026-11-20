@@ -26,6 +26,9 @@ def push_forced(environ):
         return ""
     try:
         values = public_circleci_get(f"pipeline/{pipeline_id}/values")
+    except HTTPError as error:
+        error.close()
+        return ""
     except (OSError, HTTPException, ValueError):
         return ""
     expected = {
@@ -83,6 +86,7 @@ def main():
     try:
         continue_pipeline(repository_root(__file__), os.environ, request_json)
     except HTTPError as error:
+        error.close()
         print(f"CircleCI continuation failed (HTTP {error.code}).", file=sys.stderr)
         return 1
     except Exception as error:

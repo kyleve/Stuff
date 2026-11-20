@@ -108,6 +108,7 @@ def main(argv=None):
     ) as error:
         # URL errors can contain signed download URLs; retain details as the cause.
         if isinstance(error, HTTPError):
+            error.close()
             message = f"CircleCI artifact download failed: HTTP {error.code}"
         elif isinstance(error, URLError):
             message = f"CircleCI request failed: {type(error.reason).__name__}"

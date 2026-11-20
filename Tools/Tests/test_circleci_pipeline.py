@@ -205,8 +205,9 @@ class CircleCIPipelineTests(unittest.TestCase):
             with self.subTest(path=path, code=code):
                 server = CircleCIServer()
                 error = HTTPError(
-                    "https://circleci.com/secret", code, "secret", {}, None
+                    "https://circleci.com/secret", code, "secret", {}, io.BytesIO()
                 )
+                self.addCleanup(error.close)
 
                 def transport(request):
                     if request.full_url.endswith(path):
@@ -219,4 +220,5 @@ class CircleCIPipelineTests(unittest.TestCase):
                         self.client(transport), PIPELINE, clock=lambda: 0, sleep=sleep
                     )
                 self.assertIs(raised.exception, error)
+                self.assertFalse(error.closed)
                 sleep.assert_not_called()

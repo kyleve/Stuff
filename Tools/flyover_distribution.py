@@ -139,6 +139,7 @@ def main(arguments=None) -> int:
     ) as error:
         # Signed artifact URLs must not appear in controller logs.
         if isinstance(error, HTTPError):
+            error.close()
             message = f"CircleCI request failed: HTTP {error.code}"
         elif isinstance(error, URLError):
             message = f"CircleCI request failed: {type(error.reason).__name__}"

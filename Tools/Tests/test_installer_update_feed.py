@@ -406,9 +406,10 @@ class InstallerUpdateFeedTests(unittest.TestCase):
             body = json.loads(request.data)
             writes.append(json.loads(base64.b64decode(body["content"])))
             if len(writes) == 1:
-                raise ValueError("conflict") from HTTPError(
-                    request.full_url, 409, "conflict", {}, None
-                )
+                with HTTPError(
+                    request.full_url, 409, "conflict", {}, io.BytesIO()
+                ) as error:
+                    raise ValueError("conflict") from error
             return {}
 
         feed = GitHubUpdateFeed("fixture/Stuff", "fixture-token", transport)

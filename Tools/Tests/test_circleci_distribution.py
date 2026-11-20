@@ -457,10 +457,12 @@ class CircleCIDistributionTests(unittest.TestCase):
         from http.client import BadStatusLine
 
         request = archive_request()
-        for error in (
-            ValueError("Authorization: secret"),
-            BadStatusLine("secret"),
-            OSError("secret"),
+        body = io.BytesIO()
+        for error, diagnostic in (
+            (HTTPError("https://host/secret", 403, "secret", {}, body), "HTTP 403"),
+            (ValueError("Authorization: secret"), "ValueError"),
+            (BadStatusLine("secret"), "BadStatusLine"),
+            (OSError("secret"), "OSError"),
         ):
             with (
                 self.subTest(error=type(error).__name__),
@@ -502,5 +504,6 @@ class CircleCIDistributionTests(unittest.TestCase):
                 )
                 self.assertNotIn("secret", stderr.getvalue())
                 self.assertNotIn("fixture-token", stderr.getvalue())
-                self.assertIn(type(error).__name__, stderr.getvalue())
+                self.assertIn(diagnostic, stderr.getvalue())
                 self.assertFalse(output.exists())
+        self.assertTrue(body.closed)
