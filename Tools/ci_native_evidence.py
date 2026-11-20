@@ -22,12 +22,19 @@ def public_circleci_get(path):
 
 
 def validated_native_run(
-    get, head_sha, repository, pr_number, jobs_config, *, circle_get=public_circleci_get
+    get,
+    head_sha,
+    repository,
+    pr_number,
+    jobs_config,
+    *,
+    documentation_only=False,
+    circle_get=public_circleci_get,
 ):
-    """Return a full CircleCI workflow URL for this exact PR checkout."""
+    """Return the successful CircleCI workflow matching this PR's validation."""
     if not re.fullmatch("[0-9a-f]{40}", head_sha):
         return None
-    jobs = jobs_config["jobs"]
+    jobs = [jobs_config["skipped_job"]] if documentation_only else jobs_config["jobs"]
     if not isinstance(jobs, list):
         return None
     contexts = {f"ci/circleci: {name}" for name in jobs}

@@ -45,7 +45,8 @@ jobs:
         env:
           CI_EVENT: ${{ github.event_name }}
           CI_PUSH_FORCED: ${{ toJSON(github.event.forced) }}
-          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # A synchronize event also has a before SHA, pointing to the previous PR head.
+          CI_BASE_SHA: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GH_TOKEN: ${{ github.event_name == 'push' && github.token || '' }}
         run: |

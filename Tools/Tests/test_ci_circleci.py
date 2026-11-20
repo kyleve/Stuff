@@ -92,7 +92,7 @@ class CICircleCITests(unittest.TestCase):
             event="push",
             push_forced="false",
             branch="main",
-            base=self.repo.base,
+            base="",
             head=PUSH_SHA,
             repository="kyleve/Stuff",
             force=False,
@@ -126,12 +126,19 @@ class CICircleCITests(unittest.TestCase):
             self.assertEqual(ci_circleci.push_forced(MAIN_PUSH), "true")
 
     def test_lookup_failure_continues_full_validation(self):
-        with patch.object(
-            ci_circleci, "public_circleci_get", side_effect=OSError("unavailable")
+        body = io.BytesIO()
+        for error in (
+            OSError("unavailable"),
+            HTTPError("https://circleci.com", 403, "unavailable", {}, body),
         ):
-            self.assertEqual(
-                self.request(**MAIN_PUSH)["parameters"], {"skip_validation": False}
-            )
+            with (
+                self.subTest(error=type(error).__name__),
+                patch.object(ci_circleci, "public_circleci_get", side_effect=error),
+            ):
+                self.assertEqual(
+                    self.request(**MAIN_PUSH)["parameters"], {"skip_validation": False}
+                )
+        self.assertTrue(body.closed)
 
     def test_only_normal_main_push_events_request_provider_evidence(self):
         for overrides in (
@@ -163,8 +170,9 @@ class CICircleCITests(unittest.TestCase):
         self.assertEqual(requests, [])
 
     def test_command_failure_is_nonzero_and_never_discloses_transport_data(self):
+        body = io.BytesIO()
         errors = (
-            HTTPError("https://circleci.com", 403, "synthetic-secret", {}, None),
+            HTTPError("https://circleci.com", 403, "synthetic-secret", {}, body),
             OSError("synthetic-secret"),
             ValueError("synthetic-secret"),
         )
@@ -185,6 +193,7 @@ class CICircleCITests(unittest.TestCase):
                 self.assertEqual(stdout.getvalue(), "")
                 self.assertIn("continuation failed", stderr.getvalue())
                 self.assertNotIn("synthetic-secret", stderr.getvalue())
+        self.assertTrue(body.closed)
 
     def test_command_reports_success_only_after_continuation(self):
         stdout, stderr = io.StringIO(), io.StringIO()

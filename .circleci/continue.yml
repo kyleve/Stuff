@@ -578,18 +578,20 @@ workflows:
           filters: not pipeline.parameters.skip_validation
           requires:
             - Build iOS Tests
-      # Each release audience needs a complete compile. Separate workers keep
-      # two serial release builds out of the workflow's critical path.
-      - build-where-audiences:
-          name: Build Where Audiences
-          filters: not pipeline.parameters.skip_validation
-          requires:
-            - Build iOS Tests
       - snapshot:
           name: Snapshot Tests (iOS)
           filters: not pipeline.parameters.skip_validation
           requires:
             - Build iOS Tests
+
+  "Daily Where Audiences":
+    when: >-
+      pipeline.event.name == "schedule" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - build-where-audiences:
+          name: Build Where Audiences
 
   "Installer Archive":
     when: >-

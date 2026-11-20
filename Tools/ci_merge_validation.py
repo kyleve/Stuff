@@ -16,7 +16,7 @@ class MissingMergeEvidence(Exception):
     """A provider has not shown the evidence required to reuse a PR run."""
 
 
-def validated_merge(root, repository, revision, token):
+def validated_merge(root, repository, revision, token, *, before, documentation_push):
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, re.ASCII) or not re.fullmatch(
         r"[0-9a-f]{40}", revision
     ):
@@ -43,15 +43,37 @@ def validated_merge(root, repository, revision, token):
             return json.load(response)
 
     try:
-        return validated_pr(root, repository, revision, tree, get)
+        return validated_pr(
+            root, repository, revision, tree, get, before, documentation_push
+        )
     except MissingMergeEvidence as error:
         # GitHub can cache the association and commit statuses for 60 seconds.
         print(f"{error}. Checking again in 65 seconds.", file=sys.stderr, flush=True)
         sleep(65)
-    return validated_pr(root, repository, revision, tree, get)
+    return validated_pr(
+        root, repository, revision, tree, get, before, documentation_push
+    )
 
 
-def validated_pr(root, repository, revision, tree, get):
+def previous_main_tip(get, revision, merged_at):
+    # CircleCI's GitHub App push payload omits the previous revision. Use
+    # GitHub's actual main ref update so a multi-commit push includes every commit.
+    updates = get("activity?ref=refs/heads/main&per_page=1")
+    if len(updates) != 1:
+        return None
+    update = updates[0]
+    if (
+        update["activity_type"] == "pr_merge"
+        and update["ref"] == "refs/heads/main"
+        and update["after"] == revision
+        and update["timestamp"] == merged_at
+        and re.fullmatch(r"[0-9a-f]{40}", update["before"])
+    ):
+        return update["before"]
+    return None
+
+
+def validated_pr(root, repository, revision, tree, get, before, documentation_push):
     # An associated PR alone can also describe an older ancestor or a commit
     # pushed directly to main. Require this exact commit to be the PR's merge.
     pulls = get(f"commits/{revision}/pulls?per_page=2")
@@ -90,11 +112,28 @@ def validated_pr(root, repository, revision, tree, get):
     actions = validated_actions_run(get, number, head, tree, jobs["github_actions"])
     if not actions:
         raise MissingMergeEvidence(
-            f"GitHub Actions has no verified full run for PR #{number}"
+            f"GitHub Actions has no verified run for PR #{number}"
         )
-    native = validated_native_run(get, head, repository, number, jobs["circleci"])
+    if actions.documentation_only:
+        if not before:
+            before = previous_main_tip(get, revision, pr["merged_at"])
+            if not before:
+                raise MissingMergeEvidence(
+                    f"GitHub has no matching main ref update for PR #{number}"
+                )
+        if not documentation_push(before):
+            return None
+    native = validated_native_run(
+        get,
+        head,
+        repository,
+        number,
+        jobs["circleci"],
+        documentation_only=actions.documentation_only,
+    )
     if not native:
         raise MissingMergeEvidence(
-            f"CircleCI has no verified full run for PR #{number}"
+            f"CircleCI has no matching verified run for PR #{number}"
         )
-    return f"PR #{number} passed on the landed tree {tree}. GitHub Actions: {actions} · CircleCI: {native}"
+    detail = " (documentation-only push)" if actions.documentation_only else ""
+    return f"PR #{number} passed on the landed tree {tree}{detail}. GitHub Actions: {actions.url} · CircleCI: {native}"

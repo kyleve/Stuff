@@ -23,6 +23,7 @@ def request_json(request, allow_missing=False):
                 return {}
             return json.load(response)
     except HTTPError as error:
+        error.close()
         if allow_missing and error.code == 404:
             return None
         # Response bodies and headers can contain credentials or private data.

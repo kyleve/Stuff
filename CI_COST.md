@@ -2,6 +2,12 @@
 
 All dates are UTC. Costs are in USD.
 
+## Daily Where audience builds
+
+The Where Beta and App Store compile checks run on CircleCI's daily schedule when the latest main revision needs a successful build. PRs, regular main pushes and manual PR validation omit those two workers.
+
+The pair consumed 1,320–1,343 credits ($0.79–$0.81) per full validation in PRs #542–544. The daily policy removes that cost from each full PR run and pays for one pair on a day that needs it, plus the Linux selector. Actual savings depend on how many full PR runs occur between daily builds. [PR #542 workflow](https://app.circleci.com/workflow/68ba3889-8541-4297-8772-df3b15e01673) · [PR #544 workflow](https://app.circleci.com/workflow/22a9f2e2-f7c0-42d5-8977-9794274de94e)
+
 ## Snapshot worker reduction on November 20, 2026
 
 Three active snapshot workers saved **1,293 compute credits ($0.7758, 23.2%)**
@@ -246,7 +252,8 @@ Canceled runs consume the work completed before cancellation.
 Eligible Markdown-only PRs skip expensive validation on both existing providers.
 At the November 6 baseline, main pushes repeated full validation. A merge can now reuse a full PR run on the same Git tree.
 If the provider APIs do not yet show the merge or its full PR run, the Linux selectors check again after 65 seconds before allocating test runners.
-A Markdown-only PR that skipped native tests still requires full validation on main.
+A Markdown-only merge can reuse its lightweight PR checks when both providers passed them on the landed tree and the full main push changes only eligible Markdown.
+Between PRs #469 and #544, 10 of 47 main changes met that file policy. Their full native workflows used 111,580 compute credits ($66.95 at the report's rate), before the latest snapshot savings. [Example main run](https://app.circleci.com/workflow/6c276bee-f086-49a1-9862-e20b625de925)
 The documented [CI selection contract](Tools/AGENTS.md#ci-selection) owns eligibility.
 
 The October 7–November 5 GitHub sample contained 1,199 CI attempts:

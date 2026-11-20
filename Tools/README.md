@@ -188,7 +188,8 @@ On a non-forced push to main, the selectors look up the merged PR for the exact 
 - GitHub Actions records the PR number and checked-out tree during its guidance check. The selector verifies that marker and the configured jobs in one successful PR workflow attempt.
 - CircleCI runs on the PR head. The selector verifies the configured native job statuses from the CircleCI app, then checks the workflow and pipeline for the PR number, repository, checkout and configuration.
 - Auto-merge can trigger main before the APIs show the merged PR or its successful checks. If either is missing, the Linux selector logs what it could not verify and checks the full evidence once more after 65 seconds, allowing GitHub’s 60-second response cache to expire.
-- Each selector logs both run links when it reuses validation. A direct change, a forced push, an incomplete or skipped check, or unavailable provider data selects full CI. Runs predating the GitHub tree marker also take that path.
+- A documentation-only merge needs the successful GitHub guidance check and CircleCI documentation job from the PR. Both selectors also apply the Markdown policy to the full change that landed on main. GitHub supplies the previous main SHA in its push event. CircleCI reads it from GitHub's matching branch activity.
+- Each selector logs both run links when it reuses validation. Direct changes, forced pushes, partial checks, and missing evidence select full CI. Runs predating the GitHub tree marker also take that path.
 
 Manual full runs always execute. Signed archives and publication run from the landed commit; this shortcut reuses test results only.
 
@@ -198,6 +199,14 @@ The focused regression command covers Git history, command output, continuation 
 python3 -m unittest discover -s Tools/Tests -p 'test_ci_*.py'
 python3 -m unittest Tools.Tests.test_flyover_workflows
 ```
+
+### Daily Where audience builds
+
+CircleCI's native **Daily Where audience builds** trigger checks `main` at 06:00 UTC each day. The `build-and-test` pipeline reads both configuration and source from `main`. Its scheduled workflow owns the **Where Beta** and **Where App Store** compile checks.
+
+The Linux selector checks the most recent daily audience workflow in CircleCI Insights. A successful compile of both schemes on the current commit lets it stop before starting the Macs. A new commit, a failed build, or missing history starts both builds. This also picks up changes after a missed day. Each scheme compiles on its own `m4pro.medium` worker with the repository's pinned Xcode.
+
+To inspect or change the schedule, open **Project Settings → Project Setup** for the CircleCI pipeline. CircleCI can offset the start by up to ten minutes. [CircleCI schedule triggers](https://circleci.com/docs/guides/orchestrate/schedule-triggers/)
 
 ## Worktree cleanup
 

@@ -124,6 +124,7 @@ class FlyoverDistributionTests(unittest.TestCase):
                 self.assertIn(type(error).__name__, output.getvalue())
 
     def test_controller_errors_do_not_log_signed_urls(self):
+        body = io.BytesIO()
         environment = {
             key: "test"
             for key in (
@@ -139,12 +140,13 @@ class FlyoverDistributionTests(unittest.TestCase):
             patch("sys.stderr", new_callable=io.StringIO) as output,
             patch(
                 "Tools.flyover_distribution.publish",
-                side_effect=HTTPError("https://host/secret", 403, "secret", {}, None),
+                side_effect=HTTPError("https://host/secret", 403, "secret", {}, body),
             ),
         ):
             self.assertEqual(main(["--sha", SHA]), 1)
         self.assertIn("HTTP 403", output.getvalue())
         self.assertNotIn("secret", output.getvalue())
+        self.assertTrue(body.closed)
 
     def test_failed_upload_never_publishes_or_dispatches(self):
         import subprocess

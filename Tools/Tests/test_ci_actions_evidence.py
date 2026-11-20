@@ -2,7 +2,7 @@ import copy
 import unittest
 from unittest.mock import Mock
 
-from Tools.ci_actions_evidence import validated_actions_run
+from Tools.ci_actions_evidence import ActionsRun, validated_actions_run
 
 
 class ActionsEvidenceTests(unittest.TestCase):
@@ -60,7 +60,10 @@ class ActionsEvidenceTests(unittest.TestCase):
 
     def test_uses_actual_checkout_tree_even_after_pr_association_disappears(self):
         self.assertEqual(
-            self.select(), "https://github.com/owner/repo/actions/runs/123/attempts/2"
+            self.select(),
+            ActionsRun(
+                "https://github.com/owner/repo/actions/runs/123/attempts/2", False
+            ),
         )
         self.assertEqual(
             [call.args[0] for call in self.get.call_args_list],
@@ -69,6 +72,21 @@ class ActionsEvidenceTests(unittest.TestCase):
                 "actions/runs/123/attempts/2/jobs?per_page=100",
             ],
         )
+
+    def test_documentation_run_requires_all_workers_skipped_and_guidance_passed(self):
+        for name in self.config["workers"]:
+            self.jobs[name]["conclusion"] = "skipped"
+        self.assertEqual(
+            self.select(),
+            ActionsRun(
+                "https://github.com/owner/repo/actions/runs/123/attempts/2", True
+            ),
+        )
+        self.jobs["Inspect"]["conclusion"] = "skipped"
+        self.assertIsNone(self.select())
+        self.jobs["Inspect"]["conclusion"] = "success"
+        self.jobs["Inspect"]["steps"][0]["name"] = "Agent guidance check"
+        self.assertIsNone(self.select())
 
     def test_requires_successful_same_repository_ci_pull_request_run(self):
         for overrides in (
