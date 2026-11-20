@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # A replaced pending deployment is safe: each run reads the entire latest feed.
 concurrency:
@@ -21,15 +19,15 @@ env:
   INSTALLER_FEED_URL: ${{ vars.INSTALLER_FEED_URL || format('https://{0}.github.io/{1}/updates.json', github.repository_owner, github.event.repository.name) }}
 
 jobs:
-  deploy:
+  build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PAGES_ARTIFACT: github-pages-${{ github.run_attempt }}
     outputs:
+      artifact-name: ${{ env.PAGES_ARTIFACT }}
       flyover-release: ${{ steps.flyover.outputs.release }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,7 +47,6 @@ jobs:
           --repository "$GITHUB_REPOSITORY"
           --feed-url "$INSTALLER_FEED_URL"
           --output "$RUNNER_TEMP/installer-pages"
-      - uses: actions/configure-pages@v5
       - name: Include the latest complete Flyover atlases
         id: flyover
         env:
@@ -57,14 +54,31 @@ jobs:
         run: python3 -m Tools.flyover_pages --output "$RUNNER_TEMP/installer-pages"
       - uses: actions/upload-pages-artifact@v3
         with:
+          name: ${{ env.PAGES_ARTIFACT }}
           path: ${{ runner.temp }}/installer-pages
+
+  # Pages discovers the uploaded artifact by name. A deployment retry reuses the completed build.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
       - name: Deploy install site
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ needs.build.outputs.artifact-name }}
 
   retain-flyover:
-    needs: deploy
-    if: needs.deploy.outputs.flyover-release != ''
+    needs: [build, deploy]
+    if: needs.build.outputs.flyover-release != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -77,5 +91,5 @@ jobs:
       - name: Retain one week and at least one Flyover bundle
         env:
           GH_TOKEN: ${{ github.token }}
-          DEPLOYED_RELEASE: ${{ needs.deploy.outputs.flyover-release }}
+          DEPLOYED_RELEASE: ${{ needs.build.outputs.flyover-release }}
         run: python3 -m Tools.flyover_retention --deployed-release "$DEPLOYED_RELEASE"

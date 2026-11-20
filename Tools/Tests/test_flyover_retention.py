@@ -126,18 +126,60 @@ class FlyoverRetentionTests(unittest.TestCase):
                 self.assertIn("retention failed", error.getvalue())
 
     def test_workflow_gates_cleanup_on_deployment_and_limits_write_permission(self):
-        workflow = (
-            repository_root(__file__) / ".github/workflows/installer-pages.yml"
-        ).read_text()
-        deploy, retention = workflow.split("  retain-flyover:\n")
-        self.assertIn("id: flyover", deploy)
-        self.assertIn("flyover-release: ${{ steps.flyover.outputs.release }}", deploy)
-        self.assertIn("uses: actions/deploy-pages@v4", deploy)
-        self.assertNotIn("contents: write", deploy)
-        self.assertIn("needs: deploy", retention)
-        self.assertIn("if: needs.deploy.outputs.flyover-release != ''", retention)
-        self.assertNotIn("always()", retention)
-        self.assertIn("contents: write", retention)
+        path = repository_root(__file__) / ".github/workflows/installer-pages.yml"
+        workflow = json.loads(
+            subprocess.check_output(
+                [
+                    "ruby",
+                    "-ryaml",
+                    "-rjson",
+                    "-e",
+                    "puts JSON.generate(YAML.load_file(ARGV.fetch(0)))",
+                    str(path),
+                ],
+                text=True,
+            )
+        )
+        build, deploy, retention = (
+            workflow["jobs"][key] for key in ("build", "deploy", "retain-flyover")
+        )
+        self.assertEqual(
+            build.get("permissions", workflow["permissions"]), {"contents": "read"}
+        )
+        self.assertEqual(build["if"], "github.ref == 'refs/heads/main'")
+        upload = next(
+            s
+            for s in build["steps"]
+            if s.get("uses") == "actions/upload-pages-artifact@v3"
+        )
+        self.assertEqual(upload["with"]["name"], build["outputs"]["artifact-name"])
+        self.assertEqual(upload["with"]["name"], "${{ env.PAGES_ARTIFACT }}")
+        self.assertIn("github.run_attempt", build["env"]["PAGES_ARTIFACT"])
+        self.assertEqual(deploy["needs"], "build")
+        self.assertEqual(deploy["permissions"], {"pages": "write", "id-token": "write"})
+        self.assertNotIn(upload["uses"], [s.get("uses") for s in deploy["steps"]])
+        publish = next(s for s in deploy["steps"] if s.get("id") == "deployment")
+        self.assertEqual(publish["uses"], "actions/deploy-pages@v4")
+        self.assertEqual(
+            publish["with"]["artifact_name"],
+            "${{ needs.build.outputs.artifact-name }}",
+        )
+        self.assertEqual(
+            deploy["environment"]["url"], "${{ steps.deployment.outputs.page_url }}"
+        )
+        self.assertIn("flyover", [s.get("id") for s in build["steps"]])
+        self.assertEqual(
+            build["outputs"]["flyover-release"], "${{ steps.flyover.outputs.release }}"
+        )
+        self.assertEqual(set(retention["needs"]), {"build", "deploy"})
+        self.assertEqual(retention["if"], "needs.build.outputs.flyover-release != ''")
+        self.assertEqual(retention["permissions"], {"contents": "write"})
+        cleanup = retention["steps"][-1]
+        self.assertEqual(
+            cleanup["env"]["DEPLOYED_RELEASE"],
+            "${{ needs.build.outputs.flyover-release }}",
+        )
         self.assertIn(
-            'Tools.flyover_retention --deployed-release "$DEPLOYED_RELEASE"', retention
+            'Tools.flyover_retention --deployed-release "$DEPLOYED_RELEASE"',
+            cleanup["run"],
         )
