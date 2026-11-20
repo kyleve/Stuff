@@ -1,6 +1,6 @@
 # 03. Capture the native safe-area test immediately
 
-Status: executing. Reviewed against main `9dd17d9b5`. This step can land independently of the other test optimizations.
+Status: complete. Published in [PR 552](https://github.com/kyleve/Stuff/pull/552). Reviewed against main `9dd17d9b5`. This step can land independently of the other test optimizations.
 
 ## Outcome and verification
 
@@ -18,4 +18,4 @@ Four unprofiled runs on the same iPhone 17 simulator with iOS 27.2 bracketed the
 
 On a fresh iPhone 17 simulator running iOS 27.2, `./test --skip-architecture --only SnapshotKitTestingTests/SnapshotImageRenderingTests` passed all five tests in 13.143 seconds. The native inset test passed all six cases in 1.035 seconds, exercising both widths in each case. The native bar settlement test passed both accessibility settings in 9.757 seconds. The architecture checks passed on the first invocation. Host checks and SwiftFormat lint also passed.
 
-The native-insets implementation agent owns branch `perf/native-insets-immediate`. The primary agent owns completed-diff review and publication.
+Reviewed implementation `62911f814`. Independent review traced the containment, inset reconciliation, readiness hook and teardown. The five rendering tests passed with the original assertions. [STU-339](https://linear.app/kve/issue/STU-339)
