@@ -2,7 +2,7 @@ import copy
 import unittest
 from unittest.mock import Mock
 
-from Tools.ci_actions_evidence import REQUIRED_ACTIONS_JOBS, validated_actions_run
+from Tools.ci_actions_evidence import validated_actions_run
 
 
 class ActionsEvidenceTests(unittest.TestCase):
@@ -22,6 +22,7 @@ class ActionsEvidenceTests(unittest.TestCase):
             "head_repository": {"id": 3},
         }
         self.marker = f"Check agent guidance for PR #42 on tree {self.tree}"
+        self.config = {"classifier": "Inspect", "workers": ["Compile", "Test"]}
         self.jobs = {
             name: {
                 "name": name,
@@ -32,13 +33,13 @@ class ActionsEvidenceTests(unittest.TestCase):
                 "head_sha": self.head,
                 "steps": [],
             }
-            for name in REQUIRED_ACTIONS_JOBS
+            for name in ("Inspect", "Compile", "Test")
         }
-        self.jobs["Classify changes"]["steps"].append(
+        self.jobs["Inspect"]["steps"].append(
             {"name": self.marker, "status": "completed", "conclusion": "success"}
         )
 
-    def select(self, run=None, jobs=None, total_count=None):
+    def select(self, run=None, jobs=None, total_count=None, config=None):
         jobs = list(self.jobs.values()) if jobs is None else jobs
         self.get = Mock(
             side_effect=[
@@ -49,7 +50,13 @@ class ActionsEvidenceTests(unittest.TestCase):
                 },
             ]
         )
-        return validated_actions_run(self.get, 42, self.head, self.tree)
+        return validated_actions_run(
+            self.get,
+            42,
+            self.head,
+            self.tree,
+            self.config if config is None else config,
+        )
 
     def test_uses_actual_checkout_tree_even_after_pr_association_disappears(self):
         self.assertEqual(
@@ -78,7 +85,7 @@ class ActionsEvidenceTests(unittest.TestCase):
                 self.assertEqual(self.get.call_count, 1)
 
     def test_rejects_skipped_missing_or_mixed_attempt_jobs(self):
-        remaining = [job for job in self.jobs.values() if job["name"] != "Tool Tests"]
+        remaining = [job for job in self.jobs.values() if job["name"] != "Test"]
         self.assertIsNone(self.select(jobs=remaining))
         self.assertIsNone(self.select(jobs=remaining + [remaining[0]]))
         self.assertIsNone(self.select(total_count=len(self.jobs) + 1))
@@ -91,10 +98,17 @@ class ActionsEvidenceTests(unittest.TestCase):
         ):
             with self.subTest(changes=changes):
                 self.assertIsNone(
-                    self.select(
-                        jobs=remaining + [{**self.jobs["Tool Tests"], **changes}]
-                    )
+                    self.select(jobs=remaining + [{**self.jobs["Test"], **changes}])
                 )
+
+    def test_requires_configured_worker_set_and_classifier_role(self):
+        for config in (
+            {"classifier": "Inspect", "workers": ["Compile"]},
+            {"classifier": "Inspect", "workers": ["Compile", "Publish"]},
+            {"classifier": "Compile", "workers": ["Inspect", "Test"]},
+        ):
+            with self.subTest(config=config):
+                self.assertIsNone(self.select(config=config))
 
     def test_only_completed_classifier_step_can_attest_pr_and_tree(self):
         for marker in (
@@ -105,8 +119,8 @@ class ActionsEvidenceTests(unittest.TestCase):
         ):
             with self.subTest(marker=marker):
                 jobs = copy.deepcopy(self.jobs)
-                steps = jobs["Classify changes"]["steps"]
-                jobs["Lint & Formatting"]["steps"] = copy.deepcopy(steps)
+                steps = jobs["Inspect"]["steps"]
+                jobs["Compile"]["steps"] = copy.deepcopy(steps)
                 if marker:
                     steps[0]["name"] = marker
                 else:

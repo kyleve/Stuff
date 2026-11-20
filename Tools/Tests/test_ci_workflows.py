@@ -6,8 +6,6 @@ import re
 import subprocess
 import unittest
 
-from Tools.ci_actions_evidence import REQUIRED_ACTIONS_JOBS
-from Tools.ci_native_evidence import NATIVE_CONTEXTS
 from Tools.repository import repository_root
 
 
@@ -15,6 +13,9 @@ class CIWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         root = repository_root(__file__)
+        cls.validation_jobs = json.loads(
+            (root / "Tools/ci-validation-jobs.json").read_text()
+        )
         cls.github, cls.setup, cls.continued = json.loads(
             subprocess.check_output(
                 [
@@ -30,37 +31,36 @@ class CIWorkflowTests(unittest.TestCase):
                 text=True,
             )
         )
+        cls.native_workflow = cls.continued["workflows"][
+            cls.validation_jobs["circleci"]["workflow"]
+        ]
 
-    def test_github_keeps_workflow_triggers_and_required_job_names(self):
+    def test_github_keeps_workflow_triggers(self):
         triggers = self.github.get("on", self.github.get("true"))
         self.assertEqual(set(triggers), {"push", "pull_request", "workflow_dispatch"})
         self.assertEqual(triggers["pull_request"], {"branches": ["main"]})
         self.assertEqual(triggers["push"], {"branches": ["main"]})
+
+    def test_manifest_matches_github_classifier_and_all_workers(self):
         jobs = self.github["jobs"]
+        expected = self.validation_jobs["github_actions"]
+        self.assertEqual(jobs["changes"]["name"], expected["classifier"])
+        self.assertEqual(len({job["name"] for job in jobs.values()}), len(jobs))
         self.assertEqual(
-            {value["name"] for key, value in jobs.items() if key != "changes"},
-            {
-                "Lint & Formatting",
-                "Tool Tests",
-                "Web Checks & Tests",
-                "Bumper Bowling",
-                "Build & Test (macOS)",
-            },
+            sorted(job["name"] for key, job in jobs.items() if key != "changes"),
+            sorted(expected["workers"]),
         )
 
-    def test_reuse_evidence_covers_every_required_provider_job(self):
+    def test_manifest_matches_all_native_validation_jobs(self):
+        jobs = [
+            (key, options["name"])
+            for item in self.native_workflow["jobs"]
+            for key, options in item.items()
+        ]
+        self.assertEqual(len({name for _, name in jobs}), len(jobs))
+        full_names = [name for key, name in jobs if key != "validation-skipped"]
         self.assertEqual(
-            REQUIRED_ACTIONS_JOBS, {job["name"] for job in self.github["jobs"].values()}
-        )
-        native_jobs = self.continued["workflows"]["iOS CI"]["jobs"]
-        self.assertEqual(
-            NATIVE_CONTEXTS,
-            {
-                "ci/circleci: " + config["name"]
-                for item in native_jobs
-                for name, config in item.items()
-                if name != "validation-skipped"
-            },
+            sorted(full_names), sorted(self.validation_jobs["circleci"]["jobs"])
         )
 
     def test_every_github_worker_uses_the_same_fail_safe_selection(self):
@@ -224,7 +224,7 @@ class CIWorkflowTests(unittest.TestCase):
                 )
 
     def test_circleci_skip_completes_without_any_macos_job(self):
-        workflow = self.continued["workflows"]["iOS CI"]
+        workflow = self.native_workflow
         self.assertIn(
             'pipeline.parameters.manual_full_gate == "true"', workflow["when"]
         )

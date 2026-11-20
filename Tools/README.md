@@ -183,8 +183,10 @@ See [CircleCI's dynamic configuration requirements](https://circleci.com/docs/gu
 
 On a non-forced push to main, the selectors look up the merged PR for the exact pushed commit. The final PR head and the landed checkout must have the same Git tree. This also works for squash merges, which create a different commit SHA.
 
-- GitHub Actions records the PR number and checked-out tree during its guidance check. The selector verifies that marker and all six successful CI jobs in one PR workflow attempt.
-- CircleCI runs on the PR head. The selector verifies the four successful native job statuses from the CircleCI app, then checks the workflow and pipeline for the PR number, repository, checkout and configuration.
+[`ci-validation-jobs.json`](ci-validation-jobs.json) lists the jobs each provider must complete. Update it alongside the workflow when adding or renaming a validation job. The workflow tests check the lists against the actual job declarations.
+
+- GitHub Actions records the PR number and checked-out tree during its guidance check. The selector verifies that marker and the configured jobs in one successful PR workflow attempt.
+- CircleCI runs on the PR head. The selector verifies the configured native job statuses from the CircleCI app, then checks the workflow and pipeline for the PR number, repository, checkout and configuration.
 - Each selector logs both run links when it reuses validation. A direct change, a forced push, an incomplete or skipped check, or unavailable provider data selects full CI. Runs predating the GitHub tree marker also take that path.
 
 Manual full runs always execute. Signed archives and publication run from the landed commit; this shortcut reuses test results only.

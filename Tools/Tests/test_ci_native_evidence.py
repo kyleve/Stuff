@@ -7,16 +7,11 @@ from Tools.ci_native_evidence import validated_native_run
 HEAD = "a" * 40
 WORKFLOW = "https://app.circleci.com/workflow/445a225a-8ba2-4e89-8aba-04ae1698d77e"
 PIPELINE = "8883c1e8-657c-4bc6-8562-50510a52b8b6"
+CONFIG = {"workflow": "Device validation", "jobs": ["Compile", "Run tests"]}
 
 
 class NativeEvidenceTests(unittest.TestCase):
     def setUp(self):
-        jobs = [
-            "Build iOS Tests",
-            "Build & Test (iOS)",
-            "Build Where Audiences",
-            "Snapshot Tests (iOS)",
-        ]
         self.statuses = [
             {
                 "context": f"ci/circleci: {job}",
@@ -24,12 +19,12 @@ class NativeEvidenceTests(unittest.TestCase):
                 "creator": {"id": 127350680, "login": "circleci-app[bot]"},
                 "target_url": f"{WORKFLOW}/job/0992afbb-abdb-459b-b528-{index:012x}",
             }
-            for index, job in enumerate(jobs, 1)
+            for index, job in enumerate(CONFIG["jobs"], 1)
         ]
         self.workflow = {
             "id": WORKFLOW.rsplit("/", 1)[1],
             "status": "success",
-            "name": "iOS CI",
+            "name": CONFIG["workflow"],
             "pipeline_id": PIPELINE,
         }
         self.values = {
@@ -46,7 +41,7 @@ class NativeEvidenceTests(unittest.TestCase):
             "pipeline.event.github.pull_request.number": 542,
         }
 
-    def evidence(self, statuses, *, workflow=None, values=None):
+    def evidence(self, statuses, *, config=CONFIG, workflow=None, values=None):
         get = Mock(return_value=statuses)
         circle = {
             f"workflow/{self.workflow['id']}": self.workflow
@@ -55,7 +50,7 @@ class NativeEvidenceTests(unittest.TestCase):
             f"pipeline/{PIPELINE}/values": self.values if values is None else values,
         }
         result = validated_native_run(
-            get, HEAD, "kyleve/Stuff", 542, circle_get=circle.__getitem__
+            get, HEAD, "kyleve/Stuff", 542, config, circle_get=circle.__getitem__
         )
         get.assert_called_once_with(f"commits/{HEAD}/statuses?per_page=100")
         return result
@@ -69,6 +64,13 @@ class NativeEvidenceTests(unittest.TestCase):
             with self.subTest(missing=missing):
                 remaining = self.statuses[:missing] + self.statuses[missing + 1 :]
                 self.assertIsNone(self.evidence(remaining))
+
+    def test_empty_or_duplicate_configured_jobs_cannot_prove_workflow(self):
+        for jobs in [[], ["Compile", "Compile"]]:
+            with self.subTest(jobs=jobs):
+                self.assertIsNone(
+                    self.evidence(self.statuses, config={**CONFIG, "jobs": jobs})
+                )
 
     def test_newer_failure_pending_or_untrusted_status_supersedes_success(self):
         for changed in [

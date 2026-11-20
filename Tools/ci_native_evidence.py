@@ -10,12 +10,6 @@ from Tools.circleci_pipeline import NoRedirects
 # GitHub's individual commit statuses retain their creator and are newest first.
 # The combined status endpoint drops the creator identity.
 CIRCLECI_BOT_ID = 127350680
-NATIVE_CONTEXTS = {
-    "ci/circleci: Build iOS Tests",
-    "ci/circleci: Build & Test (iOS)",
-    "ci/circleci: Build Where Audiences",
-    "ci/circleci: Snapshot Tests (iOS)",
-}
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 JOB_URL = re.compile(rf"(https://app\.circleci\.com/workflow/{UUID})/job/({UUID})")
 
@@ -28,18 +22,22 @@ def public_circleci_get(path):
 
 
 def validated_native_run(
-    get, head_sha, repository, pr_number, *, circle_get=public_circleci_get
+    get, head_sha, repository, pr_number, jobs_config, *, circle_get=public_circleci_get
 ):
     """Return a full CircleCI workflow URL for this exact PR checkout."""
     if not re.fullmatch("[0-9a-f]{40}", head_sha):
         return None
+    jobs = jobs_config["jobs"]
+    if not isinstance(jobs, list):
+        return None
+    contexts = {f"ci/circleci: {name}" for name in jobs}
     statuses = get(f"commits/{head_sha}/statuses?per_page=100")
     latest = {}
     for status in statuses:
         context = status["context"]
-        if context in NATIVE_CONTEXTS:
+        if context in contexts:
             latest.setdefault(context, status)
-    if latest.keys() != NATIVE_CONTEXTS:
+    if latest.keys() != contexts:
         return None
 
     workflow_urls = set()
@@ -55,7 +53,7 @@ def validated_native_run(
             return None
         workflow_urls.add(match[1])
         job_ids.add(match[2])
-    if len(workflow_urls) != 1 or len(job_ids) != len(NATIVE_CONTEXTS):
+    if len(workflow_urls) != 1 or len(job_ids) != len(jobs):
         return None
     workflow_url = workflow_urls.pop()
     workflow_id = workflow_url.rsplit("/", 1)[1]
@@ -63,7 +61,7 @@ def validated_native_run(
     pipeline_id = workflow.get("pipeline_id")
     if (
         workflow.get("id") != workflow_id
-        or workflow.get("name") != "iOS CI"
+        or workflow["name"] != jobs_config["workflow"]
         or workflow.get("status") != "success"
         or not isinstance(pipeline_id, str)
         or not re.fullmatch(UUID, pipeline_id)

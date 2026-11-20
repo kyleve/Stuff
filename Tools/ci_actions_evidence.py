@@ -1,20 +1,11 @@
 """Identify a full CI workflow that ran on the landed PR's exact source tree."""
 
-REQUIRED_ACTIONS_JOBS = {
-    "Classify changes",
-    "Lint & Formatting",
-    "Tool Tests",
-    "Web Checks & Tests",
-    "Bumper Bowling",
-    "Build & Test (macOS)",
-}
-
 
 def succeeded(record):
     return record["status"] == "completed" and record["conclusion"] == "success"
 
 
-def validated_actions_run(get, pr_number, head_sha, tree_sha):
+def validated_actions_run(get, pr_number, head_sha, tree_sha, jobs_config):
     """Return the matching attempt URL. The selector handles API/schema errors."""
     runs = get(
         "actions/workflows/ci.yml/runs"
@@ -44,10 +35,12 @@ def validated_actions_run(get, pr_number, head_sha, tree_sha):
     attempt = run["run_attempt"]
     response = get(f"actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100")
     jobs = response["jobs"]
-    if response["total_count"] != len(jobs) or len(jobs) != len(REQUIRED_ACTIONS_JOBS):
+    classifier = jobs_config["classifier"]
+    required = {classifier, *jobs_config["workers"]}
+    if response["total_count"] != len(jobs) or len(jobs) != len(required):
         return None
     by_name = {job["name"]: job for job in jobs}
-    if by_name.keys() != REQUIRED_ACTIONS_JOBS or not all(
+    if by_name.keys() != required or not all(
         succeeded(job)
         and job["run_id"] == run_id
         and job["run_attempt"] == attempt
@@ -59,7 +52,7 @@ def validated_actions_run(get, pr_number, head_sha, tree_sha):
     marker = f"Check agent guidance for PR #{pr_number} on tree {tree_sha}"
     if not any(
         step["name"] == marker and succeeded(step)
-        for step in by_name["Classify changes"]["steps"]
+        for step in by_name[classifier]["steps"]
     ):
         return None
     return f"https://github.com/{run['repository']['full_name']}/actions/runs/{run_id}/attempts/{attempt}"

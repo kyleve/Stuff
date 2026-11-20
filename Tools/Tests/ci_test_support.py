@@ -26,6 +26,10 @@ class GitRepository:
             target = self.root / f"Tools/{name}.py"
             target.parent.mkdir(exist_ok=True)
             shutil.copyfile(source / f"Tools/{name}.py", target)
+        shutil.copyfile(
+            source / "Tools/ci-validation-jobs.json",
+            self.root / "Tools/ci-validation-jobs.json",
+        )
         self.write(".circleci/continue.yml", "version: 2.1\n")
         self.write("README.md", "Original documentation\n")
         self.write("app.py", "original = True\n")

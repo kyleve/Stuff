@@ -65,10 +65,11 @@ def validated_merge(root, repository, revision, token):
     tested_commit = get(f"git/commits/{head}")
     if tested_commit["sha"] != head or tested_commit["tree"]["sha"] != tree:
         return None
-    actions = validated_actions_run(get, number, head, tree)
+    jobs = json.loads((root / "Tools/ci-validation-jobs.json").read_text())
+    actions = validated_actions_run(get, number, head, tree, jobs["github_actions"])
     if not actions:
         return None
-    native = validated_native_run(get, head, repository, number)
+    native = validated_native_run(get, head, repository, number, jobs["circleci"])
     if not native:
         return None
     return f"PR #{number} passed on the landed tree {tree}. GitHub Actions: {actions} · CircleCI: {native}"

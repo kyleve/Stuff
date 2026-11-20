@@ -79,15 +79,26 @@ class MergedValidationTests(unittest.TestCase):
         self.assertTrue(result.skip_validation)
         for url in (self.actions.return_value, self.native.return_value):
             self.assertIn(url, result.reason)
-        self.assertEqual(self.actions.call_args.args[1:], (18, self.head, self.tree))
+        jobs = json.loads((self.root / "Tools/ci-validation-jobs.json").read_text())
         self.assertEqual(
-            self.native.call_args.args[1:], (self.head, self.repository, 18)
+            self.actions.call_args.args[1:],
+            (18, self.head, self.tree, jobs["github_actions"]),
+        )
+        self.assertEqual(
+            self.native.call_args.args[1:],
+            (self.head, self.repository, 18, jobs["circleci"]),
         )
         self.native.return_value = None
         self.assertFalse(self.classify().skip_validation)
         self.native.reset_mock()
         self.actions.return_value = None
         self.assertFalse(self.classify().skip_validation)
+        self.native.assert_not_called()
+
+    def test_missing_job_configuration_runs_full_ci(self):
+        (self.root / "Tools/ci-validation-jobs.json").unlink()
+        self.assertFalse(self.classify().skip_validation)
+        self.actions.assert_not_called()
         self.native.assert_not_called()
 
     def test_unrelated_push_ambiguous_pr_fork_and_changed_tree_run_in_full(self):
