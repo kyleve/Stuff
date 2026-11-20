@@ -1,0 +1,21 @@
+{
+  "github_actions": {
+    "classifier": "Classify changes",
+    "workers": [
+      "Lint & Formatting",
+      "Tool Tests",
+      "Web Checks & Tests",
+      "Bumper Bowling",
+      "Build & Test (macOS)"
+    ]
+  },
+  "circleci": {
+    "workflow": "iOS CI",
+    "jobs": [
+      "Build iOS Tests",
+      "Build & Test (iOS)",
+      "Build Where Audiences",
+      "Snapshot Tests (iOS)"
+    ]
+  }
+}

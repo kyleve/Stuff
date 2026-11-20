@@ -244,7 +244,7 @@ PR storage and optional `installable` publication add to those examples.
 Canceled runs consume the work completed before cancellation.
 
 Eligible Markdown-only PRs skip expensive validation on both existing providers.
-Main pushes still run full validation, including after a Markdown-only merge.
+At the November 6 baseline, main pushes repeated full validation. A merge can now reuse a full PR run on the same Git tree. A Markdown-only PR that skipped native tests still requires full validation on main.
 The documented [CI selection contract](Tools/AGENTS.md#ci-selection) owns eligibility.
 
 The October 7–November 5 GitHub sample contained 1,199 CI attempts:

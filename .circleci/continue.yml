@@ -1,7 +1,7 @@
 version: 2.1
 
 parameters:
-  docs_only:
+  skip_validation:
     type: boolean
     default: false
   flyover_export:
@@ -314,10 +314,10 @@ commands:
           destination: << parameters.artifact_name >>/diagnostics
 
 jobs:
-  documentation-only:
+  validation-skipped:
     executor: linux
     steps:
-      - run: echo "Documentation-only PR. Native builds and tests are skipped."
+      - run: echo "See the Select workflows job for the validation decision."
 
   export-flyover:
     executor: m4-pro-medium
@@ -560,8 +560,6 @@ workflows:
           name: Export Flyover
 
   "iOS CI":
-    # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
-    # pushes and explicit full-gate runs remain mandatory.
     when: >-
       pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
@@ -569,27 +567,27 @@ workflows:
       pipeline.event.github.pull_request.base.ref == "main" and
       not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/))
     jobs:
-      - documentation-only:
-          name: Documentation only
-          filters: pipeline.parameters.docs_only
+      - validation-skipped:
+          name: Validation skipped
+          filters: pipeline.parameters.skip_validation
       - build-ios-tests:
           name: Build iOS Tests
-          filters: not pipeline.parameters.docs_only
+          filters: not pipeline.parameters.skip_validation
       - test-ios:
           name: Build & Test (iOS)
-          filters: not pipeline.parameters.docs_only
+          filters: not pipeline.parameters.skip_validation
           requires:
             - Build iOS Tests
       # Each release audience needs a complete compile. Separate workers keep
       # two serial release builds out of the workflow's critical path.
       - build-where-audiences:
           name: Build Where Audiences
-          filters: not pipeline.parameters.docs_only
+          filters: not pipeline.parameters.skip_validation
           requires:
             - Build iOS Tests
       - snapshot:
           name: Snapshot Tests (iOS)
-          filters: not pipeline.parameters.docs_only
+          filters: not pipeline.parameters.skip_validation
           requires:
             - Build iOS Tests
 

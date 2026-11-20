@@ -1,4 +1,4 @@
-"""Classify the complete PR diff for both CI providers, defaulting to full CI."""
+"""Select validation for PRs and main pushes, defaulting to full CI."""
 
 import argparse
 from dataclasses import dataclass
@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 
+from Tools.ci_merge_validation import validated_merge
 from Tools.repository import repository_root
 
 
@@ -19,7 +20,7 @@ INPUT_DIRECTORIES = {"resources", "fixtures", "__snapshots__", "src", "public"}
 
 @dataclass(frozen=True)
 class Decision:
-    docs_only: bool
+    skip_validation: bool
     reason: str
 
 
@@ -57,7 +58,31 @@ def documentation_diff(raw_diff):
     return docs_only
 
 
-def classify_changes(root, *, event, base, head, force):
+def classify_changes(
+    root,
+    *,
+    event,
+    base,
+    head,
+    force,
+    branch="",
+    repository="",
+    push_forced="",
+    token=None,
+):
+    if not force and event == "push" and branch == "main" and push_forced == "false":
+        try:
+            evidence = validated_merge(root, repository, head, token)
+        except Exception as error:
+            # Evidence lookup is optional. Even an unexpected provider response
+            # must continue the pipeline, without exposing response data.
+            return Decision(
+                False,
+                f"Cannot verify the merged PR ({type(error).__name__}). Running full CI.",
+            )
+        if evidence:
+            return Decision(True, evidence)
+        return Decision(False, "No matching full PR validation. Running full CI.")
     if force or event != "pull_request":
         return Decision(False, "Full CI requested by this event.")
     try:
@@ -95,6 +120,9 @@ def main(argv=None):
     parser.add_argument("--event", required=True)
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
+    parser.add_argument("--push-forced", default="")
+    parser.add_argument("--branch", default="")
+    parser.add_argument("--repository", default="")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
     decision = classify_changes(
@@ -103,9 +131,13 @@ def main(argv=None):
         base=args.base,
         head=args.head,
         force=args.force,
+        branch=args.branch,
+        push_forced=args.push_forced,
+        repository=args.repository,
+        token=os.getenv("GH_TOKEN"),
     )
     print(decision.reason, file=sys.stderr)
-    print(f"docs_only={str(decision.docs_only).lower()}")
+    print(f"skip_validation={str(decision.skip_validation).lower()}")
     return 0
 
 

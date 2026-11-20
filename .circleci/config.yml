@@ -47,6 +47,9 @@ jobs:
     environment:
       GIT_LFS_SKIP_SMUDGE: "1"
       CI_EVENT: << pipeline.event.name >>
+      CI_BRANCH: << pipeline.git.branch >>
+      CI_CHECKOUT_SHA: << pipeline.git.revision >>
+      CI_REPOSITORY: "<< pipeline.event.github.repository.owner.login >>/<< pipeline.event.github.repository.name >>"
       CI_BASE_SHA: << pipeline.event.github.pull_request.base.sha >>
       CI_HEAD_SHA: << pipeline.event.github.pull_request.head.sha >>
       CI_MANUAL_FULL_GATE: << pipeline.parameters.manual_full_gate >>
@@ -60,7 +63,7 @@ jobs:
             git checkout --detach "<< pipeline.git.revision >>"
             git config gc.auto 0
       - run:
-          name: Classify the complete PR and continue
+          name: Select validation and continue
           command: python3 -m Tools.ci_circleci
 
 workflows:
