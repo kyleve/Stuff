@@ -363,9 +363,20 @@ jobs:
           name: Recheck eligibility and checkout the exact source commit
           command: |
             umask 077
-            mkdir -p "$RUNNER_TEMP"
-            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
-            cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
+            mkdir -p "$RUNNER_TEMP/eligibility"
+            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source" --superseded-marker "$RUNNER_TEMP/eligibility/superseded-main"
+            if [[ ! -f "$RUNNER_TEMP/eligibility/superseded-main" ]]; then
+              cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
+            fi
+      - store_artifacts:
+          path: /tmp/installer-archive/eligibility
+          destination: installer
+      - run:
+          name: Stop a superseded main archive before signing
+          command: |
+            if [[ -f "$RUNNER_TEMP/eligibility/superseded-main" ]]; then
+              circleci-agent step halt
+            fi
       - run:
           name: Install archive tools
           command: |
