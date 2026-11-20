@@ -18,3 +18,7 @@ Three passing CI runs ranked Calendar zoom first at 63–71 seconds and the demo
 Q-01 (closed). The demo spends time rebuilding widget history after intermediate writes. One transactional import can exercise the production services while retaining all issue masks. Q-02 (closed). The Calendar trace included substantially more SwiftUI layout work than test-side element lookup. Preserve the six real zoom cycles across both widths and motion preferences. Both decisions follow the measured profiles and the owner's November 20 request.
 
 Reviewed against main `798c61cc4`. Each numbered plan defines a bounded experiment and the checks that determine whether to retain it. X-01 preserves data and audit semantics. X-02 preserves Calendar coverage, motion and rendering. Both exclude changes to CI scheduling, worker count and parallelism.
+
+## Native child safe-area follow-up
+
+The November 20 suite survey measured two unnecessary visual settling passes around a read-only UIKit geometry check. The owner selected the measured change for a separate PR to main. [Plan 03](03-native-insets.md) records the twelve configurations and acceptance evidence. The native-insets agent owns `perf/native-insets-immediate`. The primary agent owns review and publication.
