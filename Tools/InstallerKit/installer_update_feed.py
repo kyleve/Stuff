@@ -58,6 +58,12 @@ class BuildStatus:
         return status
 
 
+@dataclass(frozen=True)
+class ClearPreparing:
+    identifier: dict
+    sha: str
+
+
 def build_id(run, attempt):
     if (
         not str(run).isdigit()
@@ -108,6 +114,12 @@ def read_catalog(value):
 def apply_change(catalog, app, channel, release):
     """Merge one channel without replacing unrelated concurrent publications."""
     result = deepcopy(read_catalog(catalog))
+    if isinstance(release, ClearPreparing):
+        expected = BuildStatus("preparing", release.identifier, release.sha).metadata()
+        current = channel_in(result, app.id, channel)
+        if current and current.get("buildStatus") == expected:
+            del current["buildStatus"]
+        return result
     current_app = app_in(result, app.id)
     if current_app is None:
         current_app = {**app.metadata, "channels": []}
@@ -260,7 +272,7 @@ class GitHubUpdateFeed:
             # Another channel can create the branch concurrently.
             self.request("GET", f"git/ref/heads/{BRANCH}")
 
-    def save(self, app, channel, make_release, is_current):
+    def save(self, app, channel, make_release, is_current, *, deploy_unchanged=True):
         self.ensure_branch()
         for _ in range(5):
             catalog, revision = self.load()
@@ -273,7 +285,7 @@ class GitHubUpdateFeed:
             release = make_release(previous)
             updated = apply_change(catalog, app, channel, release)
             if updated == catalog:
-                return True
+                return deploy_unchanged
             content = json.dumps(
                 updated, ensure_ascii=False, separators=(",", ":")
             ).encode()
@@ -393,6 +405,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--receipt", type=Path)
+    mode.add_argument("--clear-superseded", action="store_true")
     mode.add_argument("--status", choices=("preparing", "failed"))
     parser.add_argument("--app")
     parser.add_argument("--channel")
@@ -402,18 +415,37 @@ def main(argv=None):
     parser.add_argument("--repository", required=True)
     parser.add_argument("--feed-url", required=True)
     args = parser.parse_args(argv)
-    if args.status and not all(
+    if (args.status or args.clear_superseded) and not all(
         (args.app, args.channel, args.sha, args.run, args.attempt)
     ):
-        parser.error("--status requires --app, --channel, --sha, --run, and --attempt")
+        parser.error(
+            "Status updates require --app, --channel, --sha, --run, and --attempt"
+        )
+    if args.clear_superseded and args.channel != "main":
+        parser.error("--clear-superseded is only valid for main archives")
     try:
-        from Tools.InstallerKit.installer_distribution import github_fetch
+        from Tools.InstallerKit.installer_distribution import (
+            Publication,
+            github_fetch,
+            is_current,
+        )
 
         if args.receipt and not args.receipt.exists():
             print("No publication receipt; update catalog unchanged.")
             return 0
         feed = GitHubUpdateFeed(args.repository, os.environ.get("GH_TOKEN", ""))
-        if args.status:
+        if args.clear_superseded:
+            clearing = ClearPreparing(build_id(args.run, args.attempt), args.sha)
+            plan = Publication(args.sha, None)
+            if feed.save(
+                load_app(args.app),
+                args.channel,
+                lambda _: clearing,
+                lambda: not is_current(plan, args.repository, github_fetch),
+                deploy_unchanged=False,
+            ):
+                feed.deploy()
+        elif args.status:
             publish_status(
                 args.app,
                 args.channel,

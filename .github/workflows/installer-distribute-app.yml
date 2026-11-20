@@ -65,6 +65,7 @@ jobs:
     timeout-minutes: 70
     outputs:
       attempt: ${{ steps.archive-metadata.outputs.attempt }}
+      outcome: ${{ steps.archive.outputs.outcome }}
     steps:
       # This runner holds the CircleCI token but never runs PR code.
       - uses: actions/checkout@v4
@@ -83,6 +84,7 @@ jobs:
           --repository "$GITHUB_REPOSITORY" --feed-url "$INSTALLER_FEED_URL"
 
       - name: Archive on CircleCI and validate the returned IPA
+        id: archive
         env:
           CIRCLECI_TOKEN: ${{ secrets.INSTALLER_CIRCLECI_TOKEN }}
           CIRCLECI_PROJECT: ${{ vars.INSTALLER_CIRCLECI_PROJECT }}
@@ -96,11 +98,22 @@ jobs:
           --sha "$SOURCE_SHA" --channel "$INSTALLER_CHANNEL"
           --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
           --feed-url "$INSTALLER_FEED_URL"
-          --output "$RUNNER_TEMP/installer-archive/app.ipa"
+          --output "$RUNNER_TEMP/installer-archive/app.ipa" --github-output "$GITHUB_OUTPUT"
+      - name: Clear the superseded attempt's preparing state
+        if: steps.archive.outputs.outcome == 'superseded'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+        run: >-
+          python3 -m Tools.InstallerKit.installer_update_feed
+          --clear-superseded --app "$INSTALLER_APP_ID" --channel main --sha "$SOURCE_SHA"
+          --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          --repository "$GITHUB_REPOSITORY" --feed-url "$INSTALLER_FEED_URL"
       - name: Record archive attempt
         id: archive-metadata
         run: echo "attempt=$GITHUB_RUN_ATTEMPT" >>"$GITHUB_OUTPUT"
       - name: Upload signed build for publication
+        if: steps.archive.outputs.outcome == 'archived'
         uses: actions/upload-artifact@v4
         with:
           name: installer-${{ inputs.app }}-ipa
@@ -117,7 +130,8 @@ jobs:
     if: >-
       always() && needs.plan.result == 'success' &&
       (needs.plan.outputs.action == 'retire' ||
-       (needs.plan.outputs.action == 'publish' && needs.archive.result == 'success'))
+       (needs.plan.outputs.action == 'publish' && needs.archive.result == 'success' &&
+        needs.archive.outputs.outcome == 'archived'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -163,7 +177,8 @@ jobs:
     needs: [plan, archive, publish]
     if: >-
       always() && needs.plan.outputs.action == 'publish' &&
-      (needs.archive.result != 'success' || needs.publish.result != 'success')
+      (needs.archive.result != 'success' ||
+       (needs.archive.outputs.outcome != 'superseded' && needs.publish.result != 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

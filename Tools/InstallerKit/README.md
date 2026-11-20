@@ -210,6 +210,9 @@ It authorizes signing that branch's code, including later commits. Fork PRs are 
 The controller runs from `main` through `pull_request_target`, including when a PR has merge conflicts.
 CircleCI archives the selected commit, while GitHub publishes the returned IPA.
 The handoff verifies the successful pipeline, job, artifact path, and signed build identity.
+If `main` advances before checkout, CircleCI emits a superseded marker and stops before signing.
+GitHub confirms the new head, skips the IPA upload and publication, and clears only the superseded attempt’s preparing status.
+A missing IPA without that marker, an ineligible PR archive, or a failed build still fails the archive job.
 The label trusts branch build code with the signing identity. A temporary keychain does not isolate secrets from that code.
 Conflicts fail the installable build before signing. Removing the label or closing the PR still retires its channels.
 

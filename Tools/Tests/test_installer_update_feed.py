@@ -14,6 +14,7 @@ from urllib.error import HTTPError
 from Tools.InstallerKit.installer_apps import load_app
 from Tools.InstallerKit.installer_update_feed import (
     BuildStatus,
+    ClearPreparing,
     GitHubUpdateFeed,
     apply_change,
     changes_since,
@@ -195,6 +196,128 @@ class InstallerUpdateFeedTests(unittest.TestCase):
         self.assertEqual(
             catalog["apps"][0]["channels"][1]["buildStatus"], preparing.metadata()
         )
+
+    def test_clearing_a_superseded_attempt_only_removes_its_exact_preparing_status(
+        self,
+    ):
+        identity = {"run": 2, "attempt": 1}
+        pending = BuildStatus("preparing", identity, SHA)
+        stale = ClearPreparing(identity, SHA)
+        published = apply_change(empty(), APP, "main", release(1, channel="main"))
+        preparing = apply_change(published, APP, "main", pending)
+        self.assertEqual(apply_change(preparing, APP, "main", stale), published)
+        self.assertEqual(apply_change(empty(), APP, "main", stale), empty())
+        for other in (
+            apply_change(preparing, APP, "main", BuildStatus("failed", identity, SHA)),
+            apply_change(
+                preparing, APP, "main", BuildStatus("preparing", identity, "b" * 40)
+            ),
+            apply_change(
+                preparing,
+                APP,
+                "main",
+                BuildStatus("preparing", {"run": 2, "attempt": 2}, SHA),
+            ),
+            apply_change(preparing, APP, "main", None),
+            apply_change(preparing, APP, "main", release(3, channel="main")),
+            apply_change(published, APP, "pr-42", pending),
+        ):
+            self.assertEqual(apply_change(other, APP, "main", stale), other)
+
+    def test_clear_command_rechecks_main_before_resetting_progress(self):
+        status = BuildStatus("preparing", {"run": 2, "attempt": 1}, SHA)
+        catalog = apply_change(empty(), APP, "main", status)
+        for head, success, clears in (
+            ("b" * 40, True, True),
+            (SHA, True, False),
+            ("", False, False),
+        ):
+            with self.subTest(head=head):
+                saved = []
+                feed = Mock()
+
+                def save(app, channel, change, current, *, deploy_unchanged):
+                    self.assertFalse(deploy_unchanged)
+                    if not current():
+                        return False
+                    saved.append(apply_change(catalog, app, channel, change(None)))
+                    return True
+
+                feed.save.side_effect = save
+                with (
+                    patch(
+                        "Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed",
+                        return_value=feed,
+                    ),
+                    patch(
+                        "Tools.InstallerKit.installer_distribution.github_fetch",
+                        return_value={"object": {"sha": head}},
+                    ),
+                    redirect_stderr(io.StringIO()),
+                ):
+                    code = main(
+                        [
+                            "--clear-superseded",
+                            "--app",
+                            "where",
+                            "--channel",
+                            "main",
+                            "--sha",
+                            SHA,
+                            "--run",
+                            "2",
+                            "--attempt",
+                            "1",
+                            "--repository",
+                            REPO,
+                            "--feed-url",
+                            FEED_URL,
+                        ]
+                    )
+                    self.assertEqual(code, 0 if success else 1)
+                self.assertEqual(len(saved), int(clears))
+                self.assertEqual(feed.deploy.called, clears)
+                if clears:
+                    self.assertNotIn("buildStatus", saved[0]["apps"][0]["channels"][0])
+
+    def test_clear_command_does_not_dispatch_for_replaced_or_absent_progress(self):
+        preparing = BuildStatus("preparing", {"run": 3, "attempt": 1}, SHA)
+        for catalog in (empty(), apply_change(empty(), APP, "main", preparing)):
+            feed = GitHubUpdateFeed(REPO, "fixture-token", Mock())
+            with (
+                self.subTest(catalog=catalog),
+                patch.object(feed, "ensure_branch"),
+                patch.object(feed, "load", return_value=(catalog, "revision")),
+                patch(
+                    "Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed",
+                    return_value=feed,
+                ),
+                patch(
+                    "Tools.InstallerKit.installer_distribution.github_fetch",
+                    return_value={"object": {"sha": "b" * 40}},
+                ),
+            ):
+                code = main(
+                    [
+                        "--clear-superseded",
+                        "--app",
+                        "where",
+                        "--channel",
+                        "main",
+                        "--sha",
+                        SHA,
+                        "--run",
+                        "2",
+                        "--attempt",
+                        "1",
+                        "--repository",
+                        REPO,
+                        "--feed-url",
+                        FEED_URL,
+                    ]
+                )
+                self.assertEqual(code, 0)
+                feed.transport.assert_not_called()
 
     def test_publishing_an_older_success_preserves_newer_build_progress(self):
         preparing = BuildStatus("preparing", {"run": 3, "attempt": 1}, SHA)

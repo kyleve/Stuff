@@ -184,13 +184,12 @@ class CircleCI:
             or type(jobs[0].get("job_number")) is not int
         ):
             raise ValueError("CircleCI artifact job did not succeed")
-        artifacts = [
-            item
-            for item in self.items(
-                f"project/{self.project}/{jobs[0]['job_number']}/artifacts"
-            )
-            if item["path"] == self.artifact_path
-        ]
+        return self.select_artifact(
+            self.items(f"project/{self.project}/{jobs[0]['job_number']}/artifacts")
+        )
+
+    def select_artifact(self, items):
+        artifacts = [item for item in items if item["path"] == self.artifact_path]
         if len(artifacts) != 1:
             raise ValueError("CircleCI job must contain exactly one requested artifact")
         return artifact_url(artifacts[0]["url"])
