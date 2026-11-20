@@ -149,31 +149,25 @@ public struct DemoDataBuilder: Sendable {
     /// Write the demo year into `services`: the tracked regions, then the
     /// year's GPS, then the manual backfills and corrections layered over it.
     ///
-    /// Ordered deliberately — the tracked regions first, so attribution is
-    /// scoped to New York and California before any sample is read back, and
-    /// the GPS in one bulk transaction, so the widget snapshot and issue scan
-    /// are reconciled once rather than per day.
+    /// Set the tracked regions first so attribution uses New York and California.
+    /// Commit GPS and manual entries together so reconciliation sees the finished year.
     public func seed(into services: WhereServices) async throws {
         try await services.setPrimaryRegions(Self.primaryRegions)
 
         let script = makeScript()
-        try await services.journal.ingest(script.samples.map {
+        let samples = script.samples.map {
             $0.recorded(by: services.recording.currentDevice.id)
-        })
-        for entry in script.backfills {
-            try await services.journal.addManualDay(
-                date: entry.date,
-                regions: entry.regions,
-                audit: entry.audit,
-            )
         }
-        for entry in script.corrections {
-            try await services.journal.overrideDay(
-                date: entry.date,
-                regions: entry.regions,
-                audit: entry.audit,
-            )
-        }
+        let journalCalendar = services.aggregator.calendar
+        let backfills = script.backfills.map { $0.presence(
+            in: journalCalendar,
+            isAuthoritative: false,
+        ) }
+        let corrections = script.corrections.map { $0.presence(
+            in: journalCalendar,
+            isAuthoritative: true,
+        ) }
+        try await services.journal.ingest(samples, manualDays: backfills + corrections)
     }
 
     // MARK: - The script
@@ -203,6 +197,16 @@ public struct DemoDataBuilder: Sendable {
         let date: Date
         let regions: Set<Region>
         let audit: ManualEntryAudit
+
+        func presence(in calendar: Calendar, isAuthoritative: Bool) -> DayPresence {
+            DayPresence(
+                date: date,
+                in: calendar,
+                regions: regions,
+                isAuthoritative: isAuthoritative,
+                audit: audit,
+            )
+        }
     }
 
     private struct Script {

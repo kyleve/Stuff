@@ -97,11 +97,19 @@ public actor DayJournal {
     /// otherwise open one transaction *and* re-aggregate the whole year per
     /// sample, which is quadratic in the batch size. An empty batch is a no-op.
     public func ingest(_ samples: [LocationSample]) async throws {
-        guard !samples.isEmpty else { return }
+        try await ingest(samples, manualDays: [])
+    }
+
+    /// Apply the manual overlays after their underlying samples and publish the completed batch.
+    func ingest(_ samples: [LocationSample], manualDays: [DayPresence]) async throws {
+        guard !samples.isEmpty || !manualDays.isEmpty else { return }
         try await Self.logger.measure(.ingestBatch, budget: .seconds(5)) {
             try await store.performInCurrentGeneration {
                 for sample in samples {
                     try await store.add(sample: sample)
+                }
+                for day in manualDays {
+                    try await store.setManualDay(day)
                 }
             }
         }

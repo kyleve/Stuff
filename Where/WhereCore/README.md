@@ -114,7 +114,9 @@ one it belongs to rather than to a god-object:
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
   California trips, plus the backfills and corrected attributions a real year
-  has. Its configuration independently includes missing-day, border-drift,
+  has. The journal commits the GPS and manual entries together and publishes
+  one widget snapshot of the completed year.
+  Its configuration independently includes missing-day, border-drift,
   abrupt-change, and detected-flight fixtures; unchecked detector categories
   stay absent. The standard onboarding demo includes missing days. Bound to the
   current year and derived from it, so it normally stops at today and is the

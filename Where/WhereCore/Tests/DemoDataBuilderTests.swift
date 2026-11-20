@@ -118,10 +118,18 @@ struct DemoDataBuilderTests {
         #expect(!corrections.isEmpty)
         #expect(backfills.allSatisfy { $0.regions == [.newYork] })
         #expect(corrections.allSatisfy { $0.regions == [.california] })
-        // Each carries the audit trail the app promises for user-asserted
-        // days, with an honest `nil` location rather than a fabricated fix.
-        #expect(manual.allSatisfy { $0.audit?.note?.isEmpty == false })
-        #expect(manual.allSatisfy { $0.audit?.location == nil })
+        for entry in manual {
+            let delay: TimeInterval = (entry.isAuthoritative ? 2 : 4) * 24 * 60 * 60
+            let recordedAt = entry.startOfDay(in: calendar).addingTimeInterval(delay)
+            let expected = ManualEntryAudit(
+                recordedAt: min(recordedAt, now),
+                note: entry.isAuthoritative
+                    ? "Red-eye out — the day belongs to California."
+                    : "Phone was off — added from my calendar.",
+                location: nil,
+            )
+            #expect(entry.audit == expected)
+        }
     }
 
     @Test func correctionsReplaceTheDaysGpsAttribution() async throws {
