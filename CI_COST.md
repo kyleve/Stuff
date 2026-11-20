@@ -2,6 +2,12 @@
 
 All dates are UTC. Costs are in USD.
 
+## Daily Where audience builds
+
+The Where Beta and App Store compile checks run on CircleCI's daily schedule when the latest main revision needs a successful build. PRs, regular main pushes and manual PR validation omit those two workers.
+
+The pair consumed 1,320–1,343 credits ($0.79–$0.81) per full validation in PRs #542–544. The daily policy removes that cost from each full PR run and pays for one pair on a day that needs it, plus the Linux selector. Actual savings depend on how many full PR runs occur between daily builds. [PR #542 workflow](https://app.circleci.com/workflow/68ba3889-8541-4297-8772-df3b15e01673) · [PR #544 workflow](https://app.circleci.com/workflow/22a9f2e2-f7c0-42d5-8977-9794274de94e)
+
 ## Snapshot worker reduction on November 20, 2026
 
 Three active snapshot workers saved **1,293 compute credits ($0.7758, 23.2%)**

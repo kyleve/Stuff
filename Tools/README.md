@@ -200,6 +200,14 @@ python3 -m unittest discover -s Tools/Tests -p 'test_ci_*.py'
 python3 -m unittest Tools.Tests.test_flyover_workflows
 ```
 
+### Daily Where audience builds
+
+CircleCI's native **Daily Where audience builds** trigger checks `main` at 06:00 UTC each day. The `build-and-test` pipeline reads both configuration and source from `main`. Its scheduled workflow owns the **Where Beta** and **Where App Store** compile checks.
+
+The Linux selector checks the most recent daily audience workflow in CircleCI Insights. A successful compile of both schemes on the current commit lets it stop before starting the Macs. A new commit, a failed build, or missing history starts both builds. This also picks up changes after a missed day. Each scheme compiles on its own `m4pro.medium` worker with the repository's pinned Xcode.
+
+To inspect or change the schedule, open **Project Settings → Project Setup** for the CircleCI pipeline. CircleCI can offset the start by up to ten minutes. [CircleCI schedule triggers](https://circleci.com/docs/guides/orchestrate/schedule-triggers/)
+
 ## Worktree cleanup
 
 `./worktree --cleanup` removes the current checkout's DerivedData and registered simulator.

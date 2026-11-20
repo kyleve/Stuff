@@ -251,6 +251,69 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertEqual(len(job["steps"]), 1)
         self.assertIn("echo", job["steps"][0]["run"])
 
+    def test_where_release_builds_run_only_in_the_daily_main_workflow(self):
+        daily = self.validation_jobs["daily_where_audiences"]
+        workflows = self.continued["workflows"]
+        audience_jobs = [
+            (name, item["build-where-audiences"])
+            for name, workflow in workflows.items()
+            for item in workflow["jobs"]
+            if "build-where-audiences" in item
+        ]
+        self.assertEqual(audience_jobs, [(daily["workflow"], {"name": daily["job"]})])
+        conditions = {
+            'pipeline.event.name == "schedule"',
+            'pipeline.git.branch == "main"',
+            'pipeline.config.ref == "refs/heads/main"',
+        }
+        workflow_condition = workflows[daily["workflow"]]["when"]
+        self.assertEqual(set(workflow_condition.split(" and ")), conditions)
+        self.assertIn(
+            f"({workflow_condition})",
+            self.setup["workflows"]["Select workflows"]["when"],
+        )
+        audience = self.continued["jobs"]["build-where-audiences"]
+        self.assertIn("macos", self.continued["executors"][audience["executor"]])
+        self.assertEqual(audience["parallelism"], 2)
+        commands = "\n".join(
+            step["run"]["command"] for step in audience["steps"] if "run" in step
+        )
+        self.assertIn('0) scheme="Where Beta"', commands)
+        self.assertIn('1) scheme="Where App Store"', commands)
+
+    def test_schedule_halts_before_continuation_only_after_verified_success(self):
+        steps = self.setup["jobs"]["select-workflows"]["steps"]
+        gate = next(step["when"] for step in steps[:-1] if "when" in step)
+        self.assertEqual(
+            gate["condition"],
+            {
+                "and": [
+                    {"equal": ["schedule", "<< pipeline.event.name >>"]},
+                    {"equal": ["false", "<< pipeline.parameters.manual_full_gate >>"]},
+                ]
+            },
+        )
+        command = gate["steps"][0]["run"]["command"]
+        shell = """
+            proof_status="$1"
+            python3() { [[ "$*" == "-m Tools.ci_daily_audiences" ]] || exit 99; return "$proof_status"; }
+            circleci-agent() { [[ "$*" == "step halt" ]] || exit 99; echo halted; }
+        """
+        for proof_status, expected in ((0, "halted"), (1, ""), (2, "")):
+            with self.subTest(proof_status=proof_status):
+                result = subprocess.check_output(
+                    [
+                        "bash",
+                        "-eu",
+                        "-c",
+                        shell + command,
+                        "selector",
+                        str(proof_status),
+                    ],
+                    text=True,
+                )
+                self.assertEqual(result.strip(), expected)
+
     def test_publication_workflows_remain_separate_from_validation_selection(self):
         for name in ("Flyover Export", "Installer Archive"):
             workflow = self.continued["workflows"][name]
