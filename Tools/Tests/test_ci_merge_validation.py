@@ -3,6 +3,7 @@ import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from unittest.mock import patch
 
 from Tools.ci_changes import classify_changes
@@ -55,6 +56,7 @@ class MergedValidationTests(unittest.TestCase):
         self.actions.return_value = "https://github.com/example/Stuff/actions/runs/123"
         self.native = self.enter_patch("Tools.ci_merge_validation.validated_native_run")
         self.native.return_value = "https://app.circleci.com/workflow/example"
+        self.sleep = self.enter_patch("Tools.ci_merge_validation.sleep")
 
     def enter_patch(self, path):
         context = patch(path)
@@ -71,7 +73,9 @@ class MergedValidationTests(unittest.TestCase):
             repository=self.repository,
             force=False,
         )
-        return classify_changes(self.root, **(arguments | overrides))
+        self.stderr = io.StringIO()
+        with redirect_stderr(self.stderr):
+            return classify_changes(self.root, **(arguments | overrides))
 
     def test_same_tree_squash_requires_both_provider_proofs(self):
         self.assertNotEqual(self.landed, self.head)
@@ -88,25 +92,88 @@ class MergedValidationTests(unittest.TestCase):
             self.native.call_args.args[1:],
             (self.head, self.repository, 18, jobs["circleci"]),
         )
+        self.sleep.assert_not_called()
+
+    def test_waits_for_empty_or_unmerged_pr_association(self):
+        for initial in ([], [dict(self.pr, state="open", merged_at=None)]):
+            with self.subTest(initial=initial):
+                self.responses[self.pulls_path] = initial
+                self.sleep.reset_mock()
+                self.actions.reset_mock()
+                self.native.reset_mock()
+                self.sleep.side_effect = lambda seconds: self.responses.update(
+                    {self.pulls_path: [self.pr]}
+                )
+                self.assertTrue(self.classify().skip_validation)
+                self.sleep.assert_called_once_with(65)
+                self.assertRegex(self.stderr.getvalue(), r"(?i)PR|pull request")
+                self.actions.assert_called_once()
+                self.native.assert_called_once()
+
+    def test_rechecks_pr_tree_and_both_providers_after_delayed_native_result(self):
+        self.native.side_effect = [None, self.native.return_value]
+        self.assertTrue(self.classify().skip_validation)
+        self.sleep.assert_called_once_with(65)
+        self.assertIn("CircleCI", self.stderr.getvalue())
+        paths = [
+            call.args[0].full_url.removeprefix(
+                f"https://api.github.com/repos/{self.repository}/"
+            )
+            for call in self.http.call_args_list
+        ]
+        self.assertEqual(paths, [self.pulls_path, f"git/commits/{self.head}"] * 2)
+        self.assertEqual(self.actions.call_count, 2)
+        self.assertEqual(self.native.call_count, 2)
+
+    def test_retry_rejects_a_newly_disqualifying_tree(self):
+        self.native.side_effect = [None, self.native.return_value]
+        self.sleep.side_effect = lambda seconds: self.responses[
+            f"git/commits/{self.head}"
+        ]["tree"].update(sha="f" * 40)
+        self.assertFalse(self.classify().skip_validation)
+        self.sleep.assert_called_once_with(65)
+        self.actions.assert_called_once()
+        self.native.assert_called_once()
+
+    def test_reports_last_missing_provider_after_one_retry(self):
+        self.actions.side_effect = [self.actions.return_value, None]
         self.native.return_value = None
-        self.assertFalse(self.classify().skip_validation)
-        self.native.reset_mock()
-        self.actions.return_value = None
-        self.assertFalse(self.classify().skip_validation)
-        self.native.assert_not_called()
+        result = self.classify()
+        self.assertFalse(result.skip_validation)
+        self.assertIn("CircleCI", self.stderr.getvalue())
+        self.assertIn("GitHub Actions", result.reason)
+        self.sleep.assert_called_once_with(65)
+        self.assertEqual(self.actions.call_count, 2)
+        self.native.assert_called_once()
+
+    def test_persistently_missing_provider_retries_once_before_falling_back(self):
+        for name, provider in (
+            ("GitHub Actions", self.actions),
+            ("CircleCI", self.native),
+        ):
+            with self.subTest(name=name):
+                self.sleep.reset_mock()
+                self.actions.reset_mock(side_effect=True)
+                self.native.reset_mock(side_effect=True)
+                provider.side_effect = [None, None]
+                result = self.classify()
+                self.assertFalse(result.skip_validation)
+                self.sleep.assert_called_once_with(65)
+                self.assertIn(name, self.stderr.getvalue())
+                self.assertIn(name, result.reason)
+                self.assertEqual(provider.call_count, 2)
 
     def test_missing_job_configuration_runs_full_ci(self):
         (self.root / "Tools/ci-validation-jobs.json").unlink()
         self.assertFalse(self.classify().skip_validation)
         self.actions.assert_not_called()
         self.native.assert_not_called()
+        self.sleep.assert_not_called()
 
     def test_unrelated_push_ambiguous_pr_fork_and_changed_tree_run_in_full(self):
         for prs in (
-            [],
             [self.pr, self.pr],
             [dict(self.pr, merge_commit_sha=self.head)],
-            [dict(self.pr, merged_at=None)],
             [dict(self.pr, title="Fixture NO-CI")],
         ):
             with self.subTest(prs=prs):
@@ -121,6 +188,7 @@ class MergedValidationTests(unittest.TestCase):
         self.assertFalse(self.classify().skip_validation)
         self.actions.assert_not_called()
         self.native.assert_not_called()
+        self.sleep.assert_not_called()
 
     def test_manual_other_branches_publication_and_mismatched_checkout_do_not_lookup(
         self,
@@ -138,6 +206,7 @@ class MergedValidationTests(unittest.TestCase):
             with self.subTest(overrides=overrides):
                 self.assertFalse(self.classify(**overrides).skip_validation)
         self.http.assert_not_called()
+        self.sleep.assert_not_called()
 
     def test_api_errors_run_full_ci_without_logging_provider_data(self):
         self.http.side_effect = TimeoutError("sensitive provider response")
@@ -145,3 +214,4 @@ class MergedValidationTests(unittest.TestCase):
         self.assertFalse(result.skip_validation)
         self.assertIn("TimeoutError", result.reason)
         self.assertNotIn("sensitive", result.reason)
+        self.sleep.assert_not_called()
