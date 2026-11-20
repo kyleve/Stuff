@@ -4,7 +4,7 @@ Developers write the app in Swift. In development and beta, they should be able 
 
 ## Planning checkpoint
 
-Initial proposal, 2026-11-20, against `b9757eccf`. The request covers Swift authoring, live development and beta updates, and per-feature App Store builds. The owner clarified that the whole Swift-authored app should be updatable. Research and plan review are complete. The device experiment is ready for a separate execution request. [Linear STU-336](https://linear.app/kve/issue/STU-336/explore-over-the-air-delivery-for-swift-authored-app-features)
+Initial proposal, 2026-11-20, against `b9757eccf`. The request covers Swift authoring, live development and beta updates, and per-feature App Store builds. The owner clarified that the whole Swift-authored app should be updatable. The BridgeJS device experiment is ready for a separate execution request. [Linear STU-336](https://linear.app/kve/issue/STU-336/explore-over-the-air-delivery-for-swift-authored-app-features)
 
 ## Requirements and planning horizon
 
@@ -18,7 +18,9 @@ Start with one synthetic flow as a small piece of evidence toward R-02. Where's 
 
 ## What Apple says
 
-Checked 2026-11-20. Apple showed existing Swift logic running in a browser through Wasm and JavaScriptKit at WWDC26. Safari 27 shipped JavaScript Promise Integration. Apple’s November 16 Safari 27.3 beta notes list Memory64 and relaxed SIMD. Use shipping iOS for the experiment. The sample needs neither beta feature. [WWDC26, WebAssembly chapter at 16:44](https://developer.apple.com/videos/play/wwdc2026/262/) · [Safari 27](https://developer.apple.com/documentation/safari-release-notes/safari-27-release-notes) · [Safari 27.3 beta](https://developer.apple.com/documentation/safari-release-notes/safari-27_3-release-notes)
+Checked 2026-11-20. At WWDC26, Apple described how Goodnotes compiled its existing Swift code to Wasm. Goodnotes measured 35–40× faster bridging between Swift and JavaScript with type-safe bindings compared with dynamic bridging. JavaScriptKit’s experimental BridgeJS plugin generates typed bindings for this boundary. The device experiment will time a real feature call and the full native interaction separately. [WWDC26, Goodnotes benchmark](https://developer.apple.com/videos/play/wwdc2026/262/?time=1057) · [BridgeJS documentation](https://github.com/swiftwasm/JavaScriptKit#bridgejs-plugin)
+
+Safari 27 shipped JavaScript Promise Integration. Apple’s November 16 Safari 27.3 beta notes list Memory64 and relaxed SIMD. Use shipping iOS for the experiment. The sample needs neither beta feature. [Safari 27](https://developer.apple.com/documentation/safari-release-notes/safari-27-release-notes) · [Safari 27.3 beta](https://developer.apple.com/documentation/safari-release-notes/safari-27_3-release-notes)
 
 | Channel | What the evidence supports | Proposed delivery |
 | --- | --- | --- |
