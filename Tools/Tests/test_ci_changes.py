@@ -33,39 +33,39 @@ class CIChangesTests(unittest.TestCase):
         self.repo.write("nested/NEW.MD", "New docs\n")
         self.repo.write("Sources/Feature/AGENTS.md", "Source rules\n")
         self.repo.commit()
-        self.assertTrue(self.decision().docs_only)
+        self.assertTrue(self.decision().skip_validation)
         self.repo.write("Renamed.markdown", "Revised docs\n")
         self.repo.git("rm", "nested/NEW.MD")
         self.repo.commit()
-        self.assertTrue(self.decision().docs_only)
+        self.assertTrue(self.decision().skip_validation)
 
     def test_mixed_changes_run_ci(self):
         self.repo.write("README.md", "Revised docs\n")
         self.repo.write("app.py", "changed = True\n")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_latest_documentation_commit_cannot_hide_earlier_code(self):
         self.repo.write("app.py", "changed = True\n")
         self.repo.commit()
         self.repo.write("README.md", "Revised docs\n")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_renaming_code_to_markdown_runs_ci(self):
         self.repo.git("mv", "app.py", "app.md")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_renaming_markdown_to_code_runs_ci(self):
         self.repo.git("mv", "README.md", "README.py")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_deleted_code_runs_ci(self):
         self.repo.git("rm", "app.py")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_base_branch_changes_are_not_part_of_the_pr(self):
         self.repo.write("README.md", "Revised docs\n")
@@ -73,47 +73,47 @@ class CIChangesTests(unittest.TestCase):
         self.repo.git("switch", "main")
         self.repo.write("app.py", "base_only_change = True\n")
         base = self.repo.commit()
-        self.assertTrue(self.decision(base=base, head=head).docs_only)
+        self.assertTrue(self.decision(base=base, head=head).skip_validation)
         self.repo.git("switch", "topic")
         self.repo.git("merge", "main", "--no-edit")
-        self.assertTrue(self.decision(base=base).docs_only)
+        self.assertTrue(self.decision(base=base).skip_validation)
 
     def test_diff_is_not_truncated_at_api_path_limits(self):
         for index in range(3100):
             self.repo.write(f"docs/{index}.md", "Docs\n")
         self.repo.commit()
-        self.assertTrue(self.decision().docs_only)
+        self.assertTrue(self.decision().skip_validation)
         self.repo.write("z-last.py", "code = True\n")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_spaces_unicode_and_newlines_in_paths(self):
         self.repo.write("docs/guide ü\nwith spaces.markdown", "Docs\n")
         self.repo.commit()
-        self.assertTrue(self.decision().docs_only)
+        self.assertTrue(self.decision().skip_validation)
         self.repo.write("docs/README.md\ncode.py", "code = True\n")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_empty_diff_runs_ci(self):
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_executable_markdown_runs_ci(self):
         (self.repo.root / "README.md").chmod(0o755)
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_deleting_executable_markdown_runs_ci(self):
         (self.repo.root / "README.md").chmod(0o755)
         base = self.repo.commit()
         self.repo.git("rm", "README.md")
         self.repo.commit()
-        self.assertFalse(self.decision(base=base).docs_only)
+        self.assertFalse(self.decision(base=base).skip_validation)
 
     def test_symlink_named_markdown_runs_ci(self):
         (self.repo.root / "linked.md").symlink_to("app.py")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
     def test_markdown_inputs_run_ci(self):
         for path in (
@@ -127,21 +127,21 @@ class CIChangesTests(unittest.TestCase):
                 self.assertFalse(ci_changes.documentation_path(path))
         self.repo.write("Where/App/Resources/help.md", "Rendered copy\n")
         self.repo.commit()
-        self.assertFalse(self.decision().docs_only)
+        self.assertFalse(self.decision().skip_validation)
 
-    def test_main_manual_and_unknown_events_always_run_ci(self):
+    def test_unverified_push_manual_and_unknown_events_run_ci(self):
         self.repo.write("README.md", "Revised docs\n")
         self.repo.commit()
         for event in ("push", "workflow_dispatch", "api", "", "schedule"):
             with self.subTest(event=event):
-                self.assertFalse(self.decision(event=event).docs_only)
-        self.assertFalse(self.decision(force=True).docs_only)
+                self.assertFalse(self.decision(event=event).skip_validation)
+        self.assertFalse(self.decision(force=True).skip_validation)
 
     def test_missing_or_invalid_history_defaults_to_ci_with_a_reason(self):
         for base in ("", "<nil>", "--help", "f" * 40):
             with self.subTest(base=base):
                 decision = self.decision(base=base)
-                self.assertFalse(decision.docs_only)
+                self.assertFalse(decision.skip_validation)
                 self.assertIn("Cannot classify", decision.reason)
 
     def test_shallow_clone_cannot_silently_skip_ci(self):
@@ -157,7 +157,7 @@ class CIChangesTests(unittest.TestCase):
                 head=head,
                 force=False,
             )
-            self.assertFalse(decision.docs_only)
+            self.assertFalse(decision.skip_validation)
             self.assertIn("Cannot classify", decision.reason)
 
     def test_git_timeout_defaults_to_ci(self):
@@ -173,7 +173,7 @@ class CIChangesTests(unittest.TestCase):
                 head=self.repo.base,
                 force=False,
             )
-        self.assertFalse(decision.docs_only)
+        self.assertFalse(decision.skip_validation)
         self.assertIn("TimeoutExpired", decision.reason)
 
     def test_malformed_diff_cannot_approve_a_skip(self):
@@ -203,7 +203,7 @@ class CIChangesTests(unittest.TestCase):
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "docs_only=true\n")
+        self.assertEqual(result.stdout, "skip_validation=true\n")
         self.assertIn("complete PR diff", result.stderr)
 
     def test_command_reports_full_ci_for_missing_history(self):
@@ -217,5 +217,5 @@ class CIChangesTests(unittest.TestCase):
                 ["--event", "pull_request", "--base", "", "--head", ""]
             )
         self.assertEqual(status, 0)
-        self.assertEqual(stdout.getvalue(), "docs_only=false\n")
+        self.assertEqual(stdout.getvalue(), "skip_validation=false\n")
         self.assertIn("Running full CI", stderr.getvalue())

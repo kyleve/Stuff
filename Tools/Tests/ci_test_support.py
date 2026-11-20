@@ -14,7 +14,15 @@ class GitRepository:
         self.git("config", "user.name", "CI Test")
         self.git("config", "user.email", "ci@example.test")
         source = repository_root(__file__)
-        for name in ("ci_changes", "ci_circleci", "circleci_pipeline", "repository"):
+        for name in (
+            "ci_actions_evidence",
+            "ci_changes",
+            "ci_circleci",
+            "ci_merge_validation",
+            "ci_native_evidence",
+            "circleci_pipeline",
+            "repository",
+        ):
             target = self.root / f"Tools/{name}.py"
             target.parent.mkdir(exist_ok=True)
             shutil.copyfile(source / f"Tools/{name}.py", target)

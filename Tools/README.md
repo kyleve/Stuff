@@ -158,7 +158,6 @@ The Git diff includes additions, edits, deletions, and both paths of a rename.
 It has no API file-count limit.
 A later documentation commit cannot hide an earlier code change in the PR.
 An empty diff, unavailable history, or classification error selects full CI and prints the reason.
-Main pushes and manual runs always select full CI.
 The existing `NO-CI` title marker remains available for prototypes.
 
 GitHub runs one Linux classification job and checks agent guidance before skipping the existing required jobs for documentation-only PRs.
@@ -170,7 +169,7 @@ See [GitHub's conditional-job behavior](https://docs.github.com/en/actions/how-t
 
 CircleCI starts with [`.circleci/config.yml`](../.circleci/config.yml) on Linux.
 [`ci_circleci.py`](ci_circleci.py) passes the decision to [`.circleci/continue.yml`](../.circleci/continue.yml) through the continuation API.
-Documentation-only PRs complete the existing `iOS CI` workflow with a small Linux job.
+Documentation-only PRs and verified merges complete the existing `iOS CI` workflow with a small Linux job.
 Other PRs retain the existing macOS build and test graph.
 Installer and Flyover publication retain their event gates, parameters, and signing boundaries.
 If setup fails before publication starts, both controllers stop on the next poll and report failure.
@@ -180,10 +179,21 @@ This flow requires CircleCI's dynamic configuration setting, which new projects 
 After a setup failure, trigger a new pipeline. CircleCI does not permit continuation twice for the same pipeline.
 See [CircleCI's dynamic configuration requirements](https://circleci.com/docs/guides/orchestrate/dynamic-config/).
 
+### Reusing PR validation on main
+
+On a non-forced push to main, the selectors look up the merged PR for the exact pushed commit. The final PR head and the landed checkout must have the same Git tree. This also works for squash merges, which create a different commit SHA.
+
+- GitHub Actions records the PR number and checked-out tree during its guidance check. The selector verifies that marker and all six successful CI jobs in one PR workflow attempt.
+- CircleCI runs on the PR head. The selector verifies the four successful native job statuses from the CircleCI app, then checks the workflow and pipeline for the PR number, repository, checkout and configuration.
+- Each selector logs both run links when it reuses validation. A direct change, a forced push, an incomplete or skipped check, or unavailable provider data selects full CI. Runs predating the GitHub tree marker also take that path.
+
+Manual full runs always execute. Signed archives and publication run from the landed commit; this shortcut reuses test results only.
+
 The focused regression command covers Git history, command output, continuation failures, and required-check wiring:
 
 ```bash
-python3 -m unittest Tools.Tests.test_ci_changes Tools.Tests.test_ci_circleci Tools.Tests.test_ci_workflows Tools.Tests.test_flyover_workflows
+python3 -m unittest discover -s Tools/Tests -p 'test_ci_*.py'
+python3 -m unittest Tools.Tests.test_flyover_workflows
 ```
 
 ## Worktree cleanup

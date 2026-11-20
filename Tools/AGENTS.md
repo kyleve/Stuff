@@ -56,7 +56,8 @@ These rules also apply when changing a root command or installer that calls this
 - Add Markdown build, rendered-content, or fixture directories to the classifier's exclusions before introducing those consumers.
   Keep executable and symlink changes outside the documentation shortcut.
 - Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
-  Keep main pushes, explicit full runs, and publication workflows outside the shortcut.
+  Reuse validation on a main push only when the landed tree matches one merged PR and both providers completed their full PR checks on that tree. Require a non-forced push. Run full validation when evidence is missing or ambiguous.
+  Manual full runs and publication workflows keep their own gates.
   Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
 - Validate guidance in Linux classification before the documentation shortcut and repeat it in required lint.
   A guidance failure must fail classification and reach required lint through its failure fallback.

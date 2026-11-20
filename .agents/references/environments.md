@@ -111,6 +111,7 @@ plus two build-only shards for **Where Beta** and **Where App Store**. The iOS
 tests moved there in PR #237 and gained the build handoff in PR #276. CircleCI
 passes `--skip-architecture` and `--skip-host-tests` because GitHub owns those checks.
 Do not read one configuration as the whole of CI. Documentation-only PRs retain required check names and skip expensive jobs.
+Main pushes check both providers for completed PR validation on the landed tree. [CI selection](../../Tools/AGENTS.md#ci-selection) owns reuse and fallback.
 PRs with `NO-CI` in their title skip both CI systems.
 Use this marker only for prototypes and exploratory work. The marker does not
 skip pushes to `main` or manual CircleCI full-gate runs. See the
