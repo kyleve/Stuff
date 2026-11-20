@@ -1,0 +1,523 @@
+{
+  "date": "2026-11-15",
+  "scope": "Astro development delivery of the existing Mobius prototype; no UI/state behavior changes",
+  "baseCommit": "12e48303ab3d223337ad2ae5d7d132adf81835c3",
+  "sourceHashes": {
+    "src/pages/index.astro": "06655f89112e163387eab452f15a042e0e7e00a92cab6f172e5dc4b6fcb0d2cd",
+    "src/styles.css": "4dcaeb7e65ffb9469d740184816ed6249cff16f0f5be7753dd5aac9b83241282",
+    "src/app.js": "b408a27a20c30eb906b2fe76b081c73e5e3d58c1f0ae9f5080a299d7d157cf7f",
+    "astro.config.mjs": "f571509021660dd59178e4e6563c286d35a00effda47d62a2fbd833ba97ad064",
+    "tsconfig.json": "e4d8f9bd5c6852a50b0dec674d102995d61499fdd66d3ca4995c8e35e0f0299f"
+  },
+  "retention": {
+    "localLinksAndAnchors": 332,
+    "markdownFences": "pass",
+    "archiveMatchesPublishedSHA256": "c99c3a8670006ca787dd5880ff9e04834b777d682f1dca7515688f94c6cad89b",
+    "extractedClientIdentical": true,
+    "extractedStylesMatchExceptTrailingBlankLine": true,
+    "priorArchivesAndEvidenceUntouched": true,
+    "initialCaptureBytesIdentical": {
+      "phone": true,
+      "tablet": true,
+      "desktop": true
+    },
+    "captureHashes": {
+      "desktop-after.png": "fa44ce9471319e5f782cfaa0c021bb5d12a930e784ca7af712bb0b8ddbe96e77",
+      "phone-after.png": "5b8adf25d10c3c39b718fe53ce068b83e49471e7847ebc7fb2bfa95b9fc95637",
+      "phone-review.png": "1a16bc35749aa776f8430efc23c5a0dc2f3484cccb8a1c586257ea09c038862c",
+      "phone-before.png": "5b8adf25d10c3c39b718fe53ce068b83e49471e7847ebc7fb2bfa95b9fc95637",
+      "tablet-review.png": "d1554eaa051a00ded7d8e47493a9f0b7b868fc1268ac980e85da84bcba051a69",
+      "desktop-review.png": "3c62f5da71aedc493b001f9d3a4c30b5dc1b6c291e935bfcc2b3f32dcabc69c0",
+      "tablet-after.png": "0a3deb76f44d571484458fffa6df90b239447b54c4545ccc6eb5714138e039a5",
+      "tablet-before.png": "0a3deb76f44d571484458fffa6df90b239447b54c4545ccc6eb5714138e039a5",
+      "desktop-before.png": "fa44ce9471319e5f782cfaa0c021bb5d12a930e784ca7af712bb0b8ddbe96e77"
+    }
+  },
+  "toolchain": {
+    "node": "24.22.0",
+    "astro": "7.4.0",
+    "playwright": "1.64.1",
+    "axe": "4.14.0"
+  },
+  "commands": {
+    "root": "prototype_dir=\"$PWD/Plans/2026-11-14-mobius/Prototype\" (from repository root)",
+    "start": "ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev --root \"$prototype_dir\" --host 0.0.0.0 --port 4321 --background",
+    "status": "ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev status --root \"$prototype_dir\"",
+    "logs": "ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev logs --root \"$prototype_dir\"",
+    "stop": "ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro dev stop --root \"$prototype_dir\"",
+    "check": "ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro check --root \"$prototype_dir\"",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 mise exec -- node_modules/.bin/astro build --root \"$prototype_dir\""
+  },
+  "staticChecks": {
+    "astroCheck": "4 files; 0 errors/warnings/hints",
+    "astroBuild": "1 static route; successful bundled JS/CSS output",
+    "eslint": "Explicit src/pages/index.astro and astro.config.mjs; pass",
+    "javascriptSyntax": "node --check src/app.js; pass",
+    "whitespace": "git diff --cached --check after staging all new sources; pass (original inline-style separator blank line removed)",
+    "devFilesystemBoundary": "request for root AGENTS.md through @fs returns403",
+    "dependencyAndConfigScope": "No root package/lock/config/Tools changes or added dependency tree; generated .astro/dist ignored"
+  },
+  "liveUpdate": {
+    "url": "machine LAN IPv4 on port 4321 (tested from host)",
+    "engine": "156.0.8078.4",
+    "css": {
+      "mode": "HMR",
+      "sessionPreserved": true,
+      "restored": true
+    },
+    "markup": {
+      "mode": "full reload",
+      "sessionReset": true,
+      "restored": true
+    },
+    "script": {
+      "mode": "full reload",
+      "sessionReset": true,
+      "restored": true
+    },
+    "noDuplicateHandlers": true,
+    "viteEvents": [
+      "connected",
+      "update",
+      "update",
+      "full-reload",
+      "full-reload",
+      "connected",
+      "full-reload",
+      "full-reload",
+      "connected",
+      "full-reload",
+      "connected",
+      "full-reload",
+      "connected"
+    ],
+    "errors": [],
+    "sourceHashes": {
+      "src/pages/index.astro": "06655f89112e163387eab452f15a042e0e7e00a92cab6f172e5dc4b6fcb0d2cd",
+      "src/styles.css": "4dcaeb7e65ffb9469d740184816ed6249cff16f0f5be7753dd5aac9b83241282",
+      "src/app.js": "b408a27a20c30eb906b2fe76b081c73e5e3d58c1f0ae9f5080a299d7d157cf7f"
+    }
+  },
+  "author": [
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "checks": [
+        "real Astro module/CSS route renders original initial session",
+        "review/skip/draft plus independently owned new search and second simulated preview",
+        "inactive and last workspace closure, all-closed presentation changes, same child IDs/layout/focus/queries/draft/skip on reopen",
+        "push resurfaces skipped unreviewed file with full diff and reviewed file from actual v1; full/remaining does not advance receipt",
+        "prepared Documents and Localization previews/source remain available through served module",
+        "exact filename drag and stationary chooser, keyboard move and resize after migration",
+        "independent child navigation and non-review focus survive PR return",
+        "resumed review selected file starts at top and keeps its true comparison"
+      ],
+      "audits": [
+        {
+          "state": "initial served",
+          "violations": []
+        },
+        {
+          "state": "restored review",
+          "violations": []
+        }
+      ],
+      "errors": [],
+      "externalRequests": [],
+      "documentOverflow": false
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "checks": [
+        "real Astro module/CSS route renders original initial session",
+        "review/skip/draft plus independently owned new search and second simulated preview",
+        "inactive and last workspace closure, all-closed presentation changes, same child IDs/layout/focus/queries/draft/skip on reopen",
+        "push resurfaces skipped unreviewed file with full diff and reviewed file from actual v1; full/remaining does not advance receipt",
+        "prepared Documents and Localization previews/source remain available through served module",
+        "exact filename drag and stationary chooser, keyboard move and resize after migration",
+        "independent child navigation and non-review focus survive PR return",
+        "resumed review selected file starts at top and keeps its true comparison"
+      ],
+      "audits": [
+        {
+          "state": "initial served",
+          "violations": []
+        },
+        {
+          "state": "restored review",
+          "violations": []
+        }
+      ],
+      "errors": [],
+      "externalRequests": [],
+      "documentOverflow": false
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "checks": [
+        "real Astro module/CSS route renders original initial session",
+        "review/skip/draft plus independently owned new search and second simulated preview",
+        "inactive and last workspace closure, all-closed presentation changes, same child IDs/layout/focus/queries/draft/skip on reopen",
+        "push resurfaces skipped unreviewed file with full diff and reviewed file from actual v1; full/remaining does not advance receipt",
+        "prepared Documents and Localization previews/source remain available through served module",
+        "exact filename drag and stationary chooser, keyboard move and resize after migration",
+        "independent child navigation and non-review focus survive PR return",
+        "resumed review selected file starts at top and keeps its true comparison"
+      ],
+      "audits": [
+        {
+          "state": "initial served",
+          "violations": []
+        },
+        {
+          "state": "restored review",
+          "violations": []
+        }
+      ],
+      "errors": [],
+      "externalRequests": [],
+      "documentOverflow": false
+    }
+  ],
+  "independentReview": {
+    "sourceHashes": {
+      "src/pages/index.astro": "06655f89112e163387eab452f15a042e0e7e00a92cab6f172e5dc4b6fcb0d2cd",
+      "src/styles.css": "e459575d9ede85e6d58024ce82f1405cfd76ca97fca10330a1c6bd0f753e7447",
+      "src/app.js": "b408a27a20c30eb906b2fe76b081c73e5e3d58c1f0ae9f5080a299d7d157cf7f",
+      "astro.config.mjs": "f571509021660dd59178e4e6563c286d35a00effda47d62a2fbd833ba97ad064",
+      "tsconfig.json": "e4d8f9bd5c6852a50b0dec674d102995d61499fdd66d3ca4995c8e35e0f0299f"
+    },
+    "reports": [
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "size": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "target": "dev",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "size": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "target": "build",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "size": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "target": "dev",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "size": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "target": "dev",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "size": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "target": "build",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "size": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "target": "dev",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "size": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "target": "build",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "size": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "target": "dev",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "size": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "target": "dev",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "size": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "target": "build",
+        "checks": [
+          "processed client initializes once with correct dev/build assets and no global test state",
+          "close/reopen retains child identities, research query/focus, Float, review receipt and draft",
+          "actual reviewed basis, unreviewed full diff, skip/undo remain truthful",
+          "filename drag moves exact frame and stationary click retains chooser"
+        ],
+        "errors": [],
+        "documentOverflow": false
+      }
+    ],
+    "reviewedBase": "12e48303ab3d223337ad2ae5d7d132adf81835c3",
+    "scope": "Uncommitted Astro migration only; inherited prototype behavior preserved",
+    "findings": [],
+    "extraction": {
+      "archiveMatchesBase": true,
+      "clientJavaScriptByteIdentical": true,
+      "globalCSSByteIdentical": true,
+      "pageEqualsMechanicalExtraction": true
+    },
+    "staticChecks": {
+      "scopedESLint": "pass: Astro route and config",
+      "clientSyntax": "pass",
+      "whitespace": "pass",
+      "ignoredOutputAndCache": "confirmed"
+    },
+    "lifecycle": {
+      "reviewOwnedPreview": "started on loopback4322 and stopped via native Astro preview stop",
+      "authorDevServer": "left running PID7013 port4321",
+      "outsideProjectNonSecretFile": "@fs repository AGENTS.md returns403"
+    },
+    "limits": [
+      "Actual phone Wi-Fi path not tested.",
+      "Astro check has allowJs but not checkJs; root lint scripts do not select the prototype. Client JS receives syntax/build/runtime coverage, not new type-aware lint.",
+      "No source mutation was performed by reviewer. HMR proof is author-run evidence inspected against unchanged final source hashes.",
+      "WebKit mouse closure after typing in Research moves DOM focus to body while logical focused child persists. The identical behavior was reproduced in standalone archive, dev and build. Keyboard last-close recovery and explicit reopen focus pass; this is an unchanged browser-focus limit, not an actionable Astro migration regression."
+    ],
+    "finalRecheck": {
+      "sourceHashes": {
+        "src/pages/index.astro": "06655f89112e163387eab452f15a042e0e7e00a92cab6f172e5dc4b6fcb0d2cd",
+        "src/styles.css": "4dcaeb7e65ffb9469d740184816ed6249cff16f0f5be7753dd5aac9b83241282",
+        "src/app.js": "b408a27a20c30eb906b2fe76b081c73e5e3d58c1f0ae9f5080a299d7d157cf7f",
+        "astro.config.mjs": "f571509021660dd59178e4e6563c286d35a00effda47d62a2fbd833ba97ad064",
+        "tsconfig.json": "e4d8f9bd5c6852a50b0dec674d102995d61499fdd66d3ca4995c8e35e0f0299f"
+      },
+      "delta": "Removed exactly one trailing newline from extracted styles.css (the old closing-style-block separator); every other reviewed source hash is unchanged.",
+      "checks": [
+        "Direct byte equality: final CSS equals reviewed CSS minus exactly one final newline.",
+        "CSS declarations and tokenization are unchanged; no runtime path or selector changes.",
+        "git diff --check passes."
+      ],
+      "disposition": "No actionable findings. Prior 10-case runtime record retains its original source hashes; this mechanical-only equivalence recheck establishes applicability to final sources without claiming another broad run."
+    }
+  },
+  "coordinator": {
+    "sourceHashes": {
+      "astro.config.mjs": "f571509021660dd59178e4e6563c286d35a00effda47d62a2fbd833ba97ad064",
+      "tsconfig.json": "e4d8f9bd5c6852a50b0dec674d102995d61499fdd66d3ca4995c8e35e0f0299f",
+      "src/pages/index.astro": "06655f89112e163387eab452f15a042e0e7e00a92cab6f172e5dc4b6fcb0d2cd",
+      "src/styles.css": "4dcaeb7e65ffb9469d740184816ed6249cff16f0f5be7753dd5aac9b83241282",
+      "src/app.js": "b408a27a20c30eb906b2fe76b081c73e5e3d58c1f0ae9f5080a299d7d157cf7f"
+    },
+    "reports": [
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "name": "phone-lan",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "checks": "HTTP-served initialization, no dev toolbar, reviewed marker, draft and child identity retention, inactive/last closure, all-closed presentation switch, reopening, review file-top, title-text drag and stationary chooser, second PR reopening and active closure",
+        "errors": [],
+        "target": "machine LAN IPv4"
+      },
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "name": "desktop-local",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": "HTTP-served initialization, no dev toolbar, reviewed marker, draft and child identity retention, inactive/last closure, all-closed presentation switch, reopening, review file-top, title-text drag and stationary chooser, second PR reopening and active closure",
+        "errors": [],
+        "target": "localhost"
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "name": "phone-lan",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "checks": "HTTP-served initialization, no dev toolbar, reviewed marker, draft and child identity retention, inactive/last closure, all-closed presentation switch, reopening, review file-top, title-text drag and stationary chooser, second PR reopening and active closure",
+        "errors": [],
+        "target": "machine LAN IPv4"
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "name": "desktop-local",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": "HTTP-served initialization, no dev toolbar, reviewed marker, draft and child identity retention, inactive/last closure, all-closed presentation switch, reopening, review file-top, title-text drag and stationary chooser, second PR reopening and active closure",
+        "errors": [],
+        "target": "localhost"
+      }
+    ],
+    "limits": [
+      "Read-only served UI checks; HMR edit/revert evidence belongs to the implementation worker.",
+      "LAN address was reached from the host, not a physical phone."
+    ]
+  },
+  "captures": {
+    "description": "Initial PR42v1 before/after: light,1x; phone390x844 One view, tablet834x1112 and desktop1440x1000 Tile. Each matched PNG pair is byte-identical. Review captures show post-push v2 Parser incremental from marked v1 in One view with draft retained.",
+    "visuallyInspected": true,
+    "hashes": {
+      "desktop-after.png": "fa44ce9471319e5f782cfaa0c021bb5d12a930e784ca7af712bb0b8ddbe96e77",
+      "phone-after.png": "5b8adf25d10c3c39b718fe53ce068b83e49471e7847ebc7fb2bfa95b9fc95637",
+      "phone-review.png": "1a16bc35749aa776f8430efc23c5a0dc2f3484cccb8a1c586257ea09c038862c",
+      "phone-before.png": "5b8adf25d10c3c39b718fe53ce068b83e49471e7847ebc7fb2bfa95b9fc95637",
+      "tablet-review.png": "d1554eaa051a00ded7d8e47493a9f0b7b868fc1268ac980e85da84bcba051a69",
+      "desktop-review.png": "3c62f5da71aedc493b001f9d3a4c30b5dc1b6c291e935bfcc2b3f32dcabc69c0",
+      "tablet-after.png": "0a3deb76f44d571484458fffa6df90b239447b54c4545ccc6eb5714138e039a5",
+      "tablet-before.png": "0a3deb76f44d571484458fffa6df90b239447b54c4545ccc6eb5714138e039a5",
+      "desktop-before.png": "fa44ce9471319e5f782cfaa0c021bb5d12a930e784ca7af712bb0b8ddbe96e77"
+    }
+  },
+  "serverHandoff": {
+    "owner": "mobius_prototype task",
+    "nativeBackgroundPID": 7013,
+    "port": 4321,
+    "bind": "0.0.0.0",
+    "intentionalRunningAtHandoff": true,
+    "temporaryReviewerPreviewStopped": true,
+    "actualPhoneWiFiTested": false
+  },
+  "workflowPR": "https://github.com/kyleve/Stuff/pull/503",
+  "limits": [
+    "All runtime probes used isolated synthetic browser contexts; no user browser was controlled.",
+    "Actual phone Wi-Fi, native iPhone/iPad/macOS and cross-device sync are not validated.",
+    "Full page reload deliberately resets sample session; CSS HMR preserves it.",
+    "Root default web lint excludes this prototype; explicit Astro/config lint, check/build, unchanged-script syntax and browser checks were used.",
+    "Runtime probes are ad hoc evidence, not retained CI guards.",
+    "WebKit mouse-closing an inactive workspace after typing in Research can move DOM focus to body while logical child focus remains; reproduced identically in archive/dev/build. Keyboard recovery and retained child context pass; this is unchanged behavior, not a migration finding.",
+    "User evaluation remains pending; this tooling follow-up does not complete experiment acceptance."
+  ]
+}

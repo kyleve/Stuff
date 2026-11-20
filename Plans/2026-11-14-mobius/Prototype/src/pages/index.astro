@@ -1,0 +1,21 @@
+---
+import '../styles.css';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Mobius — a workspace for every review</title>
+
+</head>
+<body>
+<header class="lab"><div class="brand"><span class="brand-mark" aria-hidden="true">∞</span>mobius</div><details id="prototype-controls" class="prototype-controls"><summary><span class="sample">Sample data</span><span>Controls</span></summary><div class="prototype-panel"><h2>Prototype controls</h2><div class="prototype-row"><label for="viewport">Canvas</label><select id="viewport" aria-label="Canvas width"><option value="auto">Auto</option><option value="phone">Phone</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select></div><div class="prototype-row"><span>PR #42</span><button class="button" data-action="push" data-workspace="42" aria-label="Simulate push for PR 42">Simulate push</button></div><div class="prototype-row"><span>PR #43</span><button class="button" data-action="push" data-workspace="43" aria-label="Simulate push for PR 43">Simulate push</button></div><button class="button" data-action="reset">Reset</button><p>Offline sample session. Previews are simulated; no code is running.</p></div></details></header>
+<main id="stage" class="stage" data-size="auto" aria-label="Mobius workspace prototype"><div id="app" class="app"></div></main>
+<dialog id="modal" aria-labelledby="modal-title"></dialog>
+<p id="arrange-help" class="sr-only">In floating layout, drag the view title bar or icon to move it. Click a filename without dragging to choose a file. With the move icon focused, arrow keys move the view; Shift and arrow keys resize it. The corner handle also supports arrow-key resizing.</p>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="../app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5351 @@
+{
+  "correction": "Iteration4 selected/rendered layout truth and visible workspace/child scopes",
+  "verifiedDate": "2026-11-14",
+  "baseCommit": "8404126bf89bfbca88d9a766401ee929e7d46e33",
+  "artifact": "index.html",
+  "artifactSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+  "archive": {
+    "path": "iteration-04.html",
+    "commit": "e987835f6a1dd18463eceaf8274673c8445036d5",
+    "sha256": "fe137ea8e41335bbb0c25a203f6b27aac689bcdb2ce725420a63ab5b50dc8b00",
+    "byteIdentity": "passed"
+  },
+  "toolchain": {
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "axe": "4.14.0"
+  },
+  "method": {
+    "source": "User bug report and Q25: Honor Float at narrow widths too.",
+    "scope": "Computed layout and selected-mode agreement, narrow movement/resize and visibility, owner continuity, representative presentation captures.",
+    "commands": [
+      "mise exec -- node /tmp/mobius-layout-investigation.cjs",
+      "mise exec -- node /tmp/mobius-layout-after.cjs",
+      "mise exec -- node /tmp/mobius-layout-verify.cjs",
+      "mise exec -- node /tmp/mobius-layout-captures.cjs",
+      "mise exec -- node --check /tmp/mobius-layout-inline.js",
+      "git diff --check"
+    ],
+    "checks": "Ad hoc isolated browser checks, not retained CI guards. No access to the user live browser.",
+    "unrelatedScope": "Prepared catalog and complete review/skip/comparison-rendering function range are byte-identical to the iteration4 archive. Prior feature matrix remains historical; new layout/continuity checks exercise changed shared paths."
+  },
+  "before": [
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Tabs"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 390,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 0,
+          "y": 144,
+          "width": 390,
+          "height": 699,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Windows"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 376,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 8,
+          "y": 203,
+          "width": 374,
+          "height": 632,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Tabs"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 788,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 55.046875,
+          "y": 136.1875,
+          "width": 487.671875,
+          "height": 696.953125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 146.484375,
+          "y": 242.671875,
+          "width": 487.671875,
+          "height": 696.953125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 237.921875,
+          "y": 349.15625,
+          "width": 487.671875,
+          "height": 696.953125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Windows"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 430,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 36,
+          "y": 212,
+          "width": 428,
+          "height": 868,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Tabs"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1394,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 70.1875,
+          "y": 133.390625,
+          "width": 875.515625,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 234.359375,
+          "y": 227.546875,
+          "width": 875.515625,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 398.515625,
+          "y": 321.71875,
+          "width": 875.515625,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Windows"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 679,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 36,
+          "y": 212,
+          "width": 677,
+          "height": 756,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Tabs"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1554,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 124.1875,
+          "y": 135.890625,
+          "width": 977.90625,
+          "height": 688.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 307.546875,
+          "y": 241.046875,
+          "width": 977.90625,
+          "height": 688.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 490.90625,
+          "y": 346.21875,
+          "width": 977.90625,
+          "height": 688.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Windows"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 759,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 117.265625,
+          "y": 192.125,
+          "width": 467.828125,
+          "height": 637.1875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 204.984375,
+          "y": 289.46875,
+          "width": 467.828125,
+          "height": 637.1875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 292.703125,
+          "y": 386.8125,
+          "width": 467.828125,
+          "height": 637.1875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Tabs"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 680,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 23,
+          "y": 148,
+          "width": 680,
+          "height": 833,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Windows"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 430,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 36,
+          "y": 212,
+          "width": 428,
+          "height": 756,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Tabs"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 682,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 52.390625,
+          "y": 133.390625,
+          "width": 419.828125,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 131.109375,
+          "y": 227.546875,
+          "width": 419.828125,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 209.828125,
+          "y": 321.71875,
+          "width": 419.828125,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Float",
+        " Windows"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 430,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "relative",
+          "x": 36,
+          "y": 212,
+          "width": 428,
+          "height": 756,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "relative",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "after": [
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Tabs",
+        " Tile"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 390,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 12,
+          "y": 107,
+          "width": 366,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 12,
+          "y": 439,
+          "width": 366,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 12,
+          "y": 771,
+          "width": 366,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Tabs",
+        " Float"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 390,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 22.09375,
+          "y": 126.046875,
+          "width": 299.984375,
+          "height": 519.828125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 65.765625,
+          "y": 205.46875,
+          "width": 299.984375,
+          "height": 519.828125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 77,
+          "y": 284.875,
+          "width": 299.984375,
+          "height": 519.828125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "focus"
+      },
+      "selected": [
+        " Tabs",
+        " One view"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 390,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 0,
+          "y": 144,
+          "width": 390,
+          "height": 699,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Windows",
+        " Tile"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 376,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 20,
+          "y": 166,
+          "width": 350,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 20,
+          "y": 498,
+          "width": 350,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 20,
+          "y": 830,
+          "width": 350,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Windows",
+        " Float"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 376,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 29.6875,
+          "y": 183.375,
+          "width": 300,
+          "height": 471.59375,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 69,
+          "y": 255.421875,
+          "width": 300,
+          "height": 471.59375,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 69,
+          "y": 327.46875,
+          "width": 300,
+          "height": 471.59375,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "focus"
+      },
+      "selected": [
+        " Windows",
+        " One view"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 376,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 8,
+          "y": 203,
+          "width": 374,
+          "height": 632,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Tabs",
+        " Tile"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 788,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 35,
+          "y": 111,
+          "width": 445.046875,
+          "height": 970,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 492.046875,
+          "y": 111,
+          "width": 306.953125,
+          "height": 479,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 492.046875,
+          "y": 602,
+          "width": 306.953125,
+          "height": 479,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Tabs",
+        " Float"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 788,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 55.046875,
+          "y": 136.1875,
+          "width": 487.671875,
+          "height": 696.953125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 146.484375,
+          "y": 242.671875,
+          "width": 487.671875,
+          "height": 696.953125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 237.921875,
+          "y": 349.15625,
+          "width": 487.671875,
+          "height": 696.953125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "focus"
+      },
+      "selected": [
+        " Tabs",
+        " One view"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 788,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 23,
+          "y": 145,
+          "width": 788,
+          "height": 948,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Windows",
+        " Tile"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 175,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 507,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 839,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Windows",
+        " Float"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 59.046875,
+          "y": 198.265625,
+          "width": 300,
+          "height": 641.515625,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 107.28125,
+          "y": 296.28125,
+          "width": 300,
+          "height": 641.515625,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 151,
+          "y": 394.28125,
+          "width": 300,
+          "height": 641.515625,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "focus"
+      },
+      "selected": [
+        " Windows",
+        " One view"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 36,
+          "y": 212,
+          "width": 428,
+          "height": 868,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Tabs",
+        " Tile"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1394,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 35,
+          "y": 111,
+          "width": 803.703125,
+          "height": 858,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 850.703125,
+          "y": 111,
+          "width": 554.296875,
+          "height": 423,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 850.703125,
+          "y": 546,
+          "width": 554.296875,
+          "height": 423,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Tabs",
+        " Float"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1394,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 70.1875,
+          "y": 133.390625,
+          "width": 875.515625,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 234.359375,
+          "y": 227.546875,
+          "width": 875.515625,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 398.515625,
+          "y": 321.71875,
+          "width": 875.515625,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "focus"
+      },
+      "selected": [
+        " Tabs",
+        " One view"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1394,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 23,
+          "y": 145,
+          "width": 1394,
+          "height": 836,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Windows",
+        " Tile"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 679,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 175,
+          "width": 653,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 507,
+          "width": 653,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 839,
+          "width": 653,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Windows",
+        " Float"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 679,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 65.265625,
+          "y": 195.46875,
+          "width": 416.625,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 143.390625,
+          "y": 281.15625,
+          "width": 416.625,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 221.5,
+          "y": 366.84375,
+          "width": 416.625,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "focus"
+      },
+      "selected": [
+        " Windows",
+        " One view"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 679,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 36,
+          "y": 212,
+          "width": 677,
+          "height": 756,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Tabs",
+        " Tile"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1554,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 85,
+          "y": 111,
+          "width": 898.40625,
+          "height": 958,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 995.40625,
+          "y": 111,
+          "width": 619.578125,
+          "height": 473,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 995.40625,
+          "y": 596,
+          "width": 619.578125,
+          "height": 473,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Tabs",
+        " Float"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1554,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 124.1875,
+          "y": 135.890625,
+          "width": 977.90625,
+          "height": 688.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 307.546875,
+          "y": 241.046875,
+          "width": 977.90625,
+          "height": 688.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 490.90625,
+          "y": 346.21875,
+          "width": 977.90625,
+          "height": 688.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "focus"
+      },
+      "selected": [
+        " Tabs",
+        " One view"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 1554,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 73,
+          "y": 145,
+          "width": 1554,
+          "height": 936,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Windows",
+        " Tile"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 759,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 98,
+          "y": 169,
+          "width": 426.703125,
+          "height": 887,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 536.703125,
+          "y": 169,
+          "width": 294.296875,
+          "height": 437.5,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 536.703125,
+          "y": 618.5,
+          "width": 294.296875,
+          "height": 437.5,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Windows",
+        " Float"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 759,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 117.265625,
+          "y": 192.125,
+          "width": 467.828125,
+          "height": 637.1875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 204.984375,
+          "y": 289.46875,
+          "width": 467.828125,
+          "height": 637.1875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 292.703125,
+          "y": 386.8125,
+          "width": 467.828125,
+          "height": 637.1875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "wide",
+        "width": 1700,
+        "height": 1100
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "focus"
+      },
+      "selected": [
+        " Windows",
+        " One view"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 759,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 86,
+          "y": 203,
+          "width": 757,
+          "height": 865,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Tabs",
+        " Tile"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 680,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 35,
+          "y": 111,
+          "width": 656,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 35,
+          "y": 443,
+          "width": 656,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 35,
+          "y": 775,
+          "width": 656,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Tabs",
+        " Float"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 680,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 52.34375,
+          "y": 133.390625,
+          "width": 418.546875,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 130.828125,
+          "y": 227.546875,
+          "width": 418.546875,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 209.296875,
+          "y": 321.71875,
+          "width": 418.546875,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "focus"
+      },
+      "selected": [
+        " Tabs",
+        " One view"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 680,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 23,
+          "y": 148,
+          "width": 680,
+          "height": 833,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Windows",
+        " Tile"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 175,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 507,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 839,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Windows",
+        " Float"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 59.046875,
+          "y": 195.46875,
+          "width": 300,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 107.28125,
+          "y": 281.15625,
+          "width": 300,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 151,
+          "y": 366.84375,
+          "width": 300,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "below-boundary",
+        "width": 726,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "focus"
+      },
+      "selected": [
+        " Windows",
+        " One view"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 36,
+          "y": 212,
+          "width": 428,
+          "height": 756,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Tabs",
+        " Tile"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 682,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 35,
+          "y": 111,
+          "width": 382.3125,
+          "height": 858,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 429.3125,
+          "y": 111,
+          "width": 263.6875,
+          "height": 423,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 429.3125,
+          "y": 546,
+          "width": 263.6875,
+          "height": 423,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "float"
+      },
+      "selected": [
+        " Tabs",
+        " Float"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 682,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 52.390625,
+          "y": 133.390625,
+          "width": 419.828125,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 131.109375,
+          "y": 227.546875,
+          "width": 419.828125,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 209.828125,
+          "y": 321.71875,
+          "width": 419.828125,
+          "height": 616.3125,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "tabs",
+        "layout": "focus"
+      },
+      "selected": [
+        " Tabs",
+        " One view"
+      ],
+      "visibleTabButtons": 2,
+      "hostWidth": 682,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 23,
+          "y": 145,
+          "width": 682,
+          "height": 836,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "tiles"
+      },
+      "selected": [
+        " Windows",
+        " Tile"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "grid",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 175,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 507,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "static",
+          "x": 48,
+          "y": 839,
+          "width": 404,
+          "height": 320,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "float"
+      },
+      "selected": [
+        " Windows",
+        " Float"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "block",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "absolute",
+          "x": 59.046875,
+          "y": 195.46875,
+          "width": 300,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-2",
+          "display": "flex",
+          "position": "absolute",
+          "x": 107.28125,
+          "y": 281.15625,
+          "width": 300,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        },
+        {
+          "view": "42-3",
+          "display": "flex",
+          "position": "absolute",
+          "x": 151,
+          "y": 366.84375,
+          "width": 300,
+          "height": 560.875,
+          "moveHandleVisible": true,
+          "resizeHandleVisible": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": {
+        "name": "above-boundary",
+        "width": 728,
+        "height": 1000
+      },
+      "requested": {
+        "presentation": "windows",
+        "layout": "focus"
+      },
+      "selected": [
+        " Windows",
+        " One view"
+      ],
+      "visibleTabButtons": 0,
+      "hostWidth": 430,
+      "canvasDisplay": "flex",
+      "children": [
+        {
+          "view": "42-1",
+          "display": "flex",
+          "position": "static",
+          "x": 36,
+          "y": 212,
+          "width": 428,
+          "height": 756,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-2",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        },
+        {
+          "view": "42-3",
+          "display": "none",
+          "position": "static",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "moveHandleVisible": false,
+          "resizeHandleVisible": false
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "computedAssertions": {
+    "sourceSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+    "cases": [
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "wide",
+          "width": 1700,
+          "height": 1100
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "wide",
+          "width": 1700,
+          "height": 1100
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "wide",
+          "width": 1700,
+          "height": 1100
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "wide",
+          "width": 1700,
+          "height": 1100
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "wide",
+          "width": 1700,
+          "height": 1100
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "wide",
+          "width": 1700,
+          "height": 1100
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "below-boundary",
+          "width": 726,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "below-boundary",
+          "width": 726,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "below-boundary",
+          "width": 726,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "below-boundary",
+          "width": 726,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "below-boundary",
+          "width": 726,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "below-boundary",
+          "width": 726,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "above-boundary",
+          "width": 728,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "above-boundary",
+          "width": 728,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "above-boundary",
+          "width": 728,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "tabs",
+          "layout": "focus"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "above-boundary",
+          "width": 728,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "tiles"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "above-boundary",
+          "width": 728,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "float"
+        },
+        "result": "passed"
+      },
+      {
+        "viewport": {
+          "name": "above-boundary",
+          "width": 728,
+          "height": 1000
+        },
+        "requested": {
+          "presentation": "windows",
+          "layout": "focus"
+        },
+        "result": "passed"
+      }
+    ]
+  },
+  "interactions": {
+    "sourceSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+    "reports": [
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "checks": "passed",
+        "pointerDelta": {
+          "x": 4,
+          "y": 6,
+          "width": 0,
+          "height": 0
+        },
+        "handleSize": {
+          "move": {
+            "width": 44,
+            "height": 44
+          },
+          "resize": {
+            "width": 44,
+            "height": 44
+          }
+        },
+        "audits": [
+          {
+            "state": "narrow-capable float",
+            "violations": []
+          },
+          {
+            "state": "workspace windows navigation",
+            "violations": []
+          },
+          {
+            "state": "real narrow tiles",
+            "violations": []
+          },
+          {
+            "state": "scoped options",
+            "violations": []
+          },
+          {
+            "state": "recovered float workspace",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "checks": "passed",
+        "pointerDelta": {
+          "x": 4,
+          "y": 6,
+          "width": 0,
+          "height": 0
+        },
+        "handleSize": {
+          "move": {
+            "width": 44,
+            "height": 44
+          },
+          "resize": {
+            "width": 44,
+            "height": 44
+          }
+        },
+        "audits": [
+          {
+            "state": "narrow-capable float",
+            "violations": []
+          },
+          {
+            "state": "workspace windows navigation",
+            "violations": []
+          },
+          {
+            "state": "real narrow tiles",
+            "violations": []
+          },
+          {
+            "state": "scoped options",
+            "violations": []
+          },
+          {
+            "state": "recovered float workspace",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": "passed",
+        "pointerDelta": {
+          "x": 4,
+          "y": 6,
+          "width": 0,
+          "height": 0
+        },
+        "handleSize": {
+          "move": {
+            "width": 36,
+            "height": 36
+          },
+          "resize": {
+            "width": 28,
+            "height": 28
+          }
+        },
+        "audits": [
+          {
+            "state": "narrow-capable float",
+            "violations": []
+          },
+          {
+            "state": "workspace windows navigation",
+            "violations": []
+          },
+          {
+            "state": "real narrow tiles",
+            "violations": []
+          },
+          {
+            "state": "scoped options",
+            "violations": []
+          },
+          {
+            "state": "recovered float workspace",
+            "violations": []
+          }
+        ],
+        "errors": [],
+        "externalRequests": [],
+        "documentOverflow": false
+      }
+    ]
+  },
+  "independentReview": {
+    "disposition": "No actionable findings remain",
+    "results": {
+      "sha256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+      "report": [
+        {
+          "viewport": {
+            "name": "phone",
+            "width": 390,
+            "height": 844
+          },
+          "checks": "float handles and projected pointer delta; non-destructive resize and outer switches; picker PR return; tiles disjoint/reachable; One view visibility",
+          "audits": [
+            {
+              "state": "tabs options",
+              "violations": []
+            },
+            {
+              "state": "tabs canvas",
+              "violations": []
+            },
+            {
+              "state": "windows options",
+              "violations": []
+            },
+            {
+              "state": "windows canvas",
+              "violations": []
+            }
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "name": "tablet",
+            "width": 834,
+            "height": 1112
+          },
+          "checks": "float handles and projected pointer delta; non-destructive resize and outer switches; picker PR return; tiles disjoint/reachable; One view visibility",
+          "audits": [
+            {
+              "state": "tabs options",
+              "violations": []
+            },
+            {
+              "state": "tabs canvas",
+              "violations": []
+            },
+            {
+              "state": "windows options",
+              "violations": []
+            },
+            {
+              "state": "windows canvas",
+              "violations": []
+            }
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "name": "desktop",
+            "width": 1440,
+            "height": 1000
+          },
+          "checks": "float handles and projected pointer delta; non-destructive resize and outer switches; picker PR return; tiles disjoint/reachable; One view visibility",
+          "audits": [
+            {
+              "state": "tabs options",
+              "violations": []
+            },
+            {
+              "state": "tabs canvas",
+              "violations": []
+            },
+            {
+              "state": "windows options",
+              "violations": []
+            },
+            {
+              "state": "windows canvas",
+              "violations": []
+            }
+          ],
+          "errors": []
+        }
+      ]
+    },
+    "boundaries": {
+      "sha256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+      "matrix": [
+        {
+          "width": 320,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 320,
+            "canvas": {
+              "x": 0,
+              "y": 95,
+              "width": 320,
+              "height": 904,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 12,
+                "y": 107,
+                "width": 296,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 12,
+                "y": 439,
+                "width": 296,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 12,
+                "y": 771,
+                "width": 296,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 320,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 320,
+            "canvas": {
+              "x": 13,
+              "y": 108,
+              "width": 294,
+              "height": 878,
+              "scrollHeight": 878,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 13,
+                "y": 129.9375,
+                "width": 294,
+                "height": 632.15625
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 13,
+                "y": 226.515625,
+                "width": 294,
+                "height": 632.15625
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 13,
+                "y": 323.109375,
+                "width": 294,
+                "height": 632.15625
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 320,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 320,
+            "canvas": {
+              "x": 0,
+              "y": 144,
+              "width": 320,
+              "height": 855,
+              "scrollHeight": 855,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 0,
+                "y": 144,
+                "width": 320,
+                "height": 855
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 320,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 306,
+            "canvas": {
+              "x": 8,
+              "y": 154,
+              "width": 304,
+              "height": 837,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 20,
+                "y": 166,
+                "width": 280,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 20,
+                "y": 498,
+                "width": 280,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 20,
+                "y": 830,
+                "width": 280,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 320,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 306,
+            "canvas": {
+              "x": 21,
+              "y": 167,
+              "width": 278,
+              "height": 811,
+              "scrollHeight": 811,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 21,
+                "y": 187.265625,
+                "width": 278,
+                "height": 583.90625
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 21,
+                "y": 276.484375,
+                "width": 278,
+                "height": 583.90625
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 21,
+                "y": 365.6875,
+                "width": 278,
+                "height": 583.90625
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 320,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 306,
+            "canvas": {
+              "x": 8,
+              "y": 203,
+              "width": 304,
+              "height": 788,
+              "scrollHeight": 788,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 8,
+                "y": 203,
+                "width": 304,
+                "height": 788
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 390,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 390,
+            "canvas": {
+              "x": 0,
+              "y": 95,
+              "width": 390,
+              "height": 904,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 12,
+                "y": 107,
+                "width": 366,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 12,
+                "y": 439,
+                "width": 366,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 12,
+                "y": 771,
+                "width": 366,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 390,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 390,
+            "canvas": {
+              "x": 13,
+              "y": 108,
+              "width": 364,
+              "height": 878,
+              "scrollHeight": 878,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 22.09375,
+                "y": 129.9375,
+                "width": 299.984375,
+                "height": 632.15625
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 65.765625,
+                "y": 226.515625,
+                "width": 299.984375,
+                "height": 632.15625
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 77,
+                "y": 323.109375,
+                "width": 299.984375,
+                "height": 632.15625
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 390,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 390,
+            "canvas": {
+              "x": 0,
+              "y": 144,
+              "width": 390,
+              "height": 855,
+              "scrollHeight": 855,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 0,
+                "y": 144,
+                "width": 390,
+                "height": 855
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 390,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 376,
+            "canvas": {
+              "x": 8,
+              "y": 154,
+              "width": 374,
+              "height": 837,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 20,
+                "y": 166,
+                "width": 350,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 20,
+                "y": 498,
+                "width": 350,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 20,
+                "y": 830,
+                "width": 350,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 390,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 376,
+            "canvas": {
+              "x": 21,
+              "y": 167,
+              "width": 348,
+              "height": 811,
+              "scrollHeight": 811,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 29.6875,
+                "y": 187.265625,
+                "width": 300,
+                "height": 583.90625
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 69,
+                "y": 276.484375,
+                "width": 300,
+                "height": 583.90625
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 69,
+                "y": 365.6875,
+                "width": 300,
+                "height": 583.90625
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 390,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 376,
+            "canvas": {
+              "x": 8,
+              "y": 203,
+              "width": 374,
+              "height": 788,
+              "scrollHeight": 788,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 8,
+                "y": 203,
+                "width": 374,
+                "height": 788
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 726,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 680,
+            "canvas": {
+              "x": 23,
+              "y": 99,
+              "width": 680,
+              "height": 882,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 35,
+                "y": 111,
+                "width": 656,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 35,
+                "y": 443,
+                "width": 656,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 35,
+                "y": 775,
+                "width": 656,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 726,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 680,
+            "canvas": {
+              "x": 36,
+              "y": 112,
+              "width": 654,
+              "height": 856,
+              "scrollHeight": 856,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 52.34375,
+                "y": 133.390625,
+                "width": 418.546875,
+                "height": 616.3125
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 130.828125,
+                "y": 227.546875,
+                "width": 418.546875,
+                "height": 616.3125
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 209.296875,
+                "y": 321.71875,
+                "width": 418.546875,
+                "height": 616.3125
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 726,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 680,
+            "canvas": {
+              "x": 23,
+              "y": 148,
+              "width": 680,
+              "height": 833,
+              "scrollHeight": 833,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 23,
+                "y": 148,
+                "width": 680,
+                "height": 833
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 726,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 36,
+              "y": 163,
+              "width": 428,
+              "height": 805,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 48,
+                "y": 175,
+                "width": 404,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 48,
+                "y": 507,
+                "width": 404,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 48,
+                "y": 839,
+                "width": 404,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 726,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 49,
+              "y": 176,
+              "width": 402,
+              "height": 779,
+              "scrollHeight": 779,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 59.046875,
+                "y": 195.46875,
+                "width": 300,
+                "height": 560.875
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 107.28125,
+                "y": 281.15625,
+                "width": 300,
+                "height": 560.875
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 151,
+                "y": 366.84375,
+                "width": 300,
+                "height": 560.875
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 726,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 36,
+              "y": 212,
+              "width": 428,
+              "height": 756,
+              "scrollHeight": 756,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 36,
+                "y": 212,
+                "width": 428,
+                "height": 756
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 728,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 682,
+            "canvas": {
+              "x": 23,
+              "y": 99,
+              "width": 682,
+              "height": 882,
+              "scrollHeight": 882,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 35,
+                "y": 111,
+                "width": 382.3125,
+                "height": 858
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 429.3125,
+                "y": 111,
+                "width": 263.6875,
+                "height": 423
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 429.3125,
+                "y": 546,
+                "width": 263.6875,
+                "height": 423
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 728,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 682,
+            "canvas": {
+              "x": 36,
+              "y": 112,
+              "width": 656,
+              "height": 856,
+              "scrollHeight": 856,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 52.390625,
+                "y": 133.390625,
+                "width": 419.828125,
+                "height": 616.3125
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 131.109375,
+                "y": 227.546875,
+                "width": 419.828125,
+                "height": 616.3125
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 209.828125,
+                "y": 321.71875,
+                "width": 419.828125,
+                "height": 616.3125
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 728,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 682,
+            "canvas": {
+              "x": 23,
+              "y": 145,
+              "width": 682,
+              "height": 836,
+              "scrollHeight": 836,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 23,
+                "y": 145,
+                "width": 682,
+                "height": 836
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 728,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 36,
+              "y": 163,
+              "width": 428,
+              "height": 805,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 48,
+                "y": 175,
+                "width": 404,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 48,
+                "y": 507,
+                "width": 404,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 48,
+                "y": 839,
+                "width": 404,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 728,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 49,
+              "y": 176,
+              "width": 402,
+              "height": 779,
+              "scrollHeight": 779,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 59.046875,
+                "y": 195.46875,
+                "width": 300,
+                "height": 560.875
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 107.28125,
+                "y": 281.15625,
+                "width": 300,
+                "height": 560.875
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 151,
+                "y": 366.84375,
+                "width": 300,
+                "height": 560.875
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 728,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 36,
+              "y": 212,
+              "width": 428,
+              "height": 756,
+              "scrollHeight": 756,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 36,
+                "y": 212,
+                "width": 428,
+                "height": 756
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 834,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 788,
+            "canvas": {
+              "x": 23,
+              "y": 99,
+              "width": 788,
+              "height": 882,
+              "scrollHeight": 882,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 35,
+                "y": 111,
+                "width": 445.046875,
+                "height": 858
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 492.046875,
+                "y": 111,
+                "width": 306.953125,
+                "height": 423
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 492.046875,
+                "y": 546,
+                "width": 306.953125,
+                "height": 423
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 834,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 788,
+            "canvas": {
+              "x": 36,
+              "y": 112,
+              "width": 762,
+              "height": 856,
+              "scrollHeight": 856,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 55.046875,
+                "y": 133.390625,
+                "width": 487.671875,
+                "height": 616.3125
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 146.484375,
+                "y": 227.546875,
+                "width": 487.671875,
+                "height": 616.3125
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 237.921875,
+                "y": 321.71875,
+                "width": 487.671875,
+                "height": 616.3125
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 834,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 788,
+            "canvas": {
+              "x": 23,
+              "y": 145,
+              "width": 788,
+              "height": 836,
+              "scrollHeight": 836,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 23,
+                "y": 145,
+                "width": 788,
+                "height": 836
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 834,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 36,
+              "y": 163,
+              "width": 428,
+              "height": 805,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 48,
+                "y": 175,
+                "width": 404,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 48,
+                "y": 507,
+                "width": 404,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 48,
+                "y": 839,
+                "width": 404,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 834,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 49,
+              "y": 176,
+              "width": 402,
+              "height": 779,
+              "scrollHeight": 779,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 59.046875,
+                "y": 195.46875,
+                "width": 300,
+                "height": 560.875
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 107.28125,
+                "y": 281.15625,
+                "width": 300,
+                "height": 560.875
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 151,
+                "y": 366.84375,
+                "width": 300,
+                "height": 560.875
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 834,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 430,
+            "canvas": {
+              "x": 36,
+              "y": 212,
+              "width": 428,
+              "height": 756,
+              "scrollHeight": 756,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 36,
+                "y": 212,
+                "width": 428,
+                "height": 756
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1440,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 1394,
+            "canvas": {
+              "x": 23,
+              "y": 99,
+              "width": 1394,
+              "height": 882,
+              "scrollHeight": 882,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 35,
+                "y": 111,
+                "width": 803.703125,
+                "height": 858
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 850.703125,
+                "y": 111,
+                "width": 554.296875,
+                "height": 423
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 850.703125,
+                "y": 546,
+                "width": 554.296875,
+                "height": 423
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1440,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 1394,
+            "canvas": {
+              "x": 36,
+              "y": 112,
+              "width": 1368,
+              "height": 856,
+              "scrollHeight": 856,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 70.1875,
+                "y": 133.390625,
+                "width": 875.515625,
+                "height": 616.3125
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 234.359375,
+                "y": 227.546875,
+                "width": 875.515625,
+                "height": 616.3125
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 398.515625,
+                "y": 321.71875,
+                "width": 875.515625,
+                "height": 616.3125
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1440,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 1394,
+            "canvas": {
+              "x": 23,
+              "y": 145,
+              "width": 1394,
+              "height": 836,
+              "scrollHeight": 836,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 23,
+                "y": 145,
+                "width": 1394,
+                "height": 836
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1440,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 679,
+            "canvas": {
+              "x": 36,
+              "y": 163,
+              "width": 677,
+              "height": 805,
+              "scrollHeight": 1008,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 48,
+                "y": 175,
+                "width": 653,
+                "height": 320
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 48,
+                "y": 507,
+                "width": 653,
+                "height": 320
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 48,
+                "y": 839,
+                "width": 653,
+                "height": 320
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1440,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 679,
+            "canvas": {
+              "x": 49,
+              "y": 176,
+              "width": 651,
+              "height": 779,
+              "scrollHeight": 779,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 65.265625,
+                "y": 195.46875,
+                "width": 416.625,
+                "height": 560.875
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 143.390625,
+                "y": 281.15625,
+                "width": 416.625,
+                "height": 560.875
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 221.5,
+                "y": 366.84375,
+                "width": 416.625,
+                "height": 560.875
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1440,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 679,
+            "canvas": {
+              "x": 36,
+              "y": 212,
+              "width": 677,
+              "height": 756,
+              "scrollHeight": 756,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 36,
+                "y": 212,
+                "width": 677,
+                "height": 756
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1700,
+          "outer": "tabs",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 1554,
+            "canvas": {
+              "x": 73,
+              "y": 99,
+              "width": 1554,
+              "height": 882,
+              "scrollHeight": 882,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 85,
+                "y": 111,
+                "width": 898.40625,
+                "height": 858
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 995.40625,
+                "y": 111,
+                "width": 619.578125,
+                "height": 423
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 995.40625,
+                "y": 546,
+                "width": 619.578125,
+                "height": 423
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1700,
+          "outer": "tabs",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 1554,
+            "canvas": {
+              "x": 86,
+              "y": 112,
+              "width": 1528,
+              "height": 856,
+              "scrollHeight": 856,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 124.1875,
+                "y": 133.390625,
+                "width": 977.90625,
+                "height": 616.3125
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 307.546875,
+                "y": 227.546875,
+                "width": 977.90625,
+                "height": 616.3125
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 490.90625,
+                "y": 321.71875,
+                "width": 977.90625,
+                "height": 616.3125
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1700,
+          "outer": "tabs",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 1554,
+            "canvas": {
+              "x": 73,
+              "y": 145,
+              "width": 1554,
+              "height": 836,
+              "scrollHeight": 836,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "tabs",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 73,
+                "y": 145,
+                "width": 1554,
+                "height": 836
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1700,
+          "outer": "windows",
+          "arrangement": "tiles",
+          "actual": {
+            "hostWidth": 759,
+            "canvas": {
+              "x": 86,
+              "y": 157,
+              "width": 757,
+              "height": 811,
+              "scrollHeight": 811,
+              "display": "grid"
+            },
+            "arrangement": "tiles",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 98,
+                "y": 169,
+                "width": 426.703125,
+                "height": 787
+              },
+              {
+                "id": "42-2",
+                "position": "static",
+                "x": 536.703125,
+                "y": 169,
+                "width": 294.296875,
+                "height": 387.5
+              },
+              {
+                "id": "42-3",
+                "position": "static",
+                "x": 536.703125,
+                "y": 568.5,
+                "width": 294.296875,
+                "height": 387.5
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1700,
+          "outer": "windows",
+          "arrangement": "float",
+          "actual": {
+            "hostWidth": 759,
+            "canvas": {
+              "x": 99,
+              "y": 170,
+              "width": 731,
+              "height": 785,
+              "scrollHeight": 785,
+              "display": "block"
+            },
+            "arrangement": "float",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "absolute",
+                "x": 117.265625,
+                "y": 189.625,
+                "width": 467.828125,
+                "height": 565.1875
+              },
+              {
+                "id": "42-2",
+                "position": "absolute",
+                "x": 204.984375,
+                "y": 275.96875,
+                "width": 467.828125,
+                "height": 565.1875
+              },
+              {
+                "id": "42-3",
+                "position": "absolute",
+                "x": 292.703125,
+                "y": 362.3125,
+                "width": 467.828125,
+                "height": 565.1875
+              }
+            ]
+          },
+          "errors": []
+        },
+        {
+          "width": 1700,
+          "outer": "windows",
+          "arrangement": "focus",
+          "actual": {
+            "hostWidth": 759,
+            "canvas": {
+              "x": 86,
+              "y": 203,
+              "width": 757,
+              "height": 765,
+              "scrollHeight": 765,
+              "display": "flex"
+            },
+            "arrangement": "focus",
+            "presentation": "windows",
+            "ids": [
+              "42-1",
+              "42-2",
+              "42-3"
+            ],
+            "children": [
+              {
+                "id": "42-1",
+                "position": "static",
+                "x": 86,
+                "y": 203,
+                "width": 757,
+                "height": 765
+              }
+            ]
+          },
+          "errors": []
+        }
+      ],
+      "touchPointer": {
+        "before": {
+          "x": 29.6875,
+          "y": 183.375,
+          "width": 300,
+          "height": 471.59375
+        },
+        "moved": {
+          "x": 41.6875,
+          "y": 199.375,
+          "width": 300,
+          "height": 471.59375
+        },
+        "resized": {
+          "x": 41.6875,
+          "y": 199.375,
+          "width": 304,
+          "height": 466.59375
+        },
+        "outerScrollUnchanged": true
+      },
+      "emptyRecovery": "passed",
+      "archivedBug": {
+        "hostWidth": 679,
+        "stored": "float",
+        "frameBounds": null
+      }
+    },
+    "return": [
+      {
+        "width": 390,
+        "checks": "Both PRs float independently; only the moved owner frame changes; new window picker restores review at file top and non-review focus/state",
+        "errors": []
+      },
+      {
+        "width": 834,
+        "checks": "Both PRs float independently; only the moved owner frame changes; new window picker restores review at file top and non-review focus/state",
+        "errors": []
+      },
+      {
+        "width": 1440,
+        "checks": "Both PRs float independently; only the moved owner frame changes; new window picker restores review at file top and non-review focus/state",
+        "errors": []
+      }
+    ],
+    "extraChecks": "Narrow Windows touch move, real handle hit tests, pointer resize without jumps, empty workspace with retained progress/draft, archive identity and original679px failure reproduction."
+  },
+  "captures": [
+    {
+      "name": "phone-float-before.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "phase": "before",
+      "scenario": "PR42 float, outer tabs; same initial synthetic v1 files and children.",
+      "sha256": "40ee0f9690e5c3adf1f00ac3f6145382d44748e1b72b0929f596339211f4fed8"
+    },
+    {
+      "name": "phone-float-after.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "phase": "after",
+      "scenario": "PR42 float, outer tabs; same initial synthetic v1 files and children.",
+      "sha256": "43441c3d08dcacc32053fcc955ed8908ebf5c589a504c0960dbb728196d32542"
+    },
+    {
+      "name": "phone-tiles-after.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "phase": "after",
+      "scenario": "Explicit Tile at390px: separate vertically stacked child views, all retained/reachable.",
+      "sha256": "bbe6b4e1c66c49f57b44d1be147fb0e2e54228c87f7fe9b3106f14d044e22a8b"
+    },
+    {
+      "name": "phone-asset-float-after.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "phase": "after",
+      "scenario": "Synthetic image comparison adapts to a300px floating child, with source and metadata accessible.",
+      "sha256": "28b6801a98301f753ee36e28a12f6612bd5c029d29b80c35d0b793b19fbc76c4"
+    },
+    {
+      "name": "tablet-windows-before.png",
+      "viewport": {
+        "width": 834,
+        "height": 1112
+      },
+      "phase": "before",
+      "scenario": "PR42 float, outer windows; same initial synthetic v1 files and children.",
+      "sha256": "fa35583d79cffb4afcd3f3cd4d6c968ede5d15665b31fe5fac7c5f63fc9b06c1"
+    },
+    {
+      "name": "tablet-windows-after.png",
+      "viewport": {
+        "width": 834,
+        "height": 1112
+      },
+      "phase": "after",
+      "scenario": "PR42 float, outer windows; same initial synthetic v1 files and children.",
+      "sha256": "341e39377f80298045094e39da26ad275ac5b5f3fa85de8e18739fafeb659d1b"
+    },
+    {
+      "name": "desktop-windows-before.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "phase": "before",
+      "scenario": "PR42 float, outer windows; same initial synthetic v1 files and children.",
+      "sha256": "e7760e12f820e45a336dce268a09443bf414e5d2e6b53b9b0d0a66a60028e31d"
+    },
+    {
+      "name": "desktop-options-before.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "phase": "before",
+      "scenario": "PR42 float, outer windows; same initial synthetic v1 files and children.",
+      "sha256": "3a35692159947096da0b343dc12b3a039d0b06e400b42cf72b3fdcbf9daf70b1"
+    },
+    {
+      "name": "desktop-windows-after.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "phase": "after",
+      "scenario": "PR42 float, outer windows; same initial synthetic v1 files and children.",
+      "sha256": "d24e1f26f42c4239a2600b59f452fb1b9689cc7078ab6c62cd8b53bfd5930cd9"
+    },
+    {
+      "name": "desktop-options-after.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "phase": "after",
+      "scenario": "PR42 float, outer windows; same initial synthetic v1 files and children.",
+      "sha256": "c9d82b10b2f1ef1047823ab662df7b19d0c098f193fedd69c88a290386208b99"
+    }
+  ],
+  "directFileFloat": "passed",
+  "limits": [
+    "Isolated Chromium fixture, not user live tab or native/VoiceOver validation.",
+    "Simulated PR windows remain browser containers; no OS windows or complete window manager.",
+    "Unrelated type fixtures were not rerun wholesale; source identity plus changed-path checks are recorded.",
+    "Default web lint excludes this HTML; native suites and SwiftFormat do not cover this browser-only slice.",
+    "User evaluation of the corrected layout remains pending."
+  ],
+  "staticChecks": {
+    "localLinksAndAnchors": 105,
+    "fences": "passed",
+    "artifactAnd10CaptureHashes": "passed",
+    "archiveByteIdentities": 4,
+    "priorEvidenceUnchanged": true,
+    "inlineJavaScriptSyntax": "passed",
+    "diffWhitespace": "passed"
+  }
+}

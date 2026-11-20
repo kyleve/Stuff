@@ -1,0 +1,527 @@
+{
+  "scope": "Focused iteration-4 title-bar drag correction; historical layout/type evidence is retained unchanged.",
+  "baseCommit": "7f89c2b5c3a156f193e2941b193fae5292594671",
+  "parentCommit": "8021dc5ccb5ced066395b6ce2be7073718aabefc",
+  "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+  "contractMap": {
+    "dragClick": "Title bar/title/icon share pointer gesture; 5 CSS pixel movement threshold separates click/tap jitter. Independent action buttons excluded.",
+    "ownership": "Initiating pointer owns capture; release/cancel/lost capture/rerender/blur end it. Last applied position survives cancellation; no additional movement or action is synthesized.",
+    "continuity": "Existing fitted-frame projection, keyboard move/resize and PR/child state retained.",
+    "guard": "Ad hoc isolated browser evidence; no retained CI guard."
+  },
+  "tools": {
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "webkit": "27.2 (coordinator focused direct-file check)",
+    "axe": "4.14.0"
+  },
+  "commands": [
+    "mise exec -- node /tmp/mobius-titlebar-reproduce-original.cjs",
+    "mise exec -- node /tmp/mobius-titlebar-verify.cjs",
+    "mise exec -- node /tmp/mobius-titlebar-captures.cjs",
+    "mise exec -- node /tmp/mobius-titlebar-independent.cjs",
+    "mise exec -- node /tmp/mobius-titlebar-independent-extra.cjs",
+    "mise exec -- node /tmp/mobius-titlebar-root-check.cjs"
+  ],
+  "before": {
+    "sourceSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+    "reports": [
+      {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "cases": [
+          {
+            "target": ".child-title strong",
+            "title": "Parser.swift",
+            "dx": 0,
+            "dy": 0,
+            "dialogOpen": false
+          },
+          {
+            "target": "[data-drag]",
+            "title": "",
+            "dx": 18,
+            "dy": 24,
+            "dialogOpen": false
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "width": 834,
+          "height": 1112
+        },
+        "cases": [
+          {
+            "target": ".child-title strong",
+            "title": "Parser.swift",
+            "dx": 0,
+            "dy": 0,
+            "dialogOpen": false
+          },
+          {
+            "target": "[data-drag]",
+            "title": "",
+            "dx": 18,
+            "dy": 24,
+            "dialogOpen": false
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "cases": [
+          {
+            "target": ".child-title strong",
+            "title": "Parser.swift",
+            "dx": 0,
+            "dy": 0,
+            "dialogOpen": false
+          },
+          {
+            "target": "[data-drag]",
+            "title": "",
+            "dx": 18,
+            "dy": 24,
+            "dialogOpen": false
+          }
+        ]
+      }
+    ]
+  },
+  "author": {
+    "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+    "reports": [
+      {
+        "viewport": {
+          "name": "phone",
+          "width": 390,
+          "height": 844
+        },
+        "checks": [
+          "stationary title click and 4px jitter open chooser without movement",
+          "5px threshold moves; completion click suppressed; next intentional click works",
+          "Parser.swift exact text moves +18/+24 without chooser, size jump, or sibling/PR mutation",
+          "header padding hit moves +6/+9; keyboard filename activation still works",
+          "icon mouse/keyboard movement and shift/corner resizing preserved",
+          "Non-floating filename click behavior unchanged wherever the title bar is rendered",
+          "narrow/wide and outer-window round trips preserve saved frames, focus and child state",
+          "close/focus/source-review controls do not drag and retain deliberate click actions",
+          "foreign pointer ignored; lost capture stops movement/click and next click works",
+          "rerender tears down captured gesture without residual movement or click",
+          "stationary touch tap opens chooser; touch title drag +18/+24 suppresses click; touchCancel clears capture and next tap works",
+          "simulated preview title also drags and clicks to focus"
+        ],
+        "titleMovement": {
+          "x": 18,
+          "y": 24
+        },
+        "touchMovement": {
+          "x": 18,
+          "y": 24
+        },
+        "auditViolations": [],
+        "errors": [],
+        "externalRequests": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 834,
+          "height": 1112
+        },
+        "checks": [
+          "stationary title click and 4px jitter open chooser without movement",
+          "5px threshold moves; completion click suppressed; next intentional click works",
+          "Parser.swift exact text moves +18/+24 without chooser, size jump, or sibling/PR mutation",
+          "header padding hit moves +6/+9; keyboard filename activation still works",
+          "icon mouse/keyboard movement and shift/corner resizing preserved",
+          "Non-floating filename click behavior unchanged wherever the title bar is rendered",
+          "narrow/wide and outer-window round trips preserve saved frames, focus and child state",
+          "close/focus/source-review controls do not drag and retain deliberate click actions",
+          "foreign pointer ignored; lost capture stops movement/click and next click works",
+          "rerender tears down captured gesture without residual movement or click",
+          "stationary touch tap opens chooser; touch title drag +18/+24 suppresses click; touchCancel clears capture and next tap works",
+          "simulated preview title also drags and clicks to focus"
+        ],
+        "titleMovement": {
+          "x": 18,
+          "y": 24
+        },
+        "touchMovement": {
+          "x": 18,
+          "y": 24
+        },
+        "auditViolations": [],
+        "errors": [],
+        "externalRequests": []
+      },
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 1000
+        },
+        "checks": [
+          "stationary title click and 4px jitter open chooser without movement",
+          "5px threshold moves; completion click suppressed; next intentional click works",
+          "Parser.swift exact text moves +18/+24 without chooser, size jump, or sibling/PR mutation",
+          "header padding hit moves +6/+9; keyboard filename activation still works",
+          "icon mouse/keyboard movement and shift/corner resizing preserved",
+          "Non-floating filename click behavior unchanged wherever the title bar is rendered",
+          "narrow/wide and outer-window round trips preserve saved frames, focus and child state",
+          "close/focus/source-review controls do not drag and retain deliberate click actions",
+          "foreign pointer ignored; lost capture stops movement/click and next click works",
+          "rerender tears down captured gesture without residual movement or click",
+          "stationary touch tap opens chooser; touch title drag +18/+24 suppresses click; touchCancel clears capture and next tap works",
+          "simulated preview title also drags and clicks to focus"
+        ],
+        "titleMovement": {
+          "x": 18,
+          "y": 24
+        },
+        "touchMovement": {
+          "x": 18,
+          "y": 24
+        },
+        "auditViolations": [],
+        "errors": [],
+        "externalRequests": []
+      }
+    ]
+  },
+  "independent": {
+    "disposition": "No actionable findings",
+    "threeSizes": {
+      "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+      "reports": [
+        {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "checks": [
+            "actual filename text drag +20/+22 and no chooser; navigation/PR state unchanged",
+            "stationary filename click after drag opens chooser",
+            "3px jitter clicks with no move",
+            "5px threshold moves and suppresses click",
+            "cross threshold then return suppresses click",
+            "header gap moves",
+            "lost capture ends movement; release has no chooser; next click works",
+            "rerender ends capture and movement",
+            "keyboard icon move and resize",
+            "resize remains immediate below title threshold",
+            "resize round trip preserves authored frame",
+            "touch title drag and stationary next tap",
+            "touch cancellation clears capture; next tap works",
+            "separate focus action remains a click",
+            "source review and close actions excluded from dragging"
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "width": 834,
+            "height": 1112
+          },
+          "checks": [
+            "actual filename text drag +20/+22 and no chooser; navigation/PR state unchanged",
+            "stationary filename click after drag opens chooser",
+            "3px jitter clicks with no move",
+            "5px threshold moves and suppresses click",
+            "cross threshold then return suppresses click",
+            "header gap moves",
+            "lost capture ends movement; release has no chooser; next click works",
+            "rerender ends capture and movement",
+            "keyboard icon move and resize",
+            "resize remains immediate below title threshold",
+            "resize round trip preserves authored frame",
+            "touch title drag and stationary next tap",
+            "touch cancellation clears capture; next tap works",
+            "separate focus action remains a click",
+            "source review and close actions excluded from dragging"
+          ],
+          "errors": []
+        },
+        {
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "checks": [
+            "actual filename text drag +20/+22 and no chooser; navigation/PR state unchanged",
+            "stationary filename click after drag opens chooser",
+            "3px jitter clicks with no move",
+            "5px threshold moves and suppresses click",
+            "cross threshold then return suppresses click",
+            "header gap moves",
+            "lost capture ends movement; release has no chooser; next click works",
+            "rerender ends capture and movement",
+            "keyboard icon move and resize",
+            "resize remains immediate below title threshold",
+            "resize round trip preserves authored frame",
+            "touch title drag and stationary next tap",
+            "touch cancellation clears capture; next tap works",
+            "separate focus action remains a click",
+            "source review and close actions excluded from dragging"
+          ],
+          "errors": []
+        }
+      ]
+    },
+    "alternatePaths": {
+      "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+      "checks": [
+        "preview title drags; stationary title focuses without chooser",
+        "dragging separate action outside target does not move or invoke layout",
+        "title drag in narrower outer Windows host changes only owner",
+        "foreign pointer move/up cannot move or end owned gesture (event-boundary probe)",
+        "Tile title does not author a floating frame"
+      ],
+      "errors": []
+    }
+  },
+  "coordinatorCrossEngine": {
+    "sha256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+    "reports": [
+      {
+        "engine": "Chromium",
+        "version": "156.0.8078.4",
+        "titleDrag": {
+          "x": 32,
+          "y": 24
+        },
+        "chooserAfterDrag": false,
+        "stationaryClick": "passed",
+        "keyboardEnter": "passed",
+        "errors": []
+      },
+      {
+        "engine": "WebKit",
+        "version": "27.2",
+        "titleDrag": {
+          "x": 32,
+          "y": 24
+        },
+        "chooserAfterDrag": false,
+        "stationaryClick": "passed",
+        "keyboardEnter": "passed",
+        "errors": []
+      }
+    ]
+  },
+  "captures": [
+    {
+      "name": "phone-before.png",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "version": "before",
+      "sourceSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+      "sha256": "43441c3d08dcacc32053fcc955ed8908ebf5c589a504c0960dbb728196d32542",
+      "title": "Parser.swift",
+      "requestedMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "actualMovement": {
+        "x": 0,
+        "y": 0
+      },
+      "beforeFrame": {
+        "x": 22.09375,
+        "y": 126.046875,
+        "width": 299.984375,
+        "height": 519.828125
+      },
+      "afterFrame": {
+        "x": 22.09375,
+        "y": 126.046875,
+        "width": 299.984375,
+        "height": 519.828125
+      },
+      "chooserOpen": false
+    },
+    {
+      "name": "phone-after.png",
+      "viewport": {
+        "name": "phone",
+        "width": 390,
+        "height": 844
+      },
+      "version": "after",
+      "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+      "sha256": "5072c882912b584127126afb414801cf93aa5831309fbe6eb56c473c2ba4d613",
+      "title": "Parser.swift",
+      "requestedMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "actualMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "beforeFrame": {
+        "x": 22.09375,
+        "y": 126.046875,
+        "width": 299.984375,
+        "height": 519.828125
+      },
+      "afterFrame": {
+        "x": 58.09375,
+        "y": 206.046875,
+        "width": 299.984375,
+        "height": 519.828125
+      },
+      "chooserOpen": false
+    },
+    {
+      "name": "tablet-before.png",
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "version": "before",
+      "sourceSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+      "sha256": "ad2b14ceb72b1e39e61281053d555113098691649f24005e277bec89ec43e28d",
+      "title": "Parser.swift",
+      "requestedMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "actualMovement": {
+        "x": 0,
+        "y": 0
+      },
+      "beforeFrame": {
+        "x": 55.046875,
+        "y": 136.1875,
+        "width": 487.671875,
+        "height": 696.953125
+      },
+      "afterFrame": {
+        "x": 55.046875,
+        "y": 136.1875,
+        "width": 487.671875,
+        "height": 696.953125
+      },
+      "chooserOpen": false
+    },
+    {
+      "name": "tablet-after.png",
+      "viewport": {
+        "name": "tablet",
+        "width": 834,
+        "height": 1112
+      },
+      "version": "after",
+      "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+      "sha256": "ecb3001dca47a9e3771368b2f48a30b59734379249974a87e3e0223356be69a6",
+      "title": "Parser.swift",
+      "requestedMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "actualMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "beforeFrame": {
+        "x": 55.046875,
+        "y": 136.1875,
+        "width": 487.671875,
+        "height": 696.953125
+      },
+      "afterFrame": {
+        "x": 91.046875,
+        "y": 216.1875,
+        "width": 487.671875,
+        "height": 696.953125
+      },
+      "chooserOpen": false
+    },
+    {
+      "name": "desktop-before.png",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "version": "before",
+      "sourceSHA256": "93018f2fb35d28edb72daab1089a28dd849727658259bd177aa248f68a2e5f5b",
+      "sha256": "9817bd4ddc57cb567aa0e195a20bf27b0ae2bf72cad0a1eb6ffefc13da4a1d3c",
+      "title": "Parser.swift",
+      "requestedMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "actualMovement": {
+        "x": 0,
+        "y": 0
+      },
+      "beforeFrame": {
+        "x": 70.1875,
+        "y": 133.390625,
+        "width": 875.515625,
+        "height": 616.3125
+      },
+      "afterFrame": {
+        "x": 70.1875,
+        "y": 133.390625,
+        "width": 875.515625,
+        "height": 616.3125
+      },
+      "chooserOpen": false
+    },
+    {
+      "name": "desktop-after.png",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "version": "after",
+      "sourceSHA256": "3f86c704db285b85cd504a148236aa464016fb37dd92e005256f27cadc98007d",
+      "sha256": "5aa3b55d30f75de44caeebe790447394b86a3eda0782929f66b3031d54ba5cf2",
+      "title": "Parser.swift",
+      "requestedMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "actualMovement": {
+        "x": 36,
+        "y": 80
+      },
+      "beforeFrame": {
+        "x": 70.1875,
+        "y": 133.390625,
+        "width": 875.515625,
+        "height": 616.3125
+      },
+      "afterFrame": {
+        "x": 106.1875,
+        "y": 213.390625,
+        "width": 875.515625,
+        "height": 616.3125
+      },
+      "chooserOpen": false
+    }
+  ],
+  "captureSetup": "Matching initial PR42 v1, Float + Tabs, Review 1 focused; light, 1x. Same +36/+80 pointer gesture on Parser.swift text. Before uses exact published source 7f89c2b5c; after uses final source. All six visually inspected.",
+  "limits": [
+    "Synthetic isolated fixtures, not the unavailable user browser.",
+    "WebKit check covers desktop filename drag/click/Enter, not a full Safari/device matrix.",
+    "No native device, VoiceOver or complete accessibility audit. Three selected WCAG scans passed.",
+    "No unrelated type/skip matrix rerun; fixture and review/comparison code is unchanged.",
+    "Default web lint excludes HTML; native tests/snapshots/SwiftFormat cannot exercise this change.",
+    "Experiment remains executing pending user reevaluation."
+  ]
+}
