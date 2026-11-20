@@ -26,6 +26,7 @@ jobs:
     env:
       PAGES_ARTIFACT: github-pages-${{ github.run_attempt }}
     outputs:
+      build-attempt: ${{ github.run_attempt }}
       artifact-name: ${{ env.PAGES_ARTIFACT }}
       flyover-release: ${{ steps.flyover.outputs.release }}
     steps:
@@ -63,32 +64,66 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: read
       pages: write
       id-token: write
+    outputs:
+      page-url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - &check-build
+        name: Check freshness of a reused Pages build
+        id: freshness
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_ATTEMPT: ${{ needs.build.outputs.build-attempt }}
+        run: |
+          if [[ "$BUILD_ATTEMPT" != "$GITHUB_RUN_ATTEMPT" ]]; then
+            url="repos/$GITHUB_REPOSITORY/actions/workflows/installer-pages.yml/runs?branch=main&per_page=1"
+            latest=$(gh api "$url" | jq -er '
+              .workflow_runs | select(type == "array" and length == 1) | .[0]
+              | select(.head_branch == "main" and all(.id, .run_number; type == "number" and . > 0 and floor == .))
+              | [.run_number, .id] | @tsv')
+            read -r latest_number latest_id <<< "$latest"
+            if (( latest_number > GITHUB_RUN_NUMBER )) && [[ "$latest_id" != "$GITHUB_RUN_ID" ]]; then
+              echo "::notice::Skipping the reused Pages build. Newer main run $latest_id superseded it."
+              exit 0
+            fi
+            if [[ "$latest_number" != "$GITHUB_RUN_NUMBER" || "$latest_id" != "$GITHUB_RUN_ID" ]]; then
+              echo "::error::The latest reported main run does not establish whether this build is current."
+              exit 1
+            fi
+          fi
+          echo "current=true" >> "$GITHUB_OUTPUT"
       - uses: actions/configure-pages@v5
+        if: steps.freshness.outputs.current == 'true'
       - name: Deploy install site
         id: deployment
+        if: steps.freshness.outputs.current == 'true'
         uses: actions/deploy-pages@v4
         with:
           artifact_name: ${{ needs.build.outputs.artifact-name }}
 
   retain-flyover:
     needs: [build, deploy]
-    if: needs.build.outputs.flyover-release != ''
+    if: needs.deploy.outputs.page-url != '' && needs.build.outputs.flyover-release != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: read
       contents: write
     steps:
+      - *check-build
       - uses: actions/checkout@v4
+        if: steps.freshness.outputs.current == 'true'
         with:
           ref: main
           persist-credentials: false
       - name: Retain one week and at least one Flyover bundle
+        if: steps.freshness.outputs.current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           DEPLOYED_RELEASE: ${{ needs.build.outputs.flyover-release }}
