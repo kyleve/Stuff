@@ -187,6 +187,7 @@ On a non-forced push to main, the selectors look up the merged PR for the exact 
 
 - GitHub Actions records the PR number and checked-out tree during its guidance check. The selector verifies that marker and the configured jobs in one successful PR workflow attempt.
 - CircleCI runs on the PR head. The selector verifies the configured native job statuses from the CircleCI app, then checks the workflow and pipeline for the PR number, repository, checkout and configuration.
+- Auto-merge can trigger main before the APIs show the merged PR or its successful checks. If either is missing, the Linux selector logs what it could not verify and checks the full evidence once more after 65 seconds, allowing GitHub’s 60-second response cache to expire.
 - Each selector logs both run links when it reuses validation. A direct change, a forced push, an incomplete or skipped check, or unavailable provider data selects full CI. Runs predating the GitHub tree marker also take that path.
 
 Manual full runs always execute. Signed archives and publication run from the landed commit; this shortcut reuses test results only.

@@ -3,11 +3,17 @@
 import json
 import re
 import subprocess
+import sys
+from time import sleep
 from urllib.request import Request, build_opener
 
 from Tools.ci_actions_evidence import validated_actions_run
 from Tools.ci_native_evidence import validated_native_run
 from Tools.circleci_pipeline import NoRedirects
+
+
+class MissingMergeEvidence(Exception):
+    """A provider has not shown the evidence required to reuse a PR run."""
 
 
 def validated_merge(root, repository, revision, token):
@@ -36,21 +42,36 @@ def validated_merge(root, repository, revision, token):
         with opener.open(request, timeout=10) as response:
             return json.load(response)
 
+    try:
+        return validated_pr(root, repository, revision, tree, get)
+    except MissingMergeEvidence as error:
+        # GitHub can cache the association and commit statuses for 60 seconds.
+        print(f"{error}. Checking again in 65 seconds.", file=sys.stderr, flush=True)
+        sleep(65)
+    return validated_pr(root, repository, revision, tree, get)
+
+
+def validated_pr(root, repository, revision, tree, get):
     # An associated PR alone can also describe an older ancestor or a commit
     # pushed directly to main. Require this exact commit to be the PR's merge.
     pulls = get(f"commits/{revision}/pulls?per_page=2")
+    if pulls == []:
+        raise MissingMergeEvidence("GitHub has no associated PR for the landed commit")
     if len(pulls) != 1:
         return None
     pr = pulls[0]
     if (
-        pr["state"] != "closed"
-        or not pr["merged_at"]
-        or pr["merge_commit_sha"] != revision
-        or pr["base"]["ref"] != "main"
+        pr["base"]["ref"] != "main"
         or pr["base"]["repo"]["full_name"] != repository
         or pr["head"]["repo"]["full_name"] != repository
         or "NO-CI" in pr["title"]
     ):
+        return None
+    if pr["state"] != "closed" or not pr["merged_at"]:
+        raise MissingMergeEvidence(
+            "GitHub has not recorded the associated PR as merged"
+        )
+    if pr["merge_commit_sha"] != revision:
         return None
 
     number = pr["number"]
@@ -68,8 +89,12 @@ def validated_merge(root, repository, revision, token):
     jobs = json.loads((root / "Tools/ci-validation-jobs.json").read_text())
     actions = validated_actions_run(get, number, head, tree, jobs["github_actions"])
     if not actions:
-        return None
+        raise MissingMergeEvidence(
+            f"GitHub Actions has no verified full run for PR #{number}"
+        )
     native = validated_native_run(get, head, repository, number, jobs["circleci"])
     if not native:
-        return None
+        raise MissingMergeEvidence(
+            f"CircleCI has no verified full run for PR #{number}"
+        )
     return f"PR #{number} passed on the landed tree {tree}. GitHub Actions: {actions} · CircleCI: {native}"

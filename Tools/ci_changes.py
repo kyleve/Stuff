@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-from Tools.ci_merge_validation import validated_merge
+from Tools.ci_merge_validation import MissingMergeEvidence, validated_merge
 from Tools.repository import repository_root
 
 
@@ -73,6 +73,8 @@ def classify_changes(
     if not force and event == "push" and branch == "main" and push_forced == "false":
         try:
             evidence = validated_merge(root, repository, head, token)
+        except MissingMergeEvidence as error:
+            return Decision(False, f"{error}. Running full CI.")
         except Exception as error:
             # Evidence lookup is optional. Even an unexpected provider response
             # must continue the pipeline, without exposing response data.
