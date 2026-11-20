@@ -116,7 +116,7 @@ struct SnapshotImageRenderingTests {
                 of: host,
                 named: "native-child-insets",
                 safeAreaInsets: requestedInsets,
-                settle: .settled,
+                settle: .immediate,
                 onReadyToSnapshot: {
                     #expect(child.view.safeAreaInsets == requestedInsets)
                 },
