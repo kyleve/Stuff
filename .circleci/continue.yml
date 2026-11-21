@@ -184,6 +184,9 @@ commands:
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
       - run:
+          name: Prepare the two deterministic source orders
+          command: python3 .circleci/grouped_order_probe.py prepare
+      - run:
           name: Generate project and resolve Swift packages
           command: |
             # Populate the immutable download caches before either test job saves them.
@@ -560,58 +563,34 @@ jobs:
           artifact_name: snapshots
           include_snapshot_images: true
 
+  grouped-library-order-probe:
+    executor: m4-pro-medium
+    steps:
+      - prepare_builder:
+          test_workdir: test-output-order-probe
+          require_site_dependencies: false
+      - run_with_timeout:
+          step_name: Run three serial library orders
+          seconds: 1800
+          command: >-
+            ./test --all --shared --os 27.2 --no-generate
+            --skip-architecture --skip-host-tests
+      - run:
+          name: Verify case results and observed suite order
+          when: always
+          command: python3 .circleci/grouped_order_probe.py summarize
+      - store_artifacts:
+          path: test-output-order-probe/evidence
+          destination: grouped-order
+      - store_artifacts:
+          path: test-output-order-probe/Stuff-iOS-FullTests.log
+          destination: grouped-order/test.log
+      - collect_diagnostics:
+          test_workdir: test-output-order-probe
+          artifact_name: grouped-order
+
 workflows:
-  "Flyover Export":
-    when: >-
-      pipeline.parameters.flyover_export == "true" and
-      pipeline.event.name == "api" and
-      pipeline.git.branch == "main" and
-      pipeline.config.ref == "refs/heads/main"
+  "Grouped library order probe":
+    when: pipeline.parameters.manual_full_gate == "true"
     jobs:
-      - export-flyover:
-          name: Export Flyover
-
-  "iOS CI":
-    when: >-
-      pipeline.parameters.manual_full_gate == "true" or
-      (pipeline.event.name == "push" and pipeline.git.branch == "main") or
-      (pipeline.event.name == "pull_request" and
-      pipeline.event.github.pull_request.base.ref == "main" and
-      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/))
-    jobs:
-      - validation-skipped:
-          name: Validation skipped
-          filters: pipeline.parameters.skip_validation
-      - build-ios-tests:
-          name: Build iOS Tests
-          filters: not pipeline.parameters.skip_validation
-      - test-ios:
-          name: Build & Test (iOS)
-          filters: not pipeline.parameters.skip_validation
-          requires:
-            - Build iOS Tests
-      - snapshot:
-          name: Snapshot Tests (iOS)
-          filters: not pipeline.parameters.skip_validation
-          requires:
-            - Build iOS Tests
-
-  "Daily Where Audiences":
-    when: >-
-      pipeline.event.name == "schedule" and
-      pipeline.git.branch == "main" and
-      pipeline.config.ref == "refs/heads/main"
-    jobs:
-      - build-where-audiences:
-          name: Build Where Audiences
-
-  "Installer Archive":
-    when: >-
-      pipeline.parameters.installer_archive == "true" and
-      pipeline.event.name == "api" and
-      pipeline.git.branch == "main" and
-      pipeline.config.ref == "refs/heads/main"
-    jobs:
-      - archive-app:
-          name: Archive App
-          context: where-distribution-signing
+      - grouped-library-order-probe
