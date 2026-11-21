@@ -1,6 +1,6 @@
 # 01 — Safe local selection
 
-- Status: executing
+- Status: complete
 - Depends on: None
 - Shared context: [Overview](README.md)
 
@@ -38,7 +38,7 @@ Unknown paths and unavailable Git history select all known bundles and host macr
 ## Recovery and progress
 
 No production state changes. Inspect the diff and rerun failed checks before resuming.
-Implementation and checks are complete. Publication is pending.
+Implementation and checks are complete. Published in [PR #555](https://github.com/kyleve/Stuff/pull/555), commit `d3955cb2652ddfaac117882db330357170bd15ad`.
 
 ## Execution record
 
@@ -54,4 +54,4 @@ Verified 2026-11-21 against base `ddb0a8546` and the working implementation:
 Independent review reproduced and resolved four parser/ownership defects: a broad installer path included app build scripts; a qualified helper return type lost host links; computed product names matched a literal prefix; nonempty helper defaults lost dependencies. New regressions cover these cases. Full fallback also retains main's grouped full scheme.
 
 The final review found no remaining actionable issues. No Swift behavior or snapshot references changed; full app and image suites were not run.
-Resume: commit and publish 01, then finalize the PR experiment with the published implementation revision.
+Resume: complete; continue with 02's PR experiment. The Linear issue stays In Review until merge and acceptance verification.

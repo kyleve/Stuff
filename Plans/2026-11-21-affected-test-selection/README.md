@@ -4,11 +4,11 @@
 
 - Updated: 2026-11-21; base `ddb0a85466d0ca8ee65e830a43f096e2fb72738e`.
 - Operation: Execute the user's request to fix selection gaps and try recent feature PRs locally.
-- Stage: Publication of implementation, followed by experiment handoff.
-- Completed: Selector and preview, 58 contract tests, lint, shellcheck, independent review, and 11 simulator smoke tests. See [01](01-selection.md).
-- Pending: Publish 01 and finalize the six PR selections with its revision.
-- Next action: Commit and push the implementation, then retain the evidence in [02](02-local-experiment.md).
-- Linear: [STU-343](https://linear.app/kve/issue/STU-343/fix-local-affected-test-selection-and-measure-representative-prs), In Progress. The archived-inclusive search found related vendor evaluation STU-147; this local implementation has separate scope.
+- Stage: Complete; [PR #555](https://github.com/kyleve/Stuff/pull/555) is open for review.
+- Completed: Selector and preview, 58 contract tests, lint, shellcheck, independent review, 11 simulator smoke tests, and six reproducible PR selections. See [01](01-selection.md) and [02](02-local-experiment.md).
+- Pending: PR review and CI results. No requested implementation or experiment work remains.
+- Next action: Review the PR and [experiment results](RESULTS.md); CI selection remains outside this series.
+- Linear: [STU-343](https://linear.app/kve/issue/STU-343/fix-local-affected-test-selection-and-measure-representative-prs), In Review. The archived-inclusive search found related vendor evaluation STU-147; this local implementation has separate scope.
 
 ## Outcome and scope
 
@@ -83,11 +83,19 @@ Q-02 closed on 2026-11-21 after source inspection: #506, #496, #494, #537, #495,
 ## Plan review
 
 Reviewed 2026-11-21 against `ddb0a8546`: requirements, exclusions, dependency order, failure behavior, public flags, and acceptance checks agree.
-01 is executing and has passed verification and independent code review. 02 is ready; its method was reviewed after the preview interface stabilized. Preliminary replay established the sample's usefulness; final evidence follows 01's publication.
+Both deliverables are complete. 01 passed verification and independent code review; 02 was executed against 01's published implementation revision.
 Review correction: historical replay must exclude local edits and explicitly use the current graph, so it cannot claim historical test execution or timing savings.
 Source inspection establishes known gaps; it does not establish safe selection or runtime savings.
 
 ## Review and delivery
 
-Implementation PR: pending. Review must cover omitted dependencies, unsupported syntax, Git history errors, and preview/execution consistency.
-The code-review skill requires a fresh independent review before publication.
+Implementation and experiment: [PR #555](https://github.com/kyleve/Stuff/pull/555).
+Independent review covered omitted dependencies, unsupported syntax, Git history errors, preview/execution consistency, grouped hosts, and all six replay selections.
+The corrected findings and validation limits are recorded in 01 and the PR body.
+
+## Outcome
+
+The local selector includes the previously missed consumers and explains its selections.
+Four representative PRs skip 15–23 of 28 iOS bundles; two conservatively select everything.
+[The report](RESULTS.md) and [machine-readable selections](selections.json) retain the evidence.
+No runtime-savings claim or CI skipping is introduced. STU-343 remains open while its implementation PR is unmerged.

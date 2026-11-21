@@ -1,6 +1,6 @@
 # 02 — Representative local PR experiment
 
-- Status: ready
+- Status: complete
 - Depends on: [01](01-selection.md)
 - Shared context: [Overview](README.md)
 
@@ -43,4 +43,20 @@ Keep a concise report and machine-readable selections; remove temporary logs fro
 Reviewed 2026-11-21: the bounded sample, exact command, current-graph limitation, and negative-result criteria satisfy R-04 without changing CI.
 Discovery replayed the six cases against the working implementation. Final acceptance waits for 01's publication and a replay pinned to that implementation revision.
 The real smoke check and independent review passed as recorded in 01.
-Resume: after 01 completes, retain the final six reports and report their interpretation. No comparative timing experiment is planned.
+01 is published in PR #555 at `d3955cb2652ddfaac117882db330357170bd15ad`.
+
+## Execution record and outcome
+
+On 2026-11-21, all six public-command replays reproduced the selections in [selections.json](selections.json) against that implementation commit.
+Each comparison used the recorded first-parent merge base, excluded local changes, and partitioned all 28 bundles without overlap.
+All four independent checks remained enabled.
+The selected/skipped counts were 5/23, 13/15, 6/22, 5/23, 28/0, and 28/0 in sample order.
+The independent reviewer recomputed the same results from the pinned revisions.
+
+[RESULTS.md](RESULTS.md) records the method, full-fallback reasons, before/after correctness probes, smoke evidence, and limits.
+The experiment supports using local selection and collecting runtime evidence. It does not support a measured CI-cost or latency claim.
+The broad compatibility and tooling cases correctly produced a negative selection result: no bundles were skipped.
+The full historical selected scopes were not executed; the runner's real smoke test passed 11 CreditKit tests.
+
+The result resolves R-04 and Q-02. X-01 remains in force: CI still runs full validation.
+Resume: complete; evidence and implementation are delivered in [PR #555](https://github.com/kyleve/Stuff/pull/555). STU-343 remains In Review until merge.
