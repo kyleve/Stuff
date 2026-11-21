@@ -59,10 +59,10 @@ class TestRunnerTests(unittest.TestCase):
     def test_affected_bundles_follows_package_dependents_and_test_ownership(self):
         package = {
             "targets": [
-                {"name": "Core", "path": "Shared/Core", "dependencies": []},
+                {"name": "Core", "path": "Shared/Core/Sources", "dependencies": []},
                 {
                     "name": "UI",
-                    "path": "Shared/UI",
+                    "path": "Shared/UI/Sources",
                     "dependencies": [{"target": ["Core"]}],
                 },
             ]
@@ -423,7 +423,16 @@ class TestRunnerTests(unittest.TestCase):
                     ]
                 )
             )
-        return "\n".join(windows)
+        helper = """
+func unitTests() -> Target {
+    var dependencies: [TargetDependency] = [.package(product: productDependency),]
+    for product in extraPackageProducts {
+        dependencies.append(.package(product: product))
+    }
+    return .target(name: name, dependencies: dependencies)
+}
+"""
+        return helper + "\n".join(windows)
 
 
 if __name__ == "__main__":

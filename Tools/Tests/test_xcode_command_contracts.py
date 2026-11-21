@@ -37,9 +37,12 @@ class XcodeCommandFixture:
             "profile_results.py",
             "snapshot_reports.py",
             "test_runner.py",
+            "test_selection.py",
+            "repository.py",
             "xcode_results.py",
         ):
             self._copy(f"Tools/{module}")
+        (self.root / ".git").mkdir()
         self._copy(".circleci/test_artifacts.py")
         self._copy(".xcode-version")
         self.expected_xcode_version = (self.root / ".xcode-version").read_text().strip()

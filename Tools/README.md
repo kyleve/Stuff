@@ -306,6 +306,28 @@ Valid existing installations are left alone by `--install`; `--update` explicitl
 
 ## Testing
 
+`./test` selects affected logical bundles from the complete merge-base diff against `origin/main`, plus staged, unstaged, and untracked files.
+The selection follows package products, target dependencies, test hosts, shared source files, resources, and generated installer-site inputs.
+Unknown inputs and unavailable Git history select all bundles and host macro tests.
+Unsupported manifest expressions stop with an error; use `./test --everything` while adding parser support.
+
+Preview the decision before running tests:
+
+```bash
+./test --dry-run
+./test --dry-run --json
+./test --dry-run --base COMMIT_BEFORE_PR --head MERGED_PR_COMMIT
+```
+
+The preview lists selected and skipped bundles, reasons, host tests, and independent checks.
+It evaluates the Swift package manifest but runs no checks, project generation, builds, or simulators.
+`--head` requires `--dry-run`. It excludes local edits and uses the **current checkout's graph** for the historical diff.
+JSON reports preserve paths containing spaces and newlines.
+Preview supports affected selection only; explicit bundle and test filters remain execution options.
+
+Normal execution still runs architecture and host checks. Selection limits test execution; builds still compile the chosen schemes.
+CI continues to run its full unit and snapshot validation.
+
 `./test --all` and `./test --everything` share one test host across twelve library modules. Named bundles, affected tests, and `--only ModuleTests/Suite/test()` keep their original module names. The same identifiers work with `--test-artifacts` from a full build. The full artifact manifest records suite ownership so CircleCI results and failure reruns identify each test by its original module.
 
 Install the site dependencies before the retained installer tests or snapshot builds:

@@ -18,7 +18,7 @@ class GroupedTestSuites:
 
     @classmethod
     def from_repository(cls, root: Path) -> "GroupedTestSuites":
-        from test_runner import _declarations
+        from test_selection import declarations as target_declarations
 
         project = (root / "Project.swift").read_text()
         names = re.search(
@@ -27,7 +27,7 @@ class GroupedTestSuites:
         if not names:
             raise ValueError("Project.swift has no groupedLibraryTestNames declaration")
         members = set(re.findall(r'"(\w+)"', names[1]))
-        declarations = _declarations(project)
+        declarations = target_declarations(project)
         paths = {}
         for name in sorted(members):
             sources = re.search(r"sources:\s*\[([^\]]*)\]", declarations[name])
