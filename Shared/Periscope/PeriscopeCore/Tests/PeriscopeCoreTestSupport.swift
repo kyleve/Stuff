@@ -305,8 +305,9 @@ enum AppLogs {
 
 @LogScope("PhotoLogs")
 enum PhotoLogs {
+    /// The grouped test build needs this conformance visible to LogAttachment.json in another file.
     @LogEvent("event", level: .notice)
-    struct Event {
+    struct Event: Codable {
         @LogField(exposure: .restricted, kind: .identifier)
         var photoID: String
 
