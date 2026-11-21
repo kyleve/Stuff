@@ -276,7 +276,8 @@ commands:
             mkdir -p "<< parameters.output_directory >>"
             python3 .circleci/xcresult_to_junit.py \
               "<< parameters.test_workdir >>" \
-              "<< parameters.output_directory >>/results.xml"
+              "<< parameters.output_directory >>/results.xml" \
+              --test-artifact-manifest "$CIRCLE_WORKING_DIRECTORY/ci-test-build/manifest.json"
       - store_test_results:
           path: << parameters.output_directory >>
 

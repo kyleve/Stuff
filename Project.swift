@@ -258,7 +258,7 @@ let whereAppEntitlements: Entitlements = .dictionary([
 /// linking entirely; simulator processes read host paths, so the
 /// built-products directory is always reachable. Remove this only when a
 /// later Xcode makes the default candidates resolve for hosted tests again —
-/// prove it by deleting the variable and running the full `Stuff-iOS-Tests`
+/// prove it by deleting the variable and running the full `Stuff-iOS-FullTests`
 /// scheme on the Xcode CI uses.
 let packageResourceEnvironment: [String: EnvironmentVariable] = [
     "PACKAGE_RESOURCE_BUNDLE_PATH": "$(BUILT_PRODUCTS_DIR)",
@@ -409,7 +409,6 @@ private func ordinaryTestScheme(name: String, testNames: [String]) -> Scheme {
                 .testableTarget(
                     target: .target($0),
                     parallelization: .disabled,
-                    isRandomExecutionOrdering: $0 == groupedLibraryTargetName,
                 )
             },
             arguments: .arguments(environmentVariables: packageResourceEnvironment),
@@ -752,13 +751,11 @@ let project = Project(
         // through `renderSnapshotImage` (so they need the `StuffTestHost` key
         // window) but assert on probed pixels rather than LFS reference images,
         // so — unlike `StuffSnapshotTests` — this bundle is fast, has no
-        // `__Snapshots__/`, and runs in the main `Stuff-iOS-Tests` scheme /
+        // `__Snapshots__/`, and runs in the `Stuff-iOS-FullTests` scheme /
         // `test` CI job. `SnapshotKitTesting` embeds its dependency closure
         // (SnapshotKit, SnapshotTesting, AccessibilitySnapshot) into the
-        // `.xctest`, as every bundle here embeds what it links. That means the
-        // `Stuff-iOS-Tests` host process holds a SnapshotKit copy per bundle
-        // that links one, but no lookup crosses between them: each bundle's
-        // capture writes and reads resolve within its own image.
+        // `.xctest`. Each hosted bundle resolves capture reads and writes
+        // through its own SnapshotKit image.
         unitTests(
             name: "SnapshotKitTestingTests",
             bundleIdSuffix: "snapshotkittesting",
@@ -825,7 +822,7 @@ let project = Project(
         // Image snapshot bundles: one per module that owns image references,
         // all gathered into the single `StuffSnapshotTests` scheme below so CI
         // runs them in one `snapshot` job. They are slow and LFS-backed, so
-        // they are deliberately NOT in the `Stuff-iOS-Tests` scheme.
+        // they run separately from the ordinary iOS schemes.
         //
         // One bundle per module rather than one shared bundle, because a
         // module's image suite should link only what that module needs: the

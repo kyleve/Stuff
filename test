@@ -297,6 +297,7 @@ fi
 
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
+FULL_UNIT_SCHEME="Stuff-iOS-FullTests"
 SNAPSHOT_SCHEME="StuffSnapshotTests"
 CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
 # Overridable so CI can collect the logs and result bundles from a known path
@@ -372,6 +373,7 @@ affected_bundles() {
 
 # Resolve the run plan:
 SCHEMES=()
+UNIT_IDENTIFIERS=()
 UNIT_FILTERS=()
 SNAPSHOT_FILTERS=()
 
@@ -439,7 +441,7 @@ EOF
                 SNAPSHOT_FILTERS+=("-only-testing:$bundle")
             else
                 add_scheme "$UNIT_SCHEME"
-                UNIT_FILTERS+=("-only-testing:$bundle")
+                UNIT_IDENTIFIERS+=("$bundle")
             fi
         done
         ;;
@@ -457,7 +459,7 @@ if [ "${#ONLY[@]}" -gt 0 ]; then
             [ -z "$ONLY_FILE" ] && SNAPSHOT_FILTERS+=("-only-testing:$identifier")
         else
             add_scheme "$UNIT_SCHEME"
-            [ -z "$ONLY_FILE" ] && UNIT_FILTERS+=("-only-testing:$identifier")
+            UNIT_IDENTIFIERS+=("$identifier")
         fi
     done
 fi
@@ -470,9 +472,27 @@ if [ -n "$ONLY_FILE" ]; then
     if [ "${SCHEMES[0]}" = "$SNAPSHOT_SCHEME" ]; then
         SNAPSHOT_FILTERS=("-only-testing" "@$ONLY_FILE")
     else
-        UNIT_FILTERS=("-only-testing" "@$ONLY_FILE")
+        UNIT_IDENTIFIERS=("${ONLY[@]}")
     fi
 fi
+
+# The full scheme shares one host across library modules. Ordinary focused
+# runs keep their module targets so names, isolation, and local rebuilds match.
+unit_scheme="$FULL_UNIT_SCHEME"
+if [ "${#UNIT_IDENTIFIERS[@]}" -gt 0 ]; then
+    unit_scheme="$UNIT_SCHEME"
+    for identifier in "${UNIT_IDENTIFIERS[@]}"; do
+        if [ "${identifier%%/*}" = GroupedLibraryTests ]; then
+            unit_scheme="$FULL_UNIT_SCHEME"
+            break
+        fi
+    done
+fi
+for index in "${!SCHEMES[@]}"; do
+    if [ "${SCHEMES[index]}" = "$UNIT_SCHEME" ]; then
+        SCHEMES[index]="$unit_scheme"
+    fi
+done
 
 # Artifact consumers and explicit --skip-host-tests runs leave host checks to
 # a separate invocation. Normal local runs keep the selected host checks.
@@ -553,15 +573,39 @@ if [ "$DO_GENERATE" = true ]; then
     fi
 fi
 
+grouped_manifest_args=()
 if [ -n "$TEST_ARTIFACTS" ]; then
+    grouped_manifest_args=(--manifest "$TEST_ARTIFACTS/manifest.json")
     ARTIFACT_SCHEME_ARGS=()
     for scheme in "${SCHEMES[@]}"; do
         ARTIFACT_SCHEME_ARGS+=(--scheme "$scheme")
     done
-    python3 .circleci/test_artifacts.py resolve-all \
+    artifact_schemes="$(python3 .circleci/test_artifacts.py resolve-all \
         --root "$TEST_ARTIFACTS" \
-        "${ARTIFACT_SCHEME_ARGS[@]}" >/dev/null
+        --unit-schemes "$UNIT_SCHEME" "$FULL_UNIT_SCHEME" --names-only \
+        "${ARTIFACT_SCHEME_ARGS[@]}")"
+    SCHEMES=()
+    while IFS= read -r scheme; do
+        add_scheme "$scheme"
+        if [ "$scheme" != "$SNAPSHOT_SCHEME" ]; then unit_scheme="$scheme"; fi
+    done <<< "$artifact_schemes"
     echo "Validated test artifacts before simulator boot."
+fi
+
+if [ "${#UNIT_IDENTIFIERS[@]}" -gt 0 ]; then
+    if [ "$unit_scheme" = "$FULL_UNIT_SCHEME" ]; then
+        grouped_selection="$(printf '%s\n' "${UNIT_IDENTIFIERS[@]}" | python3 Tools/test_runner.py grouped-filters \
+            ${grouped_manifest_args[@]+"${grouped_manifest_args[@]}"})"
+        while IFS= read -r identifier; do
+            UNIT_FILTERS+=("-only-testing:$identifier")
+        done <<< "$grouped_selection"
+    elif [ -n "$ONLY_FILE" ]; then
+        UNIT_FILTERS=("-only-testing" "@$ONLY_FILE")
+    else
+        for identifier in "${UNIT_IDENTIFIERS[@]}"; do
+            UNIT_FILTERS+=("-only-testing:$identifier")
+        done
+    fi
 fi
 
 if [ -n "$BUILD_ARTIFACTS" ]; then
@@ -765,7 +809,8 @@ if [ "$overall_status" -ne 0 ]; then
         xcrun xcresulttool get test-results tests --path "$result" \
             >"$WORKDIR/failures.json" 2>/dev/null || true
         python3 Tools/test_runner.py failures \
-            --result "$result" --tests-json "$WORKDIR/failures.json"
+            --result "$result" --tests-json "$WORKDIR/failures.json" \
+            ${grouped_manifest_args[@]+"${grouped_manifest_args[@]}"}
     done
 fi
 

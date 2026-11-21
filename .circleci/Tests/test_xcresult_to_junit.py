@@ -103,7 +103,7 @@ class JUnitTests(unittest.TestCase):
         with patch.object(MODULE.subprocess, "run") as run:
             run.return_value.returncode = 0
             run.return_value.stdout = json.dumps(document)
-            cases = MODULE.test_cases_in(pathlib.Path("result.xcresult"))
+            cases = MODULE.test_cases_in(pathlib.Path("result.xcresult"), None)
 
         with tempfile.TemporaryDirectory() as directory:
             output = pathlib.Path(directory) / "results.xml"
@@ -112,6 +112,59 @@ class JUnitTests(unittest.TestCase):
             self.assertEqual(len(records), 1)
             self.assertEqual(records[0].get("time"), "17.006")
             self.assertEqual(records[0].get("file"), "CoreTests/ValuesTests")
+
+    def test_cli_attributes_grouped_cases_to_the_original_module(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "one.xcresult").mkdir()
+            command = root / "xcrun"
+            command.write_text(
+                f"#!{sys.executable}\nimport os\nprint(os.environ['XCODE_TEST_JSON'])\n"
+            )
+            command.chmod(0o755)
+            manifest = root / "manifest.json"
+            manifest.write_text(
+                json.dumps({"groupedSuiteOwners": {"Feature": "CoreTests"}})
+            )
+            leaf = {
+                "nodeType": "Test Case",
+                "nodeIdentifier": "Feature/Nested/example()",
+                "name": "Case label",
+                "result": "Failed",
+            }
+            suite = {
+                "nodeType": "Test Suite",
+                "name": "Nested label",
+                "children": [leaf],
+            }
+            physical = {
+                "nodeType": "Unit test bundle",
+                "name": "GroupedLibraryTests",
+                "children": [suite],
+            }
+            output = root / "results.xml"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(root),
+                    str(output),
+                    "--test-artifact-manifest",
+                    str(manifest),
+                ],
+                env={
+                    **os.environ,
+                    "PATH": str(root) + os.pathsep + os.environ["PATH"],
+                    "XCODE_TEST_JSON": json.dumps({"testNodes": [physical]}),
+                },
+                check=True,
+                capture_output=True,
+            )
+            case = ET.parse(output).find("./testsuite/testcase")
+            self.assertEqual(case.get("classname"), "CoreTests.Nested label")
+            self.assertEqual(case.get("file"), "CoreTests/Nested label")
+            self.assertEqual(case.get("name"), "Case label")
+            self.assertIsNotNone(case.find("failure"))
 
     def test_duration_reads_xcode_compound_units(self):
         self.assertEqual(MODULE.duration({"duration": "1m 12s"}), 72.0)

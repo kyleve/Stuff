@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Convert Xcode 27 test result bundles into CircleCI-compatible JUnit XML."""
 
+import argparse
+from functools import cache
 import json
 import pathlib
 import subprocess
@@ -10,14 +12,18 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "Tools"))
 
+from grouped_tests import GROUPED_BUNDLE, GroupedTestSuites
 from xcode_results import test_duration
+
+
+REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 
 
 def duration(node):
     return test_duration(node)
 
 
-def test_cases_in(result):
+def test_cases_in(result, grouped_suites):
     completed = subprocess.run(
         [
             "xcrun",
@@ -38,19 +44,22 @@ def test_cases_in(result):
 
     test_cases = []
 
-    def walk(node, bundle="Xcode", suite="Tests"):
+    def walk(node, bundle="Xcode", suite="Tests", logical_suites=None):
         kind = node.get("nodeType", "")
         name = node.get("name", "")
         if kind == "Unit test bundle":
             bundle = name
+            logical_suites = grouped_suites() if name == GROUPED_BUNDLE else None
         elif kind == "Test Suite":
             suite = name
         elif kind == "Test Case":
+            if logical_suites is not None:
+                bundle = logical_suites.logical_bundle(node["nodeIdentifier"])
             test_cases.append(
                 (bundle, suite, name, node.get("result", "Unknown"), duration(node))
             )
         for child in node.get("children", []):
-            walk(child, bundle, suite)
+            walk(child, bundle, suite, logical_suites)
 
     for root in json.loads(completed.stdout).get("testNodes", []):
         walk(root)
@@ -96,17 +105,24 @@ def write_junit(test_cases, output):
 
 
 def main():
-    if len(sys.argv) != 3:
-        raise SystemExit(f"usage: {sys.argv[0]} XCRESULT_DIRECTORY OUTPUT_XML")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("input_directory", type=pathlib.Path)
+    parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("--test-artifact-manifest", type=pathlib.Path)
+    args = parser.parse_args()
 
-    input_directory = pathlib.Path(sys.argv[1])
-    output = pathlib.Path(sys.argv[2])
+    @cache
+    def grouped_suites():
+        return GroupedTestSuites.from_manifest_or_repository(
+            REPOSITORY, args.test_artifact_manifest
+        )
+
     test_cases = [
         case
-        for result in sorted(input_directory.glob("*.xcresult"))
-        for case in test_cases_in(result)
+        for result in sorted(args.input_directory.glob("*.xcresult"))
+        for case in test_cases_in(result, grouped_suites)
     ]
-    write_junit(test_cases, output)
+    write_junit(test_cases, args.output)
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ Fixes:
 - Running CLI builds (`tuist` / `./ide`): point the command-line tools at it — `sudo xcode-select -s /Applications/Xcode.app`.
 
 CI is unaffected.
-It runs the iOS-simulator `Stuff-iOS-Tests` scheme on the `xcode-27` image and never launches the Catalyst app, so the build-SDK / running-OS skew above does not apply there.
+It runs the iOS-simulator `Stuff-iOS-FullTests` scheme on the `xcode-27` image and never launches the Catalyst app, so the build-SDK / running-OS skew above does not apply there.
 
 ## How it works
 
