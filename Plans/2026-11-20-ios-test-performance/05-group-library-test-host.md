@@ -17,3 +17,11 @@ US-05 / R-05. A full iOS validation runs the same cases with fewer test-host lau
 On the earlier `9dd17d9b5` experiment, twelve independent hosts took 46.83 and 47.61 seconds for 922 tests in 147 suites. Two grouped runs took 12.48 and 12.42 seconds. The full action took 303.91 seconds on the restored project and 271.48 seconds with grouping. All 3,009 results matched. A successful full CI validation exists at the trial's exact parent. [Main control](https://app.circleci.com/workflow/6c61ffb3-475e-4ead-89f5-959d43ffb223)
 
 The target, runner and reporting changes share one branch. The primary agent owns integration, state isolation checks, independent review and CI measurement.
+
+## Implementation and local results
+
+[PR 554](https://github.com/kyleve/Stuff/pull/554) uses one serial test target built from the existing owners' sources, package dependencies and resources. Full artifacts include the mapping of 147 suites to twelve original modules. Named and diff-selected runs use the original targets. A review found that the failure summary widened a slash-nested suite selector; the corrected selector retains the nested path and has focused regression coverage.
+
+On November 21, the main and grouped full Xcode actions took 262.615 and 247.142 seconds on the same booted iPhone 17 / iOS 27.2 simulator. All 3,009 identifiers and JUnit outcomes matched across 513 suites. Both Xcode results contain 3,003 passes, four expected failures and two skips. The real full-build artifact reran a whole module, a grouped suite with a JSON resource and an ungrouped WhereUI suite together, passing all 35 selected tests.
+
+The ordinary serial runner repeated the same 147-suite order even with Xcode random ordering requested. The shipping scheme uses the ordinary ordering. A dedicated CI probe compiles byte-identical copies of the tests with two seeded source-file orders. It checks case and parameter parity, actual chronological suite order, and failures in all three runs. The paired production CI result and separate order verification are recorded in the PR.
