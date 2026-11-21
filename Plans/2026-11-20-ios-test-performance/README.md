@@ -24,3 +24,7 @@ Reviewed against main `798c61cc4`. Each numbered plan defines a bounded experime
 ## Native child safe-area follow-up
 
 The November 20 suite survey measured two unnecessary visual settling passes around a read-only UIKit geometry check. The owner selected the measured change for a separate PR to main. [Plan 03](03-native-insets.md) records the twelve configurations and acceptance evidence. Published in [PR 552](https://github.com/kyleve/Stuff/pull/552). [STU-339](https://linear.app/kve/issue/STU-339)
+
+## Shared test host trial
+
+The November 21 follow-up measures repeated library test-host launches in the ordinary unit job. The manifest, runner and reporting agents implement [plan 05](05-group-library-test-host.md) on `perf/group-library-test-host`. The primary agent owns the local and CircleCI comparisons, independent review and PR handoff. [STU-342](https://linear.app/kve/issue/STU-342)
