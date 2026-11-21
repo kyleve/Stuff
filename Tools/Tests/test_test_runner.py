@@ -12,6 +12,7 @@ from test_runner import (
     ProgressReporter,
     affected_bundles,
     failure_report,
+    grouped_filters,
     main,
     snapshot_bundles,
 )
@@ -26,6 +27,35 @@ class Clock:
 
 
 class TestRunnerTests(unittest.TestCase):
+    def test_grouped_filters_keep_the_owner_of_each_module_and_nested_test(self):
+        from grouped_tests import GroupedTestSuites
+
+        suites = GroupedTestSuites(
+            bundles={"CoreTests", "UITests"},
+            owners={"Writes": "CoreTests", "Reads": "CoreTests", "Views": "UITests"},
+        )
+        self.assertEqual(
+            grouped_filters(
+                [
+                    "CoreTests",
+                    "UITests/Views/Nested/works()",
+                    "CoreTests/Writes/Nested",
+                    "HostTests/Separate",
+                    "CoreTests/Reads",
+                ],
+                suites,
+            ),
+            [
+                "GroupedLibraryTests/Reads",
+                "GroupedLibraryTests/Writes",
+                "GroupedLibraryTests/Views/Nested/works()",
+                "GroupedLibraryTests/Writes/Nested",
+                "HostTests/Separate",
+            ],
+        )
+        with self.assertRaisesRegex(ValueError, "CoreTests has no grouped test suite"):
+            grouped_filters(["CoreTests/Views"], suites)
+
     def test_affected_bundles_follows_package_dependents_and_test_ownership(self):
         package = {
             "targets": [
@@ -325,6 +355,49 @@ class TestRunnerTests(unittest.TestCase):
         self.assertIn("CoreTests/ValueTests/fails()", report)
         self.assertIn("./test --only 'CoreTests/ValueTests'", report)
         self.assertIn("Result bundle: /tmp/tests.xcresult", report)
+
+        bundle = document["testNodes"][0]
+        bundle["name"] = "GroupedLibraryTests"
+        suite = bundle["children"][0]
+        suite["name"] = "Displayed title"
+        for suite_path in ("ValueTests", "ValueTests/Nested", "ValueTests.Nested"):
+            with self.subTest(suite_path=suite_path):
+                suite["children"][0]["nodeIdentifier"] = f"{suite_path}/fails()"
+                with patch("grouped_tests.GroupedTestSuites.from_repository") as load:
+                    load.return_value.owners = {"ValueTests": "CoreTests"}
+                    report = failure_report(document, "/tmp/grouped.xcresult")
+                self.assertIn("CoreTests/Displayed title/fails()", report)
+                self.assertIn(f"./test --only 'CoreTests/{suite_path}'", report)
+
+    def test_failed_file_scope_case_reruns_only_the_original_function(self):
+        from grouped_tests import GroupedTestSuites
+
+        document = {
+            "testNodes": [
+                {
+                    "nodeType": "Unit test bundle",
+                    "name": "GroupedLibraryTests",
+                    "children": [
+                        {
+                            "nodeType": "Test Case",
+                            "name": "standalone()",
+                            "nodeIdentifier": "standalone()",
+                            "result": "Failed",
+                        }
+                    ],
+                }
+            ]
+        }
+        inventory = GroupedTestSuites({"CoreTests"}, {"standalone()": "CoreTests"})
+        with patch.object(
+            GroupedTestSuites, "from_manifest_or_repository", return_value=inventory
+        ):
+            report = failure_report(document, "/tmp/grouped.xcresult")
+        self.assertIn("./test --only 'CoreTests/standalone()'", report)
+        self.assertEqual(
+            grouped_filters(["CoreTests/standalone()"], inventory),
+            ["GroupedLibraryTests/standalone()"],
+        )
 
     def test_discovers_snapshot_bundles(self):
         project = 'name: "WhereUISnapshotTests"\nname: "WhereUISnapshotTests"\nname: "CoreTests"'

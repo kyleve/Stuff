@@ -306,6 +306,8 @@ Valid existing installations are left alone by `--install`; `--update` explicitl
 
 ## Testing
 
+`./test --all` and `./test --everything` share one test host across twelve library modules. Named bundles, affected tests, and `--only ModuleTests/Suite/test()` keep their original module names. The same identifiers work with `--test-artifacts` from a full build. The full artifact manifest records suite ownership so CircleCI results and failure reruns identify each test by its original module.
+
 Install the site dependencies before the retained installer tests or snapshot builds:
 
 ```bash

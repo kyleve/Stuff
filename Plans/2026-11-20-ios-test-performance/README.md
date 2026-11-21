@@ -24,3 +24,7 @@ Reviewed against main `798c61cc4`. Each numbered plan defines a bounded experime
 ## Native child safe-area follow-up
 
 The November 20 suite survey measured two unnecessary visual settling passes around a read-only UIKit geometry check. The owner selected the measured change for a separate PR to main. [Plan 03](03-native-insets.md) records the twelve configurations and acceptance evidence. Published in [PR 552](https://github.com/kyleve/Stuff/pull/552). [STU-339](https://linear.app/kve/issue/STU-339)
+
+## Shared test host trial
+
+The November 21 trial grouped twelve libraries into one host for full iOS runs. The paired CI unit worker used 298 fewer credits and ran its test phase 58 seconds faster. The rollout's complete native workflow used 279 more credits, including an extra snapshot inventory check on the builder. [Plan 05 and state isolation results](05-group-library-test-host.md) · [PR 554](https://github.com/kyleve/Stuff/pull/554) · [STU-342](https://linear.app/kve/issue/STU-342)

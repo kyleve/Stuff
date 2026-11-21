@@ -9,6 +9,7 @@ import sys
 import time
 from typing import Callable, Iterable, Mapping, Optional, Sequence, TextIO
 
+from grouped_tests import GROUPED_BUNDLE, GroupedTestSuites
 from xcode_results import test_cases
 
 
@@ -119,12 +120,63 @@ def affected_bundles(
     return sorted(selected)
 
 
-def failure_report(document: Mapping[str, object], result_path: str) -> str:
+def grouped_filters(identifiers: Iterable[str], suites: GroupedTestSuites) -> list[str]:
+    """Translate logical module selectors for a grouped build without widening coverage."""
+    selected = []
+    for identifier in identifiers:
+        bundle, separator, test = identifier.partition("/")
+        if bundle not in suites.bundles:
+            selected.append(identifier)
+        elif separator:
+            suite = test.partition("/")[0]
+            if suites.owners.get(suite.partition(".")[0]) != bundle:
+                raise ValueError(f"{bundle} has no grouped test suite named {suite!r}")
+            selected.append(f"{GROUPED_BUNDLE}/{test}")
+        else:
+            names = sorted(
+                name for name, owner in suites.owners.items() if owner == bundle
+            )
+            if not names:
+                raise ValueError(f"{bundle} has no grouped test suites")
+            selected.extend(f"{GROUPED_BUNDLE}/{name}" for name in names)
+    return list(dict.fromkeys(selected))
+
+
+def failure_report(
+    document: Mapping[str, object],
+    result_path: str,
+    project: Path = Path("Project.swift"),
+    manifest: Optional[Path] = None,
+) -> str:
     failures = [case for case in test_cases(document) if case.result == "failed"]
+    owners = {}
+    if any(case.bundle == GROUPED_BUNDLE for case in failures):
+        try:
+            owners = GroupedTestSuites.from_manifest_or_repository(
+                project.resolve().parent, manifest
+            ).owners
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(
+                f"warning: could not resolve original test modules: {error}",
+                file=sys.stderr,
+            )
     lines: list[str] = []
     for case in failures:
-        lines.append(f"  {case.display_identifier}")
-        lines.append(f"      ./test --only '{case.suite_identifier}'")
+        display = case.display_identifier
+        rerun = case.suite_identifier
+        if case.bundle == GROUPED_BUNDLE:
+            relative = case.only_testing_identifier.removeprefix(GROUPED_BUNDLE + "/")
+            suite_path = relative.rpartition("/")[0] or relative
+            outer_suite = suite_path.partition("/")[0].partition(".")[0]
+            owner = owners.get(outer_suite, GROUPED_BUNDLE)
+            display = (
+                f"{owner}/{case.suite_name}/{case.name}"
+                if case.suites
+                else f"{owner}/{case.name}"
+            )
+            rerun = f"{owner}/{suite_path}"
+        lines.append(f"  {display}")
+        lines.append(f"      ./test --only '{rerun}'")
     if failures:
         lines.extend(["", f"  Result bundle: {result_path}"])
     return "\n".join(lines)
@@ -389,6 +441,10 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
     affected = subparsers.add_parser("affected-bundles")
     affected.add_argument("--project", type=Path, default=Path("Project.swift"))
 
+    filters = subparsers.add_parser("grouped-filters")
+    filters.add_argument("--project", type=Path, default=Path("Project.swift"))
+    filters.add_argument("--manifest", type=Path)
+
     progress = subparsers.add_parser("progress")
     progress.add_argument("--heartbeat", type=float, default=15)
     progress.add_argument("--status-file", type=Path)
@@ -399,6 +455,7 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
     failures = subparsers.add_parser("failures")
     failures.add_argument("--result", required=True)
     failures.add_argument("--tests-json", required=True, type=Path)
+    failures.add_argument("--manifest", type=Path)
 
     options = parser.parse_args(arguments)
     if options.command == "phase-started":
@@ -432,6 +489,18 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
             print(error, file=sys.stderr)
             return 2
         print("\n".join(selected))
+    elif options.command == "grouped-filters":
+        identifiers = sys.stdin.read().splitlines()
+        try:
+            if any(item.partition("/")[0] != GROUPED_BUNDLE for item in identifiers):
+                suites = GroupedTestSuites.from_manifest_or_repository(
+                    options.project.resolve().parent, options.manifest
+                )
+                identifiers = grouped_filters(identifiers, suites)
+            print("\n".join(identifiers))
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(error, file=sys.stderr)
+            return 2
     elif options.command == "progress":
         ProgressReporter(
             heartbeat=options.heartbeat,
@@ -448,7 +517,7 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
                 document = json.load(stream)
         except (OSError, ValueError):
             return 0
-        report = failure_report(document, options.result)
+        report = failure_report(document, options.result, manifest=options.manifest)
         if report:
             print(report)
     return 0
