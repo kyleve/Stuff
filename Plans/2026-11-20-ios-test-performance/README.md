@@ -27,4 +27,4 @@ The November 20 suite survey measured two unnecessary visual settling passes aro
 
 ## Shared test host trial
 
-The November 21 follow-up measures repeated library test-host launches in the ordinary unit job. The manifest, runner and reporting agents implement [plan 05](05-group-library-test-host.md) on `perf/group-library-test-host`. The primary agent owns the local and CircleCI comparisons, independent review and PR handoff. [STU-342](https://linear.app/kve/issue/STU-342)
+The November 21 trial grouped twelve libraries into one host for full iOS runs. The paired CI unit worker used 298 fewer credits and ran its test phase 58 seconds faster. The rollout's complete native workflow used 279 more credits, including an extra snapshot inventory check on the builder. [Plan 05 and state isolation results](05-group-library-test-host.md) · [PR 554](https://github.com/kyleve/Stuff/pull/554) · [STU-342](https://linear.app/kve/issue/STU-342)
