@@ -351,8 +351,8 @@ The install site's image tests run on the pinned iOS simulator:
 ./test ToolsSnapshotTests --review
 ```
 
-Each build runs [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
-against the production Astro build. The bundle loads those pages in offline
+Local builds run [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
+against the production Astro build. The CircleCI iOS test builder reuses the generated JSON when its inputs and content digest match. A miss installs the locked npm dependencies and regenerates the fixture. The bundle loads those pages in offline
 `WKWebView` instances through `SnapshotKitTesting.assertHTMLSnapshots`.
 The generator inlines the emitted CSS and artwork for offline capture.
 References cover the main-build homepage, app PR pages, release details, unavailable commit history,

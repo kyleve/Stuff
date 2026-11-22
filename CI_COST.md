@@ -2,6 +2,12 @@
 
 All dates are UTC. Costs are in USD.
 
+## Installer snapshot fixture cache
+
+The iOS test builder can reuse the generated installer-site HTML while running all of its WebKit snapshots. In [the ordinary #555 build](https://app.circleci.com/workflow/4d564cf3-6055-4f7d-8335-8ec870e3c961/job/54de3385-fff7-4e48-af42-f1680c346db8), installing site dependencies took 28.720 seconds. A [cold builder](https://app.circleci.com/workflow/19ab3f24-001b-465c-8483-8e6ab67568a4/job/6b37ed11-f9fc-4e43-b24c-a6ffec530a99) fingerprinted the inputs, missed, rendered and saved the fixture in 35.875 seconds. Its snapshot scheme compiled in 11.575 seconds versus 15.653 seconds previously, for an observed 3.077-second increase across the comparable steps on this miss.
+
+A [warm restore on a fresh large Mac](https://app.circleci.com/workflow/b61de2b1-56eb-4baa-a16a-f99b63c48033/job/4af30fe7-c1f9-4d19-90e0-d82583248689) spent 1.929 seconds fingerprinting, restoring the 3.4 MiB archive and verifying the 19,340,117-byte fixture. This probe ended before compilation or a cache-save check. The [trial record](Plans/2026-11-21-installer-snapshot-fixture/01-fixture-cache.md) links the end-to-end PR evidence and distinguishes setup time from the complete native workflow.
+
 ## Daily Where audience builds
 
 The Where Beta and App Store compile checks run on CircleCI's daily schedule when the latest main revision needs a successful build. PRs, regular main pushes and manual PR validation omit those two workers.

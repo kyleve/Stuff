@@ -111,8 +111,8 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 ## Install-site snapshots
 
 - Generate the HTML fixtures through `installer_update_site.render_site` and the production
-  [Astro project](InstallerKit/Site/AGENTS.md) during each `ToolsSnapshotTests` build.
-  Keep fixture catalogs deterministic and offline. Install dependencies before the build.
+  [Astro project](InstallerKit/Site/AGENTS.md). Local builds generate fresh fixtures. The iOS test builder may reuse verified output keyed by all renderer inputs, including registered artwork.
+  Keep fixture catalogs deterministic and offline.
   Inline the generated CSS and artwork in those fixtures without changing the rendered layout.
   Do not copy generated HTML into the test sources.
 - Capture through `SnapshotKitTesting.assertHTMLSnapshots` in the shared

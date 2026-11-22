@@ -61,28 +61,19 @@ class FlyoverWorkflowTests(unittest.TestCase):
 
         for job in ("export-flyover", "archive-app"):
             self.assertEqual(cache_steps(config["jobs"][job]["steps"], {}), [], job)
-        # Ordinary CI still gets all three restore/save pairs.
+        # Both builders cache tools and packages. Only the test builder also caches its fixture.
+        for job, pairs in (("build-where-audiences", 3), ("build-ios-tests", 4)):
+            steps = cache_steps(config["jobs"][job]["steps"], {})
+            self.assertEqual(steps.count("restore_cache"), pairs, job)
+            self.assertEqual(steps.count("save_cache"), pairs, job)
+        fixture_mode = "TUIST_PREBUILT_INSTALLER_SITE_FIXTURE"
         self.assertEqual(
-            cache_steps(
-                config["commands"]["prepare_builder"]["steps"],
-                {
-                    "use_caches": True,
-                    "require_simulator": True,
-                    "require_site_dependencies": True,
-                },
-            ).count("restore_cache"),
-            3,
-        )
-        self.assertEqual(
-            cache_steps(
-                config["commands"]["prepare_builder"]["steps"],
-                {
-                    "use_caches": True,
-                    "require_simulator": True,
-                    "require_site_dependencies": True,
-                },
-            ).count("save_cache"),
-            3,
+            {
+                name: job["environment"][fixture_mode]
+                for name, job in config["jobs"].items()
+                if fixture_mode in job.get("environment", {})
+            },
+            {"build-ios-tests": "1"},
         )
 
     def test_daily_controller_and_shared_pages_are_wired(self):
