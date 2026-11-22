@@ -14,6 +14,10 @@ The Where Beta and App Store compile checks run on CircleCI's daily schedule whe
 
 The pair consumed 1,320–1,343 credits ($0.79–$0.81) per full validation in PRs #542–544. The daily policy removes that cost from each full PR run and pays for one pair on a day that needs it, plus the Linux selector. Actual savings depend on how many full PR runs occur between daily builds. [PR #542 workflow](https://app.circleci.com/workflow/68ba3889-8541-4297-8772-df3b15e01673) · [PR #544 workflow](https://app.circleci.com/workflow/22a9f2e2-f7c0-42d5-8977-9794274de94e)
 
+## Snapshot inventory validation
+
+When snapshot definitions change, the unit worker uses its booted simulator to compare every compiled snapshot suite with the source inventory. Four [earlier builders](Plans/2026-11-21-snapshot-inventory/01-unit-worker.md#baseline) averaged 106.6 seconds on a large Mac, about 711 credits. The [unit worker trial](https://app.circleci.com/workflow/d882ce18-1c04-40b2-a563-8c7628a15d71/job/b37a8532-1c9d-4046-85a3-79a9ef70e690) took 39.2 seconds on a medium Mac, about 131 credits, and found the same 73 suites. That saves roughly **580 credits on a run that needs the check**. In the historical sample, 24 of 89 paid final PR builds had an eligible change. [Measurement and whole-workflow comparison](Plans/2026-11-21-snapshot-inventory/01-unit-worker.md#results)
+
 ## Snapshot worker reduction on November 20, 2026
 
 Three active snapshot workers saved **1,293 compute credits ($0.7758, 23.2%)**

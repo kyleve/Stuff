@@ -239,6 +239,12 @@ Suite discovery reads each target's literal source array in `Project.swift`.
 Arrays can span lines and include shared support files. Only `SnapshotTests/**`
 paths define suite roots. Unsupported declarations fail before shard selection.
 
+Changes to the project, snapshot Swift sources or the inventory check itself
+also trigger unfiltered Xcode discovery. After exporting unit test results,
+the CircleCI unit worker uses its booted simulator and the attached snapshot
+scheme to check the source inventory against every compiled suite. This catches
+a suite missing from every shard’s selection.
+
 `./snapshot-shards hydrate --assignment shard.txt` fetches the tracked PNGs in
 each assigned suite's `__Snapshots__` directory, including theme and trait
 subdirectories. Probes without references need no download. Each selected

@@ -70,6 +70,25 @@ class CIWorkflowTests(unittest.TestCase):
             sorted(full_names), sorted(self.validation_jobs["circleci"]["jobs"])
         )
 
+    def test_snapshot_inventory_runs_once_after_exporting_unit_results(self):
+        jobs = self.continued["jobs"]
+        owners = [
+            (job, index)
+            for job, config in jobs.items()
+            for index, step in enumerate(config["steps"])
+            if isinstance(step, dict)
+            and isinstance(step.get("run"), dict)
+            and step["run"].get("command")
+            == "bash .circleci/validate_snapshot_inventory.sh"
+        ]
+        self.assertEqual([job for job, _ in owners], ["test-ios"])
+        steps = jobs["test-ios"]["steps"]
+        _, gate = owners[0]
+        self.assertTrue(any("export_test_results" in step for step in steps[:gate]))
+        self.assertTrue(
+            any("collect_diagnostics" in step for step in steps[gate + 1 :])
+        )
+
     def test_every_github_worker_uses_the_same_fail_safe_selection(self):
         jobs = self.github["jobs"]
         for key, job in jobs.items():
