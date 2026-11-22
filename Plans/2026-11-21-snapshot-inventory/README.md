@@ -28,4 +28,4 @@ flowchart LR
     C --> D
 ```
 
-The implementation changes the CircleCI shell command and job ordering. The Swift project and snapshot code use their existing interfaces. On November 21, independent review against main checked both scheme paths, recomputed the four baseline timings and unit-worker headroom, and verified result-directory ownership and failure ordering. The horizon is the single authorized experiment.
+The implementation changes the CircleCI shell command and job ordering. The Swift project and snapshot code use their existing interfaces. On November 21, independent review against main checked both scheme paths, recomputed the four baseline timings and unit-worker headroom, and verified result-directory ownership and failure ordering. The worker trial passed and the move is ready for review in [PR #558](https://github.com/kyleve/Stuff/pull/558). The [results](01-unit-worker.md#results) include compiled discovery, test coverage and credits.
