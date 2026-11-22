@@ -13,13 +13,14 @@ struct InstallerSiteSnapshotTests {
         let pages = try JSONDecoder().decode([Page].self, from: Data(contentsOf: url))
         #expect(Set(pages.map(\.name)) == Set(Page.Name.allCases))
         #expect(pages.count == Page.Name.allCases.count)
-        for page in pages {
-            try await assertHTMLSnapshots(
-                of: page.html,
-                named: page.name.rawValue,
+        let documents = pages.map { page in
+            HTMLSnapshotDocument(
+                html: page.html,
+                name: page.name.rawValue,
                 configurations: page.name.configurations,
             )
         }
+        try await assertHTMLSnapshots(of: documents)
     }
 
     private struct Page: Decodable {
