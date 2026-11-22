@@ -2,9 +2,9 @@
 
 ## Planning checkpoint
 
-The owner requested a replay of the last 100 merged PRs after [#555](https://github.com/kyleve/Stuff/pull/555). This follows the [local selector experiment](../2026-11-21-affected-test-selection/RESULTS.md). Its six feature PRs established which bundles the selector chose. The next decision needs worker time, credit estimates, and merge-gate economics. [STU-344](https://linear.app/kve/issue/STU-344)
+The owner requested a replay of the last 100 merged PRs after [#555](https://github.com/kyleve/Stuff/pull/555). This follows the [local selector experiment](../2026-11-21-affected-test-selection/RESULTS.md). Its six representative PRs established which bundles the selector chose. The next decision needs worker time, credit estimates, and merge-gate economics. [STU-344](https://linear.app/kve/issue/STU-344)
 
-The primary agent owns the report on `perf/price-affected-test-selection`. The replay worker owns the historical sample and selector outputs, the timing worker the price model, and the independent reviewer the policy and fixture-cache comparison. The current stage is execution of [plan 01](01-replay.md). The next action is to reconcile the three evidence sets and publish the recommendation for review.
+The primary agent owns the report on `perf/price-affected-test-selection`. The replay worker owns the historical sample and selector outputs, the timing worker the price model, and the independent reviewer the policy and fixture-cache comparison. [Plan 01](01-replay.md) is complete. The landed-diff replay and the earlier-head sensitivity are published in the [cost comparison](RESULTS.md). The recommended next trial is to cache the installer-site fixture.
 
 | ID | Requirement for the CI maintainer (US-01) |
 | --- | --- |
