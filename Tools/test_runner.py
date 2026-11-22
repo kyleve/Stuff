@@ -11,21 +11,12 @@ from typing import Callable, Iterable, Mapping, Optional, Sequence, TextIO
 
 from grouped_tests import GROUPED_BUNDLE, GroupedTestSuites
 from xcode_results import test_cases
-
-
-DECLARATION = re.compile(r"^ {8}(?:unitTests\(|\.target\()", re.MULTILINE)
-GLOBAL_PATHS = {
-    "Package.swift",
-    "Package.resolved",
-    "Project.swift",
-    "Tuist.swift",
-    ".swiftformat",
-    ".mise.toml",
-    ".xcode-version",
-    "test",
-    "simulator",
-    "ide",
-}
+from repository import repository_root
+from test_selection import (
+    Graph,
+    describe,
+    repository_selection,
+)
 
 
 def snapshot_bundles(project_text: str) -> list[str]:
@@ -37,87 +28,10 @@ def affected_bundles(
     package: Mapping[str, object],
     project_text: str,
 ) -> list[str]:
-    """Resolve changed paths to test bundles without silently under-selecting."""
-
+    """Compatibility entry point for callers with an explicit changed-path list."""
     if not changed:
         return []
-
-    paths: dict[str, str] = {}
-    dependencies: dict[str, list[str]] = {}
-    for target in package["targets"]:
-        name = target["name"]
-        paths[name] = str(target.get("path") or "").rstrip("/")
-        names = []
-        for dependency in target.get("dependencies", []):
-            for key in ("byName", "target", "product"):
-                if key in dependency:
-                    names.append(dependency[key][0])
-                    break
-        dependencies[name] = names
-
-    reverse: dict[str, set[str]] = {}
-    for name, target_dependencies in dependencies.items():
-        for dependency in target_dependencies:
-            reverse.setdefault(dependency, set()).add(name)
-
-    declarations = _declarations(project_text)
-    bundles = _bundles(declarations)
-    problems = _parse_problems(bundles)
-    if problems:
-        raise ValueError(
-            "could not read Project.swift reliably: " + "; ".join(problems)
-        )
-
-    selected: set[str] = set()
-    changed_targets: set[str] = set()
-    everything = False
-    for path in changed:
-        if path in GLOBAL_PATHS or path.startswith(".github/"):
-            everything = True
-            continue
-        owner = next(
-            (
-                name
-                for name, bundle in bundles.items()
-                if bundle["sources"] and path.startswith(str(bundle["sources"]) + "/")
-            ),
-            None,
-        )
-        if owner:
-            selected.add(owner)
-            continue
-        target = next(
-            (
-                name
-                for name, source in paths.items()
-                if source and path.startswith(source + "/")
-            ),
-            None,
-        )
-        if target:
-            changed_targets.add(target)
-            continue
-        module = "/".join(path.split("/")[:2])
-        for name, bundle in bundles.items():
-            if str(bundle["sources"]).startswith(module + "/"):
-                selected.add(name)
-
-    if everything:
-        return sorted(bundles)
-
-    frontier = list(changed_targets)
-    affected = set(changed_targets)
-    while frontier:
-        target = frontier.pop()
-        for dependent in reverse.get(target, ()):
-            if dependent not in affected:
-                affected.add(dependent)
-                frontier.append(dependent)
-
-    for name, bundle in bundles.items():
-        if set(bundle["products"]) & affected:
-            selected.add(name)
-    return sorted(selected)
+    return Graph.read(package, project_text).select(list(changed))["selected"]
 
 
 def grouped_filters(identifiers: Iterable[str], suites: GroupedTestSuites) -> list[str]:
@@ -367,63 +281,6 @@ class ProgressReporter:
             self.output.flush()
 
 
-def _declarations(project_text: str) -> dict[str, str]:
-    starts = [match.start() for match in DECLARATION.finditer(project_text)]
-    starts.append(len(project_text))
-    declarations = {}
-    for index, start in enumerate(starts[:-1]):
-        window = project_text[start : starts[index + 1]]
-        name = re.search(r'name:\s*"(\w+)"', window)
-        if name:
-            declarations[name.group(1)] = window
-    return declarations
-
-
-def _products_in(window: str) -> set[str]:
-    found = set(re.findall(r'\.package\(product:\s*"(\w+)"\)', window))
-    dependency = re.search(r'productDependency:\s*"(\w+)"', window)
-    if dependency:
-        found.add(dependency.group(1))
-    extra = re.search(r"extraPackageProducts:\s*\[([^\]]*)\]", window)
-    if extra:
-        found.update(re.findall(r'"(\w+)"', extra.group(1)))
-    return found
-
-
-def _bundles(declarations: Mapping[str, str]) -> dict[str, dict[str, object]]:
-    bundles = {}
-    for name, window in declarations.items():
-        sources = re.search(r'sources:\s*\[\s*"([^"]+)"', window)
-        if not sources or not name.endswith("Tests"):
-            continue
-        products = _products_in(window)
-        hosts = [
-            host
-            for host in re.findall(r'\.target\(name:\s*"(\w+)"\)', window)
-            if host in declarations
-        ]
-        for host in hosts:
-            products |= _products_in(declarations[host])
-        bundles[name] = {
-            "sources": sources.group(1).replace("/**", "").rstrip("/"),
-            "products": products,
-            "hostedByTarget": bool(hosts),
-        }
-    return bundles
-
-
-def _parse_problems(bundles: Mapping[str, Mapping[str, object]]) -> list[str]:
-    problems = []
-    if len(bundles) < 15:
-        problems.append(f"only found {len(bundles)} test bundles")
-    for name, bundle in bundles.items():
-        if not bundle["sources"]:
-            problems.append(f"{name} has no sources")
-        if not bundle["products"] and not bundle["hostedByTarget"]:
-            problems.append(f"{name} links neither a package product nor a target")
-    return problems
-
-
 def main(arguments: Optional[Iterable[str]] = None) -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -440,6 +297,15 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
 
     affected = subparsers.add_parser("affected-bundles")
     affected.add_argument("--project", type=Path, default=Path("Project.swift"))
+
+    selection = subparsers.add_parser("selection")
+    selection.add_argument("--base", default="origin/main")
+    selection.add_argument("--head")
+    selection.add_argument(
+        "--format", choices=("text", "json", "execution"), default="text"
+    )
+    selection.add_argument("--skip-architecture", action="store_true")
+    selection.add_argument("--skip-host-tests", action="store_true")
 
     filters = subparsers.add_parser("grouped-filters")
     filters.add_argument("--project", type=Path, default=Path("Project.swift"))
@@ -471,6 +337,35 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
         print("CI_TIMING " + json.dumps(payload, separators=(",", ":")), flush=True)
     elif options.command == "snapshot-bundles":
         print("\n".join(snapshot_bundles(options.project.read_text())))
+    elif options.command == "selection":
+        try:
+            report = repository_selection(
+                repository_root(__file__), options.base, options.head
+            )
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+            print(f"error: cannot resolve affected tests: {error}", file=sys.stderr)
+            print("Use an explicit scope: ./test --everything", file=sys.stderr)
+            return 2
+        if options.skip_architecture:
+            report["independent_checks"].remove("architecture")
+        if options.skip_host_tests:
+            report["host_tests"] = []
+            report["independent_checks"] = [
+                check
+                for check in report["independent_checks"]
+                if check == "architecture"
+            ]
+        if options.format == "json":
+            print(json.dumps(report, indent=2, ensure_ascii=True))
+        elif options.format == "execution":
+            if report["fallback_reason"]:
+                print("warning: " + report["fallback_reason"], file=sys.stderr)
+            if report["mode"] == "full":
+                print("--everything")
+            else:
+                print("\n".join(report["selected"] + report["host_tests"]))
+        else:
+            print(describe(report))
     elif options.command == "affected-bundles":
         changed = [line for line in sys.stdin.read().splitlines() if line.strip()]
         if not changed:

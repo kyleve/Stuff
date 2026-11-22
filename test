@@ -78,6 +78,9 @@ STATUS_FILE=""
 TIMINGS=false
 REVIEW=false
 BASE_REF="origin/main"
+HEAD_REF=""
+DRY_RUN=false
+JSON_REPORT=false
 SHARED=false
 RUN_ARCHITECTURE=true
 ARCHITECTURE_ONLY=false
@@ -108,6 +111,10 @@ Scope:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
   --only-file PATH  Read newline-delimited Bundle/Suite identifiers from PATH
   --base REF        Compare against REF instead of origin/main
+  --dry-run         Preview affected bundles and reasons without running checks
+  --json            Emit the --dry-run report as JSON
+  --head REF        Preview the committed diff to REF using the current graph;
+                    requires --dry-run and excludes local edits/untracked files
 
 Independent checks:
   --architecture-only  Run only the Bumper configuration, rule tests, and lint
@@ -171,6 +178,9 @@ while [ $# -gt 0 ]; do
             ONLY_FILE="${1:?--only-file requires a path}"
             [ "$SCOPE" = changed ] && SCOPE=only
             ;;
+        --dry-run) DRY_RUN=true; HAS_TEST_ARGUMENTS=true ;;
+        --json) JSON_REPORT=true; HAS_TEST_ARGUMENTS=true ;;
+        --head) HAS_TEST_ARGUMENTS=true; shift; HEAD_REF="${1:?--head requires a git ref}" ;;
         --base) HAS_TEST_ARGUMENTS=true; shift; BASE_REF="${1:?--base requires a git ref}" ;;
         --no-build) DO_BUILD=false; HAS_TEST_ARGUMENTS=true ;;
         --no-generate) DO_GENERATE=false; HAS_TEST_ARGUMENTS=true ;;
@@ -267,6 +277,28 @@ if [ "$RUN_HOST_TESTS" = false ] && [ "$SCOPE" = bundles ]; then
     done
 fi
 
+if { [ "$JSON_REPORT" = true ] || [ -n "$HEAD_REF" ]; } && [ "$DRY_RUN" = false ]; then
+    echo "error: --json and --head require --dry-run" >&2
+    exit 1
+fi
+if [ "$DRY_RUN" = true ] && { [ "$SCOPE" != changed ] || [ -n "$BUILD_ARTIFACTS" ] ||
+    [ -n "$TEST_ARTIFACTS" ] || [ "$DO_BUILD" = false ] || [ "$DO_GENERATE" = false ] ||
+    [ -n "$RECORD" ] || [ "$TIMINGS" = true ] || [ "$REVIEW" = true ] || [ -n "$STATUS_FILE" ]; }
+then
+    echo "error: --dry-run supports affected selection only, without execution options" >&2
+    exit 1
+fi
+
+selection_arguments=(--base "$BASE_REF")
+[ -n "$HEAD_REF" ] && selection_arguments+=(--head "$HEAD_REF")
+[ "$RUN_ARCHITECTURE" = false ] && selection_arguments+=(--skip-architecture)
+[ "$RUN_HOST_TESTS" = false ] && selection_arguments+=(--skip-host-tests)
+if [ "$DRY_RUN" = true ]; then
+    report_format=text
+    [ "$JSON_REPORT" = true ] && report_format=json
+    exec python3 Tools/test_runner.py selection "${selection_arguments[@]}" --format "$report_format"
+fi
+
 run_architecture_checks() {
     export BUMPER_CACHE_DIR="${BUMPER_CACHE_DIR:-.build/bumper-cache}"
     export BUMPER_RUNNER_BUILD_CONFIGURATION="${BUMPER_RUNNER_BUILD_CONFIGURATION:-debug}"
@@ -339,7 +371,7 @@ backup_upgrader_is_needed() {
         changed|all|everything) return 0 ;;
         snapshots|only) ;;
         bundles)
-            for bundle in "${BUNDLES[@]}"; do
+            for bundle in ${BUNDLES[@]+"${BUNDLES[@]}"}; do
                 if ! printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
                     return 0
                 fi
@@ -361,11 +393,6 @@ if backup_upgrader_is_needed; then
     echo "==> Testing backup upgrader"
     mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
 fi
-
-# Which bundles a set of changed paths affects.
-affected_bundles() {
-    printf '%s\n' "$1" | python3 Tools/test_runner.py affected-bundles
-}
 
 # The importable progress filter reads xcodebuild output from stdin. Keeping it
 # in Tools makes its terminal, heartbeat, cache, and zero-test behavior directly
@@ -391,49 +418,31 @@ case "$SCOPE" in
     everything) add_scheme "$UNIT_SCHEME"; add_scheme "$SNAPSHOT_SCHEME"; HOST_MACROS=true ;;
     bundles|changed)
         if [ "$SCOPE" = changed ]; then
-            if git rev-parse --verify --quiet "$BASE_REF" >/dev/null; then
-                base="$(git merge-base HEAD "$BASE_REF")"
-            else
-                echo "warning: '$BASE_REF' not found; using uncommitted changes only" >&2
-                base="HEAD"
-            fi
-            changed_files="$( { git diff --name-only "$base"
-                                git diff --name-only
-                                git ls-files --others --exclude-standard; } | sort -u )"
-            if [ -z "$changed_files" ]; then
-                echo "==> No changes against $BASE_REF — nothing to test."
-                exit 0
-            fi
-            if printf '%s\n' "$changed_files" | grep -Eq \
-                '^(Package\.swift|Package\.resolved|test|Shared/Periscope/PeriscopeMacros/)'; then
-                HOST_MACROS=true
-            fi
-            set +e
-            selection="$(affected_bundles "$changed_files")"
-            selection_status=$?
-            set -e
-            if [ "$selection_status" -ne 0 ]; then
-                echo "error: could not work out which bundles your changes affect." >&2
-                echo "       Run an explicit scope instead: ./test --all, ./test --snapshots," >&2
-                echo "       or ./test --everything." >&2
+            if ! selection="$(python3 Tools/test_runner.py selection "${selection_arguments[@]}" --format execution)"; then
                 exit 1
             fi
-            while IFS= read -r bundle; do
-                [ -n "$bundle" ] && BUNDLES+=("$bundle")
-            done <<EOF
+            if [ "$selection" = --everything ]; then
+                # Full fallback retains the shared hosts used by --everything.
+                add_scheme "$UNIT_SCHEME"
+                add_scheme "$SNAPSHOT_SCHEME"
+                HOST_MACROS=true
+            else
+                while IFS= read -r bundle; do
+                    [ -n "$bundle" ] && BUNDLES+=("$bundle")
+                done <<EOF
 $selection
 EOF
-            if [ "${#BUNDLES[@]}" -eq 0 ] && [ "$HOST_MACROS" = false ]; then
-                echo "==> No test bundle covers these changes:"
-                printf '%s\n' "$changed_files" | sed 's/^/      /'
-                exit 0
-            fi
-            if [ "${#BUNDLES[@]}" -gt 0 ]; then
-                echo "==> Affected bundles: ${BUNDLES[*]}"
+                if [ "${#BUNDLES[@]}" -eq 0 ] && [ "$HOST_MACROS" = false ]; then
+                    echo "==> No affected test bundles against $BASE_REF. Independent checks completed."
+                    exit 0
+                fi
+                if [ "${#BUNDLES[@]}" -gt 0 ]; then
+                    echo "==> Affected bundles: ${BUNDLES[*]}"
+                fi
             fi
         fi
         image_bundles="$(snapshot_bundles)"
-        for bundle in "${BUNDLES[@]}"; do
+        for bundle in ${BUNDLES[@]+"${BUNDLES[@]}"}; do
             if [ "$bundle" = PeriscopeMacrosTests ]; then
                 HOST_MACROS=true
             elif printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
