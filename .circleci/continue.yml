@@ -409,9 +409,26 @@ jobs:
 
   build-ios-tests:
     executor: m4-pro-large
+    environment:
+      TUIST_PREBUILT_INSTALLER_SITE_FIXTURE: "1"
     steps:
       - prepare_builder:
           test_workdir: test-output-build
+          require_site_dependencies: false
+      - run:
+          name: Fingerprint installer-site snapshot inputs
+          command: python3 .circleci/installer_snapshot_fixture.py key > "$TEST_WORKDIR/installer-site-fixture.key"
+      - restore_cache:
+          keys:
+            - installer-site-fixture-v1-{{ checksum "test-output-build/installer-site-fixture.key" }}
+      - run:
+          name: Prepare installer-site snapshot fixture
+          command: python3 .circleci/installer_snapshot_fixture.py prepare
+      - save_cache:
+          key: installer-site-fixture-v1-{{ checksum "test-output-build/installer-site-fixture.key" }}
+          paths:
+            - .build/installer-site-fixture/InstallerSiteSnapshots.json
+            - .build/installer-site-fixture/receipt.json
       # GitHub's required format and macOS jobs own helper and host tests.
       # Start the shared simulator build without waiting for those checks.
       - run_with_timeout:

@@ -19,6 +19,21 @@ private let sfSafeSymbolsPackage = Package.remote(
 /// Xcode falls back to its defaults.
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
+private let installerSiteFixtureScript: String = if Environment.prebuiltInstallerSiteFixture
+    .getString(default: "") == "1"
+{
+    """
+    cp "$SRCROOT/.build/installer-site-fixture/InstallerSiteSnapshots.json" \\
+        "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InstallerSiteSnapshots.json"
+    """
+} else {
+    """
+    cd "$SRCROOT"
+    PYTHONDONTWRITEBYTECODE=1 python3 -m Tools.Tests.Fixtures.installer_update_site_snapshots \\
+        --output "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InstallerSiteSnapshots.json"
+    """
+}
+
 private struct WhereAudience {
     struct Installer {
         let appID: String
@@ -882,12 +897,8 @@ let project = Project(
             sources: ["Tools/SnapshotTests/**"],
             environmentVariables: snapshotEnvironment,
             scripts: [.post(
-                script: """
-                cd "$SRCROOT"
-                PYTHONDONTWRITEBYTECODE=1 python3 -m Tools.Tests.Fixtures.installer_update_site_snapshots \\
-                    --output "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InstallerSiteSnapshots.json"
-                """,
-                name: "Generate install-site snapshot fixtures",
+                script: installerSiteFixtureScript,
+                name: "Prepare install-site snapshot fixtures",
                 basedOnDependencyAnalysis: false,
             )],
         ),
