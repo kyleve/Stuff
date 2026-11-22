@@ -191,6 +191,13 @@ a hosted `WKWebView`. Each configuration uses a fresh, ephemeral web view.
 Page JavaScript and HTTP(S) resource loads are disabled. Navigation, fonts,
 and painting must finish before full-content height measurement.
 
+For a series of documents, pass an ordered array of `HTMLSnapshotDocument` to
+`assertHTMLSnapshots(of:)`. The batch reuses one ephemeral web view across pages,
+appearances, and device sizes. Each capture loads its own HTML at the requested
+viewport and content mode, after clearing website data between captures.
+The batch waits for embedded images to decode before checking the painted height.
+The web view's lifetime ends with the assertion.
+
 The WebKit wrapper passes through `assertSnapshots` like a native view.
 The shared pipeline owns hosting, traits, the capture lock, tiled rendering,
 PNG normalization, comparison, recording, timing, and diffs.

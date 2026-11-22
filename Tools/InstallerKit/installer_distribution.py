@@ -111,9 +111,10 @@ def is_current(plan: Plan, repository: str, fetch) -> bool:
     if plan is None:
         return False
     if isinstance(plan, Publication) and plan.pull_request is None:
-        return (
-            fetch(f"repos/{repository}/git/ref/heads/main")["object"]["sha"] == plan.sha
-        )
+        head = fetch(f"repos/{repository}/git/ref/heads/main")["object"]["sha"]
+        if not isinstance(head, str) or not re.fullmatch(r"[0-9a-f]{40}", head):
+            raise ValueError("GitHub returned an invalid main commit SHA")
+        return head == plan.sha
     # GitHub computes mergeability asynchronously. Retry delays total 30
     # seconds; recheck identity/eligibility after every wait.
     for delay in (0, 2, 4, 8, 16):

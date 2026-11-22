@@ -113,6 +113,8 @@ def prepare(request, source, fetch=public_github_fetch, run=subprocess.run):
     ):
         raise ValueError("Archives require the registered public repository")
     if not is_current(request.plan, request.repository, fetch):
+        if request.channel == "main":
+            return False
         raise ValueError("Archive request is no longer current and installable")
     # Every argument is separate; branch names and PR text never become shell code.
     run(
@@ -151,12 +153,14 @@ def prepare(request, source, fetch=public_github_fetch, run=subprocess.run):
     ).stdout.strip()
     if revision != request.sha:
         raise ValueError("Checked-out commit does not match the archive request")
+    return True
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("prepare", "validate", "stage"))
     parser.add_argument("path", type=Path)
+    parser.add_argument("--superseded-marker", type=Path)
     args = parser.parse_args(argv)
     try:
         request = ArchiveRequest(
@@ -174,7 +178,14 @@ def main(argv=None):
             )
         )
         if args.command == "prepare":
-            prepare(request, args.path)
+            if not prepare(request, args.path):
+                if args.superseded_marker is None:
+                    raise ValueError("A superseded archive requires a skip marker")
+                with args.superseded_marker.open("x") as marker:
+                    print(request.sha, file=marker)
+                print(
+                    "Skipping archive: main has advanced beyond the requested commit."
+                )
         elif args.command == "stage":
             stage(request, args.path)
         else:

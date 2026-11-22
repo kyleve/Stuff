@@ -33,12 +33,16 @@ class XcodeCommandFixture:
             self._copy(command)
         for module in (
             "flaky_results.py",
+            "grouped_tests.py",
             "profile_results.py",
             "snapshot_reports.py",
             "test_runner.py",
+            "test_selection.py",
+            "repository.py",
             "xcode_results.py",
         ):
             self._copy(f"Tools/{module}")
+        (self.root / ".git").mkdir()
         self._copy(".circleci/test_artifacts.py")
         self._copy(".xcode-version")
         self.expected_xcode_version = (self.root / ".xcode-version").read_text().strip()
@@ -106,6 +110,43 @@ while True:
 
     def command_log(self) -> str:
         return self.log.read_text() if self.log.exists() else ""
+
+    def grouped_modules(self):
+        self._write_executable(
+            self.bin / "swift",
+            """#!/bin/bash
+cat >/dev/null
+echo '{"CoreTests":["ReadTests","WriteTests"],"UITests":["ViewTests"]}'
+""",
+        )
+        (self.root / "Project.swift").write_text("""
+private let groupedLibraryTestNames: Set<String> = [
+    "CoreTests",
+    "UITests",
+]
+let targets = [
+        unitTests(
+            name: "CoreTests",
+            productDependency: "Core",
+            sources: ["Core/Tests/**"],
+        ),
+        unitTests(
+            name: "UITests",
+            productDependency: "UI",
+            sources: ["UI/Tests/**"],
+        ),
+]
+""")
+        for module, suites in (
+            ("Core", ["ReadTests", "WriteTests"]),
+            ("UI", ["ViewTests"]),
+        ):
+            folder = self.root / module / "Tests"
+            folder.mkdir(parents=True)
+            for suite in suites:
+                (folder / f"{suite}.swift").write_text(
+                    f"struct {suite} {{\n    @Test func works() {{}}\n}}\n"
+                )
 
     def test_artifacts(self, scheme: str) -> Path:
         root = self.root / "ci-test-build"
@@ -255,6 +296,10 @@ exit "${TEST_STATUS:-0}"
             self.bin / "xcrun",
             """#!/bin/bash
 printf 'xcrun %s\\n' "$*" >>"$TOOL_LOG"
+if [ "$*" = "--find swift" ]; then
+  command -v swift
+  exit
+fi
 if [ "$1" = xctest ]; then
   printf 'Host macro tests\\n'
   exit "${MACRO_TEST_STATUS:-0}"
@@ -346,6 +391,7 @@ class XcodeCommandContractTests(unittest.TestCase):
                 skip_host_tests=skip_host_tests, macro_status=macro_status
             ):
                 fixture = self.fixture()
+                fixture.grouped_modules()
                 artifacts = fixture.root / "ci test build"
                 arguments = [
                     "--everything",
@@ -369,7 +415,8 @@ class XcodeCommandContractTests(unittest.TestCase):
                 )
                 manifest = json.loads((artifacts / "manifest.json").read_text())
                 self.assertEqual(
-                    {"Stuff-iOS-Tests", "StuffSnapshotTests"}, set(manifest["schemes"])
+                    {"Stuff-iOS-FullTests", "StuffSnapshotTests"},
+                    set(manifest["schemes"]),
                 )
                 self.assertIn(
                     "-destination generic/platform=iOS Simulator", fixture.command_log()
@@ -540,6 +587,64 @@ class XcodeCommandContractTests(unittest.TestCase):
         self.assertNotIn("Testing flyover command", result.stdout)
         self.assertIn("test-without-building -xctestrun", fixture.command_log())
 
+    def test_grouped_artifacts_expand_module_filters_without_running_other_modules(
+        self,
+    ):
+        fixture = self.fixture()
+        fixture.grouped_modules()
+        artifacts = fixture.root / "ci-test-build"
+        build = fixture.run(
+            "test",
+            "--all",
+            "--no-generate",
+            "--skip-architecture",
+            "--skip-host-tests",
+            "--build-artifacts",
+            str(artifacts),
+        )
+        self.assertEqual(0, build.returncode, build.stdout + build.stderr)
+        manifest = json.loads((artifacts / "manifest.json").read_text())
+        self.assertEqual(
+            {
+                "ReadTests": "CoreTests",
+                "WriteTests": "CoreTests",
+                "ViewTests": "UITests",
+            },
+            manifest["groupedSuiteOwners"],
+        )
+        fixture.log.write_text("")
+        paths = fixture.root / "selected modules.txt"
+        paths.write_text("CoreTests\n")
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--test-artifacts",
+            str(artifacts),
+            "--only-file",
+            str(paths),
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        command = fixture.command_log()
+        self.assertIn("test-without-building -xctestrun", command)
+        self.assertIn("-only-testing:GroupedLibraryTests/ReadTests", command)
+        self.assertIn("-only-testing:GroupedLibraryTests/WriteTests", command)
+        self.assertNotIn("-only-testing:GroupedLibraryTests/ViewTests", command)
+        self.assertNotIn("xcrun --find swift", command)
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--test-artifacts",
+            str(artifacts),
+            "--only",
+            "CoreTests/ViewTests",
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("CoreTests has no grouped test suite", result.stderr)
+        self.assertEqual(
+            1, fixture.command_log().count("test-without-building -xctestrun")
+        )
+
     def test_test_preserves_xcode_failure_through_the_progress_pipeline(self):
         fixture = self.fixture()
 
@@ -641,6 +746,7 @@ exec /usr/bin/python3 "$@"
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("-only-testing:CoreTests", bundles_last.command_log())
+        self.assertIn("-scheme Stuff-iOS-Tests", bundles_last.command_log())
 
         all_last = self.fixture()
         result = all_last.run(
@@ -653,7 +759,22 @@ exec /usr/bin/python3 "$@"
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertNotIn("-only-testing:CoreTests", all_last.command_log())
-        self.assertIn("-scheme Stuff-iOS-Tests", all_last.command_log())
+        self.assertIn("-scheme Stuff-iOS-FullTests", all_last.command_log())
+
+        filtered = self.fixture()
+        result = filtered.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "--all",
+            "--only",
+            "CoreTests/ValueTests",
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("-scheme Stuff-iOS-Tests", filtered.command_log())
+        self.assertNotIn("-scheme Stuff-iOS-FullTests", filtered.command_log())
+        self.assertIn("-only-testing:CoreTests/ValueTests", filtered.command_log())
 
         snapshots_last = self.fixture()
         result = snapshots_last.run(

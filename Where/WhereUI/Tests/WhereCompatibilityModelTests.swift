@@ -43,6 +43,7 @@ struct WhereCompatibilityModelTests {
             context: .testing,
             harness: harness,
             transport: transport,
+            now: earlyJanuaryDemoDate,
         )
         await model.compatibility.refresh(model: model)
         let demo = try await model.makeDemoScope()
@@ -71,6 +72,7 @@ struct WhereCompatibilityModelTests {
             context: context,
             harness: harness,
             transport: transport,
+            now: earlyJanuaryDemoDate,
         )
         await model.compatibility.refresh(model: model)
         #expect(!model.compatibility.isBlocking(model))
@@ -271,6 +273,7 @@ struct WhereCompatibilityModelTests {
         context: InstallationRecordingContext,
         harness: CompatibilityLaunchHarness,
         transport: LaunchCompatibilityTransport,
+        now: @escaping @Sendable () -> Date = { Date() },
     ) -> WhereModel {
         let preferences = makePreferences()
         preferences.hasOnboarded = true
@@ -286,6 +289,7 @@ struct WhereCompatibilityModelTests {
             logSystem: .isolated(),
             compatibility: compatibility,
             installationLocation: .init(makeSource: { harness.makeLocationSource() }),
+            now: now,
         )
     }
 

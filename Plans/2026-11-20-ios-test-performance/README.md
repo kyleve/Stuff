@@ -4,6 +4,8 @@
 
 On November 20 the owner selected both Time Profiler findings for implementation as separate PRs into `main`. This follows the [snapshot performance work](../2026-11-18-snapshot-performance/README.md). The two experiments apply to ordinary iOS tests. They share a baseline and have independent implementations, branches, checks and merge order. The numbered records in this directory own measured results, review and delivery.
 
+PRs [549](https://github.com/kyleve/Stuff/pull/549) and [548](https://github.com/kyleve/Stuff/pull/548) have merged. On November 20 the owner selected the early-January fixture from the remaining-suite profile. [Plan 04](04-demo-fixture-clock.md) records the eleven cases and their verification. Published in [PR 553](https://github.com/kyleve/Stuff/pull/553). [STU-340](https://linear.app/kve/issue/STU-340)
+
 | Deliverable | Outcome | Owner and execution branch |
 | --- | --- | --- |
 | [01. Demo journal batch · PR 549](https://github.com/kyleve/Stuff/pull/549) · [reviewed plan](https://github.com/kyleve/Stuff/blob/26745d86c/Plans/2026-11-20-ios-test-performance/01-demo-journal-batch.md) · [STU-203](https://linear.app/kve/issue/STU-203) | US-01 / R-01. Seed the same demo world and publish its final derived data once. | Demo implementation agent, `perf/demo-journal-batch` |
@@ -18,3 +20,11 @@ Three passing CI runs ranked Calendar zoom first at 63–71 seconds and the demo
 Q-01 (closed). The demo spends time rebuilding widget history after intermediate writes. One transactional import can exercise the production services while retaining all issue masks. Q-02 (closed). The Calendar trace included substantially more SwiftUI layout work than test-side element lookup. Preserve the six real zoom cycles across both widths and motion preferences. Both decisions follow the measured profiles and the owner's November 20 request.
 
 Reviewed against main `798c61cc4`. Each numbered plan defines a bounded experiment and the checks that determine whether to retain it. X-01 preserves data and audit semantics. X-02 preserves Calendar coverage, motion and rendering. Both exclude changes to CI scheduling, worker count and parallelism.
+
+## Native child safe-area follow-up
+
+The November 20 suite survey measured two unnecessary visual settling passes around a read-only UIKit geometry check. The owner selected the measured change for a separate PR to main. [Plan 03](03-native-insets.md) records the twelve configurations and acceptance evidence. Published in [PR 552](https://github.com/kyleve/Stuff/pull/552). [STU-339](https://linear.app/kve/issue/STU-339)
+
+## Shared test host trial
+
+The November 21 trial grouped twelve libraries into one host for full iOS runs. The paired CI unit worker used 298 fewer credits and ran its test phase 58 seconds faster. The rollout's complete native workflow used 279 more credits, including an extra snapshot inventory check on the builder. [Plan 05 and state isolation results](05-group-library-test-host.md) · [PR 554](https://github.com/kyleve/Stuff/pull/554) · [STU-342](https://linear.app/kve/issue/STU-342)

@@ -239,6 +239,12 @@ Suite discovery reads each target's literal source array in `Project.swift`.
 Arrays can span lines and include shared support files. Only `SnapshotTests/**`
 paths define suite roots. Unsupported declarations fail before shard selection.
 
+Changes to the project, snapshot Swift sources or the inventory check itself
+also trigger unfiltered Xcode discovery. After exporting unit test results,
+the CircleCI unit worker uses its booted simulator and the attached snapshot
+scheme to check the source inventory against every compiled suite. This catches
+a suite missing from every shard’s selection.
+
 `./snapshot-shards hydrate --assignment shard.txt` fetches the tracked PNGs in
 each assigned suite's `__Snapshots__` directory, including theme and trait
 subdirectories. Probes without references need no download. Each selected
@@ -306,6 +312,30 @@ Valid existing installations are left alone by `--install`; `--update` explicitl
 
 ## Testing
 
+`./test` selects affected logical bundles from the complete merge-base diff against `origin/main`, plus staged, unstaged, and untracked files.
+The selection follows package products, target dependencies, test hosts, shared source files, resources, and generated installer-site inputs.
+Unknown inputs and unavailable Git history select all bundles and host macro tests.
+Unsupported manifest expressions stop with an error; use `./test --everything` while adding parser support.
+
+Preview the decision before running tests:
+
+```bash
+./test --dry-run
+./test --dry-run --json
+./test --dry-run --base COMMIT_BEFORE_PR --head MERGED_PR_COMMIT
+```
+
+The preview lists selected and skipped bundles, reasons, host tests, and independent checks.
+It evaluates the Swift package manifest but runs no checks, project generation, builds, or simulators.
+`--head` requires `--dry-run`. It excludes local edits and uses the **current checkout's graph** for the historical diff.
+JSON reports preserve paths containing spaces and newlines.
+Preview supports affected selection only; explicit bundle and test filters remain execution options.
+
+Normal execution still runs architecture and host checks. Selection limits test execution; builds still compile the chosen schemes.
+CI continues to run its full unit and snapshot validation.
+
+`./test --all` and `./test --everything` share one test host across twelve library modules. Named bundles, affected tests, and `--only ModuleTests/Suite/test()` keep their original module names. The same identifiers work with `--test-artifacts` from a full build. The full artifact manifest records suite ownership so CircleCI results and failure reruns identify each test by its original module.
+
 Install the site dependencies before the retained installer tests or snapshot builds:
 
 ```bash
@@ -327,8 +357,8 @@ The install site's image tests run on the pinned iOS simulator:
 ./test ToolsSnapshotTests --review
 ```
 
-Each build runs [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
-against the production Astro build. The bundle loads those pages in offline
+Local builds run [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
+against the production Astro build. The CircleCI iOS test builder reuses the generated JSON when its inputs and content digest match. A miss installs the locked npm dependencies and regenerates the fixture. The bundle loads those pages in offline
 `WKWebView` instances through `SnapshotKitTesting.assertHTMLSnapshots`.
 The generator inlines the emitted CSS and artwork for offline capture.
 References cover the main-build homepage, app PR pages, release details, unavailable commit history,

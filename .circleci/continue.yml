@@ -276,7 +276,8 @@ commands:
             mkdir -p "<< parameters.output_directory >>"
             python3 .circleci/xcresult_to_junit.py \
               "<< parameters.test_workdir >>" \
-              "<< parameters.output_directory >>/results.xml"
+              "<< parameters.output_directory >>/results.xml" \
+              --test-artifact-manifest "$CIRCLE_WORKING_DIRECTORY/ci-test-build/manifest.json"
       - store_test_results:
           path: << parameters.output_directory >>
 
@@ -363,9 +364,20 @@ jobs:
           name: Recheck eligibility and checkout the exact source commit
           command: |
             umask 077
-            mkdir -p "$RUNNER_TEMP"
-            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
-            cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
+            mkdir -p "$RUNNER_TEMP/eligibility"
+            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source" --superseded-marker "$RUNNER_TEMP/eligibility/superseded-main"
+            if [[ ! -f "$RUNNER_TEMP/eligibility/superseded-main" ]]; then
+              cmp .xcode-version "$RUNNER_TEMP/source/.xcode-version"
+            fi
+      - store_artifacts:
+          path: /tmp/installer-archive/eligibility
+          destination: installer
+      - run:
+          name: Stop a superseded main archive before signing
+          command: |
+            if [[ -f "$RUNNER_TEMP/eligibility/superseded-main" ]]; then
+              circleci-agent step halt
+            fi
       - run:
           name: Install archive tools
           command: |
@@ -397,9 +409,26 @@ jobs:
 
   build-ios-tests:
     executor: m4-pro-large
+    environment:
+      TUIST_PREBUILT_INSTALLER_SITE_FIXTURE: "1"
     steps:
       - prepare_builder:
           test_workdir: test-output-build
+          require_site_dependencies: false
+      - run:
+          name: Fingerprint installer-site snapshot inputs
+          command: python3 .circleci/installer_snapshot_fixture.py key > "$TEST_WORKDIR/installer-site-fixture.key"
+      - restore_cache:
+          keys:
+            - installer-site-fixture-v1-{{ checksum "test-output-build/installer-site-fixture.key" }}
+      - run:
+          name: Prepare installer-site snapshot fixture
+          command: python3 .circleci/installer_snapshot_fixture.py prepare
+      - save_cache:
+          key: installer-site-fixture-v1-{{ checksum "test-output-build/installer-site-fixture.key" }}
+          paths:
+            - .build/installer-site-fixture/InstallerSiteSnapshots.json
+            - .build/installer-site-fixture/receipt.json
       # GitHub's required format and macOS jobs own helper and host tests.
       # Start the shared simulator build without waiting for those checks.
       - run_with_timeout:
@@ -408,20 +437,6 @@ jobs:
             ./test --everything
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --no-generate --skip-architecture --skip-host-tests
-      - run:
-          name: Validate changed snapshot inventory with Xcode
-          command: |
-            if git diff --quiet origin/main...HEAD -- \
-              Project.swift ':(glob)**/SnapshotTests/**/*.swift'; then
-              echo "Snapshot definitions did not change. The source-plan validation is sufficient."
-              exit 0
-            fi
-            ./test --snapshots --shared --os 27.2 \
-              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
-              --enumerate-suites "$TEST_WORKDIR/suites.txt" \
-              --skip-architecture
-            ./snapshot-shards compare-enumeration \
-              --enumeration "$TEST_WORKDIR/suites.txt"
       - persist_to_workspace:
           root: ci-test-build
           paths:
@@ -445,6 +460,9 @@ jobs:
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
+      - run:
+          name: Validate changed snapshot inventory with Xcode
+          command: bash .circleci/validate_snapshot_inventory.sh
       - collect_diagnostics:
           test_workdir: test-output-ios
           artifact_name: test-ios

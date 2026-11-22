@@ -9,22 +9,14 @@ import sys
 import time
 from typing import Callable, Iterable, Mapping, Optional, Sequence, TextIO
 
+from grouped_tests import GROUPED_BUNDLE, GroupedTestSuites
 from xcode_results import test_cases
-
-
-DECLARATION = re.compile(r"^ {8}(?:unitTests\(|\.target\()", re.MULTILINE)
-GLOBAL_PATHS = {
-    "Package.swift",
-    "Package.resolved",
-    "Project.swift",
-    "Tuist.swift",
-    ".swiftformat",
-    ".mise.toml",
-    ".xcode-version",
-    "test",
-    "simulator",
-    "ide",
-}
+from repository import repository_root
+from test_selection import (
+    Graph,
+    describe,
+    repository_selection,
+)
 
 
 def snapshot_bundles(project_text: str) -> list[str]:
@@ -36,95 +28,69 @@ def affected_bundles(
     package: Mapping[str, object],
     project_text: str,
 ) -> list[str]:
-    """Resolve changed paths to test bundles without silently under-selecting."""
-
+    """Compatibility entry point for callers with an explicit changed-path list."""
     if not changed:
         return []
-
-    paths: dict[str, str] = {}
-    dependencies: dict[str, list[str]] = {}
-    for target in package["targets"]:
-        name = target["name"]
-        paths[name] = str(target.get("path") or "").rstrip("/")
-        names = []
-        for dependency in target.get("dependencies", []):
-            for key in ("byName", "target", "product"):
-                if key in dependency:
-                    names.append(dependency[key][0])
-                    break
-        dependencies[name] = names
-
-    reverse: dict[str, set[str]] = {}
-    for name, target_dependencies in dependencies.items():
-        for dependency in target_dependencies:
-            reverse.setdefault(dependency, set()).add(name)
-
-    declarations = _declarations(project_text)
-    bundles = _bundles(declarations)
-    problems = _parse_problems(bundles)
-    if problems:
-        raise ValueError(
-            "could not read Project.swift reliably: " + "; ".join(problems)
-        )
-
-    selected: set[str] = set()
-    changed_targets: set[str] = set()
-    everything = False
-    for path in changed:
-        if path in GLOBAL_PATHS or path.startswith(".github/"):
-            everything = True
-            continue
-        owner = next(
-            (
-                name
-                for name, bundle in bundles.items()
-                if bundle["sources"] and path.startswith(str(bundle["sources"]) + "/")
-            ),
-            None,
-        )
-        if owner:
-            selected.add(owner)
-            continue
-        target = next(
-            (
-                name
-                for name, source in paths.items()
-                if source and path.startswith(source + "/")
-            ),
-            None,
-        )
-        if target:
-            changed_targets.add(target)
-            continue
-        module = "/".join(path.split("/")[:2])
-        for name, bundle in bundles.items():
-            if str(bundle["sources"]).startswith(module + "/"):
-                selected.add(name)
-
-    if everything:
-        return sorted(bundles)
-
-    frontier = list(changed_targets)
-    affected = set(changed_targets)
-    while frontier:
-        target = frontier.pop()
-        for dependent in reverse.get(target, ()):
-            if dependent not in affected:
-                affected.add(dependent)
-                frontier.append(dependent)
-
-    for name, bundle in bundles.items():
-        if set(bundle["products"]) & affected:
-            selected.add(name)
-    return sorted(selected)
+    return Graph.read(package, project_text).select(list(changed))["selected"]
 
 
-def failure_report(document: Mapping[str, object], result_path: str) -> str:
+def grouped_filters(identifiers: Iterable[str], suites: GroupedTestSuites) -> list[str]:
+    """Translate logical module selectors for a grouped build without widening coverage."""
+    selected = []
+    for identifier in identifiers:
+        bundle, separator, test = identifier.partition("/")
+        if bundle not in suites.bundles:
+            selected.append(identifier)
+        elif separator:
+            suite = test.partition("/")[0]
+            if suites.owners.get(suite.partition(".")[0]) != bundle:
+                raise ValueError(f"{bundle} has no grouped test suite named {suite!r}")
+            selected.append(f"{GROUPED_BUNDLE}/{test}")
+        else:
+            names = sorted(
+                name for name, owner in suites.owners.items() if owner == bundle
+            )
+            if not names:
+                raise ValueError(f"{bundle} has no grouped test suites")
+            selected.extend(f"{GROUPED_BUNDLE}/{name}" for name in names)
+    return list(dict.fromkeys(selected))
+
+
+def failure_report(
+    document: Mapping[str, object],
+    result_path: str,
+    project: Path = Path("Project.swift"),
+    manifest: Optional[Path] = None,
+) -> str:
     failures = [case for case in test_cases(document) if case.result == "failed"]
+    owners = {}
+    if any(case.bundle == GROUPED_BUNDLE for case in failures):
+        try:
+            owners = GroupedTestSuites.from_manifest_or_repository(
+                project.resolve().parent, manifest
+            ).owners
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(
+                f"warning: could not resolve original test modules: {error}",
+                file=sys.stderr,
+            )
     lines: list[str] = []
     for case in failures:
-        lines.append(f"  {case.display_identifier}")
-        lines.append(f"      ./test --only '{case.suite_identifier}'")
+        display = case.display_identifier
+        rerun = case.suite_identifier
+        if case.bundle == GROUPED_BUNDLE:
+            relative = case.only_testing_identifier.removeprefix(GROUPED_BUNDLE + "/")
+            suite_path = relative.rpartition("/")[0] or relative
+            outer_suite = suite_path.partition("/")[0].partition(".")[0]
+            owner = owners.get(outer_suite, GROUPED_BUNDLE)
+            display = (
+                f"{owner}/{case.suite_name}/{case.name}"
+                if case.suites
+                else f"{owner}/{case.name}"
+            )
+            rerun = f"{owner}/{suite_path}"
+        lines.append(f"  {display}")
+        lines.append(f"      ./test --only '{rerun}'")
     if failures:
         lines.extend(["", f"  Result bundle: {result_path}"])
     return "\n".join(lines)
@@ -315,63 +281,6 @@ class ProgressReporter:
             self.output.flush()
 
 
-def _declarations(project_text: str) -> dict[str, str]:
-    starts = [match.start() for match in DECLARATION.finditer(project_text)]
-    starts.append(len(project_text))
-    declarations = {}
-    for index, start in enumerate(starts[:-1]):
-        window = project_text[start : starts[index + 1]]
-        name = re.search(r'name:\s*"(\w+)"', window)
-        if name:
-            declarations[name.group(1)] = window
-    return declarations
-
-
-def _products_in(window: str) -> set[str]:
-    found = set(re.findall(r'\.package\(product:\s*"(\w+)"\)', window))
-    dependency = re.search(r'productDependency:\s*"(\w+)"', window)
-    if dependency:
-        found.add(dependency.group(1))
-    extra = re.search(r"extraPackageProducts:\s*\[([^\]]*)\]", window)
-    if extra:
-        found.update(re.findall(r'"(\w+)"', extra.group(1)))
-    return found
-
-
-def _bundles(declarations: Mapping[str, str]) -> dict[str, dict[str, object]]:
-    bundles = {}
-    for name, window in declarations.items():
-        sources = re.search(r'sources:\s*\[\s*"([^"]+)"', window)
-        if not sources or not name.endswith("Tests"):
-            continue
-        products = _products_in(window)
-        hosts = [
-            host
-            for host in re.findall(r'\.target\(name:\s*"(\w+)"\)', window)
-            if host in declarations
-        ]
-        for host in hosts:
-            products |= _products_in(declarations[host])
-        bundles[name] = {
-            "sources": sources.group(1).replace("/**", "").rstrip("/"),
-            "products": products,
-            "hostedByTarget": bool(hosts),
-        }
-    return bundles
-
-
-def _parse_problems(bundles: Mapping[str, Mapping[str, object]]) -> list[str]:
-    problems = []
-    if len(bundles) < 15:
-        problems.append(f"only found {len(bundles)} test bundles")
-    for name, bundle in bundles.items():
-        if not bundle["sources"]:
-            problems.append(f"{name} has no sources")
-        if not bundle["products"] and not bundle["hostedByTarget"]:
-            problems.append(f"{name} links neither a package product nor a target")
-    return problems
-
-
 def main(arguments: Optional[Iterable[str]] = None) -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -389,6 +298,19 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
     affected = subparsers.add_parser("affected-bundles")
     affected.add_argument("--project", type=Path, default=Path("Project.swift"))
 
+    selection = subparsers.add_parser("selection")
+    selection.add_argument("--base", default="origin/main")
+    selection.add_argument("--head")
+    selection.add_argument(
+        "--format", choices=("text", "json", "execution"), default="text"
+    )
+    selection.add_argument("--skip-architecture", action="store_true")
+    selection.add_argument("--skip-host-tests", action="store_true")
+
+    filters = subparsers.add_parser("grouped-filters")
+    filters.add_argument("--project", type=Path, default=Path("Project.swift"))
+    filters.add_argument("--manifest", type=Path)
+
     progress = subparsers.add_parser("progress")
     progress.add_argument("--heartbeat", type=float, default=15)
     progress.add_argument("--status-file", type=Path)
@@ -399,6 +321,7 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
     failures = subparsers.add_parser("failures")
     failures.add_argument("--result", required=True)
     failures.add_argument("--tests-json", required=True, type=Path)
+    failures.add_argument("--manifest", type=Path)
 
     options = parser.parse_args(arguments)
     if options.command == "phase-started":
@@ -414,6 +337,35 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
         print("CI_TIMING " + json.dumps(payload, separators=(",", ":")), flush=True)
     elif options.command == "snapshot-bundles":
         print("\n".join(snapshot_bundles(options.project.read_text())))
+    elif options.command == "selection":
+        try:
+            report = repository_selection(
+                repository_root(__file__), options.base, options.head
+            )
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+            print(f"error: cannot resolve affected tests: {error}", file=sys.stderr)
+            print("Use an explicit scope: ./test --everything", file=sys.stderr)
+            return 2
+        if options.skip_architecture:
+            report["independent_checks"].remove("architecture")
+        if options.skip_host_tests:
+            report["host_tests"] = []
+            report["independent_checks"] = [
+                check
+                for check in report["independent_checks"]
+                if check == "architecture"
+            ]
+        if options.format == "json":
+            print(json.dumps(report, indent=2, ensure_ascii=True))
+        elif options.format == "execution":
+            if report["fallback_reason"]:
+                print("warning: " + report["fallback_reason"], file=sys.stderr)
+            if report["mode"] == "full":
+                print("--everything")
+            else:
+                print("\n".join(report["selected"] + report["host_tests"]))
+        else:
+            print(describe(report))
     elif options.command == "affected-bundles":
         changed = [line for line in sys.stdin.read().splitlines() if line.strip()]
         if not changed:
@@ -432,6 +384,18 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
             print(error, file=sys.stderr)
             return 2
         print("\n".join(selected))
+    elif options.command == "grouped-filters":
+        identifiers = sys.stdin.read().splitlines()
+        try:
+            if any(item.partition("/")[0] != GROUPED_BUNDLE for item in identifiers):
+                suites = GroupedTestSuites.from_manifest_or_repository(
+                    options.project.resolve().parent, options.manifest
+                )
+                identifiers = grouped_filters(identifiers, suites)
+            print("\n".join(identifiers))
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(error, file=sys.stderr)
+            return 2
     elif options.command == "progress":
         ProgressReporter(
             heartbeat=options.heartbeat,
@@ -448,7 +412,7 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
                 document = json.load(stream)
         except (OSError, ValueError):
             return 0
-        report = failure_report(document, options.result)
+        report = failure_report(document, options.result, manifest=options.manifest)
         if report:
             print(report)
     return 0
