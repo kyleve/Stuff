@@ -1,5 +1,5 @@
 import Foundation
-import RegionKit
+@testable import RegionKit
 import Testing
 @testable import WhereCore
 
@@ -48,5 +48,31 @@ struct RegionAttributionTests {
         // matching the initial set, so nothing rebuilds and attribution holds.
         await attribution.reconcile()
         #expect(attribution.region(at: sanFrancisco) == .california)
+    }
+}
+
+/// Invented outlines straddle longitude -79 near Toronto. Both polygons are
+/// deliberately wide enough that crossing Ontario's edge stays inside Canada.
+enum CanadianAttributionFixture {
+    static let ontario = Region(unchecked: "ca-ON")
+    static let toronto = Coordinate(latitude: 43.6532, longitude: -79.3832)
+
+    static func attributor(tracking regions: [Region]) throws -> RegionAttributor {
+        let catalog = try RegionCatalog(manifest: Data("""
+        [
+          {"id":"canada","name":"Canada","kind":"country","isLoggable":true,"geometry":{"file":"canada.geojson"}},
+          {"id":"ca-ON","name":"Ontario","kind":"province","parentID":"canada","isLoggable":true,"geometry":{"file":"ca-ON.geojson"}}
+        ]
+        """.utf8))
+        let polygons = regions.map { region in
+            let east = region == ontario ? -79.0 : -75.0
+            return RegionPolygons(region: region, polygons: [GeoPolygon(vertices: [
+                Coordinate(latitude: 42, longitude: -85),
+                Coordinate(latitude: 42, longitude: east),
+                Coordinate(latitude: 47, longitude: east),
+                Coordinate(latitude: 47, longitude: -85),
+            ])])
+        }
+        return RegionAttributor(regionPolygons: polygons, catalog: catalog)
     }
 }

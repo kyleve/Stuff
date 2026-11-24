@@ -64,6 +64,38 @@ struct CurrentRegionResolverTests {
         )
     }
 
+    @Test(arguments: [-79.001, -78.999])
+    func trackedProvinceEdgeIsUncertainOnEitherSide(longitude: Double) async throws {
+        let fixture = CanadianAttributionFixture.self
+        let nearEdge = Coordinate(latitude: fixture.toronto.latitude, longitude: longitude)
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample(accuracy: 200, coordinate: nearEdge))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: fixture.attributor(tracking: [.canada, fixture.ontario]),
+        )
+        try await services.ingestor.authorizeRecording()
+        #expect(await services.currentRegion
+            .resolve(now: now) == .unavailable(.boundaryUncertainty))
+    }
+
+    @Test func untrackedProvinceEdgeDoesNotAffectCountryConfidence() async throws {
+        let fixture = CanadianAttributionFixture.self
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample(
+            accuracy: 200,
+            coordinate: Coordinate(latitude: fixture.toronto.latitude, longitude: -78.999),
+        ))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: fixture.attributor(tracking: [.canada]),
+        )
+        try await services.ingestor.authorizeRecording()
+        #expect(await services.currentRegion.resolve(now: now) == .resolved(.canada))
+    }
+
     @Test func locationOutsideTrackedRegionsIsRejected() async throws {
         let services = try await authorizedServices(sample: sample(), region: .other)
 
@@ -159,10 +191,11 @@ struct CurrentRegionResolverTests {
     private func sample(
         timestamp: Date? = nil,
         accuracy: Double = 5,
+        coordinate: Coordinate = Coordinate(latitude: 37.7749, longitude: -122.4194),
     ) -> LocationSample {
         LocationSample(
             timestamp: timestamp ?? now,
-            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            coordinate: coordinate,
             horizontalAccuracy: accuracy,
             source: .gpsSignificantChange,
         )

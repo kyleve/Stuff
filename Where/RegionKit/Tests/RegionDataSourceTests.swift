@@ -22,19 +22,14 @@ struct RegionDataSourceTests {
         }
     }
 
-    @Test func aRegionFromAnUnknownSourceStaysUncovered() {
+    @Test func aRegionFromAnUnknownSourceStaysUncovered() throws {
         // The failure this guard exists for: a new non-US region lands in the
         // catalog and no source claims it. It must not be swept into the
         // hand-drawn bucket as an "everything else" fallback.
         let unattributed = Region(unchecked: "atlantis")
-        let catalog = RegionCatalog(entries: [
-            RegionCatalog.Entry(
-                region: unattributed,
-                name: "Atlantis",
-                localizationKey: nil,
-                geometryFile: "atlantis.geojson",
-            ),
-        ])
+        let catalog = try RegionCatalog(manifest: Data("""
+        [{"id":"atlantis","name":"Atlantis","kind":"country","isLoggable":true,"geometry":{"file":"atlantis.geojson"}}]
+        """.utf8))
         let covered = RegionDataSource.sources(coveringRegionsIn: catalog).flatMap(\.regions)
         #expect(!covered.contains(unattributed))
     }
@@ -65,8 +60,9 @@ struct RegionDataSourceTests {
         }
     }
 
-    @Test func dropsSourcesThatCoverNothing() {
+    @Test func dropsSourcesThatCoverNothing() throws {
         // An empty catalog credits nobody rather than listing bare source names.
-        #expect(RegionDataSource.sources(coveringRegionsIn: RegionCatalog(entries: [])).isEmpty)
+        let empty = try RegionCatalog(manifest: Data("[]".utf8))
+        #expect(RegionDataSource.sources(coveringRegionsIn: empty).isEmpty)
     }
 }

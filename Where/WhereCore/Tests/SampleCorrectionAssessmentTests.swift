@@ -125,6 +125,20 @@ struct SampleCorrectionAssessmentTests {
         #expect(proposal.resultingRegions == [.california, .other])
     }
 
+    @Test func trackedCountryOutsideProvinceIsAlreadyResolved() throws {
+        let ontario = CanadianAttributionFixture.ontario
+        let samples = [
+            F.point(101, minutes: 0, longitude: -79.001, latitude: 44),
+            F.point(102, minutes: 5, longitude: -78.9995, latitude: 44),
+            F.point(103, minutes: 10, longitude: -79.001, latitude: 44),
+        ]
+        let both = try CanadianAttributionFixture.attributor(tracking: [.canada, ontario])
+        #expect(F.reviews(samples, attributor: both).isEmpty)
+        let provinceOnly = try CanadianAttributionFixture.attributor(tracking: [ontario])
+        let proposal = try #require(F.reviews(samples, attributor: provinceOnly).first?.proposal)
+        #expect(proposal.edits == [.init(sampleID: samples[1].id, replacementRegions: [ontario])])
+    }
+
     @Test(arguments: [false, true])
     func boundaryNeedsIndependentBracketsOnBothSides(missingBefore: Bool) {
         let bracket = F.point(101, minutes: missingBefore ? 10 : 0, longitude: -0.001)

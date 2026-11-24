@@ -1,4 +1,5 @@
-import RegionKit
+import Foundation
+@testable import RegionKit
 import Testing
 
 struct RegionAttributorTests {
@@ -109,5 +110,115 @@ struct RegionAttributorTests {
         let attributor = RegionAttributor(for: [illinois])
         let chicago = Coordinate(latitude: 41.8781, longitude: -87.6298)
         #expect(attributor.region(at: chicago) == illinois)
+    }
+
+    @Test func trackedProvinceAndCountrySelectOneWinner() throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let ontario = Region(unchecked: "ca-ON")
+        let toronto = Coordinate(latitude: 43.6532, longitude: -79.3832)
+        let montreal = Coordinate(latitude: 45.5017, longitude: -73.5673)
+        let country = rectangle(region: .canada, west: -90, east: -60)
+        let province = rectangle(region: ontario, west: -85, east: -75)
+        for order in [[country, province], [province, country]] {
+            let both = RegionAttributor(regionPolygons: order, catalog: catalog)
+            #expect(both.region(at: toronto) == ontario)
+            #expect(both.region(at: montreal) == .canada)
+            #expect(both.distance(to: .canada, from: toronto) == 0)
+            let boundary = try #require(both.distanceToBoundary(of: .canada, from: toronto))
+            #expect(boundary > 0)
+        }
+        let parentOnly = RegionAttributor(regionPolygons: [country], catalog: catalog)
+        #expect(parentOnly.region(at: toronto) == .canada)
+        #expect(parentOnly.distance(to: ontario, from: toronto) == nil)
+        let childOnly = RegionAttributor(regionPolygons: [province], catalog: catalog)
+        #expect(childOnly.region(at: toronto) == ontario)
+        #expect(childOnly.region(at: montreal) == .other)
+        #expect(RegionAttributor(regionPolygons: [], catalog: catalog)
+            .region(at: toronto) == .other)
+    }
+
+    @Test func priorityAppliesAfterEliminatingMatchingAncestors() throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let ontario = Region(unchecked: "ca-ON")
+        let coordinate = Coordinate(latitude: 44, longitude: -80)
+        let parent = rectangle(region: .canada, west: -90, east: -60)
+        let child = rectangle(region: ontario, west: -85, east: -75)
+        let unrelated = rectangle(region: .newYork, west: -83, east: -72)
+        let beforeChild = RegionAttributor(
+            regionPolygons: [parent, unrelated, child],
+            catalog: catalog,
+        )
+        let afterChild = RegionAttributor(
+            regionPolygons: [child, unrelated, parent],
+            catalog: catalog,
+        )
+        #expect(beforeChild.region(at: coordinate) == .newYork)
+        #expect(afterChild.region(at: coordinate) == ontario)
+        let disjointHierarchy = RegionAttributor(
+            regionPolygons: [unrelated, child],
+            catalog: catalog,
+        )
+        #expect(disjointHierarchy.region(at: coordinate) == .newYork)
+    }
+
+    @Test func confidenceRespectsUnrelatedPriorityAtOverlappingEdges() throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let ontario = Region(unchecked: "ca-ON")
+        let justOutsideNewYork = Coordinate(latitude: 44, longitude: -83.001)
+        let province = rectangle(region: ontario, west: -85, east: -75)
+        let unrelated = rectangle(region: .newYork, west: -83, east: -72)
+        let first = RegionAttributor(regionPolygons: [unrelated, province], catalog: catalog)
+        let last = RegionAttributor(regionPolygons: [province, unrelated], catalog: catalog)
+        let nearBoundary = try #require(first.matchWithBoundaryDistance(at: justOutsideNewYork))
+        let farBoundary = try #require(last.matchWithBoundaryDistance(at: justOutsideNewYork))
+        #expect(nearBoundary.region == ontario)
+        #expect(farBoundary.region == ontario)
+        #expect(nearBoundary.boundaryDistance < 100)
+        #expect(farBoundary.boundaryDistance > 100_000)
+    }
+
+    @Test(arguments: [-75.001, -74.999])
+    func crossingProvinceCanRestoreItsParentsPriority(longitude: Double) throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let overlap = RegionAttributor(regionPolygons: [
+            rectangle(region: .canada, west: -90, east: -60),
+            rectangle(region: .newYork, west: -83, east: -72),
+            rectangle(region: Region(unchecked: "ca-ON"), west: -85, east: -75),
+        ], catalog: catalog)
+        let match = try #require(overlap.matchWithBoundaryDistance(at: Coordinate(
+            latitude: 44,
+            longitude: longitude,
+        )))
+        #expect(match.region == (longitude < -75 ? Region.newYork : .canada))
+        #expect(match.boundaryDistance < 100)
+    }
+
+    @Test func loadingTrackedGeometrySkipsRelatives() throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let internalCountry = try JSONDecoder().decode(
+            Region.self,
+            from: Data(#""united-states""#.utf8),
+        )
+        for region in [Region.california, .canada] {
+            var requested: [RegionCatalog.Node.ID] = []
+            let attributor = RegionAttributor(
+                for: [internalCountry, region, .other],
+                catalog: catalog,
+            ) { node in
+                requested.append(node.id)
+                return node.region.flatMap(RegionCatalog.shared.geometryURL(for:))
+            }
+            #expect(requested == [.init(rawValue: region.rawValue)])
+            #expect(attributor.loadedRegions == [region])
+        }
+    }
+
+    private func rectangle(region: Region, west: Double, east: Double) -> RegionPolygons {
+        RegionPolygons(region: region, polygons: [GeoPolygon(vertices: [
+            Coordinate(latitude: 42, longitude: west),
+            Coordinate(latitude: 42, longitude: east),
+            Coordinate(latitude: 50, longitude: east),
+            Coordinate(latitude: 50, longitude: west),
+        ])])
     }
 }

@@ -33,8 +33,8 @@ class GenerateRegionsTest < Minitest::Test
         usps: { "Alabama" => "AL", "California" => "CA" },
         localization_keys: { "us-CA" => "region.california", "canada" => "region.canada" },
         non_us: [
-          { source: "canada.geojson", id: "canada", name: "Canada" },
-          { source: "bloc.geojson", id: "example-bloc", name: "Example Bloc" },
+          { source: "canada.geojson", id: "canada", name: "Canada", kind: "country" },
+          { source: "bloc.geojson", id: "example-bloc", name: "Example Bloc", kind: "bloc" },
         ],
       )
 
@@ -85,6 +85,46 @@ class GenerateRegionsTest < Minitest::Test
     end
   end
 
+  def test_normalized_features_keep_country_geometry_and_only_explicit_parent_links
+    Dir.mktmpdir do |resources|
+      generator = RegionGenerator.new(resources: resources)
+      country = normalized("united-states", "country", false)
+      state = normalized("us-CA", "state", true, "united-states")
+      canada = normalized("canada", "country", true)
+      capture_io { generator.generate([state, country, canada]) }
+      manifest = JSON.parse(File.read(File.join(resources, "regions.json")))
+      assert_equal %w[us-CA united-states canada], manifest.map { |entry| entry.fetch("id") }
+      assert_equal "united-states", manifest.first.fetch("parentID")
+      refute manifest[1].fetch("isLoggable")
+      assert_equal "country", manifest[1].fetch("kind")
+      refute manifest.last.key?("parentID")
+      file = manifest[1].fetch("geometry").fetch("file")
+      assert_equal country.fetch("geometry"), JSON.parse(File.read(File.join(resources, "regions", file))).fetch("features").first.fetch("geometry")
+
+      previous = generated_files(resources)
+      [
+        [state], [state, country, country], [normalized("other", "country", false)],
+        [state, normalized("united-states", "country", false, "us-CA")],
+        [country.merge("geometry" => nil)],
+      ].each do |invalid|
+        assert_raises(ArgumentError) { generator.generate(invalid) }
+        assert_equal previous, generated_files(resources)
+      end
+      assert_raises(KeyError) { generator.generate([country.reject { |key, _| key == "geometry" }]) }
+      assert_equal previous, generated_files(resources)
+    end
+  end
+
+  def test_source_outline_is_required_for_nonloggable_country
+    Dir.mktmpdir do |root|
+      generator = RegionGenerator.new(
+        source: root, resources: root,
+        non_us: [{ source: "missing.geojson", id: "united-states", name: "United States", kind: "country", is_loggable: false }],
+      )
+      assert_raises(Errno::ENOENT) { generator.source_features }
+    end
+  end
+
   def test_real_inputs_reproduce_every_committed_resource_byte_for_byte
     Dir.mktmpdir do |root|
       resources = File.join(root, "resources")
@@ -129,6 +169,12 @@ class GenerateRegionsTest < Minitest::Test
   end
 
   private
+
+  def normalized(id, kind, loggable, parent = nil)
+    properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => loggable }
+    properties["parentID"] = parent if parent
+    feature(nil, [[[0, 0], [1, 0], [0, 1], [0, 0]]]).merge("properties" => properties)
+  end
 
   def feature(name, coordinates)
     properties = {}

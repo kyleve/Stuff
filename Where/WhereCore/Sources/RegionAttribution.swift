@@ -8,8 +8,8 @@ import RegionKit
 /// sees a rebuild the moment the tracked set changes — a local edit or a remote
 /// CloudKit import, both of which arrive on `store.changes()`.
 ///
-/// `region(at:)` / `distanceToBoundary(_:from:)` forward to the current
-/// snapshot. Rebuilding (re-parsing the per-region GeoJSON) happens only when
+/// Each lookup reads one immutable snapshot, including a match with its
+/// boundary distance. Rebuilding (re-parsing the per-region GeoJSON) happens only when
 /// the tracked *set* actually changes, so reacting to every `changes()` ping
 /// stays cheap on the GPS hot path (a fetch + a set compare).
 final class RegionAttribution: RegionAttributing, WhereShutdownable {
@@ -99,6 +99,14 @@ final class RegionAttribution: RegionAttributing, WhereShutdownable {
 
     func region(at coordinate: Coordinate) -> Region {
         current.region(at: coordinate)
+    }
+
+    func matchWithBoundaryDistance(at coordinate: Coordinate) -> RegionBoundaryMatch? {
+        current.matchWithBoundaryDistance(at: coordinate)
+    }
+
+    func distance(to region: Region, from coordinate: Coordinate) -> Double? {
+        current.distance(to: region, from: coordinate)
     }
 
     func distanceToBoundary(of region: Region, from coordinate: Coordinate) -> Double? {

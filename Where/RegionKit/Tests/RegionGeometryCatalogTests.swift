@@ -1,4 +1,5 @@
 @testable import RegionKit
+import Synchronization
 import Testing
 
 struct RegionGeometryCatalogTests {
@@ -17,6 +18,43 @@ struct RegionGeometryCatalogTests {
 
     @Test func otherRegion_hasNoDrawableOutlines() async {
         #expect(await RegionGeometryCatalog.outlines(for: .other).isEmpty)
+    }
+
+    @Test func nodeOutlinesLoadOnlyOnRequestAndShareTheRegionCache() async throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let reads = Mutex<[RegionCatalog.Node.ID]>([])
+        let fixtureURL = try #require(RegionCatalog.shared.geometryURL(for: .california))
+        let cache = RegionGeometryCatalog.RegionCache(catalog: catalog) { node in
+            reads.withLock { $0.append(node.id) }
+            return fixtureURL
+        }
+
+        let california = try #require(catalog.node(for: .california))
+        let us = try #require(catalog.parent(of: california))
+        let canada = try #require(catalog.node(for: .canada))
+        let storedUS = Region(unchecked: us.id.rawValue)
+        let storedOutlines = try await cache.outlines(for: storedUS)
+        #expect(storedOutlines.isEmpty)
+        #expect(reads.withLock { $0.isEmpty })
+
+        let canadaOutlines = try await cache.outlines(for: canada)
+        #expect(!canadaOutlines.isEmpty)
+        #expect(canadaOutlines.allSatisfy { $0.region == .canada })
+        let regionOutlines = try await cache.outlines(for: Region.canada)
+        #expect(regionOutlines == canadaOutlines)
+        #expect(reads.withLock { $0 } == [canada.id])
+
+        let usOutlines = try await cache.outlines(for: us)
+        #expect(!usOutlines.isEmpty)
+        #expect(usOutlines.allSatisfy { $0.region == nil && $0.title == us.localizedName })
+        #expect(reads.withLock { $0 } == [canada.id, us.id])
+    }
+
+    @Test func missingCountryOutlineSurfacesItsResourceError() async throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
+        let cache = RegionGeometryCatalog.RegionCache(catalog: catalog) { _ in nil }
+        await #expect(throws: RegionGeometryError.self) { try await cache.outlines(for: us) }
     }
 
     @Test func attribution_coversExactlyTheAttributorsRegions() async throws {

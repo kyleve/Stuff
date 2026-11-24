@@ -14,8 +14,8 @@
 #   - `regions/<id>.geojson` — one file per available region (a FeatureCollection
 #     with a single feature carrying `properties.region`/`properties.name`), so
 #     the attributor can load only the regions it needs.
-#   - `regions.json` — an ordered manifest: `{ id, name, localizationKey?,
-#     geometry: { file } }`. Array order is the catalog's canonical order
+#   - `regions.json` — an ordered manifest of nodes, their jurisdiction kinds,
+#     parent IDs, eligibility, names and geometry files. Its order is canonical
 #     (US states alphabetically, then countries/blocs; blocs last).
 #
 # Region ids are stable data identifiers, never shown to the user (names come
@@ -27,6 +27,8 @@
 
 require "json"
 require "fileutils"
+require "tmpdir"
+require_relative "../../../Tools/file_transaction"
 
 # Source inputs (not bundled) live next to this script; generated output goes
 # into the bundled Resources directory.
@@ -68,8 +70,8 @@ LOCALIZATION_KEYS = {
 # Blocs come after countries so the catalog order keeps a bloc after any
 # overlapping members it might gain later.
 NON_US = [
-  { source: "canada.geojson", id: "canada", name: "Canada" },
-  { source: "europeanUnion.geojson", id: "european-union", name: "European Union" }
+  { source: "canada.geojson", id: "canada", name: "Canada", kind: "country" },
+  { source: "europeanUnion.geojson", id: "european-union", name: "European Union", kind: "bloc" }
 ].freeze
 
 class RegionGenerator
@@ -89,16 +91,45 @@ class RegionGenerator
   end
 
   def run
-    FileUtils.rm_rf(@regions_directory)
-    FileUtils.mkdir_p(@regions_directory)
+    generate(us_features + source_features)
+  end
 
-    manifest = us_manifest_entries + non_us_manifest_entries
-    manifest_path = File.join(@resources, "regions.json")
-    File.write(manifest_path, JSON.pretty_generate(manifest) + "\n")
+  # Accept normalized, ordered GeoJSON features from a source adapter.
+  def generate(features)
+    manifest = features.map { |feature| manifest_entry(feature) }
+    validate_hierarchy(manifest)
 
-    puts "Wrote #{manifest.length} region files to #{@regions_directory}"
-    puts "Wrote manifest with #{manifest.length} entries to #{manifest_path}"
+    FileUtils.mkdir_p(@resources)
+    Dir.mktmpdir(".region-generator-", @resources) do |staging|
+      staged_regions = File.join(staging, "regions")
+      staged_manifest = File.join(staging, "regions.json")
+      FileUtils.mkdir(staged_regions)
+      features.zip(manifest).each do |feature, entry|
+        document = region_document(id: entry.fetch("id"), name: entry.fetch("name"), geometry: feature.fetch("geometry"))
+        File.write(File.join(staged_regions, entry.fetch("geometry").fetch("file")), JSON.generate(document) + "\n")
+      end
+      File.write(staged_manifest, JSON.pretty_generate(manifest) + "\n")
+      transaction = FileTransaction.new
+      transaction.replace(target: @regions_directory, staged: staged_regions)
+      transaction.replace(target: File.join(@resources, "regions.json"), staged: staged_manifest)
+      transaction.commit
+    end
+
+    puts "Wrote #{manifest.length} region files and manifest to #{@resources}"
     manifest
+  end
+
+  # Individually configured source outlines, in their declared catalog order.
+  def source_features
+    @non_us.map do |region|
+      collection = load_feature_collection(region.fetch(:source))
+      properties = {
+        "id" => region.fetch(:id), "name" => region.fetch(:name),
+        "kind" => region.fetch(:kind), "isLoggable" => region.fetch(:is_loggable, true)
+      }
+      properties["parentID"] = region.fetch(:parent_id) if region.key?(:parent_id)
+      { "type" => "Feature", "properties" => properties, "geometry" => collection.fetch("features").fetch(0).fetch("geometry") }
+    end
   end
 
   private
@@ -122,38 +153,61 @@ class RegionGenerator
     }
   end
 
-  def write_region_file(id:, name:, geometry:)
-    path = File.join(@regions_directory, "#{id}.geojson")
-    File.write(path, JSON.generate(region_document(id: id, name: name, geometry: geometry)) + "\n")
-  end
-
-  def manifest_entry(id:, name:)
-    entry = { "id" => id, "name" => name }
+  def manifest_entry(feature)
+    properties = feature.fetch("properties")
+    id = properties.fetch("id")
+    unless id.is_a?(String) && id.match?(/\A[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\z/) && id != "other"
+      raise ArgumentError, "Invalid region ID #{id.inspect}"
+    end
+    name = properties.fetch("name")
+    raise ArgumentError, "Missing region name for #{id}" unless name.is_a?(String) && !name.empty?
+    parent_id = properties["parentID"]
+    raise ArgumentError, "Invalid parent ID for #{id}" unless parent_id.nil? || parent_id.is_a?(String)
+    kind = properties.fetch("kind")
+    unless %w[state federalDistrict territory province country bloc].include?(kind)
+      raise ArgumentError, "Unknown region kind #{kind.inspect} for #{id}"
+    end
+    unless [true, false].include?(properties.fetch("isLoggable"))
+      raise ArgumentError, "Invalid logging eligibility for #{id}"
+    end
+    geometry = feature.fetch("geometry")
+    unless geometry && %w[Polygon MultiPolygon].include?(geometry["type"]) && !geometry.fetch("coordinates").empty?
+      raise ArgumentError, "Missing polygon geometry for #{id}"
+    end
+    entry = properties.slice("id", "name", "kind", "isLoggable", "parentID")
     key = @localization_keys[id]
     entry["localizationKey"] = key if key
     entry["geometry"] = { "file" => "#{id}.geojson" }
     entry
   end
 
-  def us_manifest_entries
-    # US states, alphabetically by Census NAME.
+  def validate_hierarchy(manifest)
+    parents = {}
+    manifest.each do |entry|
+      id = entry.fetch("id")
+      raise ArgumentError, "Duplicate region ID #{id}" if parents.key?(id)
+      parents[id] = entry["parentID"]
+    end
+    parents.each_key do |id|
+      seen = { id => true }
+      ancestor = parents[id]
+      while ancestor
+        raise ArgumentError, "Missing parent #{ancestor} of #{id}" unless parents.key?(ancestor)
+        raise ArgumentError, "Cyclic region hierarchy at #{ancestor}" if seen.key?(ancestor)
+        seen[ancestor] = true
+        ancestor = parents[ancestor]
+      end
+    end
+  end
+
+  def us_features
     us = load_feature_collection("us-states.geojson")
     us.fetch("features").sort_by { |feature| feature.fetch("properties").fetch("NAME") }.map do |feature|
       name = feature.fetch("properties").fetch("NAME")
       usps = @usps.fetch(name) { abort("No USPS code for US feature #{name.inspect}") }
-      id = "us-#{usps}"
-      write_region_file(id: id, name: name, geometry: feature.fetch("geometry"))
-      manifest_entry(id: id, name: name)
-    end
-  end
-
-  def non_us_manifest_entries
-    # Countries / blocs preserve their declared order after the US states.
-    @non_us.map do |region|
-      feature_collection = load_feature_collection(region.fetch(:source))
-      geometry = feature_collection.fetch("features").fetch(0).fetch("geometry")
-      write_region_file(id: region.fetch(:id), name: region.fetch(:name), geometry: geometry)
-      manifest_entry(id: region.fetch(:id), name: region.fetch(:name))
+      kind = { "DC" => "federalDistrict", "PR" => "territory" }.fetch(usps, "state")
+      properties = { "id" => "us-#{usps}", "name" => name, "kind" => kind, "isLoggable" => true }
+      { "type" => "Feature", "properties" => properties, "geometry" => feature.fetch("geometry") }
     end
   end
 end

@@ -2,6 +2,8 @@
   {
     "id": "us-AL",
     "name": "Alabama",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-AL.geojson"
     }
@@ -9,6 +11,8 @@
   {
     "id": "us-AK",
     "name": "Alaska",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-AK.geojson"
     }
@@ -16,6 +20,8 @@
   {
     "id": "us-AZ",
     "name": "Arizona",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-AZ.geojson"
     }
@@ -23,6 +29,8 @@
   {
     "id": "us-AR",
     "name": "Arkansas",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-AR.geojson"
     }
@@ -30,6 +38,8 @@
   {
     "id": "us-CA",
     "name": "California",
+    "kind": "state",
+    "isLoggable": true,
     "localizationKey": "region.california",
     "geometry": {
       "file": "us-CA.geojson"
@@ -38,6 +48,8 @@
   {
     "id": "us-CO",
     "name": "Colorado",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-CO.geojson"
     }
@@ -45,6 +57,8 @@
   {
     "id": "us-CT",
     "name": "Connecticut",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-CT.geojson"
     }
@@ -52,6 +66,8 @@
   {
     "id": "us-DE",
     "name": "Delaware",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-DE.geojson"
     }
@@ -59,6 +75,8 @@
   {
     "id": "us-DC",
     "name": "District of Columbia",
+    "kind": "federalDistrict",
+    "isLoggable": true,
     "geometry": {
       "file": "us-DC.geojson"
     }
@@ -66,6 +84,8 @@
   {
     "id": "us-FL",
     "name": "Florida",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-FL.geojson"
     }
@@ -73,6 +93,8 @@
   {
     "id": "us-GA",
     "name": "Georgia",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-GA.geojson"
     }
@@ -80,6 +102,8 @@
   {
     "id": "us-HI",
     "name": "Hawaii",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-HI.geojson"
     }
@@ -87,6 +111,8 @@
   {
     "id": "us-ID",
     "name": "Idaho",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-ID.geojson"
     }
@@ -94,6 +120,8 @@
   {
     "id": "us-IL",
     "name": "Illinois",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-IL.geojson"
     }
@@ -101,6 +129,8 @@
   {
     "id": "us-IN",
     "name": "Indiana",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-IN.geojson"
     }
@@ -108,6 +138,8 @@
   {
     "id": "us-IA",
     "name": "Iowa",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-IA.geojson"
     }
@@ -115,6 +147,8 @@
   {
     "id": "us-KS",
     "name": "Kansas",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-KS.geojson"
     }
@@ -122,6 +156,8 @@
   {
     "id": "us-KY",
     "name": "Kentucky",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-KY.geojson"
     }
@@ -129,6 +165,8 @@
   {
     "id": "us-LA",
     "name": "Louisiana",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-LA.geojson"
     }
@@ -136,6 +174,8 @@
   {
     "id": "us-ME",
     "name": "Maine",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-ME.geojson"
     }
@@ -143,6 +183,8 @@
   {
     "id": "us-MD",
     "name": "Maryland",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MD.geojson"
     }
@@ -150,6 +192,8 @@
   {
     "id": "us-MA",
     "name": "Massachusetts",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MA.geojson"
     }
@@ -157,6 +201,8 @@
   {
     "id": "us-MI",
     "name": "Michigan",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MI.geojson"
     }
@@ -164,6 +210,8 @@
   {
     "id": "us-MN",
     "name": "Minnesota",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MN.geojson"
     }
@@ -171,6 +219,8 @@
   {
     "id": "us-MS",
     "name": "Mississippi",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MS.geojson"
     }
@@ -178,6 +228,8 @@
   {
     "id": "us-MO",
     "name": "Missouri",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MO.geojson"
     }
@@ -185,6 +237,8 @@
   {
     "id": "us-MT",
     "name": "Montana",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-MT.geojson"
     }
@@ -192,6 +246,8 @@
   {
     "id": "us-NE",
     "name": "Nebraska",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-NE.geojson"
     }
@@ -199,6 +255,8 @@
   {
     "id": "us-NV",
     "name": "Nevada",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-NV.geojson"
     }
@@ -206,6 +264,8 @@
   {
     "id": "us-NH",
     "name": "New Hampshire",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-NH.geojson"
     }
@@ -213,6 +273,8 @@
   {
     "id": "us-NJ",
     "name": "New Jersey",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-NJ.geojson"
     }
@@ -220,6 +282,8 @@
   {
     "id": "us-NM",
     "name": "New Mexico",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-NM.geojson"
     }
@@ -227,6 +291,8 @@
   {
     "id": "us-NY",
     "name": "New York",
+    "kind": "state",
+    "isLoggable": true,
     "localizationKey": "region.newYork",
     "geometry": {
       "file": "us-NY.geojson"
@@ -235,6 +301,8 @@
   {
     "id": "us-NC",
     "name": "North Carolina",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-NC.geojson"
     }
@@ -242,6 +310,8 @@
   {
     "id": "us-ND",
     "name": "North Dakota",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-ND.geojson"
     }
@@ -249,6 +319,8 @@
   {
     "id": "us-OH",
     "name": "Ohio",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-OH.geojson"
     }
@@ -256,6 +328,8 @@
   {
     "id": "us-OK",
     "name": "Oklahoma",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-OK.geojson"
     }
@@ -263,6 +337,8 @@
   {
     "id": "us-OR",
     "name": "Oregon",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-OR.geojson"
     }
@@ -270,6 +346,8 @@
   {
     "id": "us-PA",
     "name": "Pennsylvania",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-PA.geojson"
     }
@@ -277,6 +355,8 @@
   {
     "id": "us-PR",
     "name": "Puerto Rico",
+    "kind": "territory",
+    "isLoggable": true,
     "geometry": {
       "file": "us-PR.geojson"
     }
@@ -284,6 +364,8 @@
   {
     "id": "us-RI",
     "name": "Rhode Island",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-RI.geojson"
     }
@@ -291,6 +373,8 @@
   {
     "id": "us-SC",
     "name": "South Carolina",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-SC.geojson"
     }
@@ -298,6 +382,8 @@
   {
     "id": "us-SD",
     "name": "South Dakota",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-SD.geojson"
     }
@@ -305,6 +391,8 @@
   {
     "id": "us-TN",
     "name": "Tennessee",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-TN.geojson"
     }
@@ -312,6 +400,8 @@
   {
     "id": "us-TX",
     "name": "Texas",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-TX.geojson"
     }
@@ -319,6 +409,8 @@
   {
     "id": "us-UT",
     "name": "Utah",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-UT.geojson"
     }
@@ -326,6 +418,8 @@
   {
     "id": "us-VT",
     "name": "Vermont",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-VT.geojson"
     }
@@ -333,6 +427,8 @@
   {
     "id": "us-VA",
     "name": "Virginia",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-VA.geojson"
     }
@@ -340,6 +436,8 @@
   {
     "id": "us-WA",
     "name": "Washington",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-WA.geojson"
     }
@@ -347,6 +445,8 @@
   {
     "id": "us-WV",
     "name": "West Virginia",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-WV.geojson"
     }
@@ -354,6 +454,8 @@
   {
     "id": "us-WI",
     "name": "Wisconsin",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-WI.geojson"
     }
@@ -361,6 +463,8 @@
   {
     "id": "us-WY",
     "name": "Wyoming",
+    "kind": "state",
+    "isLoggable": true,
     "geometry": {
       "file": "us-WY.geojson"
     }
@@ -368,6 +472,8 @@
   {
     "id": "canada",
     "name": "Canada",
+    "kind": "country",
+    "isLoggable": true,
     "localizationKey": "region.canada",
     "geometry": {
       "file": "canada.geojson"
@@ -376,6 +482,8 @@
   {
     "id": "european-union",
     "name": "European Union",
+    "kind": "bloc",
+    "isLoggable": true,
     "localizationKey": "region.europeanUnion",
     "geometry": {
       "file": "european-union.geojson"

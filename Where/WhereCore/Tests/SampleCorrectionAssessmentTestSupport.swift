@@ -19,6 +19,7 @@ enum SampleCorrectionAssessmentFixtures {
         _ number: Int,
         minutes: Double,
         longitude: Double,
+        latitude: Double = 0,
         accuracy: Double = 5,
         deviceID: RecordingDeviceID? = FlightTrajectoryFixtures.device,
         source: SampleSource = .gpsSignificantChange,
@@ -26,7 +27,7 @@ enum SampleCorrectionAssessmentFixtures {
         LocationSample(
             id: FlightTrajectoryFixtures.sampleID(number),
             timestamp: FlightTrajectoryFixtures.date(minutes: minutes),
-            coordinate: Coordinate(latitude: 0, longitude: longitude),
+            coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: accuracy,
             source: source,
             recordingDeviceID: deviceID,

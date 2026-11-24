@@ -304,8 +304,9 @@ struct SampleCorrectionAssessment {
             !airborne.contains(before.sample.id), !airborne.contains(after.sample.id),
             localMovement(before.sample, sample),
             localMovement(sample, after.sample) else { return nil }
-        // Both raw coordinates and effective attribution must support the same
-        // primary region. The user's drift threshold is the final distance limit.
+        // Both neighbors must support the same winning primary region. The
+        // unresolved point is outside every tracked polygon, so measure drift to
+        // that named region's own outline, including when the region is a country.
         let region = attributor.region(at: before.sample.coordinate)
         guard region != .other,
               primaryRegions.contains(region),

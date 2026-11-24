@@ -19,23 +19,31 @@ into it for lookup. RegionKit depends only on
   Conveniences (`.california`, `.newYork`, `.canada`, `.europeanUnion`, `.other`)
   read naturally at call sites. `.other` is the catch-all sentinel (no geometry).
   (Day-count *ranking* lives in `WhereCore`, not here.)
-- **`RegionCatalog`** — the catalog of available regions, loaded from the bundled
-  `regions.json` manifest: `all`, `localizedName(for:)`, canonical order, and the
-  per-region geometry files. Adding a region is a data change, not a code change.
+- **`RegionCatalog`** reads all geographic nodes from the bundled `regions.json`.
+  Use `node(for:)` for a loggable region or `node(id:)` for any node. A node has a
+  jurisdiction `kind`, localized name, geometry file and optional loggable `region`.
+  `parent(of:)` and `children(of:)` look up its immediate relatives entirely in
+  memory. `all` and `entries` preserve the manifest order of loggable regions.
 - **`Coordinate`** — a plain WGS84 latitude/longitude value type (no
   CoreLocation), plus geometry primitives `GeoPolygon`, `BoundingBox`, and the
   antimeridian-aware `LongitudeSpan`.
 - **`RegionAttributor`** / **`RegionAttributing`** — `region(at:)` maps a
   coordinate to its `Region` (bounding-box pre-pass, then an even-odd ray-cast),
-  and `distanceToBoundary` measures nearness to a region's edge. An attributor is
+  and `distanceToBoundary` measures nearness to a named region's edge. When
+  tracked regions overlap, a matching descendant takes precedence over its
+  matching ancestors. Caller order breaks ties among remaining matches.
+  `matchWithBoundaryDistance(at:)` measures confidence against the winning
+  region and the boundaries of its tracked descendants. An attributor is
   built for a **specific set of regions** (`RegionAttributor(for:)`) and loads
   only those regions' files. `.all` covers the whole catalog and `.shared` the
   default four. `RegionAttributing` is the protocol the app's live, swappable
   attributor also conforms to.
-- **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s: a cached,
-  per-region path for UI artwork, plus the developer region-map viewer's
-  `.attribution` view of a given attributor and `.source` view of the whole
-  catalog. `RegionGeometrySimplifier` can derive reduced geometry at a
+- **`RegionGeometryCatalog`** returns drawable `RegionOutline`s. Call
+  `outlines(for:)` with a node to draw its boundary even when its `region`
+  is nil. Requests for a loggable node and its `Region` share a cached
+  outline. The developer region-map viewer's `.attribution` view shows a
+  given attributor's geometry and `.source` shows all loggable regions.
+  `RegionGeometrySimplifier` can derive reduced geometry at a
   consumer-chosen normalized tolerance without imposing UI sizes on RegionKit.
 - **`RegionDataSource`** — where the bundled geometry came from: the boundary
   set's name, its links, its `License`, its `Fidelity` (`.authoritative` vs the
@@ -79,10 +87,11 @@ The catalog manifest and one GeoJSON file per region ship in
 
 ### `regions.json` — the catalog manifest
 
-An ordered array of entries, one per available region:
+The ordered array has one entry per geographic node.
 
 ```json
-{ "id": "us-CA", "name": "California", "localizationKey": "region.california",
+{ "id": "us-CA", "name": "California", "kind": "state", "isLoggable": true,
+  "localizationKey": "region.california",
   "geometry": { "file": "us-CA.geojson" } }
 ```
 
@@ -96,11 +105,18 @@ An ordered array of entries, one per available region:
   the handful with existing translations carry one. (Dynamic ids mean names are
   data, so region names lose static string-catalog extraction — a deliberate
   trade-off.)
-- `geometry.file` — the per-region file under `regions/`.
-- **Array order is the catalog's canonical order** (US states alphabetically,
-  then countries/blocs, blocs last): it fixes attribution first-match priority
-  (regions are mutually exclusive at our resolution) and the day-count ranking
-  tiebreak.
+- `kind` classifies the jurisdiction as `state`, `federalDistrict`, `territory`,
+  `province`, `country` or `bloc`.
+- `parentID` optionally names the immediate parent by its stable ID. A root
+  omits this field. Parents may occur anywhere in the manifest. The loader
+  rejects unresolved parents, duplicate IDs and cycles.
+- `isLoggable` controls whether the node appears in tracking choices and can
+  construct a validated `Region`. The independent bare-string `Codable`
+  representation preserves stored IDs across catalog changes.
+- `geometry.file` names the required GeoJSON resource under `regions/`. Every
+  node has its own file, including a country used only as a parent.
+- Array order fixes the order of available regions and the day-count ranking
+  tiebreak. WhereCore also uses it to order its tracked set for GPS attribution.
 
 ### `regions/<id>.geojson` — per-region geometry
 

@@ -1,87 +1,167 @@
 import Foundation
 import PeriscopeCore
 
-/// The catalog of **available** regions, loaded once from the bundled
-/// `regions.json` manifest. It is RegionKit's single source of the region
-/// *list* and each region's metadata — the display name, an optional
-/// localization key, and the per-region GeoJSON file — replacing what used to
-/// be a hardcoded `Region` enum plus a separate name table.
-///
-/// Because the list is data, adding a region is a manifest + geometry-file
-/// change (see the RegionKit `README.md`), not a code change. `RegionAttributor`
-/// loads geometry per region from the files this catalog names, so it only ever
-/// parses the regions it's asked to attribute.
-///
-/// The manifest's array order is the catalog's **canonical order**: it fixes
-/// attribution first-match priority (regions are mutually exclusive at our
-/// resolution) and the day-count ranking tiebreak.
+/// Region metadata in canonical manifest order. Reading the hierarchy loads no polygons.
 public struct RegionCatalog: Sendable {
-    /// One available region plus the metadata the app needs to name and draw it.
+    public enum Kind: String, Decodable, Hashable, Sendable {
+        case state, federalDistrict, territory, province, country, bloc
+    }
+
+    /// A geographic unit with a drawable outline, including units that cannot be logged.
+    public struct Node: Identifiable, Decodable, Hashable, Sendable {
+        public struct ID: RawRepresentable, Codable, Hashable, Sendable {
+            public let rawValue: String
+            public init(rawValue: String) {
+                self.rawValue = rawValue
+            }
+        }
+
+        public let id: ID
+        public let kind: Kind
+        public let parentID: ID?
+        public let name: String
+        public let isLoggable: Bool
+        fileprivate let localizationKey: String?
+        private let geometry: Geometry
+
+        private struct Geometry: Decodable, Hashable {
+            let file: String
+        }
+
+        public var geometryFile: String {
+            geometry.file
+        }
+
+        public var localizedName: String {
+            if let localizationKey {
+                return String(localized: String.LocalizationValue(localizationKey), bundle: .module)
+            }
+            return name
+        }
+
+        public var region: Region? {
+            isLoggable ? Region(unchecked: id.rawValue) : nil
+        }
+
+        fileprivate var entry: Entry? {
+            region.map { Entry(
+                region: $0,
+                name: name,
+                localizationKey: localizationKey,
+                geometryFile: geometryFile,
+            ) }
+        }
+    }
+
+    /// One loggable region plus the metadata existing consumers use to name and draw it.
     public struct Entry: Sendable, Hashable {
         public let region: Region
-        /// English display name (the `localizedName` fallback).
         public let name: String
-        /// Bundled string-catalog key, when the region has a translated name.
         public let localizationKey: String?
-        /// The region's GeoJSON file under `Resources/regions/`.
         public let geometryFile: String
     }
 
-    /// Every available region's entry, in canonical (manifest) order.
+    /// Every node, including countries that serve only as parents.
+    public let nodes: [Node]
+    /// Loggable entries preserve their relative manifest order.
     public let entries: [Entry]
-    private let byID: [String: Entry]
+    private let byID: [Node.ID: Node]
+    private let childrenByParent: [Node.ID: [Node]]
 
-    /// The process-wide catalog, decoded from the bundle on first use.
     public static let shared: RegionCatalog = .loadFromBundle()
 
-    init(entries: [Entry]) {
-        self.entries = entries
-        byID = Dictionary(entries.map { ($0.region.rawValue, $0) }) { first, _ in first }
+    private init(nodes: [Node], byID: [Node.ID: Node]) {
+        self.nodes = nodes
+        self.byID = byID
+        entries = nodes.compactMap(\.entry)
+        var children: [Node.ID: [Node]] = [:]
+        for node in nodes {
+            if let parentID = node.parentID {
+                children[parentID, default: []].append(node)
+            }
+        }
+        childrenByParent = children
     }
 
-    /// Every available region in canonical order. Does **not** include the
-    /// `.other` sentinel (which has no geometry and is not a catalog entry).
+    /// Decode the same wire representation used by the bundled catalog.
+    init(manifest: Data) throws {
+        let nodes = try JSONDecoder().decode([Node].self, from: manifest)
+        var byID: [Node.ID: Node] = [:]
+        func invalid(_ description: String) -> DecodingError {
+            .dataCorrupted(.init(codingPath: [], debugDescription: description))
+        }
+        for node in nodes {
+            guard !node.id.rawValue.isEmpty, node.id.rawValue != Region.other.rawValue,
+                  !node.name.isEmpty,
+                  node.geometryFile == (node.geometryFile as NSString).lastPathComponent,
+                  (node.geometryFile as NSString).pathExtension == "geojson"
+            else {
+                throw invalid(
+                    "Invalid region identifier, name or geometry file: \(node.id.rawValue)",
+                )
+            }
+            guard byID.updateValue(node, forKey: node.id) == nil else {
+                throw invalid("Duplicate region identifier: \(node.id.rawValue)")
+            }
+        }
+        for node in nodes {
+            var ancestor = node
+            var seen: Set<Node.ID> = [node.id]
+            while let parentID = ancestor.parentID {
+                guard let parent = byID[parentID] else {
+                    throw invalid("Missing parent \(parentID.rawValue) for \(ancestor.id.rawValue)")
+                }
+                guard seen.insert(parentID).inserted else {
+                    throw invalid("Cyclic region hierarchy at \(parentID.rawValue)")
+                }
+                ancestor = parent
+            }
+        }
+        self.init(nodes: nodes, byID: byID)
+    }
+
+    public func node(id: Node.ID) -> Node? {
+        byID[id]
+    }
+
+    public func node(for region: Region) -> Node? {
+        guard let node = byID[.init(rawValue: region.rawValue)], node.isLoggable else { return nil }
+        return node
+    }
+
+    public func parent(of node: Node) -> Node? {
+        byID[node.id]?.parentID.flatMap { byID[$0] }
+    }
+
+    /// Immediate children in manifest order.
+    public func children(of node: Node) -> [Node] {
+        childrenByParent[node.id] ?? []
+    }
+
+    /// Every loggable region in manifest order. The separate `.other` sentinel is omitted.
     public var all: [Region] {
         entries.map(\.region)
     }
 
-    /// Whether `id` names a region in the catalog. Backs the failable
-    /// `Region(rawValue:)`.
     public func contains(id: String) -> Bool {
-        byID[id] != nil
+        byID[.init(rawValue: id)]?.isLoggable == true
     }
 
-    /// The catalog entry for `region`, or `nil` for `.other` / an unknown id.
     public func entry(for region: Region) -> Entry? {
-        byID[region.rawValue]
+        node(for: region)?.entry
     }
 
-    /// User-facing name for `region`: the `.other` catch-all string, a
-    /// translated `localizationKey`, or the manifest `name`. Falls back to the
-    /// raw id for a region the catalog doesn't know (a stored id from a
-    /// different catalog version) rather than crashing.
     public func localizedName(for region: Region) -> String {
-        if region == .other {
-            return String(localized: "region.other", bundle: .module)
-        }
-        guard let entry = byID[region.rawValue] else {
-            return region.rawValue
-        }
-        if let key = entry.localizationKey {
-            return String(localized: String.LocalizationValue(key), bundle: .module)
-        }
-        return entry.name
+        if region == .other { return String(localized: "region.other", bundle: .module) }
+        return node(for: region)?.localizedName ?? region.rawValue
     }
 
-    /// The bundled GeoJSON URL for `region`, or `nil` when the region isn't in
-    /// the catalog. A missing file (present in the manifest, absent from the
-    /// bundle) is surfaced by the caller as a programmer error.
     func geometryURL(for region: Region) -> URL? {
-        guard let entry = byID[region.rawValue] else { return nil }
-        let stem = (entry.geometryFile as NSString).deletingPathExtension
-        // `.process("Resources")` preserves the `regions/` subdirectory, but be
-        // resilient to a bundler that flattens it by falling back to a top-level
-        // lookup.
+        node(for: region).flatMap(Self.geometryURL(for:))
+    }
+
+    static func geometryURL(for node: Node) -> URL? {
+        let stem = (node.geometryFile as NSString).deletingPathExtension
         return Bundle.module.url(
             forResource: stem,
             withExtension: "geojson",
@@ -98,41 +178,18 @@ extension RegionCatalog {
         guard let url = Bundle.module.url(forResource: "regions", withExtension: "json") else {
             logger.missingManifest()
             assertionFailure("Missing bundled regions.json")
-            return RegionCatalog(entries: [])
+            return RegionCatalog(nodes: [], byID: [:])
         }
         do {
-            let entries = try logger.measure(.loadManifest, budget: .milliseconds(100)) {
-                let data = try Data(contentsOf: url)
-                let items = try JSONDecoder().decode([ManifestItem].self, from: data)
-                return items.map { item in
-                    Entry(
-                        region: Region(unchecked: item.id),
-                        name: item.name,
-                        localizationKey: item.localizationKey,
-                        geometryFile: item.geometry.file,
-                    )
-                }
+            let catalog = try logger.measure(.loadManifest, budget: .milliseconds(100)) {
+                try RegionCatalog(manifest: Data(contentsOf: url))
             }
-            logger.loaded(regionCount: .shared(.count, entries.count))
-            return RegionCatalog(entries: entries)
+            logger.loaded(regionCount: .shared(.count, catalog.entries.count))
+            return catalog
         } catch {
-            logger.decodeFailed(
-                error: .restricted(.errorDetails, error),
-            )
+            logger.decodeFailed(error: .restricted(.errorDetails, error))
             assertionFailure("Failed to decode bundled regions.json: \(error)")
-            return RegionCatalog(entries: [])
-        }
-    }
-
-    /// One manifest entry as decoded from `regions.json`.
-    private struct ManifestItem: Decodable {
-        let id: String
-        let name: String
-        let localizationKey: String?
-        let geometry: Geometry
-
-        struct Geometry: Decodable {
-            let file: String
+            return RegionCatalog(nodes: [], byID: [:])
         }
     }
 }

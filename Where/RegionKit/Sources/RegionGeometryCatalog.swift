@@ -97,6 +97,23 @@ public enum RegionGeometryCatalog {
         }
     }
 
+    /// Reads a country or other catalog node on demand, including countries that cannot be logged.
+    public static func outlines(for node: RegionCatalog.Node) async -> [RegionOutline] {
+        if let region = node.region { return await outlines(for: region) }
+        do {
+            return try await RegionCache.shared.outlines(for: node)
+        } catch {
+            RegionLog.geometryCatalog.nodeLoadFailed(
+                nodeID: .restricted(.location, node.id),
+                error: .restricted(.errorDetails, error),
+            )
+            assertionFailure(
+                "Failed to load drawable outlines for \(node.id.rawValue): \(error.localizedDescription)",
+            )
+            return []
+        }
+    }
+
     /// Drawable outlines for `kind`.
     ///
     /// - `.attribution` reflects exactly what `attributor` loaded (the tracked
@@ -147,44 +164,8 @@ public enum RegionGeometryCatalog {
     static func buildSourceOutlines() throws -> [RegionOutline] {
         try RegionLog.geometryCatalog.measure(.buildSourceOutlines, budget: .seconds(2)) {
             var builder = OutlineBuilder()
-            for entry in RegionCatalog.shared.entries {
-                for feature in try namedPolygons(for: entry.region) {
-                    for polygon in feature.polygons {
-                        builder.add(
-                            title: entry.region.localizedName,
-                            region: entry.region,
-                            coordinates: polygon.vertices,
-                        )
-                    }
-                }
-            }
-            return builder.outlines
-        }
-    }
-
-    private static func namedPolygons(for region: Region) throws -> [GeoJSON.NamedPolygons] {
-        guard let url = RegionCatalog.shared.geometryURL(for: region) else {
-            throw RegionGeometryError.missingResource(region.rawValue)
-        }
-        return try GeoJSON.namedPolygons(at: url)
-    }
-
-    /// Decode one region for card/overlay artwork without loading unrelated
-    /// catalog entries.
-    private static func buildRegionOutlines(for region: Region) throws -> [RegionOutline] {
-        try RegionLog.geometryCatalog.measure(.loadRegionOutlines(region), budget: .seconds(1)) {
-            var builder = OutlineBuilder()
-            for feature in try namedPolygons(for: region) {
-                for polygon in feature.polygons {
-                    builder.add(
-                        title: region.localizedName,
-                        region: region,
-                        coordinates: polygon.vertices,
-                    )
-                }
-            }
-            guard !builder.outlines.isEmpty else {
-                throw RegionGeometryError.emptyResource(region.rawValue)
+            for node in RegionCatalog.shared.nodes where node.isLoggable {
+                try builder.add(node: node, resourceURL: RegionCatalog.geometryURL(for: node))
             }
             return builder.outlines
         }
@@ -208,15 +189,54 @@ public enum RegionGeometryCatalog {
     /// Per-region cache for UI artwork. Actor isolation serializes simultaneous
     /// requests for the same first-use decode without introducing a global
     /// mutable registry in the UI layer.
-    private actor RegionCache {
-        static let shared = RegionCache()
-        private var cached: [Region: [RegionOutline]] = [:]
+    actor RegionCache {
+        static let shared = RegionCache(
+            catalog: .shared,
+            resourceURL: RegionCatalog.geometryURL(for:),
+        )
+
+        private let catalog: RegionCatalog
+        private let resourceURL: @Sendable (RegionCatalog.Node) -> URL?
+        private var cached: [RegionCatalog.Node.ID: [RegionOutline]] = [:]
+
+        init(
+            catalog: RegionCatalog,
+            resourceURL: @escaping @Sendable (RegionCatalog.Node) -> URL?,
+        ) {
+            self.catalog = catalog
+            self.resourceURL = resourceURL
+        }
 
         func outlines(for region: Region) throws -> [RegionOutline] {
-            if let cached = cached[region] { return cached }
-            let built = try RegionGeometryCatalog.buildRegionOutlines(for: region)
-            cached[region] = built
-            return built
+            guard let node = catalog.node(id: .init(rawValue: region.rawValue)) else {
+                throw RegionGeometryError.missingResource(region.rawValue)
+            }
+            guard node.isLoggable else { return [] }
+            return try load(node)
+        }
+
+        func outlines(for node: RegionCatalog.Node) throws -> [RegionOutline] {
+            guard let catalogNode = catalog.node(id: node.id) else {
+                throw RegionGeometryError.missingResource(node.id.rawValue)
+            }
+            return try load(catalogNode)
+        }
+
+        private func load(_ node: RegionCatalog.Node) throws -> [RegionOutline] {
+            if let cached = cached[node.id] { return cached }
+            let span: RegionGeometryCatalogLog.SpanName = node.region
+                .map { .loadRegionOutlines($0) }
+                ?? .loadNodeOutlines(node.id)
+            let outlines = try RegionLog.geometryCatalog.measure(span, budget: .seconds(1)) {
+                var builder = OutlineBuilder()
+                try builder.add(node: node, resourceURL: resourceURL(node))
+                guard !builder.outlines.isEmpty else {
+                    throw RegionGeometryError.emptyResource(node.id.rawValue)
+                }
+                return builder.outlines
+            }
+            cached[node.id] = outlines
+            return outlines
         }
     }
 }
@@ -227,6 +247,16 @@ public enum RegionGeometryCatalog {
 private struct OutlineBuilder {
     private(set) var outlines: [RegionOutline] = []
     private var nextIndex = 0
+
+    mutating func add(node: RegionCatalog.Node, resourceURL: URL?) throws {
+        guard let resourceURL else { throw RegionGeometryError.missingResource(node.id.rawValue) }
+        let title = node.localizedName
+        for feature in try GeoJSON.namedPolygons(at: resourceURL) {
+            for polygon in feature.polygons {
+                add(title: title, region: node.region, coordinates: polygon.vertices)
+            }
+        }
+    }
 
     mutating func add(title: String, region: Region?, coordinates: [Coordinate]) {
         guard coordinates.isValidPolygonRing else { return }

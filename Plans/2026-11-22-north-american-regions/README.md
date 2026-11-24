@@ -7,7 +7,8 @@ Where users can log any of Canada's ten provinces and three territories and cont
 - November 22, 2026. Plan creation on `plan/north-american-regions`, based on `acdae322d`. Selected work is tracked in [STU-348](https://linear.app/kve/issue/STU-348).
 - The November 18 research compared US, Canada and EU sources. The November 22 request selected the US, Canada, a reusable updater and internal relationships. The user has confirmed that this pass ends with a published plan for review.
 - November 24 revision following owner review of PR #560. The plan now requires an outline for every country independently of tracking eligibility. The US outline and its production parent links ship together.
-- The series has been reviewed against current source. Plans 01 and 02 are ready in dependency order. Plan 03 awaits candidate measurements. The next action after publication is owner review. Implementation awaits a separate request.
+- November 24 execution. The owner approved all three steps. The implementation branch `codex/north-american-regions` is based on the reviewed plan at `2dc4b33a8`. The only [inline feedback](https://github.com/kyleve/Stuff/pull/560#discussion_r4685927230) concerned the US outline and is incorporated in Q-04.
+- Plan 01 is executing. In this shared worktree, the catalog worker owns the manifest and node lookup, the attribution worker owns GPS matching and its callers, and the data worker verifies the publisher inputs and measures candidate geometry outside the checkout. The coordinating agent owns integration, checks, commits and publication. Each worker returns its files, measured evidence and remaining work. Plan 03 awaits the measured candidate.
 
 ## User stories
 
@@ -61,7 +62,7 @@ The first two deliverables are the current horizon. The last is an outline until
 | --- | --- | --- | --- |
 | Q-01 | closed | On November 22 the user chose the most specific tracked region. A Toronto fix earns Ontario alone if Ontario and Canada are tracked. | Integrated in S-01, R-02 and Plans 01/03. Manual Canada records keep their existing meaning. |
 | Q-02 | closed | On November 22 the user chose an internal United States parent and the current set of US tracking choices. | Integrated in R-01, R-05, X-01 and all three plans. The US node is ineligible for selection. Q-04 specifies its outline. |
-| Q-03 | closed | On November 22 the user chose to publish the plan for review first. | Applies to the whole series. Implementation awaits a new request. |
+| Q-03 | closed | On November 22 the user chose to publish the plan for review first. | Planning review was published first. The owner authorized execution on November 24. |
 | Q-04 | closed | On November 24 the user requested one outline policy for all countries. The plan adopts outlines for all to support Canada-only GPS tracking and explicit US geometry lookup. | R-01, R-04, R-05 and Plans 01–03 separate outline availability from tracking eligibility. |
 
 ## Plan review and delivery

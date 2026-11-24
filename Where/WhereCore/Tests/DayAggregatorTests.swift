@@ -64,6 +64,33 @@ struct DayAggregatorTests {
         #expect(days[0].regions == [.california])
     }
 
+    @Test func countryAndProvinceReceiveOnlyExplicitlyAttributedDays() throws {
+        let fixture = CanadianAttributionFixture.self
+        let tracked = try fixture.attributor(tracking: [.canada, fixture.ontario])
+        let toronto = makeSample(
+            at: "2026-03-15T09:00:00-07:00",
+            lat: fixture.toronto.latitude,
+            lng: fixture.toronto.longitude,
+        )
+        let elsewhereInCanada = makeSample(at: "2026-03-15T11:00:00-07:00", lat: 44, lng: -77)
+        let day = CalendarDay(from: toronto.timestamp, in: calendar)
+        #expect(aggregator.aggregate(samples: [toronto], attributor: tracked) == [DayPresence(
+            day: day,
+            regions: [fixture.ontario],
+        )])
+        let both = DayPresence(day: day, regions: [.canada, fixture.ontario])
+        #expect(aggregator
+            .aggregate(samples: [toronto, elsewhereInCanada], attributor: tracked) == [both])
+        let manual = DayPresence(day: day, regions: [.canada])
+        let report = aggregator.report(
+            for: 2026,
+            samples: [toronto],
+            manualDays: [manual],
+            attributor: tracked,
+        )
+        #expect(report.days == [both])
+    }
+
     @Test func dualRegionDay_crossCountryFlight() {
         let samples = [
             makeSample(at: "2026-04-10T08:00:00-07:00", lat: 37.7749, lng: -122.4194),
