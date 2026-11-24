@@ -676,6 +676,8 @@ enum WhereFormat {
                 String(localized: .settingsAboutDataSourcePublicDomain(rationale))
             case .originalWork:
                 String(localized: .settingsAboutDataSourceOriginalWork)
+            case .openGovernmentCanada:
+                String(localized: .settingsAboutDataSourceOpenGovernmentCanada)
         }
     }
 

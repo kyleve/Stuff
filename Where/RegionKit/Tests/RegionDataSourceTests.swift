@@ -9,10 +9,10 @@ struct RegionDataSourceTests {
     private let catalog = RegionCatalog.shared
 
     @Test func everyCatalogRegionIsCoveredExactlyOnce() {
-        let covered = RegionDataSource.all.flatMap(\.regions)
-        #expect(Set(covered) == Set(catalog.all))
+        let covered = RegionDataSource.all.flatMap(\.nodes)
+        #expect(Set(covered) == Set(catalog.nodes))
         // Set equality alone would accept a region claimed by two sources.
-        #expect(covered.count == catalog.all.count)
+        #expect(covered.count == catalog.nodes.count)
     }
 
     @Test func noSourceClaimsARegionOutsideTheCatalog() {
@@ -36,18 +36,26 @@ struct RegionDataSourceTests {
 
     @Test func creditsTheCensusBoundaryFilesForUSStates() throws {
         let source = try #require(RegionDataSource.all.first { $0.regions.contains(.california) })
-        #expect(source.name == "US Census Bureau Cartographic Boundary Files")
+        #expect(source.name.contains("TIGER/Line"))
         #expect(source.fidelity == .authoritative)
         #expect(source.license == .publicDomain("US Government works — 17 U.S.C. § 105"))
         #expect(source.sourceURL != nil)
-        // Credited separately from the publisher: the bundled files came via a
-        // conversion, and saying otherwise would overstate the provenance.
-        #expect(source.obtainedFromURL != nil)
+        #expect(source.nodes.count == 53)
+        #expect(source.nodes.contains { $0.id.rawValue == "united-states" && $0.region == nil })
     }
 
-    @Test func marksTheHandDrawnOutlinesAsApproximate() throws {
+    @Test func creditsStatisticsCanadaForCountryAndSubdivisions() throws {
         let source = try #require(RegionDataSource.all.first { $0.regions.contains(.canada) })
-        #expect(source.regions.contains(.europeanUnion))
+        #expect(source.nodes.count == 14)
+        #expect(source.fidelity == .authoritative)
+        #expect(source.license == .openGovernmentCanada)
+        #expect(source.licenseURL != nil)
+    }
+
+    @Test func marksTheHandDrawnOutlineAsApproximate() throws {
+        let source = try #require(RegionDataSource.all
+            .first { $0.regions.contains(.europeanUnion) })
+        #expect(source.regions == [.europeanUnion])
         #expect(source.fidelity == .approximate)
         #expect(source.license == .originalWork)
         #expect(source.sourceURL == nil)

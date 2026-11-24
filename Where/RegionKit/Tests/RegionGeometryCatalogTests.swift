@@ -79,14 +79,11 @@ struct RegionGeometryCatalogTests {
 
     @Test func source_decodesAll52USStateFeatures() async throws {
         let outlines = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
-        // Distinct titles minus the two bundled-file regions are the US
-        // Census features (50 states + DC + Puerto Rico = 52).
-        let bundledTitles: Set = [
-            Region.canada.localizedName,
-            Region.europeanUnion.localizedName,
-        ]
-        let usTitles = Set(outlines.map(\.title)).subtracting(bundledTitles)
-        #expect(usTitles.count == 52)
+        let us = try #require(RegionCatalog.shared.node(id: .init(rawValue: "united-states")))
+        let children = Set(RegionCatalog.shared.children(of: us).compactMap(\.region))
+        #expect(children.count == 52)
+        #expect(children.isSubset(of: Set(outlines.compactMap(\.region))))
+        #expect(outlines.allSatisfy { $0.region != nil })
     }
 
     @Test func source_includesCanadaAndEU() async throws {
@@ -165,11 +162,7 @@ struct RegionGeometryCatalogTests {
             attributor: trackedFour,
         )
         let box = try #require(BoundingBox.enclosing(outlines))
-        for outline in outlines {
-            for coordinate in outline.coordinates {
-                #expect(box.contains(coordinate))
-            }
-        }
+        #expect(outlines.allSatisfy { $0.coordinates.allSatisfy(box.contains) })
     }
 
     @Test func boundingBox_ofEmptyOutlinesIsNil() {
@@ -179,7 +172,7 @@ struct RegionGeometryCatalogTests {
     // MARK: - Errors
 
     @Test func missingResourceErrorNamesTheFile() {
-        let error = RegionGeometryError.missingResource("us-states")
+        let error = RegionGeometryError.missingResource("us-states.geojson")
         // `errorDescription` (LocalizedError) is what the viewer renders;
         // it must name the file, not fall back to the generic message.
         #expect(error.errorDescription?.contains("us-states.geojson") == true)
@@ -187,8 +180,8 @@ struct RegionGeometryCatalogTests {
     }
 
     @Test func emptyResourceErrorNamesTheFile() {
-        let error = RegionGeometryError.emptyResource("us-CA")
-        #expect(error.errorDescription?.contains("us-CA.geojson") == true)
-        #expect(error.localizedDescription.contains("us-CA.geojson"))
+        let error = RegionGeometryError.emptyResource("us-CA.twkb")
+        #expect(error.errorDescription?.contains("us-CA.twkb") == true)
+        #expect(error.localizedDescription.contains("us-CA.twkb"))
     }
 }

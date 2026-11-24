@@ -223,7 +223,7 @@ class RegionRelease
   def validate_membership(members, ca_year)
     us, canada = members.partition { |row| row.fetch("countryID") == "united-states" }
     us_codes = us.map { |row| row.fetch("STUSPS") }
-    unless us_codes.sort == (USPS.values + US_COUNTRY_ONLY).sort && us.map { |row| row.fetch("STATEFP") }.uniq.size == us.size
+    unless us_codes.sort == (US_TRACKING_CODES + US_COUNTRY_ONLY).sort && us.map { |row| row.fetch("STATEFP") }.uniq.size == us.size
       raise "Invalid US country membership"
     end
     us.each do |row|
@@ -257,17 +257,17 @@ class RegionRelease
 
   def regenerate
     install_resources do |staged|
-      validate_inputs(@release) if File.directory?(@release)
-      generate(staged, File.directory?(@release) ? @release : nil)
-      validate_catalog(staged) if File.directory?(@release)
+      validate_inputs(@release)
+      generate(staged, @release)
+      validate_catalog(staged)
     end
   end
 
   def check
     Dir.mktmpdir("region-check") do |staged|
-      validate_inputs(@release) if File.directory?(@release)
-      generate(staged, File.directory?(@release) ? @release : nil)
-      validate_catalog(staged) if File.directory?(@release)
+      validate_inputs(@release)
+      generate(staged, @release)
+      validate_catalog(staged)
       compare_resources(staged, @resources)
     end
     puts "Bundled region resources match the normalized sources."
@@ -276,7 +276,7 @@ class RegionRelease
   def validate_catalog(resources)
     records = JSON.parse(File.binread(regular_file(resources, "regions.json")))
     by_id = records.to_h { |record| [record.fetch("id"), record] }
-    states = USPS.values.map { |code| "us-#{code}" }
+    states = US_TRACKING_CODES.map { |code| "us-#{code}" }
     provinces = PROVINCES.map { |code| "ca-#{code}" }
     expected = states + provinces + COUNTRIES + ["european-union"]
     raise "Incomplete catalog" unless records.length == expected.length && by_id.keys.sort == expected.sort

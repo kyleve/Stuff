@@ -1,6 +1,6 @@
 # 03. Ship the US and Canadian catalog
 
-- Status: outline
+- Status: executing
 - Depends on: [01. Catalog relationships and attribution](01-region-hierarchy.md) and [02. Reusable boundary updater](02-boundary-updater.md)
 - Shared context: [Overview](README.md)
 
@@ -45,9 +45,9 @@ RegionAttributor.all.region(at: guamInterior)                // other
 - **Compatibility.** The app uses bare region IDs in backups, store rows and widget data. Exercise an old backup with `us-CA` and `canada`, and a new backup with `ca-ON`. A previous reader can filter out `ca-ON` in [SwiftDataStore](../../Where/WhereCore/Sources/Persistence/SwiftDataStore.swift). Use the [existing account compatibility gate](../../Where/WhereCore/README.md#data-compatibility) for the new writable-ID vocabulary before it ships. Test old and new versions with an isolated transport, including admission of a new reader to existing data and the old reader's update-required path after the shared version advances. Test the recording-device-only advance and the wait state on a viewer paired with an older recorder. The portable backup has a separate compatibility boundary. At the current base the v7 importer can accept a manual-only archive with an unfamiliar raw ID and later omit it. Protect new archives with the [format-version gate](../../Where/WhereCore/Sources/Backup/BackupService.swift), and teach the [external upgrader](../../Where/Tools/upgrade-backup.rb) to carry existing archives forward without altering region strings. Demonstrate lossless restore on the new build and rejection before store mutation on the old build, even for a manual-only backup moved to a different account. An offline reader has only its last verified receipt until its next successful check.
 - **Credits and documentation.** Update [RegionDataSource](../../Where/RegionKit/Sources/RegionDataSource.swift), its exhaustive tests, [Settings licence formatting](../../Where/WhereUI/Sources/Shared/WhereFormat.swift) and the [About screen](../../Where/WhereUI/Sources/Settings/AboutSettingsView.swift). Credit each geometry-bearing node exactly once. Census covers 53 files including the US country outline, StatCan covers 14 including Canada, and one hand-drawn file supplies the EU bloc. The US source credit must resolve by node even though `Region(rawValue: "united-states")` fails. Show the source and derivation in About through the existing credits presentation. Carry StatCan's requested notice and licence link through conversion and bundling. Update RegionKit's public-domain-only note and regeneration instructions, WhereUI's US-only picker documentation and the [repository acknowledgements](../../README.md#acknowledgements).
 
-## Evidence required before execution
+## Validation before data adoption
 
-Refine this outline after 01's fixture checks pass and 02 produces a candidate, reproducibility evidence, both country membership inventories and the geometry/size report. Link those results here. Choose the simplification settings and tested tool versions from those measurements. Inspect cases where the official datasets disagree on shoreline or common-border points and record which cases remain ambiguous. Use the repository's existing performance spans for the real app paths. Capture a baseline on the same simulator or device and report the before/after bundle size, size of each country file, largest files, default and full-catalog construction times, explicit country-outline loading, map loading, and representative lookups. Resolve material regressions before adopting the files.
+The [updater qualification](02-boundary-updater.md) records the complete inventories, replay, geometry sizes and simplification trials used to select this release. The [measured release](#measured-release) compares runtime costs on the same simulator before and after adoption. The conversion report identifies shoreline and shared-border samples where the two publishers differ.
 
 | Acceptance area | Evidence when promoted |
 | --- | --- |
@@ -59,4 +59,29 @@ Refine this outline after 01's fixture checks pass and 02 produces a candidate, 
 
 ## Refinement and resume point
 
-The user chose review before implementation on November 22. The November 24 revision requires an outline for every country node while preserving US tracking eligibility. See [Q-02 and Q-04](README.md#questions-and-resolutions). No implementation or performance acceptance measurements have run. After both dependencies complete, refine this file in place, record measured results and exact checks, review the rollout and recovery steps, and satisfy the readiness rules before starting it.
+The approved rollout has two independently verifiable parts. The catalog schema and attribution fixtures passed on iOS 27.2. All 56 US and 13 Canadian source features have been retrieved. The Canadian subdivisions contain 175,385 polygon components. The dissolved Canadian outline contains 175,300. The chosen 45 m Canadian simplification and 180 m US simplification preserve every repaired subdivision component and hole. The US outline includes 98 components. Show detail at the visible map scale. Preserve all coordinates in the point lookup. A cold host decode of the chosen country data took about 0.57 s in a debug build; simulator timings are measured separately. Fixes for holes, selection and the portable/account version gates use fixtures and can proceed while conversion is running. The UI worker owns pickers, maps and intent checks. The compatibility worker owns archive and account gates, including running a real v7 reader before advancing its version. The coordinator owns resource adoption, low-level geometry, credits and integration. Independently exercise those changes before integrating the production candidate.
+
+Adopt the release only after validating both complete inventories, topology, bytes and offline replay. Check real data using the acceptance table above. If a refresh or qualification fails, keep the existing production release and fix the converter or consumer before retrying. If a bundled release must be withdrawn after publication, preserve the readable ID vocabulary and compatibility gates for existing saved data.
+
+### Measured release
+
+The accepted US and Canadian release is pinned by `55b4be674a51168ce3f617c254937ccc4104310d2e7057b26f4a9ac888bf2e25` (SHA-256 of the lock). A fresh live refresh and independent offline replay matched in every file. The conversion report includes the 56/13 source memberships, per-member topology, the two source polygon repairs, displacement samples and inherited border overlaps and gaps. [Release lock](../../Where/RegionKit/Tools/source/release/sources.lock.json), [conversion report](../../Where/RegionKit/Tools/source/release/report.json).
+
+| Debug simulator measurement on iPhone 17 / iOS 27.2 | Original catalog | Adopted catalog |
+| --- | ---: | ---: |
+| Installed geometry, bytes | 2,156,498 | 27,165,054 |
+| Build the default four-region attributor from cold | 2.9 ms | 519 ms |
+| Build the full loggable attributor after the default set | 56.5 ms | 617 ms |
+| Build source outlines after full attribution | 50.5 ms | 51.5 ms |
+| Explicit US country outline | unavailable | 4.3 ms |
+| Toronto lookup in the full attributor | 0.13 ms | 0.88 ms |
+
+The new default set includes a 13,237,024-byte Canadian outline with 2,651,899 vertices. Both attributor constructions stayed within the existing one-second span on this simulator. The outline and lookup values are for individual measured requests. Physical-device timing is unmeasured. An independent comparison against GEOS across 334 coordinates, including Canadian mainland holes, island edges and Alaska, found no membership differences and less than a nanometre of numerical disagreement using the same local distance metric.
+
+The previous v7 reader rejected a manual-only v8 Ontario archive on both merge and replace before changing an existing New York entry. The v8 reader restored that same Ontario archive in both modes. The external upgrader carried a v7 California/Canada archive forward with only the format version changed, and the v8 reader restored both days. A scripted account transport exercised recorder-only advancement, the viewer wait state and the older reader's lockout after a verified transition. Production CloudKit deployment is an operator release step.
+
+### App verification
+
+Fresh `./test` artifacts ran RegionKit, WhereCore, WhereUI and WhereIntents on an iPhone 17 Pro simulator with iOS 27.2. All 1,754 executed tests passed. One optional recorded-GPS export fixture was skipped. A hosted picker test selected Canada and Ontario, saved, and reopened the list. Other tests selected Ontario by map coordinate, logged a manual Nunavut day, resolved a Vancouver report to British Columbia, and exercised region search in Shortcuts. The updater, backup, licence, architecture, localization and lint checks passed.
+
+The standalone RegionViewer built against the generic Mac Catalyst SDK. The local Mac supports Catalyst apps up to iOS 27.0, below the app's 27.1 deployment target. Simulator snapshots exposed clipping in the Canadian source credit and the British Columbia card at accessibility text sizes. Both wrap in the reviewed captures. The 27 affected image suites include 438 reference checks on iPhone, iPad and accessibility configurations.

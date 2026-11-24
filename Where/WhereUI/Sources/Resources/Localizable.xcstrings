@@ -6542,7 +6542,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The simplified polygons the app uses to attribute coordinates today."
+            "value" : "The boundaries the app uses to match coordinates to regions."
           }
         }
       }
@@ -6575,7 +6575,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity."
+            "value" : "The bundled source boundaries for every available region."
           }
         }
       }
@@ -7363,6 +7363,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Obtained from %@"
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.openGovernmentCanada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapted from Statistics Canada. Contains information licensed under the Open Government Licence – Canada."
           }
         }
       }

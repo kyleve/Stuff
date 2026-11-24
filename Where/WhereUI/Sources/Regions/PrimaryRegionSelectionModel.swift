@@ -17,7 +17,7 @@ public final class PrimaryRegionSelectionModel {
     /// The most primary regions a user can pick.
     public static let maxSelection = 5
 
-    /// The regions offered, in catalog order (US jurisdictions only for now).
+    /// The regions offered, in catalog order.
     public let available: [Region]
 
     /// The picked regions, in pick order.
@@ -41,14 +41,26 @@ public final class PrimaryRegionSelectionModel {
     /// turns it on via ``applyGrouping(usedThisYear:)``.
     public private(set) var isGrouped = false
 
-    /// The US jurisdictions from the catalog, in canonical order — the default
-    /// `available` set for the picker.
+    /// Loggable North American countries and their subdivisions in manifest order.
+    public static let supportedRegions: [Region] = {
+        let countries: Set<RegionCatalog.Node.ID> = [
+            .init(rawValue: "united-states"),
+            .init(rawValue: Region.canada.rawValue),
+        ]
+        return RegionCatalog.shared.nodes.compactMap { node in
+            countries.contains(node.parentID ?? node.id) ? node.region : nil
+        }
+    }()
+
+    /// Loggable US jurisdictions in their canonical order.
     public static var usRegions: [Region] {
-        RegionCatalog.shared.all.filter { $0.rawValue.hasPrefix("us-") }
+        let catalog = RegionCatalog.shared
+        guard let country = catalog.node(id: .init(rawValue: "united-states")) else { return [] }
+        return catalog.children(of: country).compactMap(\.region)
     }
 
     /// A fresh picker with nothing selected (onboarding).
-    public init(available: [Region] = PrimaryRegionSelectionModel.usRegions) {
+    public init(available: [Region] = PrimaryRegionSelectionModel.supportedRegions) {
         self.available = available
     }
 
@@ -56,15 +68,10 @@ public final class PrimaryRegionSelectionModel {
     /// Selection and drafts are restored so re-opening the editor shows the
     /// current picks.
     ///
-    /// Regions outside `available` are dropped from the selection, so committing
-    /// removes them (the commit replaces the whole primary set with what's
-    /// selected). This is intentional: the app is US-only now, and the only
-    /// non-US regions a user can have are the legacy default set (Canada / the
-    /// EU, whose low-resolution polygons we no longer ship as pickable) — so a
-    /// fresh install that opens the editor and saves converges to the US picks.
+    /// Saving replaces the primary rows with the offered regions the user picked.
     public init(
         existing: [PrimaryRegion],
-        available: [Region] = PrimaryRegionSelectionModel.usRegions,
+        available: [Region] = PrimaryRegionSelectionModel.supportedRegions,
     ) {
         self.available = available
         let offered = Set(available)
@@ -96,7 +103,7 @@ public final class PrimaryRegionSelectionModel {
     /// Whether tapping `region` would do something: always true when it's
     /// already selected (a tap removes it), otherwise only when there's room.
     public func canToggle(_ region: Region) -> Bool {
-        isSelected(region) || !isAtCapacity
+        isSelected(region) || (!isAtCapacity && available.contains(region))
     }
 
     /// Add `region` (appending to preserve pick order) or remove it. A no-op
@@ -104,7 +111,7 @@ public final class PrimaryRegionSelectionModel {
     public func toggle(_ region: Region) {
         if let index = selectedRegions.firstIndex(of: region) {
             selectedRegions.remove(at: index)
-        } else if !isAtCapacity {
+        } else if canToggle(region) {
             selectedRegions.append(region)
         }
     }

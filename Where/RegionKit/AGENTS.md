@@ -1,7 +1,7 @@
 # RegionKit – Module Shape
 
 RegionKit is the geometry and region-lookup engine for the Where feature. It
-maps coordinates to `Region` attribution over bundled GeoJSON polygons. It also
+maps coordinates to `Region` attribution over bundled WGS84 polygons. It also
 provides geometry primitives and the developer-viewer geometry catalog. See
 [`README.md`](README.md) for the public API and usage.
 
@@ -38,7 +38,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   ties. Resolve live confidence against the same tracked snapshot, including
   a tracked child's edge when its parent wins outside it.
 - **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads
-  only the passed regions' `regions/<id>.geojson` files. Live attribution parses
+  only the requested regions' geometry files. Live attribution parses
   only the tracked set. Core's injected `ElsewhereResolver` may lazily parse the
   full loggable catalog on its actor for read-only historical enrichment.
   Hierarchy traversal reads metadata alone. Region and node artwork requests
@@ -51,9 +51,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `WhereCore` supply a live, swappable attributor.
 - **Credit bundled geometry in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity. It derives its
-  coverage from the catalog. The US sources use the `us-` id prefix the generator
-  mints. Everything else uses an explicit id list. Deliberately *not* an
-  "everything else" fallback that would silently mis-credit a new region.
+  coverage from each node’s explicit publisher, including internal countries.
   `RegionDataSourceTests` fails when a region is covered zero times or twice.
   Regenerating the catalog must not ship uncredited data. Keep it in step with the
   [README](README.md#source-data-not-bundled) provenance notes.

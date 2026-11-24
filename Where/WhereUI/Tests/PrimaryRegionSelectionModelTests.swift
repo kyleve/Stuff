@@ -1,9 +1,12 @@
+import AccessibilitySnapshotParser
 import RegionKit
+import SwiftUI
+import TestHostSupport
 import Testing
 @testable import WhereCore
 @testable import WhereUI
 
-/// The primary-region picker model: US-only options, the pick cap, ordered
+/// The primary-region picker model: North American options, the pick cap, ordered
 /// selection, and appearance drafts.
 @MainActor
 struct PrimaryRegionSelectionModelTests {
@@ -11,10 +14,70 @@ struct PrimaryRegionSelectionModelTests {
         try #require(Region(rawValue: id))
     }
 
-    @Test func offersUSRegionsOnly() {
+    @Test func offersNorthAmericanLoggingChoicesInCatalogOrder() throws {
         let model = PrimaryRegionSelectionModel()
-        #expect(!model.available.isEmpty)
-        #expect(model.available.allSatisfy { $0.rawValue.hasPrefix("us-") })
+        let available = model.available
+        #expect(available == RegionCatalog.shared.all.filter { $0 != .europeanUnion })
+        #expect(available.count == 66)
+        #expect(PrimaryRegionSelectionModel.usRegions.count == 52)
+        #expect(PrimaryRegionSelectionModel.usRegions == available
+            .filter { $0.rawValue.hasPrefix("us-") })
+        #expect(available.contains(.canada))
+        #expect(try available.contains(region("ca-ON")))
+        #expect(try available.contains(region("ca-NU")))
+        #expect(!available.contains(.other))
+        #expect(!available.contains { $0.rawValue == "united-states" })
+        let internalCountry = try JSONDecoder().decode(
+            Region.self,
+            from: Data(#""united-states""#.utf8),
+        )
+        #expect(!model.canToggle(internalCountry))
+        model.toggle(internalCountry)
+        #expect(model.selectedRegions.isEmpty)
+    }
+
+    @Test func pickerMapCanSelectOntarioWithCanadaAvailable() async throws {
+        let ontario = try region("ca-ON")
+        let map = try await RegionPickerView.MapData(regions: [.canada, ontario])
+        let toronto = Coordinate(latitude: 43.6532, longitude: -79.3832)
+        let model = PrimaryRegionSelectionModel()
+        model.toggle(map.attributor.region(at: toronto))
+        #expect(model.selectedRegions == [ontario])
+        #expect(map.geometry.visible(in: .world, width: 400).first?.region == .canada)
+    }
+
+    @Test func hostedPickerSelectsAndReopensCanadaAndOntario() async throws {
+        let ontario = try region("ca-ON")
+        let session = PreviewSupport.loadedSession()
+        let model = PrimaryRegionSelectionModel()
+        model.applyGrouping(usedThisYear: [.canada, ontario])
+        let host = UIHostingController(rootView: NavigationStack {
+            RegionPickerView(model: model)
+        }.whereBroadwayRoot())
+        try await show(host) { controller in
+            for region in [Region.canada, ontario] {
+                @MainActor func row() -> NSObject? {
+                    HostedAccessibility.objects(in: controller.view).first {
+                        $0.accessibilityLabel == region.localizedName && $0.accessibilityTraits
+                            .contains(.button)
+                    }
+                }
+                try await waitForAsync { row() != nil }
+                let button = try #require(row())
+                if let control = button as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                } else {
+                    try #require(button.accessibilityActivate())
+                }
+                try await waitForAsync { model.isSelected(region) }
+            }
+        }
+        try await model.commit(using: session)
+        let reopened = try await session.services.primaryRegions()
+        #expect(PrimaryRegionSelectionModel(existing: reopened).selectedRegions == [
+            .canada,
+            ontario,
+        ])
     }
 
     @Test func toggleAddsAndRemovesPreservingOrder() throws {
@@ -149,20 +212,26 @@ struct PrimaryRegionSelectionModelTests {
         #expect(saved[1].appearance == newYork)
     }
 
-    @Test func editingTheDefaultSetConvergesToUSOnly() async throws {
-        // A fresh install has no stored rows, so `primaryRegions()` returns the
-        // legacy default set (CA / NY / Canada / EU). Opening the editor drops
-        // the non-US regions from the selection, and saving unchanged removes
-        // them — the app is US-only now (documented behavior, not a bug).
+    @Test func editingDefaultsKeepsCanadaAndReopensWithOntario() async throws {
         let session = PreviewSupport.loadedSession()
         let existing = try await session.services.primaryRegions()
         #expect(Set(existing.map(\.region)) == SwiftDataStore.defaultTrackedRegions)
 
+        let ontario = try region("ca-ON")
         let model = PrimaryRegionSelectionModel(existing: existing)
-        #expect(Set(model.selectedRegions) == [.california, .newYork])
-
+        #expect(Set(model.selectedRegions) == [.california, .newYork, .canada])
+        model.toggle(ontario)
         try await model.commit(using: session)
-        #expect(try await session.services.trackedRegions() == [.california, .newYork])
+
+        let restored = try await session.services.primaryRegions()
+        #expect(PrimaryRegionSelectionModel(existing: restored).selectedRegions == model
+            .selectedRegions)
+        #expect(try await session.services.trackedRegions() == [
+            .california,
+            .newYork,
+            .canada,
+            ontario,
+        ])
     }
 
     @Test func committingAnEmptySelectionWipesExplicitPicks() async throws {

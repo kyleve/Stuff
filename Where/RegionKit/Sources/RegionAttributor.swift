@@ -52,7 +52,7 @@ extension RegionAttributing {
 /// ties between matching regions that have no ancestor relationship.
 ///
 /// An attributor is built for a **specific set of regions** and loads only
-/// those regions' bundled GeoJSON (one `Resources/regions/<id>.geojson` per
+/// those regions' bundled geometry (one resource per
 /// region, named by ``RegionCatalog``), so we never parse regions we don't
 /// track. Anything outside every loaded
 /// region (and `.other` itself, which has no geometry) is `.other`.
@@ -181,8 +181,8 @@ public struct RegionAttributor: RegionAttributing {
     /// Console.app faults alongside the debug-build `assertionFailure`.
     private static let logger = RegionLog.attributor
 
-    /// Loads the exterior-ring polygons for each region from its bundled
-    /// per-region GeoJSON. Missing/corrupt geometry is a programmer error: it's
+    /// Loads the polygons for each region from its bundled
+    /// per-region geometry file. Missing/corrupt geometry is a programmer error: it's
     /// logged as a `fault` and `assertionFailure`s in debug, degrading to
     /// "region simply never matches" in release rather than crashing.
     private static func loadPolygons(
@@ -200,12 +200,12 @@ public struct RegionAttributor: RegionAttributing {
                 guard node?.isLoggable != false else { continue }
                 guard let node, let url = geometryURL(node) else {
                     logger.missingGeometry(region: .restricted(.location, region))
-                    assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
+                    assertionFailure("Missing bundled geometry for region \(region.rawValue)")
                     continue
                 }
                 do {
                     let polygons = try logger.measure(.loadRegion(region)) {
-                        try GeoJSON.polygons(at: url)
+                        try RegionGeometryReader.polygons(at: url)
                     }
                     guard !polygons.isEmpty else {
                         logger.emptyPolygons(region: .restricted(.location, region))
@@ -219,7 +219,7 @@ public struct RegionAttributor: RegionAttributing {
                         error: .restricted(.errorDetails, error),
                     )
                     assertionFailure(
-                        "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error)",
+                        "Failed to decode bundled geometry for region \(region.rawValue): \(error)",
                     )
                 }
             }
@@ -242,18 +242,40 @@ struct RegionPolygons {
     let region: Region
     let polygons: [GeoPolygon]
     let boundingBox: BoundingBox
+    /// Dense coastal datasets contain hundreds of thousands of small islands.
+    /// Each latitude band holds just the components a ray at that latitude can meet.
+    private let latitudeBands: [[Int]]
+
+    private static func band(_ latitude: Double) -> Int {
+        Int(min(180, max(0, (latitude + 90).rounded(.down))))
+    }
 
     func contains(_ coordinate: Coordinate) -> Bool {
-        boundingBox.contains(coordinate) && polygons.contains { $0.contains(coordinate) }
+        guard boundingBox.contains(coordinate) else { return false }
+        guard !latitudeBands.isEmpty else { return polygons.contains { $0.contains(coordinate) } }
+        return latitudeBands[Self.band(coordinate.latitude)]
+            .contains { polygons[$0].contains(coordinate) }
     }
 
     func distanceToBoundary(from coordinate: Coordinate) -> Double {
-        polygons.lazy.map { $0.distanceToBoundary(from: coordinate) }.min() ?? .infinity
+        polygons.reduce(.infinity) { $1.distanceToBoundary(from: coordinate, nearerThan: $0) }
     }
 
     init(region: Region, polygons: [GeoPolygon]) {
         self.region = region
         self.polygons = polygons
+        if polygons.count >= 1024 {
+            var bands = [[Int]](repeating: [], count: 181)
+            for (index, polygon) in polygons.enumerated() where !polygon.vertices.isEmpty {
+                let box = polygon.geographicBounds
+                for row in Self.band(box.minLatitude) ... Self.band(box.maxLatitude) {
+                    bands[row].append(index)
+                }
+            }
+            latitudeBands = bands
+        } else {
+            latitudeBands = []
+        }
         if let box = BoundingBox.enclosing(polygons) {
             boundingBox = box
         } else {

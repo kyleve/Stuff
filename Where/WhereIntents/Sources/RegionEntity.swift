@@ -51,11 +51,9 @@ public struct RegionEntity: AppEntity, Identifiable, Sendable {
     }
 }
 
-/// Resolves `RegionEntity` values for the intents. `entities(for:)` resolves any
-/// **available** region id (so "days in Texas" works even if Texas isn't
-/// tracked — it just reports 0), while `suggestedEntities()` offers the user's
-/// **tracked** set as the menu.
-public struct RegionEntityQuery: EntityQuery {
+/// Resolves available regions by stored ID or localized name. Opening the
+/// picker without a search offers the user's tracked regions.
+public struct RegionEntityQuery: EntityStringQuery {
     /// The app-registered services handoff (see `IntentServices`); resolved by
     /// the App Intents dependency container, never a singleton of ours.
     @Dependency private var intentServices: IntentServices
@@ -66,6 +64,15 @@ public struct RegionEntityQuery: EntityQuery {
         identifiers.compactMap { identifier in
             Region(rawValue: identifier).map(RegionEntity.init)
         }
+    }
+
+    /// A typed name can find an untracked destination. An empty search uses
+    /// the same tracked suggestions as opening the picker.
+    public func entities(matching string: String) async throws -> [RegionEntity] {
+        let query = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return try await suggestedEntities() }
+        return Region.allCases.filter { $0.localizedName.localizedStandardContains(query) }
+            .map(RegionEntity.init)
     }
 
     public func suggestedEntities() async throws -> [RegionEntity] {

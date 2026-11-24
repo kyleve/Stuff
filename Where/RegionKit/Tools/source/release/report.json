@@ -1,0 +1,4357 @@
+{
+  "canada": {
+    "coordinateOperations": {
+      "3347-to-4326": "proj=pipeline step inv proj=lcc lat_0=63.390675 lon_0=-91.8666666666667 lat_1=49 lat_2=77 x_0=6200000 y_0=3000000 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg",
+      "4326-to-3347": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=lcc lat_0=63.390675 lon_0=-91.8666666666667 lat_1=49 lat_2=77 x_0=6200000 y_0=3000000 ellps=GRS80"
+    },
+    "members": {
+      "AB": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 2902
+        },
+        "maximumSampledMetres": 14.93,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 3554
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 3554
+        },
+        "sampledVertices": 256
+      },
+      "BC": {
+        "candidate": {
+          "holes": 1,
+          "parts": 28116,
+          "vertices": 312339
+        },
+        "maximumSampledMetres": 87.48,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 1,
+          "parts": 28116,
+          "vertices": 1524898
+        },
+        "repairedSource": {
+          "holes": 1,
+          "parts": 28116,
+          "vertices": 1524898
+        },
+        "sampledVertices": 256
+      },
+      "MB": {
+        "candidate": {
+          "holes": 0,
+          "parts": 303,
+          "vertices": 9773
+        },
+        "maximumSampledMetres": 162.35,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 303,
+          "vertices": 35260
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 303,
+          "vertices": 35260
+        },
+        "sampledVertices": 256
+      },
+      "NB": {
+        "candidate": {
+          "holes": 0,
+          "parts": 711,
+          "vertices": 33226
+        },
+        "maximumSampledMetres": 195.79,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 711,
+          "vertices": 128962
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 711,
+          "vertices": 128962
+        },
+        "sampledVertices": 256
+      },
+      "NL": {
+        "candidate": {
+          "holes": 1,
+          "parts": 19189,
+          "vertices": 295385
+        },
+        "maximumSampledMetres": 39.13,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 1,
+          "parts": 19189,
+          "vertices": 1151095
+        },
+        "repairedSource": {
+          "holes": 1,
+          "parts": 19189,
+          "vertices": 1151095
+        },
+        "sampledVertices": 256
+      },
+      "NS": {
+        "candidate": {
+          "holes": 0,
+          "parts": 3451,
+          "vertices": 74454
+        },
+        "maximumSampledMetres": 96.08,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 3451,
+          "vertices": 281201
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 3451,
+          "vertices": 281201
+        },
+        "sampledVertices": 256
+      },
+      "NT": {
+        "candidate": {
+          "holes": 0,
+          "parts": 2384,
+          "vertices": 123309
+        },
+        "maximumSampledMetres": 70.85,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 2384,
+          "vertices": 444917
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 2384,
+          "vertices": 444917
+        },
+        "sampledVertices": 256
+      },
+      "NU": {
+        "candidate": {
+          "holes": 5,
+          "parts": 62405,
+          "vertices": 1221268
+        },
+        "maximumSampledMetres": 50.47,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 3,
+          "parts": 62405,
+          "vertices": 5091805
+        },
+        "repairedSource": {
+          "holes": 5,
+          "parts": 62405,
+          "vertices": 5091807
+        },
+        "sampledVertices": 256
+      },
+      "ON": {
+        "candidate": {
+          "holes": 6,
+          "parts": 37084,
+          "vertices": 321600
+        },
+        "maximumSampledMetres": 132.14,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 5,
+          "parts": 37084,
+          "vertices": 1590328
+        },
+        "repairedSource": {
+          "holes": 6,
+          "parts": 37084,
+          "vertices": 1590329
+        },
+        "sampledVertices": 256
+      },
+      "PE": {
+        "candidate": {
+          "holes": 0,
+          "parts": 111,
+          "vertices": 12462
+        },
+        "maximumSampledMetres": 135.64,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 111,
+          "vertices": 41300
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 111,
+          "vertices": 41300
+        },
+        "sampledVertices": 256
+      },
+      "QC": {
+        "candidate": {
+          "holes": 7,
+          "parts": 21579,
+          "vertices": 266003
+        },
+        "maximumSampledMetres": 48.9,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 7,
+          "parts": 21579,
+          "vertices": 1217789
+        },
+        "repairedSource": {
+          "holes": 7,
+          "parts": 21579,
+          "vertices": 1217789
+        },
+        "sampledVertices": 256
+      },
+      "SK": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 713
+        },
+        "maximumSampledMetres": 30.69,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1346
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1346
+        },
+        "sampledVertices": 256
+      },
+      "YT": {
+        "candidate": {
+          "holes": 0,
+          "parts": 50,
+          "vertices": 3556
+        },
+        "maximumSampledMetres": 33.68,
+        "projectionEPSG": 3347,
+        "raw": {
+          "holes": 0,
+          "parts": 50,
+          "vertices": 10553
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 50,
+          "vertices": 10553
+        },
+        "sampledVertices": 256
+      }
+    },
+    "outline": {
+      "holes": 20,
+      "parts": 175300,
+      "vertices": 2651899
+    },
+    "repairs": [
+      {
+        "after": {
+          "holes": 5,
+          "parts": 1,
+          "vertices": 545616
+        },
+        "before": {
+          "holes": 4,
+          "parts": 1,
+          "vertices": 545615
+        },
+        "member": "ON",
+        "part": 36693,
+        "reason": "Ring Self-intersection[-79.9145379 44.9930137]",
+        "relativeAreaChange": 1.48e-14
+      },
+      {
+        "after": {
+          "holes": 2,
+          "parts": 1,
+          "vertices": 911363
+        },
+        "before": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 911361
+        },
+        "member": "NU",
+        "part": 60321,
+        "reason": "Ring Self-intersection[-67.6039639 70.1813834]",
+        "relativeAreaChange": 6.08e-14
+      }
+    ]
+  },
+  "probes": {
+    "49th +0": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +1": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0002
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +10": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.002
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +11": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0022
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +12": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0024
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +13": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0026
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +14": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0028
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +15": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.003
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +16": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0032
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +17": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0034
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +18": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0036
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +19": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0038
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +2": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0004
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +20": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.004
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +21": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0042
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +22": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0044
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +23": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0046
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +24": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0048
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +25": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.005
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +3": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0006
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +4": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0008
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +5": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.001
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +6": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0012
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +7": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0014
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +8": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0016
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th +9": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        49.0018
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -1": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9998
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -10": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.998
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -11": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9978
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -12": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9976
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -13": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9974
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -14": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9972
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -15": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.997
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -16": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9968
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -17": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9966
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -18": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9964
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -19": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9962
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -2": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9996
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -20": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.996
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -21": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9958
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -22": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9956
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -23": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9954
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -24": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9952
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -25": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -111.5,
+        48.995
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "49th -3": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9994
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -4": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9992
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -5": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.999
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -6": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9988
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -7": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9986
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -8": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9984
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "49th -9": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -111.5,
+        48.9982
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "Adak": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -176.64,
+        51.88
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska border west": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.04,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon +0": {
+      "candidate": [
+        "us-AK",
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.002,
+        64
+      ],
+      "source": [
+        "us-AK",
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +1": {
+      "candidate": [
+        "us-AK",
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.0016,
+        64
+      ],
+      "source": [
+        "us-AK",
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +10": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99800000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +11": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9976,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +12": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99720000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +13": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9968,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +14": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99640000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +15": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.996,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +16": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9956,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +17": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9952,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +18": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9948,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +19": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9944,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +2": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.0012,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +20": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.994,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +21": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99360000000001,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +22": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9932,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +23": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99280000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +24": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9924,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +25": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99200000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +3": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.0008,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +4": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.0004,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +5": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.0,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +6": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99960000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +7": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9992,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +8": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.99880000000002,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon +9": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.9984,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon -1": {
+      "candidate": [
+        "us-AK",
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.00240000000002,
+        64
+      ],
+      "source": [
+        "us-AK",
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon -10": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.006,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -11": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0064,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -12": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0068,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -13": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0072,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -14": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0076,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -15": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.008,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -16": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.00840000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -17": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0088,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -18": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.00920000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -19": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0096,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -2": {
+      "candidate": [
+        "us-AK",
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.0028,
+        64
+      ],
+      "source": [
+        "us-AK",
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon -20": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.01000000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -21": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0104,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -22": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.01080000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -23": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0112,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -24": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.01160000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -25": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.012,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -3": {
+      "candidate": [
+        "us-AK",
+        "ca-YT"
+      ],
+      "lonLat": [
+        -141.00320000000002,
+        64
+      ],
+      "source": [
+        "us-AK",
+        "ca-YT"
+      ]
+    },
+    "Alaska/Yukon -4": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0036,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -5": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.00400000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -6": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0044,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -7": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.00480000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -8": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.0052,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Alaska/Yukon -9": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        -141.00560000000002,
+        64
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Atlantic": {
+      "candidate": [],
+      "lonLat": [
+        -55,
+        43
+      ],
+      "source": []
+    },
+    "Attu": {
+      "candidate": [
+        "us-AK"
+      ],
+      "lonLat": [
+        173.19,
+        52.84
+      ],
+      "source": [
+        "us-AK"
+      ]
+    },
+    "Buffalo": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -78.8784,
+        42.8864
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Central Lake Ontario": {
+      "candidate": [],
+      "lonLat": [
+        -77.7,
+        43.66
+      ],
+      "source": []
+    },
+    "Charlotte Amalie": {
+      "candidate": [
+        "us-VI"
+      ],
+      "lonLat": [
+        -64.9307,
+        18.3419
+      ],
+      "source": [
+        "us-VI"
+      ]
+    },
+    "Charlottetown": {
+      "candidate": [
+        "ca-PE"
+      ],
+      "lonLat": [
+        -63.1311,
+        46.2382
+      ],
+      "source": [
+        "ca-PE"
+      ]
+    },
+    "Edmonton": {
+      "candidate": [
+        "ca-AB"
+      ],
+      "lonLat": [
+        -113.4938,
+        53.5461
+      ],
+      "source": [
+        "ca-AB"
+      ]
+    },
+    "Fort Erie": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -78.9197,
+        42.9018
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Fredericton": {
+      "candidate": [
+        "ca-NB"
+      ],
+      "lonLat": [
+        -66.6431,
+        45.9636
+      ],
+      "source": [
+        "ca-NB"
+      ]
+    },
+    "Gatineau": {
+      "candidate": [
+        "ca-QC"
+      ],
+      "lonLat": [
+        -75.7013,
+        45.4765
+      ],
+      "source": [
+        "ca-QC"
+      ]
+    },
+    "Hagåtña": {
+      "candidate": [
+        "us-GU"
+      ],
+      "lonLat": [
+        144.7504,
+        13.4757
+      ],
+      "source": [
+        "us-GU"
+      ]
+    },
+    "Halifax": {
+      "candidate": [
+        "ca-NS"
+      ],
+      "lonLat": [
+        -63.5752,
+        44.6488
+      ],
+      "source": [
+        "ca-NS"
+      ]
+    },
+    "Honolulu": {
+      "candidate": [
+        "us-HI"
+      ],
+      "lonLat": [
+        -157.8583,
+        21.3069
+      ],
+      "source": [
+        "us-HI"
+      ]
+    },
+    "Iqaluit": {
+      "candidate": [
+        "ca-NU"
+      ],
+      "lonLat": [
+        -68.5167,
+        63.7467
+      ],
+      "source": [
+        "ca-NU"
+      ]
+    },
+    "Niagara River +0": {
+      "candidate": [],
+      "lonLat": [
+        -79.0671,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River +1": {
+      "candidate": [],
+      "lonLat": [
+        -79.06685,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River +10": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0646,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +11": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06434999999999,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +12": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0641,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +13": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06385,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +14": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0636,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +15": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06335,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +16": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06309999999999,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +17": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06285,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +18": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0626,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +19": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06235,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +2": {
+      "candidate": [],
+      "lonLat": [
+        -79.0666,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River +20": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0621,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +21": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06184999999999,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +22": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0616,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +23": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06134999999999,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +24": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0611,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +25": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06085,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +3": {
+      "candidate": [],
+      "lonLat": [
+        -79.06635,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River +4": {
+      "candidate": [],
+      "lonLat": [
+        -79.06609999999999,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River +5": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06585,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +6": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0656,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +7": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06535,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +8": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.0651,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River +9": {
+      "candidate": [
+        "us-NY"
+      ],
+      "lonLat": [
+        -79.06484999999999,
+        43.091
+      ],
+      "source": [
+        "us-NY"
+      ]
+    },
+    "Niagara River -1": {
+      "candidate": [],
+      "lonLat": [
+        -79.06734999999999,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River -10": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.0696,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -11": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.06985,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -12": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.0701,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -13": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07034999999999,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -14": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.0706,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -15": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07085,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -16": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.0711,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -17": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07135,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -18": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07159999999999,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -19": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07185,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -2": {
+      "candidate": [],
+      "lonLat": [
+        -79.0676,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River -20": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07209999999999,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -21": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07235,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -22": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.0726,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -23": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07285,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -24": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.0731,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -25": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.07334999999999,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -3": {
+      "candidate": [],
+      "lonLat": [
+        -79.06784999999999,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River -4": {
+      "candidate": [],
+      "lonLat": [
+        -79.0681,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River -5": {
+      "candidate": [],
+      "lonLat": [
+        -79.06835,
+        43.091
+      ],
+      "source": []
+    },
+    "Niagara River -6": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.06859999999999,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -7": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.06885,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -8": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.06909999999999,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Niagara River -9": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.06935,
+        43.091
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "North Pacific": {
+      "candidate": [],
+      "lonLat": [
+        180,
+        48
+      ],
+      "source": []
+    },
+    "Ottawa": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -75.6972,
+        45.4215
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Pago Pago": {
+      "candidate": [
+        "us-AS"
+      ],
+      "lonLat": [
+        -170.701,
+        -14.279
+      ],
+      "source": [
+        "us-AS"
+      ]
+    },
+    "Prairie Canada": {
+      "candidate": [
+        "ca-SK"
+      ],
+      "lonLat": [
+        -110,
+        49.01
+      ],
+      "source": [
+        "ca-SK"
+      ]
+    },
+    "Prairie US": {
+      "candidate": [
+        "us-MT"
+      ],
+      "lonLat": [
+        -110,
+        48.99
+      ],
+      "source": [
+        "us-MT"
+      ]
+    },
+    "Quebec City": {
+      "candidate": [
+        "ca-QC"
+      ],
+      "lonLat": [
+        -71.208,
+        46.8139
+      ],
+      "source": [
+        "ca-QC"
+      ]
+    },
+    "Regina": {
+      "candidate": [
+        "ca-SK"
+      ],
+      "lonLat": [
+        -104.6189,
+        50.4452
+      ],
+      "source": [
+        "ca-SK"
+      ]
+    },
+    "Saipan": {
+      "candidate": [
+        "us-MP"
+      ],
+      "lonLat": [
+        145.75,
+        15.2
+      ],
+      "source": [
+        "us-MP"
+      ]
+    },
+    "St John's": {
+      "candidate": [
+        "ca-NL"
+      ],
+      "lonLat": [
+        -52.7126,
+        47.5615
+      ],
+      "source": [
+        "ca-NL"
+      ]
+    },
+    "Toronto": {
+      "candidate": [
+        "ca-ON"
+      ],
+      "lonLat": [
+        -79.3832,
+        43.6532
+      ],
+      "source": [
+        "ca-ON"
+      ]
+    },
+    "Victoria": {
+      "candidate": [
+        "ca-BC"
+      ],
+      "lonLat": [
+        -123.3656,
+        48.4284
+      ],
+      "source": [
+        "ca-BC"
+      ]
+    },
+    "Whitehorse": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -135.0568,
+        60.7212
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    },
+    "Winnipeg": {
+      "candidate": [
+        "ca-MB"
+      ],
+      "lonLat": [
+        -97.1385,
+        49.8951
+      ],
+      "source": [
+        "ca-MB"
+      ]
+    },
+    "Yellowknife": {
+      "candidate": [
+        "ca-NT"
+      ],
+      "lonLat": [
+        -114.3718,
+        62.454
+      ],
+      "source": [
+        "ca-NT"
+      ]
+    },
+    "Yukon border east": {
+      "candidate": [
+        "ca-YT"
+      ],
+      "lonLat": [
+        -140.96,
+        64
+      ],
+      "source": [
+        "ca-YT"
+      ]
+    }
+  },
+  "sampleDisagreements": [],
+  "sourceMembership": [
+    {
+      "GEOID": "02",
+      "NAME": "Alaska",
+      "STATEFP": "02",
+      "STUSPS": "AK",
+      "catalogID": "us-AK",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "01",
+      "NAME": "Alabama",
+      "STATEFP": "01",
+      "STUSPS": "AL",
+      "catalogID": "us-AL",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "05",
+      "NAME": "Arkansas",
+      "STATEFP": "05",
+      "STUSPS": "AR",
+      "catalogID": "us-AR",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "60",
+      "NAME": "American Samoa",
+      "STATEFP": "60",
+      "STUSPS": "AS",
+      "catalogID": null,
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "04",
+      "NAME": "Arizona",
+      "STATEFP": "04",
+      "STUSPS": "AZ",
+      "catalogID": "us-AZ",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "06",
+      "NAME": "California",
+      "STATEFP": "06",
+      "STUSPS": "CA",
+      "catalogID": "us-CA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "08",
+      "NAME": "Colorado",
+      "STATEFP": "08",
+      "STUSPS": "CO",
+      "catalogID": "us-CO",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "09",
+      "NAME": "Connecticut",
+      "STATEFP": "09",
+      "STUSPS": "CT",
+      "catalogID": "us-CT",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "11",
+      "NAME": "District of Columbia",
+      "STATEFP": "11",
+      "STUSPS": "DC",
+      "catalogID": "us-DC",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "10",
+      "NAME": "Delaware",
+      "STATEFP": "10",
+      "STUSPS": "DE",
+      "catalogID": "us-DE",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "12",
+      "NAME": "Florida",
+      "STATEFP": "12",
+      "STUSPS": "FL",
+      "catalogID": "us-FL",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "13",
+      "NAME": "Georgia",
+      "STATEFP": "13",
+      "STUSPS": "GA",
+      "catalogID": "us-GA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "66",
+      "NAME": "Guam",
+      "STATEFP": "66",
+      "STUSPS": "GU",
+      "catalogID": null,
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "15",
+      "NAME": "Hawaii",
+      "STATEFP": "15",
+      "STUSPS": "HI",
+      "catalogID": "us-HI",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=push v_3 step proj=cart ellps=GRS80 step proj=helmert x=1 y=1 z=-1 step inv proj=cart ellps=WGS84 step proj=pop v_3 step proj=unitconvert xy_in=rad xy_out=deg"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "19",
+      "NAME": "Iowa",
+      "STATEFP": "19",
+      "STUSPS": "IA",
+      "catalogID": "us-IA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "16",
+      "NAME": "Idaho",
+      "STATEFP": "16",
+      "STUSPS": "ID",
+      "catalogID": "us-ID",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "17",
+      "NAME": "Illinois",
+      "STATEFP": "17",
+      "STUSPS": "IL",
+      "catalogID": "us-IL",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "18",
+      "NAME": "Indiana",
+      "STATEFP": "18",
+      "STUSPS": "IN",
+      "catalogID": "us-IN",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "20",
+      "NAME": "Kansas",
+      "STATEFP": "20",
+      "STUSPS": "KS",
+      "catalogID": "us-KS",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "21",
+      "NAME": "Kentucky",
+      "STATEFP": "21",
+      "STUSPS": "KY",
+      "catalogID": "us-KY",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "22",
+      "NAME": "Louisiana",
+      "STATEFP": "22",
+      "STUSPS": "LA",
+      "catalogID": "us-LA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "25",
+      "NAME": "Massachusetts",
+      "STATEFP": "25",
+      "STUSPS": "MA",
+      "catalogID": "us-MA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "24",
+      "NAME": "Maryland",
+      "STATEFP": "24",
+      "STUSPS": "MD",
+      "catalogID": "us-MD",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "23",
+      "NAME": "Maine",
+      "STATEFP": "23",
+      "STUSPS": "ME",
+      "catalogID": "us-ME",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "26",
+      "NAME": "Michigan",
+      "STATEFP": "26",
+      "STUSPS": "MI",
+      "catalogID": "us-MI",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "27",
+      "NAME": "Minnesota",
+      "STATEFP": "27",
+      "STUSPS": "MN",
+      "catalogID": "us-MN",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "29",
+      "NAME": "Missouri",
+      "STATEFP": "29",
+      "STUSPS": "MO",
+      "catalogID": "us-MO",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "69",
+      "NAME": "Commonwealth of the Northern Mariana Islands",
+      "STATEFP": "69",
+      "STUSPS": "MP",
+      "catalogID": null,
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "28",
+      "NAME": "Mississippi",
+      "STATEFP": "28",
+      "STUSPS": "MS",
+      "catalogID": "us-MS",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "30",
+      "NAME": "Montana",
+      "STATEFP": "30",
+      "STUSPS": "MT",
+      "catalogID": "us-MT",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "37",
+      "NAME": "North Carolina",
+      "STATEFP": "37",
+      "STUSPS": "NC",
+      "catalogID": "us-NC",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "38",
+      "NAME": "North Dakota",
+      "STATEFP": "38",
+      "STUSPS": "ND",
+      "catalogID": "us-ND",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "31",
+      "NAME": "Nebraska",
+      "STATEFP": "31",
+      "STUSPS": "NE",
+      "catalogID": "us-NE",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "33",
+      "NAME": "New Hampshire",
+      "STATEFP": "33",
+      "STUSPS": "NH",
+      "catalogID": "us-NH",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "34",
+      "NAME": "New Jersey",
+      "STATEFP": "34",
+      "STUSPS": "NJ",
+      "catalogID": "us-NJ",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "35",
+      "NAME": "New Mexico",
+      "STATEFP": "35",
+      "STUSPS": "NM",
+      "catalogID": "us-NM",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "32",
+      "NAME": "Nevada",
+      "STATEFP": "32",
+      "STUSPS": "NV",
+      "catalogID": "us-NV",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "36",
+      "NAME": "New York",
+      "STATEFP": "36",
+      "STUSPS": "NY",
+      "catalogID": "us-NY",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "39",
+      "NAME": "Ohio",
+      "STATEFP": "39",
+      "STUSPS": "OH",
+      "catalogID": "us-OH",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "40",
+      "NAME": "Oklahoma",
+      "STATEFP": "40",
+      "STUSPS": "OK",
+      "catalogID": "us-OK",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "41",
+      "NAME": "Oregon",
+      "STATEFP": "41",
+      "STUSPS": "OR",
+      "catalogID": "us-OR",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "42",
+      "NAME": "Pennsylvania",
+      "STATEFP": "42",
+      "STUSPS": "PA",
+      "catalogID": "us-PA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "72",
+      "NAME": "Puerto Rico",
+      "STATEFP": "72",
+      "STUSPS": "PR",
+      "catalogID": "us-PR",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "44",
+      "NAME": "Rhode Island",
+      "STATEFP": "44",
+      "STUSPS": "RI",
+      "catalogID": "us-RI",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "45",
+      "NAME": "South Carolina",
+      "STATEFP": "45",
+      "STUSPS": "SC",
+      "catalogID": "us-SC",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "46",
+      "NAME": "South Dakota",
+      "STATEFP": "46",
+      "STUSPS": "SD",
+      "catalogID": "us-SD",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "47",
+      "NAME": "Tennessee",
+      "STATEFP": "47",
+      "STUSPS": "TN",
+      "catalogID": "us-TN",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "48",
+      "NAME": "Texas",
+      "STATEFP": "48",
+      "STUSPS": "TX",
+      "catalogID": "us-TX",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "49",
+      "NAME": "Utah",
+      "STATEFP": "49",
+      "STUSPS": "UT",
+      "catalogID": "us-UT",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "51",
+      "NAME": "Virginia",
+      "STATEFP": "51",
+      "STUSPS": "VA",
+      "catalogID": "us-VA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "78",
+      "NAME": "United States Virgin Islands",
+      "STATEFP": "78",
+      "STUSPS": "VI",
+      "catalogID": null,
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "50",
+      "NAME": "Vermont",
+      "STATEFP": "50",
+      "STUSPS": "VT",
+      "catalogID": "us-VT",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "53",
+      "NAME": "Washington",
+      "STATEFP": "53",
+      "STUSPS": "WA",
+      "catalogID": "us-WA",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "55",
+      "NAME": "Wisconsin",
+      "STATEFP": "55",
+      "STUSPS": "WI",
+      "catalogID": "us-WI",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "54",
+      "NAME": "West Virginia",
+      "STATEFP": "54",
+      "STUSPS": "WV",
+      "catalogID": "us-WV",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "GEOID": "56",
+      "NAME": "Wyoming",
+      "STATEFP": "56",
+      "STUSPS": "WY",
+      "catalogID": "us-WY",
+      "coordinateOperations": {
+        "4269-to-4326": "proj=noop ellps=GRS80"
+      },
+      "countryID": "united-states"
+    },
+    {
+      "DGUID": "2026A000210",
+      "PRENAME": "Newfoundland and Labrador",
+      "PRFNAME": "Terre-Neuve-et-Labrador",
+      "PRUID": "10",
+      "catalogID": "ca-NL",
+      "countryID": "canada",
+      "postalCode": "NL"
+    },
+    {
+      "DGUID": "2026A000211",
+      "PRENAME": "Prince Edward Island",
+      "PRFNAME": "Île-du-Prince-Édouard",
+      "PRUID": "11",
+      "catalogID": "ca-PE",
+      "countryID": "canada",
+      "postalCode": "PE"
+    },
+    {
+      "DGUID": "2026A000212",
+      "PRENAME": "Nova Scotia",
+      "PRFNAME": "Nouvelle-Écosse",
+      "PRUID": "12",
+      "catalogID": "ca-NS",
+      "countryID": "canada",
+      "postalCode": "NS"
+    },
+    {
+      "DGUID": "2026A000213",
+      "PRENAME": "New Brunswick",
+      "PRFNAME": "Nouveau-Brunswick",
+      "PRUID": "13",
+      "catalogID": "ca-NB",
+      "countryID": "canada",
+      "postalCode": "NB"
+    },
+    {
+      "DGUID": "2026A000224",
+      "PRENAME": "Quebec",
+      "PRFNAME": "Québec",
+      "PRUID": "24",
+      "catalogID": "ca-QC",
+      "countryID": "canada",
+      "postalCode": "QC"
+    },
+    {
+      "DGUID": "2026A000235",
+      "PRENAME": "Ontario",
+      "PRFNAME": "Ontario",
+      "PRUID": "35",
+      "catalogID": "ca-ON",
+      "countryID": "canada",
+      "postalCode": "ON"
+    },
+    {
+      "DGUID": "2026A000246",
+      "PRENAME": "Manitoba",
+      "PRFNAME": "Manitoba",
+      "PRUID": "46",
+      "catalogID": "ca-MB",
+      "countryID": "canada",
+      "postalCode": "MB"
+    },
+    {
+      "DGUID": "2026A000247",
+      "PRENAME": "Saskatchewan",
+      "PRFNAME": "Saskatchewan",
+      "PRUID": "47",
+      "catalogID": "ca-SK",
+      "countryID": "canada",
+      "postalCode": "SK"
+    },
+    {
+      "DGUID": "2026A000248",
+      "PRENAME": "Alberta",
+      "PRFNAME": "Alberta",
+      "PRUID": "48",
+      "catalogID": "ca-AB",
+      "countryID": "canada",
+      "postalCode": "AB"
+    },
+    {
+      "DGUID": "2026A000259",
+      "PRENAME": "British Columbia",
+      "PRFNAME": "Colombie-Britannique",
+      "PRUID": "59",
+      "catalogID": "ca-BC",
+      "countryID": "canada",
+      "postalCode": "BC"
+    },
+    {
+      "DGUID": "2026A000260",
+      "PRENAME": "Yukon",
+      "PRFNAME": "Yukon",
+      "PRUID": "60",
+      "catalogID": "ca-YT",
+      "countryID": "canada",
+      "postalCode": "YT"
+    },
+    {
+      "DGUID": "2026A000261",
+      "PRENAME": "Northwest Territories",
+      "PRFNAME": "Territoires du Nord-Ouest",
+      "PRUID": "61",
+      "catalogID": "ca-NT",
+      "countryID": "canada",
+      "postalCode": "NT"
+    },
+    {
+      "DGUID": "2026A000262",
+      "PRENAME": "Nunavut",
+      "PRFNAME": "Nunavut",
+      "PRUID": "62",
+      "catalogID": "ca-NU",
+      "countryID": "canada",
+      "postalCode": "NU"
+    }
+  ],
+  "united-states": {
+    "coordinateOperations": {
+      "26963-to-4326": "proj=pipeline step inv proj=tmerc lat_0=21.1666666666667 lon_0=-158 k=0.99999 x_0=500000 y_0=0 ellps=GRS80 step proj=push v_3 step proj=cart ellps=GRS80 step proj=helmert x=1 y=1 z=-1 step inv proj=cart ellps=WGS84 step proj=pop v_3 step proj=unitconvert xy_in=rad xy_out=deg",
+      "32161-to-4326": "proj=pipeline step inv proj=lcc lat_0=17.8333333333333 lon_0=-66.4333333333333 lat_1=18.4333333333333 lat_2=18.0333333333333 x_0=200000 y_0=200000 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg",
+      "32655-to-4326": "proj=pipeline step inv proj=utm zone=55 ellps=WGS84 step proj=unitconvert xy_in=rad xy_out=deg",
+      "32702-to-4326": "proj=pipeline step inv proj=utm zone=2 south ellps=WGS84 step proj=unitconvert xy_in=rad xy_out=deg",
+      "3338-to-4326": "proj=pipeline step inv proj=aea lat_0=50 lon_0=-154 lat_1=55 lat_2=65 x_0=0 y_0=0 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg",
+      "4326-to-26963": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=push v_3 step proj=cart ellps=WGS84 step proj=helmert x=-1 y=-1 z=1 step inv proj=cart ellps=GRS80 step proj=pop v_3 step proj=tmerc lat_0=21.1666666666667 lon_0=-158 k=0.99999 x_0=500000 y_0=0 ellps=GRS80",
+      "4326-to-32161": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=lcc lat_0=17.8333333333333 lon_0=-66.4333333333333 lat_1=18.4333333333333 lat_2=18.0333333333333 x_0=200000 y_0=200000 ellps=GRS80",
+      "4326-to-32655": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=utm zone=55 ellps=WGS84",
+      "4326-to-32702": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=utm zone=2 south ellps=WGS84",
+      "4326-to-3338": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=aea lat_0=50 lon_0=-154 lat_1=55 lat_2=65 x_0=0 y_0=0 ellps=GRS80",
+      "4326-to-5070": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=aea lat_0=23 lon_0=-96 lat_1=29.5 lat_2=45.5 x_0=0 y_0=0 ellps=GRS80",
+      "5070-to-4326": "proj=pipeline step inv proj=aea lat_0=23 lon_0=-96 lat_1=29.5 lat_2=45.5 x_0=0 y_0=0 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg"
+    },
+    "members": {
+      "AK": {
+        "candidate": {
+          "holes": 0,
+          "parts": 50,
+          "vertices": 8304
+        },
+        "maximumSampledMetres": 56.43,
+        "projectionEPSG": 3338,
+        "raw": {
+          "holes": 0,
+          "parts": 50,
+          "vertices": 15332
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 50,
+          "vertices": 15332
+        },
+        "sampledVertices": 256
+      },
+      "AL": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 942
+        },
+        "maximumSampledMetres": 154.95,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 13645
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 13645
+        },
+        "sampledVertices": 256
+      },
+      "AR": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1479
+        },
+        "maximumSampledMetres": 227.2,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 29787
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 29787
+        },
+        "sampledVertices": 256
+      },
+      "AS": {
+        "candidate": {
+          "holes": 0,
+          "parts": 4,
+          "vertices": 221
+        },
+        "maximumSampledMetres": 56.13,
+        "projectionEPSG": 32702,
+        "raw": {
+          "holes": 0,
+          "parts": 4,
+          "vertices": 505
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 4,
+          "vertices": 505
+        },
+        "sampledVertices": 256
+      },
+      "AZ": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 975
+        },
+        "maximumSampledMetres": 83.15,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 10823
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 10823
+        },
+        "sampledVertices": 256
+      },
+      "CA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 7,
+          "vertices": 2409
+        },
+        "maximumSampledMetres": 76.55,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 7,
+          "vertices": 12102
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 7,
+          "vertices": 12102
+        },
+        "sampledVertices": 256
+      },
+      "CO": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 369
+        },
+        "maximumSampledMetres": 30.61,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7519
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7519
+        },
+        "sampledVertices": 256
+      },
+      "CT": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 161
+        },
+        "maximumSampledMetres": 283.4,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 3205
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 3205
+        },
+        "sampledVertices": 256
+      },
+      "DC": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 39
+        },
+        "maximumSampledMetres": 371.68,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7368
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7368
+        },
+        "sampledVertices": 256
+      },
+      "DE": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 144
+        },
+        "maximumSampledMetres": 109.08,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 5345
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 5345
+        },
+        "sampledVertices": 256
+      },
+      "FL": {
+        "candidate": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 2141
+        },
+        "maximumSampledMetres": 226.06,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 20605
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 20605
+        },
+        "sampledVertices": 256
+      },
+      "GA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 2156
+        },
+        "maximumSampledMetres": 164.85,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 30761
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 30761
+        },
+        "sampledVertices": 256
+      },
+      "GU": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 166
+        },
+        "maximumSampledMetres": 86.72,
+        "projectionEPSG": 32655,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 608
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 608
+        },
+        "sampledVertices": 256
+      },
+      "HI": {
+        "candidate": {
+          "holes": 0,
+          "parts": 17,
+          "vertices": 1692
+        },
+        "maximumSampledMetres": 77.61,
+        "projectionEPSG": 26963,
+        "raw": {
+          "holes": 0,
+          "parts": 17,
+          "vertices": 3519
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 17,
+          "vertices": 3519
+        },
+        "sampledVertices": 256
+      },
+      "IA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1473
+        },
+        "maximumSampledMetres": 184.41,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 24198
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 24198
+        },
+        "sampledVertices": 256
+      },
+      "ID": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 2475
+        },
+        "maximumSampledMetres": 93.68,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 35121
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 35121
+        },
+        "sampledVertices": 256
+      },
+      "IL": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1718
+        },
+        "maximumSampledMetres": 246.28,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 19789
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 19789
+        },
+        "sampledVertices": 256
+      },
+      "IN": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1211
+        },
+        "maximumSampledMetres": 84.43,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 16240
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 16240
+        },
+        "sampledVertices": 256
+      },
+      "KS": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 577
+        },
+        "maximumSampledMetres": 41.83,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 13296
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 13296
+        },
+        "sampledVertices": 256
+      },
+      "KY": {
+        "candidate": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 1928
+        },
+        "maximumSampledMetres": 116.08,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 34631
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 34631
+        },
+        "sampledVertices": 256
+      },
+      "LA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 2344
+        },
+        "maximumSampledMetres": 231.05,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 21548
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 21548
+        },
+        "sampledVertices": 256
+      },
+      "MA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 485
+        },
+        "maximumSampledMetres": 242.22,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 4788
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 4788
+        },
+        "sampledVertices": 256
+      },
+      "MD": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 973
+        },
+        "maximumSampledMetres": 115.73,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 26095
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 26095
+        },
+        "sampledVertices": 256
+      },
+      "ME": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1693
+        },
+        "maximumSampledMetres": 211.98,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 18934
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 18934
+        },
+        "sampledVertices": 256
+      },
+      "MI": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1011
+        },
+        "maximumSampledMetres": 223.47,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 10721
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 10721
+        },
+        "sampledVertices": 256
+      },
+      "MN": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 2741
+        },
+        "maximumSampledMetres": 191.54,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 40307
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 40307
+        },
+        "sampledVertices": 256
+      },
+      "MO": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1629
+        },
+        "maximumSampledMetres": 132.04,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 20323
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 20323
+        },
+        "sampledVertices": 256
+      },
+      "MP": {
+        "candidate": {
+          "holes": 0,
+          "parts": 12,
+          "vertices": 512
+        },
+        "maximumSampledMetres": 64.59,
+        "projectionEPSG": 32655,
+        "raw": {
+          "holes": 0,
+          "parts": 12,
+          "vertices": 818
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 12,
+          "vertices": 818
+        },
+        "sampledVertices": 256
+      },
+      "MS": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1854
+        },
+        "maximumSampledMetres": 242.93,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 25725
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 25725
+        },
+        "sampledVertices": 256
+      },
+      "MT": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1973
+        },
+        "maximumSampledMetres": 99.81,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 26725
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 26725
+        },
+        "sampledVertices": 256
+      },
+      "NC": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1290
+        },
+        "maximumSampledMetres": 138.97,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 32145
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 32145
+        },
+        "sampledVertices": 256
+      },
+      "ND": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1486
+        },
+        "maximumSampledMetres": 264.75,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 32442
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 32442
+        },
+        "sampledVertices": 256
+      },
+      "NE": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1047
+        },
+        "maximumSampledMetres": 67.25,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 13982
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 13982
+        },
+        "sampledVertices": 256
+      },
+      "NH": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1013
+        },
+        "maximumSampledMetres": 185.16,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 16624
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 16624
+        },
+        "sampledVertices": 256
+      },
+      "NJ": {
+        "candidate": {
+          "holes": 2,
+          "parts": 1,
+          "vertices": 571
+        },
+        "maximumSampledMetres": 129.5,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 2,
+          "parts": 1,
+          "vertices": 7897
+        },
+        "repairedSource": {
+          "holes": 2,
+          "parts": 1,
+          "vertices": 7897
+        },
+        "sampledVertices": 256
+      },
+      "NM": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 343
+        },
+        "maximumSampledMetres": 65.19,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7107
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7107
+        },
+        "sampledVertices": 256
+      },
+      "NV": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 716
+        },
+        "maximumSampledMetres": 78.87,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 9539
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 9539
+        },
+        "sampledVertices": 256
+      },
+      "NY": {
+        "candidate": {
+          "holes": 0,
+          "parts": 3,
+          "vertices": 970
+        },
+        "maximumSampledMetres": 83.72,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 3,
+          "vertices": 10278
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 3,
+          "vertices": 10278
+        },
+        "sampledVertices": 256
+      },
+      "OH": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 903
+        },
+        "maximumSampledMetres": 90.64,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 17359
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 17359
+        },
+        "sampledVertices": 256
+      },
+      "OK": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1648
+        },
+        "maximumSampledMetres": 76.28,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 21200
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 21200
+        },
+        "sampledVertices": 256
+      },
+      "OR": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1294
+        },
+        "maximumSampledMetres": 70.68,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 14580
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 14580
+        },
+        "sampledVertices": 256
+      },
+      "PA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 763
+        },
+        "maximumSampledMetres": 106.86,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 15994
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 15994
+        },
+        "sampledVertices": 256
+      },
+      "PR": {
+        "candidate": {
+          "holes": 0,
+          "parts": 3,
+          "vertices": 712
+        },
+        "maximumSampledMetres": 73.4,
+        "projectionEPSG": 32161,
+        "raw": {
+          "holes": 0,
+          "parts": 3,
+          "vertices": 1565
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 3,
+          "vertices": 1565
+        },
+        "sampledVertices": 256
+      },
+      "RI": {
+        "candidate": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 174
+        },
+        "maximumSampledMetres": 94.56,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 2671
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 2671
+        },
+        "sampledVertices": 256
+      },
+      "SC": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1564
+        },
+        "maximumSampledMetres": 151.18,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 17510
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 17510
+        },
+        "sampledVertices": 256
+      },
+      "SD": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1025
+        },
+        "maximumSampledMetres": 106.29,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 19954
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 19954
+        },
+        "sampledVertices": 256
+      },
+      "TN": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1356
+        },
+        "maximumSampledMetres": 176.19,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 28894
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 28894
+        },
+        "sampledVertices": 256
+      },
+      "TX": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 5744
+        },
+        "maximumSampledMetres": 243.88,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 62863
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 62863
+        },
+        "sampledVertices": 256
+      },
+      "UT": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 333
+        },
+        "maximumSampledMetres": 27.33,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7499
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7499
+        },
+        "sampledVertices": 256
+      },
+      "VA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1810
+        },
+        "maximumSampledMetres": 190.37,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 49713
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 49713
+        },
+        "sampledVertices": 256
+      },
+      "VI": {
+        "candidate": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 242
+        },
+        "maximumSampledMetres": 79.67,
+        "projectionEPSG": 32161,
+        "raw": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 491
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 2,
+          "vertices": 491
+        },
+        "sampledVertices": 256
+      },
+      "VT": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 941
+        },
+        "maximumSampledMetres": 123.45,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 12136
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 12136
+        },
+        "sampledVertices": 256
+      },
+      "WA": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 652
+        },
+        "maximumSampledMetres": 81.26,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7944
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 7944
+        },
+        "sampledVertices": 256
+      },
+      "WI": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 1434
+        },
+        "maximumSampledMetres": 227.62,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 16207
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 16207
+        },
+        "sampledVertices": 256
+      },
+      "WV": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 2254
+        },
+        "maximumSampledMetres": 117.07,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 35247
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 35247
+        },
+        "sampledVertices": 256
+      },
+      "WY": {
+        "candidate": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 341
+        },
+        "maximumSampledMetres": 27.97,
+        "projectionEPSG": 5070,
+        "raw": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 8591
+        },
+        "repairedSource": {
+          "holes": 0,
+          "parts": 1,
+          "vertices": 8591
+        },
+        "sampledVertices": 256
+      }
+    },
+    "outline": {
+      "holes": 0,
+      "parts": 98,
+      "vertices": 23960
+    },
+    "repairs": []
+  }
+}

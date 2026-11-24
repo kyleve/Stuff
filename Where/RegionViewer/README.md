@@ -9,11 +9,9 @@ It is a precursor surface for expanding the number and quality of regions the ap
 
 The same screen as the in-app **developer overlay → Region map** entry:
 
-- A segmented toggle between two geometries:
-  - **Attribution** — the simplified polygons `RegionAttributor` actually loads and uses to attribute coordinates today (California, New York, and the simplified Canada / EU outlines. Exterior rings only).
-  - **Source** — every feature decoded straight from the bundled per-region GeoJSON files at full authored fidelity.
-    `RegionGeometryCatalog`'s `buildSourceOutlines()` walks `RegionCatalog.shared.entries` and decodes each region's own file under `RegionKit/Sources/Resources/regions/`, so this mode shows exactly what ships.
-    (The monolithic `us-states.geojson` under `RegionKit/Tools/source/` is a build-time input to the extraction tooling — never bundled, never read at runtime.)
+- A segmented control chooses which regions to display.
+  - **Attribution** draws the polygons loaded by the supplied `RegionAttributor`. The standalone viewer uses `.all` so it can inspect every loggable region.
+  - **Source** draws all 67 loggable regions in the bundled catalog. RegionKit also provides a separate on-demand lookup for the US country outline.
 - `MapPolygon` overlays tinted by `RegionStyle` for known regions and a stable per-title color for unmapped source features.
 - A camera framed to the shown geometry, and a filterable legend that narrows the map to a single feature (keeping the dense source geometry responsive).
 
@@ -23,8 +21,9 @@ The app is a Tuist target (`com.stuff.regionviewer`).
 Build and run from the generated Xcode project, or from the CLI:
 
 ```bash
-./ide --no-open                 # regenerate the Xcode project
-mise exec -- tuist build RegionViewer
+./ide --no-open
+mise exec -- tuist xcodebuild build -workspace Stuff.xcworkspace -scheme RegionViewer \
+  -destination 'generic/platform=macOS,variant=Mac Catalyst'
 ```
 
 (Builds, like the rest of the project, are **macOS-only** — see the root [`AGENTS.md`](../../AGENTS.md).)
@@ -55,12 +54,4 @@ It runs the iOS-simulator `Stuff-iOS-FullTests` scheme on the `xcode-27` image a
 
 `RegionViewerApp` is a `@main App` with a `WindowGroup { NavigationStack { RegionMapView() } }`.
 It has **no** `WhereSession`, SwiftData store, or App Group.
-`RegionMapView` reads geometry from `RegionKit`'s public `RegionGeometryCatalog`, which only needs the bundled GeoJSON (embedded via the RegionKit dependency).
-The catalog decodes off the main thread, so the heavy source parse never blocks the UI.
-
-## Limitations
-
-- Holes (interior rings) are not drawn.
-  `MapPolygon` fills exterior rings only, consistent with what attribution uses.
-- Rendering all source features at once is dense.
-  Use the legend to filter to a single feature for the detailed geometry.
+`RegionMapView` reads bundled outlines through `RegionGeometryCatalog`. North American geometry uses Tiny Well-Known Binary and the EU uses GeoJSON. The map draws interior holes and adjusts coastline detail to the current zoom. Zoom in to inspect small islands or choose a region in the legend. [RegionKit data and sources](../RegionKit/README.md#bundled-data)

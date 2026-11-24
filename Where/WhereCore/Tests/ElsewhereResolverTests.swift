@@ -4,13 +4,14 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct ElsewhereResolverTests {
-    @Test func expandsCanadaAndTheEuropeanUnionUsingExistingCatalogIdentities() async throws {
+    @Test func namesVancouverByItsProvinceAndParisByItsBloc() async throws {
         let input = ElsewhereTestSupport.input(samples: [
             ElsewhereTestSupport.sample(Coordinate(latitude: 49.2827, longitude: -123.1207)),
             ElsewhereTestSupport.sample(Coordinate(latitude: 48.8566, longitude: 2.3522)),
         ])
         let result = try await ElsewhereResolver().resolve(input)
-        #expect(result.regions.map(\.region) == [.canada, .europeanUnion])
+        let britishColumbia = try #require(Region(rawValue: "ca-BC"))
+        #expect(result.regions.map(\.region) == [britishColumbia, .europeanUnion])
         #expect(result.regions.allSatisfy { $0.days.count == 1 && $0.locations.count == 1 })
         #expect(input.report.totals == [.other: 1])
     }

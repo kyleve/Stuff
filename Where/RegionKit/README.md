@@ -2,7 +2,7 @@
 
 The geometry and region-lookup engine behind the Where app. Given a WGS84
 `Coordinate`, RegionKit answers *which `Region` is it in?* — backed by bundled
-GeoJSON polygons loaded **on demand, per region**. It is pure Swift + Foundation
+WGS84 polygons loaded **on demand, per region**. It uses Swift and Foundation
 (no SwiftUI, UIKit, SwiftData, or CoreLocation), so it can be reused and
 unit-tested in isolation.
 
@@ -82,7 +82,7 @@ print(region.localizedName) // "California"
 
 ## Bundled data
 
-The catalog manifest and one GeoJSON file per region ship in
+The catalog manifest and one geometry file per node ship in
 `Sources/Resources/`. Both are **generated** — never hand-edit them.
 
 ### `regions.json` — the catalog manifest
@@ -91,12 +91,12 @@ The ordered array has one entry per geographic node.
 
 ```json
 { "id": "us-CA", "name": "California", "kind": "state", "isLoggable": true,
-  "localizationKey": "region.california",
-  "geometry": { "file": "us-CA.geojson" } }
+  "parentID": "united-states", "source": "census", "sourceYear": 2026,
+  "localizationKey": "region.california", "geometry": { "file": "us-CA.twkb" } }
 ```
 
 - `id` — a stable data identifier, never shown to the user. US states are
-  `us-<USPS>` (`us-CA`, `us-NY`, …). countries/blocs use a slug (`canada`,
+  `us-<USPS>` (`us-CA`, `us-NY`, …). Canadian subdivisions use `ca-<postal code>`. Countries and blocs use a slug (`canada`,
   `european-union`). The `other` catch-all isn't in the manifest — it's a
   sentinel with no geometry.
 - `name` — the English display name (the `localizedName` fallback).
@@ -113,75 +113,69 @@ The ordered array has one entry per geographic node.
 - `isLoggable` controls whether the node appears in tracking choices and can
   construct a validated `Region`. The independent bare-string `Codable`
   representation preserves stored IDs across catalog changes.
-- `geometry.file` names the required GeoJSON resource under `regions/`. Every
+- `geometry.file` names the required geometry resource under `regions/`. Every
   node has its own file, including a country used only as a parent.
 - Array order fixes the order of available regions and the day-count ranking
   tiebreak. WhereCore also uses it to order its tracked set for GPS attribution.
 
-### `regions/<id>.geojson` — per-region geometry
+### Per-region geometry
 
-One FeatureCollection per region (a single `Polygon`/`MultiPolygon` feature,
-exterior rings only). `RegionAttributor` loads only the files for the regions
-it's asked to attribute, so we never parse the whole US at launch.
+Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. The EU retains its existing plain GeoJSON. Explicit node lookups can read the US country outline while normal tracking loads only loggable regions in the requested set.
 
 ### Regenerating
 
-`regions/` and `regions.json` are generated from the (non-bundled) source data
-under [`Tools/source/`](Tools/source) by
-[`Tools/generate-regions.rb`](Tools/generate-regions.rb) — re-run it from the
-repo root after changing the source (the `NAME → us-<USPS>` map lives in the
-script):
+Run the following from the repository root. Ruby alone can regenerate or check the adopted release offline. The source lock, conversion report and compressed normalized features live in [the release directory](Tools/source/release).
 
 ```sh
-ruby Where/RegionKit/Tools/generate-regions.rb
+tool=Where/RegionKit/Tools/generate-regions.rb
+ruby "$tool" --check
+ruby "$tool"
 ```
+
+Refreshing and replaying raw releases also use Python 3.12 and the [pinned GIS dependencies](Tools/requirements-boundaries.txt). Use the Python patch and native library versions recorded in the release lock to reproduce an existing release. Install the pinned binary wheels into an isolated environment. Keep your content-addressed cache outside the checkout and retain it to replay publisher bytes that may later change.
+
+```sh
+python3.12 -m venv /tmp/regionkit-gis
+/tmp/regionkit-gis/bin/pip install --only-binary=:all: -r Where/RegionKit/Tools/requirements-boundaries.txt
+export REGIONKIT_PYTHON=/tmp/regionkit-gis/bin/python
+cache="$HOME/.cache/regionkit-boundaries"
+ruby "$tool" --refresh --us-year 2026 --ca-year 2026 --cache "$cache" --output /tmp/regions-candidate
+ruby "$tool" --replay /tmp/regions-candidate/sources.lock.json --cache "$cache" --output /tmp/regions-replay
+diff -qr /tmp/regions-candidate /tmp/regions-replay
+```
+
+The adopted release uses a 180 m simplification setting for the US and 45 m for Canada. These settings guide an area-based algorithm. The report records sampled displacement separately. Both modes create a new output directory. Refresh checks the publisher inventory and prints changed checksums for previously adopted URLs. Replay reads exclusively from the verified cache. Inspect `report.json` for component and hole counts, simplification error and border classifications. `bundle-report.json` measures generated bytes for each node, both country files, all loggable entries and the default tracking set. Compare the candidate manifest with the installed choices before adopting it.
+
+```sh
+ruby "$tool" --adopt /tmp/regions-candidate
+ruby "$tool" --check
+```
+
+Adoption verifies source and output hashes before it installs the normalized inputs and generated bundle together. After interruption, rerun the no-argument command to finish the journaled release offline. If validation rejects a changed publisher source, keep the last good release, inspect the reported ID or checksum and refresh into a fresh candidate directory.
 
 ### Source data (not bundled)
 
-Each entry below is also expressed in code as a `RegionDataSource`, which is
-what the app credits on its About screen. Keep the two in step.
-
-- **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
-  `MultiPolygon` per feature keyed by `properties.NAME`. The generator splits it
-  into one `regions/us-<USPS>.geojson` per feature. Originally
-  `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
-  [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
-  converted from US Census Cartographic Boundary Files. License: US Government
-  works are public domain (17 U.S.C. § 105). Attribution requested (see the repo
-  `README.md`).
-- **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
-  deliberately coarse (fine for `RegionAttributorTests` spot-checks; must be
-  replaced with higher-fidelity public-domain sources before any production
-  residency-audit use).
+- The US Census Bureau's 2026 TIGER/Line STATE file supplies the 50 states, DC and Puerto Rico. The national outline dissolves all 56 supplied entities, including American Samoa, Guam, the Northern Mariana Islands and the US Virgin Islands. It includes water inside the legal boundaries. The product excludes the US Minor Outlying Islands. US Government works are public domain under 17 U.S.C. § 105. [Census downloads](https://www2.census.gov/geo/tiger/TIGER2026/STATE/)
+- Statistics Canada's 2026 detailed cartographic files supply ten provinces and three territories. The national outline removes their internal borders. The source represents land and coastal islands, so Canadian boats or shoreline observations can fall outside it. The two publishers can disagree close to their common boundary. Contains information licensed under the Open Government Licence – Canada. Where reprojects, simplifies and dissolves the published boundaries. [Province and territory layer](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [licence](https://open.canada.ca/en/open-government-licence-canada)
+- The European Union uses the repository's approximate hand-drawn outline. Each node's `source` identifies its credit in Settings → About.
 
 ## Adding a region
 
-Adding a region is now **pure data** — no new `Region` case, no code:
-
-1. Add its geometry to `Tools/source/` (a new feature, or a new source file).
-2. Run `ruby Where/RegionKit/Tools/generate-regions.rb` to regenerate
-   `regions/` + `regions.json` (add the `NAME → id` mapping in the script if it's
-   a new US feature; blocs/countries get an entry in the script's `NON_US` list).
-3. Optionally add a `region.<key>` entry to `Localizable.xcstrings` and point the
-   manifest entry's `localizationKey` at it (otherwise the English `name` shows).
-4. Attribute the geometry in `RegionDataSource` — a US state is already covered
-   by the `us-` rule, anything else needs its source named.
-   `RegionDataSourceTests` fails until it is.
-5. Add a `RegionAttributorTests` spot-check.
-
-Everything downstream (`RegionStyle`, region pickers, the App Intents
-`RegionEntity`) derives from the catalog automatically.
+Map the publisher ID to a stable app ID in the source adapter. Assign the node's immediate parent, jurisdiction kind, tracking eligibility and source. Verify a known interior location, add the applicable membership check and update the compatibility gates before shipping a new writable ID. RegionKit resolves a display name from the optional localization key or the publisher's English name.
 
 ## Testing
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost` (so
-`Bundle.module` resolves the GeoJSON at runtime). Attribution, geometry
+`Bundle.module` resolves the generated files at runtime). Attribution, geometry
 (point-in-polygon, bounding box, longitude span), and the geometry catalog are
 covered here. internal types (`GeoJSON`, `GeoPolygon`, `RegionPolygons`) are
 reached via `@testable import RegionKit`.
 
-**GeoJSON *decoding* is not covered** — there is no `GeoJSONTests.swift`, so the
-unsupported-geometry throw and the malformed-coordinate drop are unexercised, and
-`RegionCatalog`'s degrade-to-empty-catalog path is asserted only at the log-event
-level. Filed in [Where backlog](https://linear.app/kve/view/1cdf347a9c54). This paragraph goes away when it
-closes.
+The binary reader and writer are exercised with a shared, hand-checked delta stream and malformed inputs. The source-format tests verify membership, shape completeness and projection. The release CLI tests cover offline rebuild, drift and interrupted adoption.
+
+```sh
+ruby Tools/Tests/generate_regions_test.rb
+ruby Tools/Tests/region_release_test.rb
+"$REGIONKIT_PYTHON" -B -m unittest discover -s Where/RegionKit/Tools -p test_convert_boundaries.py
+./test RegionKitTests
+```

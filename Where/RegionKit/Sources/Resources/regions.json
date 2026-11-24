@@ -4,8 +4,11 @@
     "name": "Alabama",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-AL.geojson"
+      "file": "us-AL.twkb"
     }
   },
   {
@@ -13,8 +16,11 @@
     "name": "Alaska",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-AK.geojson"
+      "file": "us-AK.twkb"
     }
   },
   {
@@ -22,8 +28,11 @@
     "name": "Arizona",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-AZ.geojson"
+      "file": "us-AZ.twkb"
     }
   },
   {
@@ -31,8 +40,11 @@
     "name": "Arkansas",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-AR.geojson"
+      "file": "us-AR.twkb"
     }
   },
   {
@@ -40,9 +52,12 @@
     "name": "California",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "localizationKey": "region.california",
     "geometry": {
-      "file": "us-CA.geojson"
+      "file": "us-CA.twkb"
     }
   },
   {
@@ -50,8 +65,11 @@
     "name": "Colorado",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-CO.geojson"
+      "file": "us-CO.twkb"
     }
   },
   {
@@ -59,8 +77,11 @@
     "name": "Connecticut",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-CT.geojson"
+      "file": "us-CT.twkb"
     }
   },
   {
@@ -68,8 +89,11 @@
     "name": "Delaware",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-DE.geojson"
+      "file": "us-DE.twkb"
     }
   },
   {
@@ -77,8 +101,11 @@
     "name": "District of Columbia",
     "kind": "federalDistrict",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-DC.geojson"
+      "file": "us-DC.twkb"
     }
   },
   {
@@ -86,8 +113,11 @@
     "name": "Florida",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-FL.geojson"
+      "file": "us-FL.twkb"
     }
   },
   {
@@ -95,8 +125,11 @@
     "name": "Georgia",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-GA.geojson"
+      "file": "us-GA.twkb"
     }
   },
   {
@@ -104,8 +137,11 @@
     "name": "Hawaii",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-HI.geojson"
+      "file": "us-HI.twkb"
     }
   },
   {
@@ -113,8 +149,11 @@
     "name": "Idaho",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-ID.geojson"
+      "file": "us-ID.twkb"
     }
   },
   {
@@ -122,8 +161,11 @@
     "name": "Illinois",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-IL.geojson"
+      "file": "us-IL.twkb"
     }
   },
   {
@@ -131,8 +173,11 @@
     "name": "Indiana",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-IN.geojson"
+      "file": "us-IN.twkb"
     }
   },
   {
@@ -140,8 +185,11 @@
     "name": "Iowa",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-IA.geojson"
+      "file": "us-IA.twkb"
     }
   },
   {
@@ -149,8 +197,11 @@
     "name": "Kansas",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-KS.geojson"
+      "file": "us-KS.twkb"
     }
   },
   {
@@ -158,8 +209,11 @@
     "name": "Kentucky",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-KY.geojson"
+      "file": "us-KY.twkb"
     }
   },
   {
@@ -167,8 +221,11 @@
     "name": "Louisiana",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-LA.geojson"
+      "file": "us-LA.twkb"
     }
   },
   {
@@ -176,8 +233,11 @@
     "name": "Maine",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-ME.geojson"
+      "file": "us-ME.twkb"
     }
   },
   {
@@ -185,8 +245,11 @@
     "name": "Maryland",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MD.geojson"
+      "file": "us-MD.twkb"
     }
   },
   {
@@ -194,8 +257,11 @@
     "name": "Massachusetts",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MA.geojson"
+      "file": "us-MA.twkb"
     }
   },
   {
@@ -203,8 +269,11 @@
     "name": "Michigan",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MI.geojson"
+      "file": "us-MI.twkb"
     }
   },
   {
@@ -212,8 +281,11 @@
     "name": "Minnesota",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MN.geojson"
+      "file": "us-MN.twkb"
     }
   },
   {
@@ -221,8 +293,11 @@
     "name": "Mississippi",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MS.geojson"
+      "file": "us-MS.twkb"
     }
   },
   {
@@ -230,8 +305,11 @@
     "name": "Missouri",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MO.geojson"
+      "file": "us-MO.twkb"
     }
   },
   {
@@ -239,8 +317,11 @@
     "name": "Montana",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-MT.geojson"
+      "file": "us-MT.twkb"
     }
   },
   {
@@ -248,8 +329,11 @@
     "name": "Nebraska",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-NE.geojson"
+      "file": "us-NE.twkb"
     }
   },
   {
@@ -257,8 +341,11 @@
     "name": "Nevada",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-NV.geojson"
+      "file": "us-NV.twkb"
     }
   },
   {
@@ -266,8 +353,11 @@
     "name": "New Hampshire",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-NH.geojson"
+      "file": "us-NH.twkb"
     }
   },
   {
@@ -275,8 +365,11 @@
     "name": "New Jersey",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-NJ.geojson"
+      "file": "us-NJ.twkb"
     }
   },
   {
@@ -284,8 +377,11 @@
     "name": "New Mexico",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-NM.geojson"
+      "file": "us-NM.twkb"
     }
   },
   {
@@ -293,9 +389,12 @@
     "name": "New York",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "localizationKey": "region.newYork",
     "geometry": {
-      "file": "us-NY.geojson"
+      "file": "us-NY.twkb"
     }
   },
   {
@@ -303,8 +402,11 @@
     "name": "North Carolina",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-NC.geojson"
+      "file": "us-NC.twkb"
     }
   },
   {
@@ -312,8 +414,11 @@
     "name": "North Dakota",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-ND.geojson"
+      "file": "us-ND.twkb"
     }
   },
   {
@@ -321,8 +426,11 @@
     "name": "Ohio",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-OH.geojson"
+      "file": "us-OH.twkb"
     }
   },
   {
@@ -330,8 +438,11 @@
     "name": "Oklahoma",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-OK.geojson"
+      "file": "us-OK.twkb"
     }
   },
   {
@@ -339,8 +450,11 @@
     "name": "Oregon",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-OR.geojson"
+      "file": "us-OR.twkb"
     }
   },
   {
@@ -348,8 +462,11 @@
     "name": "Pennsylvania",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-PA.geojson"
+      "file": "us-PA.twkb"
     }
   },
   {
@@ -357,8 +474,11 @@
     "name": "Puerto Rico",
     "kind": "territory",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-PR.geojson"
+      "file": "us-PR.twkb"
     }
   },
   {
@@ -366,8 +486,11 @@
     "name": "Rhode Island",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-RI.geojson"
+      "file": "us-RI.twkb"
     }
   },
   {
@@ -375,8 +498,11 @@
     "name": "South Carolina",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-SC.geojson"
+      "file": "us-SC.twkb"
     }
   },
   {
@@ -384,8 +510,11 @@
     "name": "South Dakota",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-SD.geojson"
+      "file": "us-SD.twkb"
     }
   },
   {
@@ -393,8 +522,11 @@
     "name": "Tennessee",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-TN.geojson"
+      "file": "us-TN.twkb"
     }
   },
   {
@@ -402,8 +534,11 @@
     "name": "Texas",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-TX.geojson"
+      "file": "us-TX.twkb"
     }
   },
   {
@@ -411,8 +546,11 @@
     "name": "Utah",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-UT.geojson"
+      "file": "us-UT.twkb"
     }
   },
   {
@@ -420,8 +558,11 @@
     "name": "Vermont",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-VT.geojson"
+      "file": "us-VT.twkb"
     }
   },
   {
@@ -429,8 +570,11 @@
     "name": "Virginia",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-VA.geojson"
+      "file": "us-VA.twkb"
     }
   },
   {
@@ -438,8 +582,11 @@
     "name": "Washington",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-WA.geojson"
+      "file": "us-WA.twkb"
     }
   },
   {
@@ -447,8 +594,11 @@
     "name": "West Virginia",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-WV.geojson"
+      "file": "us-WV.twkb"
     }
   },
   {
@@ -456,8 +606,11 @@
     "name": "Wisconsin",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-WI.geojson"
+      "file": "us-WI.twkb"
     }
   },
   {
@@ -465,8 +618,11 @@
     "name": "Wyoming",
     "kind": "state",
     "isLoggable": true,
+    "parentID": "united-states",
+    "source": "census",
+    "sourceYear": 2026,
     "geometry": {
-      "file": "us-WY.geojson"
+      "file": "us-WY.twkb"
     }
   },
   {
@@ -474,9 +630,178 @@
     "name": "Canada",
     "kind": "country",
     "isLoggable": true,
+    "source": "statcan",
+    "sourceYear": 2026,
     "localizationKey": "region.canada",
     "geometry": {
-      "file": "canada.geojson"
+      "file": "canada.twkb"
+    }
+  },
+  {
+    "id": "ca-AB",
+    "name": "Alberta",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-AB.twkb"
+    }
+  },
+  {
+    "id": "ca-BC",
+    "name": "British Columbia",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-BC.twkb"
+    }
+  },
+  {
+    "id": "ca-MB",
+    "name": "Manitoba",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-MB.twkb"
+    }
+  },
+  {
+    "id": "ca-NB",
+    "name": "New Brunswick",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-NB.twkb"
+    }
+  },
+  {
+    "id": "ca-NL",
+    "name": "Newfoundland and Labrador",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-NL.twkb"
+    }
+  },
+  {
+    "id": "ca-NT",
+    "name": "Northwest Territories",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-NT.twkb"
+    }
+  },
+  {
+    "id": "ca-NS",
+    "name": "Nova Scotia",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-NS.twkb"
+    }
+  },
+  {
+    "id": "ca-NU",
+    "name": "Nunavut",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-NU.twkb"
+    }
+  },
+  {
+    "id": "ca-ON",
+    "name": "Ontario",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-ON.twkb"
+    }
+  },
+  {
+    "id": "ca-PE",
+    "name": "Prince Edward Island",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-PE.twkb"
+    }
+  },
+  {
+    "id": "ca-QC",
+    "name": "Quebec",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-QC.twkb"
+    }
+  },
+  {
+    "id": "ca-SK",
+    "name": "Saskatchewan",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-SK.twkb"
+    }
+  },
+  {
+    "id": "ca-YT",
+    "name": "Yukon",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "canada",
+    "source": "statcan",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "ca-YT.twkb"
+    }
+  },
+  {
+    "id": "united-states",
+    "name": "United States",
+    "kind": "country",
+    "isLoggable": false,
+    "source": "census",
+    "sourceYear": 2026,
+    "geometry": {
+      "file": "united-states.twkb"
     }
   },
   {
@@ -484,6 +809,7 @@
     "name": "European Union",
     "kind": "bloc",
     "isLoggable": true,
+    "source": "original",
     "localizationKey": "region.europeanUnion",
     "geometry": {
       "file": "european-union.geojson"

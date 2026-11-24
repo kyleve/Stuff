@@ -8,7 +8,7 @@ Where users can log any of Canada's ten provinces and three territories and cont
 - The November 18 research compared US, Canada and EU sources. The November 22 request selected the US, Canada, a reusable updater and internal relationships. The user has confirmed that this pass ends with a published plan for review.
 - November 24 revision following owner review of PR #560. The plan now requires an outline for every country independently of tracking eligibility. The US outline and its production parent links ship together.
 - November 24 execution. The owner approved all three steps. The implementation branch `codex/north-american-regions` is based on the reviewed plan at `2dc4b33a8`. The only [inline feedback](https://github.com/kyleve/Stuff/pull/560#discussion_r4685927230) concerned the US outline and is incorporated in Q-04.
-- [Plan 01](01-region-hierarchy.md) shipped to the implementation branch in `522a032df`. [Implementation PR #563](https://github.com/kyleve/Stuff/pull/563) is linked to STU-348 in review. Plan 02 is building and replaying the official release. In Plan 03 the UI worker owns flat selection, map rendering and snapshots. The catalog worker owns the backup and account gates. The coordinator owns geographic behavior, credits and end-to-end integration. Production adoption awaits quality and replay checks.
+- [Plan 01](01-region-hierarchy.md) shipped to the implementation branch in `522a032df`. [Implementation PR #563](https://github.com/kyleve/Stuff/pull/563) is linked to STU-348 in review. [Plan 02](02-boundary-updater.md) published the updater in `0cb45316f`. Offline replay reproduced the final US and Canadian geometries and their provenance. For Plan 03 the UI worker verified flat selection, maps and visual references. The compatibility worker verified account and backup gates. The coordinator integrated the data and checked geographic behavior and credits. All 1,754 executed simulator unit tests passed on the adopted catalog. The reviewed images are undergoing their final comparison across 27 suites.
 
 ## User stories
 
@@ -37,7 +37,7 @@ Where users can log any of Canada's ten provinces and three territories and cont
 | X-03 | A single GPS fix earns one region. This work excludes automatic ancestor day totals, assigning subdivisions to historic manual entries or corrections, and rewriting raw observations. Existing read-time GPS attribution still uses the current tracked set and geometry. |
 | X-04 | Source downloads happen on a maintainer's machine. Runtime downloads, location lookups against a server and scheduled update jobs are outside scope. |
 
-## Discovery and evidence
+## Findings at the start of planning
 
 - The generated catalog contains 54 geometry files totalling 2,156,498 bytes. The default attributor loads four regions. The live service reloads only its tracked set. The geometry decoder drops interior rings, and the current resolver uses distance to the boundary when testing GPS accuracy. [RegionKit](../../Where/RegionKit/README.md), [GeoJSON reader](../../Where/RegionKit/Sources/GeoJSON.swift), [live resolver](../../Where/WhereCore/Sources/Location/CurrentRegionResolver.swift)
 - RegionKit's public raw-value initializer validates input. Its Codable representation is a bare string. Some store and forecasting reads still validate against the installed catalog, so an older build can discard a newly introduced ID even though the wire shape is identical. Plan 03 addresses mixed-version access before the first new ID is written. [Region](../../Where/RegionKit/Sources/Region.swift), [store](../../Where/WhereCore/Sources/Persistence/SwiftDataStore.swift), [account compatibility version](../../Where/WhereCore/Sources/Compatibility/DataModelVersion.swift)
@@ -54,7 +54,7 @@ Where users can log any of Canada's ten provinces and three territories and cont
 | 2 | [Reusable boundary updater](02-boundary-updater.md) | A maintainer can produce a verified candidate from official vintages, without activating new app regions. |
 | 3 | [Ship and verify the catalog](03-ship-regions.md) | The app consumes the approved resources, credits their sources and supports the new regions in its existing workflows. |
 
-The first two deliverables are the current horizon. The last is an outline until the updater produces actual file sizes, topology diagnostics and replay evidence. Its integration criteria are recorded now so both earlier deliverables support them. The component diagrams and proposed interfaces live with their respective plans.
+The first two deliverables supplied the fixture results and repeatable source release used to qualify the third. Plan 03 records the accepted simplification settings, file sizes, topology checks and measured lookup costs.
 
 ## Questions and resolutions
 

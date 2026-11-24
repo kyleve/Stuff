@@ -2,8 +2,9 @@ import Foundation
 
 /// Account-wide data semantics. Increase only before shipping an incompatible data change.
 /// Version 1 also describes history written before the compatibility gate existed.
+/// Version 2 permits the Canadian subdivision IDs in persisted region fields.
 public struct DataModelVersion: RawRepresentable, Codable, Hashable, Comparable, Sendable {
-    public static let current = Self(rawValue: 1)
+    public static let current = Self(rawValue: 2)
     public static let baseline = Self(rawValue: 1)
     public let rawValue: Int
 

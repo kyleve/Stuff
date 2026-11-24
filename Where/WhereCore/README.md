@@ -20,6 +20,8 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 `DataCompatibilityCoordinator` decides whether the app can open history before SwiftData starts.
 `DataModelVersion.current` describes data semantics independently of the app version. Version 1 also covers data from builds without this gate.
+Version 2 admits Canadian province and territory IDs in existing region fields. A
+version-1 reader can discard an unfamiliar ID when it reads a stored manual day.
 The private CloudKit control record lives outside SwiftData's zone. Conditional saves only advance its version.
 Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
 Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
@@ -322,7 +324,9 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v7** retains independent stays, date windows, Home choices, optional motion,
+  Backup format **v8** adds Canadian subdivision IDs. An older importer rejects the
+  archive before changing any user data, including a manual-only backup moved between
+  accounts. Version 8 retains independent stays, date windows, Home choices, optional motion,
   and every sample-attribution revision. Merge preserves revision IDs and timestamps.
   Replace restores revisions into its new generation.
   The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.

@@ -29,14 +29,15 @@ struct RegionOutlinePathCacheTests {
         #expect(path.isEmpty)
     }
 
-    @Test func smallResolutionRetainsThinNewYorkGeography() async {
+    @Test func smallResolutionRetainsThinNewYorkGeography() async throws {
         let cache = RegionOutlinePathCache()
         let small = await cache.path(for: .newYork, resolution: .small)
-
-        #expect(
-            elementCount(small) >= 110,
-            "The stamp path should retain Long Island instead of reducing it to a coarse wedge.",
-        )
+        let outlines = await RegionGeometryCatalog.outlines(for: .newYork)
+        let projection = try #require(RegionArtworkProjection(outlines: outlines))
+        // Sample the eastern end of Long Island and the open Atlantic south of
+        // it. This guards the silhouette independently of the publisher's vertex count.
+        #expect(small.contains(projection.point(for: .init(latitude: 40.97, longitude: -72.17))))
+        #expect(!small.contains(projection.point(for: .init(latitude: 40.69, longitude: -72.18))))
     }
 
     @Test func microResolutionBoundsRepeatedBorderDetail() async {

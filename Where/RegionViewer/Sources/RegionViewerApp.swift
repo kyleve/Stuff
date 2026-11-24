@@ -8,7 +8,7 @@ import WhereUI
 /// All behavior lives in `WhereUI` / `WhereCore`; this target is just the
 /// `@main` shell. There is no `WhereSession`, no SwiftData store, and no App
 /// Group — `RegionMapView` reads geometry straight from
-/// `RegionGeometryCatalog`, which only needs the bundled GeoJSON.
+/// `RegionGeometryCatalog`, which reads the bundled outlines.
 @main
 struct RegionViewerApp: App {
     var body: some Scene {

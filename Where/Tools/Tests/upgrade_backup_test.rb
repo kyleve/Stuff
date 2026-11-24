@@ -8,7 +8,7 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 7, upgraded.fetch("formatVersion")
+    assert_equal CURRENT_FORMAT_VERSION, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
@@ -58,7 +58,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 7, upgraded.fetch("formatVersion")
+    assert_equal CURRENT_FORMAT_VERSION, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -71,9 +71,22 @@ class UpgradeBackupTest < Minitest::Test
     }, upgraded.fetch("recordingDeviceMetadataChanges").last)
   end
 
-  def test_v7_is_idempotent
-    once = upgrade_manifest(base_manifest(7))
-    assert_equal once, upgrade_manifest(Marshal.load(Marshal.dump(once)))
+  def test_released_v7_changes_only_the_version_and_v8_is_idempotent
+    legacy = base_manifest(7).merge(
+      "manualDays" => [
+        { "day" => { "year" => 2026, "month" => 7, "day" => 1 }, "regions" => %w[us-CA canada], "isAuthoritative" => true },
+      ],
+      "primaryRegions" => [{ "region" => "canada", "order" => 0 }],
+      "recordingDeviceProfiles" => [], "recordingDeviceMetadataChanges" => [], "recordingDeviceRemovals" => [],
+      "plannedStayRecords" => [], "homeRegionRecords" => [], "sampleAttributionRevisions" => [],
+    )
+    upgraded = upgrade_manifest(Marshal.load(Marshal.dump(legacy)))
+    assert_equal legacy.merge("formatVersion" => 8), upgraded
+    upgraded.fetch("manualDays").first.fetch("regions") << "ca-ON"
+    assert_equal upgraded, upgrade_manifest(Marshal.load(Marshal.dump(upgraded)))
+    obsolete = { "recordingDevices" => ["old-device"], "recordingDeviceCheckIns" => ["old-check-in"], "recordingPolicyChanges" => ["old-policy"] }
+    assert_equal legacy.merge("formatVersion" => 8), upgrade_manifest(legacy.merge(obsolete))
+    assert_equal upgraded, upgrade_manifest(upgraded.merge(obsolete))
   end
 
   def test_v5_gains_empty_corrections_and_unknown_motion_without_altering_raw_fixes
@@ -147,7 +160,7 @@ class UpgradeBackupTest < Minitest::Test
   end
 
   def test_rejects_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(8)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(CURRENT_FORMAT_VERSION + 1)) }
     assert_equal 1, error.status
   end
 

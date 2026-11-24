@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Generates RegionKit's per-region GeoJSON files and the `regions.json`
+# Generates RegionKit's per-node boundary files and the `regions.json`
 # manifest that `RegionCatalog` loads.
 #
 # The installed release under Tools/source/release pins the normalized US and
@@ -20,26 +20,11 @@ require_relative "tiny_wkb"
 SOURCE = File.join(__dir__, "source")
 RESOURCES = File.expand_path("../Sources/Resources", __dir__)
 
-# Census `NAME` -> USPS code, for the 50 states + DC + PR present in
-# `us-states.geojson`.
-USPS = {
-  "Alabama" => "AL", "Alaska" => "AK", "Arizona" => "AZ", "Arkansas" => "AR",
-  "California" => "CA", "Colorado" => "CO", "Connecticut" => "CT",
-  "Delaware" => "DE", "District of Columbia" => "DC", "Florida" => "FL",
-  "Georgia" => "GA", "Hawaii" => "HI", "Idaho" => "ID", "Illinois" => "IL",
-  "Indiana" => "IN", "Iowa" => "IA", "Kansas" => "KS", "Kentucky" => "KY",
-  "Louisiana" => "LA", "Maine" => "ME", "Maryland" => "MD",
-  "Massachusetts" => "MA", "Michigan" => "MI", "Minnesota" => "MN",
-  "Mississippi" => "MS", "Missouri" => "MO", "Montana" => "MT",
-  "Nebraska" => "NE", "Nevada" => "NV", "New Hampshire" => "NH",
-  "New Jersey" => "NJ", "New Mexico" => "NM", "New York" => "NY",
-  "North Carolina" => "NC", "North Dakota" => "ND", "Ohio" => "OH",
-  "Oklahoma" => "OK", "Oregon" => "OR", "Pennsylvania" => "PA",
-  "Puerto Rico" => "PR", "Rhode Island" => "RI", "South Carolina" => "SC",
-  "South Dakota" => "SD", "Tennessee" => "TN", "Texas" => "TX", "Utah" => "UT",
-  "Vermont" => "VT", "Virginia" => "VA", "Washington" => "WA",
-  "West Virginia" => "WV", "Wisconsin" => "WI", "Wyoming" => "WY"
-}.freeze
+# Where's existing US tracking choices. AS, GU, MP and VI contribute only to the country.
+US_TRACKING_CODES = %w[
+  AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT
+  NE NV NH NJ NM NY NC ND OH OK OR PA PR RI SC SD TN TX UT VT VA WA WV WI WY
+].freeze
 
 # The handful of regions that already carry a translated string-catalog entry
 # (`Localizable.xcstrings`). Everything else falls back to the manifest `name`
@@ -51,32 +36,14 @@ LOCALIZATION_KEYS = {
   "european-union" => "region.europeanUnion"
 }.freeze
 
-# Non-US source files -> (id, display name), emitted after the US states.
-# Blocs come after countries so the catalog order keeps a bloc after any
-# overlapping members it might gain later.
-NON_US = [
-  { source: "canada.geojson", id: "canada", name: "Canada", kind: "country" },
-  { source: "europeanUnion.geojson", id: "european-union", name: "European Union", kind: "bloc" }
-].freeze
-
 class RegionGenerator
-  def initialize(
-    source: SOURCE,
-    resources: RESOURCES,
-    usps: USPS,
-    localization_keys: LOCALIZATION_KEYS,
-    non_us: NON_US
-  )
+  def initialize(source: SOURCE, resources: RESOURCES)
     @source = source
     @resources = resources
     @regions_directory = File.join(resources, "regions")
-    @usps = usps
-    @localization_keys = localization_keys
-    @non_us = non_us
   end
 
   def run(release: File.join(@source, "release"))
-    return generate(us_features + source_features) unless release && Dir.exist?(release)
     features = Zlib::GzipReader.open(File.join(release, "north-america.geojson.gz")) do |gz|
       JSON.parse(gz.read).fetch("features")
     end
@@ -86,9 +53,10 @@ class RegionGenerator
       year = { "census" => "usYear", "statcan" => "caYear" }.fetch(properties.fetch("source"))
       properties["sourceYear"] = lock.fetch(year)
     end
-    bloc = source_features(@non_us.select { |region| region.fetch(:id) == "european-union" })
-    bloc.each { |feature| feature.fetch("properties")["source"] = "original" }
-    generate(features + bloc)
+    eu = JSON.parse(File.read(File.join(@source, "europeanUnion.geojson"))).fetch("features").fetch(0)
+    eu["properties"] = { "id" => "european-union", "name" => "European Union",
+                         "kind" => "bloc", "isLoggable" => true, "source" => "original" }
+    generate(features + [eu])
   end
 
   # Accept normalized, ordered GeoJSON features from a source adapter.
@@ -122,24 +90,7 @@ class RegionGenerator
     manifest
   end
 
-  # Individually configured source outlines, in their declared catalog order.
-  def source_features(regions = @non_us)
-    regions.map do |region|
-      collection = load_feature_collection(region.fetch(:source))
-      properties = {
-        "id" => region.fetch(:id), "name" => region.fetch(:name),
-        "kind" => region.fetch(:kind), "isLoggable" => region.fetch(:is_loggable, true)
-      }
-      properties["parentID"] = region.fetch(:parent_id) if region.key?(:parent_id)
-      { "type" => "Feature", "properties" => properties, "geometry" => collection.fetch("features").fetch(0).fetch("geometry") }
-    end
-  end
-
   private
-
-  def load_feature_collection(name)
-    JSON.parse(File.read(File.join(@source, name)))
-  end
 
   # A single-feature FeatureCollection wrapping `geometry`, tagged with the
   # region id and display name for provenance (the loader reads geometry only).
@@ -178,7 +129,7 @@ class RegionGenerator
       raise ArgumentError, "Missing polygon geometry for #{id}"
     end
     entry = properties.slice("id", "name", "kind", "isLoggable", "parentID", "source", "sourceYear")
-    key = @localization_keys[id]
+    key = LOCALIZATION_KEYS[id]
     entry["localizationKey"] = key if key
     extension = %w[census statcan].include?(entry["source"]) ? ".twkb" : ".geojson"
     entry["geometry"] = { "file" => id + extension }
@@ -201,17 +152,6 @@ class RegionGenerator
         seen[ancestor] = true
         ancestor = parents[ancestor]
       end
-    end
-  end
-
-  def us_features
-    us = load_feature_collection("us-states.geojson")
-    us.fetch("features").sort_by { |feature| feature.fetch("properties").fetch("NAME") }.map do |feature|
-      name = feature.fetch("properties").fetch("NAME")
-      usps = @usps.fetch(name) { abort("No USPS code for US feature #{name.inspect}") }
-      kind = { "DC" => "federalDistrict", "PR" => "territory" }.fetch(usps, "state")
-      properties = { "id" => "us-#{usps}", "name" => name, "kind" => kind, "isLoggable" => true }
-      { "type" => "Feature", "properties" => properties, "geometry" => feature.fetch("geometry") }
     end
   end
 end

@@ -10,6 +10,29 @@ struct GeoPolygonTests {
         Coordinate(latitude: 37.0, longitude: -122.0),
     ])
 
+    @Test func geoJSONHolesExcludeLandAndSupplyTheNearestEdge() {
+        let exterior = [[0.0, 0], [4, 0], [4, 4], [0, 4], [0, 0]]
+        let hole = [[1.0, 1], [1, 3], [3, 3], [3, 1], [1, 1]]
+        let polygons = GeoJSON.polygons(from: .polygon([exterior, hole]))
+        let region = RegionPolygons(region: .canada, polygons: polygons)
+        #expect(region.contains(Coordinate(latitude: 0.5, longitude: 2)))
+        #expect(!region.contains(Coordinate(latitude: 2, longitude: 2)))
+        #expect(region.distanceToBoundary(from: Coordinate(latitude: 2, longitude: 1)) == 0)
+    }
+
+    @Test func crossingAntimeridianUsesTheNarrowSpan() {
+        let ring = [[179.0, 50], [-179, 50], [-179, 52], [179, 52], [179, 50]]
+        let region = RegionPolygons(
+            region: .canada,
+            polygons: GeoJSON.polygons(from: .polygon([ring])),
+        )
+        for longitude in [-179.8, 179.8] {
+            #expect(region.contains(Coordinate(latitude: 51, longitude: longitude)))
+        }
+        #expect(!region.contains(Coordinate(latitude: 51, longitude: 0)))
+        #expect(region.distanceToBoundary(from: Coordinate(latitude: 51, longitude: -179)) == 0)
+    }
+
     @Test func distanceToBoundary_pointOnEdge_isZero() {
         let onEdge = Coordinate(latitude: 37.5, longitude: -123.0)
         #expect(Self.square.distanceToBoundary(from: onEdge) == 0)

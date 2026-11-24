@@ -41,26 +41,59 @@ struct DataCompatibilityCoordinatorTests {
         #expect(receipts.receipt?.access == .blocked)
     }
 
-    @Test func onlyRecorderCanAdvanceAndWaitingViewerRecovers() async {
-        let transport = ScriptedDataCompatibilityTransport(version: 1)
+    @Test func canadianRegionWriterAdvancesTheSharedVersionBeforeViewersOpen() async throws {
+        let transport = ScriptedDataCompatibilityTransport(version: DataModelVersion.baseline
+            .rawValue)
+        let previous = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: InMemoryDataCompatibilityReceipt(),
+            version: .baseline,
+        )
+        await previous.refresh { .disabled }
+        let originalAdmission = try previous.requireAccess()
         let viewer = DataCompatibilityCoordinator(
             transport: transport,
             receipts: InMemoryDataCompatibilityReceipt(),
-            version: .init(rawValue: 2),
+            version: .current,
         )
         await viewer.refresh { .disabled }
-        #expect(!viewer.state.allowsStore)
+        guard case .blocked(.recordingDeviceRequired) = viewer.state else {
+            Issue.record("An upgraded viewer must wait for the recording device"); return
+        }
         #expect(await transport.saveCount == 0)
         let recorder = DataCompatibilityCoordinator(
             transport: transport,
             receipts: InMemoryDataCompatibilityReceipt(),
-            version: .init(rawValue: 2),
+            version: .current,
         )
         await recorder.refresh { .recording(deviceID) }
         #expect(recorder.state.allowsStore)
         #expect(await transport.saveCount == 1)
+        #expect(await transport.remote?.version == DataModelVersion(rawValue: 2))
         await viewer.refresh { .disabled }
         #expect(viewer.state.allowsStore)
+
+        // An offline installation can only act on its last verified version.
+        await transport.setReadError(offline)
+        await previous.refresh { .disabled }
+        guard case .offline = previous.state else {
+            Issue
+                .record(
+                    "The previous build should retain its last verified offline admission",
+                ); return
+        }
+        await transport.setReadError(nil)
+        await previous.refresh { .disabled }
+        guard case .blocked(.updateRequired(.current)) = previous.state else {
+            Issue
+                .record(
+                    "The previous build must lock history after seeing the newer version",
+                ); return
+        }
+        #expect(throws: DataCompatibilityFailure.self) {
+            try previous.requireAccess(originalAdmission)
+        }
+        #expect(await transport.saveCount == 1)
     }
 
     @Test func missingPermissionCannotAdvance() async {

@@ -33,6 +33,17 @@ actor RegionOutlinePathCache {
     }
 
     private var paths: [Key: Path] = [:]
+    private var projections: [Region: RegionArtworkProjection] = [:]
+
+    private func projection(
+        for region: Region,
+        outlines: [RegionOutline],
+    ) -> RegionArtworkProjection? {
+        if let cached = projections[region] { return cached }
+        let projection = RegionArtworkProjection(outlines: outlines)
+        projections[region] = projection
+        return projection
+    }
 
     func path(for region: Region, resolution: Resolution) async -> Path {
         let key = Key(region: region, resolution: resolution)
@@ -44,11 +55,22 @@ actor RegionOutlinePathCache {
         // suspended on RegionKit's cache.
         if let cached = paths[key] { return cached }
 
+        guard let projection = projection(for: region, outlines: fullOutlines)
+        else { return Path() }
+        let longestSide = max(
+            projection.maximum.x - projection.minimum.x,
+            projection.maximum.y - projection.minimum.y,
+        )
+        let minimumExtent = longestSide * (resolution.tolerance ?? 0)
         let outlines: [RegionOutline]
         do {
             if let tolerance = resolution.tolerance {
+                let visible = try fullOutlines.filter {
+                    try Task.checkCancellation()
+                    return projection.reachesExtent(minimumExtent, ring: $0.coordinates)
+                }
                 outlines = try RegionGeometrySimplifier.simplify(
-                    fullOutlines,
+                    visible,
                     tolerance: tolerance,
                 )
             } else {
@@ -62,7 +84,7 @@ actor RegionOutlinePathCache {
         }
 
         guard !Task.isCancelled else { return Path() }
-        let built = Self.makePath(from: outlines, framedBy: fullOutlines)
+        let built = projection.path(from: outlines, minimumHoleExtent: minimumExtent)
         paths[key] = built
         return built
     }
@@ -78,7 +100,7 @@ actor RegionOutlinePathCache {
         let outlines = await RegionGeometryCatalog.outlines(for: region)
         guard
             Task.isCancelled == false,
-            let projection = RegionArtworkProjection(outlines: outlines)
+            let projection = projection(for: region, outlines: outlines)
         else { return [] }
         return points.map {
             RegionLocationConstellationLayout.Point(
@@ -86,19 +108,6 @@ actor RegionOutlinePathCache {
                 horizontalAccuracy: $0.horizontalAccuracy,
             )
         }
-    }
-
-    /// Projects every polygon into one reusable path. Two move-only elements
-    /// pin `boundingRect` to the full geometry at every resolution; they draw
-    /// nothing, but prevent simplification from subtly changing placement.
-    private static func makePath(
-        from outlines: [RegionOutline],
-        framedBy fullOutlines: [RegionOutline],
-    ) -> Path {
-        guard let projection = RegionArtworkProjection(outlines: fullOutlines) else {
-            return Path()
-        }
-        return projection.path(from: outlines)
     }
 }
 

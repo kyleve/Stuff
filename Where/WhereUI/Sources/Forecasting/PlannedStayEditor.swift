@@ -185,7 +185,7 @@ struct PlannedStayEditor: View {
             whereSnapshot(name: "AnyRegion", configurations: .fullContentPhoneLightDark) {
                 PlannedStayEditor(
                     report: PreviewSupport.loadedYearReportModel(),
-                    initialRegion: PrimaryRegionSelectionModel.usRegions.first {
+                    initialRegion: PrimaryRegionSelectionModel.supportedRegions.first {
                         $0 != .newYork && $0 != .california
                     },
                 )

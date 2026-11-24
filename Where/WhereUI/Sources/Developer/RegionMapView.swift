@@ -8,7 +8,7 @@ import WhereCore
 
 /// Developer tool: draws region boundary polygons on a real map, toggling
 /// between what `RegionAttributor` actually loads (`.attribution`) and the
-/// full authored GeoJSON (`.source`).
+/// bundled source boundaries for every available region (`.source`).
 ///
 /// Self-contained on purpose — it reads geometry straight from
 /// `RegionGeometryCatalog` and holds no `@Environment(WhereSession.self)`,
@@ -20,7 +20,7 @@ public struct RegionMapView: View {
     @State private var kind: RegionGeometryKind = .attribution
     /// One `Result` rather than parallel value/error/loading flags:
     /// `nil` is "not loaded yet", success and failure can't both be set.
-    @State private var outlines: Result<[RegionOutline], Error>?
+    @State private var outlines: Result<MapData, Error>?
     /// When set, the map and camera narrow to the one feature with this
     /// title (keeps the dense source geometry manageable to render).
     @State private var selectedTitle: String?
@@ -65,7 +65,7 @@ public struct RegionMapView: View {
                     systemSymbol: .exclamationmarkTriangle,
                     description: Text(error.localizedDescription),
                 )
-            case let .some(.success(loaded)) where loaded.isEmpty:
+            case let .some(.success(loaded)) where loaded.groups.isEmpty:
                 ContentUnavailableView(
                     String(localized: .regionMapEmptyTitle),
                     systemSymbol: .map,
@@ -73,15 +73,17 @@ public struct RegionMapView: View {
                 )
             case let .some(.success(loaded)):
                 VStack(spacing: 0) {
-                    map(for: visibleOutlines(in: loaded))
+                    map(for: loaded)
                     legend(for: loaded)
                 }
         }
     }
 
-    private func map(for outlines: [RegionOutline]) -> some View {
+    private func map(for data: MapData) -> some View {
         RegionOutlinesMap(
-            outlines: outlines,
+            geometry: data.geometry,
+            selectedTitle: selectedTitle,
+            frame: data.frame(for: selectedTitle),
             cameraPosition: $cameraPosition,
             color: color(for:),
         )
@@ -89,10 +91,10 @@ public struct RegionMapView: View {
         .accessibilityLabel(String(localized: .regionMapMapAccessibility))
     }
 
-    private func legend(for loaded: [RegionOutline]) -> some View {
+    private func legend(for data: MapData) -> some View {
         RegionMapLegend(
             kind: kind,
-            groups: legendGroups(for: loaded),
+            groups: data.groups,
             selectedTitle: selectedTitle,
             color: { color(forTitle: $0.title, region: $0.region) },
             onSelect: select,
@@ -109,10 +111,10 @@ public struct RegionMapView: View {
             // Standalone dev tool with no session/store, so `.attribution` shows
             // every available region the engine can attribute (`.all`); `.source`
             // ignores the attributor.
-            let loaded = try await RegionGeometryCatalog.outlines(for: kind, attributor: .all)
+            let loaded = try await MapData(kind: kind)
             guard !Task.isCancelled else { return }
             outlines = .success(loaded)
-            reframe(to: loaded)
+            cameraPosition = loaded.frame(for: nil).map(MapCameraPosition.region) ?? .automatic
         } catch {
             guard !Task.isCancelled else { return }
             // Keep the failure observable in both the UI (the `.failure`
@@ -129,45 +131,39 @@ public struct RegionMapView: View {
     private func select(_ title: String?) {
         selectedTitle = title
         guard case let .success(loaded) = outlines else { return }
-        reframe(to: visibleOutlines(in: loaded))
+        cameraPosition = loaded.frame(for: title).map(MapCameraPosition.region) ?? .automatic
     }
 
-    private func visibleOutlines(in loaded: [RegionOutline]) -> [RegionOutline] {
-        guard let selectedTitle else { return loaded }
-        return loaded.filter { $0.title == selectedTitle }
-    }
+    private struct MapData {
+        let geometry: RegionMapGeometry
+        let groups: [RegionMapLegendGroup]
+        let overview: MKCoordinateRegion?
+        let frames: [String: MKCoordinateRegion]
 
-    /// One legend entry per feature title, in first-seen order, carrying
-    /// how many sub-polygons it drew (a MultiPolygon yields several).
-    private func legendGroups(for loaded: [RegionOutline]) -> [RegionMapLegendGroup] {
-        var groups: [RegionMapLegendGroup] = []
-        var indexByTitle: [String: Int] = [:]
-        for outline in loaded {
-            if let index = indexByTitle[outline.title] {
-                groups[index].outlineCount += 1
-            } else {
-                indexByTitle[outline.title] = groups.count
-                groups.append(RegionMapLegendGroup(
+        @concurrent init(kind: RegionGeometryKind) async throws {
+            try Task.checkCancellation()
+            let outlines = try await RegionGeometryCatalog.outlines(for: kind, attributor: .all)
+            try Task.checkCancellation()
+            geometry = RegionMapGeometry(outlines: outlines)
+            try Task.checkCancellation()
+            overview = RegionMapView.enclosingRegion(of: outlines)
+            let byTitle = Dictionary(grouping: outlines, by: \.title)
+            frames = byTitle.compactMapValues(RegionMapView.enclosingRegion(of:))
+            var titles: Set<String> = []
+            groups = outlines.compactMap { outline in
+                guard titles.insert(outline.title).inserted else { return nil }
+                return RegionMapLegendGroup(
                     title: outline.title,
                     region: outline.region,
-                    outlineCount: 1,
-                ))
+                    outlineCount: byTitle[outline.title]?.count ?? 0,
+                )
             }
         }
-        return groups
-    }
 
-    // MARK: - Camera
-
-    private func reframe(to outlines: [RegionOutline]) {
-        cameraPosition = Self.cameraPosition(enclosing: outlines)
-    }
-
-    /// A camera framed to `outlines` via ``enclosingRegion(of:)``. Falls back
-    /// to `.automatic` when there's nothing to show.
-    private static func cameraPosition(enclosing outlines: [RegionOutline]) -> MapCameraPosition {
-        guard let region = enclosingRegion(of: outlines) else { return .automatic }
-        return .region(region)
+        func frame(for title: String?) -> MKCoordinateRegion? {
+            if let title { return frames[title] }
+            return overview
+        }
     }
 
     /// The coordinate region framing `outlines` (with a little padding), or
@@ -177,12 +173,11 @@ public struct RegionMapView: View {
     /// tightly instead of zooming out to the whole globe (its rings span
     /// ~+172° across 180° to ~−130°). Shared by the live camera and the
     /// snapshot stand-in, so both frame identically.
-    fileprivate static func enclosingRegion(of outlines: [RegionOutline]) -> MKCoordinateRegion? {
+    private nonisolated static func enclosingRegion(of outlines: [RegionOutline])
+        -> MKCoordinateRegion?
+    {
         guard let box = BoundingBox.enclosing(outlines),
-              let longitude = LongitudeSpan.enclosing(
-                  outlines.lazy.flatMap { $0.coordinates.lazy.map(\.longitude) },
-              )
-        else { return nil }
+              let longitude = LongitudeSpan.enclosing(outlines, boundedBy: box) else { return nil }
         let center = CLLocationCoordinate2D(
             latitude: (box.minLatitude + box.maxLatitude) / 2,
             longitude: longitude.center,
@@ -239,7 +234,9 @@ public struct RegionMapView: View {
 /// stand-in — only the tile substrate is replaced — per the
 /// `\.isCapturingSnapshot` carve-out (see SnapshotKit's `SnapshotCaptureFlag`).
 private struct RegionOutlinesMap: View {
-    let outlines: [RegionOutline]
+    let geometry: RegionMapGeometry
+    let selectedTitle: String?
+    let frame: MKCoordinateRegion?
     @Binding var cameraPosition: MapCameraPosition
     let color: (RegionOutline) -> Color
 
@@ -247,79 +244,30 @@ private struct RegionOutlinesMap: View {
 
     var body: some View {
         if isCapturingSnapshot {
-            SnapshotMapStandIn(
-                outlines: outlines,
-                region: RegionMapView.enclosingRegion(of: outlines),
-                color: color,
+            RegionMapCanvas(
+                geometry: geometry,
+                selectedTitle: selectedTitle,
+                region: frame,
+                style: { outline in
+                    let tint = color(outline)
+                    return RegionMapOverlayStyle(
+                        fill: tint.opacity(0.25),
+                        stroke: tint,
+                        lineWidth: 1.5,
+                    )
+                },
             )
         } else {
-            Map(position: $cameraPosition) {
-                ForEach(outlines) { outline in
-                    MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
-                        .foregroundStyle(color(outline).opacity(0.25))
-                        .stroke(color(outline), lineWidth: 1.5)
-                }
-            }
-            .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        }
-    }
-}
-
-/// Deterministic stand-in for ``RegionMapView``'s live `Map` under snapshot
-/// capture: the same outlines, drawn with the same fill/stroke styling over a
-/// flat substrate, framed by the same enclosing-region math as the live
-/// camera — identical layout, none of MapKit's cache/network-dependent
-/// tile/label loading.
-///
-/// Coordinates project equirectangularly (a plain degrees-to-points scale
-/// around the region's center, longitude unwrapped across the antimeridian).
-/// That's not MapKit's Mercator, so shapes sit slightly differently than on
-/// the live map — fine for a capture stand-in whose job is a stable, honest
-/// rendering of the view's own overlays.
-private struct SnapshotMapStandIn: View {
-    let outlines: [RegionOutline]
-    /// The frame the live camera would use; `nil` (nothing to show) renders
-    /// just the substrate.
-    let region: MKCoordinateRegion?
-    let color: (RegionOutline) -> Color
-
-    var body: some View {
-        Canvas { context, size in
-            guard let region, size.width > 0, size.height > 0 else { return }
-            // MapKit fits a camera region so both spans are fully visible;
-            // the larger degrees-per-point axis sets the scale here too.
-            let degreesPerPoint = max(
-                region.span.longitudeDelta / size.width,
-                region.span.latitudeDelta / size.height,
-            )
-            guard degreesPerPoint > 0 else { return }
-
-            func point(for coordinate: Coordinate) -> CGPoint {
-                // Unwrap the longitude delta to [-180°, 180°) so a region
-                // straddling the antimeridian stays contiguous.
-                let deltaLongitude = (coordinate.longitude - region.center.longitude + 540)
-                    .truncatingRemainder(dividingBy: 360) - 180
-                return CGPoint(
-                    x: size.width / 2 + deltaLongitude / degreesPerPoint,
-                    y: size.height / 2
-                        + (region.center.latitude - coordinate.latitude) / degreesPerPoint,
-                )
-            }
-
-            for outline in outlines {
-                guard let first = outline.coordinates.first else { continue }
-                var path = Path()
-                path.move(to: point(for: first))
-                for coordinate in outline.coordinates.dropFirst() {
-                    path.addLine(to: point(for: coordinate))
-                }
-                path.closeSubpath()
-                let tint = color(outline)
-                context.fill(path, with: .color(tint.opacity(0.25)))
-                context.stroke(path, with: .color(tint), lineWidth: 1.5)
+            RegionPolygonMap(
+                geometry: geometry,
+                selectedTitle: selectedTitle,
+                position: $cameraPosition,
+            ) { outline, polygon in
+                MapPolygon(polygon)
+                    .foregroundStyle(color(outline).opacity(0.25))
+                    .stroke(color(outline), lineWidth: 1.5)
             }
         }
-        .background(Color(.secondarySystemBackground))
     }
 }
 

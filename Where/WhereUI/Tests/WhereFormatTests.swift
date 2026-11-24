@@ -343,12 +343,12 @@ struct WhereFormatTests {
         #expect(WhereFormat.regionMapKind(.source) == "Source")
         #expect(
             WhereFormat.regionMapKindFooter(.attribution)
-                == "The simplified polygons the app uses to attribute coordinates today.",
+                == "The boundaries the app uses to match coordinates to regions.",
         )
         #expect(
             WhereFormat.regionMapKindFooter(.source)
                 ==
-                "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity.",
+                "The bundled source boundaries for every available region.",
         )
     }
 
@@ -392,6 +392,8 @@ struct WhereFormatTests {
             WhereFormat.regionDataSourceLicense(.publicDomain("17 U.S.C. § 105"))
                 == "Public domain — 17 U.S.C. § 105",
         )
+        #expect(WhereFormat.regionDataSourceLicense(.openGovernmentCanada)
+            .contains("Contains information licensed under the Open Government Licence – Canada."))
         #expect(
             WhereFormat.regionDataSourceLicense(.originalWork)
                 == "No external source; covered by the app's own license.",

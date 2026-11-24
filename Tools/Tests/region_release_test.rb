@@ -257,7 +257,7 @@ class RegionReleaseTest < Minitest::Test
   def make_candidate
     geometry = { "type" => "Polygon", "coordinates" => [[[0, 0], [0, 1], [1, 1], [0, 0]]] }
     data = [["united-states", "country", nil], ["canada", "country", nil]]
-    USPS.each_value do |code|
+    US_TRACKING_CODES.each do |code|
       kind = { "DC" => "federalDistrict", "PR" => "territory" }.fetch(code, "state")
       data << ["us-#{code}", kind, "united-states"]
     end
@@ -285,10 +285,10 @@ class RegionReleaseTest < Minitest::Test
   end
 
   def source_members(ca_year: 2026)
-    states = (USPS.values + %w[AS GU MP VI]).each_with_index.map do |code, index|
+    states = (US_TRACKING_CODES + %w[AS GU MP VI]).each_with_index.map do |code, index|
       fips = format("%02d", index + 1)
       { "countryID" => "united-states", "GEOID" => fips, "STATEFP" => fips, "STUSPS" => code,
-        "catalogID" => (USPS.value?(code) ? "us-#{code}" : nil) }
+        "catalogID" => (US_TRACKING_CODES.include?(code) ? "us-#{code}" : nil) }
     end
     states + RegionRelease::CANADA_CODES.map do |uid, code|
       { "countryID" => "canada", "PRUID" => uid, "postalCode" => code, "DGUID" => "#{ca_year}A0002#{uid}", "catalogID" => "ca-#{code}" }

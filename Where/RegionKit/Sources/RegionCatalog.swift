@@ -17,6 +17,8 @@ public struct RegionCatalog: Sendable {
         }
 
         public let id: ID
+        let source: RegionDataSource.Publisher?
+        let sourceYear: Int?
         public let kind: Kind
         public let parentID: ID?
         public let name: String
@@ -94,7 +96,8 @@ public struct RegionCatalog: Sendable {
             guard !node.id.rawValue.isEmpty, node.id.rawValue != Region.other.rawValue,
                   !node.name.isEmpty,
                   node.geometryFile == (node.geometryFile as NSString).lastPathComponent,
-                  (node.geometryFile as NSString).pathExtension == "geojson"
+                  node.geometryFile.hasSuffix(".geojson") || node.geometryFile
+                  .hasSuffix(".twkb")
             else {
                 throw invalid(
                     "Invalid region identifier, name or geometry file: \(node.id.rawValue)",
@@ -161,13 +164,12 @@ public struct RegionCatalog: Sendable {
     }
 
     static func geometryURL(for node: Node) -> URL? {
-        let stem = (node.geometryFile as NSString).deletingPathExtension
-        return Bundle.module.url(
-            forResource: stem,
-            withExtension: "geojson",
+        Bundle.module.url(
+            forResource: node.geometryFile,
+            withExtension: nil,
             subdirectory: "regions",
         )
-            ?? Bundle.module.url(forResource: stem, withExtension: "geojson")
+            ?? Bundle.module.url(forResource: node.geometryFile, withExtension: nil)
     }
 }
 

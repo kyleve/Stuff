@@ -1,0 +1,173 @@
+{
+  "caYear": 2026,
+  "conversion": {
+    "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt) and coverage_union_all",
+    "canadianProjection": 3347,
+    "canadianRequest": {
+      "geometryPrecision": 7,
+      "outSR": 4326,
+      "serverReprojects": true
+    },
+    "canadianToleranceMetres": 45,
+    "coordinateDecimals": 7,
+    "normalizedEPSG": 4326,
+    "toleranceMetres": 180,
+    "usProjections": {
+      "AK": 3338,
+      "AS": 32702,
+      "GU": 32655,
+      "HI": 26963,
+      "MP": 32655,
+      "PR": 32161,
+      "VI": 32161,
+      "continental": 5070
+    },
+    "usSourceEPSG": 4269,
+    "winding": "CCW exterior, CW holes"
+  },
+  "inputs": [
+    {
+      "bytes": 9957057,
+      "key": "census-state",
+      "sha256": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326",
+      "url": "https://www2.census.gov/geo/tiger/TIGER2026/STATE/tl_2026_us_state.zip"
+    },
+    {
+      "bytes": 7355,
+      "key": "statcan-service",
+      "sha256": "79e8afe441f36e2b560a935afd786fe0b492317e09599da8bd005276eaf59964",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer?f=pjson"
+    },
+    {
+      "bytes": 6069,
+      "key": "statcan-layer",
+      "sha256": "ee0a5d3643c911611c2f04f2ab3b9173264a7190290fb0b3dc2da998ac92a50a",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0?f=pjson"
+    },
+    {
+      "bytes": 1819,
+      "key": "statcan-inventory",
+      "sha256": "22a849e58db40e1be0794690b873583e8fde91f4e1b462a9c065e6a123ff95ed",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=1%3D1&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=false&orderByFields=PRUID&f=geojson"
+    },
+    {
+      "bytes": 28590132,
+      "key": "statcan-10",
+      "sha256": "8ee22574e0205aea5fe0ab4aab7f3721e19576716d941e9897ee5e9e91e019b2",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2710%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 1023452,
+      "key": "statcan-11",
+      "sha256": "703914f44d4edb883d0035a25a66b900ad43b4747a77a405749baf10aa0e6fdf",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2711%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 6978645,
+      "key": "statcan-12",
+      "sha256": "8b9441e4549251534baed3613ce86d833ffbaaf906f41c722502a5d14ce195d6",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2712%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 3196770,
+      "key": "statcan-13",
+      "sha256": "f2b8a999e1a00c624c9c594f0f2130e3fbd3ba4c1d78a72dcdfa2894f48eafe1",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2713%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 30254179,
+      "key": "statcan-24",
+      "sha256": "557a959c57d3fa5a4c0dfdadd616a5e63a78ae8898b688cd28df79eb7182b3f0",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2724%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 39549616,
+      "key": "statcan-35",
+      "sha256": "cdd54507b57ff94e5a00879cd042abfe2f3f5fe576592fa74e37cf56ed65e351",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2735%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 875422,
+      "key": "statcan-46",
+      "sha256": "758546f9a1ad874bc4ca7d54fa10c06436724db6eb29ad9f4fb907b973ce0418",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2746%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 34897,
+      "key": "statcan-47",
+      "sha256": "fedff7a60177c5558f0e038eda04167e246bde161379153193f1f5adbd5caf68",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2747%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 91808,
+      "key": "statcan-48",
+      "sha256": "892d6cacb00dfa97057c4113ca07331e03b67375c21fe664b2f8247047af52b8",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2748%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 39421030,
+      "key": "statcan-59",
+      "sha256": "434d3d5de4181ab1067577258d20789f2a9a482edc0109db5a4fea51966a4f48",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2759%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 270543,
+      "key": "statcan-60",
+      "sha256": "96bba685b86e7c316b46ca2d5c75c34ec154c99b3fe5d66803c2ecdaf502937f",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2760%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 11472163,
+      "key": "statcan-61",
+      "sha256": "3aa02f152f760ad1185483d04df52a70645ea630360c5c540c749d91145d5b19",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2761%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    },
+    {
+      "bytes": 127130424,
+      "key": "statcan-62",
+      "sha256": "2f248ab7d91cfe27c3370a7ed8119134dc618894e47a987dd4c5158201f482b8",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0/query?where=PRUID%3D%2762%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+    }
+  ],
+  "normalized": {
+    "file": "north-america.geojson.gz",
+    "sha256": "0b0f0001fef8e6d001276159ab8936571d427076317fca03ad974a4682caf416"
+  },
+  "report": {
+    "file": "report.json",
+    "sha256": "6fdc33ade73a626f31e5ed96eecf55be02648337e4ddf4d8520e9c9360a86262"
+  },
+  "sources": {
+    "census": {
+      "includes": "Legal boundaries, including water",
+      "license": "U.S. Government work, public domain",
+      "product": "2026 TIGER/Line national STATE",
+      "publisher": "U.S. Census Bureau",
+      "referenceDate": "2026-01-01"
+    },
+    "statcan": {
+      "includes": "Landmass and coastal islands",
+      "license": "https://open.canada.ca/en/open-government-licence-canada",
+      "product": "2026 Census detailed cartographic province/territory boundaries",
+      "publisher": "Government of Canada, Statistics Canada",
+      "referenceDate": "2026-01-01"
+    }
+  },
+  "toolchain": {
+    "GEOS": "3.13.1",
+    "PROJ": "9.5.1",
+    "packages": {
+      "certifi": "2025.11.12",
+      "numpy": "2.3.5",
+      "pyproj": "3.7.2",
+      "pyshp": "2.3.1",
+      "shapely": "2.1.2"
+    },
+    "projectionDatabaseSHA256": "ec8cea0a5490a6f9247d9063645049e0f93fb83307067ebfc859187f0539e67e",
+    "projectionNetworkEnabled": false,
+    "python": "3.12.14",
+    "zlib": "1.2.12"
+  },
+  "usYear": 2026,
+  "version": 1
+}

@@ -102,7 +102,7 @@ struct ElsewhereModelTests {
         #expect(try content.regions.map(\.region) == [
             #require(Region(rawValue: "us-NV")),
             #require(Region(rawValue: "us-OR")),
-            .canada,
+            #require(Region(rawValue: "ca-BC")),
             .other,
         ])
         #expect(content.regions.map(\.days.count) == [2, 1, 1, 1])

@@ -82,6 +82,7 @@ struct RegionSummaryCard: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.regionStyles) private var regionStyles
     #if DEBUG
         // The live designer draft is a runtime override, outside the cached base slice.
@@ -304,7 +305,7 @@ struct RegionSummaryCard: View {
         let regionName = Text(regionDays.region.localizedName)
             .font(card.regionNameTypography.font)
             .tracking(card.regionNameTracking)
-            .lineLimit(1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             .allowsTightening(true)
             .minimumScaleFactor(0.7)
             .foregroundStyle(contentTint)

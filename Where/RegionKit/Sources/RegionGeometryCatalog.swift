@@ -5,19 +5,18 @@ import PeriscopeCore
 /// viewer's source toggle.
 public enum RegionGeometryKind: String, CaseIterable, Sendable, Hashable {
     /// What a `RegionAttributor` actually loaded and uses to attribute
-    /// coordinates — the app's tracked subset, exterior rings only.
+    /// coordinates — the app's tracked subset.
     case attribution
-    /// Every available region in the catalog, decoded straight from its bundled
-    /// per-region GeoJSON at full authored fidelity — what attribution is built
-    /// *from*, before the bounding-box pre-pass simplifications.
+    /// The bundled outlines of every loggable region, regardless of which
+    /// regions the caller's attributor loaded.
     case source
 }
 
 /// One drawable region boundary: a single exterior ring tagged with a
 /// display title and, when known, the `Region` it belongs to. A
 /// MultiPolygon feature expands into several `RegionOutline`s (one per
-/// sub-polygon). Holes are not represented — consistent with what
-/// `RegionAttributor` uses and with MapKit's `MapPolygon`.
+/// sub-polygon). Interior rings accompany their exterior so a map can cut out holes when filling a
+/// polygon.
 public struct RegionOutline: Identifiable, Sendable, Hashable {
     /// Typed identity (never a raw `String`): the title plus a running
     /// index, unique across a single `outlines(for:)` result so SwiftUI
@@ -36,6 +35,21 @@ public struct RegionOutline: Identifiable, Sendable, Hashable {
     public let region: Region?
     /// The exterior ring, in order.
     public let coordinates: [Coordinate]
+    public let holes: [[Coordinate]]
+
+    init(
+        id: ID,
+        title: String,
+        region: Region?,
+        coordinates: [Coordinate],
+        holes: [[Coordinate]] = [],
+    ) {
+        self.id = id
+        self.title = title
+        self.region = region
+        self.coordinates = coordinates
+        self.holes = holes
+    }
 
     /// Hash on identity alone. `id` is unique within an `outlines(for:)`
     /// result, so this avoids walking the (often thousands-of-points)
@@ -63,16 +77,16 @@ extension RegionGeometryError: LocalizedError {
     public var errorDescription: String? {
         switch self {
             case let .missingResource(resource):
-                "Missing bundled region geometry resource “\(resource).geojson”."
+                "Missing bundled region geometry resource “\(resource)”."
             case let .emptyResource(resource):
-                "Bundled region geometry resource “\(resource).geojson” contains no drawable outlines."
+                "Bundled region geometry resource “\(resource)” contains no drawable outlines."
         }
     }
 }
 
 /// Read-only catalog of region boundary geometry for region artwork and the
 /// developer region-map viewer. UI never touches `RegionAttributor`'s internal
-/// polygons or the `GeoJSON` decoder directly.
+/// polygons or the geometry decoder directly.
 public enum RegionGeometryCatalog {
     /// Drawable outlines for one region, cached after the first request.
     ///
@@ -145,11 +159,13 @@ public enum RegionGeometryCatalog {
     private static func attributionOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
         var builder = OutlineBuilder()
         for entry in attributor.loadedRegionPolygons {
+            let title = entry.region.localizedName
             for polygon in entry.polygons {
                 builder.add(
-                    title: entry.region.localizedName,
+                    title: title,
                     region: entry.region,
                     coordinates: polygon.vertices,
+                    holes: polygon.holes,
                 )
             }
         }
@@ -158,7 +174,7 @@ public enum RegionGeometryCatalog {
 
     // MARK: - Source
 
-    /// Decode every available region's bundled per-region GeoJSON at full
+    /// Decode every available region's bundled per-region geometry at full
     /// fidelity, each outline tagged with the `Region` it belongs to and titled
     /// by its `localizedName`.
     static func buildSourceOutlines() throws -> [RegionOutline] {
@@ -231,7 +247,7 @@ public enum RegionGeometryCatalog {
                 var builder = OutlineBuilder()
                 try builder.add(node: node, resourceURL: resourceURL(node))
                 guard !builder.outlines.isEmpty else {
-                    throw RegionGeometryError.emptyResource(node.id.rawValue)
+                    throw RegionGeometryError.emptyResource(node.geometryFile)
                 }
                 return builder.outlines
             }
@@ -249,22 +265,31 @@ private struct OutlineBuilder {
     private var nextIndex = 0
 
     mutating func add(node: RegionCatalog.Node, resourceURL: URL?) throws {
-        guard let resourceURL else { throw RegionGeometryError.missingResource(node.id.rawValue) }
+        guard let resourceURL else { throw RegionGeometryError.missingResource(node.geometryFile) }
         let title = node.localizedName
-        for feature in try GeoJSON.namedPolygons(at: resourceURL) {
-            for polygon in feature.polygons {
-                add(title: title, region: node.region, coordinates: polygon.vertices)
-            }
+        for polygon in try RegionGeometryReader.polygons(at: resourceURL) {
+            add(
+                title: title,
+                region: node.region,
+                coordinates: polygon.vertices,
+                holes: polygon.holes,
+            )
         }
     }
 
-    mutating func add(title: String, region: Region?, coordinates: [Coordinate]) {
+    mutating func add(
+        title: String,
+        region: Region?,
+        coordinates: [Coordinate],
+        holes: [[Coordinate]],
+    ) {
         guard coordinates.isValidPolygonRing else { return }
         outlines.append(RegionOutline(
             id: RegionOutline.ID(title: title, index: nextIndex),
             title: title,
             region: region,
             coordinates: coordinates,
+            holes: holes,
         ))
         nextIndex += 1
     }

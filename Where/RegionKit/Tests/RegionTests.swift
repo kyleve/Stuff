@@ -55,9 +55,9 @@ struct RegionTests {
 
     // MARK: - Catalog membership
 
-    @Test func catalog_containsEveryUSStatePlusDCAndPRPlusBlocs() {
-        // 50 states + DC + PR + Canada + European Union.
-        #expect(RegionCatalog.shared.all.count == 54)
+    @Test func catalogContainsLoggableNorthAmericanRegionsAndTheEU() {
+        // 52 US jurisdictions + Canada and its 13 subdivisions + European Union.
+        #expect(RegionCatalog.shared.all.count == 67)
         #expect(RegionCatalog.shared.all.contains(.california))
         #expect(RegionCatalog.shared.all.contains(.newYork))
         #expect(RegionCatalog.shared.all.contains(.canada))

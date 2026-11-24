@@ -63,8 +63,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   spelling. `RegionEntity`/`RegionEntityQuery` are `rawValue`-keyed.
 - **Suggestions and Spotlight surface the *tracked* set. Resolution is
   *full-catalog*.** `suggestedEntities()` / `RegionSpotlightIndexer` read
-  `RegionEntity.tracked(from:)`. `entities(for:)` resolves any region
-  by id (a spoken untracked region still answers, with a zero count).
+  `RegionEntity.tracked(from:)`. Resolve any available region by ID or by
+  its localized name. A blank search returns the tracked suggestions.
 - **App Intents static metadata is literal. Dialog copy is catalog-backed.**
   Titles and display names are `LocalizedStringResource` literals (the
   framework requires constants). Runtime `IntentDialog` copy goes through

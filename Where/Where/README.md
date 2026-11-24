@@ -95,12 +95,15 @@ Every build injects a transport and receipt store into the same coordinator. Dev
 The control record uses the private `WhereStoreCompatibility` zone and record type, with `requiredVersion` (Int64) and `accountID` (String).
 Its `where-store-compatibility` zone subscription requests silent notifications. Notifications are advisory; foreground polling also refreshes the decision.
 
-Before the first incompatible release:
+The Canadian subdivision release uses data version 2. Confirm these rollout steps
+before distributing it to installations with synced history.
 
 1. Use a recording-enabled validation build with Always permission to create the control record in the Development CloudKit environment.
 2. Deploy its record schema to Production through CloudKit Console before distributing the cloud-enabled build.
-3. Ship `DataModelVersion.current == 1` and the compatibility gate to all supported installations.
-4. Increase `DataModelVersion.current` only when a later release changes data incompatibly.
+3. Distribute the version-1 compatibility gate to all supported installations.
+4. Update the recording device to the version-2 build so it can advance the shared version.
+   A version-2 viewer waits while the shared version is 1. A version-1 reader that
+   observes version 2 must update to reopen history.
 
 Builds that predate the gate cannot obey it. A version increase does not make an existing unsupported build safe.
 The protocol stops the entire session after detection. It does not make metadata and SwiftData synchronization atomic across devices.

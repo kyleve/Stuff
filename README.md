@@ -229,9 +229,7 @@ See [agent guidance](.agents/README.md) for ownership, maintenance, and official
 ## Acknowledgements
 
 The Where module bundles offline region polygons under [`Where/RegionKit/Sources/Resources/regions/`](Where/RegionKit/Sources/Resources/regions).
-US state boundaries come from [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/) (`gz_2010_us_040_00_5m.json`), converted from the [US Census Bureau Cartographic Boundary Files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html).
-US Government works are in the public domain.
-See [`Where/RegionKit/README.md`](Where/RegionKit/README.md) for per-file provenance.
+Where uses public-domain US Census Bureau TIGER/Line boundaries for the US and its jurisdictions. Canadian outlines are adapted from Statistics Canada’s 2026 Census cartographic boundary files. Contains information licensed under the Open Government Licence – Canada. The catalog retains the hand-drawn European Union outline. [Census](https://www2.census.gov/geo/tiger/TIGER2026/STATE/), [Statistics Canada](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [Canadian licence](https://open.canada.ca/en/open-government-licence-canada), [RegionKit sources and updater](Where/RegionKit/README.md#regenerating)
 
 ## License
 

@@ -1,14 +1,6 @@
 import Foundation
 
-/// Thin `Decodable` views over the slice of the GeoJSON 1.0 spec that
-/// `RegionKit` actually consumes: a `FeatureCollection` of `Feature`s
-/// whose geometry is a `Polygon` or `MultiPolygon`. Anything else in
-/// the spec (`Point`, `LineString`, foreign members, etc.) is ignored
-/// at decode time.
-///
-/// Kept separate from `RegionAttributor` so the attributor can stay
-/// focused on "coordinate -> Region" — it consumes GeoJSON, but GeoJSON
-/// itself is its own concern.
+/// Reads the Polygon and MultiPolygon features in the original GeoJSON resources.
 enum GeoJSON {
     /// Top-level GeoJSON document we load from `Resources/*.geojson`.
     struct FeatureCollection: Decodable {
@@ -16,23 +8,8 @@ enum GeoJSON {
         let features: [Feature]
     }
 
-    /// A single feature: geometry plus optional properties (we only
-    /// read `NAME` out of the properties bag, for US state lookup).
     struct Feature: Decodable {
-        let type: String
         let geometry: Geometry
-        let properties: Properties?
-    }
-
-    /// Decoded properties bag. The US Census GeoJSON uses uppercase
-    /// `NAME`; we project just that field so the rest of the bag is
-    /// ignored at decode time.
-    struct Properties: Decodable {
-        let name: String?
-
-        private enum CodingKeys: String, CodingKey {
-            case name = "NAME"
-        }
     }
 
     /// The two geometry types we accept. `Polygon` is a list of rings
@@ -69,66 +46,33 @@ enum GeoJSON {
         }
     }
 
-    /// One decoded feature reduced to what `RegionKit` consumes: its
-    /// optional `NAME` plus the exterior-ring polygons it contributes.
-    struct NamedPolygons {
-        let name: String?
-        let polygons: [GeoPolygon]
+    static func polygons(in data: Data) throws -> [GeoPolygon] {
+        let collection = try JSONDecoder().decode(FeatureCollection.self, from: data)
+        return collection.features.flatMap { polygons(from: $0.geometry) }
     }
 
-    /// Decode every feature in the bundled GeoJSON file at `url`,
-    /// projecting each to its `NAME` and exterior-ring polygons. This is
-    /// the single decode path behind both region attribution loading
-    /// (`RegionAttributor`) and the developer region-map viewer
-    /// (`RegionGeometryCatalog`), so the file is read and parsed in one
-    /// place.
-    static func namedPolygons(at url: URL) throws -> [NamedPolygons] {
-        let data = try Data(contentsOf: url)
-        let decoded = try JSONDecoder().decode(FeatureCollection.self, from: data)
-        return decoded.features.map {
-            NamedPolygons(name: $0.properties?.name, polygons: polygons(from: $0.geometry))
-        }
-    }
-
-    /// Load every polygon (exterior ring only — holes aren't modeled)
-    /// from a bundled GeoJSON file at `url`, discarding feature names.
-    static func polygons(at url: URL) throws -> [GeoPolygon] {
-        try namedPolygons(at: url).flatMap(\.polygons)
-    }
-
-    /// Project a `Geometry` to a list of `GeoPolygon` exterior rings.
-    /// Holes (interior rings) are intentionally dropped; the bundled
-    /// simplified region polygons don't model them.
     static func polygons(from geometry: Geometry) -> [GeoPolygon] {
         switch geometry {
-            case let .polygon(rings):
-                rings.first.map { [makePolygon(from: $0)] } ?? []
-            case let .multiPolygon(polys):
-                polys.compactMap { polyRings in
-                    polyRings.first.map { makePolygon(from: $0) }
-                }
+            case let .polygon(rings): makePolygon(from: rings).map { [$0] } ?? []
+            case let .multiPolygon(polygons): polygons.compactMap(makePolygon(from:))
         }
     }
 
-    /// Convert a single ring (`[[longitude, latitude, ...]]`) into a
-    /// `GeoPolygon`. Coordinate pairs with fewer than 2 components
-    /// trigger an `assertionFailure` (malformed bundled file in debug)
-    /// and are dropped.
-    static func makePolygon(from ring: [[Double]]) -> GeoPolygon {
-        let vertices = ring.compactMap { pair -> Coordinate? in
-            // GeoJSON spec mandates `[longitude, latitude]` (and an
-            // optional altitude as the third entry). Anything shorter
-            // is a malformed bundled file — surface it in debug
-            // builds while still returning nil so the rest of the
-            // load can proceed.
+    private static func makePolygon(from rings: [[[Double]]]) -> GeoPolygon? {
+        guard let exterior = rings.first else { return nil }
+        return GeoPolygon(
+            vertices: coordinates(exterior),
+            holes: rings.dropFirst().map(coordinates),
+        )
+    }
+
+    private static func coordinates(_ ring: [[Double]]) -> [Coordinate] {
+        ring.compactMap { pair in
             guard pair.count >= 2 else {
-                assertionFailure(
-                    "GeoJSON coordinate pair must have at least 2 components, got \(pair.count)",
-                )
+                assertionFailure("GeoJSON coordinate needs longitude and latitude")
                 return nil
             }
             return Coordinate(latitude: pair[1], longitude: pair[0])
         }
-        return GeoPolygon(vertices: vertices)
     }
 }

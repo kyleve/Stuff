@@ -26,6 +26,54 @@ public struct LongitudeSpan: Hashable, Sendable {
 }
 
 extension LongitudeSpan {
+    /// The arc covering complete polygon outlines. Most jurisdictions fit in
+    /// half the globe, so their already-computed geographic bounds suffice.
+    /// For a wrapped collection, merge the component arcs to find the largest
+    /// *unoccupied* gap without sorting every vertex on every coastline.
+    public static func enclosing(
+        _ outlines: [RegionOutline],
+        boundedBy box: BoundingBox,
+    ) -> LongitudeSpan? {
+        guard !outlines.isEmpty else { return nil }
+        let width = box.maxLongitude - box.minLongitude
+        if width <= 180 {
+            return LongitudeSpan(center: (box.minLongitude + box.maxLongitude) / 2, degrees: width)
+        }
+        var intervals: [ClosedRange<Double>] = []
+        intervals.reserveCapacity(outlines.count)
+        for outline in outlines {
+            guard let part = BoundingBox.enclosing(outline.coordinates) else { continue }
+            if part.maxLongitude - part.minLongitude <= 180 {
+                intervals.append(part.minLongitude ... part.maxLongitude)
+            } else if let arc = enclosing(outline.coordinates.lazy.map(\.longitude)) {
+                let west = normalized(arc.center - arc.degrees / 2)
+                let east = west + arc.degrees
+                if east <= 180 {
+                    intervals.append(west ... east)
+                } else {
+                    intervals.append(west ... 180)
+                    intervals.append(-180 ... (east - 360))
+                }
+            }
+        }
+        intervals.sort { $0.lowerBound < $1.lowerBound }
+        guard let first = intervals.first,
+              let furthestEast = intervals.lazy.map(\.upperBound).max() else { return nil }
+        var arcStart = first.lowerBound
+        var widestGap = arcStart + 360 - furthestEast
+        var coveredUntil = first.upperBound
+        for interval in intervals.dropFirst() {
+            let gap = interval.lowerBound - coveredUntil
+            if gap > widestGap {
+                widestGap = gap
+                arcStart = interval.lowerBound
+            }
+            coveredUntil = max(coveredUntil, interval.upperBound)
+        }
+        let degrees = 360 - widestGap
+        return LongitudeSpan(center: normalized(arcStart + degrees / 2), degrees: degrees)
+    }
+
     /// The shortest arc enclosing every longitude in `longitudes`, or
     /// `nil` when the sequence is empty.
     ///
