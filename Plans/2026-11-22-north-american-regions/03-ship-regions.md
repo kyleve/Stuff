@@ -1,6 +1,6 @@
 # 03. Ship the US and Canadian catalog
 
-- Status: executing
+- Status: complete
 - Depends on: [01. Catalog relationships and attribution](01-region-hierarchy.md) and [02. Reusable boundary updater](02-boundary-updater.md)
 - Shared context: [Overview](README.md)
 
@@ -85,3 +85,5 @@ The previous v7 reader rejected a manual-only v8 Ontario archive on both merge a
 Fresh `./test` artifacts ran RegionKit, WhereCore, WhereUI and WhereIntents on an iPhone 17 Pro simulator with iOS 27.2. All 1,754 executed tests passed. One optional recorded-GPS export fixture was skipped. A hosted picker test selected Canada and Ontario, saved, and reopened the list. Other tests selected Ontario by map coordinate, logged a manual Nunavut day, resolved a Vancouver report to British Columbia, and exercised region search in Shortcuts. The updater, backup, licence, architecture, localization and lint checks passed.
 
 The standalone RegionViewer built against the generic Mac Catalyst SDK. The local Mac supports Catalyst apps up to iOS 27.0, below the app's 27.1 deployment target. Simulator snapshots exposed clipping in the Canadian source credit and the British Columbia card at accessibility text sizes. Both wrap in the reviewed captures. The 27 affected image suites include 438 reference checks on iPhone, iPad and accessibility configurations.
+
+The broad visual assertion produced 491 captures. After reviewing four additional AX5 references affected by the longer card titles, the two affected suites passed all 65 repeat captures with recording disabled. Together the green assertions cover all 438 references. Independent reviewers inspected the map, flat picker, report cards and credits. The application and data changes are in `a6e0bea86` on [PR #563](https://github.com/kyleve/Stuff/pull/563), with the four final visual references in the completion checkpoint. No production account or device deployment was performed.
