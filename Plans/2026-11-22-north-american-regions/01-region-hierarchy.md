@@ -1,6 +1,6 @@
 # 01. Model region relationships and resolve overlapping tracked regions
 
-- Status: executing
+- Status: complete
 - Depends on: none
 - Shared context: [Overview](README.md)
 
@@ -95,6 +95,6 @@ The resource directory is generated. If regeneration is interrupted, retain the 
 
 - [x] Add and verify catalog metadata, node-level outline access, compatible lookups and generator output.
 - [x] Verify single-region matching, update documentation and review the completed diff.
-- [ ] Record tested commits, results and implementation PR here when implementation is authorized.
+- [x] Published the tested catalog and matching changes in `522a032df`. [Implementation PR #563](https://github.com/kyleve/Stuff/pull/563)
 
 **Progress and outcome.** On November 24, the host generator passed 6 tests with 36 assertions and reproduced all 54 geometry files. The iPhone 17 / iOS 27.2 simulator passed 146 RegionKit, WhereCore and WhereIntents tests, followed by 59 focused catalog, geometry, GPS and correction tests. Independent review added regressions for an ineligible stored US ID and unrelated overlap priority. Legacy geometry baseline on the same simulator measured 2.9 ms for default attribution, 56.5 ms for all, 50.5 ms for map outlines and 0.13 ms for Toronto.

@@ -1,0 +1,6 @@
+# Maintainer-only GIS conversion. Install binary wheels in a Python 3.12 virtual environment.
+certifi==2025.11.12
+numpy==2.3.5
+pyproj==3.7.2
+pyshp==2.3.1
+shapely==2.1.2

@@ -4,31 +4,16 @@
 # Generates RegionKit's per-region GeoJSON files and the `regions.json`
 # manifest that `RegionCatalog` loads.
 #
-# It reads the (non-bundled) source data under `Tools/source/`:
-#   - `us-states.geojson` — a Census FeatureCollection (50 states + DC + PR),
-#     one MultiPolygon feature per state keyed by `properties.NAME`.
-#   - `canada.geojson`, `europeanUnion.geojson` — hand-simplified single-polygon
-#     outlines for the non-US regions.
-#
-# and writes, into `Sources/Resources/`:
-#   - `regions/<id>.geojson` — one file per available region (a FeatureCollection
-#     with a single feature carrying `properties.region`/`properties.name`), so
-#     the attributor can load only the regions it needs.
-#   - `regions.json` — an ordered manifest of nodes, their jurisdiction kinds,
-#     parent IDs, eligibility, names and geometry files. Its order is canonical
-#     (US states alphabetically, then countries/blocs; blocs last).
-#
-# Region ids are stable data identifiers, never shown to the user (names come
-# from `name`/`localizationKey`): US states are `us-<USPS>` (e.g. `us-CA`),
-# countries/blocs use a slug (`canada`, `european-union`).
-#
-# Idempotent: re-run after changing the source data. Run from the repo root:
-#   ruby Where/RegionKit/Tools/generate-regions.rb
+# The installed release under Tools/source/release pins the normalized US and
+# Canadian inputs. The European Union uses the checked-in outline alongside it.
+# See the RegionKit README for refresh, offline replay and adoption commands.
 
 require "json"
+require "zlib"
 require "fileutils"
 require "tmpdir"
 require_relative "../../../Tools/file_transaction"
+require_relative "tiny_wkb"
 
 # Source inputs (not bundled) live next to this script; generated output goes
 # into the bundled Resources directory.
@@ -90,8 +75,20 @@ class RegionGenerator
     @non_us = non_us
   end
 
-  def run
-    generate(us_features + source_features)
+  def run(release: File.join(@source, "release"))
+    return generate(us_features + source_features) unless release && Dir.exist?(release)
+    features = Zlib::GzipReader.open(File.join(release, "north-america.geojson.gz")) do |gz|
+      JSON.parse(gz.read).fetch("features")
+    end
+    lock = JSON.parse(File.binread(File.join(release, "sources.lock.json")))
+    features.each do |feature|
+      properties = feature.fetch("properties")
+      year = { "census" => "usYear", "statcan" => "caYear" }.fetch(properties.fetch("source"))
+      properties["sourceYear"] = lock.fetch(year)
+    end
+    bloc = source_features(@non_us.select { |region| region.fetch(:id) == "european-union" })
+    bloc.each { |feature| feature.fetch("properties")["source"] = "original" }
+    generate(features + bloc)
   end
 
   # Accept normalized, ordered GeoJSON features from a source adapter.
@@ -105,8 +102,14 @@ class RegionGenerator
       staged_manifest = File.join(staging, "regions.json")
       FileUtils.mkdir(staged_regions)
       features.zip(manifest).each do |feature, entry|
-        document = region_document(id: entry.fetch("id"), name: entry.fetch("name"), geometry: feature.fetch("geometry"))
-        File.write(File.join(staged_regions, entry.fetch("geometry").fetch("file")), JSON.generate(document) + "\n")
+        file = entry.fetch("geometry").fetch("file")
+        geometry = feature.fetch("geometry")
+        if file.end_with?(".twkb")
+          File.binwrite(File.join(staged_regions, file), TinyWKB.encode(geometry))
+        else
+          document = region_document(id: entry.fetch("id"), name: entry.fetch("name"), geometry: geometry)
+          File.write(File.join(staged_regions, file), JSON.generate(document) + "\n")
+        end
       end
       File.write(staged_manifest, JSON.pretty_generate(manifest) + "\n")
       transaction = FileTransaction.new
@@ -120,8 +123,8 @@ class RegionGenerator
   end
 
   # Individually configured source outlines, in their declared catalog order.
-  def source_features
-    @non_us.map do |region|
+  def source_features(regions = @non_us)
+    regions.map do |region|
       collection = load_feature_collection(region.fetch(:source))
       properties = {
         "id" => region.fetch(:id), "name" => region.fetch(:name),
@@ -174,10 +177,11 @@ class RegionGenerator
     unless geometry && %w[Polygon MultiPolygon].include?(geometry["type"]) && !geometry.fetch("coordinates").empty?
       raise ArgumentError, "Missing polygon geometry for #{id}"
     end
-    entry = properties.slice("id", "name", "kind", "isLoggable", "parentID")
+    entry = properties.slice("id", "name", "kind", "isLoggable", "parentID", "source", "sourceYear")
     key = @localization_keys[id]
     entry["localizationKey"] = key if key
-    entry["geometry"] = { "file" => "#{id}.geojson" }
+    extension = %w[census statcan].include?(entry["source"]) ? ".twkb" : ".geojson"
+    entry["geometry"] = { "file" => id + extension }
     entry
   end
 
@@ -212,4 +216,12 @@ class RegionGenerator
   end
 end
 
-RegionGenerator.new.run if __FILE__ == $PROGRAM_NAME
+if __FILE__ == $PROGRAM_NAME
+  require_relative "region_release"
+  begin
+    RegionRelease.new.run(ARGV)
+  rescue StandardError => error
+    warn error.message
+    exit 1
+  end
+end

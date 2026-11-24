@@ -168,6 +168,17 @@ class GenerateRegionsTest < Minitest::Test
     end
   end
 
+  def test_tiny_wkb_keeps_ring_precision_and_deltas_across_members
+    rings = [
+      [[[0.0, 0.0], [2e-7, 0.0], [0.0, 2e-7], [0.0, 0.0]]],
+      [[[-3e-7, 0.0], [-2e-7, 0.0], [-3e-7, 1e-7], [-3e-7, 0.0]]]
+    ]
+    bytes = TinyWKB.encode("type" => "MultiPolygon", "coordinates" => rings)
+    assert_equal [0xe6, 0, 2, 1, 3, 0, 0, 4, 0, 3, 4, 1, 3, 5, 3, 2, 0, 1, 2], bytes.bytes
+    rings.first.first[1] = [2.4e-7, 0.0]
+    assert_raises(RuntimeError) { TinyWKB.encode("type" => "MultiPolygon", "coordinates" => rings) }
+  end
+
   private
 
   def normalized(id, kind, loggable, parent = nil)
