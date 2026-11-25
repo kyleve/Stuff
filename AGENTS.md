@@ -52,6 +52,9 @@ Read the matching reference before implementation or review. Read only relevant 
 Use plain, direct English in documentation, PRs, and responses. Lead with the result or required action.
 Prefer familiar words, active voice, and short sentences. Remove filler and repetition; keep technical terms when they improve precision.
 
+When a visual would make a change or tradeoff easier to judge, create one and show it inline in chat.
+For before-and-after comparisons, use the same example, framing, and scale. Mark the difference and, when useful, measure it from the data or rendered output. Identify illustrative examples as such.
+
 ## Working in this repo
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`). Keep
