@@ -5,8 +5,8 @@ import Testing
 struct IntentHelpersTests {
     @Test func orderedRegionsSortsByDeclarationOrder() {
         #expect(
-            orderedRegions([.canada, .newYork, .california])
-                == [.california, .newYork, .canada],
+            orderedRegions([.ontario, .newYork, .california])
+                == [.california, .newYork, .ontario],
         )
         #expect(orderedRegions([]).isEmpty)
     }

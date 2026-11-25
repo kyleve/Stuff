@@ -6,7 +6,9 @@ import Testing
 /// Covers the standalone read path the controller (and, later, the reminder /
 /// daily-summary reconcilers) delegate every report read to.
 struct ReportReaderTests {
-    private static func makeReader() throws -> (ReportReader, SwiftDataStore) {
+    private static func makeReader(attributor: RegionAttributor = .shared) throws
+        -> (ReportReader, SwiftDataStore)
+    {
         let store = try SwiftDataStore.inMemory()
         let aggregator = DayAggregator(
             calendar: WhereCoreTestSupport.calendar(),
@@ -15,7 +17,7 @@ struct ReportReaderTests {
         let reader = ReportReader(
             store: store,
             aggregator: aggregator,
-            attributor: RegionAttributor.shared,
+            attributor: attributor,
         )
         return (reader, store)
     }
@@ -220,17 +222,21 @@ struct ReportReaderTests {
     }
 
     @Test func detailsReadConfiguredPrimaryMembershipAndAllItsLocations() async throws {
-        let (reader, store) = try Self.makeReader()
+        let (reader, store) = try Self.makeReader(attributor: RegionAttributor(for: [
+            .california,
+            .newYork,
+            .ontario,
+        ]))
         try await store.perform {
             try await store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: nil, order: 0),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
-                PrimaryRegion(region: .canada, appearance: nil, order: 2),
+                PrimaryRegion(region: .ontario, appearance: nil, order: 2),
             ])
             for coordinate in [
                 Coordinate(latitude: 37.7749, longitude: -122.4194),
                 Coordinate(latitude: 40.7128, longitude: -74.0060),
-                Coordinate(latitude: 49.2827, longitude: -123.1207),
+                Coordinate(latitude: 43.6532, longitude: -79.3832),
             ] {
                 try await store.add(sample: LocationSample(
                     timestamp: WhereCoreTestSupport.iso("2026-06-01T12:00:00-07:00"),
@@ -241,7 +247,7 @@ struct ReportReaderTests {
             }
         }
         let details = try await reader.yearReportDetails(for: 2026)
-        #expect(details.primaryRegions == [.california, .newYork, .canada])
+        #expect(details.primaryRegions == [.california, .newYork, .ontario])
         #expect(Set(details.primaryRegionLocations.keys) == details.primaryRegions)
         #expect(!details.elsewhereInput.hasVisits)
     }

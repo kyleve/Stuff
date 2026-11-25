@@ -28,24 +28,19 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   is a data change (regenerate via `Tools/generate-regions.rb`), never a new
   case — see [README](README.md#adding-a-region). `regions/` + `regions.json`
   are generated. Never hand-edit them.
-- **Keep geographic nodes and tracking eligibility explicit.** Use each subdivision’s `parentID` to look up
-  ancestry and enumerate children. Country entries omit geometry. The manifest’s
-  `isLoggable` determines which nodes enter `RegionCatalog.all`.
-  `Region.allCases` appends the separate `.other` sentinel. Preserve stored
-  IDs and the relative order of existing tracking choices.
-- **A GPS observation credits one region.** A matching tracked descendant
-  wins over a matching tracked ancestor. Use caller order for the remaining
-  ties. Resolve live confidence against the same tracked snapshot, including
-  a tracked child's edge when its parent wins outside it.
+- **Keep geographic nodes and tracking eligibility explicit.** Use each
+  subdivision’s `parentID` for ancestry and its parent’s child index to enumerate
+  subdivisions. Country nodes have no geometry and cannot be tracked.
+  `Region.allCases` appends the separate `.other` sentinel to the loggable
+  catalog. Preserve the relative order of existing tracking choices.
+- **A GPS observation credits one region.** Preserve caller order when
+  publishers' boundaries overlap. Resolve confidence against the same
+  tracked set, including an earlier region whose edge can change the match.
 - **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads
-  only the geometry needed by the tracked set. Canada uses its children’s files. Core's injected `ElsewhereResolver` may lazily parse the
-  full loggable catalog on its actor for read-only historical enrichment.
-  Hierarchy traversal reads metadata alone. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
-  reduction. Rendering fidelity and render-artifact caches belong to consumers.
-  `.all` loads the whole catalog (dev viewer/tests). `.shared` loads the default
-  four. It is UI-free. `BoundingBox` / `LongitudeSpan` expose the min/max math.
-  Drawing and MapKit conversion live in the UI layer. `RegionAttributing` lets
-  `WhereCore` supply a live, swappable attributor.
+  only the selected geometries. Core's injected `ElsewhereResolver` may lazily
+  parse the full loggable catalog on its actor for read-only historical
+  enrichment. Hierarchy traversal reads metadata alone. Rendering fidelity,
+  MapKit conversion and render-artifact caches belong to consumers.
 - **Credit bundled geometry in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity. It derives its
   coverage from the publisher of each bundled geometry file.

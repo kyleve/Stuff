@@ -451,7 +451,7 @@ struct DataIssueScannerTests {
         ]
         try await store.perform {
             try await store.setManualDay(DayPresence(day: unrelatedEarlier, regions: [.newYork]))
-            try await store.setManualDay(DayPresence(day: unrelatedLater, regions: [.canada]))
+            try await store.setManualDay(DayPresence(day: unrelatedLater, regions: [.ontario]))
             for sample in samples {
                 try await store.add(sample: sample)
             }

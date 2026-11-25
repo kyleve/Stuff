@@ -16,7 +16,7 @@ enum RegionHierarchyFixture {
         return try decode(states + [
             row("ca-ON", "province", parent: "canada"),
             row("united-states", "country", loggable: false),
-            row("canada", "country"),
+            row("canada", "country", loggable: false),
             row("european-union", "bloc"),
         ])
     }
@@ -54,23 +54,25 @@ struct RegionCatalogTests {
         #expect(catalog.parent(of: us) == nil)
         #expect(catalog.children(of: us).map(\.id.rawValue) == RegionHierarchyFixture.usIDs)
         #expect(catalog.children(of: california).isEmpty)
-        let canada = try #require(catalog.node(for: .canada))
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
         let ontario = try #require(catalog.node(id: .init(rawValue: "ca-ON")))
         #expect(catalog.children(of: canada) == [ontario])
         #expect(catalog.parent(of: ontario) == canada)
         #expect(ontario.kind == .province)
     }
 
-    @Test func loggingEligibilityFiltersEveryRegionLookup() throws {
+    @Test(arguments: ["united-states", "canada"])
+    func loggingEligibilityFiltersEveryRegionLookup(countryID: String) throws {
         let catalog = try RegionHierarchyFixture.catalog()
-        let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
-        #expect(us.geometryFile == nil)
-        #expect(!catalog.contains(id: us.id.rawValue))
-        let storedUS = try JSONDecoder().decode(Region.self, from: Data(#""united-states""#.utf8))
-        #expect(catalog.node(for: storedUS) == nil)
-        #expect(catalog.entry(for: storedUS) == nil)
-        #expect(!catalog.all.contains(storedUS))
-        #expect(!catalog.entries.contains { $0.region == storedUS })
+        let node = try #require(catalog.node(id: .init(rawValue: countryID)))
+        let region = Region(unchecked: countryID)
+        #expect(node.region == nil)
+        #expect(node.geometryFile == nil)
+        #expect(!catalog.contains(id: countryID))
+        #expect(catalog.node(for: region) == nil)
+        #expect(catalog.entry(for: region) == nil)
+        #expect(!catalog.all.contains(region))
+        #expect(!catalog.entries.contains { $0.region == region })
         #expect(catalog.node(for: .other) == nil)
         #expect(catalog.node(id: .init(rawValue: "unknown")) == nil)
     }
@@ -82,14 +84,14 @@ struct RegionCatalogTests {
         #expect(catalog.node(for: .california)?.kind == .state)
         #expect(catalog.node(id: .init(rawValue: "us-DC"))?.kind == .federalDistrict)
         #expect(catalog.node(id: .init(rawValue: "us-PR"))?.kind == .territory)
-        let canada = try #require(catalog.node(for: .canada))
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
         #expect(canada.kind == .country)
         #expect(catalog.parent(of: canada) == nil)
         let eu = try #require(catalog.node(for: .europeanUnion))
         #expect(eu.kind == .bloc)
         #expect(catalog.parent(of: eu) == nil)
         #expect(Region(rawValue: "united-states") == nil)
-        for id in ["us-CA", "canada", "european-union", "other", "unknown-historical-id"] {
+        for id in ["us-CA", "ca-ON", "european-union", "other", "unknown-historical-id"] {
             let bareString = Data("\"\(id)\"".utf8)
             let decoded = try JSONDecoder().decode(Region.self, from: bareString)
             #expect(try JSONEncoder().encode(decoded) == bareString)
@@ -97,15 +99,18 @@ struct RegionCatalogTests {
     }
 
     @Test func manifestRejectsBrokenGraphsAndInvalidMetadata() {
-        let canada = RegionHierarchyFixture.row("canada", "country")
+        let canada = RegionHierarchyFixture.row("canada", "country", loggable: false)
         let ontario = RegionHierarchyFixture.row("ca-ON", "province", parent: "canada")
         let us = RegionHierarchyFixture.row("united-states", "country", loggable: false)
         let invalid = [
             [us, us],
             [RegionHierarchyFixture.row("other", "state")],
             [ontario],
-            [ontario, RegionHierarchyFixture.row("canada", "country", parent: "ca-ON")],
-            [canada],
+            [
+                ontario,
+                RegionHierarchyFixture.row("canada", "country", loggable: false, parent: "ca-ON"),
+            ],
+            [canada.merging(["isLoggable": true]) { _, new in new }, ontario],
             [canada, ontario.filter { $0.key != "geometryFile" }],
             [us.filter { $0.key != "isLoggable" }],
             [us.merging(["geometryFile": "us/united-states.twkb"]) { _, new in new }],
@@ -136,7 +141,7 @@ struct RegionCatalogTests {
 
     @Test func bundlePreservesAllGeographicDirectories() throws {
         let catalog = RegionCatalog.shared
-        let canada = try #require(catalog.node(for: .canada))
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
         let expected = Set(RegionHierarchyFixture.usIDs.map { "us/\($0).twkb" }
             + catalog.children(of: canada).map { "ca/\($0.id.rawValue).twkb" }
             + ["eu/european-union.geojson"])

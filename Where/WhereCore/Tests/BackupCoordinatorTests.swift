@@ -348,7 +348,7 @@ struct BackupCoordinatorTests {
 
         let destination = try Self.makeHarness()
         let unrelated = try PlannedStayTestSupport.record(
-            stay: PlannedStayTestSupport.stay(region: .canada),
+            stay: PlannedStayTestSupport.stay(region: .ontario),
         )
         try await destination.store.perform {
             try await destination.store.restorePlannedStayRecord(unrelated)
@@ -386,7 +386,7 @@ struct BackupCoordinatorTests {
             try await destination.store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
-                regions: [.canada],
+                regions: [.ontario],
             ))
             // A preexisting dismissal that the file doesn't contain must be wiped
             // by `.replace` so synced user data mirrors the file.

@@ -10020,7 +10020,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Log my trip to Canada from July 8 through July 12."
+            "value" : "Log my trip to Ontario from July 8 through July 12."
           }
         }
       }
@@ -10031,7 +10031,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I logged 5 days in Canada."
+            "value" : "I logged 5 days in Ontario."
           }
         }
       }

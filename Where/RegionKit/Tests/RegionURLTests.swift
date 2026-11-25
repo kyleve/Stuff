@@ -15,8 +15,8 @@ struct RegionURLTests {
     }
 
     @Test func buildsWithoutParamsWhenEmpty() {
-        let url = RegionURL.url(collection: "regions", type: "canada", items: [:])
-        #expect(url.absoluteString == "region://regions/canada")
+        let url = RegionURL.url(collection: "regions", type: "ca-ON", items: [:])
+        #expect(url.absoluteString == "region://regions/ca-ON")
     }
 
     @Test func parsesBackIntoParts() throws {

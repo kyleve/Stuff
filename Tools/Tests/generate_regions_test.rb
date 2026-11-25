@@ -24,12 +24,13 @@ class GenerateRegionsTest < Minitest::Test
       generator = RegionGenerator.new(resources: resources)
       country = normalized("united-states", "country", false)
       state = normalized("us-CA", "state", true, "united-states")
-      canada = normalized("canada", "country", true)
+      canada = normalized("canada", "country", false)
       capture_io { generator.generate([state, country, canada]) }
       manifest = JSON.parse(File.read(File.join(resources, "regions.json")))
       assert_equal %w[us-CA united-states canada], manifest.map { |entry| entry.fetch("id") }
       assert_equal "united-states", manifest.first.fetch("parentID")
       refute manifest[1].fetch("isLoggable")
+      refute manifest.last.fetch("isLoggable")
       assert_equal "country", manifest[1].fetch("kind")
       refute manifest.last.key?("parentID")
       assert_equal "us/us-CA.geojson", manifest.first.fetch("geometryFile")
@@ -43,6 +44,7 @@ class GenerateRegionsTest < Minitest::Test
         [state], [state, country, country], [normalized("other", "country", false)],
         [state, normalized("united-states", "country", false, "us-CA")],
         [country.merge("geometry" => state.fetch("geometry"))],
+        [normalized("canada", "country", true)],
         [country, state.merge("geometry" => nil)],
       ].each do |invalid|
         assert_raises(ArgumentError) { generator.generate(invalid) }
@@ -76,7 +78,7 @@ class GenerateRegionsTest < Minitest::Test
       end
 
       error = File.stub(:write, failing_write) do
-        assert_raises(Errno::ENOSPC) { capture_io { generator.generate([normalized("canada", "country", true)]) } }
+        assert_raises(Errno::ENOSPC) { capture_io { generator.generate([normalized("canada", "country", false)]) } }
       end
       assert_includes error.message, "regions.json"
     end

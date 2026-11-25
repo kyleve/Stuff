@@ -557,7 +557,7 @@ extension ManualDayView {
                         mode: .edit(DayPresence(
                             date: PreviewSupport.referenceNow,
                             in: .current,
-                            regions: [.canada],
+                            regions: [.ontario],
                             isAuthoritative: true,
                             audit: ManualEntryAudit(
                                 recordedAt: PreviewSupport.referenceNow,

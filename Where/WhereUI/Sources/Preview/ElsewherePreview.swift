@@ -29,7 +29,7 @@
             YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
-                    primaryRegions: [.california, .newYork, .canada],
+                    primaryRegions: [.california, .newYork, .ontario],
                     report: sampleReport(),
                     primaryRegionLocations: sampleYearReportDetails().primaryRegionLocations,
                 ),

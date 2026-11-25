@@ -525,7 +525,7 @@
     "id": "canada",
     "name": "Canada",
     "kind": "country",
-    "isLoggable": true,
+    "isLoggable": false,
     "source": "statcan",
     "sourceYear": 2026,
     "localizationKey": "region.canada"

@@ -44,7 +44,7 @@ struct RegionAttributionTests {
             initial: RegionAttributor(for: Array(SwiftDataStore.defaultTrackedRegions)),
             trackedIDs: Set(SwiftDataStore.defaultTrackedRegions.map(\.rawValue)),
         )
-        // No rows persisted → `trackedRegions()` still returns the default four,
+        // No rows persisted → `trackedRegions()` still returns the defaults,
         // matching the initial set, so nothing rebuilds and attribution holds.
         await attribution.reconcile()
         #expect(attribution.region(at: sanFrancisco) == .california)
@@ -53,12 +53,11 @@ struct RegionAttributionTests {
 
 /// The released Ontario–Quebec boundary crosses 49.5° N at about 79.51705° W.
 enum CanadianAttributionFixture {
-    static let ontario = Region(unchecked: "ca-ON")
+    static let quebec = Region(unchecked: "ca-QC")
     static let toronto = Coordinate(latitude: 43.6532, longitude: -79.3832)
     static let ontarioSide = Coordinate(latitude: 49.5, longitude: -79.518)
     static let quebecSide = Coordinate(latitude: 49.5, longitude: -79.5165)
 
-    static let countryOnly = RegionAttributor(for: [.canada])
-    static let ontarioOnly = RegionAttributor(for: [ontario])
-    static let countryAndOntario = RegionAttributor(for: [.canada, ontario])
+    static let ontarioOnly = RegionAttributor(for: [.ontario])
+    static let bothProvinces = RegionAttributor(for: [.ontario, quebec])
 }

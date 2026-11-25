@@ -7,12 +7,12 @@ import Testing
 /// play no part in these persistence and projection integration tests.
 enum SampleCorrectionTestSupport {
     struct SparseLayoverRegions: RegionAttributing {
-        let loadedRegions: [Region] = [.california, .newYork, .canada]
+        let loadedRegions: [Region] = [.california, .newYork, .ontario]
 
         func region(at coordinate: Coordinate) -> Region {
             let east = coordinate.longitude * 111.195
             if east < 0.5 { return .california }
-            if abs(east - 150) < 0.5 { return .canada }
+            if abs(east - 150) < 0.5 { return .ontario }
             if east >= 299.5 { return .newYork }
             return .other
         }
@@ -23,14 +23,14 @@ enum SampleCorrectionTestSupport {
     }
 
     struct FlightRegions: RegionAttributing {
-        let loadedRegions: [Region] = [.california, .newYork, .canada]
+        let loadedRegions: [Region] = [.california, .newYork, .ontario]
 
         func region(at coordinate: Coordinate) -> Region {
             let east = coordinate.longitude * 111.195
             let north = coordinate.latitude * 111.195
             if east < 0.5 { return .california }
             if (1440 ... 1455).contains(east), north > 0 { return .newYork }
-            if east >= 1500 { return .canada }
+            if east >= 1500 { return .ontario }
             return .other
         }
 

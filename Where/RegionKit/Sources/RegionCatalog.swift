@@ -24,8 +24,7 @@ public struct RegionCatalog: Sendable {
         public let name: String
         public let isLoggable: Bool
         fileprivate let localizationKey: String?
-        /// A resource path relative to `regions/`. A tracked parent without one uses its children's
-        /// coverage.
+        /// A resource path relative to `regions/`. Country nodes omit geometry.
         public let geometryFile: String?
 
         public var localizedName: String {
@@ -96,8 +95,11 @@ public struct RegionCatalog: Sendable {
             }
             guard (node.kind == .country) == (node.geometryFile == nil) else {
                 throw invalid(
-                    "Country nodes group geometry; other nodes require a file: \(node.id.rawValue)",
+                    "Unexpected geometry file presence for node: \(node.id.rawValue)",
                 )
+            }
+            guard node.kind != .country || !node.isLoggable else {
+                throw invalid("Country cannot be a tracking choice: \(node.id.rawValue)")
             }
             if let file = node.geometryFile {
                 guard file.wholeMatch(of: geometryPath) != nil else {
@@ -122,11 +124,6 @@ public struct RegionCatalog: Sendable {
             }
         }
         self.init(nodes: nodes, byID: byID)
-        for node in nodes
-            where node.isLoggable && node.geometryFile == nil && geometryNodes(for: node).isEmpty
-        {
-            throw invalid("Loggable region has no geometry: \(node.id.rawValue)")
-        }
     }
 
     public func node(id: Node.ID) -> Node? {
@@ -145,13 +142,6 @@ public struct RegionCatalog: Sendable {
     /// Immediate children in manifest order.
     public func children(of node: Node) -> [Node] {
         childrenByParent[node.id] ?? []
-    }
-
-    /// Physical members of this node's coverage in manifest order.
-    /// A file-backed node is complete. A tracked parent like Canada uses its subdivisions.
-    func geometryNodes(for node: Node) -> [Node] {
-        if node.geometryFile != nil { return [node] }
-        return children(of: node).flatMap(geometryNodes(for:))
     }
 
     /// Every loggable region in manifest order. The separate `.other` sentinel is omitted.

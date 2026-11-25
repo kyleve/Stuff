@@ -98,7 +98,7 @@ extension WhereWidgetEntry {
             date: now,
             snapshot: WidgetSnapshotFixtures.snapshot(
                 dayRegions: [.california],
-                totals: [.california: 132, .newYork: 41, .canada: 9],
+                totals: [.california: 132, .newYork: 41, .ontario: 9],
                 referenceDate: now,
             ),
             theme: .standard,

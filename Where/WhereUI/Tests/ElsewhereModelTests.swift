@@ -13,12 +13,12 @@ struct ElsewhereModelTests {
         let input = ElsewhereModelTestSupport.input()
         let first = Task { await model.refresh(input) }
         try await ElsewhereModelTestSupport.waitForRequests(1, in: resolver)
-        let nextInput = ElsewhereModelTestSupport.input(region: .canada)
+        let nextInput = ElsewhereModelTestSupport.input(region: .ontario)
         let next = Task { await model.refresh(nextInput) }
         try await ElsewhereModelTestSupport.waitForRequests(2, in: resolver)
         await resolver.complete(
             1,
-            with: .success(ElsewhereModelTestSupport.result(nextInput, region: .canada)),
+            with: .success(ElsewhereModelTestSupport.result(nextInput, region: .ontario)),
         )
         await next.value
         await resolver.complete(
@@ -26,7 +26,7 @@ struct ElsewhereModelTests {
             with: .success(ElsewhereModelTestSupport.result(input, region: .other)),
         )
         await first.value
-        #expect(model.content(for: 2026)?.regions.map(\.region) == [.canada])
+        #expect(model.content(for: 2026)?.regions.map(\.region) == [.ontario])
     }
 
     @Test func cancelledResolutionCannotPublishAfterLeavingTheTab() async throws {
@@ -73,7 +73,7 @@ struct ElsewhereModelTests {
         )
         await first.value
 
-        let nextInput = ElsewhereModelTestSupport.input(region: .canada)
+        let nextInput = ElsewhereModelTestSupport.input(region: .ontario)
         let next = Task { await model.refresh(nextInput) }
         try await ElsewhereModelTestSupport.waitForRequests(2, in: resolver)
         await resolver.complete(1, with: .failure(TestHostError("Fixture read failed")))
@@ -86,10 +86,10 @@ struct ElsewhereModelTests {
         try await ElsewhereModelTestSupport.waitForRequests(3, in: resolver)
         await resolver.complete(
             2,
-            with: .success(ElsewhereModelTestSupport.result(nextInput, region: .canada)),
+            with: .success(ElsewhereModelTestSupport.result(nextInput, region: .ontario)),
         )
         await retry.value
-        #expect(model.content(for: 2026)?.regions.map(\.region) == [.canada])
+        #expect(model.content(for: 2026)?.regions.map(\.region) == [.ontario])
         #expect(model.failure(for: 2026) == nil)
     }
 
@@ -129,11 +129,11 @@ struct ElsewhereModelTests {
         }
         // Catalog counts are visible before an optional network lookup finishes.
         #expect(model.content(for: 2026)?.regions.count == 4)
-        await model.refresh(ElsewhereModelTestSupport.input(year: 2025, region: .canada))
+        await model.refresh(ElsewhereModelTestSupport.input(year: 2025, region: .ontario))
         await namer.complete("Stale city")
         await first.value
         #expect(model.content(for: 2026) == nil)
-        #expect(model.content(for: 2025)?.regions.map(\.region) == [.canada])
+        #expect(model.content(for: 2025)?.regions.map(\.region) == [.ontario])
         #expect(model.content(for: 2025)?.placeNames.isEmpty == true)
         #expect(model.cachedPlaceName(for: ElsewherePreview.vegas) == nil)
     }

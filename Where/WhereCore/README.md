@@ -71,7 +71,7 @@ one it belongs to rather than to a god-object:
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
-  per region, defaulting to the four until the user chooses in the onboarding /
+  per region, defaulting to California, New York and the EU until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
   advisory check-ins rather than one mutable device row. Recording consent stays local.
@@ -87,7 +87,7 @@ one it belongs to rather than to a god-object:
   app + App Intents process attribute against the same synced set. Assemble
   services with `WhereServices.make(...)` (async — it reads the tracked set) in
   production. The synchronous `WhereServices.init` uses `RegionAttributor.shared`
-  (the default four) for tests/previews.
+  (the default set) for tests/previews.
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
@@ -420,7 +420,7 @@ import WhereCore
 // Production wiring reads the tracked regions from the store to build the
 // attributor, so `make(...)` is the one public entry and is async. Tests and
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
-// attributor, default four) via `@_spi(Testing) import WhereCore`.
+// attributor, default set) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
     store: try SwiftDataStore.make(storage: .cloudKit(
         appGroupIdentifier: "group.com.stuff.where"

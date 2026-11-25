@@ -18,7 +18,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 Locations shows every configured primary region with recorded days.
 Elsewhere appears beside Locations when the selected year has other visits.
-Its compact cards name visited US jurisdictions, Canada, its provinces and territories, and the European Union
+Its compact cards name visited US jurisdictions, Canadian provinces and territories, and the European Union
 from the existing catalog. Unknown visits stay under Other. Each card shows
 distinct recorded days and can show an optional place label. A multi-region
 day can appear on more than one card.
@@ -364,10 +364,8 @@ journal intent.
   picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
-  picker for membership changes. The list offers the US jurisdictions, Canada and its
-  provinces and territories in catalog order. The map draws each subdivision once. Selecting Canada fills its
-  subdivisions with the country color. A selected province or territory shows its own color,
-  and a tap selects the most specific eligible region at that coordinate.
+  picker for membership changes. The list offers US jurisdictions and Canadian provinces and territories in catalog order.
+  A tap on the map selects the subdivision at that coordinate and highlights it in its own color.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

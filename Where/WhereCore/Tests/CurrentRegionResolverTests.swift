@@ -75,14 +75,14 @@ struct CurrentRegionResolverTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
-            attributor: fixture.countryAndOntario,
+            attributor: fixture.bothProvinces,
         )
         try await services.ingestor.authorizeRecording()
         #expect(await services.currentRegion
             .resolve(now: now) == .unavailable(.boundaryUncertainty))
     }
 
-    @Test func untrackedProvinceEdgeDoesNotAffectCountryConfidence() async throws {
+    @Test func untrackedQuebecFixIsOutsideTrackedOntario() async throws {
         let fixture = CanadianAttributionFixture.self
         let source = ScriptedLocationSource()
         source.setNextRequestedLocation(sample(
@@ -92,10 +92,11 @@ struct CurrentRegionResolverTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
-            attributor: fixture.countryOnly,
+            attributor: fixture.ontarioOnly,
         )
         try await services.ingestor.authorizeRecording()
-        #expect(await services.currentRegion.resolve(now: now) == .resolved(.canada))
+        #expect(await services.currentRegion
+            .resolve(now: now) == .unavailable(.outsideTrackedRegions))
     }
 
     @Test func locationOutsideTrackedRegionsIsRejected() async throws {

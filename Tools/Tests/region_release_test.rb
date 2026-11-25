@@ -181,6 +181,10 @@ class RegionReleaseTest < Minitest::Test
     fresh = File.join(@work, "fresh")
     _out, error, status = invoke(*refresh, "--output", fresh, env: env)
     assert status.success?, error
+    inventory = JSON.parse(File.read(File.join(fresh, "bundle-report.json")))
+    sizes = inventory.fetch("bytesByID")
+    assert_equal sizes.values_at("us-CA", "us-NY", "european-union").sum, inventory.fetch("defaultBytes")
+    assert_equal sizes.values.sum, inventory.fetch("loggableBytes")
     cli("--adopt", fresh)
     installed_lock = File.binread(File.join(@source, "release", "sources.lock.json"))
     replay = File.join(@work, "replay")

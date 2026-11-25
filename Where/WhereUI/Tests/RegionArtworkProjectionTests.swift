@@ -8,9 +8,9 @@ struct RegionArtworkProjectionTests {
         let shell = rectangle(west: -82, east: -78, south: 42, north: 46)
         let hole = rectangle(west: -81, east: -79, south: 43, north: 45).reversed()
         let outline = RegionOutline(
-            id: .init(title: "Canada", index: 0),
-            title: "Canada",
-            region: .canada,
+            id: .init(title: "Ontario", index: 0),
+            title: "Ontario",
+            region: .ontario,
             coordinates: shell,
             holes: [Array(hole)],
         )
@@ -31,7 +31,7 @@ struct RegionArtworkProjectionTests {
         let country = RegionOutline(
             id: .init(title: "Country", index: 1),
             title: "Country",
-            region: .canada,
+            region: .ontario,
             coordinates: rectangle(west: -84, east: -78, south: 42, north: 46),
         )
         let map = RegionMapGeometry(outlines: [island, country])

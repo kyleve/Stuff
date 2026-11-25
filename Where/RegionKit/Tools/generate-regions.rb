@@ -70,8 +70,8 @@ class RegionGenerator
     eu["properties"] = { "id" => "european-union", "name" => "European Union",
                          "kind" => "bloc", "isLoggable" => true, "source" => "original" }
     states, provinces = features.partition { |feature| feature.fetch("properties").fetch("parentID") == "united-states" }
-    canada = country("canada", "Canada", "statcan", lock.fetch("caYear"), loggable: true)
-    us = country("united-states", "United States", "census", lock.fetch("usYear"), loggable: false)
+    canada = country("canada", "Canada", "statcan", lock.fetch("caYear"))
+    us = country("united-states", "United States", "census", lock.fetch("usYear"))
     generate(states + [canada] + provinces + [us, eu])
   end
 
@@ -112,8 +112,8 @@ class RegionGenerator
 
   private
 
-  def country(id, name, source, year, loggable:)
-    { "properties" => { "id" => id, "name" => name, "kind" => "country", "isLoggable" => loggable,
+  def country(id, name, source, year)
+    { "properties" => { "id" => id, "name" => name, "kind" => "country", "isLoggable" => false,
                          "source" => source, "sourceYear" => year } }
   end
 
@@ -153,6 +153,7 @@ class RegionGenerator
     key = LOCALIZATION_KEYS[id]
     entry["localizationKey"] = key if key
     if kind == "country"
+      raise ArgumentError, "Country #{id} cannot be loggable" if entry.fetch("isLoggable")
       raise ArgumentError, "Country #{id} cannot carry geometry" if feature["geometry"]
     else
       geometry = feature.fetch("geometry")

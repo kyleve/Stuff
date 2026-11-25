@@ -301,8 +301,8 @@ struct LocationForecastTests {
             }
         }
         for home in [Region?.none, .some(.california)] {
-            for region in [Region.newYork, .california, .canada] {
-                let recorded = region == .canada ? 0 : 177
+            for region in [Region.newYork, .california, .ontario] {
+                let recorded = region == .ontario ? 0 : 177
                 let gapWeight = home.map { $0 == region ? elapsed : 0 } ?? recorded
                 var minimum = Int.max
                 var maximum = 0

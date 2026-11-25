@@ -8,7 +8,7 @@ struct RegionTests {
     @Test func localizedName_resolvesLocalizedRegions() {
         #expect(Region.california.localizedName == "California")
         #expect(Region.newYork.localizedName == "New York")
-        #expect(Region.canada.localizedName == "Canada")
+        #expect(Region.ontario.localizedName == "Ontario")
         #expect(Region.europeanUnion.localizedName == "European Union")
         #expect(Region.other.localizedName == "Other")
     }
@@ -24,7 +24,7 @@ struct RegionTests {
     @Test func conveniences_useStableIDs() {
         #expect(Region.california.rawValue == "us-CA")
         #expect(Region.newYork.rawValue == "us-NY")
-        #expect(Region.canada.rawValue == "canada")
+        #expect(Region.ontario.rawValue == "ca-ON")
         #expect(Region.europeanUnion.rawValue == "european-union")
         #expect(Region.other.rawValue == "other")
     }
@@ -39,6 +39,8 @@ struct RegionTests {
 
     @Test func initRawValue_rejectsUnknownIDs() {
         #expect(Region(rawValue: "not-a-region") == nil)
+        #expect(Region(rawValue: "canada") == nil)
+        #expect(Region(rawValue: "united-states") == nil)
         // The former enum's raw values are no longer valid ids.
         #expect(Region(rawValue: "california") == nil)
     }
@@ -47,7 +49,7 @@ struct RegionTests {
 
     @Test func codable_roundTripsThroughID() throws {
         let texas = try #require(Region(rawValue: "us-TX"))
-        let regions: [Region] = [.california, .canada, .other, texas]
+        let regions: [Region] = [.california, .ontario, .other, texas]
         let data = try JSONEncoder().encode(regions)
         let decoded = try JSONDecoder().decode([Region].self, from: data)
         #expect(decoded == regions)
@@ -56,11 +58,11 @@ struct RegionTests {
     // MARK: - Catalog membership
 
     @Test func catalogContainsLoggableNorthAmericanRegionsAndTheEU() {
-        // 52 US jurisdictions + Canada and its 13 subdivisions + European Union.
-        #expect(RegionCatalog.shared.all.count == 67)
+        // 52 US jurisdictions, 13 Canadian subdivisions and the EU.
+        #expect(RegionCatalog.shared.all.count == 66)
         #expect(RegionCatalog.shared.all.contains(.california))
         #expect(RegionCatalog.shared.all.contains(.newYork))
-        #expect(RegionCatalog.shared.all.contains(.canada))
+        #expect(RegionCatalog.shared.all.contains(.ontario))
         #expect(RegionCatalog.shared.all.contains(.europeanUnion))
     }
 

@@ -8,16 +8,15 @@ import Testing
 /// tracked / used-this-year / everything-else once grouping loads, and expose
 /// the toggle item for a grouped region.
 struct RegionSelectionStateTests {
-    @MainActor @Test func manualPickerLogsNunavutIndependentlyOfCanada() async throws {
+    @MainActor @Test func manualPickerLogsNunavutWithoutOfferingCountries() async throws {
         let state = RegionSelectionState()
         let nunavut = try region("ca-NU")
         let item = try #require(state.item(for: nunavut))
         item.isOn = true
         #expect(state.selectedRegions == [nunavut])
-        #expect(state.item(for: .canada)?.isOn == false)
         #expect(state.item(for: .europeanUnion) != nil)
         #expect(state.item(for: .other) != nil)
-        #expect(!state.items.contains { $0.region.rawValue == "united-states" })
+        #expect(!state.items.contains { ["united-states", "canada"].contains($0.region.rawValue) })
 
         let session = PreviewSupport.loadedSession()
         let date = try #require(Calendar.current.date(from: DateComponents(

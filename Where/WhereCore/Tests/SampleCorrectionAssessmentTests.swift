@@ -125,7 +125,7 @@ struct SampleCorrectionAssessmentTests {
         #expect(proposal.resultingRegions == [.california, .other])
     }
 
-    @Test func trackedCountryOutsideProvinceIsAlreadyResolved() throws {
+    @Test func adjacentTrackedProvinceIsAlreadyResolved() throws {
         let fixture = CanadianAttributionFixture.self
         let west = fixture.ontarioSide
         let east = fixture.quebecSide
@@ -134,13 +134,13 @@ struct SampleCorrectionAssessmentTests {
             F.point(102, minutes: 5, longitude: east.longitude, latitude: east.latitude),
             F.point(103, minutes: 10, longitude: west.longitude, latitude: west.latitude),
         ]
-        let both = fixture.countryAndOntario
+        let both = fixture.bothProvinces
         #expect(F.reviews(samples, attributor: both).isEmpty)
         let provinceOnly = fixture.ontarioOnly
         let proposal = try #require(F.reviews(samples, attributor: provinceOnly).first?.proposal)
         #expect(proposal.edits == [.init(
             sampleID: samples[1].id,
-            replacementRegions: [fixture.ontario],
+            replacementRegions: [.ontario],
         )])
     }
 
@@ -291,11 +291,11 @@ struct SampleCorrectionAssessmentTests {
         )
         let review = try #require(F.reviews(
             trace.samples,
-            manuals: [DayPresence(day: day, regions: [.canada], isAuthoritative: true)],
+            manuals: [DayPresence(day: day, regions: [.ontario], isAuthoritative: true)],
             attributor: SampleCorrectionTestSupport.attribution,
         ).first)
         #expect(review.proposal == nil)
-        #expect(review.day.regions == [.canada])
+        #expect(review.day.regions == [.ontario])
         guard case .completed = review.state
         else { Issue.record("Expected completed informational flight"); return }
     }

@@ -140,9 +140,10 @@ public enum RegionGeometryCatalog {
     /// already-resolved polygons.
     private static func attributionOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
         var builder = OutlineBuilder()
-        attributor.forEachDrawableMember { region, member in
+        for entry in attributor.loadedRegionPolygons {
+            let region = entry.region
             let title = region.localizedName
-            for polygon in member.polygons {
+            for polygon in entry.polygons {
                 builder.add(
                     title: title,
                     region: region,
@@ -215,31 +216,12 @@ public enum RegionGeometryCatalog {
                 .loadRegionOutlines(region),
                 budget: .seconds(1),
             ) {
-                if node.geometryFile != nil { return try physicalOutlines(for: node) }
                 var builder = OutlineBuilder()
-                let title = node.localizedName
-                for member in catalog.geometryNodes(for: node) {
-                    for outline in try physicalOutlines(for: member) {
-                        builder.add(
-                            title: title,
-                            region: region,
-                            coordinates: outline.coordinates,
-                            holes: outline.holes,
-                        )
-                    }
-                }
+                try builder.add(node: node, resourceURL: resourceURL(node))
                 return builder.outlines
             }
             cached[node.id] = outlines
             return outlines
-        }
-
-        private func physicalOutlines(for node: RegionCatalog.Node) throws -> [RegionOutline] {
-            if let cached = cached[node.id] { return cached }
-            var builder = OutlineBuilder()
-            try builder.add(node: node, resourceURL: resourceURL(node))
-            cached[node.id] = builder.outlines
-            return builder.outlines
         }
     }
 }

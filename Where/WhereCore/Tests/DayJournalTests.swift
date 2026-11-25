@@ -19,7 +19,7 @@ struct DayJournalTests {
         let appliedRevisions = try await h.store.allSampleAttributionRevisions()
         try await h.services.journal.overrideDay(
             date: FlightTrajectoryFixtures.start,
-            regions: [.canada],
+            regions: [.ontario],
             audit: nil,
         )
         if bulk {

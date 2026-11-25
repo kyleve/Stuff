@@ -135,7 +135,7 @@ struct PresenceCalendarTests {
 
     @Test func dayWithPresenceIncludesMatchingRegions() throws {
         let days = [
-            DayPresence(date: day(2026, 6, 10), in: calendar, regions: [.canada, .europeanUnion]),
+            DayPresence(date: day(2026, 6, 10), in: calendar, regions: [.ontario, .europeanUnion]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -144,7 +144,7 @@ struct PresenceCalendarTests {
             flightDays: [],
         )
         let juneDay = months[5].days.first { $0.dayOfMonth == 10 }
-        #expect(juneDay?.regions == [.canada, .europeanUnion])
+        #expect(juneDay?.regions == [.ontario, .europeanUnion])
     }
 
     @Test func marksReferenceDateAsToday() throws {
@@ -260,12 +260,12 @@ struct PresenceCalendarTests {
             DayPresence(
                 date: day(2026, 6, 3),
                 in: calendar,
-                regions: [.canada, .california],
+                regions: [.ontario, .california],
             ),
             DayPresence(
                 date: day(2026, 6, 4),
                 in: calendar,
-                regions: [.california, .newYork, .canada],
+                regions: [.california, .newYork, .ontario],
             ),
             DayPresence(date: day(2026, 6, 5), in: calendar, regions: [.california]),
         ]
@@ -280,10 +280,10 @@ struct PresenceCalendarTests {
         #expect(months[5].regionCombinationTotals == [
             RegionCombinationDayTally(regions: [.california, .newYork], days: 2),
             RegionCombinationDayTally(
-                regions: [.california, .newYork, .canada],
+                regions: [.california, .newYork, .ontario],
                 days: 1,
             ),
-            RegionCombinationDayTally(regions: [.california, .canada], days: 1),
+            RegionCombinationDayTally(regions: [.california, .ontario], days: 1),
         ])
     }
 

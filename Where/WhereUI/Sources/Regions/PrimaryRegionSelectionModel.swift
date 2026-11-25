@@ -41,14 +41,15 @@ public final class PrimaryRegionSelectionModel {
     /// turns it on via ``applyGrouping(usedThisYear:)``.
     public private(set) var isGrouped = false
 
-    /// Loggable North American countries and their subdivisions in manifest order.
+    /// Loggable US and Canadian subdivisions in manifest order.
     public static let supportedRegions: [Region] = {
         let countries: Set<RegionCatalog.Node.ID> = [
             .init(rawValue: "united-states"),
-            .init(rawValue: Region.canada.rawValue),
+            .init(rawValue: "canada"),
         ]
         return RegionCatalog.shared.nodes.compactMap { node in
-            countries.contains(node.parentID ?? node.id) ? node.region : nil
+            guard let parent = node.parentID, countries.contains(parent) else { return nil }
+            return node.region
         }
     }()
 
@@ -98,16 +99,6 @@ public final class PrimaryRegionSelectionModel {
 
     public func isSelected(_ region: Region) -> Bool {
         selectedRegions.contains(region)
-    }
-
-    /// A country selection colors the area covered by its subdivisions. An explicitly
-    /// selected subdivision uses its own color.
-    func selectedRegionCoveringMapArea(_ region: Region) -> Region? {
-        if isSelected(region) { return region }
-        let catalog = RegionCatalog.shared
-        guard let node = catalog.node(for: region), let parent = catalog.parent(of: node)?.region,
-              isSelected(parent) else { return nil }
-        return parent
     }
 
     /// Whether tapping `region` would do something: always true when it's

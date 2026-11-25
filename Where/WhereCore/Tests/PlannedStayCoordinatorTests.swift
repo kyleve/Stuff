@@ -49,7 +49,7 @@ struct PlannedStayCoordinatorTests {
         let store = try SwiftDataStore.inMemory()
         let older = try PlannedStayTestSupport.stay(region: .california)
         let newer = try PlannedStayTestSupport.stay(id: older.id, region: .newYork)
-        let unrelated = try PlannedStayTestSupport.stay(region: .canada)
+        let unrelated = try PlannedStayTestSupport.stay(region: .ontario)
         let oldRecord = try PlannedStayTestSupport.record(stay: older, updatedAt: Self.now)
         let newRecord = try PlannedStayTestSupport.record(
             stay: newer,

@@ -304,7 +304,7 @@ class RegionRelease
                end
       raise "Wrong source for #{id}" unless node.fetch("source") == source
       raise "Wrong kind for #{id}" unless node.fetch("kind") == kind
-      raise "Wrong eligibility for #{id}" unless node.fetch("isLoggable") == (id != "united-states")
+      raise "Wrong eligibility for #{id}" unless node.fetch("isLoggable") == (kind != "country")
       if kind == "country"
         raise "Unexpected geometry for #{id}" if node.key?("geometryFile")
         next
@@ -327,7 +327,7 @@ class RegionRelease
       [node.fetch("id"), File.size(file)]
     end
     available = physical.select { |node| node.fetch("isLoggable") }.map { |node| node.fetch("id") }
-    defaults = %w[us-CA us-NY european-union] + physical.filter_map { |node| node.fetch("id") if node["parentID"] == "canada" }
+    defaults = %w[us-CA us-NY european-union]
     { "allBytes" => sizes.values.sum, "loggableBytes" => sizes.values_at(*available).sum,
       "defaultBytes" => sizes.values_at(*defaults).sum, "largestID" => sizes.max_by(&:last).first,
       "bytesByID" => sizes }

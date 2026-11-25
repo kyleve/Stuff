@@ -108,7 +108,7 @@ public struct DemoDataBuilder: Sendable {
     ]
 
     /// The tracked set the demo commits, in pick order. Two regions rather
-    /// than the default four: the point is a legible year, and every day in
+    /// than the default set: the point is a legible year, and every day in
     /// the script belongs to one of these.
     private static let primaryRegions = [
         PrimaryRegion(

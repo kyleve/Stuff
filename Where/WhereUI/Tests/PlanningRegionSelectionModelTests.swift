@@ -20,7 +20,8 @@ struct PlanningRegionSelectionModelTests {
         let nunavut = try #require(Region(rawValue: "ca-NU"))
         model.searchText = "Nunavut"
         #expect(model.filteredRegions == [nunavut])
-        #expect(model.available.contains(.canada))
+        model.searchText = "Canada"
+        #expect(model.filteredRegions.isEmpty)
         #expect(!model.available.contains(.europeanUnion))
         #expect(!model.available.contains(.other))
         model.searchText = "  New York \n"

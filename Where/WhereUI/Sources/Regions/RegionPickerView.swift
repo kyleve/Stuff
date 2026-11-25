@@ -151,13 +151,10 @@ struct RegionPickerView: View {
 
     private func overlayStyle(for outline: RegionOutline) -> RegionMapOverlayStyle {
         let style = stylesheet.regionPicker
-        let selection = outline.region.flatMap(model.selectedRegionCoveringMapArea)
-        let selected = selection != nil && selection == outline.region
+        let selected = outline.region.map(model.isSelected) == true
         let tint = outline.region.map { regionStyles.style(for: $0).tint } ?? .gray
         return RegionMapOverlayStyle(
-            fill: selection
-                .map { regionStyles.style(for: $0).tint.opacity(style.selectedFillOpacity) }
-                ?? tint.opacity(style.unselectedFillOpacity),
+            fill: tint.opacity(selected ? style.selectedFillOpacity : style.unselectedFillOpacity),
             stroke: tint
                 .opacity(selected ? style.selectedStrokeOpacity : style.unselectedStrokeOpacity),
             lineWidth: selected ? style.selectedStrokeWidth : style.unselectedStrokeWidth,
@@ -328,8 +325,8 @@ private struct RegionPickerRow: View {
 
         static var snapshots: [SnapshotCase] {
             let model = PrimaryRegionSelectionModel()
-            model.toggle(.canada)
-            if let ontario = Region(rawValue: "ca-ON") { model.toggle(ontario) }
+            model.toggle(.california)
+            model.toggle(.ontario)
             let prepared = SnapshotGeometry()
             return [
                 whereSnapshot(

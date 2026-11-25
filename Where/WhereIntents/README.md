@@ -55,7 +55,8 @@ The interactive wrapper that wires the button to an intent lives here, since `Wh
 ## Spotlight
 
 `RegionEntity` conforms to `IndexedEntity`.
-The user's **tracked** regions are indexed into Spotlight (`RegionSpotlightIndexer.indexRegions()`, called at app launch, re-run picks up changes).
+At launch, `RegionSpotlightIndexer.indexRegions()` removes any previously indexed country parents
+and indexes the user's **tracked** regions.
 A search for a region name surfaces Where and its day-count query.
 
 ## Shared types

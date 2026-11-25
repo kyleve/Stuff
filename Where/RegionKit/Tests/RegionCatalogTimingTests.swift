@@ -8,7 +8,7 @@ struct RegionCatalogTimingTests {
         let sample = Coordinate(latitude: 43.65, longitude: -79.38)
         let ids = RegionCatalog.shared.all
         let start = clock.now
-        let tracked = RegionAttributor(for: [.california, .newYork, .canada, .europeanUnion])
+        let tracked = RegionAttributor(for: [.california, .newYork, .europeanUnion])
         let trackedTime = start.duration(to: clock.now)
         let allStart = clock.now
         let all = RegionAttributor(for: ids)
@@ -19,8 +19,8 @@ struct RegionCatalogTimingTests {
         let lookupStart = clock.now
         let result = all.region(at: sample)
         let lookupTime = lookupStart.duration(to: clock.now)
-        #expect(tracked.region(at: sample) == .canada)
-        #expect(result != .other)
+        #expect(tracked.region(at: sample) == .other)
+        #expect(result == .ontario)
         #expect(!outlines.isEmpty)
         print(
             "RegionKit timing for \(ids.count) regions: default \(trackedTime), all \(allTime), map \(mapTime), Toronto lookup \(lookupTime)",

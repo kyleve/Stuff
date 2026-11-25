@@ -20,7 +20,7 @@ struct NorthAmericanRegionTests {
             ("YT", 60.7212, -135.0568),
         ]
         let catalog = RegionCatalog.shared
-        let canada = try #require(catalog.node(for: .canada))
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
         let children = catalog.children(of: canada)
         #expect(children.count == capitals.count)
         #expect(children.count(where: { $0.kind == .territory }) == 3)
@@ -32,22 +32,42 @@ struct NorthAmericanRegionTests {
         }
     }
 
-    @Test func trackedOntarioControlsConfidenceOnEitherSideOfItsBoundary() throws {
-        let ontario = try #require(Region(rawValue: "ca-ON"))
+    @Test func fixesOnEitherSideOfTheOntarioQuebecBorderMatchTheirTrackedProvince() throws {
+        let quebec = try #require(Region(rawValue: "ca-QC"))
         let west = Coordinate(latitude: 48.5, longitude: -79.5195)
         let east = Coordinate(latitude: 48.5, longitude: -79.5155)
-        let both = RegionAttributor(for: [.canada, ontario])
-        let inside = try #require(both.matchWithBoundaryDistance(at: west))
-        let outside = try #require(both.matchWithBoundaryDistance(at: east))
-        #expect(inside.region == ontario)
-        #expect(outside.region == .canada)
-        #expect(inside.boundaryDistance < 500 && outside.boundaryDistance < 500)
-        let canada = RegionAttributor(for: [.canada])
-        #expect(try #require(canada.distanceToBoundary(of: .canada, from: west)) > 10000)
-        #expect(both.distance(to: .canada, from: west) == 0)
-        let vancouver = Coordinate(latitude: 49.28, longitude: -123.12)
-        #expect(both.region(at: vancouver) == .canada)
-        #expect(RegionAttributor(for: [ontario]).region(at: vancouver) == .other)
+        let both = RegionAttributor(for: [.ontario, quebec])
+        let ontarioMatch = try #require(both.matchWithBoundaryDistance(at: west))
+        let quebecMatch = try #require(both.matchWithBoundaryDistance(at: east))
+        #expect(ontarioMatch.region == .ontario && ontarioMatch.boundaryDistance < 500)
+        #expect(quebecMatch.region == quebec && quebecMatch.boundaryDistance < 500)
+        #expect(RegionAttributor(for: [.ontario]).region(at: east) == .other)
+    }
+
+    @Test func publisherOverlapAtTheAlaskaYukonBorderUsesCallerPriority() throws {
+        let alaska = try #require(Region(rawValue: "us-AK"))
+        let yukon = try #require(Region(rawValue: "ca-YT"))
+        let alaskaFirst = RegionAttributor(for: [alaska, yukon])
+        let yukonFirst = RegionAttributor(for: [yukon, alaska])
+        let overlap = Coordinate(latitude: 64, longitude: -141.002)
+        #expect(alaskaFirst.region(at: overlap) == alaska)
+        #expect(yukonFirst.region(at: overlap) == yukon)
+        #expect(alaskaFirst.distance(to: yukon, from: overlap) == 0)
+        #expect(yukonFirst.distance(to: alaska, from: overlap) == 0)
+
+        // Just west of both publishers' edges, leaving Alaska and entering Yukon
+        // change the winner at different distances depending on caller priority.
+        let alaskaOnly = Coordinate(latitude: 64, longitude: -141.004)
+        let toAlaskaEdge = try #require(alaskaFirst.distanceToBoundary(
+            of: alaska,
+            from: alaskaOnly,
+        ))
+        let toYukonEdge = try #require(alaskaFirst.distanceToBoundary(of: yukon, from: alaskaOnly))
+        #expect(toYukonEdge < toAlaskaEdge)
+        let first = try #require(alaskaFirst.matchWithBoundaryDistance(at: alaskaOnly))
+        let second = try #require(yukonFirst.matchWithBoundaryDistance(at: alaskaOnly))
+        #expect(first.region == alaska && first.boundaryDistance == toAlaskaEdge)
+        #expect(second.region == alaska && second.boundaryDistance == toYukonEdge)
     }
 
     @Test func countriesHaveNoGeometryFilesAndUSTerritoriesStayUntracked() throws {
@@ -55,13 +75,14 @@ struct NorthAmericanRegionTests {
         let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
         #expect(catalog.children(of: us).count == 52)
         #expect(us.region == nil)
-        let canada = try #require(catalog.node(for: .canada))
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
         #expect(us.geometryFile == nil && canada.geometryFile == nil)
         #expect(RegionCatalog.geometryURL(for: us) == nil && RegionCatalog
             .geometryURL(for: canada) == nil)
         #expect(catalog.nodes.compactMap(\.geometryFile).count == 66)
-        let storedUS = Region(unchecked: us.id.rawValue)
-        #expect(RegionAttributor(for: [storedUS]).loadedRegions.isEmpty)
+        let countries = [us, canada].map { Region(unchecked: $0.id.rawValue) }
+        #expect(canada.region == nil)
+        #expect(RegionAttributor(for: countries).loadedRegions.isEmpty)
         for (code, latitude, longitude) in [
             ("AS", -14.279, -170.701),
             ("GU", 13.4757, 144.7504),

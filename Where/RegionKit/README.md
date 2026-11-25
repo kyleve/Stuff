@@ -14,9 +14,9 @@ into it for lookup. RegionKit depends only on
 ## What you get
 
 - **`Region`** — a `Hashable`/`Codable` value type wrapping a stable string id
-  (`rawValue`, e.g. `"us-CA"`, `"canada"`), with a `localizedName`. It is **not**
+  (`rawValue`, e.g. `"us-CA"`, `"ca-ON"`), with a `localizedName`. It is **not**
   a hardcoded enum: the set of *available* regions is data (see `RegionCatalog`).
-  Conveniences (`.california`, `.newYork`, `.canada`, `.europeanUnion`, `.other`)
+  Conveniences (`.california`, `.newYork`, `.ontario`, `.europeanUnion`, `.other`)
   read naturally at call sites. `.other` is the catch-all sentinel (no geometry).
   (Day-count *ranking* lives in `WhereCore`, not here.)
 - **`RegionCatalog`** reads all geographic nodes from the bundled `regions.json`.
@@ -30,19 +30,16 @@ into it for lookup. RegionKit depends only on
   antimeridian-aware `LongitudeSpan`.
 - **`RegionAttributor`** / **`RegionAttributing`** — `region(at:)` maps a
   coordinate to its `Region` (bounding-box pre-pass, then an even-odd ray-cast),
-  and `distanceToBoundary` measures nearness to a named region's edge. When
-  tracked regions overlap, a matching descendant takes precedence over its
-  matching ancestors. Caller order breaks ties among remaining matches.
-  `matchWithBoundaryDistance(at:)` measures confidence against the winning
-  region and the boundaries of its tracked descendants. An attributor is
-  built for a **specific set of regions** (`RegionAttributor(for:)`) and loads
-  the geometry needed for that set. Canada uses its thirteen subdivisions. `.all` covers the whole catalog and `.shared` the
-  default four. `RegionAttributing` is the protocol the app's live, swappable
-  attributor also conforms to.
+  and `distanceToBoundary` measures nearness to a named region's edge. Caller
+  order determines which tracked region wins where publishers' polygons overlap.
+  `matchWithBoundaryDistance(at:)` also checks an earlier region's edge when
+  crossing it could change the winner. An attributor loads the files for its
+  tracked set. `.all` covers all 66 available regions. `.shared` tracks
+  California, New York and the European Union.
 - **`RegionGeometryCatalog`** returns drawable `RegionOutline`s. Call
-  `outlines(for:)` with a region for its artwork. Canada draws its provinces and
-  territories together. The developer viewer’s `.attribution` view shows the
-  selected regions, and `.source` shows the individual bundled geometries.
+  `outlines(for:)` with a region for its artwork. The developer viewer’s
+  `.attribution` view shows the selected regions, and `.source` shows the
+  individual bundled geometries.
   `RegionGeometrySimplifier` can derive reduced geometry at a
   consumer-chosen normalized tolerance without imposing UI sizes on RegionKit.
 - **`RegionDataSource`** — where the bundled geometry came from: the boundary
@@ -85,7 +82,8 @@ print(region.localizedName) // "California"
 The generated resources in `Sources/Resources/` contain the catalog manifest and
 66 geometry files. Under `regions/`, `us/` holds the 52 US jurisdictions,
 `ca/` holds the 13 Canadian provinces and territories, and `eu/` holds the EU bloc outline.
-The US and Canada are country entries in the manifest.
+Canada and the US have catalog nodes for looking up each subdivision’s parent.
+Users can track individual subdivisions and the EU bloc.
 
 ### `regions.json` — the catalog manifest
 
@@ -122,7 +120,7 @@ The ordered array has one entry per geographic node.
 
 ### Per-region geometry
 
-Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. The EU retains its existing plain GeoJSON. Tracking Canada loads its provinces and territories. A Toronto fix therefore matches Canada when tracked on its own and Ontario when both are tracked.
+Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. The EU retains its existing plain GeoJSON. A Toronto fix matches Ontario when the user tracks it. Otherwise the tracked attributor returns `.other`, and a full-catalog lookup can still identify Ontario.
 
 ### Regenerating
 

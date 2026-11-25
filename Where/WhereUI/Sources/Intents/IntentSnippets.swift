@@ -179,7 +179,7 @@ extension RegionsSnippetView {
 
     #Preview("Days in region · single") {
         DaysInRegionSnippetView(
-            snapshot: DaysInRegionSnapshot(region: .canada, year: 2026, dayCount: 1),
+            snapshot: DaysInRegionSnapshot(region: .ontario, year: 2026, dayCount: 1),
         )
         .whereBroadwayRoot()
     }

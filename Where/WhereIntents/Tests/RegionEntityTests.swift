@@ -29,10 +29,10 @@ struct RegionEntityTests {
             "ca-ON",
             "canada",
         ])
-        #expect(resolved.map(\.region) == [.california, texas, ontario, .canada])
+        #expect(resolved.map(\.region) == [.california, texas, ontario])
     }
 
-    @Test func typedNamesFindAvailableRegionsWithoutExposingTheInternalCountry() async throws {
+    @Test func typedNamesFindAvailableRegionsWithoutExposingCountryParents() async throws {
         let query = RegionEntityQuery()
         let ontario = try #require(Region(rawValue: "ca-ON"))
         #expect(try await query.entities(matching: "  onTarIo  ").map(\.region) == [ontario])
@@ -41,6 +41,7 @@ struct RegionEntityTests {
         #expect(try await query.entities(matching: Region.other.localizedName)
             .map(\.region) == [.other])
         #expect(try await query.entities(matching: "United States").isEmpty)
+        #expect(try await query.entities(matching: "Canada").isEmpty)
     }
 
     @Test func trackedEntitiesFollowTheStoresTrackedSet() async throws {
@@ -58,7 +59,7 @@ struct RegionEntityTests {
         #expect(entities.map(\.region) == [.california, texas, ontario])
     }
 
-    @Test func trackedEntitiesDefaultToTheFourWhenUnset() async throws {
+    @Test func trackedEntitiesUseTheStoreDefaultsWhenUnset() async throws {
         let store = try SwiftDataStore.inMemory()
         let entities = try await RegionEntity
             .tracked(from: IntentTestSupport.services(store: store))

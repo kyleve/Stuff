@@ -64,24 +64,24 @@ struct DayAggregatorTests {
         #expect(days[0].regions == [.california])
     }
 
-    @Test func countryAndProvinceReceiveOnlyExplicitlyAttributedDays() {
+    @Test func trackedProvincesReceiveOnlyTheirOwnVisits() {
         let fixture = CanadianAttributionFixture.self
-        let tracked = fixture.countryAndOntario
+        let tracked = fixture.bothProvinces
         let toronto = makeSample(
             at: "2026-03-15T09:00:00-07:00",
             lat: fixture.toronto.latitude,
             lng: fixture.toronto.longitude,
         )
-        let vancouver = makeSample(at: "2026-03-15T11:00:00-07:00", lat: 49.2827, lng: -123.1207)
+        let montreal = makeSample(at: "2026-03-15T11:00:00-07:00", lat: 45.5019, lng: -73.5674)
         let day = CalendarDay(from: toronto.timestamp, in: calendar)
         #expect(aggregator.aggregate(samples: [toronto], attributor: tracked) == [DayPresence(
             day: day,
-            regions: [fixture.ontario],
+            regions: [.ontario],
         )])
-        let both = DayPresence(day: day, regions: [.canada, fixture.ontario])
+        let both = DayPresence(day: day, regions: [.ontario, fixture.quebec])
         #expect(aggregator
-            .aggregate(samples: [toronto, vancouver], attributor: tracked) == [both])
-        let manual = DayPresence(day: day, regions: [.canada])
+            .aggregate(samples: [toronto, montreal], attributor: tracked) == [both])
+        let manual = DayPresence(day: day, regions: [fixture.quebec])
         let report = aggregator.report(
             for: 2026,
             samples: [toronto],
@@ -195,7 +195,7 @@ struct DayAggregatorTests {
         // An additive overlay and an authoritative one on the same day: the
         // authoritative one wins, dropping the additive region too.
         let day = startOfDay(forYear: 2026, month: 7, day: 4)
-        let additive = DayPresence(date: day, in: calendar, regions: [.canada])
+        let additive = DayPresence(date: day, in: calendar, regions: [.ontario])
         let override = DayPresence(
             date: day,
             in: calendar,
@@ -307,7 +307,7 @@ struct DayAggregatorTests {
         ])
         #expect(locations[.california]?.flatMap(\.points).map(\.horizontalAccuracy) == [15, 25])
         #expect(locations[.newYork]?.flatMap(\.points).map(\.horizontalAccuracy) == [35])
-        #expect(locations[.canada] == nil)
+        #expect(locations[.ontario] == nil)
     }
 
     @Test func representativeCoordinatePicksTheMostSampledCellPerRegion() {
@@ -328,7 +328,7 @@ struct DayAggregatorTests {
         // California resolves to the San Francisco cluster, not Los Angeles.
         #expect(abs((representatives[.california]?.latitude ?? 0) - 37.7749) < 0.01)
         #expect(representatives[.newYork] != nil)
-        #expect(representatives[.canada] == nil)
+        #expect(representatives[.ontario] == nil)
     }
 
     @Test func representativeCoordinateBreaksTiesDeterministically() {
@@ -362,7 +362,7 @@ struct DayAggregatorTests {
         #expect(byRegion[.california]?.count == 2)
         #expect(byRegion[.other]?.count == 1)
         #expect(byRegion[.newYork]?.count == 1)
-        #expect(byRegion[.canada] == nil)
+        #expect(byRegion[.ontario] == nil)
     }
 
     @Test func pointsByRegionExcludesOtherDays() {

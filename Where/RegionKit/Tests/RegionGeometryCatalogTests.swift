@@ -5,7 +5,7 @@ import Testing
 struct RegionGeometryCatalogTests {
     /// A representative tracked subset, so `.attribution` outlines reflect a
     /// specific attributor rather than a global.
-    let trackedFour = RegionAttributor(for: [.california, .newYork, .canada, .europeanUnion])
+    let tracked = RegionAttributor(for: [.california, .newYork, .ontario, .europeanUnion])
 
     // MARK: - Attribution
 
@@ -20,7 +20,7 @@ struct RegionGeometryCatalogTests {
         #expect(await RegionGeometryCatalog.outlines(for: .other).isEmpty)
     }
 
-    @Test func countryArtworkUsesItsChildrenAndInternalCountriesHaveNoArtwork() async throws {
+    @Test func subdivisionArtworkLoadsOnceAndCountryNodesHaveNoArtwork() async throws {
         let catalog = try RegionHierarchyFixture.catalog()
         let reads = Mutex<[RegionCatalog.Node.ID]>([])
         let fixtureURL = try #require(RegionCatalog.shared.geometryURL(for: .california))
@@ -28,38 +28,35 @@ struct RegionGeometryCatalogTests {
             reads.withLock { $0.append(node.id) }
             return fixtureURL
         }
-        let storedUS = Region(unchecked: "united-states")
-        #expect(try await cache.outlines(for: storedUS).isEmpty)
+        for id in ["canada", "united-states"] {
+            #expect(try await cache.outlines(for: Region(unchecked: id)).isEmpty)
+        }
         #expect(reads.withLock { $0.isEmpty })
-        let outlines = try await cache.outlines(for: .canada)
-        #expect(!outlines.isEmpty && outlines.allSatisfy { $0.region == .canada })
-        #expect(try await cache.outlines(for: .canada) == outlines)
-        let ontario = Region(unchecked: "ca-ON")
-        let child = try await cache.outlines(for: ontario)
-        #expect(child.allSatisfy { $0.region == ontario })
-        #expect(child.map(\.coordinates) == outlines.map(\.coordinates))
+        let outlines = try await cache.outlines(for: .ontario)
+        #expect(!outlines.isEmpty && outlines.allSatisfy { $0.region == .ontario })
+        #expect(try await cache.outlines(for: .ontario) == outlines)
         #expect(reads.withLock { $0.map(\.rawValue) } == ["ca-ON"])
     }
 
-    @Test func missingChildSurfacesItsResourceErrorForParentArtwork() async throws {
+    @Test func missingSubdivisionArtworkSurfacesItsResourceError() async throws {
         let catalog = try RegionHierarchyFixture.catalog()
         let cache = RegionGeometryCatalog.RegionCache(catalog: catalog) { _ in nil }
-        await #expect(throws: RegionGeometryError.self) { try await cache.outlines(for: .canada) }
+        await #expect(throws: RegionGeometryError.self) { try await cache.outlines(for: .ontario) }
     }
 
     @Test func attribution_coversExactlyTheAttributorsRegions() async throws {
         let outlines = try await RegionGeometryCatalog.outlines(
             for: .attribution,
-            attributor: trackedFour,
+            attributor: tracked,
         )
         let regions = Set(outlines.compactMap(\.region))
-        #expect(regions == [.california, .newYork, .canada, .europeanUnion])
+        #expect(regions == [.california, .newYork, .ontario, .europeanUnion])
     }
 
     @Test func attribution_everyOutlineIsTaggedWithARealRegion() async throws {
         let outlines = try await RegionGeometryCatalog.outlines(
             for: .attribution,
-            attributor: trackedFour,
+            attributor: tracked,
         )
         #expect(!outlines.isEmpty)
         #expect(outlines.allSatisfy { $0.region != nil && $0.region != .other })
@@ -78,7 +75,7 @@ struct RegionGeometryCatalogTests {
 
     @Test func sourceAndAllTrackedGeometryDrawEachPhysicalRegionOnce() async throws {
         let catalog = RegionCatalog.shared
-        let canada = try #require(catalog.node(for: .canada))
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
         let childRegions = Set(catalog.children(of: canada).compactMap(\.region))
         let source = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
         let attributed = try await RegionGeometryCatalog.outlines(
@@ -87,7 +84,7 @@ struct RegionGeometryCatalogTests {
         )
         let owners = Set(source.compactMap(\.region))
         #expect(childRegions.isSubset(of: owners))
-        #expect(owners.contains(.europeanUnion) && !owners.contains(.canada))
+        #expect(owners == Set(catalog.all))
         #expect(owners == Set(attributed.compactMap(\.region)))
         #expect(source.count == attributed.count)
     }
@@ -155,7 +152,7 @@ struct RegionGeometryCatalogTests {
     @Test func boundingBox_enclosesEveryOutlineCoordinate() async throws {
         let outlines = try await RegionGeometryCatalog.outlines(
             for: .attribution,
-            attributor: trackedFour,
+            attributor: tracked,
         )
         let box = try #require(BoundingBox.enclosing(outlines))
         #expect(outlines.allSatisfy { $0.coordinates.allSatisfy(box.contains) })

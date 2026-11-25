@@ -90,6 +90,6 @@ For example, a manual-only backup can record Ontario without any tracked regions
 An older store can omit that ID when reading a manual day. Version 8 makes the older importer reject
 the archive before it changes any rows. This protection also applies when a ZIP moves to another account.
 
-Upgrading a current-lineage v7 backup to v8 changes only its format version. A manual Canada entry
-keeps `canada`, and existing US entries keep their IDs. The account-wide data version is checked
-separately when the app opens synced history.
+Upgrading a current-lineage v7 backup to v8 changes only its format version and preserves
+the IDs in the archive. The current catalog accepts Canadian provinces and territories as
+tracking choices. The account-wide data version is checked separately when the app opens synced history.

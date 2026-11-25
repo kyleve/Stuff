@@ -44,9 +44,9 @@ struct RegionDataSourceTests {
         #expect(source.nodes.allSatisfy { $0.parentID?.rawValue == "united-states" })
     }
 
-    @Test func creditsEveryPhysicalMemberOfCanadasCoverage() throws {
-        let canada = try #require(catalog.node(for: .canada))
-        let members = catalog.geometryNodes(for: canada)
+    @Test func creditsEveryCanadianProvinceAndTerritory() throws {
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let members = catalog.children(of: canada)
         let source = try #require(RegionDataSource.all
             .first { $0.license == .openGovernmentCanada })
         #expect(members.count == 13)

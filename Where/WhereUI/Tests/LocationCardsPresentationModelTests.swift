@@ -188,7 +188,7 @@ struct LocationCardsPresentationModelTests {
         model.updateReconciliationTarget(baselineReconciliation)
         model.reconcile(baselineReconciliation)
 
-        let current = [item(.canada, 110), item(.california, 100)]
+        let current = [item(.ontario, 110), item(.california, 100)]
         let reconciliation = target(current)
         model.updateReconciliationTarget(reconciliation)
 
@@ -202,11 +202,11 @@ struct LocationCardsPresentationModelTests {
 
     @Test func reversingThreeCardsDoesNotTriggerTheTwoCardOvertake() {
         let model = LocationCardsPresentationModel(preferences: preferences(), year: 2026)
-        let baseline = target([item(.california, 100), item(.newYork, 99), item(.canada, 98)])
+        let baseline = target([item(.california, 100), item(.newYork, 99), item(.ontario, 98)])
         model.updateReconciliationTarget(baseline)
         model.reconcile(baseline)
 
-        let current = [item(.canada, 102), item(.newYork, 101), item(.california, 100)]
+        let current = [item(.ontario, 102), item(.newYork, 101), item(.california, 100)]
         let reconciliation = target(current)
         model.updateReconciliationTarget(reconciliation)
         #expect(!model.willOvertake(reconciliation))

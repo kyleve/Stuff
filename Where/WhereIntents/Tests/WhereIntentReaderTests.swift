@@ -35,7 +35,7 @@ struct WhereIntentReaderTests {
         let reader = reader(services)
         #expect(try await reader.dayCount(in: .california, year: 2026) == 2)
         #expect(try await reader.dayCount(in: .newYork, year: 2026) == 1)
-        #expect(try await reader.dayCount(in: .canada, year: 2026) == 0)
+        #expect(try await reader.dayCount(in: .ontario, year: 2026) == 0)
     }
 
     @Test func regionsOnDateReturnsThatDaysRegions() async throws {
@@ -71,11 +71,11 @@ struct WhereIntentReaderTests {
             WidgetSnapshot(
                 day: calendar.startOfDay(for: today),
                 year: 2026,
-                dayRegions: [.canada],
+                dayRegions: [.ontario],
                 totals: [:],
             )
         }
-        #expect(try await reader.todayRegions() == [.canada])
+        #expect(try await reader.todayRegions() == [.ontario])
     }
 
     @Test func todayRegionsFallsBackToTheStoreWithoutASnapshot() async throws {
@@ -102,7 +102,7 @@ struct WhereIntentReaderTests {
             WidgetSnapshot(
                 day: calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: today))!,
                 year: 2026,
-                dayRegions: [.canada],
+                dayRegions: [.ontario],
                 totals: [:],
             )
         }

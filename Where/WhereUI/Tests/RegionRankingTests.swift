@@ -12,10 +12,10 @@ struct RegionRankingTests {
         let ranking = RegionRanking(report: report([
             .california: 100,
             .newYork: 60,
-            .canada: 20,
+            .ontario: 20,
         ]))
         #expect(ranking.primary.map(\.region) == [.california, .newYork])
-        #expect(ranking.secondary.map(\.region) == [.canada])
+        #expect(ranking.secondary.map(\.region) == [.ontario])
     }
 
     @Test func otherIsNeverPrimaryEvenWhenLargest() {
@@ -48,13 +48,13 @@ struct RegionRankingTests {
 
     @Test func tiesBreakByDeclarationOrder() {
         let ranking = RegionRanking(report: report([
-            .canada: 40,
+            .ontario: 40,
             .newYork: 40,
             .california: 40,
         ]))
-        // California precedes New York precedes Canada in `Region.allCases`.
+        // California precedes New York precedes Ontario in `Region.allCases`.
         #expect(ranking.primary.map(\.region) == [.california, .newYork])
-        #expect(ranking.secondary.map(\.region) == [.canada])
+        #expect(ranking.secondary.map(\.region) == [.ontario])
     }
 
     @Test func emptyReportProducesEmptyRanking() {
@@ -72,10 +72,10 @@ struct RegionRankingTests {
 
     @Test func primaryCountIsConfigurable() {
         let ranking = RegionRanking(
-            report: report([.california: 100, .newYork: 60, .canada: 20]),
+            report: report([.california: 100, .newYork: 60, .ontario: 20]),
             primaryCount: 1,
         )
         #expect(ranking.primary.map(\.region) == [.california])
-        #expect(ranking.secondary.map(\.region) == [.newYork, .canada])
+        #expect(ranking.secondary.map(\.region) == [.newYork, .ontario])
     }
 }
