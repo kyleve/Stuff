@@ -1,6 +1,6 @@
 # 06. Tracking and display boundaries
 
-- Status: ready
+- Status: executing
 - Depends on [05. Countries as catalog parents](05-country-parents.md). Revision reviewed against `f69ad364d` on [PR #563](https://github.com/kyleve/Stuff/pull/563).
 - Delivers [R-06 through R-08](README.md#requirements) for [S-01, S-03 and S-04](README.md#user-stories). Retains R-01 through R-05 and [X-01 through X-05](README.md#scope-boundaries).
 
@@ -118,6 +118,10 @@ Run from the repository root. The commands below are for implementation.
 
 Format 2 cannot identify both products. Give maintainers an actionable message to refresh the pinned years with an explicit US display vintage to create a format-3 candidate. The previous Git revision remains available to replay a format-2 release as originally published. Until a complete candidate passes validation, retain the adopted release. After interruption, recover through the existing adoption journal, regenerate and run `--check`. To revert a published cutover, restore the paired release and its consumers to the same prior revision.
 
+## Execution evidence
+
+- November 25. The production TIGER simplifier reproduced all 52 files from the selected prototype. Independent decoding of the Ruby encoder’s bytes bounded displacement against every original WGS84 chain in both directions. The largest upper bound was 24.000 m including coordinate rounding. Three offline regression cases cover a missed bend, both owners of a shared edge, islands, holes and rounding. The previous release stays in use until the paired candidate is adopted.
+
 ## Resume point
 
-Planning only. Implementation awaits the owner’s request. Start with a format-3 candidate and per-product source tests in step 1. The US tracking prototypes establish feasibility. Integrating the checks into the updater and adopting production resources are pending.
+The owner authorized implementation on November 25. Work started on the four source adapters, selective TIGER edge restoration and verification, the paired release format, and its Swift consumers. Adopt the verified candidate before checking app behavior and publishing.
