@@ -141,11 +141,11 @@ extension RegionOutline {
 
 /// The camera filters drawable overlays. Picker hit testing still asks the
 /// attributor about the exact tapped coordinate at every zoom.
-struct RegionPolygonMap<Overlay: MapContent>: View {
+struct RegionPolygonMap: View {
     let geometry: RegionMapGeometry
     var selectedTitle: String?
     @Binding var position: MapCameraPosition
-    @MapContentBuilder var overlay: (RegionOutline, MKPolygon) -> Overlay
+    let style: (RegionOutline) -> RegionMapOverlayStyle
     @State private var visibleRect = MKMapRect.world
     @State private var width: CGFloat = 0
     @State private var drawing = Drawing()
@@ -183,7 +183,12 @@ struct RegionPolygonMap<Overlay: MapContent>: View {
             height: visibleRect.height,
         ), width: width, title: selectedTitle)
         Map(position: $position) {
-            ForEach(drawing.polygons) { overlay($0.outline, $0.polygon) }
+            ForEach(drawing.polygons) { part in
+                let appearance = style(part.outline)
+                MapPolygon(part.polygon)
+                    .foregroundStyle(appearance.fill)
+                    .stroke(appearance.stroke, style: appearance.strokeStyle)
+            }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -220,6 +225,11 @@ struct RegionMapOverlayStyle {
     let fill: Color
     let stroke: Color
     let lineWidth: CGFloat
+
+    /// Sharp turns along coastlines can send a miter far beyond the boundary.
+    var strokeStyle: StrokeStyle {
+        StrokeStyle(lineWidth: lineWidth, lineJoin: .round)
+    }
 }
 
 /// Deterministic stand-in for ``RegionMapView``'s live `Map` under snapshot
@@ -288,7 +298,7 @@ struct RegionMapCanvas: View {
                 context.stroke(
                     path,
                     with: .color(appearance.stroke),
-                    lineWidth: appearance.lineWidth,
+                    style: appearance.strokeStyle,
                 )
             }
         }
@@ -305,9 +315,12 @@ struct RegionMapCanvas: View {
         @Previewable @State var geometry: RegionMapGeometry?
         Group {
             if let geometry {
-                RegionPolygonMap(geometry: geometry, position: $position) { _, polygon in
-                    MapPolygon(polygon).foregroundStyle(.tint.opacity(0.25))
-                        .stroke(.tint)
+                RegionPolygonMap(geometry: geometry, position: $position) { _ in
+                    RegionMapOverlayStyle(
+                        fill: .accentColor.opacity(0.25),
+                        stroke: .accentColor,
+                        lineWidth: 1,
+                    )
                 }
             } else {
                 ProgressView()

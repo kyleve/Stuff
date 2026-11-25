@@ -130,12 +130,8 @@ struct RegionPickerView: View {
                     RegionPolygonMap(
                         geometry: data.geometry,
                         position: $mapPosition,
-                    ) { outline, polygon in
-                        let appearance = overlayStyle(for: outline)
-                        MapPolygon(polygon)
-                            .foregroundStyle(appearance.fill)
-                            .stroke(appearance.stroke, lineWidth: appearance.lineWidth)
-                    }
+                        style: overlayStyle(for:),
+                    )
                     .onTapGesture { point in
                         guard let coordinate = proxy.convert(point, from: .local) else { return }
                         handleMapTap(at: coordinate, in: data)

@@ -1,9 +1,23 @@
 import MapKit
 @testable import RegionKit
+import SwiftUI
 import Testing
 @testable import WhereUI
 
 struct RegionArtworkProjectionTests {
+    @Test func mapBorderStaysWithinHalfAStrokeOfASharpCoastalTip() {
+        let tip = CGPoint(x: 40, y: 10)
+        let headland = Path { path in
+            path.move(to: CGPoint(x: 5, y: 5))
+            path.addLine(to: tip)
+            path.addLine(to: CGPoint(x: 5, y: 15))
+            path.closeSubpath()
+        }
+        let appearance = RegionMapOverlayStyle(fill: .blue, stroke: .blue, lineWidth: 2)
+        let border = headland.strokedPath(appearance.strokeStyle)
+        #expect(border.boundingRect.maxX <= tip.x + appearance.lineWidth / 2 + 0.001)
+    }
+
     @Test func interiorRingsCutOutTheCardAndMapPolygon() throws {
         let shell = rectangle(west: -82, east: -78, south: 42, north: 46)
         let hole = rectangle(west: -81, east: -79, south: 43, north: 45).reversed()

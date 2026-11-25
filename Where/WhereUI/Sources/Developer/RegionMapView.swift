@@ -248,26 +248,21 @@ private struct RegionOutlinesMap: View {
                 geometry: geometry,
                 selectedTitle: selectedTitle,
                 region: frame,
-                style: { outline in
-                    let tint = color(outline)
-                    return RegionMapOverlayStyle(
-                        fill: tint.opacity(0.25),
-                        stroke: tint,
-                        lineWidth: 1.5,
-                    )
-                },
+                style: overlayStyle(for:),
             )
         } else {
             RegionPolygonMap(
                 geometry: geometry,
                 selectedTitle: selectedTitle,
                 position: $cameraPosition,
-            ) { outline, polygon in
-                MapPolygon(polygon)
-                    .foregroundStyle(color(outline).opacity(0.25))
-                    .stroke(color(outline), lineWidth: 1.5)
-            }
+                style: overlayStyle(for:),
+            )
         }
+    }
+
+    private func overlayStyle(for outline: RegionOutline) -> RegionMapOverlayStyle {
+        let tint = color(outline)
+        return RegionMapOverlayStyle(fill: tint.opacity(0.25), stroke: tint, lineWidth: 1.5)
     }
 }
 
