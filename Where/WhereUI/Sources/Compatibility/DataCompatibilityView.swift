@@ -2,7 +2,6 @@ import InstallerKit
 #if DEBUG
     @_spi(Testing) import InstallerKitUI
 #endif
-import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -12,11 +11,23 @@ struct DataCompatibilityView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.openURL) private var openURL
     @Environment(\.isInDemoMode) private var isInDemoMode
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @State private var isRetrying = false
     @AccessibilityFocusState private var titleFocused: Bool
     let state: DataCompatibilityCoordinator.State
+    private let previewImageName: String?
     let retry: @MainActor () async -> Void
+
+    init(
+        state: DataCompatibilityCoordinator.State,
+        previewImageName: String? = nil,
+        retry: @escaping @MainActor () async -> Void,
+    ) {
+        self.state = state
+        self.previewImageName = previewImageName
+        self.retry = retry
+    }
 
     private var title: LocalizedStringResource {
         switch state {
@@ -40,10 +51,12 @@ struct DataCompatibilityView: View {
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: .lockIcloud)
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+            AppIconImage(
+                name: previewImageName ?? AppIconCatalog
+                    .liveSelectedPreviewImageName(primaryAppIconName: primaryAppIconName),
+                size: stylesheet.size.compatibilityIcon,
+                bordered: false,
+            )
             Text(title)
                 .font(.title.bold())
                 .accessibilityAddTraits(.isHeader)
@@ -55,11 +68,11 @@ struct DataCompatibilityView: View {
                 GroupBox {
                     Text(verbatim: explanation)
                         .font(.subheadline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity)
                 } label: {
                     Text(.compatibilityUpdateReasonTitle)
+                        .frame(maxWidth: .infinity)
                 }
-                .multilineTextAlignment(.leading)
             }
             if case .checking = state {
                 ProgressView()
@@ -119,6 +132,10 @@ private struct CompatibilityAppUpdatesButton: View {
 
 #if DEBUG
     extension DataCompatibilityView: SnapshotProviding {
+        private static func preview(state: DataCompatibilityCoordinator.State) -> Self {
+            Self(state: state, previewImageName: "AppIconClassic", retry: {})
+        }
+
         private static var previewUpdateRequiredState: DataCompatibilityCoordinator.State {
             .blocked(.updateRequired(
                 .init(rawValue: 2),
@@ -134,14 +151,14 @@ private struct CompatibilityAppUpdatesButton: View {
                 configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: previewUpdateRequiredState, retry: {})
+                preview(state: previewUpdateRequiredState)
             }
             whereThemeSnapshot(
                 name: "UpdateRequiredWithAppUpdates",
                 configurations: .fullContentPhoneLightDarkWithAX5,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: previewUpdateRequiredState, retry: {})
+                preview(state: previewUpdateRequiredState)
                     .environment(InstallerPreview.model(.available))
             }
             whereThemeSnapshot(
@@ -149,24 +166,21 @@ private struct CompatibilityAppUpdatesButton: View {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: .blocked(.recordingDeviceRequired), retry: {})
+                preview(state: .blocked(.recordingDeviceRequired))
             }
             whereThemeSnapshot(
                 name: "Permission",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: .blocked(.locationPermissionRequired), retry: {})
+                preview(state: .blocked(.locationPermissionRequired))
             }
             whereThemeSnapshot(
                 name: "Verification",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                Self(
-                    state: .blocked(.verificationRequired(URLError(.notConnectedToInternet))),
-                    retry: {},
-                )
+                preview(state: .blocked(.verificationRequired(URLError(.notConnectedToInternet))))
             }
         }
     }
