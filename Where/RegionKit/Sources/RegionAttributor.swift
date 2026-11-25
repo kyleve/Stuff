@@ -74,10 +74,18 @@ public struct RegionAttributor: RegionAttributing {
     /// given order, which fixes first-match priority). `.other` is ignored — it
     /// has no geometry and is the fallback when nothing matches.
     public init(for regions: [Region]) {
-        self.init(for: regions, catalog: .shared, geometryURL: RegionCatalog.geometryURL(for:))
+        self.init(
+            for: regions,
+            catalog: .shared,
+            geometryURL: RegionCatalog.geometryURL(for:purpose:),
+        )
     }
 
-    init(for regions: [Region], catalog: RegionCatalog, geometryURL: (RegionCatalog.Node) -> URL?) {
+    init(
+        for regions: [Region],
+        catalog: RegionCatalog,
+        geometryURL: (RegionCatalog.Node, RegionGeometryPurpose) -> URL?,
+    ) {
         loadedRegionPolygons = Self.loadPolygons(
             for: regions,
             catalog: catalog,
@@ -136,7 +144,7 @@ public struct RegionAttributor: RegionAttributing {
     private static func loadPolygons(
         for regions: [Region],
         catalog: RegionCatalog,
-        geometryURL: (RegionCatalog.Node) -> URL?,
+        geometryURL: (RegionCatalog.Node, RegionGeometryPurpose) -> URL?,
     ) -> [RegionPolygons] {
         var entries: [RegionPolygons] = []
         var requested: Set<Region> = []
@@ -148,7 +156,7 @@ public struct RegionAttributor: RegionAttributing {
                     continue
                 }
                 guard node.isLoggable else { continue }
-                if let polygons = loadRegion(region, url: geometryURL(node)) {
+                if let polygons = loadRegion(region, url: geometryURL(node, .tracking)) {
                     entries.append(polygons)
                 }
             }

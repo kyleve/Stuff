@@ -140,7 +140,7 @@ extension RegionOutline {
 }
 
 /// The camera filters drawable overlays. Picker hit testing still asks the
-/// attributor about the exact tapped coordinate at every zoom.
+/// display geometry about the exact tapped coordinate at every zoom.
 struct RegionPolygonMap: View {
     let geometry: RegionMapGeometry
     var selectedTitle: String?
@@ -327,7 +327,7 @@ struct RegionMapCanvas: View {
         }
         .task {
             geometry = await RegionMapGeometry(outlines: RegionGeometryCatalog
-                .outlines(for: .california))
+                .displayOutlines(for: .california))
         }
     }
 #endif

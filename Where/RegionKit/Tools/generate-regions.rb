@@ -37,12 +37,18 @@ LOCALIZATION_KEYS = {
 }.freeze
 
 class RegionGenerator
-  GEOMETRY_GROUPS = { "united-states" => "us", "canada" => "ca", "european-union" => "eu" }.freeze
+  NORMALIZED = { "tracking" => "north-america.geojson.gz", "display" => "north-america-display.geojson.gz" }.freeze
+  PRODUCTS = {
+    "united-states" => { "tracking" => "censusTIGER", "display" => "censusCartographic" },
+    "canada" => { "tracking" => "statcanDigital", "display" => "statcanCartographic" },
+  }.freeze
+  YEARS = { "censusTIGER" => "usYear", "censusCartographic" => "usDisplayYear",
+            "statcanDigital" => "caYear", "statcanCartographic" => "caYear" }.freeze
 
-  def self.geometry_file(id, parent, source)
-    group = GEOMETRY_GROUPS.fetch(parent || id) { raise ArgumentError, "Unknown geometry group for #{id}" }
-    extension = %w[census statcan].include?(source) ? ".twkb" : ".geojson"
-    File.join(group, id + extension)
+  def self.geometry_file(id, parent, purpose)
+    return "eu/european-union.geojson" if id == "european-union" && parent.nil?
+    group = { "united-states" => "us", "canada" => "ca" }.fetch(parent)
+    "#{group}/#{id}.#{purpose}.twkb"
   end
 
   def initialize(source: SOURCE, resources: RESOURCES)
@@ -52,30 +58,43 @@ class RegionGenerator
   end
 
   def run(release: File.join(@source, "release"))
-    features = Zlib::GzipReader.open(File.join(release, "north-america.geojson.gz")) do |gz|
-      JSON.parse(gz.read).fetch("features")
-    end
     lock = JSON.parse(File.binread(File.join(release, "sources.lock.json")))
-    features.each do |feature|
-      properties = feature.fetch("properties")
-      source = properties.fetch("source")
-      parent = { "census" => "united-states", "statcan" => "canada" }.fetch(source)
-      unless properties["parentID"] == parent && properties.fetch("kind") != "country"
-        raise ArgumentError, "Expected a subdivision of #{parent} in the normalized release"
+    # Keep the tracking catalog's order and names. The display product can have
+    # a different vintage or order. Join the two by the stable subdivision ID.
+    by_id = {}
+    NORMALIZED.each do |purpose, filename|
+      seen = {}
+      features = Zlib::GzipReader.open(File.join(release, filename)) { |gz| JSON.parse(gz.read).fetch("features") }
+      features.each do |feature|
+        properties = feature.fetch("properties")
+        id = properties.fetch("id")
+        parent = properties.fetch("parentID")
+        product = PRODUCTS.dig(parent, purpose)
+        unless product && properties.fetch("source") == product && properties.fetch("kind") != "country"
+          raise ArgumentError, "Expected a subdivision with the #{purpose} product for #{id}"
+        end
+        raise ArgumentError, "Duplicate #{purpose} region #{id}" if seen[id]
+        seen[id] = true
+        if purpose == "tracking"
+          by_id[id] = { "properties" => properties, "boundaries" => {} }
+        end
+        node = by_id.fetch(id) { raise ArgumentError, "Unexpected display region #{id}" }
+        keys = %w[id parentID isLoggable kind]
+        raise ArgumentError, "Mismatched #{purpose} region #{id}" unless node.fetch("properties").slice(*keys) == properties.slice(*keys)
+        node.fetch("boundaries")[purpose] = {
+          "geometry" => feature.fetch("geometry"), "product" => product, "year" => lock.fetch(YEARS.fetch(product))
+        }
       end
-      year = source == "census" ? "usYear" : "caYear"
-      properties["sourceYear"] = lock.fetch(year)
+      raise ArgumentError, "Missing #{purpose} regions" unless by_id.keys.sort == seen.keys.sort
     end
-    eu = JSON.parse(File.read(File.join(@source, "europeanUnion.geojson"))).fetch("features").fetch(0)
-    eu["properties"] = { "id" => "european-union", "name" => "European Union",
-                         "kind" => "bloc", "isLoggable" => true, "source" => "original" }
-    states, provinces = features.partition { |feature| feature.fetch("properties").fetch("parentID") == "united-states" }
-    canada = country("canada", "Canada", "statcan", lock.fetch("caYear"))
-    us = country("united-states", "United States", "census", lock.fetch("usYear"))
-    generate(states + [canada] + provinces + [us, eu])
+    original = JSON.parse(File.read(File.join(@source, "europeanUnion.geojson"))).fetch("features").fetch(0)
+    shared = { "geometry" => original.fetch("geometry"), "product" => "original" }
+    eu = { "properties" => { "id" => "european-union", "name" => "European Union", "kind" => "bloc", "isLoggable" => true },
+           "boundaries" => { "tracking" => shared, "display" => shared } }
+    states, provinces = by_id.values.partition { |feature| feature.fetch("properties").fetch("parentID") == "united-states" }
+    generate(states + [country("canada", "Canada")] + provinces + [country("united-states", "United States"), eu])
   end
 
-  # Accept normalized, ordered GeoJSON features from a source adapter.
   def generate(features)
     manifest = features.map { |feature| manifest_entry(feature) }
     validate_hierarchy(manifest)
@@ -86,16 +105,21 @@ class RegionGenerator
       staged_manifest = File.join(staging, "regions.json")
       FileUtils.mkdir(staged_regions)
       features.zip(manifest).each do |feature, entry|
-        file = entry["geometryFile"]
-        next unless file
-        path = File.join(staged_regions, file)
-        FileUtils.mkdir_p(File.dirname(path))
-        geometry = feature.fetch("geometry")
-        if file.end_with?(".twkb")
-          File.binwrite(path, TinyWKB.encode(geometry))
-        else
-          document = region_document(id: entry.fetch("id"), name: entry.fetch("name"), geometry: geometry)
-          File.write(path, JSON.generate(document) + "\n")
+        next unless entry["geometry"]
+        written = []
+        entry.fetch("geometry").each do |purpose, descriptor|
+          file = descriptor.fetch("file")
+          next if written.include?(file)
+          written << file
+          path = File.join(staged_regions, file)
+          FileUtils.mkdir_p(File.dirname(path))
+          geometry = feature.fetch("boundaries").fetch(purpose).fetch("geometry")
+          if file.end_with?(".twkb")
+            File.binwrite(path, TinyWKB.encode(geometry))
+          else
+            document = region_document(id: entry.fetch("id"), name: entry.fetch("name"), geometry: geometry)
+            File.write(path, JSON.generate(document) + "\n")
+          end
         end
       end
       File.write(staged_manifest, JSON.pretty_generate(manifest) + "\n")
@@ -105,16 +129,15 @@ class RegionGenerator
       transaction.commit
     end
 
-    files = manifest.count { |entry| entry.key?("geometryFile") }
+    files = manifest.flat_map { |entry| entry.fetch("geometry", {}).values.map { |descriptor| descriptor.fetch("file") } }.uniq.size
     puts "Wrote #{files} geometry files and #{manifest.length} catalog nodes to #{@resources}"
     manifest
   end
 
   private
 
-  def country(id, name, source, year)
-    { "properties" => { "id" => id, "name" => name, "kind" => "country", "isLoggable" => false,
-                         "source" => source, "sourceYear" => year } }
+  def country(id, name)
+    { "properties" => { "id" => id, "name" => name, "kind" => "country", "isLoggable" => false } }
   end
 
   # A single-feature FeatureCollection wrapping `geometry`, tagged with the
@@ -149,18 +172,24 @@ class RegionGenerator
     unless [true, false].include?(properties.fetch("isLoggable"))
       raise ArgumentError, "Invalid logging eligibility for #{id}"
     end
-    entry = properties.slice("id", "name", "kind", "isLoggable", "parentID", "source", "sourceYear")
+    entry = properties.slice("id", "name", "kind", "isLoggable", "parentID")
     key = LOCALIZATION_KEYS[id]
     entry["localizationKey"] = key if key
     if kind == "country"
       raise ArgumentError, "Country #{id} cannot be loggable" if entry.fetch("isLoggable")
-      raise ArgumentError, "Country #{id} cannot carry geometry" if feature["geometry"]
+      raise ArgumentError, "Country #{id} cannot carry geometry" if feature["boundaries"]
     else
-      geometry = feature.fetch("geometry")
-      unless geometry && %w[Polygon MultiPolygon].include?(geometry["type"]) && !geometry.fetch("coordinates").empty?
-        raise ArgumentError, "Missing polygon geometry for #{id}"
+      boundaries = feature.fetch("boundaries")
+      raise ArgumentError, "Missing purpose for #{id}" unless boundaries.keys.sort == NORMALIZED.keys.sort
+      entry["geometry"] = boundaries.to_h do |purpose, boundary|
+        geometry = boundary.fetch("geometry")
+        unless geometry && %w[Polygon MultiPolygon].include?(geometry["type"]) && !geometry.fetch("coordinates").empty?
+          raise ArgumentError, "Missing #{purpose} polygon geometry for #{id}"
+        end
+        descriptor = { "file" => RegionGenerator.geometry_file(id, parent_id, purpose), "product" => boundary.fetch("product") }
+        descriptor["year"] = boundary.fetch("year") unless descriptor.fetch("product") == "original"
+        [purpose, descriptor]
       end
-      entry["geometryFile"] = RegionGenerator.geometry_file(id, parent_id, entry["source"])
     end
     entry
   end

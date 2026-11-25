@@ -26,7 +26,7 @@ struct RegionPickerView: View {
     /// Bumped whenever a map tap is ignored because the selection is full, to
     /// drive the warning haptic.
     @State private var capacityBumps = 0
-    /// The loaded map geometry + a matching attributor for tap hit-testing. One
+    /// The loaded map geometry + its display-polygon tap lookup. One
     /// `Result` so "loading" (`nil`), success, and failure can't be confused.
     @State private var mapData: Result<MapData, Error>?
 
@@ -157,9 +157,8 @@ struct RegionPickerView: View {
         )
     }
 
-    private func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
-        let region = data.attributor.region(at: Coordinate(coordinate))
-        guard region != .other, model.available.contains(region) else { return }
+    func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
+        guard let region = data.display.region(containing: Coordinate(coordinate)) else { return }
         guard model.canToggle(region) else {
             // At capacity and tapping a new region — the list disables its rows
             // to show this, but the map has no such affordance, so buzz instead
@@ -216,30 +215,23 @@ struct RegionPickerView: View {
 
     // MARK: - Loading
 
-    /// The drawable geometry plus the attributor built from the same regions,
+    /// The display lookup and MapKit geometry built from its outlines,
     /// so a map tap resolves to exactly the regions the outlines drew.
     struct MapData {
         let geometry: RegionMapGeometry
-        let attributor: RegionAttributor
+        let display: RegionDisplayGeometry
 
         @concurrent init(regions: [Region]) async throws {
             try Task.checkCancellation()
-            attributor = RegionAttributor(for: regions)
+            display = try await RegionGeometryCatalog.displayGeometry(for: regions)
             try Task.checkCancellation()
-            let outlines = try await RegionGeometryCatalog.outlines(
-                for: .attribution,
-                attributor: attributor,
-            )
-            try Task.checkCancellation()
-            geometry = RegionMapGeometry(outlines: outlines)
+            geometry = RegionMapGeometry(outlines: display.outlines)
         }
     }
 
     private func loadMap() async {
         let regions = model.available
         do {
-            // Building the attributor reads every offered region's geometry, so
-            // keep it off the main actor; the outline read is then cheap.
             let data = try await MapData(regions: regions)
             guard !Task.isCancelled else { return }
             mapPosition = .region(northAmericanRegion)

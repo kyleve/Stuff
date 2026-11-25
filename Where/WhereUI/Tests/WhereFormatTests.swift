@@ -339,16 +339,16 @@ struct WhereFormatTests {
     }
 
     @Test func regionMapKindSwitchesResolve() {
-        #expect(WhereFormat.regionMapKind(.attribution) == "Attribution")
-        #expect(WhereFormat.regionMapKind(.source) == "Source")
+        #expect(WhereFormat.regionMapKind(.tracking) == "Tracking")
+        #expect(WhereFormat.regionMapKind(.display) == "Display")
         #expect(
-            WhereFormat.regionMapKindFooter(.attribution)
+            WhereFormat.regionMapKindFooter(.tracking)
                 == "The boundaries the app uses to match coordinates to regions.",
         )
         #expect(
-            WhereFormat.regionMapKindFooter(.source)
+            WhereFormat.regionMapKindFooter(.display)
                 ==
-                "The boundaries in the bundled source files.",
+                "The coastlines and region outlines shown on cards and maps.",
         )
     }
 
@@ -379,7 +379,7 @@ struct WhereFormatTests {
     @Test func regionDataSourceFidelitySwitchesResolve() {
         #expect(
             WhereFormat.regionDataSourceFidelity(.authoritative)
-                == "Simplified from the published boundary set.",
+                == "Based on the publisher’s official boundaries.",
         )
         #expect(
             WhereFormat.regionDataSourceFidelity(.approximate)

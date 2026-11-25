@@ -33,24 +33,26 @@ class GenerateRegionsTest < Minitest::Test
       refute manifest.last.fetch("isLoggable")
       assert_equal "country", manifest[1].fetch("kind")
       refute manifest.last.key?("parentID")
-      assert_equal "us/us-CA.geojson", manifest.first.fetch("geometryFile")
+      boundaries = manifest.first.fetch("geometry")
+      assert_equal({ "file" => "us/us-CA.tracking.twkb", "product" => "censusTIGER", "year" => 2026 }, boundaries.fetch("tracking"))
+      assert_equal({ "file" => "us/us-CA.display.twkb", "product" => "censusCartographic", "year" => 2025 }, boundaries.fetch("display"))
       assert_equal ["us"], Dir.children(File.join(resources, "regions"))
-      assert_equal ["us-CA.geojson"], Dir.children(File.join(resources, "regions/us"))
-      refute manifest[1].key?("geometryFile")
-      refute manifest.last.key?("geometryFile")
+      assert_equal %w[us-CA.display.twkb us-CA.tracking.twkb], Dir.children(File.join(resources, "regions/us")).sort
+      refute manifest[1].key?("geometry")
+      refute manifest.last.key?("geometry")
 
       previous = generated_files(resources)
       [
         [state], [state, country, country], [normalized("other", "country", false)],
         [state, normalized("united-states", "country", false, "us-CA")],
-        [country.merge("geometry" => state.fetch("geometry"))],
+        [country.merge("boundaries" => state.fetch("boundaries"))],
         [normalized("canada", "country", true)],
-        [country, state.merge("geometry" => nil)],
+        [country, state.merge("boundaries" => {})],
       ].each do |invalid|
         assert_raises(ArgumentError) { generator.generate(invalid) }
         assert_equal previous, generated_files(resources)
       end
-      assert_raises(KeyError) { generator.generate([country, state.reject { |key, _| key == "geometry" }]) }
+      assert_raises(KeyError) { generator.generate([country, state.reject { |key, _| key == "boundaries" }]) }
       assert_equal previous, generated_files(resources)
     end
   end
@@ -101,17 +103,11 @@ class GenerateRegionsTest < Minitest::Test
     properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => loggable }
     properties["parentID"] = parent if parent
     return { "properties" => properties } if kind == "country"
-    feature(nil, [[[0, 0], [1, 0], [0, 1], [0, 0]]]).merge("properties" => properties)
-  end
-
-  def feature(name, coordinates)
-    properties = {}
-    properties["NAME"] = name if name
-    {
-      "type" => "Feature",
-      "properties" => properties,
-      "geometry" => { "type" => "Polygon", "coordinates" => coordinates },
-    }
+    geometry = { "type" => "Polygon", "coordinates" => [[[0, 0], [1, 0], [0, 1], [0, 0]]] }
+    { "properties" => properties, "boundaries" => {
+      "tracking" => { "product" => "censusTIGER", "year" => 2026, "geometry" => geometry },
+      "display" => { "product" => "censusCartographic", "year" => 2025, "geometry" => geometry },
+    } }
   end
 
   def generated_files(resources)

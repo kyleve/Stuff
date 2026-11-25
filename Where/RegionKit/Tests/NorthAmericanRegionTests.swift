@@ -70,16 +70,50 @@ struct NorthAmericanRegionTests {
         #expect(second.region == alaska && second.boundaryDistance == toYukonEdge)
     }
 
+    @Test func trackingAndDisplayFollowTheirPublisherOnLandAndWater() async throws {
+        let britishColumbia = try #require(Region(rawValue: "ca-BC"))
+        let offered: [Region] = [.newYork, britishColumbia, .ontario]
+        let display = try await RegionGeometryCatalog.displayGeometry(for: offered)
+        let tracking = RegionAttributor(for: offered)
+        let controls: [(Double, Double, Region, Region?)] = [
+            (40.946, -73.067, .newYork, .newYork), // Port Jefferson
+            (40.998, -73.066, .newYork, nil), // Long Island Sound
+            (49.28, -123.65, britishColumbia, nil), // Strait of Georgia
+            (49.2827, -123.1207, britishColumbia, britishColumbia), // Vancouver
+            (44.47, -79.35, .ontario, .ontario), // Lake Simcoe
+            (43.60, -79.40, .other, nil), // Lake Ontario
+        ]
+        for (lat, lon, counted, drawn) in controls {
+            let position = Coordinate(latitude: lat, longitude: lon)
+            #expect(tracking.region(at: position) == counted)
+            #expect(display.region(containing: position) == drawn)
+        }
+        let offshore = Coordinate(latitude: 40.998, longitude: -73.066)
+        let match = try #require(tracking.matchWithBoundaryDistance(at: offshore))
+        #expect(match.region == .newYork && match.boundaryDistance > 100)
+        #expect(tracking.distanceToBoundary(of: .newYork, from: offshore) == match.boundaryDistance)
+        #expect(tracking.distance(to: .newYork, from: offshore) == 0)
+    }
+
+    @Test func restoredTexasLouisianaBendCreditsTexas() throws {
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let louisiana = try #require(Region(rawValue: "us-LA"))
+        let tracker = RegionAttributor(for: [louisiana, texas])
+        #expect(tracker.region(at: .init(latitude: 31.097843, longitude: -93.558908)) == texas)
+    }
+
     @Test func countriesHaveNoGeometryFilesAndUSTerritoriesStayUntracked() throws {
         let catalog = RegionCatalog.shared
         let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
         #expect(catalog.children(of: us).count == 52)
         #expect(us.region == nil)
         let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
-        #expect(us.geometryFile == nil && canada.geometryFile == nil)
-        #expect(RegionCatalog.geometryURL(for: us) == nil && RegionCatalog
-            .geometryURL(for: canada) == nil)
-        #expect(catalog.nodes.compactMap(\.geometryFile).count == 66)
+        #expect(us.geometry == nil && canada.geometry == nil)
+        for purpose in RegionGeometryPurpose.allCases {
+            #expect(RegionCatalog.geometryURL(for: us, purpose: purpose) == nil)
+            #expect(RegionCatalog.geometryURL(for: canada, purpose: purpose) == nil)
+        }
+        #expect(catalog.nodes.compactMap(\.geometry).count == 66)
         let countries = [us, canada].map { Region(unchecked: $0.id.rawValue) }
         #expect(canada.region == nil)
         #expect(RegionAttributor(for: countries).loadedRegions.isEmpty)

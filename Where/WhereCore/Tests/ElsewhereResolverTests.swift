@@ -22,6 +22,17 @@ struct ElsewhereResolverTests {
         #expect(input.report.totals == [.other: 1])
     }
 
+    @Test func savedOffshoreFixResolvesWithTheUntrackedRegionsTrackingBoundary() async throws {
+        let water = Coordinate(latitude: 40.998, longitude: -73.066)
+        let input = ElsewhereTestSupport.input(
+            samples: [ElsewhereTestSupport.sample(water)],
+            primaryRegions: [.ontario],
+        )
+        let result = try await ElsewhereResolver().resolve(input)
+        #expect(result.regions.map(\.region) == [.newYork])
+        #expect(result.regions.first?.representativeCoordinate == water)
+    }
+
     @Test func namesUntrackedRegionsAndCountsDistinctDaysWithoutChangingTheReport() async throws {
         let input = ElsewhereTestSupport.input(samples: [
             ElsewhereTestSupport.sample(ElsewhereTestSupport.vegas),

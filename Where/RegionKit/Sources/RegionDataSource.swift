@@ -11,10 +11,56 @@ import Foundation
 ///
 /// Coverage is derived from ``RegionCatalog`` rather than listed by hand, so a
 /// regenerated catalog can't leave a region silently uncredited —
-/// `RegionDataSourceTests` fails if one is covered zero times or twice.
+/// `RegionDataSourceTests` checks coverage for each region and purpose.
 public struct RegionDataSource: Sendable, Hashable {
-    enum Publisher: String, Decodable {
-        case census, statcan, original
+    enum Product: String, CaseIterable, Decodable, Hashable {
+        case censusTIGER, censusCartographic, statcanDigital, statcanCartographic, original
+
+        var purposes: [RegionGeometryPurpose] {
+            switch self {
+                case .censusTIGER, .statcanDigital: [.tracking]
+                case .censusCartographic, .statcanCartographic: [.display]
+                case .original: [.tracking, .display]
+            }
+        }
+
+        var name: String {
+            switch self {
+                case .censusTIGER: "US Census Bureau TIGER/Line State and Equivalent Entities"
+                case .censusCartographic: "US Census Bureau Cartographic Boundary Files (1:500,000)"
+                case .statcanDigital: "Statistics Canada, Census Digital Boundary Files"
+                case .statcanCartographic: "Statistics Canada, Census Cartographic Boundary Files"
+                case .original: "Hand-drawn outlines"
+            }
+        }
+
+        func sourceURL(year: Int?) -> URL? {
+            guard let year else { return nil }
+            switch self {
+                case .censusTIGER:
+                    return URL(string: "https://www2.census.gov/geo/tiger/TIGER\(year)/STATE/")
+                case .censusCartographic:
+                    return URL(
+                        string: "https://www2.census.gov/geo/tiger/GENZ\(year)/shp/cb_\(year)_us_state_500k.zip",
+                    )
+                case .statcanDigital, .statcanCartographic:
+                    let product = self == .statcanDigital ? "Digital" : "Cartographic"
+                    return URL(
+                        string: "https://geo.statcan.gc.ca/geo_wa/rest/services/\(year)/\(product)_boundary_files/MapServer/0",
+                    )
+                case .original:
+                    return nil
+            }
+        }
+
+        var license: License {
+            switch self {
+                case .censusTIGER,
+                     .censusCartographic: .publicDomain("US Government works — 17 U.S.C. § 105")
+                case .statcanDigital, .statcanCartographic: .openGovernmentCanada
+                case .original: .originalWork
+            }
+        }
     }
 
     /// The terms the geometry is available under.
@@ -39,16 +85,32 @@ public struct RegionDataSource: Sendable, Hashable {
         case approximate
     }
 
-    /// The publisher’s boundary product name. Untranslated (see the type note).
-    public let name: String
+    private let product: Product
+
+    /// The publisher’s boundary product name.
+    public var name: String {
+        product.name
+    }
+
+    public var purposes: [RegionGeometryPurpose] {
+        product.purposes
+            .filter { purpose in nodes.contains { $0.geometry?[purpose].product == product } }
+    }
+
     /// Where the publisher documents the boundary set, when there is one.
     public let sourceURL: URL?
     /// The intermediate the bundled files were actually taken from, when the
     /// data didn't come straight from the publisher — a conversion we credit
     /// separately rather than implying we pulled from the primary source.
     public let obtainedFromURL: URL?
-    public let license: License
-    public let fidelity: Fidelity
+    public var license: License {
+        product.license
+    }
+
+    public var fidelity: Fidelity {
+        product == .original ? .approximate : .authoritative
+    }
+
     /// The regions this source provides geometry for, in catalog order.
     public let nodes: [RegionCatalog.Node]
     public var regions: [Region] {
@@ -57,8 +119,12 @@ public struct RegionDataSource: Sendable, Hashable {
 
     /// The published licence terms for the adapted geometry.
     public var licenseURL: URL? {
-        guard license == .openGovernmentCanada else { return nil }
-        return URL(string: "https://open.canada.ca/en/open-government-licence-canada")
+        switch license {
+            case .openGovernmentCanada: URL(
+                    string: "https://open.canada.ca/en/open-government-licence-canada",
+                )
+            case .publicDomain, .originalWork: nil
+        }
     }
 
     /// Every data source behind the bundled geometry, each covering at least one
@@ -68,40 +134,19 @@ public struct RegionDataSource: Sendable, Hashable {
     /// The sources for `catalog`'s regions. Split out from ``all`` so tests can
     /// drive it with a catalog of their own.
     static func sources(coveringRegionsIn catalog: RegionCatalog) -> [RegionDataSource] {
-        let files = catalog.nodes.filter { $0.geometryFile != nil }
-        let census = files.filter { $0.source == .census }
-        let statcan = files.filter { $0.source == .statcan }
-        return [
-            RegionDataSource(
-                name: "US Census Bureau TIGER/Line State and Equivalent Entities",
-                sourceURL: census.first?.sourceYear.flatMap {
-                    URL(string: "https://www2.census.gov/geo/tiger/TIGER\($0)/STATE/")
-                },
+        Product.allCases.compactMap { product in
+            let nodes = catalog.nodes.filter { node in
+                product.purposes.contains { node.geometry?[$0].product == product }
+            }
+            guard let geometry = nodes.first?.geometry,
+                  let purpose = product.purposes.first(where: { geometry[$0].product == product })
+            else { return nil }
+            return RegionDataSource(
+                product: product,
+                sourceURL: product.sourceURL(year: geometry[purpose].year),
                 obtainedFromURL: nil,
-                license: .publicDomain("US Government works — 17 U.S.C. § 105"),
-                fidelity: .authoritative,
-                nodes: census,
-            ),
-            RegionDataSource(
-                name: "Statistics Canada, Census Cartographic Boundary Files",
-                sourceURL: statcan.first?.sourceYear.flatMap {
-                    URL(
-                        string: "https://geo.statcan.gc.ca/geo_wa/rest/services/\($0)/Cartographic_boundary_files/MapServer",
-                    )
-                },
-                obtainedFromURL: nil,
-                license: .openGovernmentCanada,
-                fidelity: .authoritative,
-                nodes: statcan,
-            ),
-            RegionDataSource(
-                name: "Hand-drawn outlines",
-                sourceURL: nil,
-                obtainedFromURL: nil,
-                license: .originalWork,
-                fidelity: .approximate,
-                nodes: files.filter { $0.source == .original },
-            ),
-        ].filter { !$0.nodes.isEmpty }
+                nodes: nodes,
+            )
+        }
     }
 }

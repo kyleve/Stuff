@@ -43,8 +43,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   MapKit conversion and render-artifact caches belong to consumers.
 - **Credit bundled geometry in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity. It derives its
-  coverage from the publisher of each bundled geometry file.
-  `RegionDataSourceTests` fails when a region is covered zero times or twice.
+  coverage from each descriptor’s source product. Credit each (region, purpose)
+  pair exactly once, including both uses of a shared file.
   Regenerating the catalog must not ship uncredited data. Keep it in step with the
   [README](README.md#source-data-not-bundled) provenance notes.
 - **Region names are manifest data (a documented trade-off).** `localizedName`

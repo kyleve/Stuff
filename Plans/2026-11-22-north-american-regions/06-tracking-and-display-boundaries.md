@@ -1,6 +1,6 @@
 # 06. Tracking and display boundaries
 
-- Status: executing
+- Status: complete
 - Depends on [05. Countries as catalog parents](05-country-parents.md). Revision reviewed against `f69ad364d` on [PR #563](https://github.com/kyleve/Stuff/pull/563).
 - Delivers [R-06 through R-08](README.md#requirements) for [S-01, S-03 and S-04](README.md#user-stories). Retains R-01 through R-05 and [X-01 through X-05](README.md#scope-boundaries).
 
@@ -44,7 +44,7 @@ The selected 25 m candidate costs 176,317 bytes more than the 50 m candidate. At
 
 ## RegionKit API and consumption
 
-Today [RegionCatalog](../../Where/RegionKit/Sources/RegionCatalog.swift) exposes one `geometryFile` on both `Node` and `Entry`. [RegionAttributor](../../Where/RegionKit/Sources/RegionAttributor.swift) and [RegionGeometryCatalog](../../Where/RegionKit/Sources/RegionGeometryCatalog.swift) resolve the same file. The [picker](../../Where/WhereUI/Sources/Regions/RegionPickerView.swift) also builds a GPS attributor to draw and select its offered regions. The proposed API makes each consumer's choice explicit at its entry point.
+Before plan 06, [RegionCatalog](../../Where/RegionKit/Sources/RegionCatalog.swift) exposed one `geometryFile` on both `Node` and `Entry`. [RegionAttributor](../../Where/RegionKit/Sources/RegionAttributor.swift) and [RegionGeometryCatalog](../../Where/RegionKit/Sources/RegionGeometryCatalog.swift) resolved the same file. The [picker](../../Where/WhereUI/Sources/Regions/RegionPickerView.swift) also built a GPS attributor to draw and select its offered regions. The paired API makes each consumer's choice explicit at its entry point.
 
 ```swift
 // Existing tracking API. The user's tracked set determines which regions can win.
@@ -98,7 +98,7 @@ The updater, attributor, catalog and views already exist. The paired resources a
 
 Run from the repository root. The commands below are for implementation.
 
-- **Reproducible update (R-03, R-04, R-07).** Run `ruby Tools/Tests/generate_regions_test.rb`, `ruby Tools/Tests/region_release_test.rb` and `"$REGIONKIT_PYTHON" -B -m unittest discover -s Where/RegionKit/Tools -p test_convert_boundaries.py`. Exercise a missing or swapped product, mismatched IDs, truncated digital geometry, checksum drift, offline replay and interrupted adoption. With the pinned GIS environment, an external cache and fresh output paths, exercise the public commands.
+- **Reproducible update (R-03, R-04, R-07).** Run `ruby Tools/Tests/generate_regions_test.rb`, `ruby Tools/Tests/region_release_test.rb` and `"$REGIONKIT_PYTHON" -B -m unittest discover -s Where/RegionKit/Tools -p 'test_*.py'`. Exercise a missing or swapped product, mismatched IDs, truncated digital geometry, checksum drift, offline replay and interrupted adoption. With the pinned GIS environment, an external cache and fresh output paths, exercise the public commands.
 
   ```sh
   tool=Where/RegionKit/Tools/generate-regions.rb
@@ -122,6 +122,26 @@ Format 2 cannot identify both products. Give maintainers an actionable message t
 
 - November 25. The production TIGER simplifier reproduced all 52 files from the selected prototype. Independent decoding of the Ruby encoder’s bytes bounded displacement against every original WGS84 chain in both directions. The largest upper bound was 24.000 m including coordinate rounding. Three offline regression cases cover a missed bend, both owners of a shared edge, islands, holes and rounding. The previous release stays in use until the paired candidate is adopted.
 
+- Canadian digital tracking retains publisher resolution. The importer removed six near-duplicate Ontario vertices at a shared seam under a 2 cm repair tolerance. Independent checks found an 8.34 mm maximum boundary displacement in Ontario. All twelve other subdivisions retained every coordinate, and the 1,989 province–transect checks kept their original distances and 100 m confidence classifications. Trials at 5 m, 15 m and 45 m eliminated successively more vertices. At 45 m the sampled displacement reached 139.62 m.
+- Canadian display retains the existing 45 m setting. At 120 and 390 pixels the 180 m version kept all parts and holes and produced similar province silhouettes, including Vancouver Island. At picker zoom it filled the upper reach of a New Brunswick waterway (5.63 km sampled displacement), truncated an inlet on PEI (1.69 km) and removed visible tidal detail in Nova Scotia (1.15 km). US display uses Census’s 1:500,000 product at its published detail.
+
+- The adopted format-3 release covers 47 pinned downloads and 193 probe locations per purpose with zero source-to-bundle classification disagreements. The Texas–Louisiana source vertex lies on both restored tracking rings. All 13 Canadian display files have the same contents as the previous release. A second continuous-polyline implementation independently bounded US displacement below 23.998 m on the final TIGER bytes.
+
+| Shipped geometry (bytes) | Tracking | Display |
+| --- | ---: | ---: |
+| US (52) | 708,466 | 1,541,053 |
+| Canada (13) | 920,589 | 13,350,653 |
+| EU (1 shared file) | 562 | 562 |
+| Total by purpose | 1,629,617 | 14,892,268 |
+
+The 131 distinct files total 16,521,323 bytes, up from 13,787,008. The default three tracking files read 26,372 bytes, up from 20,294. The New York card reads one 23,573-byte display file (previously 5,643 bytes). Over 31 fresh macOS processes per version, median read and decode time for that file was 1.12 ms, previously 0.34 ms.
+
+The public refresh, an offline replay and the adopted 131-file candidate compared byte for byte. Both Ruby suites passed 16 tests and 343 assertions. All 11 Python GIS tests passed. Xcode recorded 1,799 passing tests and two opt-in fixture skips across five iOS bundles on the iPhone 17 Pro simulator. A fresh test process loaded the default tracker in 4.39 ms (3.6 ms in plan 05), the remainder of the tracking catalog in 65.26 ms (previously 540 ms), the New York card in 2.14 ms and the all-region display map in 677.48 ms. These measurements use the debug simulator build.
+
+On iPhone 17 Pro Max a live picker tap selected land, a Pacific-water tap preserved the selection, and a second land tap cleared it. At a coastal zoom, a Port Jefferson tap selected New York, while a Sound tap preserved both the empty selection and the later New York selection. The live developer map initially lost its camera when changing products after a gesture. Keeping the loaded map mounted preserved both New York selection and zoom across the switch; the shoreline and assigned-water overlays changed at the same street labels. The app, widget, share extension, simulator viewer and standalone Catalyst viewer each packaged the 131 verified geometry files.
+
+The visual review updated 61 references, including the exact forecast and AX5 Locations captures in the original discussion. The new developer comparison uses the same New York camera for both products. The whole WhereUI snapshot suite passed with recording disabled (73 tests across 65 suites). Independent review also verified the four-product join tolerates name changes between vintages, the About descriptions apply to the actual source fidelity, and the restored coastline reads correctly in both cards. The final credits and isolated timing run passed 41 tests. SwiftFormat, string-catalog serialization, architecture checks, web/Python lint and the repository guidance check passed.
+
 ## Resume point
 
-The owner authorized implementation on November 25. Work started on the four source adapters, selective TIGER edge restoration and verification, the paired release format, and its Swift consumers. Adopt the verified candidate before checking app behavior and publishing.
+Plan 06 is complete on [implementation PR #563](https://github.com/kyleve/Stuff/pull/563). [STU-348](https://linear.app/kve/issue/STU-348) remains In Review pending PR review and merge.

@@ -49,7 +49,7 @@ actor RegionOutlinePathCache {
         let key = Key(region: region, resolution: resolution)
         if let cached = paths[key] { return cached }
 
-        let fullOutlines = await RegionGeometryCatalog.outlines(for: region)
+        let fullOutlines = await RegionGeometryCatalog.displayOutlines(for: region)
         guard !Task.isCancelled else { return Path() }
         // Another caller may have populated this key while the actor was
         // suspended on RegionKit's cache.
@@ -97,7 +97,7 @@ actor RegionOutlinePathCache {
         points: [RegionDayPoint],
     ) async -> [RegionLocationConstellationLayout.Point] {
         guard points.isEmpty == false else { return [] }
-        let outlines = await RegionGeometryCatalog.outlines(for: region)
+        let outlines = await RegionGeometryCatalog.displayOutlines(for: region)
         guard
             Task.isCancelled == false,
             let projection = projection(for: region, outlines: outlines)

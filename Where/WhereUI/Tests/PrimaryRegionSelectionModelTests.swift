@@ -34,16 +34,20 @@ struct PrimaryRegionSelectionModelTests {
         #expect(model.selectedRegions.isEmpty)
     }
 
-    @Test func pickerMapSelectsOnlyTheTappedProvince() async throws {
-        let quebec = try region("ca-QC")
-        let map = try await RegionPickerView.MapData(regions: [.ontario, quebec])
-        let toronto = Coordinate(latitude: 43.6532, longitude: -79.3832)
+    @Test func mapTapUsesTheDisplayedCoastlineAndPreservesSelectionOnWater() async throws {
+        let map = try await RegionPickerView.MapData(regions: [.newYork, .ontario])
         let model = PrimaryRegionSelectionModel()
-        model.toggle(map.attributor.region(at: toronto))
-        #expect(model.selectedRegions == [.ontario])
-        #expect(!model.isSelected(quebec))
+        let land = Coordinate(latitude: 40.946, longitude: -73.067)
+        let water = Coordinate(latitude: 40.998, longitude: -73.066)
+        let picker = RegionPickerView(model: model)
+        picker.handleMapTap(at: land.clLocationCoordinate, in: map)
+        #expect(model.selectedRegions == [.newYork])
+        picker.handleMapTap(at: water.clLocationCoordinate, in: map)
+        #expect(model.selectedRegions == [.newYork])
+        picker.handleMapTap(at: .init(latitude: 43.6532, longitude: -79.3832), in: map)
+        #expect(model.selectedRegions == [.newYork, .ontario])
         let visible = Set(map.geometry.visible(in: .world, width: 400).compactMap(\.region))
-        #expect(visible == [.ontario, quebec])
+        #expect(visible == [.ontario, .newYork])
     }
 
     @Test func hostedPickerSelectsAndReopensTwoProvinces() async throws {

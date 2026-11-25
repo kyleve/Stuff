@@ -6525,24 +6525,24 @@
         }
       }
     },
-    "regionMap.kind.attribution" : {
+    "regionMap.kind.display" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attribution"
+            "value" : "Display"
           }
         }
       }
     },
-    "regionMap.kind.attribution.footer" : {
+    "regionMap.kind.display.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The boundaries the app uses to match coordinates to regions."
+            "value" : "The coastlines and region outlines shown on cards and maps."
           }
         }
       }
@@ -6558,24 +6558,24 @@
         }
       }
     },
-    "regionMap.kind.source" : {
+    "regionMap.kind.tracking" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Source"
+            "value" : "Tracking"
           }
         }
       }
     },
-    "regionMap.kind.source.footer" : {
+    "regionMap.kind.tracking.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The boundaries in the bundled source files."
+            "value" : "The boundaries the app uses to match coordinates to regions."
           }
         }
       }
@@ -7351,7 +7351,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Simplified from the published boundary set."
+            "value" : "Based on the publisher’s official boundaries."
           }
         }
       }

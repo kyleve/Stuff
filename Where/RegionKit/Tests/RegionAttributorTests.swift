@@ -109,7 +109,8 @@ struct RegionAttributorTests {
 
     @Test func onlyRequestedTrackingChoicesLoadGeometryOnce() throws {
         let catalog = try RegionHierarchyFixture.catalog()
-        let fixture = try #require(RegionCatalog.shared.geometryURL(for: .ontario))
+        let node = try #require(RegionCatalog.shared.node(for: .ontario))
+        let fixture = try #require(RegionCatalog.geometryURL(for: node, purpose: .tracking))
         var requested: [RegionCatalog.Node.ID] = []
         let attributor = RegionAttributor(
             for: [
@@ -120,7 +121,8 @@ struct RegionAttributorTests {
                 .ontario,
             ],
             catalog: catalog,
-        ) { node in
+        ) { node, purpose in
+            #expect(purpose == .tracking)
             requested.append(node.id)
             return fixture
         }

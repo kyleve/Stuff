@@ -13,17 +13,20 @@ struct RegionCatalogTimingTests {
         let allStart = clock.now
         let all = RegionAttributor(for: ids)
         let allTime = allStart.duration(to: clock.now)
+        let cardStart = clock.now
+        let card = await RegionGeometryCatalog.displayOutlines(for: .newYork)
+        let cardTime = cardStart.duration(to: clock.now)
         let mapStart = clock.now
-        let outlines = try await RegionGeometryCatalog.outlines(for: .source, attributor: all)
+        let map = try await RegionGeometryCatalog.displayGeometry(for: ids)
         let mapTime = mapStart.duration(to: clock.now)
         let lookupStart = clock.now
         let result = all.region(at: sample)
         let lookupTime = lookupStart.duration(to: clock.now)
         #expect(tracked.region(at: sample) == .other)
         #expect(result == .ontario)
-        #expect(!outlines.isEmpty)
+        #expect(!card.isEmpty && !map.outlines.isEmpty)
         print(
-            "RegionKit timing for \(ids.count) regions: default \(trackedTime), all \(allTime), map \(mapTime), Toronto lookup \(lookupTime)",
+            "RegionKit timing for \(ids.count) regions: default \(trackedTime), all \(allTime), card \(cardTime), map \(mapTime), Toronto lookup \(lookupTime)",
         )
     }
 }

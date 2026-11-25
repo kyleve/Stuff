@@ -31,7 +31,7 @@ class RegionReleaseTest < Minitest::Test
   def test_check_detects_drift_and_regeneration_repairs_it_offline
     cli("--adopt", @candidate)
     cli("--check")
-    us = File.join(@resources, "regions/us/us-CA.twkb")
+    us = File.join(@resources, "regions/us/us-CA.tracking.twkb")
     expected = File.binread(us)
     File.write(us, "changed")
     _out, error, status = invoke("--check")
@@ -50,8 +50,8 @@ class RegionReleaseTest < Minitest::Test
     %w[canada.twkb united-states.twkb us-CA.twkb].each { |name| File.write(File.join(directory, name), "old resource") }
     cli("--adopt", @candidate)
     assert_equal %w[ca eu us], Dir.children(directory).sort
-    assert_equal US_TRACKING_CODES.map { |code| "us-#{code}.twkb" }.sort, Dir.children(File.join(directory, "us")).sort
-    assert_equal RegionRelease::PROVINCES.map { |code| "ca-#{code}.twkb" }.sort, Dir.children(File.join(directory, "ca")).sort
+    assert_equal US_TRACKING_CODES.product(%w[tracking display]).map { |code, purpose| "us-#{code}.#{purpose}.twkb" }.sort, Dir.children(File.join(directory, "us")).sort
+    assert_equal RegionRelease::PROVINCES.product(%w[tracking display]).map { |code, purpose| "ca-#{code}.#{purpose}.twkb" }.sort, Dir.children(File.join(directory, "ca")).sort
     assert_equal ["european-union.geojson"], Dir.children(File.join(directory, "eu"))
     cli("--check")
 
@@ -65,7 +65,7 @@ class RegionReleaseTest < Minitest::Test
     refute_path_exists stale
 
     lock_path = File.join(@candidate, "sources.lock.json")
-    lock = JSON.parse(File.read(lock_path)).merge("version" => 1)
+    lock = JSON.parse(File.read(lock_path)).merge("version" => 2)
     File.write(lock_path, JSON.generate(lock))
     _out, error, status = invoke("--adopt", @candidate)
     refute status.success?
@@ -81,7 +81,7 @@ class RegionReleaseTest < Minitest::Test
     Zlib::GzipWriter.open(path) { |gz| gz.write(JSON.generate(release)) }
     lock_path = File.join(@candidate, "sources.lock.json")
     lock = JSON.parse(File.read(lock_path))
-    lock.fetch("normalized")["sha256"] = Digest::SHA256.file(path).hexdigest
+    lock.fetch("normalized").fetch("tracking")["sha256"] = Digest::SHA256.file(path).hexdigest
     File.write(lock_path, JSON.generate(lock))
     _out, error, status = invoke("--adopt", @candidate)
     refute status.success?
@@ -89,9 +89,34 @@ class RegionReleaseTest < Minitest::Test
     refute_path_exists File.join(@resources, "regions.json")
   end
 
+  def test_rejects_swapped_products_or_unmatched_display_members_before_installing
+    cli("--adopt", @candidate)
+    path = File.join(@candidate, RegionGenerator::NORMALIZED.fetch("display"))
+    original = Zlib::GzipReader.open(path, &:read)
+    lock_path = File.join(@candidate, "sources.lock.json")
+    {
+      "Expected a subdivision with the display product" => ->(features) { features.first.fetch("properties")["source"] = "censusTIGER" },
+      "Duplicate display region" => ->(features) { features << features.first },
+      "Missing display regions" => ->(features) { features.pop },
+      "Unexpected display region" => ->(features) { features.first.fetch("properties")["id"] = "us-GU" },
+    }.each do |message, mutate|
+      release = JSON.parse(original)
+      mutate.call(release.fetch("features"))
+      Zlib::GzipWriter.open(path) { |gz| gz.write(JSON.generate(release)) }
+      lock = JSON.parse(File.read(lock_path))
+      pin_release_files(lock)
+      File.write(lock_path, JSON.generate(lock))
+      _out, error, status = invoke("--adopt", @candidate)
+      refute status.success?
+      assert_includes error, message
+      refute_path_exists File.join(@root, ".region-adoption")
+    end
+    cli("--check")
+  end
+
   def test_damaged_candidate_does_not_replace_previous_resources
     cli("--adopt", @candidate)
-    file = File.join(@candidate, "resources/regions/ca/ca-ON.twkb")
+    file = File.join(@candidate, "resources/regions/ca/ca-ON.tracking.twkb")
     flat = File.join(@candidate, "resources/regions/ca-ON.twkb")
     File.rename(file, flat)
     _out, error, status = invoke("--adopt", @candidate)
@@ -162,7 +187,7 @@ class RegionReleaseTest < Minitest::Test
       cache = ENV.fetch("REGION_FIXTURE_CACHE")
       lock = File.join(source, "sources.lock.json")
       expected = case mode
-      when "--refresh" then ["--us-year", "2026", "--ca-year", "2026"]
+      when "--refresh" then ["--us-year", "2026", "--us-display-year", "2025", "--ca-year", "2026"]
       when "--replay"
         pin = args.first
         abort "fixture cache does not match replay lock" unless File.binread(pin) == File.binread(lock)
@@ -172,19 +197,22 @@ class RegionReleaseTest < Minitest::Test
       abort "unexpected converter arguments: #{args.inspect}" unless args == expected + ["--cache", cache, "--output", stage]
       FileUtils.cp(File.join(source, "report.json"), stage)
       abort "fixture download failed" if mode == "--refresh" && ENV["REGION_FIXTURE_OFFLINE"]
-      %w[north-america.geojson.gz sources.lock.json].each { |file| FileUtils.cp(File.join(source, file), stage) }
+      %w[north-america.geojson.gz north-america-display.geojson.gz sources.lock.json].each { |file| FileUtils.cp(File.join(source, file), stage) }
     RUBY
     FileUtils.chmod(0o755, converter)
     cache = File.join(File.realpath(@work), "cache")
     env = { "REGIONKIT_PYTHON" => converter, "REGION_FIXTURE_SOURCE" => @candidate, "REGION_FIXTURE_CACHE" => cache }
-    refresh = ["--refresh", "--us-year", "2026", "--ca-year", "2026", "--cache", cache]
+    refresh = ["--refresh", "--us-year", "2026", "--us-display-year", "2025", "--ca-year", "2026", "--cache", cache]
     fresh = File.join(@work, "fresh")
     _out, error, status = invoke(*refresh, "--output", fresh, env: env)
     assert status.success?, error
     inventory = JSON.parse(File.read(File.join(fresh, "bundle-report.json")))
     sizes = inventory.fetch("bytesByID")
-    assert_equal sizes.values_at("us-CA", "us-NY", "european-union").sum, inventory.fetch("defaultBytes")
-    assert_equal sizes.values.sum, inventory.fetch("loggableBytes")
+    assert_equal sizes.values_at("us-CA", "us-NY", "european-union").sum { |roles| roles.fetch("tracking") }, inventory.fetch("defaultTrackingBytes")
+    assert_equal sizes.values.sum { |roles| roles.fetch("display") }, inventory.fetch("bytesByRole").fetch("display")
+    assert_equal 131, inventory.fetch("uniqueFiles")
+    assert_equal 132, inventory.fetch("logicalReferences")
+    assert_equal inventory.fetch("bytesByRole").values.sum - sizes.fetch("european-union").fetch("display"), inventory.fetch("uniqueBytes")
     cli("--adopt", fresh)
     installed_lock = File.binread(File.join(@source, "release", "sources.lock.json"))
     replay = File.join(@work, "replay")
@@ -197,7 +225,7 @@ class RegionReleaseTest < Minitest::Test
 
     lock_path = File.join(@candidate, "sources.lock.json")
     altered = JSON.parse(File.read(lock_path))
-    altered.fetch("inputs").first["sha256"] = Digest::SHA256.hexdigest("new upstream content")
+    altered.fetch("inputs")[1]["sha256"] = Digest::SHA256.hexdigest("new upstream content")
     File.write(lock_path, JSON.generate(altered))
     _out, error, status = invoke(*refresh, "--output", File.join(@work, "changed"), env: env)
     assert status.success?, error
@@ -219,21 +247,20 @@ class RegionReleaseTest < Minitest::Test
     lock = release_lock(ca_year: 2031)
     lock_path = File.join(@candidate, "sources.lock.json")
     report_path = File.join(@candidate, "report.json")
-    report = { "sourceMembership" => source_members(ca_year: 2031) }
+    report = JSON.parse(File.read(report_path))
+    report["sourceMembership"] = RegionGenerator::NORMALIZED.keys.to_h { |purpose| [purpose, source_members(ca_year: 2031)] }
     File.write(report_path, JSON.generate(report))
-    %w[normalized report].zip(%w[north-america.geojson.gz report.json]).each do |key, file|
-      lock[key] = { "file" => file, "sha256" => Digest::SHA256.file(File.join(@candidate, file)).hexdigest }
-    end
+    pin_release_files(lock)
     File.write(lock_path, JSON.generate(lock))
     capture_io { RegionGenerator.new(source: @source, resources: File.join(@candidate, "resources")).run(release: @candidate) }
     cli("--adopt", @candidate)
-    assert_equal 30, lock.fetch("inputs").size
-    pin = lock.fetch("inputs").find { |row| row.fetch("key") == "statcan-62-topology" }
+    assert_equal 60, lock.fetch("inputs").size
+    pin = lock.fetch("inputs").find { |row| row.fetch("key") == "statcanCartographic-62-topology" }
     pin["url"] = pin.fetch("url").sub("f=pbf", "f=geojson")
     File.write(lock_path, JSON.generate(lock))
     _out, error, status = invoke("--adopt", @candidate)
     refute status.success?
-    assert_includes error, "Wrong publisher URL for statcan-62-topology"
+    assert_includes error, "Wrong publisher URL for statcanCartographic-62-topology"
     lock.fetch("inputs").delete(pin)
     File.write(lock_path, JSON.generate(lock))
     _out, error, status = invoke("--adopt", @candidate)
@@ -250,12 +277,20 @@ class RegionReleaseTest < Minitest::Test
     original_report = File.read(report_path)
     mutations = {
       "duplicate release input pins" => ->(lock, _) { lock["inputs"].pop },
+      "Wrong publisher URL for statcanDigital-62" => ->(lock, _) { lock["inputs"].find { |p| p["key"] == "statcanDigital-62" }["url"] += "&maxAllowableOffset=50" },
       "Invalid checksum or size" => ->(lock, _) { lock["inputs"].first["bytes"] = 0 },
       "Wrong publisher URL" => ->(lock, _) { lock["inputs"][1]["url"] = "https://example.com/service" },
-      "license" => ->(lock, _) { lock["sources"]["statcan"].delete("license") },
+      "license" => ->(lock, _) { lock["sources"]["statcanDigital"].delete("license") },
       "GEOS" => ->(lock, _) { lock["toolchain"].delete("GEOS") },
-      "Invalid US source inventory" => ->(_, report) { report["sourceMembership"].reject! { |r| r["STUSPS"] == "GU" } },
-      "Invalid Canadian source member" => ->(_, report) { report["sourceMembership"].last["catalogID"] = "ca-ON" },
+      "Expected all four source products" => ->(lock, _) { lock["sources"].delete("censusCartographic") },
+      "usTrackingAccuracy" => ->(_, report) { report.delete("usTrackingAccuracy") },
+      "pinned TIGER input" => ->(_, report) { report["usTrackingAccuracy"]["sourceSHA256"] = "0" * 64 },
+      "Incomplete US accuracy" => ->(_, report) { report["usTrackingAccuracy"]["members"].delete("us-NY") },
+      "Invalid tracking accuracy" => ->(_, report) { report["usTrackingAccuracy"]["members"]["us-NY"]["upperBoundMetres"] = 25.1 },
+      "certified TWKB" => ->(_, report) { report["usTrackingAccuracy"]["members"]["us-NY"]["sha256"] = "0" * 64 },
+      "Incorrect maximum US tracking" => ->(_, report) { report["usTrackingAccuracy"]["maximumUpperBoundMetres"] = 12.0 },
+      "Invalid US source inventory" => ->(_, report) { report["sourceMembership"].fetch("display").reject! { |r| r["STUSPS"] == "GU" } },
+      "Invalid Canadian source member" => ->(_, report) { report["sourceMembership"].fetch("tracking").last["catalogID"] = "ca-ON" },
     }
     mutations.each do |diagnostic, mutate|
       lock = JSON.parse(original_lock)
@@ -275,14 +310,14 @@ class RegionReleaseTest < Minitest::Test
   def test_failed_commit_restores_previous_install_before_retry
     cli("--adopt", @candidate)
     prior_manifest = File.binread(File.join(@resources, "regions.json"))
-    prior_geometry = File.binread(File.join(@resources, "regions/ca/ca-ON.twkb"))
+    prior_geometry = File.binread(File.join(@resources, "regions/ca/ca-ON.tracking.twkb"))
     original = JSON.parse(Zlib::GzipReader.open(File.join(@candidate, "north-america.geojson.gz"), &:read))
     original.fetch("features").first.fetch("properties")["name"] = "Updated state name"
     normalized = File.join(@candidate, "north-america.geojson.gz")
     Zlib::GzipWriter.open(normalized) { |gz| gz.write(JSON.generate(original)) }
     lock_path = File.join(@candidate, "sources.lock.json")
     lock = JSON.parse(File.read(lock_path))
-    lock.fetch("normalized")["sha256"] = Digest::SHA256.file(normalized).hexdigest
+    lock.fetch("normalized").fetch("tracking")["sha256"] = Digest::SHA256.file(normalized).hexdigest
     File.write(lock_path, JSON.generate(lock))
     capture_io { RegionGenerator.new(source: @source, resources: File.join(@candidate, "resources")).run(release: @candidate) }
     failing = Class.new(RegionRelease::InstallTransaction) do
@@ -294,7 +329,7 @@ class RegionReleaseTest < Minitest::Test
       assert_raises(Errno::ENOSPC) { RegionRelease.new(root: @root, transaction: failing).run(["--adopt", @candidate]) }
     end
     assert_equal prior_manifest, File.binread(File.join(@resources, "regions.json"))
-    assert_equal prior_geometry, File.binread(File.join(@resources, "regions/ca/ca-ON.twkb"))
+    assert_equal prior_geometry, File.binread(File.join(@resources, "regions/ca/ca-ON.tracking.twkb"))
     cli("--adopt", @candidate)
     cli("--check")
   end
@@ -320,21 +355,25 @@ class RegionReleaseTest < Minitest::Test
     RegionRelease::PROVINCES.each do |code|
       data << ["ca-#{code}", %w[NT NU YT].include?(code) ? "territory" : "province", "canada"]
     end
-    features = data.map do |id, kind, parent|
-      properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => true,
-                     "source" => parent == "united-states" ? "census" : "statcan" }
-      properties["parentID"] = parent if parent
-      { "type" => "Feature", "properties" => properties, "geometry" => geometry }
+    RegionGenerator::NORMALIZED.each do |purpose, filename|
+      features = data.map do |id, kind, parent|
+        properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => true,
+                       "source" => RegionGenerator::PRODUCTS.fetch(parent).fetch(purpose), "parentID" => parent }
+        { "type" => "Feature", "properties" => properties, "geometry" => geometry }
+      end
+      Zlib::GzipWriter.open(File.join(@candidate, filename)) do |gz|
+        gz.write(JSON.generate("type" => "FeatureCollection", "features" => features))
+      end
     end
-    normalized = "north-america.geojson.gz"
-    Zlib::GzipWriter.open(File.join(@candidate, normalized)) do |gz|
-      gz.write(JSON.generate("type" => "FeatureCollection", "features" => features))
-    end
-    File.write(File.join(@candidate, "report.json"), JSON.generate("sourceMembership" => source_members))
     lock = release_lock
-    { "normalized" => normalized, "report" => "report.json" }.each do |key, file|
-      lock[key] = { "file" => file, "sha256" => Digest::SHA256.file(File.join(@candidate, file)).hexdigest }
-    end
+    encoded_sha = Digest::SHA256.hexdigest(TinyWKB.encode(geometry))
+    certificate = {
+      "sourceSHA256" => lock.fetch("inputs").first.fetch("sha256"), "capMetres" => 25, "maximumUpperBoundMetres" => 0.0,
+      "members" => US_TRACKING_CODES.to_h { |code| ["us-#{code}", { "sha256" => encoded_sha, "upperBoundMetres" => 0.0 }] },
+    }
+    report = { "usTrackingAccuracy" => certificate, "sourceMembership" => RegionGenerator::NORMALIZED.keys.to_h { |p| [p, source_members] } }
+    File.write(File.join(@candidate, "report.json"), JSON.generate(report))
+    pin_release_files(lock)
     File.write(File.join(@candidate, "sources.lock.json"), JSON.generate(lock))
     gen = RegionGenerator.new(source: @source, resources: File.join(@candidate, "resources"))
     capture_io { gen.run(release: @candidate) }
@@ -351,25 +390,40 @@ class RegionReleaseTest < Minitest::Test
     end
   end
 
+  def pin_release_files(lock)
+    pin = ->(file) { { "file" => file, "sha256" => Digest::SHA256.file(File.join(@candidate, file)).hexdigest } }
+    lock["normalized"] = RegionGenerator::NORMALIZED.transform_values(&pin)
+    lock["report"] = pin.call("report.json")
+  end
+
   def release_lock(ca_year: 2026)
-    service = "https://geo.statcan.gc.ca/geo_wa/rest/services/#{ca_year}/Cartographic_boundary_files/MapServer"
     urls = {
-      "census-state" => "https://www2.census.gov/geo/tiger/TIGER2026/STATE/tl_2026_us_state.zip",
-      "statcan-service" => "#{service}?f=pjson", "statcan-layer" => "#{service}/0?f=pjson",
-      "statcan-inventory" => "#{service}/0/query?where=1%3D1&returnGeometry=false&f=geojson",
+      "censusTIGER-state" => "https://www2.census.gov/geo/tiger/TIGER2026/STATE/tl_2026_us_state.zip",
+      "censusCartographic-state" => "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_state_500k.zip",
     }
-    RegionRelease::CANADA_CODES.each_key do |uid|
-      query = "#{service}/0/query?where=PRUID%3D%27#{uid}%27&returnGeometry=true"
-      urls["statcan-#{uid}"] = "#{query}&outSR=4326&f=geojson"
-      urls["statcan-#{uid}-topology"] = "#{query}&outFields=PRUID&outSR=3347&f=pbf" unless ca_year == 2026
+    RegionRelease::STATCAN_SERVICES.each do |product, basename|
+      service = "https://geo.statcan.gc.ca/geo_wa/rest/services/#{ca_year}/#{basename}/MapServer"
+      urls["#{product}-service"] = "#{service}?f=pjson"
+      urls["#{product}-layer"] = "#{service}/0?f=pjson"
+      urls["#{product}-inventory"] = "#{service}/0/query?where=1%3D1&returnGeometry=false&f=geojson&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&orderByFields=PRUID"
+      RegionRelease::CANADA_CODES.each_key do |uid|
+        query = "#{service}/0/query?where=PRUID%3D%27#{uid}%27&returnGeometry=true"
+        urls["#{product}-#{uid}"] = "#{query}&outSR=4326&f=geojson&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&geometryPrecision=7"
+        urls["#{product}-#{uid}-topology"] = "#{query}&outFields=PRUID&outSR=3347&f=pbf" if product == "statcanDigital" || ca_year != 2026
+      end
     end
-    source = { "product" => "fixture", "publisher" => "publisher", "includes" => "polygons", "license" => "fixture", "referenceDate" => "2026-01-01" }
+    source = { "product" => "fixture", "publisher" => "publisher", "includes" => "polygons", "license" => "fixture" }
+    years = { "usYear" => 2026, "usDisplayYear" => 2025, "caYear" => ca_year }
     {
-      "version" => 2, "usYear" => 2026, "caYear" => ca_year, "sources" => { "census" => source, "statcan" => source.merge("referenceDate" => "#{ca_year}-01-01") },
+      **years, "version" => 3, "sources" => RegionGenerator::YEARS.transform_values { |key| source.merge("referenceDate" => "#{years.fetch(key)}-01-01") },
       "toolchain" => { "python" => "3.12", "GEOS" => "3", "PROJ" => "9", "projectionDatabaseSHA256" => "a" * 64,
                        "projectionNetworkEnabled" => false, "packages" => %w[numpy pyproj pyshp shapely certifi].to_h { |name| [name, "1.0"] } },
-      "conversion" => { "algorithm" => "simplify", "winding" => "CCW", "coordinateDecimals" => 7, "toleranceMetres" => 180,
-                        "normalizedEPSG" => 4326, "canadianRequest" => { "outSR" => 4326 } },
+      "conversion" => { "algorithm" => "simplify", "winding" => "CCW", "coordinateDecimals" => 7,
+                        "usTracking" => { "initialToleranceMetres" => 180, "maximumDisplacementMetres" => 25, "restorationMethod" => "adaptive" },
+                        "caTracking" => { "toleranceMetres" => 45 }, "usDisplay" => { "toleranceMetres" => 0 }, "caDisplay" => { "toleranceMetres" => 180 },
+                        "normalizedEPSG" => 4326, "usSourceEPSG" => 4269, "canadianProjection" => 3347,
+                        "usProjections" => { "continental" => 5070, "AK" => 3338, "HI" => 26963, "PR" => 32161 },
+                        "canadianRequest" => { "outSR" => 4326, "geometryPrecision" => 7, "serverReprojects" => true } },
       "inputs" => urls.map { |key, url| { "key" => key, "url" => url, "bytes" => 42, "sha256" => Digest::SHA256.hexdigest(key) } },
     }
   end

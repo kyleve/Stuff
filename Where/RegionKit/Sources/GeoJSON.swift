@@ -60,8 +60,10 @@ enum GeoJSON {
 
     private static func makePolygon(from rings: [[[Double]]]) -> GeoPolygon? {
         guard let exterior = rings.first else { return nil }
+        let vertices = coordinates(exterior)
+        guard vertices.isValidPolygonRing else { return nil }
         return GeoPolygon(
-            vertices: coordinates(exterior),
+            vertices: vertices,
             holes: rings.dropFirst().map(coordinates),
         )
     }

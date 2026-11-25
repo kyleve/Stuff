@@ -24,6 +24,13 @@ import shapely
 from shapely.geometry import MultiPolygon, shape
 
 from statcan_topology import ring_topology
+from tracking_accuracy import (
+    CAP_METRES,
+    DECIMALS,
+    RESTORE_METRES,
+    certify_tracking,
+    restore_tracking,
+)
 
 
 CANADA = dict(
@@ -61,8 +68,9 @@ CA_2026_TOPOLOGY = {
     "62": (62405, 3, 5091805),
 }
 FIELDS = ["PRUID", "DGUID", "PRENAME", "PRFNAME"]
-TOLERANCE = 180
-DECIMALS = 7
+US_TRACKING_TOLERANCE = 180
+CA_DISPLAY_TOLERANCE = 45
+CA_DUPLICATE_TOLERANCE = 0.02
 # Land samples include both sides of three international boundary segments and all four
 # excluded US territories. Offshore samples expose the products' different water semantics.
 PROBES = {
@@ -79,6 +87,10 @@ PROBES = {
     "Regina": (-104.6189, 50.4452, "ca-SK"),
     "Edmonton": (-113.4938, 53.5461, "ca-AB"),
     "Victoria": (-123.3656, 48.4284, "ca-BC"),
+    "Port Jefferson": (-73.067, 40.946, "us-NY"),
+    "Vancouver": (-123.12, 49.28, "ca-BC"),
+    "Lake Simcoe": (-79.35, 44.47, "ca-ON"),
+    "Lake Ontario south of Toronto": (-79.40, 43.60, None),
     "Ottawa": (-75.6972, 45.4215, "ca-ON"),
     "Gatineau": (-75.7013, 45.4765, "ca-QC"),
     "Buffalo": (-78.8784, 42.8864, "us-NY"),
@@ -98,6 +110,14 @@ PROBES = {
     "Atlantic": (-55, 43, None),
     "North Pacific": (180, 48, None),
 }
+# The cartographic products clip these waters from the displayed coastline.
+OFFSHORE_PROBES = {
+    "Long Island Sound": (-73.066, 40.998, "us-NY"),
+    "Strait of Georgia": (-123.65, 49.28, "ca-BC"),
+}
+NB_CHANNEL = (-64.5260309, 46.089227)
+TEXAS_FIX = (-93.558908, 31.097843)
+TEXAS_BORDER_VERTEX = (-93.553852, 31.094584)
 
 
 def require(condition, message):
@@ -232,14 +252,22 @@ def reproject(geometry, source, target, operations=None):
     return shapely.transform(geometry, operation.transform, interleaved=False)
 
 
-def us_members(cache, year):
-    base = f"tl_{year}_us_state"
-    url = f"https://www2.census.gov/geo/tiger/TIGER{year}/STATE/{base}.zip"
-    path = cache.get("census-state", url)
+def us_members(cache, year, product):
+    if product == "censusTIGER":
+        base = f"tl_{year}_us_state"
+        folder = f"TIGER{year}/STATE"
+    elif product == "censusCartographic":
+        base = f"cb_{year}_us_state_500k"
+        folder = f"GENZ{year}/shp"
+    else:
+        raise ValueError(f"Unknown Census product: {product}")
+    path = cache.get(
+        f"{product}-state", f"https://www2.census.gov/geo/tiger/{folder}/{base}.zip"
+    )
     members, inventory = {}, {}
     with ZipFile(path) as archive:
         crs = pyproj.CRS.from_wkt(archive.read(f"{base}.prj").decode())
-        require(crs.to_epsg() == 4269, f"Unexpected TIGER spatial reference: {crs}")
+        require(crs.to_epsg() == 4269, f"Unexpected {product} spatial reference: {crs}")
         with shapefile.Reader(
             **{
                 suffix: io.BytesIO(archive.read(f"{base}.{suffix}"))
@@ -255,7 +283,7 @@ def us_members(cache, year):
                     and re.fullmatch("[0-9]{2}", fips)
                     and fips == record.GEOID
                     and name,
-                    f"Unexpected TIGER record {code}/{fips}",
+                    f"Unexpected {product} record {code}/{fips}",
                 )
                 catalog_id = None if code in UNTRACKED_US_CODES else f"us-{code}"
                 row = {
@@ -270,7 +298,7 @@ def us_members(cache, year):
                 if catalog_id is None:
                     continue
                 kind = {"DC": "federalDistrict", "PR": "territory"}.get(code, "state")
-                props = node(catalog_id, name, kind, "census", "united-states")
+                props = node(catalog_id, name, kind, product, "united-states")
                 row["coordinateOperations"] = {}
                 geometry = reproject(
                     shape(reader.shape(record.oid).__geo_interface__),
@@ -284,7 +312,7 @@ def us_members(cache, year):
     require(
         set(inventory) == US_CODES
         and len({row["STATEFP"] for row in inventory.values()}) == 56,
-        "TIGER STATE membership changed",
+        f"{product} STATE membership changed",
     )
     return [members[key] for key in sorted(members)], [
         inventory[key] for key in sorted(inventory)
@@ -301,17 +329,25 @@ def arc_features(document):
     return document["features"]
 
 
-def canadian_sources(cache, year):
-    root = f"https://geo.statcan.gc.ca/geo_wa/rest/services/{year}/Cartographic_boundary_files/MapServer"
-    layer_name = f"lpr_000b{str(year)[-2:]}s_e"
-    service = json.loads(cache.get("statcan-service", f"{root}?f=pjson").read_bytes())
+def canadian_sources(cache, year, product):
+    directory, edition = {
+        "statcanDigital": ("Digital", "a"),
+        "statcanCartographic": ("Cartographic", "b"),
+    }[product]
+    root = f"https://geo.statcan.gc.ca/geo_wa/rest/services/{year}/{directory}_boundary_files/MapServer"
+    layer_name = f"lpr_000{edition}{str(year)[-2:]}s_e"
+    service = json.loads(
+        cache.get(f"{product}-service", f"{root}?f=pjson").read_bytes()
+    )
     layers = [r for r in service["layers"] if r["name"] == layer_name]
     require(
         len(layers) == 1 and f"{year}-01-01" in service["serviceDescription"],
         "Unexpected Canadian release",
     )
     layer_url = f"{root}/{layers[0]['id']}"
-    layer = json.loads(cache.get("statcan-layer", f"{layer_url}?f=pjson").read_bytes())
+    layer = json.loads(
+        cache.get(f"{product}-layer", f"{layer_url}?f=pjson").read_bytes()
+    )
     require(
         layer["name"] == layer_name
         and layer["geometryType"] == "esriGeometryPolygon"
@@ -338,7 +374,7 @@ def canadian_sources(cache, year):
         }
     )
     rows = arc_features(
-        json.loads(cache.get("statcan-inventory", inventory_url).read_bytes())
+        json.loads(cache.get(f"{product}-inventory", inventory_url).read_bytes())
     )
     inventory = {row["properties"]["PRUID"]: row["properties"] for row in rows}
     require(
@@ -357,7 +393,7 @@ def canadian_sources(cache, year):
                 "f": "geojson",
             }
         )
-        path = cache.get(f"statcan-{uid}", url)
+        path = cache.get(f"{product}-{uid}", url)
         payload = path.read_bytes()
         record = arc_features(json.loads(payload))
         require(
@@ -369,7 +405,7 @@ def canadian_sources(cache, year):
         )
         del record
         geometry = shapely.from_geojson(payload).geoms[0]
-        if year == 2026:
+        if product == "statcanCartographic" and year == 2026:
             topology = counts(geometry)
             require(
                 tuple(topology[k] for k in ("parts", "holes", "vertices"))
@@ -388,7 +424,7 @@ def canadian_sources(cache, year):
                     "f": "pbf",
                 }
             )
-            native = cache.get(f"statcan-{uid}-topology", verification_url)
+            native = cache.get(f"{product}-{uid}-topology", verification_url)
             rings, vertices = ring_topology(native.read_bytes())
             actual = counts(geometry)
             require(
@@ -400,7 +436,7 @@ def canadian_sources(cache, year):
             f"ca-{code}",
             inventory[uid]["PRENAME"],
             "territory" if int(uid) >= 60 else "province",
-            "statcan",
+            product,
             "canada",
         )
         membership = {
@@ -505,6 +541,10 @@ def sample_displacement(original, simplified, projection):
 
 def border_probes():
     probes = {name: (lon, lat) for name, (lon, lat, _) in PROBES.items()}
+    probes.update({name: (lon, lat) for name, (lon, lat, _) in OFFSHORE_PROBES.items()})
+    probes["New Brunswick tidal channel"] = NB_CHANNEL
+    probes["Texas–Louisiana"] = TEXAS_FIX
+    probes["Texas–Louisiana source vertex"] = TEXAS_BORDER_VERTEX
     # Cross each international boundary at three positions. Report water and land, gaps and
     # overlaps at roughly 20 m intervals within 500 m of each publisher's boundary vicinity.
     for place, lon, lat, dl, da in (
@@ -523,7 +563,34 @@ def matches(geometry, points):
     return shapely.covers(geometry, points)
 
 
-def convert_subdivisions(members, country, probes):
+def repair_digital_seams(projected, group, repairs):
+    # The 2026 Ontario/Nunavut seam has adjacent vertices about 1.2 cm apart
+    # on one side. Limit the repair to members with invalid shared edges, then
+    # let the caller revalidate the entire coverage.
+    corrected = projected.copy()
+    for i, edges in enumerate(shapely.coverage_invalid_edges(projected)):
+        if edges.is_empty:
+            continue
+        original = projected[i]
+        clean = shapely.remove_repeated_points(
+            original, tolerance=CA_DUPLICATE_TOLERANCE
+        )
+        removed = int(
+            shapely.get_num_coordinates(original) - shapely.get_num_coordinates(clean)
+        )
+        if removed:
+            corrected[i] = clean
+            repairs.append(
+                {
+                    "member": group[i].code,
+                    "nearDuplicateVerticesRemoved": removed,
+                    "toleranceMetres": CA_DUPLICATE_TOLERANCE,
+                }
+            )
+    return corrected
+
+
+def convert_subdivisions(members, country, probes, tolerance, restore=None):
     groups = defaultdict(list)
     for member in members:
         groups[member.projection].append(member)
@@ -542,25 +609,38 @@ def convert_subdivisions(members, country, probes):
             repaired(g, m.code, repairs)
             for m, g in zip(group, reproject(raw, 4326, epsg, operations), strict=True)
         ]
+        working = projected
+        digital = group[0].properties["source"] == "statcanDigital"
+        if digital and not shapely.coverage_is_valid(working):
+            working = repair_digital_seams(projected, group, repairs)
         require(
-            shapely.coverage_is_valid(projected),
+            shapely.coverage_is_valid(working),
             f"Source contains overlaps or unmatched edges in EPSG:{epsg}",
         )
-        tolerance = 45 if country == "canada" else TOLERANCE
-        simplified = shapely.coverage_simplify(projected, tolerance)
+        simplified = (
+            shapely.coverage_simplify(working, tolerance) if tolerance else working
+        )
         require(
-            shapely.coverage_is_valid(simplified),
+            not tolerance or shapely.coverage_is_valid(simplified),
             f"Invalid simplified coverage in EPSG:{epsg}",
         )
-        for m, before, planar, after, geo in zip(
-            group,
-            raw,
-            projected,
-            simplified,
-            reproject(simplified, epsg, 4326, operations),
-            strict=True,
-        ):
-            final = canonical(geo)
+        canonical_group = {
+            m.code: canonical(g)
+            for m, g in zip(
+                group,
+                reproject(simplified, epsg, 4326, operations)
+                if tolerance or working is not projected
+                else raw,
+                strict=True,
+            )
+        }
+        if restore is not None:
+            canonical_group = restore(
+                {m.code: m.geometry for m in group}, canonical_group
+            )
+        forward = pyproj.Transformer.from_pipeline(operations[f"4326-to-{epsg}"])
+        for m, before, planar in zip(group, raw, projected, strict=True):
+            final = canonical_group[m.code]
             source_counts = counts(before)
             final_counts = counts(final)
             require(
@@ -573,7 +653,11 @@ def convert_subdivisions(members, country, probes):
                 "repairedSource": source_counts,
                 "candidate": final_counts,
                 "projectionEPSG": epsg,
-                **sample_displacement(planar, after, epsg),
+                **sample_displacement(
+                    planar,
+                    shapely.transform(final, forward.transform, interleaved=False),
+                    epsg,
+                ),
             }
             for name, source_hit, output_hit in zip(
                 probes, matches(before, points), matches(final, points), strict=True
@@ -625,64 +709,201 @@ def normalized_file(path, features):
         stream.write(b"]}\n")
 
 
-def build_release(cache, output, us_year, ca_year):
-    chain = toolchain()
-    us, us_inventory = us_members(cache, us_year)
-    canada = canadian_sources(cache, ca_year)
-    print(
-        "Verified 56 TIGER/Line features and 13 Statistics Canada provinces/territories.",
-        flush=True,
-    )
-    probes = border_probes()
-    us_features, us_report, us_source, us_result = convert_subdivisions(
-        us, "united-states", probes
-    )
-    ca_features, ca_report, ca_source, ca_result = convert_subdivisions(
-        canada, "canada", probes
+def join_memberships(tracking, display):
+    def inventory(rows):
+        # Names and coordinate operations can change between publisher vintages.
+        return sorted(
+            (
+                row.get("countryID"),
+                row.get("STUSPS", ""),
+                row.get("STATEFP", ""),
+                row.get("GEOID", ""),
+                row.get("PRUID", ""),
+                row.get("DGUID", ""),
+                row.get("postalCode", ""),
+                row.get("catalogID") or "",
+            )
+            for row in rows
+        )
+
+    require(
+        inventory(tracking) == inventory(display),
+        "Tracking and display source inventories disagree",
     )
 
-    features = sorted(us_features, key=lambda pair: pair[0]["name"]) + sorted(
-        ca_features, key=lambda pair: pair[0]["name"]
-    )
+
+def classify_release(role, probes, us, canada):
     samples = {}
     for name, xy in probes.items():
-        before = [f"us-{code}" for code in us_source[name]] + [
-            f"ca-{code}" for code in ca_source[name]
-        ]
-        after = [f"us-{code}" for code in us_result[name]] + [
-            f"ca-{code}" for code in ca_result[name]
+        before, after = [
+            [f"us-{code}" for code in us[index][name]]
+            + [f"ca-{code}" for code in canada[index][name]]
+            for index in (2, 3)
         ]
         samples[name] = {"lonLat": list(xy), "source": before, "candidate": after}
         if name in PROBES:
-            member = PROBES[name][2]
-            expected = [member] if member else []
-            require(
-                before == after == expected,
-                f"Unexpected interior/reference classification: {name}",
-            )
-    report = {
-        "united-states": us_report,
-        "canada": ca_report,
-        "probes": samples,
-        "sampleDisagreements": [
-            name for name, row in samples.items() if row["source"] != row["candidate"]
-        ],
-        "sourceMembership": us_inventory + [m.membership for m in canada],
+            expected = PROBES[name][2]
+        elif name in OFFSHORE_PROBES:
+            expected = OFFSHORE_PROBES[name][2] if role == "tracking" else None
+        elif name == "New Brunswick tidal channel" and role == "display":
+            expected = None
+        elif name == "Texas–Louisiana" and role == "tracking":
+            expected = "us-TX"
+        else:
+            continue
+        require(
+            before == after == ([expected] if expected else []),
+            f"Unexpected {role} classification at {name}: {before} -> {after}",
+        )
+    return samples
+
+
+def source_records(us_year, us_display_year, ca_year):
+    products = {
+        "censusTIGER": (
+            us_year,
+            "TIGER/Line national STATE",
+            "Legal boundaries, including assigned water",
+        ),
+        "censusCartographic": (
+            us_display_year,
+            "Cartographic states at 1:500,000",
+            "Generalized shorelines",
+        ),
+        "statcanDigital": (
+            ca_year,
+            "Census digital province/territory boundaries",
+            "Geographic boundaries, including assigned water",
+        ),
+        "statcanCartographic": (
+            ca_year,
+            "Census detailed cartographic province/territory boundaries",
+            "Landmass and coastal islands",
+        ),
     }
+    sources = {}
+    for product, (year, name, includes) in products.items():
+        census = product.startswith("census")
+        sources[product] = {
+            "product": f"{year} {name}",
+            "publisher": "U.S. Census Bureau"
+            if census
+            else "Government of Canada, Statistics Canada",
+            "referenceDate": f"{year}-01-01",
+            "license": "U.S. Government work, public domain"
+            if census
+            else "https://open.canada.ca/en/open-government-licence-canada",
+            "includes": includes,
+        }
+    return sources
+
+
+def build_release(cache, output, us_year, us_display_year, ca_year):
+    chain = toolchain()
+    probes = border_probes()
+    report = {"sourceMembership": {}}
+    normalized = {}
+    for role, us_product, ca_product, year in (
+        ("tracking", "censusTIGER", "statcanDigital", us_year),
+        ("display", "censusCartographic", "statcanCartographic", us_display_year),
+    ):
+        tracking = role == "tracking"
+        us, inventory = us_members(cache, year, us_product)
+        canada = canadian_sources(cache, ca_year, ca_product)
+        report["sourceMembership"][role] = inventory + [m.membership for m in canada]
+        if not tracking:
+            join_memberships(
+                report["sourceMembership"]["tracking"],
+                report["sourceMembership"]["display"],
+            )
+        print(
+            f"Verified membership and source topology for {us_product} and {ca_product}.",
+            flush=True,
+        )
+        us_result = convert_subdivisions(
+            us,
+            "united-states",
+            probes,
+            US_TRACKING_TOLERANCE if tracking else 0,
+            restore_tracking if tracking else None,
+        )
+        if tracking:
+            tiger = next(
+                row for row in cache.inputs if row["key"] == "censusTIGER-state"
+            )
+            report["usTrackingAccuracy"] = certify_tracking(
+                {m.code: m.geometry for m in us},
+                {
+                    props["id"].removeprefix("us-"): geometry
+                    for props, geometry in us_result[0]
+                },
+                tiger["sha256"],
+            )
+            # Keep the historically displaced shared bend observable on each side.
+            point = reproject(shapely.Point(TEXAS_BORDER_VERTEX), 4326, 5070)
+            distances = {}
+            for props, geometry in us_result[0]:
+                if props["id"] in ("us-TX", "us-LA"):
+                    distances[props["id"]] = round(
+                        float(point.distance(reproject(geometry, 4326, 5070).boundary)),
+                        3,
+                    )
+            require(
+                set(distances) == {"us-TX", "us-LA"}
+                and all(d <= CAP_METRES for d in distances.values()),
+                "Texas–Louisiana regression vertex exceeded 25 m",
+            )
+            report["texasLouisianaVertex"] = {
+                "lonLat": TEXAS_BORDER_VERTEX,
+                "distanceMetresEPSG5070": distances,
+            }
+        ca_result = convert_subdivisions(
+            canada, "canada", probes, 0 if tracking else CA_DISPLAY_TOLERANCE
+        )
+        samples = classify_release(role, probes, us_result, ca_result)
+        report[role] = {
+            "united-states": us_result[1],
+            "canada": ca_result[1],
+            "probes": samples,
+            "sampleDisagreements": [
+                name
+                for name, row in samples.items()
+                if row["source"] != row["candidate"]
+            ],
+        }
+        features = sorted(us_result[0], key=lambda pair: pair[0]["name"]) + sorted(
+            ca_result[0], key=lambda pair: pair[0]["name"]
+        )
+        geojson = output / (
+            "north-america.geojson.gz"
+            if tracking
+            else "north-america-display.geojson.gz"
+        )
+        normalized_file(geojson, features)
+        normalized[role] = {"file": geojson.name, "sha256": digest(geojson)}
+        print(f"Normalized {len(features)} {role} features.", flush=True)
     report_path = output / "report.json"
     write_json(report_path, report)
-    geojson = output / "north-america.geojson.gz"
-    normalized_file(geojson, features)
     lock = {
-        "version": 2,
+        "version": 3,
         "usYear": us_year,
+        "usDisplayYear": us_display_year,
         "caYear": ca_year,
         "inputs": cache.inputs,
         "toolchain": chain,
         "conversion": {
             "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt)",
-            "toleranceMetres": TOLERANCE,
-            "canadianToleranceMetres": 45,
+            "usTracking": {
+                "initialToleranceMetres": US_TRACKING_TOLERANCE,
+                "maximumDisplacementMetres": CAP_METRES,
+                "restorationMethod": f"Restore source vertices on chains exceeding {RESTORE_METRES} m; certify final TWKB against the source.",
+            },
+            "usDisplay": {"toleranceMetres": 0, "publisherScale": 500000},
+            "caTracking": {
+                "toleranceMetres": 0,
+                "nearDuplicateToleranceMetres": CA_DUPLICATE_TOLERANCE,
+            },
+            "caDisplay": {"toleranceMetres": CA_DISPLAY_TOLERANCE},
             "coordinateDecimals": DECIMALS,
             "usSourceEPSG": 4269,
             "usProjections": {"continental": 5070, **US_PROJECTIONS},
@@ -695,23 +916,8 @@ def build_release(cache, output, us_year, ca_year):
             "normalizedEPSG": 4326,
             "winding": "CCW exterior, CW holes",
         },
-        "sources": {
-            "census": {
-                "product": f"{us_year} TIGER/Line national STATE",
-                "publisher": "U.S. Census Bureau",
-                "referenceDate": f"{us_year}-01-01",
-                "license": "U.S. Government work, public domain",
-                "includes": "Legal boundaries, including water",
-            },
-            "statcan": {
-                "product": f"{ca_year} Census detailed cartographic province/territory boundaries",
-                "publisher": "Government of Canada, Statistics Canada",
-                "referenceDate": f"{ca_year}-01-01",
-                "license": "https://open.canada.ca/en/open-government-licence-canada",
-                "includes": "Landmass and coastal islands",
-            },
-        },
-        "normalized": {"file": geojson.name, "sha256": digest(geojson)},
+        "sources": source_records(us_year, us_display_year, ca_year),
+        "normalized": normalized,
         "report": {"file": report_path.name, "sha256": digest(report_path)},
     }
     write_json(output / "sources.lock.json", lock)
@@ -724,6 +930,7 @@ def main():
     mode.add_argument("--refresh", action="store_true")
     mode.add_argument("--replay", type=Path)
     parser.add_argument("--us-year", type=int)
+    parser.add_argument("--us-display-year", type=int)
     parser.add_argument("--ca-year", type=int)
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -731,32 +938,40 @@ def main():
     previous = None
     if args.replay:
         require(
-            args.ca_year is None and args.us_year is None,
+            all(y is None for y in (args.us_year, args.us_display_year, args.ca_year)),
             "Replay takes the vintages from the lock",
         )
         previous = json.loads(args.replay.read_text())
         require(
-            previous.get("version") == 2,
-            "Unsupported release lock version; refresh these vintages to generate a subdivision-only release",
+            previous.get("version") == 3,
+            "Unsupported release lock version; refresh with --us-year, --us-display-year and --ca-year to create a paired release",
         )
         require(
             previous["toolchain"] == toolchain(),
             "GIS toolchain differs from the frozen release",
         )
-        us_year, ca_year = previous["usYear"], previous["caYear"]
+        us_year, us_display_year, ca_year = (
+            previous["usYear"],
+            previous["usDisplayYear"],
+            previous["caYear"],
+        )
     else:
-        us_year, ca_year = args.us_year, args.ca_year
+        us_year, us_display_year, ca_year = (
+            args.us_year,
+            args.us_display_year,
+            args.ca_year,
+        )
     require(
         all(
             isinstance(year, int) and 2000 <= year <= 2099
-            for year in (us_year, ca_year)
+            for year in (us_year, us_display_year, ca_year)
         ),
-        "Refresh requires explicit four-digit US and Canadian release years",
+        "Refresh requires explicit four-digit US tracking, US display and Canadian release years",
     )
     args.output.mkdir(parents=True, exist_ok=True)
     require(not any(args.output.iterdir()), "Candidate output must be empty")
     cache = SourceCache(args.cache, previous["inputs"] if previous else None)
-    release = build_release(cache, args.output, us_year, ca_year)
+    release = build_release(cache, args.output, us_year, us_display_year, ca_year)
     if previous is not None:
         require(
             release == previous,

@@ -12,6 +12,21 @@ struct CurrentRegionResolverTests {
         #expect(await services.currentRegion.resolve(now: now) == .resolved(.california))
     }
 
+    @Test func preciseOffshoreFixResolvesUsingTheTrackingBoundary() async throws {
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample(
+            accuracy: 30,
+            coordinate: .init(latitude: 40.998, longitude: -73.066),
+        ))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: RegionAttributor(for: [.newYork]),
+        )
+        try await services.ingestor.authorizeRecording()
+        #expect(await services.currentRegion.resolve(now: now) == .resolved(.newYork))
+    }
+
     @Test func exactlyOneKilometerIsAccepted() async throws {
         let services = try await authorizedServices(
             sample: sample(accuracy: 1000),

@@ -5,9 +5,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-AL.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-AL.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AL.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-AK",
@@ -15,9 +24,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-AK.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-AK.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AK.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-AZ",
@@ -25,9 +43,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-AZ.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-AZ.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AZ.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-AR",
@@ -35,9 +62,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-AR.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-AR.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AR.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-CA",
@@ -45,10 +81,19 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
     "localizationKey": "region.california",
-    "geometryFile": "us/us-CA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-CA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-CA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-CO",
@@ -56,9 +101,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-CO.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-CO.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-CO.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-CT",
@@ -66,9 +120,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-CT.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-CT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-CT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-DE",
@@ -76,9 +139,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-DE.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-DE.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-DE.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-DC",
@@ -86,9 +158,18 @@
     "kind": "federalDistrict",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-DC.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-DC.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-DC.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-FL",
@@ -96,9 +177,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-FL.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-FL.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-FL.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-GA",
@@ -106,9 +196,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-GA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-GA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-GA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-HI",
@@ -116,9 +215,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-HI.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-HI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-HI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-ID",
@@ -126,9 +234,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-ID.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-ID.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-ID.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-IL",
@@ -136,9 +253,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-IL.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-IL.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-IL.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-IN",
@@ -146,9 +272,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-IN.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-IN.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-IN.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-IA",
@@ -156,9 +291,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-IA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-IA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-IA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-KS",
@@ -166,9 +310,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-KS.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-KS.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-KS.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-KY",
@@ -176,9 +329,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-KY.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-KY.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-KY.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-LA",
@@ -186,9 +348,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-LA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-LA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-LA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-ME",
@@ -196,9 +367,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-ME.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-ME.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-ME.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MD",
@@ -206,9 +386,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MD.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MD.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MD.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MA",
@@ -216,9 +405,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MI",
@@ -226,9 +424,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MI.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MN",
@@ -236,9 +443,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MN.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MN.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MN.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MS",
@@ -246,9 +462,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MS.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MS.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MS.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MO",
@@ -256,9 +481,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MO.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MO.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MO.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-MT",
@@ -266,9 +500,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-MT.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-MT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NE",
@@ -276,9 +519,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-NE.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NE.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NE.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NV",
@@ -286,9 +538,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-NV.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NV.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NV.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NH",
@@ -296,9 +557,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-NH.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NH.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NH.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NJ",
@@ -306,9 +576,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-NJ.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NJ.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NJ.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NM",
@@ -316,9 +595,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-NM.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NM.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NM.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NY",
@@ -326,10 +614,19 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
     "localizationKey": "region.newYork",
-    "geometryFile": "us/us-NY.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NY.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NY.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-NC",
@@ -337,9 +634,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-NC.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-NC.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NC.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-ND",
@@ -347,9 +653,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-ND.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-ND.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-ND.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-OH",
@@ -357,9 +672,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-OH.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-OH.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-OH.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-OK",
@@ -367,9 +691,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-OK.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-OK.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-OK.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-OR",
@@ -377,9 +710,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-OR.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-OR.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-OR.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-PA",
@@ -387,9 +729,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-PA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-PA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-PA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-PR",
@@ -397,9 +748,18 @@
     "kind": "territory",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-PR.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-PR.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-PR.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-RI",
@@ -407,9 +767,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-RI.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-RI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-RI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-SC",
@@ -417,9 +786,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-SC.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-SC.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-SC.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-SD",
@@ -427,9 +805,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-SD.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-SD.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-SD.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-TN",
@@ -437,9 +824,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-TN.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-TN.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-TN.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-TX",
@@ -447,9 +843,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-TX.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-TX.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-TX.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-UT",
@@ -457,9 +862,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-UT.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-UT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-UT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-VT",
@@ -467,9 +881,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-VT.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-VT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-VT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-VA",
@@ -477,9 +900,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-VA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-VA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-VA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-WA",
@@ -487,9 +919,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-WA.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-WA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-WV",
@@ -497,9 +938,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-WV.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-WV.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WV.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-WI",
@@ -507,9 +957,18 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-WI.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-WI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "us-WY",
@@ -517,17 +976,24 @@
     "kind": "state",
     "isLoggable": true,
     "parentID": "united-states",
-    "source": "census",
-    "sourceYear": 2026,
-    "geometryFile": "us/us-WY.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "us/us-WY.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WY.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
+    }
   },
   {
     "id": "canada",
     "name": "Canada",
     "kind": "country",
     "isLoggable": false,
-    "source": "statcan",
-    "sourceYear": 2026,
     "localizationKey": "region.canada"
   },
   {
@@ -536,9 +1002,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-AB.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-AB.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-AB.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-BC",
@@ -546,9 +1021,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-BC.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-BC.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-BC.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-MB",
@@ -556,9 +1040,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-MB.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-MB.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-MB.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-NB",
@@ -566,9 +1059,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-NB.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NB.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NB.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-NL",
@@ -576,9 +1078,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-NL.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NL.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NL.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-NT",
@@ -586,9 +1097,18 @@
     "kind": "territory",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-NT.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NT.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NT.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-NS",
@@ -596,9 +1116,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-NS.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NS.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NS.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-NU",
@@ -606,9 +1135,18 @@
     "kind": "territory",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-NU.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NU.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NU.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-ON",
@@ -616,9 +1154,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-ON.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-ON.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-ON.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-PE",
@@ -626,9 +1173,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-PE.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-PE.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-PE.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-QC",
@@ -636,9 +1192,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-QC.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-QC.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-QC.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-SK",
@@ -646,9 +1211,18 @@
     "kind": "province",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-SK.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-SK.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-SK.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "ca-YT",
@@ -656,25 +1230,40 @@
     "kind": "territory",
     "isLoggable": true,
     "parentID": "canada",
-    "source": "statcan",
-    "sourceYear": 2026,
-    "geometryFile": "ca/ca-YT.twkb"
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-YT.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-YT.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
   },
   {
     "id": "united-states",
     "name": "United States",
     "kind": "country",
-    "isLoggable": false,
-    "source": "census",
-    "sourceYear": 2026
+    "isLoggable": false
   },
   {
     "id": "european-union",
     "name": "European Union",
     "kind": "bloc",
     "isLoggable": true,
-    "source": "original",
     "localizationKey": "region.europeanUnion",
-    "geometryFile": "eu/european-union.geojson"
+    "geometry": {
+      "tracking": {
+        "file": "eu/european-union.geojson",
+        "product": "original"
+      },
+      "display": {
+        "file": "eu/european-union.geojson",
+        "product": "original"
+      }
+    }
   }
 ]

@@ -89,7 +89,7 @@ struct RegionArtworkProjectionTests {
         region: Region,
         coordinate: Coordinate,
     ) async throws {
-        let outlines = await RegionGeometryCatalog.outlines(for: region)
+        let outlines = await RegionGeometryCatalog.displayOutlines(for: region)
         let projection = try #require(RegionArtworkProjection(outlines: outlines))
         let path = projection.path(from: outlines)
 

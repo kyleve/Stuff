@@ -7,8 +7,8 @@ import Foundation
 /// A `Region` is a thin `Hashable` value wrapping a **stable string id**
 /// (`rawValue`, e.g. `"us-CA"`, `"ca-ON"`) — the identifier used by SwiftData,
 /// `Codable`, and lookup tables. It is **not** user-facing; use `localizedName`.
-/// The set of available regions and each region's metadata (display name,
-/// geometry file) live in ``RegionCatalog``, loaded from the bundled
+/// The set of available regions and each region's metadata (name, hierarchy,
+/// boundary products) live in ``RegionCatalog``, loaded from the bundled
 /// `regions.json` manifest, so adding a region is a data change, not a new case.
 ///
 /// `.other` is the catch-all for any coordinate outside every loaded region (or

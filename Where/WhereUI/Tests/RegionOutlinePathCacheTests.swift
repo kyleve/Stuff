@@ -1,6 +1,7 @@
 import RegionKit
 import SwiftUI
 import Testing
+import WhereCore
 @testable import WhereUI
 
 struct RegionOutlinePathCacheTests {
@@ -32,12 +33,26 @@ struct RegionOutlinePathCacheTests {
     @Test func smallResolutionRetainsThinNewYorkGeography() async throws {
         let cache = RegionOutlinePathCache()
         let small = await cache.path(for: .newYork, resolution: .small)
-        let outlines = await RegionGeometryCatalog.outlines(for: .newYork)
+        let outlines = await RegionGeometryCatalog.displayOutlines(for: .newYork)
         let projection = try #require(RegionArtworkProjection(outlines: outlines))
         // Sample the eastern end of Long Island and the open Atlantic south of
         // it. This guards the silhouette independently of the publisher's vertex count.
         #expect(small.contains(projection.point(for: .init(latitude: 40.97, longitude: -72.17))))
         #expect(!small.contains(projection.point(for: .init(latitude: 40.69, longitude: -72.18))))
+    }
+
+    @Test func offshoreTrackingFixProjectsOutsideTheDisplayedCardMask() async throws {
+        let coast = Coordinate(latitude: 40.946, longitude: -73.067)
+        let sound = Coordinate(latitude: 40.998, longitude: -73.066)
+        let cache = RegionOutlinePathCache()
+        let path = await cache.path(for: .newYork, resolution: .full)
+        let locations = [coast, sound]
+            .map { RegionDayPoint(coordinate: $0, horizontalAccuracy: 10) }
+        let dots = await cache.projectedPoints(for: .newYork, points: locations)
+        try #require(dots.count == 2)
+        #expect(path.contains(dots[0].position))
+        #expect(!path.contains(dots[1].position))
+        #expect(RegionAttributor(for: [.newYork]).region(at: sound) == .newYork)
     }
 
     @Test func microResolutionBoundsRepeatedBorderDetail() async {

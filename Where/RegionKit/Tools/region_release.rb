@@ -8,16 +8,18 @@ require "tmpdir"
 require "uri"
 require "zlib"
 require_relative "../../../Tools/file_transaction"
+require_relative "generate-regions" unless defined?(RegionGenerator)
 
 # Refresh and replay only create a candidate. Installation is a separate, offline operation.
 class RegionRelease
-  INPUTS = %w[north-america.geojson.gz report.json sources.lock.json].freeze
+  INPUTS = (RegionGenerator::NORMALIZED.values + %w[report.json sources.lock.json]).freeze
   OUTPUTS = %w[regions regions.json].freeze
   COUNTRIES = %w[canada united-states].freeze
   CANADA_CODES = %w[10 11 12 13 24 35 46 47 48 59 60 61 62]
     .zip(%w[NL PE NS NB QC ON MB SK AB BC YT NT NU]).to_h.freeze
   PROVINCES = CANADA_CODES.values.sort.freeze
   US_UNTRACKED_CODES = %w[AS GU MP VI].freeze
+  STATCAN_SERVICES = { "statcanDigital" => "Digital_boundary_files", "statcanCartographic" => "Cartographic_boundary_files" }.freeze
   YEARS = /\A20[0-9]{2}\z/
   SHA256 = /\A[a-f0-9]{64}\z/
 
@@ -48,11 +50,12 @@ class RegionRelease
     modes = []
     parser = OptionParser.new do |p|
       p.banner = "Usage: generate-regions.rb [--refresh | --replay LOCK | --adopt DIR | --check]"
-      p.on("--refresh", "Fetch a dated release; requires both years, cache and output") { modes << :refresh }
+      p.on("--refresh", "Fetch a dated release; requires three source years, cache and output") { modes << :refresh }
       p.on("--replay LOCK", "Rebuild from verified cached inputs") { |v| modes << :replay; options[:lock] = v }
       p.on("--adopt DIR", "Validate and install a candidate") { |v| modes << :adopt; options[:candidate] = v }
       p.on("--check", "Compare the bundle with an offline regeneration") { modes << :check }
       p.on("--us-year YEAR", YEARS, "TIGER/Line release year") { |v| options[:us_year] = v }
+      p.on("--us-display-year YEAR", YEARS, "Census 1:500,000 cartographic release year") { |v| options[:us_display_year] = v }
       p.on("--ca-year YEAR", YEARS, "Statistics Canada census year") { |v| options[:ca_year] = v }
       p.on("--cache DIR", "Content-addressed raw downloads") { |v| options[:cache] = v }
       p.on("--output DIR", "New directory for a candidate") { |v| options[:output] = v }
@@ -60,7 +63,7 @@ class RegionRelease
     parser.parse!(arguments)
     raise ArgumentError, parser.to_s unless arguments.empty? && modes.length <= 1
     mode = modes.first || :generate
-    keys = { refresh: %i[us_year ca_year cache output], replay: %i[lock cache output],
+    keys = { refresh: %i[us_year us_display_year ca_year cache output], replay: %i[lock cache output],
              adopt: [:candidate], check: [], generate: [] }.fetch(mode)
     raise ArgumentError, parser.to_s unless options.keys.sort == keys.sort
 
@@ -98,7 +101,7 @@ class RegionRelease
       stage = File.join(workspace, "candidate")
       Dir.mkdir(stage)
       args = mode == :replay ? ["--replay", File.expand_path(options.fetch(:lock))] :
-        ["--refresh", "--us-year", options.fetch(:us_year), "--ca-year", options.fetch(:ca_year)]
+        ["--refresh", "--us-year", options.fetch(:us_year), "--us-display-year", options.fetch(:us_display_year), "--ca-year", options.fetch(:ca_year)]
       converter = File.join(@root, "Tools/convert_boundaries.py")
       python = ENV.fetch("REGIONKIT_PYTHON", "python3")
       raise "Boundary conversion failed" unless system(python, "-B", converter, *args, "--cache", cache, "--output", stage)
@@ -113,7 +116,7 @@ class RegionRelease
       end
       resources = File.join(stage, "resources")
       generate(resources, stage)
-      validate_catalog(resources)
+      validate_catalog(resources, stage)
       File.write(File.join(stage, "bundle-report.json"), JSON.pretty_generate(bundle_inventory(resources)) + "\n")
       report_changes(resources)
       # Place a completed tree in the requested (new) destination, in one rename.
@@ -135,29 +138,66 @@ class RegionRelease
     path == parent || path.start_with?(parent + File::SEPARATOR)
   end
 
-  def validate_inputs(dir)
+  def release_lock(dir)
     lock = JSON.parse(File.binread(regular_file(dir, "sources.lock.json")))
-    raise "Unsupported release lock version; refresh these vintages to generate a subdivision-only release" unless lock.fetch("version") == 2
-    validate_provenance(lock)
-    validate_pins(lock)
-    { "normalized" => INPUTS[0], "report" => INPUTS[1] }.each do |key, name|
-      record = lock.fetch(key)
-      raise "Unexpected #{key} filename" unless record.fetch("file") == name
-      actual = Digest::SHA256.file(regular_file(dir, name)).hexdigest
-      raise "Hash mismatch for #{name}" unless record.fetch("sha256") == actual
+    unless lock.fetch("version") == 3
+      raise "Unsupported release lock version. Run --refresh with --us-year, --us-display-year and --ca-year to create a paired release."
     end
-    report = JSON.parse(File.binread(regular_file(dir, "report.json")))
-    validate_membership(report.fetch("sourceMembership"), lock.fetch("caYear"))
     lock
   end
 
+  def validate_inputs(dir)
+    lock = release_lock(dir)
+    validate_provenance(lock)
+    validate_pins(lock)
+    normalized = lock.fetch("normalized")
+    raise "Missing normalized products" unless normalized.keys.sort == RegionGenerator::NORMALIZED.keys.sort
+    RegionGenerator::NORMALIZED.each { |purpose, name| verify_hash(dir, name, normalized.fetch(purpose)) }
+    verify_hash(dir, "report.json", lock.fetch("report"))
+    report = JSON.parse(File.binread(regular_file(dir, "report.json")))
+    membership = report.fetch("sourceMembership")
+    RegionGenerator::NORMALIZED.each_key { |purpose| validate_membership(membership.fetch(purpose), lock.fetch("caYear")) }
+    # Postal and catalog IDs agree even when the two products advance independently.
+    identities = membership.values_at("tracking", "display").map do |rows|
+      rows.map { |row| row.slice("STUSPS", "STATEFP", "GEOID", "PRUID", "DGUID", "catalogID") }
+          .sort_by { |row| [row["STUSPS"].to_s, row["PRUID"].to_s] }
+    end
+    raise "Tracking and display source members disagree" unless identities.first == identities.last
+    validate_accuracy(report.fetch("usTrackingAccuracy"), lock)
+    lock
+  end
+
+  def verify_hash(dir, name, pin)
+    raise "Unexpected filename for #{name}" unless pin.fetch("file") == name
+    raise "Hash mismatch for #{name}" unless pin.fetch("sha256") == Digest::SHA256.file(regular_file(dir, name)).hexdigest
+  end
+
+  def validate_accuracy(accuracy, lock)
+    tiger = lock.fetch("inputs").find { |pin| pin.fetch("key") == "censusTIGER-state" }
+    unless accuracy.fetch("sourceSHA256") == tiger.fetch("sha256") && accuracy.fetch("capMetres") == 25
+      raise "Tracking accuracy certificate must cover the pinned TIGER input at 25 m"
+    end
+    members = accuracy.fetch("members")
+    raise "Incomplete US accuracy certificate" unless members.keys.sort == US_TRACKING_CODES.map { |code| "us-#{code}" }.sort
+    bounds = members.map do |id, member|
+      bound = member.fetch("upperBoundMetres")
+      unless bound.is_a?(Numeric) && bound.between?(0, 25) && SHA256.match?(member.fetch("sha256"))
+        raise "Invalid tracking accuracy certificate for #{id}"
+      end
+      bound
+    end
+    raise "Incorrect maximum US tracking bound" unless bounds.max == accuracy.fetch("maximumUpperBoundMetres")
+  end
+
   def validate_provenance(lock)
-    { "census" => "usYear", "statcan" => "caYear" }.each do |publisher, year_key|
+    sources = lock.fetch("sources")
+    raise "Expected all four source products" unless sources.keys.sort == RegionGenerator::YEARS.keys.sort
+    RegionGenerator::YEARS.each do |product, year_key|
       year = lock.fetch(year_key)
       raise "Invalid #{year_key}" unless year.is_a?(Integer) && YEARS.match?(year.to_s)
-      source = lock.fetch("sources").fetch(publisher)
-      require_text(source, %w[product publisher includes license], publisher)
-      raise "Wrong #{publisher} reference date" unless source.fetch("referenceDate") == "#{year}-01-01"
+      source = sources.fetch(product)
+      require_text(source, %w[product publisher includes license], product)
+      raise "Wrong #{product} reference date" unless source.fetch("referenceDate") == "#{year}-01-01"
     end
     chain = lock.fetch("toolchain")
     require_text(chain, %w[python GEOS PROJ], "toolchain")
@@ -167,10 +207,18 @@ class RegionRelease
     end
     conversion = lock.fetch("conversion")
     require_text(conversion, %w[algorithm winding], "conversion")
-    unless conversion.fetch("normalizedEPSG") == 4326 && conversion.fetch("coordinateDecimals").is_a?(Integer) &&
-           conversion.fetch("toleranceMetres").is_a?(Numeric) && conversion.fetch("toleranceMetres") >= 0 &&
-           conversion.fetch("canadianRequest").fetch("outSR") == 4326
-      raise "Incomplete WGS84 conversion settings"
+    us = conversion.fetch("usTracking")
+    require_text(us, ["restorationMethod"], "US tracking")
+    unless conversion.fetch("normalizedEPSG") == 4326 && conversion.fetch("coordinateDecimals") == 7 &&
+           conversion.fetch("canadianRequest") == { "outSR" => 4326, "geometryPrecision" => 7, "serverReprojects" => true } &&
+           conversion.fetch("usSourceEPSG") == 4269 && conversion.fetch("canadianProjection") == 3347 &&
+           %w[continental AK HI PR].all? { |group| conversion.fetch("usProjections").fetch(group).is_a?(Integer) } &&
+           us.fetch("maximumDisplacementMetres") == 25 && us.fetch("initialToleranceMetres") == 180
+      raise "Incorrect WGS84 or US tracking simplification settings"
+    end
+    %w[usDisplay caTracking caDisplay].each do |role|
+      tolerance = conversion.fetch(role).fetch("toleranceMetres")
+      raise "Invalid tolerance for #{role}" unless tolerance.is_a?(Numeric) && tolerance >= 0
     end
   end
 
@@ -183,39 +231,43 @@ class RegionRelease
 
   def validate_pins(lock)
     pins = lock.fetch("inputs")
-    features = CANADA_CODES.keys.map { |id| "statcan-#{id}" }
-    expected = %w[census-state statcan-service statcan-layer statcan-inventory] + features
-    # For 2026 the adapter carries independently verified topology counts. For
-    # other vintages its native PBF responses must be pinned for offline replay.
-    expected += features.map { |feature| "#{feature}-topology" } unless lock.fetch("caYear") == 2026
-    raise "Missing or duplicate release input pins" unless pins.map { |pin| pin.fetch("key") }.sort == expected.sort
-    service = "/geo_wa/rest/services/#{lock.fetch("caYear")}/Cartographic_boundary_files/MapServer"
-    layer = URI.parse(pins.find { |pin| pin.fetch("key") == "statcan-layer" }.fetch("url")).path
+    expected = {
+      "censusTIGER-state" => "https://www2.census.gov/geo/tiger/TIGER#{lock.fetch("usYear")}/STATE/tl_#{lock.fetch("usYear")}_us_state.zip",
+      "censusCartographic-state" => "https://www2.census.gov/geo/tiger/GENZ#{lock.fetch("usDisplayYear")}/shp/cb_#{lock.fetch("usDisplayYear")}_us_state_500k.zip",
+    }
+    ca_year = lock.fetch("caYear")
+    STATCAN_SERVICES.each do |product, service|
+      url = "https://geo.statcan.gc.ca/geo_wa/rest/services/#{ca_year}/#{service}/MapServer"
+      expected["#{product}-service"] = [url, { "f" => "pjson" }]
+      expected["#{product}-layer"] = [%r{\A#{Regexp.escape(url)}/\d+\z}, { "f" => "pjson" }]
+      layer_pin = pins.find { |pin| pin.fetch("key") == "#{product}-layer" }
+      raise "Missing or duplicate release input pins" unless layer_pin
+      layer = layer_pin.fetch("url").split("?").first
+      query = "#{layer}/query"
+      fields = "PRUID,DGUID,PRENAME,PRFNAME"
+      expected["#{product}-inventory"] = [query, {
+        "where" => "1=1", "f" => "geojson", "returnGeometry" => "false", "outFields" => fields, "orderByFields" => "PRUID",
+      }]
+      CANADA_CODES.each_key do |id|
+        feature = { "where" => "PRUID='#{id}'", "returnGeometry" => "true" }
+        expected["#{product}-#{id}"] = [query, feature.merge("outSR" => "4326", "f" => "geojson", "outFields" => fields, "geometryPrecision" => "7")]
+        if product == "statcanDigital" || ca_year != 2026
+          expected["#{product}-#{id}-topology"] = [query, feature.merge("outSR" => "3347", "f" => "pbf", "outFields" => "PRUID")]
+        end
+      end
+    end
+    raise "Missing or duplicate release input pins" unless pins.map { |pin| pin.fetch("key") }.sort == expected.keys.sort
     pins.each do |pin|
       key, bytes, checksum = pin.values_at("key", "bytes", "sha256")
       raise "Invalid checksum or size for #{key}" unless bytes.is_a?(Integer) && bytes.positive? && SHA256.match?(checksum)
-      url = URI.parse(pin.fetch("url"))
-      raise "Expected an HTTPS publisher URL for #{key}" unless url.is_a?(URI::HTTPS) && !url.userinfo && !url.fragment
-      if key == "census-state"
-        year = lock.fetch("usYear")
-        valid = url.host == "www2.census.gov" && url.path == "/geo/tiger/TIGER#{year}/STATE/tl_#{year}_us_state.zip"
-      else
-        params = URI.decode_www_form(url.query.to_s).to_h
-        valid = url.host == "geo.statcan.gc.ca" && case key
-        when "statcan-service" then url.path == service && params["f"] == "pjson"
-        when "statcan-layer" then url.path.match?(%r{\A#{service}/\d+\z}) && params["f"] == "pjson"
-        else
-          uid = key.delete_prefix("statcan-").delete_suffix("-topology")
-          query = if key == "statcan-inventory"
-                    { "where" => "1=1", "f" => "geojson", "returnGeometry" => "false" }
-                  elsif key.end_with?("-topology")
-                    { "where" => "PRUID='#{uid}'", "f" => "pbf", "outFields" => "PRUID", "outSR" => "3347", "returnGeometry" => "true" }
-                  else
-                    { "where" => "PRUID='#{uid}'", "f" => "geojson", "outSR" => "4326", "returnGeometry" => "true" }
-                  end
-          url.path == "#{layer}/query" && params.slice(*query.keys) == query
-        end
-      end
+      uri = URI.parse(pin.fetch("url"))
+      raise "Expected an HTTPS publisher URL for #{key}" unless uri.is_a?(URI::HTTPS) && !uri.userinfo && !uri.fragment
+      location, params = expected.fetch(key)
+      actual = uri.dup
+      actual.query = nil
+      valid = location === actual.to_s
+      # Extra or duplicate ArcGIS parameters can change the returned geometry.
+      valid &&= params ? (URI.decode_www_form(uri.query.to_s).sort == params.to_a.sort) : uri.query.nil?
       raise "Wrong publisher URL for #{key}" unless valid
     end
   end
@@ -259,7 +311,7 @@ class RegionRelease
     install_resources do |staged|
       validate_inputs(@release)
       generate(staged, @release)
-      validate_catalog(staged)
+      validate_catalog(staged, @release)
     end
   end
 
@@ -267,13 +319,15 @@ class RegionRelease
     Dir.mktmpdir("region-check") do |staged|
       validate_inputs(@release)
       generate(staged, @release)
-      validate_catalog(staged)
+      validate_catalog(staged, @release)
       compare_resources(staged, @resources)
     end
     puts "Bundled region resources match the normalized sources."
   end
 
-  def validate_catalog(resources)
+  def validate_catalog(resources, release)
+    lock = release_lock(release)
+    certificates = JSON.parse(File.read(File.join(release, "report.json"))).fetch("usTrackingAccuracy").fetch("members")
     records = JSON.parse(File.binread(regular_file(resources, "regions.json")))
     by_id = records.to_h { |record| [record.fetch("id"), record] }
     states = US_TRACKING_CODES.map { |code| "us-#{code}" }
@@ -295,25 +349,27 @@ class RegionRelease
              else
                states.include?(id) ? "state" : "province"
              end
-      source = if id == "european-union"
-                 "original"
-               elsif parent == "united-states" || id == "united-states"
-                 "census"
-               else
-                 "statcan"
-               end
-      raise "Wrong source for #{id}" unless node.fetch("source") == source
       raise "Wrong kind for #{id}" unless node.fetch("kind") == kind
       raise "Wrong eligibility for #{id}" unless node.fetch("isLoggable") == (kind != "country")
       if kind == "country"
-        raise "Unexpected geometry for #{id}" if node.key?("geometryFile")
+        raise "Unexpected geometry for #{id}" if node.key?("geometry")
         next
       end
-      file = RegionGenerator.geometry_file(id, parent, source)
-      raise "Unexpected geometry for #{id}" unless node.fetch("geometryFile") == file
-      regular_file(File.join(resources, "regions"), file)
+      geometry = node.fetch("geometry")
+      raise "Incomplete geometry for #{id}" unless geometry.keys.sort == RegionGenerator::NORMALIZED.keys.sort
+      geometry.each do |purpose, descriptor|
+        product = parent ? RegionGenerator::PRODUCTS.fetch(parent).fetch(purpose) : "original"
+        file = RegionGenerator.geometry_file(id, parent, purpose)
+        expected_descriptor = { "file" => file, "product" => product }
+        expected_descriptor["year"] = lock.fetch(RegionGenerator::YEARS.fetch(product)) unless product == "original"
+        raise "Unexpected #{purpose} geometry for #{id}" unless descriptor == expected_descriptor
+        path = regular_file(File.join(resources, "regions"), file)
+        if product == "censusTIGER" && Digest::SHA256.file(path).hexdigest != certificates.fetch(id).fetch("sha256")
+          raise "Tracking geometry for #{id} differs from the certified TWKB"
+        end
+      end
     end
-    expected_files = records.filter_map { |node| node["geometryFile"] }
+    expected_files = records.flat_map { |node| node.fetch("geometry", {}).values.map { |descriptor| descriptor.fetch("file") } }.uniq
     expected_paths = expected_files + expected_files.map { |file| File.dirname(file) }.uniq
     paths = Dir.glob("**/*", File::FNM_DOTMATCH, base: File.join(resources, "regions")) - ["."]
     raise "Unexpected geometry files in resources" unless paths.sort == expected_paths.sort
@@ -321,16 +377,18 @@ class RegionRelease
 
   def bundle_inventory(resources)
     rows = JSON.parse(File.read(File.join(resources, "regions.json")))
-    physical = rows.select { |node| node.key?("geometryFile") }
-    sizes = physical.to_h do |node|
-      file = File.join(resources, "regions", node.fetch("geometryFile"))
-      [node.fetch("id"), File.size(file)]
+    paths = rows.select { |node| node.fetch("isLoggable") }.to_h do |node|
+      [node.fetch("id"), node.fetch("geometry").transform_values { |descriptor| descriptor.fetch("file") }]
     end
-    available = physical.select { |node| node.fetch("isLoggable") }.map { |node| node.fetch("id") }
+    sizes = paths.values.flat_map(&:values).uniq.to_h { |file| [file, File.size(File.join(resources, "regions", file))] }
+    bytes_by_id = paths.transform_values { |roles| roles.transform_values { |file| sizes.fetch(file) } }
+    bytes_by_role = RegionGenerator::NORMALIZED.keys.to_h do |purpose|
+      [purpose, bytes_by_id.values.sum { |roles| roles.fetch(purpose) }]
+    end
     defaults = %w[us-CA us-NY european-union]
-    { "allBytes" => sizes.values.sum, "loggableBytes" => sizes.values_at(*available).sum,
-      "defaultBytes" => sizes.values_at(*defaults).sum, "largestID" => sizes.max_by(&:last).first,
-      "bytesByID" => sizes }
+    { "uniqueBytes" => sizes.values.sum, "uniqueFiles" => sizes.size, "logicalReferences" => paths.values.sum(&:size),
+      "bytesByRole" => bytes_by_role, "defaultTrackingBytes" => defaults.sum { |id| bytes_by_id.fetch(id).fetch("tracking") },
+      "bytesByID" => bytes_by_id }
   end
 
   def report_changes(resources)
@@ -361,7 +419,7 @@ class RegionRelease
   def adopt(candidate)
     install_resources(release: candidate) do |staged, release|
       generate(staged, release)
-      validate_catalog(staged)
+      validate_catalog(staged, release)
       compare_resources(staged, File.join(candidate, "resources"),
                         hint: "Use --replay with the candidate lock and cache to recreate its resources before adoption")
     end
@@ -377,6 +435,7 @@ class RegionRelease
       resources = File.join(stage, "resources")
       staged_release = nil
       if release
+        release_lock(release) # Give older candidates the format upgrade instructions before copying.
         # Validate and generate from the exact bytes that will enter the journal.
         # The candidate is external to this checkout's writer lock.
         staged_release = File.join(stage, "release")

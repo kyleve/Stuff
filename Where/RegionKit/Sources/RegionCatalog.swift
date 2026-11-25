@@ -7,6 +7,24 @@ public struct RegionCatalog: Sendable {
         case state, federalDistrict, territory, province, country, bloc
     }
 
+    struct Boundary: Decodable, Hashable {
+        let file: String
+        let product: RegionDataSource.Product
+        let year: Int?
+    }
+
+    struct Geometry: Decodable, Hashable {
+        let tracking: Boundary
+        let display: Boundary
+
+        subscript(purpose: RegionGeometryPurpose) -> Boundary {
+            switch purpose {
+                case .display: display
+                case .tracking: tracking
+            }
+        }
+    }
+
     /// A geographic unit, including countries used to group subdivisions.
     public struct Node: Identifiable, Decodable, Hashable, Sendable {
         public struct ID: RawRepresentable, Codable, Hashable, Sendable {
@@ -17,15 +35,12 @@ public struct RegionCatalog: Sendable {
         }
 
         public let id: ID
-        let source: RegionDataSource.Publisher?
-        let sourceYear: Int?
         public let kind: Kind
         public let parentID: ID?
         public let name: String
         public let isLoggable: Bool
         fileprivate let localizationKey: String?
-        /// A resource path relative to `regions/`. Country nodes omit geometry.
-        public let geometryFile: String?
+        let geometry: Geometry?
 
         public var localizedName: String {
             if let localizationKey {
@@ -43,17 +58,15 @@ public struct RegionCatalog: Sendable {
                 region: $0,
                 name: name,
                 localizationKey: localizationKey,
-                geometryFile: geometryFile,
             ) }
         }
     }
 
-    /// One loggable region plus the metadata existing consumers use to name and draw it.
+    /// One loggable region and its naming metadata.
     public struct Entry: Sendable, Hashable {
         public let region: Region
         public let name: String
         public let localizationKey: String?
-        public let geometryFile: String?
     }
 
     /// Every node, including countries that serve only as parents.
@@ -87,13 +100,14 @@ public struct RegionCatalog: Sendable {
         func invalid(_ description: String) -> DecodingError {
             .dataCorrupted(.init(codingPath: [], debugDescription: description))
         }
+        var vintages: [RegionDataSource.Product: Int] = [:]
         for node in nodes {
             guard !node.id.rawValue.isEmpty, node.id.rawValue != Region.other.rawValue,
                   !node.name.isEmpty
             else {
                 throw invalid("Invalid region identifier or name: \(node.id.rawValue)")
             }
-            guard (node.kind == .country) == (node.geometryFile == nil) else {
+            guard (node.kind == .country) == (node.geometry == nil) else {
                 throw invalid(
                     "Unexpected geometry file presence for node: \(node.id.rawValue)",
                 )
@@ -101,9 +115,21 @@ public struct RegionCatalog: Sendable {
             guard node.kind != .country || !node.isLoggable else {
                 throw invalid("Country cannot be a tracking choice: \(node.id.rawValue)")
             }
-            if let file = node.geometryFile {
-                guard file.wholeMatch(of: geometryPath) != nil else {
-                    throw invalid("Invalid geometry file: \(file)")
+            if let geometry = node.geometry {
+                for purpose in RegionGeometryPurpose.allCases {
+                    let boundary = geometry[purpose]
+                    guard boundary.file.wholeMatch(of: geometryPath) != nil,
+                          boundary.product.purposes.contains(purpose),
+                          (boundary.year == nil) == (boundary.product == .original)
+                    else {
+                        throw invalid("Invalid \(purpose) descriptor for \(node.id.rawValue)")
+                    }
+                    if let year = boundary.year, let previous = vintages.updateValue(
+                        year,
+                        forKey: boundary.product,
+                    ), year != previous {
+                        throw invalid("Conflicting vintages for \(boundary.product)")
+                    }
                 }
             }
             guard byID.updateValue(node, forKey: node.id) == nil else {
@@ -162,12 +188,8 @@ public struct RegionCatalog: Sendable {
         return node(for: region)?.localizedName ?? region.rawValue
     }
 
-    func geometryURL(for region: Region) -> URL? {
-        node(for: region).flatMap(Self.geometryURL(for:))
-    }
-
-    static func geometryURL(for node: Node) -> URL? {
-        guard let file = node.geometryFile else { return nil }
+    static func geometryURL(for node: Node, purpose: RegionGeometryPurpose) -> URL? {
+        guard let file = node.geometry?[purpose].file else { return nil }
         let path = file as NSString
         return Bundle.module.url(
             forResource: path.lastPathComponent,

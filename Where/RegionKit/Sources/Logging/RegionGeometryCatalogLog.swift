@@ -4,12 +4,12 @@ import PeriscopeCore
 @LogScope("RegionGeometryCatalog")
 public enum RegionGeometryCatalogLog {
     public enum SpanName: Hashable, Sendable, CustomStringConvertible {
-        case buildSourceOutlines
+        case buildDisplayGeometry
         case loadRegionOutlines(Region)
 
         public var description: String {
             switch self {
-                case .buildSourceOutlines: "buildSourceOutlines"
+                case .buildDisplayGeometry: "buildDisplayGeometry"
                 case let .loadRegionOutlines(region):
                     "loadRegionOutlines(\(region.rawValue))"
             }

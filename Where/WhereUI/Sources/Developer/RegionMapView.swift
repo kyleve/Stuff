@@ -7,17 +7,16 @@ import SwiftUI
 import WhereCore
 
 /// Developer tool: draws region boundary polygons on a real map, toggling
-/// between what `RegionAttributor` actually loads (`.attribution`) and the
-/// bundled source boundaries from the bundled geometry files (`.source`).
+/// between display coastlines and the boundaries used for GPS tracking.
 ///
 /// Self-contained on purpose — it reads geometry straight from
 /// `RegionGeometryCatalog` and holds no `@Environment(WhereSession.self)`,
 /// so the same view backs both the in-app developer overlay entry and
 /// the standalone `RegionViewer` Mac Catalyst app (which has no session /
 /// dependency injection). The catalog decodes off the main thread, so the
-/// `.task` below never blocks the UI on the heavy `.source` parse.
+/// `.task` below never blocks the UI on the full-catalog decode.
 public struct RegionMapView: View {
-    @State private var kind: RegionGeometryKind = .attribution
+    @State private var kind: RegionGeometryPurpose = .display
     /// One `Result` rather than parallel value/error/loading flags:
     /// `nil` is "not loaded yet", success and failure can't both be set.
     @State private var outlines: Result<MapData, Error>?
@@ -45,7 +44,7 @@ public struct RegionMapView: View {
 
     private var kindPicker: some View {
         Picker(String(localized: .regionMapKindPicker), selection: $kind) {
-            ForEach(RegionGeometryKind.allCases, id: \.self) { kind in
+            ForEach(RegionGeometryPurpose.allCases, id: \.self) { kind in
                 Text(WhereFormat.regionMapKind(kind)).tag(kind)
             }
         }
@@ -74,6 +73,9 @@ public struct RegionMapView: View {
             case let .some(.success(loaded)):
                 VStack(spacing: 0) {
                     map(for: loaded)
+                        .overlay {
+                            if loaded.kind != kind { ProgressView() }
+                        }
                     legend(for: loaded)
                 }
         }
@@ -93,7 +95,7 @@ public struct RegionMapView: View {
 
     private func legend(for data: MapData) -> some View {
         RegionMapLegend(
-            kind: kind,
+            kind: data.kind,
             groups: data.groups,
             selectedTitle: selectedTitle,
             color: { color(forTitle: $0.title, region: $0.region) },
@@ -105,16 +107,17 @@ public struct RegionMapView: View {
     // MARK: - Data
 
     private func load() async {
-        outlines = nil
-        selectedTitle = nil
+        // Keep the live Map mounted while switching products. MapKit owns the
+        // gesture-positioned camera, which a new Map cannot restore from its binding.
+        if case .failure? = outlines { outlines = nil }
+        let needsInitialFrame = outlines == nil
         do {
-            // Standalone dev tool with no session/store, so `.attribution` shows
-            // every available region the engine can attribute (`.all`); `.source`
-            // ignores the attributor.
             let loaded = try await MapData(kind: kind)
             guard !Task.isCancelled else { return }
             outlines = .success(loaded)
-            cameraPosition = loaded.frame(for: nil).map(MapCameraPosition.region) ?? .automatic
+            if needsInitialFrame, cameraPosition == .automatic, let overview = loaded.overview {
+                cameraPosition = .region(overview)
+            }
         } catch {
             guard !Task.isCancelled else { return }
             // Keep the failure observable in both the UI (the `.failure`
@@ -135,14 +138,22 @@ public struct RegionMapView: View {
     }
 
     private struct MapData {
+        let kind: RegionGeometryPurpose
         let geometry: RegionMapGeometry
         let groups: [RegionMapLegendGroup]
         let overview: MKCoordinateRegion?
         let frames: [String: MKCoordinateRegion]
 
-        @concurrent init(kind: RegionGeometryKind) async throws {
+        @concurrent init(kind: RegionGeometryPurpose) async throws {
+            self.kind = kind
             try Task.checkCancellation()
-            let outlines = try await RegionGeometryCatalog.outlines(for: kind, attributor: .all)
+            let outlines: [RegionOutline] = switch kind {
+                case .display:
+                    try await RegionGeometryCatalog.displayGeometry(for: RegionCatalog.shared.all)
+                        .outlines
+                case .tracking:
+                    RegionGeometryCatalog.trackingOutlines(for: .all)
+            }
             try Task.checkCancellation()
             geometry = RegionMapGeometry(outlines: outlines)
             try Task.checkCancellation()
@@ -275,7 +286,7 @@ private struct RegionOutlinesMap: View {
             // snapshot-only sizing mode.
             whereSnapshot(name: "Default", configurations: .fullContentPhoneLightDark) {
                 RegionMapLegend(
-                    kind: .attribution,
+                    kind: .display,
                     groups: snapshotLegendGroups,
                     selectedTitle: nil,
                     color: { group in
@@ -284,11 +295,76 @@ private struct RegionOutlinesMap: View {
                     onSelect: { _ in },
                 )
             }
+            let coast = CoastalComparison()
+            whereSnapshot(
+                name: "LongIslandSound",
+                configurations: [.init(device: .iPhone)],
+                prepareForCapture: { try await coast.load() },
+            ) {
+                CoastMaps(prepared: coast)
+            }
+        }
+
+        /// Fix the extent in both panels so a reviewer can see the same stretch of water.
+        @MainActor @Observable fileprivate final class CoastalComparison {
+            var maps: [RegionGeometryPurpose: RegionMapGeometry] = [:]
+
+            func load() async throws {
+                for purpose in RegionGeometryPurpose.allCases where maps[purpose] == nil {
+                    maps[purpose] = try await Self.newYorkMap(for: purpose)
+                }
+            }
+
+            @concurrent private static func newYorkMap(
+                for purpose: RegionGeometryPurpose,
+            ) async throws
+                -> RegionMapGeometry
+            {
+                let outlines: [RegionOutline] = switch purpose {
+                    case .display:
+                        try await RegionGeometryCatalog.displayGeometry(for: [.newYork]).outlines
+                    case .tracking:
+                        RegionGeometryCatalog
+                            .trackingOutlines(for: RegionAttributor(for: [.newYork]))
+                }
+                return RegionMapGeometry(outlines: outlines)
+            }
+        }
+
+        private struct CoastMaps: View {
+            let prepared: CoastalComparison
+            @Environment(\.regionStyles) private var styles
+            private let frame = MKCoordinateRegion(
+                center: .init(latitude: 40.91, longitude: -73.02),
+                span: .init(latitudeDelta: 0.65, longitudeDelta: 1.35),
+            )
+
+            var body: some View {
+                VStack {
+                    ForEach(RegionGeometryPurpose.allCases, id: \.self) { purpose in
+                        Text(WhereFormat.regionMapKind(purpose))
+                        if let geometry = prepared.maps[purpose] {
+                            RegionOutlinesMap(
+                                geometry: geometry,
+                                selectedTitle: Region.newYork.localizedName,
+                                frame: frame,
+                                cameraPosition: .constant(.region(frame)),
+                                color: { _ in styles.style(for: .newYork).tint },
+                            )
+                        }
+                    }
+                }
+                .background(.background)
+                .task {
+                    do { try await prepared.load() }
+                    catch is CancellationError { return }
+                    catch { assertionFailure("Cannot load coastal comparison: \(error)") }
+                }
+            }
         }
 
         private static var snapshotLegendGroups: [RegionMapLegendGroup] {
-            let sources = RegionCatalog.shared.entries.filter { $0.geometryFile != nil }
-            return sources.enumerated().map { index, entry in
+            RegionCatalog.shared.entries.enumerated().map { index, entry in
                 RegionMapLegendGroup(
                     title: entry.region.localizedName,
                     region: entry.region,

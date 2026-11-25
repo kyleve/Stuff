@@ -33,7 +33,10 @@ enum RegionHierarchyFixture {
             "kind": kind,
             "isLoggable": loggable,
         ]
-        if kind != "country" { row["geometryFile"] = "fixtures/\(id).geojson" }
+        if kind != "country" {
+            let descriptor = ["file": "fixtures/\(id).geojson", "product": "original"]
+            row["geometry"] = ["display": descriptor, "tracking": descriptor]
+        }
         row["parentID"] = parent
         return row
     }
@@ -67,7 +70,7 @@ struct RegionCatalogTests {
         let node = try #require(catalog.node(id: .init(rawValue: countryID)))
         let region = Region(unchecked: countryID)
         #expect(node.region == nil)
-        #expect(node.geometryFile == nil)
+        #expect(node.geometry == nil)
         #expect(!catalog.contains(id: countryID))
         #expect(catalog.node(for: region) == nil)
         #expect(catalog.entry(for: region) == nil)
@@ -111,14 +114,14 @@ struct RegionCatalogTests {
                 RegionHierarchyFixture.row("canada", "country", loggable: false, parent: "ca-ON"),
             ],
             [canada.merging(["isLoggable": true]) { _, new in new }, ontario],
-            [canada, ontario.filter { $0.key != "geometryFile" }],
+            [canada, ontario.filter { $0.key != "geometry" }],
             [us.filter { $0.key != "isLoggable" }],
-            [us.merging(["geometryFile": "us/united-states.twkb"]) { _, new in new }],
-            [canada.merging(["geometryFile": "ca/canada.twkb"]) { _, new in new }, ontario],
+            [us.merging(["geometry": "us/united-states.twkb"]) { _, new in new }],
+            [canada.merging(["geometry": "ca/canada.twkb"]) { _, new in new }, ontario],
             [RegionHierarchyFixture.row("state", "state", loggable: false)
-                .filter { $0.key != "geometryFile" }],
-            [canada, ontario.merging(["geometryFile": "../ca-ON.twkb"]) { _, new in new }],
-            [canada, ontario.merging(["geometryFile": ""]) { _, new in new }],
+                .filter { $0.key != "geometry" }],
+            [canada, ontario.merging(["geometry": "../ca-ON.twkb"]) { _, new in new }],
+            [canada, ontario.merging(["geometry": ""]) { _, new in new }],
         ]
         for rows in invalid {
             #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode(rows) }
@@ -135,25 +138,61 @@ struct RegionCatalogTests {
     ])
     func manifestRejectsInvalidGeometryPaths(_ path: String) {
         var node = RegionHierarchyFixture.row("ca-ON", "province")
-        node["geometryFile"] = path
-        #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode([node]) }
+        let good = ["file": "ca/ca-ON.geojson", "product": "original"]
+        let bad = ["file": path, "product": "original"]
+        for (display, tracking) in [(good, bad), (bad, good)] {
+            node["geometry"] = ["display": display, "tracking": tracking]
+            #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode([node]) }
+        }
+    }
+
+    @Test func manifestRejectsSwappedMissingOrUnknownProductsAndMissingVintage() {
+        var node = RegionHierarchyFixture.row("us-NY", "state")
+        let tracking: [String: Any] = [
+            "file": "us/ny.tracking.twkb",
+            "product": "censusTIGER",
+            "year": 2026,
+        ]
+        let display: [String: Any] = [
+            "file": "us/ny.display.twkb",
+            "product": "censusCartographic",
+            "year": 2025,
+        ]
+        for geometry in [
+            ["tracking": display, "display": tracking],
+            ["tracking": tracking],
+            ["tracking": tracking.filter { $0.key != "year" }, "display": display],
+            [
+                "tracking": tracking,
+                "display": display.merging(["product": "unknown"]) { _, new in new },
+            ],
+        ] {
+            node["geometry"] = geometry
+            #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode([node]) }
+        }
     }
 
     @Test func bundlePreservesAllGeographicDirectories() throws {
         let catalog = RegionCatalog.shared
         let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
-        let expected = Set(RegionHierarchyFixture.usIDs.map { "us/\($0).twkb" }
-            + catalog.children(of: canada).map { "ca/\($0.id.rawValue).twkb" }
-            + ["eu/european-union.geojson"])
+        let regions = RegionHierarchyFixture.usIDs + catalog.children(of: canada).map(\.id.rawValue)
+        let expected = Set(regions.flatMap { id in
+            RegionGeometryPurpose.allCases.map { "\(id.prefix(2))/\(id).\($0.rawValue).twkb" }
+        } + ["eu/european-union.geojson"])
         var paths: [String] = []
         for node in catalog.nodes {
-            guard let path = node.geometryFile else { continue }
-            let url = try #require(RegionCatalog.geometryURL(for: node))
-            #expect(url.pathComponents.suffix(3).joined(separator: "/") == "regions/\(path)")
-            #expect(try url.checkResourceIsReachable())
-            paths.append(path)
+            guard let geometry = node.geometry else { continue }
+            for purpose in RegionGeometryPurpose.allCases {
+                let path = geometry[purpose].file
+                let url = try #require(RegionCatalog.geometryURL(for: node, purpose: purpose))
+                #expect(url.pathComponents.suffix(3).joined(separator: "/") == "regions/\(path)")
+                #expect(try url.checkResourceIsReachable())
+                paths.append(path)
+            }
         }
-        #expect(paths.count == 66)
+        #expect(catalog.nodes.count == 68)
+        #expect(paths.count == 132)
         #expect(Set(paths) == expected)
+        #expect(Set(paths).count == 131)
     }
 }

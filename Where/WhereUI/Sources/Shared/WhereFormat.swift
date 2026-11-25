@@ -627,17 +627,17 @@ enum WhereFormat {
 
     // MARK: Region map (developer)
 
-    static func regionMapKind(_ kind: RegionGeometryKind) -> String {
+    static func regionMapKind(_ kind: RegionGeometryPurpose) -> String {
         switch kind {
-            case .attribution: String(localized: .regionMapKindAttribution)
-            case .source: String(localized: .regionMapKindSource)
+            case .tracking: String(localized: .regionMapKindTracking)
+            case .display: String(localized: .regionMapKindDisplay)
         }
     }
 
-    static func regionMapKindFooter(_ kind: RegionGeometryKind) -> String {
+    static func regionMapKindFooter(_ kind: RegionGeometryPurpose) -> String {
         switch kind {
-            case .attribution: String(localized: .regionMapKindAttributionFooter)
-            case .source: String(localized: .regionMapKindSourceFooter)
+            case .tracking: String(localized: .regionMapKindTrackingFooter)
+            case .display: String(localized: .regionMapKindDisplayFooter)
         }
     }
 
