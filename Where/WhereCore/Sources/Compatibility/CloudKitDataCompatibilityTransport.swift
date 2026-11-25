@@ -10,6 +10,7 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
         static let recordNamePrefix = "version-"
         static let requiredVersion = "requiredVersion"
         static let accountID = "accountID"
+        static let changeReason = "changeReason"
     }
 
     private let container: CKContainer
@@ -18,6 +19,7 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
     private let local: LocalDataCompatibilityTransport
     private var subscribedAccount: DataCompatibilityAccountID?
     private var retryAfter: Date?
+    private static let logger = WhereLog.root(DataCompatibilityLog.self)
 
     public init(containerIdentifier: String, version: DataModelVersion) {
         let container = CKContainer(identifier: containerIdentifier)
@@ -103,6 +105,13 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
                     try await transport.requireDomain(domain)
                     record[Schema.requiredVersion] = version.rawValue
                     record[Schema.accountID] = account.userRecordName
+                    // No supported build can be locked out by baseline data. Baseline
+                    // publication must also work before the optional field is deployed.
+                    if version > .baseline, let reason = version.changeReason {
+                        record[Schema.changeReason] = try JSONEncoder().encode(reason)
+                    } else if record[Schema.changeReason] != nil {
+                        record[Schema.changeReason] = nil
+                    }
                     let result = try await transport.database.modifyRecords(
                         saving: [record],
                         deleting: [],
@@ -195,7 +204,20 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
               let value = record[Schema.requiredVersion] as? Int, value > 0,
               let revision = record.recordChangeTag
         else { throw DataCompatibilityTransportError.invalidRecord }
-        return PersistedDataModelVersion(version: .init(rawValue: value), revision: revision)
+        return PersistedDataModelVersion(
+            version: .init(rawValue: value),
+            revision: revision,
+            changeReason: decodeChangeReason(from: record),
+        )
+    }
+
+    private static func decodeChangeReason(from record: CKRecord) -> DataModelChangeReason? {
+        guard let data = record[Schema.changeReason] as? Data else { return nil }
+        do { return try JSONDecoder().decode(DataModelChangeReason.self, from: data) }
+        catch {
+            logger.invalidChangeReason(error: .restricted(.errorDetails, error))
+            return nil
+        }
     }
 
     private func checkBackoff() throws {

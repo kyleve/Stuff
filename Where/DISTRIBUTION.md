@@ -204,6 +204,7 @@ A CI Development build checks its channel when the app enters the foreground.
 A successful result is reused for one hour. **Settings > App Updates > Check for Updates** checks immediately.
 A Settings tab badge indicates an available update. **App Updates** stays first in Settings, including when the installed build is current.
 The badge remains until the available build is installed.
+Eligible Development builds show **App Updates** on the **Update Where** lockout screen, so you can install a newer build without deleting the app.
 
 **App Updates** lists incoming commits since the installed build, including skipped builds.
 Each commit opens on GitHub. **Install Update** opens the iOS installer directly for that exact build.

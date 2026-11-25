@@ -55,6 +55,7 @@ These indicators have no separate action and remain visible after correction dis
 ### App shell & view models
 
 - **`WhereCompatibilityModel` / `DataCompatibilityView`** — process-owned monitoring and a history-free lockout screen.
+  The update-required screen shows the newer version’s localized reason when available, alongside the update instructions.
   Verification precedes onboarding discovery, import recovery, and scope construction, including headless launches.
   The runtime owns foreground entry and the 60-second foreground poll; CloudKit pushes, remote imports, and Retry also refresh the decision.
   One outer lockout presentation in `RootView` hides history immediately, stops recording, and tears down the old scope through the launch runner. The registered compatibility gate uses the launch splash while the monitor completes its handle; it owns no second lockout screen.
@@ -65,6 +66,7 @@ These indicators have no separate action and remain visible after correction dis
   `InstallationLocation` exists before history, buffers launch events, and shares the real source with bootstrap assembly. It releases that source after retirement; the next scope gets a fresh stream.
 
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.
+When data compatibility requires a newer build, those builds also offer **App Updates** while history is locked.
 Local builds can browse remote builds without an automatic update badge.
 **Other Builds** opens the shared Main/PR browser and retained build history.
 The screen shows the

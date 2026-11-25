@@ -50,7 +50,11 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
             throw DataCompatibilityTransportError.conflict
         }
         guard previous == remote else { throw DataCompatibilityTransportError.conflict }
-        remote = .init(version: version, revision: "save-\(saveCount)")
+        remote = .init(
+            version: version,
+            revision: "save-\(saveCount)",
+            changeReason: version > .baseline ? version.changeReason : nil,
+        )
         if let saveError { throw saveError }
         return remote!
     }
@@ -67,10 +71,11 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
         conflictVersion = .init(rawValue: version)
     }
 
-    func setVersion(_ version: Int) {
+    func setVersion(_ version: Int, reason: DataModelChangeReason? = nil) {
         remote = .init(
             version: .init(rawValue: version),
             revision: "changed",
+            changeReason: reason,
         )
     }
 

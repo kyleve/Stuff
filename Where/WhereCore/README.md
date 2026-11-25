@@ -20,15 +20,16 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 `DataCompatibilityCoordinator` decides whether the app can open history before SwiftData starts.
 `DataModelVersion.current` describes data semantics independently of the app version. Version 1 also covers data from builds without this gate.
+Append each incompatible version to the version history with its user-facing reason from the WhereCore string catalog. The last entry sets `current`.
 Version 2 admits Canadian province and territory IDs in existing region fields. A
 version-1 reader can discard an unfamiliar ID when it reads a stored manual day.
 The private CloudKit control record lives outside SwiftData's zone. Conditional saves only advance its version.
 Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
 Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
-A newer shared version requires an app update.
+A newer shared version requires an app update. The publishing device includes every bundled translation of the reason in the same CloudKit save. The lockout screen matches the reader’s preferred languages, falls back to English, and uses the standard update instructions when no reason is available.
 The [publication model](../Specifications/CompatibilityPublication/README.md) checks bounded competing writes, recording eligibility, and receipt-based admission.
 
-The atomic App Group receipt preserves the highest observed version and excludes itself from backups.
+The atomic App Group receipt preserves the highest observed version and its reason so the lockout can explain the change on relaunch. The receipt is excluded from backups.
 Transient failures permit offline access only after the same account and version passed verification.
 CloudKit must still identify that account. Missing, corrupt, unreadable, or blocked receipts do not grant offline access.
 `LocalDataCompatibilityTransport` reports this build's format through the same coordinator, which still checks the durable floor and saves a receipt. The cloud transport delegates to it only after CloudKit confirms `.noAccount`; restricted, indeterminate, and temporarily unavailable accounts remain blocking. A local receipt never substitutes for cloud publication or cloud offline evidence.

@@ -1,12 +1,25 @@
 import Foundation
 
 /// Account-wide data semantics. Increase only before shipping an incompatible data change.
-/// Version 1 also describes history written before the compatibility gate existed.
-/// Version 2 permits the Canadian subdivision IDs in persisted region fields.
 public struct DataModelVersion: RawRepresentable, Codable, Hashable, Comparable, Sendable {
-    public static let current = Self(rawValue: 2)
+    private struct Change {
+        let version: DataModelVersion
+        let reason: LocalizedStringResource
+    }
+
     public static let baseline = Self(rawValue: 1)
+    private static let changes: [Change] = [
+        // Version 1 also describes history written before the compatibility gate existed.
+        Change(version: baseline, reason: .compatibilityVersion1Reason),
+        Change(version: Self(rawValue: 2), reason: .compatibilityVersion2Reason),
+    ]
+    public static let current = changes.last!.version
     public let rawValue: Int
+
+    var changeReason: DataModelChangeReason? {
+        guard let change = Self.changes.first(where: { $0.version == self }) else { return nil }
+        return DataModelChangeReason(resource: change.reason, bundle: .module)
+    }
 
     public init(rawValue: Int) {
         precondition(rawValue > 0)

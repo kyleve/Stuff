@@ -122,6 +122,30 @@
         }
       }
     },
+    "compatibility.version1.reason" : {
+      "comment" : "Describes the first version of Where’s shared data format, including data saved before app versions were checked.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where now checks that each device can open your shared data before it syncs."
+          }
+        }
+      }
+    },
+    "compatibility.version2.reason" : {
+      "comment" : "Explains why earlier versions of Where cannot open shared history that uses Canadian province and territory IDs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where can now save visits to Canadian provinces and territories."
+          }
+        }
+      }
+    },
     "dataIssues.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {
