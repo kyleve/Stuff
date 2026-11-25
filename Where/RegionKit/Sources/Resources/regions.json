@@ -7,7 +7,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-AL.twkb"
+    "geometryFile": "us/us-AL.twkb"
   },
   {
     "id": "us-AK",
@@ -17,7 +17,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-AK.twkb"
+    "geometryFile": "us/us-AK.twkb"
   },
   {
     "id": "us-AZ",
@@ -27,7 +27,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-AZ.twkb"
+    "geometryFile": "us/us-AZ.twkb"
   },
   {
     "id": "us-AR",
@@ -37,7 +37,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-AR.twkb"
+    "geometryFile": "us/us-AR.twkb"
   },
   {
     "id": "us-CA",
@@ -48,7 +48,7 @@
     "source": "census",
     "sourceYear": 2026,
     "localizationKey": "region.california",
-    "geometryFile": "us-CA.twkb"
+    "geometryFile": "us/us-CA.twkb"
   },
   {
     "id": "us-CO",
@@ -58,7 +58,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-CO.twkb"
+    "geometryFile": "us/us-CO.twkb"
   },
   {
     "id": "us-CT",
@@ -68,7 +68,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-CT.twkb"
+    "geometryFile": "us/us-CT.twkb"
   },
   {
     "id": "us-DE",
@@ -78,7 +78,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-DE.twkb"
+    "geometryFile": "us/us-DE.twkb"
   },
   {
     "id": "us-DC",
@@ -88,7 +88,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-DC.twkb"
+    "geometryFile": "us/us-DC.twkb"
   },
   {
     "id": "us-FL",
@@ -98,7 +98,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-FL.twkb"
+    "geometryFile": "us/us-FL.twkb"
   },
   {
     "id": "us-GA",
@@ -108,7 +108,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-GA.twkb"
+    "geometryFile": "us/us-GA.twkb"
   },
   {
     "id": "us-HI",
@@ -118,7 +118,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-HI.twkb"
+    "geometryFile": "us/us-HI.twkb"
   },
   {
     "id": "us-ID",
@@ -128,7 +128,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-ID.twkb"
+    "geometryFile": "us/us-ID.twkb"
   },
   {
     "id": "us-IL",
@@ -138,7 +138,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-IL.twkb"
+    "geometryFile": "us/us-IL.twkb"
   },
   {
     "id": "us-IN",
@@ -148,7 +148,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-IN.twkb"
+    "geometryFile": "us/us-IN.twkb"
   },
   {
     "id": "us-IA",
@@ -158,7 +158,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-IA.twkb"
+    "geometryFile": "us/us-IA.twkb"
   },
   {
     "id": "us-KS",
@@ -168,7 +168,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-KS.twkb"
+    "geometryFile": "us/us-KS.twkb"
   },
   {
     "id": "us-KY",
@@ -178,7 +178,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-KY.twkb"
+    "geometryFile": "us/us-KY.twkb"
   },
   {
     "id": "us-LA",
@@ -188,7 +188,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-LA.twkb"
+    "geometryFile": "us/us-LA.twkb"
   },
   {
     "id": "us-ME",
@@ -198,7 +198,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-ME.twkb"
+    "geometryFile": "us/us-ME.twkb"
   },
   {
     "id": "us-MD",
@@ -208,7 +208,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MD.twkb"
+    "geometryFile": "us/us-MD.twkb"
   },
   {
     "id": "us-MA",
@@ -218,7 +218,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MA.twkb"
+    "geometryFile": "us/us-MA.twkb"
   },
   {
     "id": "us-MI",
@@ -228,7 +228,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MI.twkb"
+    "geometryFile": "us/us-MI.twkb"
   },
   {
     "id": "us-MN",
@@ -238,7 +238,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MN.twkb"
+    "geometryFile": "us/us-MN.twkb"
   },
   {
     "id": "us-MS",
@@ -248,7 +248,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MS.twkb"
+    "geometryFile": "us/us-MS.twkb"
   },
   {
     "id": "us-MO",
@@ -258,7 +258,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MO.twkb"
+    "geometryFile": "us/us-MO.twkb"
   },
   {
     "id": "us-MT",
@@ -268,7 +268,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-MT.twkb"
+    "geometryFile": "us/us-MT.twkb"
   },
   {
     "id": "us-NE",
@@ -278,7 +278,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-NE.twkb"
+    "geometryFile": "us/us-NE.twkb"
   },
   {
     "id": "us-NV",
@@ -288,7 +288,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-NV.twkb"
+    "geometryFile": "us/us-NV.twkb"
   },
   {
     "id": "us-NH",
@@ -298,7 +298,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-NH.twkb"
+    "geometryFile": "us/us-NH.twkb"
   },
   {
     "id": "us-NJ",
@@ -308,7 +308,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-NJ.twkb"
+    "geometryFile": "us/us-NJ.twkb"
   },
   {
     "id": "us-NM",
@@ -318,7 +318,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-NM.twkb"
+    "geometryFile": "us/us-NM.twkb"
   },
   {
     "id": "us-NY",
@@ -329,7 +329,7 @@
     "source": "census",
     "sourceYear": 2026,
     "localizationKey": "region.newYork",
-    "geometryFile": "us-NY.twkb"
+    "geometryFile": "us/us-NY.twkb"
   },
   {
     "id": "us-NC",
@@ -339,7 +339,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-NC.twkb"
+    "geometryFile": "us/us-NC.twkb"
   },
   {
     "id": "us-ND",
@@ -349,7 +349,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-ND.twkb"
+    "geometryFile": "us/us-ND.twkb"
   },
   {
     "id": "us-OH",
@@ -359,7 +359,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-OH.twkb"
+    "geometryFile": "us/us-OH.twkb"
   },
   {
     "id": "us-OK",
@@ -369,7 +369,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-OK.twkb"
+    "geometryFile": "us/us-OK.twkb"
   },
   {
     "id": "us-OR",
@@ -379,7 +379,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-OR.twkb"
+    "geometryFile": "us/us-OR.twkb"
   },
   {
     "id": "us-PA",
@@ -389,7 +389,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-PA.twkb"
+    "geometryFile": "us/us-PA.twkb"
   },
   {
     "id": "us-PR",
@@ -399,7 +399,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-PR.twkb"
+    "geometryFile": "us/us-PR.twkb"
   },
   {
     "id": "us-RI",
@@ -409,7 +409,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-RI.twkb"
+    "geometryFile": "us/us-RI.twkb"
   },
   {
     "id": "us-SC",
@@ -419,7 +419,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-SC.twkb"
+    "geometryFile": "us/us-SC.twkb"
   },
   {
     "id": "us-SD",
@@ -429,7 +429,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-SD.twkb"
+    "geometryFile": "us/us-SD.twkb"
   },
   {
     "id": "us-TN",
@@ -439,7 +439,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-TN.twkb"
+    "geometryFile": "us/us-TN.twkb"
   },
   {
     "id": "us-TX",
@@ -449,7 +449,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-TX.twkb"
+    "geometryFile": "us/us-TX.twkb"
   },
   {
     "id": "us-UT",
@@ -459,7 +459,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-UT.twkb"
+    "geometryFile": "us/us-UT.twkb"
   },
   {
     "id": "us-VT",
@@ -469,7 +469,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-VT.twkb"
+    "geometryFile": "us/us-VT.twkb"
   },
   {
     "id": "us-VA",
@@ -479,7 +479,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-VA.twkb"
+    "geometryFile": "us/us-VA.twkb"
   },
   {
     "id": "us-WA",
@@ -489,7 +489,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-WA.twkb"
+    "geometryFile": "us/us-WA.twkb"
   },
   {
     "id": "us-WV",
@@ -499,7 +499,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-WV.twkb"
+    "geometryFile": "us/us-WV.twkb"
   },
   {
     "id": "us-WI",
@@ -509,7 +509,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-WI.twkb"
+    "geometryFile": "us/us-WI.twkb"
   },
   {
     "id": "us-WY",
@@ -519,7 +519,7 @@
     "parentID": "united-states",
     "source": "census",
     "sourceYear": 2026,
-    "geometryFile": "us-WY.twkb"
+    "geometryFile": "us/us-WY.twkb"
   },
   {
     "id": "canada",
@@ -538,7 +538,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-AB.twkb"
+    "geometryFile": "ca/ca-AB.twkb"
   },
   {
     "id": "ca-BC",
@@ -548,7 +548,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-BC.twkb"
+    "geometryFile": "ca/ca-BC.twkb"
   },
   {
     "id": "ca-MB",
@@ -558,7 +558,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-MB.twkb"
+    "geometryFile": "ca/ca-MB.twkb"
   },
   {
     "id": "ca-NB",
@@ -568,7 +568,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-NB.twkb"
+    "geometryFile": "ca/ca-NB.twkb"
   },
   {
     "id": "ca-NL",
@@ -578,7 +578,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-NL.twkb"
+    "geometryFile": "ca/ca-NL.twkb"
   },
   {
     "id": "ca-NT",
@@ -588,7 +588,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-NT.twkb"
+    "geometryFile": "ca/ca-NT.twkb"
   },
   {
     "id": "ca-NS",
@@ -598,7 +598,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-NS.twkb"
+    "geometryFile": "ca/ca-NS.twkb"
   },
   {
     "id": "ca-NU",
@@ -608,7 +608,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-NU.twkb"
+    "geometryFile": "ca/ca-NU.twkb"
   },
   {
     "id": "ca-ON",
@@ -618,7 +618,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-ON.twkb"
+    "geometryFile": "ca/ca-ON.twkb"
   },
   {
     "id": "ca-PE",
@@ -628,7 +628,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-PE.twkb"
+    "geometryFile": "ca/ca-PE.twkb"
   },
   {
     "id": "ca-QC",
@@ -638,7 +638,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-QC.twkb"
+    "geometryFile": "ca/ca-QC.twkb"
   },
   {
     "id": "ca-SK",
@@ -648,7 +648,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-SK.twkb"
+    "geometryFile": "ca/ca-SK.twkb"
   },
   {
     "id": "ca-YT",
@@ -658,7 +658,7 @@
     "parentID": "canada",
     "source": "statcan",
     "sourceYear": 2026,
-    "geometryFile": "ca-YT.twkb"
+    "geometryFile": "ca/ca-YT.twkb"
   },
   {
     "id": "united-states",
@@ -675,6 +675,6 @@
     "isLoggable": true,
     "source": "original",
     "localizationKey": "region.europeanUnion",
-    "geometryFile": "european-union.geojson"
+    "geometryFile": "eu/european-union.geojson"
   }
 ]

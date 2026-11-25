@@ -309,12 +309,14 @@ class RegionRelease
         raise "Unexpected geometry for #{id}" if node.key?("geometryFile")
         next
       end
-      file = id + (source == "original" ? ".geojson" : ".twkb")
+      file = RegionGenerator.geometry_file(id, parent, source)
       raise "Unexpected geometry for #{id}" unless node.fetch("geometryFile") == file
       regular_file(File.join(resources, "regions"), file)
     end
     expected_files = records.filter_map { |node| node["geometryFile"] }
-    raise "Unexpected geometry files in resources" unless Dir.children(File.join(resources, "regions")).sort == expected_files.sort
+    expected_paths = expected_files + expected_files.map { |file| File.dirname(file) }.uniq
+    paths = Dir.glob("**/*", File::FNM_DOTMATCH, base: File.join(resources, "regions")) - ["."]
+    raise "Unexpected geometry files in resources" unless paths.sort == expected_paths.sort
   end
 
   def bundle_inventory(resources)
@@ -341,9 +343,10 @@ class RegionRelease
     puts "Changed parents: #{(incoming.keys & previous.keys).select { |id| incoming[id] != previous[id] }.join(', ')}"
   end
 
-  def compare_resources(expected, actual)
+  def compare_resources(expected, actual, hint: nil)
     OUTPUTS.each do |name|
-      raise "Generated output differs: #{name}" unless digest(File.join(expected, name)) == digest(File.join(actual, name))
+      next if digest(File.join(expected, name)) == digest(File.join(actual, name))
+      raise ["Generated output differs: #{name}", hint].compact.join(". ")
     end
   end
 
@@ -359,7 +362,8 @@ class RegionRelease
     install_resources(release: candidate) do |staged, release|
       generate(staged, release)
       validate_catalog(staged)
-      compare_resources(staged, File.join(candidate, "resources"))
+      compare_resources(staged, File.join(candidate, "resources"),
+                        hint: "Use --replay with the candidate lock and cache to recreate its resources before adoption")
     end
     puts "Adopted region release from #{candidate}"
   end

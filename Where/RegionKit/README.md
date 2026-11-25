@@ -83,7 +83,8 @@ print(region.localizedName) // "California"
 ## Bundled data
 
 The generated resources in `Sources/Resources/` contain the catalog manifest and
-66 geometry files covering 52 US jurisdictions, 13 Canadian subdivisions and the EU bloc.
+66 geometry files. Under `regions/`, `us/` holds the 52 US jurisdictions,
+`ca/` holds the 13 Canadian provinces and territories, and `eu/` holds the EU bloc outline.
 The US and Canada are country entries in the manifest.
 
 ### `regions.json` — the catalog manifest
@@ -93,7 +94,7 @@ The ordered array has one entry per geographic node.
 ```json
 { "id": "us-CA", "name": "California", "kind": "state", "isLoggable": true,
   "parentID": "united-states", "source": "census", "sourceYear": 2026,
-  "localizationKey": "region.california", "geometryFile": "us-CA.twkb" }
+  "localizationKey": "region.california", "geometryFile": "us/us-CA.twkb" }
 ```
 
 - `id` — a stable data identifier, never shown to the user. US states are
@@ -114,7 +115,7 @@ The ordered array has one entry per geographic node.
 - `isLoggable` controls whether the node appears in tracking choices and can
   construct a validated `Region`. The independent bare-string `Codable`
   representation preserves stored IDs across catalog changes.
-- `geometryFile` names a resource under `regions/`. Country entries omit this field.
+- `geometryFile` is a path relative to `regions/`. Country entries omit this field.
   To find their children, use the catalog’s index of `parentID` values.
 - Array order fixes the order of available regions and the day-count ranking
   tiebreak. WhereCore also uses it to order its tracked set for GPS attribution.
@@ -147,6 +148,8 @@ diff -qr /tmp/regions-candidate /tmp/regions-replay
 
 Release locks use format 2. To migrate an older format-1 release, refresh with the same publisher years and reuse the raw download cache. Replay and adoption require a format-2 lock.
 
+If a saved format-2 candidate has a flat `resources/regions/` directory, replay its lock into a new candidate before adoption. For an already adopted release, the no-argument Ruby command reorganizes the installed files offline.
+
 The adopted release uses a 180 m simplification setting for the US and 45 m for Canada. These settings guide an area-based algorithm. The report records sampled displacement separately. Both modes create a new output directory. Refresh checks the publisher inventory and prints changed checksums for previously adopted URLs. Replay reads exclusively from the verified cache. Inspect `report.json` for component and hole counts, simplification error and border classifications. `bundle-report.json` records the installed geometry size and the files needed for the default tracking set. Compare the candidate manifest with the installed choices before adopting it.
 
 ```sh
@@ -165,6 +168,8 @@ Adoption verifies source and output hashes before it installs the normalized inp
 ## Adding a region
 
 Map the publisher ID to a stable app ID in the source adapter. Assign the node's immediate parent, jurisdiction kind, tracking eligibility and source. Verify a known interior location, add the applicable membership check and update the compatibility gates before shipping a new writable ID. RegionKit resolves a display name from the optional localization key or the publisher's English name.
+
+When adding the first geometry for another country or bloc, map its catalog ID to a directory in `RegionGenerator::GEOMETRY_GROUPS`.
 
 ## Testing
 

@@ -32,8 +32,9 @@ class GenerateRegionsTest < Minitest::Test
       refute manifest[1].fetch("isLoggable")
       assert_equal "country", manifest[1].fetch("kind")
       refute manifest.last.key?("parentID")
-      assert_equal "us-CA.geojson", manifest.first.fetch("geometryFile")
-      assert_equal ["us-CA.geojson"], Dir.children(File.join(resources, "regions"))
+      assert_equal "us/us-CA.geojson", manifest.first.fetch("geometryFile")
+      assert_equal ["us"], Dir.children(File.join(resources, "regions"))
+      assert_equal ["us-CA.geojson"], Dir.children(File.join(resources, "regions/us"))
       refute manifest[1].key?("geometryFile")
       refute manifest.last.key?("geometryFile")
 

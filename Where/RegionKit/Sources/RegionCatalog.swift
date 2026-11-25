@@ -24,7 +24,8 @@ public struct RegionCatalog: Sendable {
         public let name: String
         public let isLoggable: Bool
         fileprivate let localizationKey: String?
-        /// A physical resource. A tracked parent without one uses its children's coverage.
+        /// A resource path relative to `regions/`. A tracked parent without one uses its children's
+        /// coverage.
         public let geometryFile: String?
 
         public var localizedName: String {
@@ -81,6 +82,8 @@ public struct RegionCatalog: Sendable {
     /// Decode the same wire representation used by the bundled catalog.
     init(manifest: Data) throws {
         let nodes = try JSONDecoder().decode([Node].self, from: manifest)
+        // Each resource lives in one group directory under regions/.
+        let geometryPath = #/[a-z0-9][a-z0-9_-]*/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:geojson|twkb)/#
         var byID: [Node.ID: Node] = [:]
         func invalid(_ description: String) -> DecodingError {
             .dataCorrupted(.init(codingPath: [], debugDescription: description))
@@ -97,9 +100,7 @@ public struct RegionCatalog: Sendable {
                 )
             }
             if let file = node.geometryFile {
-                guard file == (file as NSString).lastPathComponent,
-                      file.hasSuffix(".geojson") || file.hasSuffix(".twkb")
-                else {
+                guard file.wholeMatch(of: geometryPath) != nil else {
                     throw invalid("Invalid geometry file: \(file)")
                 }
             }
@@ -177,12 +178,12 @@ public struct RegionCatalog: Sendable {
 
     static func geometryURL(for node: Node) -> URL? {
         guard let file = node.geometryFile else { return nil }
+        let path = file as NSString
         return Bundle.module.url(
-            forResource: file,
+            forResource: path.lastPathComponent,
             withExtension: nil,
-            subdirectory: "regions",
+            subdirectory: "regions/\(path.deletingLastPathComponent)",
         )
-            ?? Bundle.module.url(forResource: file, withExtension: nil)
     }
 }
 

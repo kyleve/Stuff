@@ -31,7 +31,7 @@ class RegionReleaseTest < Minitest::Test
   def test_check_detects_drift_and_regeneration_repairs_it_offline
     cli("--adopt", @candidate)
     cli("--check")
-    us = File.join(@resources, "regions/us-CA.twkb")
+    us = File.join(@resources, "regions/us/us-CA.twkb")
     expected = File.binread(us)
     File.write(us, "changed")
     _out, error, status = invoke("--check")
@@ -44,18 +44,18 @@ class RegionReleaseTest < Minitest::Test
     assert_equal "unrelated", File.read(File.join(@resources, "Localizable.xcstrings"))
   end
 
-  def test_adoption_removes_superseded_country_resources_and_rejects_the_old_release
+  def test_adoption_replaces_flat_resources_with_geographic_groups_and_rejects_the_old_release
     directory = File.join(@resources, "regions")
     FileUtils.mkdir_p(directory)
-    %w[canada.twkb united-states.twkb].each { |name| File.write(File.join(directory, name), "old country") }
+    %w[canada.twkb united-states.twkb us-CA.twkb].each { |name| File.write(File.join(directory, name), "old resource") }
     cli("--adopt", @candidate)
-    names = Dir.children(directory)
-    assert_equal 66, names.size
-    refute_includes names, "canada.twkb"
-    refute_includes names, "united-states.twkb"
+    assert_equal %w[ca eu us], Dir.children(directory).sort
+    assert_equal US_TRACKING_CODES.map { |code| "us-#{code}.twkb" }.sort, Dir.children(File.join(directory, "us")).sort
+    assert_equal RegionRelease::PROVINCES.map { |code| "ca-#{code}.twkb" }.sort, Dir.children(File.join(directory, "ca")).sort
+    assert_equal ["european-union.geojson"], Dir.children(File.join(directory, "eu"))
     cli("--check")
 
-    stale = File.join(directory, "canada.twkb")
+    stale = File.join(directory, "ca/canada.twkb")
     File.write(stale, "left behind by a previous generator")
     _out, error, status = invoke("--check")
     refute status.success?
@@ -91,7 +91,14 @@ class RegionReleaseTest < Minitest::Test
 
   def test_damaged_candidate_does_not_replace_previous_resources
     cli("--adopt", @candidate)
-    file = File.join(@candidate, "resources/regions/ca-ON.twkb")
+    file = File.join(@candidate, "resources/regions/ca/ca-ON.twkb")
+    flat = File.join(@candidate, "resources/regions/ca-ON.twkb")
+    File.rename(file, flat)
+    _out, error, status = invoke("--adopt", @candidate)
+    refute status.success?
+    assert_includes error, "--replay"
+    cli("--check")
+    File.rename(flat, file)
     File.write(file, "wrong")
     _out, error, status = invoke("--adopt", @candidate)
     refute status.success?
@@ -264,7 +271,7 @@ class RegionReleaseTest < Minitest::Test
   def test_failed_commit_restores_previous_install_before_retry
     cli("--adopt", @candidate)
     prior_manifest = File.binread(File.join(@resources, "regions.json"))
-    prior_geometry = File.binread(File.join(@resources, "regions/ca-ON.twkb"))
+    prior_geometry = File.binread(File.join(@resources, "regions/ca/ca-ON.twkb"))
     original = JSON.parse(Zlib::GzipReader.open(File.join(@candidate, "north-america.geojson.gz"), &:read))
     original.fetch("features").first.fetch("properties")["name"] = "Updated state name"
     normalized = File.join(@candidate, "north-america.geojson.gz")
@@ -283,7 +290,7 @@ class RegionReleaseTest < Minitest::Test
       assert_raises(Errno::ENOSPC) { RegionRelease.new(root: @root, transaction: failing).run(["--adopt", @candidate]) }
     end
     assert_equal prior_manifest, File.binread(File.join(@resources, "regions.json"))
-    assert_equal prior_geometry, File.binread(File.join(@resources, "regions/ca-ON.twkb"))
+    assert_equal prior_geometry, File.binread(File.join(@resources, "regions/ca/ca-ON.twkb"))
     cli("--adopt", @candidate)
     cli("--check")
   end

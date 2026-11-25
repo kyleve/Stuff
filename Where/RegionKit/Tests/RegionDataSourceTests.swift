@@ -28,7 +28,7 @@ struct RegionDataSourceTests {
         // hand-drawn bucket as an "everything else" fallback.
         let unattributed = Region(unchecked: "atlantis")
         let catalog = try RegionCatalog(manifest: Data("""
-        [{"id":"atlantis","name":"Atlantis","kind":"province","isLoggable":true,"geometryFile":"atlantis.geojson"}]
+        [{"id":"atlantis","name":"Atlantis","kind":"province","isLoggable":true,"geometryFile":"at/atlantis.geojson"}]
         """.utf8))
         let covered = RegionDataSource.sources(coveringRegionsIn: catalog).flatMap(\.regions)
         #expect(!covered.contains(unattributed))

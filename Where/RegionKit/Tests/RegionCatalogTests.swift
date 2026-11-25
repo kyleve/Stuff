@@ -33,7 +33,7 @@ enum RegionHierarchyFixture {
             "kind": kind,
             "isLoggable": loggable,
         ]
-        if kind != "country" { row["geometryFile"] = "\(id).geojson" }
+        if kind != "country" { row["geometryFile"] = "fixtures/\(id).geojson" }
         row["parentID"] = parent
         return row
     }
@@ -108,8 +108,8 @@ struct RegionCatalogTests {
             [canada],
             [canada, ontario.filter { $0.key != "geometryFile" }],
             [us.filter { $0.key != "isLoggable" }],
-            [us.merging(["geometryFile": "united-states.twkb"]) { _, new in new }],
-            [canada.merging(["geometryFile": "canada.twkb"]) { _, new in new }, ontario],
+            [us.merging(["geometryFile": "us/united-states.twkb"]) { _, new in new }],
+            [canada.merging(["geometryFile": "ca/canada.twkb"]) { _, new in new }, ontario],
             [RegionHierarchyFixture.row("state", "state", loggable: false)
                 .filter { $0.key != "geometryFile" }],
             [canada, ontario.merging(["geometryFile": "../ca-ON.twkb"]) { _, new in new }],
@@ -118,5 +118,37 @@ struct RegionCatalogTests {
         for rows in invalid {
             #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode(rows) }
         }
+    }
+
+    @Test(arguments: [
+        "ca-ON.twkb",
+        "/ca/ca-ON.twkb",
+        "ca/../ca-ON.twkb",
+        "ca//ca-ON.twkb",
+        "ca/%2e%2e.twkb",
+        "ca/ca-ON.txt"
+    ])
+    func manifestRejectsInvalidGeometryPaths(_ path: String) {
+        var node = RegionHierarchyFixture.row("ca-ON", "province")
+        node["geometryFile"] = path
+        #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode([node]) }
+    }
+
+    @Test func bundlePreservesAllGeographicDirectories() throws {
+        let catalog = RegionCatalog.shared
+        let canada = try #require(catalog.node(for: .canada))
+        let expected = Set(RegionHierarchyFixture.usIDs.map { "us/\($0).twkb" }
+            + catalog.children(of: canada).map { "ca/\($0.id.rawValue).twkb" }
+            + ["eu/european-union.geojson"])
+        var paths: [String] = []
+        for node in catalog.nodes {
+            guard let path = node.geometryFile else { continue }
+            let url = try #require(RegionCatalog.geometryURL(for: node))
+            #expect(url.pathComponents.suffix(3).joined(separator: "/") == "regions/\(path)")
+            #expect(try url.checkResourceIsReachable())
+            paths.append(path)
+        }
+        #expect(paths.count == 66)
+        #expect(Set(paths) == expected)
     }
 }

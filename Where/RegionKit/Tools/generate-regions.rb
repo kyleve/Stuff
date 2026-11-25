@@ -37,6 +37,14 @@ LOCALIZATION_KEYS = {
 }.freeze
 
 class RegionGenerator
+  GEOMETRY_GROUPS = { "united-states" => "us", "canada" => "ca", "european-union" => "eu" }.freeze
+
+  def self.geometry_file(id, parent, source)
+    group = GEOMETRY_GROUPS.fetch(parent || id) { raise ArgumentError, "Unknown geometry group for #{id}" }
+    extension = %w[census statcan].include?(source) ? ".twkb" : ".geojson"
+    File.join(group, id + extension)
+  end
+
   def initialize(source: SOURCE, resources: RESOURCES)
     @source = source
     @resources = resources
@@ -80,12 +88,14 @@ class RegionGenerator
       features.zip(manifest).each do |feature, entry|
         file = entry["geometryFile"]
         next unless file
+        path = File.join(staged_regions, file)
+        FileUtils.mkdir_p(File.dirname(path))
         geometry = feature.fetch("geometry")
         if file.end_with?(".twkb")
-          File.binwrite(File.join(staged_regions, file), TinyWKB.encode(geometry))
+          File.binwrite(path, TinyWKB.encode(geometry))
         else
           document = region_document(id: entry.fetch("id"), name: entry.fetch("name"), geometry: geometry)
-          File.write(File.join(staged_regions, file), JSON.generate(document) + "\n")
+          File.write(path, JSON.generate(document) + "\n")
         end
       end
       File.write(staged_manifest, JSON.pretty_generate(manifest) + "\n")
@@ -149,8 +159,7 @@ class RegionGenerator
       unless geometry && %w[Polygon MultiPolygon].include?(geometry["type"]) && !geometry.fetch("coordinates").empty?
         raise ArgumentError, "Missing polygon geometry for #{id}"
       end
-      extension = %w[census statcan].include?(entry["source"]) ? ".twkb" : ".geojson"
-      entry["geometryFile"] = id + extension
+      entry["geometryFile"] = RegionGenerator.geometry_file(id, parent_id, entry["source"])
     end
     entry
   end
