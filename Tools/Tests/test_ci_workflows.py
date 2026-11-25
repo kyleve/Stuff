@@ -118,6 +118,23 @@ class CIWorkflowTests(unittest.TestCase):
             "${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}",
         )
 
+    def test_boundary_fixtures_run_in_tool_tests_unless_classified_as_unrelated(self):
+        jobs = self.github["jobs"]
+        self.assertEqual(
+            jobs["changes"]["outputs"]["run_boundary_tests"],
+            "${{ steps.classify.outputs.run_boundary_tests }}",
+        )
+        step = next(
+            step
+            for step in jobs["test-tools"]["steps"]
+            if "unittest discover -s Where/RegionKit/Tools " in step.get("run", "")
+        )
+        self.assertIn("Where/RegionKit/Tools/requirements-boundaries.txt", step["run"])
+        self.assertEqual(
+            step["if"],
+            "${{ needs.changes.result != 'success' || needs.changes.outputs.run_boundary_tests != 'false' }}",
+        )
+
     def test_github_uses_push_identity_and_reads_evidence_only_on_main_pushes(self):
         classifier = self.github["jobs"]["changes"]
         command = classifier["steps"][1]
