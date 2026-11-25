@@ -226,9 +226,8 @@ struct RegionMapOverlayStyle {
     let stroke: Color
     let lineWidth: CGFloat
 
-    /// Sharp turns along coastlines can send a miter far beyond the boundary.
     var strokeStyle: StrokeStyle {
-        StrokeStyle(lineWidth: lineWidth, lineJoin: .round)
+        .regionOutline(lineWidth: lineWidth)
     }
 }
 

@@ -30,7 +30,7 @@ struct RegionOutlineArtwork: View {
                 projectedContext.stroke(
                     path,
                     with: .color(tint.opacity(stroke.opacity)),
-                    lineWidth: stroke.width / transform.scale,
+                    style: .regionOutline(lineWidth: stroke.width / transform.scale),
                 )
             }
         }
