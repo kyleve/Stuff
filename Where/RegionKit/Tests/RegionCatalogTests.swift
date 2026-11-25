@@ -32,8 +32,8 @@ enum RegionHierarchyFixture {
             "name": id,
             "kind": kind,
             "isLoggable": loggable,
-            "geometry": ["file": "\(id).geojson"],
         ]
+        if kind != "country" { row["geometryFile"] = "\(id).geojson" }
         row["parentID"] = parent
         return row
     }
@@ -64,7 +64,7 @@ struct RegionCatalogTests {
     @Test func loggingEligibilityFiltersEveryRegionLookup() throws {
         let catalog = try RegionHierarchyFixture.catalog()
         let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
-        #expect(us.geometryFile == "united-states.geojson")
+        #expect(us.geometryFile == nil)
         #expect(!catalog.contains(id: us.id.rawValue))
         let storedUS = try JSONDecoder().decode(Region.self, from: Data(#""united-states""#.utf8))
         #expect(catalog.node(for: storedUS) == nil)
@@ -101,13 +101,19 @@ struct RegionCatalogTests {
         let ontario = RegionHierarchyFixture.row("ca-ON", "province", parent: "canada")
         let us = RegionHierarchyFixture.row("united-states", "country", loggable: false)
         let invalid = [
-            [canada, canada],
+            [us, us],
             [RegionHierarchyFixture.row("other", "state")],
             [ontario],
             [ontario, RegionHierarchyFixture.row("canada", "country", parent: "ca-ON")],
-            [us.filter { $0.key != "geometry" }],
+            [canada],
+            [canada, ontario.filter { $0.key != "geometryFile" }],
             [us.filter { $0.key != "isLoggable" }],
-            [us.merging(["geometry": ["file": ""]]) { _, new in new }],
+            [us.merging(["geometryFile": "united-states.twkb"]) { _, new in new }],
+            [canada.merging(["geometryFile": "canada.twkb"]) { _, new in new }, ontario],
+            [RegionHierarchyFixture.row("state", "state", loggable: false)
+                .filter { $0.key != "geometryFile" }],
+            [canada, ontario.merging(["geometryFile": "../ca-ON.twkb"]) { _, new in new }],
+            [canada, ontario.merging(["geometryFile": ""]) { _, new in new }],
         ]
         for rows in invalid {
             #expect(throws: DecodingError.self) { try RegionHierarchyFixture.decode(rows) }

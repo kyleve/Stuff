@@ -100,6 +100,16 @@ public final class PrimaryRegionSelectionModel {
         selectedRegions.contains(region)
     }
 
+    /// A country selection colors the area covered by its subdivisions. An explicitly
+    /// selected subdivision uses its own color.
+    func selectedRegionCoveringMapArea(_ region: Region) -> Region? {
+        if isSelected(region) { return region }
+        let catalog = RegionCatalog.shared
+        guard let node = catalog.node(for: region), let parent = catalog.parent(of: node)?.region,
+              isSelected(parent) else { return nil }
+        return parent
+    }
+
     /// Whether tapping `region` would do something: always true when it's
     /// already selected (a tap removes it), otherwise only when there's room.
     public func canToggle(_ region: Region) -> Bool {

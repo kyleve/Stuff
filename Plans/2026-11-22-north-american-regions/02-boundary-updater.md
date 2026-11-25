@@ -4,6 +4,8 @@
 - Depends on: [01. Region hierarchy](01-region-hierarchy.md) for integration with the manifest writer and acceptance. Publisher acquisition, conversion experiments and the staged installation can be developed independently.
 - Shared context: [Overview](README.md)
 
+**November 24 execution record.** This completed plan records the original country files and their verification. [Plan 04](04-country-geometry.md) owns the November 25 replacement and its acceptance criteria.
+
 ## Deliverable
 
 A maintainer can reproduce checked-in RegionKit resources offline or evaluate a new Census release in a separate directory. This step delivers the working command, tests with small fixtures and a measured candidate from the 2026 publishers. It includes separate country outlines for the United States and Canada. Plan 01 exercises US relationships with fixtures. The production US node and its outline enter the live catalog together in plan 03. [Plan 03](03-ship-regions.md) owns adoption of the production data, Swift geometry support and in-app credits.

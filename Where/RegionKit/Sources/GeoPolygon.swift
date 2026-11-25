@@ -23,6 +23,15 @@ public struct BoundingBox: Hashable, Sendable {
             && coordinate.longitude <= maxLongitude
     }
 
+    func enclosing(_ other: Self) -> Self {
+        Self(
+            minLatitude: min(minLatitude, other.minLatitude),
+            maxLatitude: max(maxLatitude, other.maxLatitude),
+            minLongitude: min(minLongitude, other.minLongitude),
+            maxLongitude: max(maxLongitude, other.maxLongitude),
+        )
+    }
+
     /// Degenerate "contains nothing" box. Used only as a release-build
     /// fallback by callers (e.g. `RegionPolygons.init`) that
     /// `assertionFailure` on empty polygon sets but still need a
@@ -180,11 +189,39 @@ struct GeoPolygon: Hashable {
         return odd
     }
 
+    /// The boundary converter preserves exactly matching edges between adjacent
+    /// subdivisions. A reversed edge represents the same internal border.
+    func hasEdge(_ a: Coordinate, _ b: Coordinate) -> Bool {
+        guard a != b, geographicBounds.contains(a), geographicBounds.contains(b) else {
+            return false
+        }
+        func matches(_ ring: [Coordinate], edges: Range<Int>) -> Bool {
+            guard !edges.isEmpty else { return false }
+            var previous = ring[edges.lowerBound == 0 ? ring.count - 1 : edges.lowerBound - 1]
+            for index in edges {
+                let current = ring[index]
+                if (previous == a && current == b) ||
+                    (previous == b && current == a) { return true }
+                previous = current
+            }
+            return false
+        }
+        if edgeGroups.isEmpty {
+            if matches(vertices, edges: vertices.indices) { return true }
+        } else if edgeGroups.contains(where: {
+            $0.bounds.contains(a) && $0.bounds.contains(b) && matches(vertices, edges: $0.edges)
+        }) {
+            return true
+        }
+        return holes.contains { matches($0, edges: $0.indices) }
+    }
+
     /// Closest boundary in metres, including holes. The box lower bound avoids
     /// walking an island's coastline when a nearer edge has already been found.
     func distanceToBoundary(
         from coordinate: Coordinate,
         nearerThan bestSoFar: Double = .infinity,
+        includingEdge: (Coordinate, Coordinate) -> Bool = { _, _ in true },
     ) -> Double {
         guard vertices.count >= 2 else { return bestSoFar }
         let latitudeScale = 111_320.0
@@ -209,12 +246,19 @@ struct GeoPolygon: Hashable {
         var best = bestSoFar
         func visit(_ ring: [Coordinate], edges: Range<Int>) {
             guard !edges.isEmpty else { return }
-            var previous =
-                project(ring[edges.lowerBound == 0 ? ring.count - 1 : edges.lowerBound - 1])
+            var previous = ring[edges.lowerBound == 0 ? ring.count - 1 : edges.lowerBound - 1]
+            var start = project(previous)
             for index in edges {
-                let current = project(ring[index])
-                best = min(best, Self.distance(origin, toSegment: previous, current))
-                previous = current
+                let vertex = ring[index]
+                let end = project(vertex)
+                // Rings may repeat their first point at the end. The zero-length
+                // closure is not a separate exterior edge at a subdivision seam.
+                if vertex != previous {
+                    let distance = Self.distance(origin, toSegment: start, end)
+                    if distance < best, includingEdge(previous, vertex) { best = distance }
+                }
+                previous = vertex
+                start = end
             }
         }
         if edgeGroups.isEmpty {

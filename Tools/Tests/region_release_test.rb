@@ -31,7 +31,7 @@ class RegionReleaseTest < Minitest::Test
   def test_check_detects_drift_and_regeneration_repairs_it_offline
     cli("--adopt", @candidate)
     cli("--check")
-    us = File.join(@resources, "regions/united-states.twkb")
+    us = File.join(@resources, "regions/us-CA.twkb")
     expected = File.binread(us)
     File.write(us, "changed")
     _out, error, status = invoke("--check")
@@ -44,9 +44,54 @@ class RegionReleaseTest < Minitest::Test
     assert_equal "unrelated", File.read(File.join(@resources, "Localizable.xcstrings"))
   end
 
+  def test_adoption_removes_superseded_country_resources_and_rejects_the_old_release
+    directory = File.join(@resources, "regions")
+    FileUtils.mkdir_p(directory)
+    %w[canada.twkb united-states.twkb].each { |name| File.write(File.join(directory, name), "old country") }
+    cli("--adopt", @candidate)
+    names = Dir.children(directory)
+    assert_equal 66, names.size
+    refute_includes names, "canada.twkb"
+    refute_includes names, "united-states.twkb"
+    cli("--check")
+
+    stale = File.join(directory, "canada.twkb")
+    File.write(stale, "left behind by a previous generator")
+    _out, error, status = invoke("--check")
+    refute status.success?
+    assert_includes error, "differs"
+    assert_path_exists stale
+    cli
+    refute_path_exists stale
+
+    lock_path = File.join(@candidate, "sources.lock.json")
+    lock = JSON.parse(File.read(lock_path)).merge("version" => 1)
+    File.write(lock_path, JSON.generate(lock))
+    _out, error, status = invoke("--adopt", @candidate)
+    refute status.success?
+    assert_includes error, "Unsupported release lock version"
+    cli("--check")
+  end
+
+  def test_rejects_a_country_feature_in_normalized_inputs
+    path = File.join(@candidate, "north-america.geojson.gz")
+    release = JSON.parse(Zlib::GzipReader.open(path, &:read))
+    country = release.fetch("features").first
+    country.fetch("properties").merge!("id" => "canada", "kind" => "country")
+    Zlib::GzipWriter.open(path) { |gz| gz.write(JSON.generate(release)) }
+    lock_path = File.join(@candidate, "sources.lock.json")
+    lock = JSON.parse(File.read(lock_path))
+    lock.fetch("normalized")["sha256"] = Digest::SHA256.file(path).hexdigest
+    File.write(lock_path, JSON.generate(lock))
+    _out, error, status = invoke("--adopt", @candidate)
+    refute status.success?
+    assert_includes error, "Expected a subdivision"
+    refute_path_exists File.join(@resources, "regions.json")
+  end
+
   def test_damaged_candidate_does_not_replace_previous_resources
     cli("--adopt", @candidate)
-    file = File.join(@candidate, "resources/regions/canada.twkb")
+    file = File.join(@candidate, "resources/regions/ca-ON.twkb")
     File.write(file, "wrong")
     _out, error, status = invoke("--adopt", @candidate)
     refute status.success?
@@ -198,7 +243,7 @@ class RegionReleaseTest < Minitest::Test
       "Wrong publisher URL" => ->(lock, _) { lock["inputs"][1]["url"] = "https://example.com/service" },
       "license" => ->(lock, _) { lock["sources"]["statcan"].delete("license") },
       "GEOS" => ->(lock, _) { lock["toolchain"].delete("GEOS") },
-      "Invalid US country membership" => ->(_, report) { report["sourceMembership"].reject! { |r| r["STUSPS"] == "GU" } },
+      "Invalid US source inventory" => ->(_, report) { report["sourceMembership"].reject! { |r| r["STUSPS"] == "GU" } },
       "Invalid Canadian source member" => ->(_, report) { report["sourceMembership"].last["catalogID"] = "ca-ON" },
     }
     mutations.each do |diagnostic, mutate|
@@ -219,9 +264,9 @@ class RegionReleaseTest < Minitest::Test
   def test_failed_commit_restores_previous_install_before_retry
     cli("--adopt", @candidate)
     prior_manifest = File.binread(File.join(@resources, "regions.json"))
-    prior_geometry = File.binread(File.join(@resources, "regions/canada.twkb"))
+    prior_geometry = File.binread(File.join(@resources, "regions/ca-ON.twkb"))
     original = JSON.parse(Zlib::GzipReader.open(File.join(@candidate, "north-america.geojson.gz"), &:read))
-    original.fetch("features").first.fetch("properties")["name"] = "Updated country name"
+    original.fetch("features").first.fetch("properties")["name"] = "Updated state name"
     normalized = File.join(@candidate, "north-america.geojson.gz")
     Zlib::GzipWriter.open(normalized) { |gz| gz.write(JSON.generate(original)) }
     lock_path = File.join(@candidate, "sources.lock.json")
@@ -238,7 +283,7 @@ class RegionReleaseTest < Minitest::Test
       assert_raises(Errno::ENOSPC) { RegionRelease.new(root: @root, transaction: failing).run(["--adopt", @candidate]) }
     end
     assert_equal prior_manifest, File.binread(File.join(@resources, "regions.json"))
-    assert_equal prior_geometry, File.binread(File.join(@resources, "regions/canada.twkb"))
+    assert_equal prior_geometry, File.binread(File.join(@resources, "regions/ca-ON.twkb"))
     cli("--adopt", @candidate)
     cli("--check")
   end
@@ -256,7 +301,7 @@ class RegionReleaseTest < Minitest::Test
 
   def make_candidate
     geometry = { "type" => "Polygon", "coordinates" => [[[0, 0], [0, 1], [1, 1], [0, 0]]] }
-    data = [["united-states", "country", nil], ["canada", "country", nil]]
+    data = []
     US_TRACKING_CODES.each do |code|
       kind = { "DC" => "federalDistrict", "PR" => "territory" }.fetch(code, "state")
       data << ["us-#{code}", kind, "united-states"]
@@ -265,8 +310,8 @@ class RegionReleaseTest < Minitest::Test
       data << ["ca-#{code}", %w[NT NU YT].include?(code) ? "territory" : "province", "canada"]
     end
     features = data.map do |id, kind, parent|
-      properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => id != "united-states",
-                     "source" => id == "united-states" || parent == "united-states" ? "census" : "statcan" }
+      properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => true,
+                     "source" => parent == "united-states" ? "census" : "statcan" }
       properties["parentID"] = parent if parent
       { "type" => "Feature", "properties" => properties, "geometry" => geometry }
     end
@@ -309,7 +354,7 @@ class RegionReleaseTest < Minitest::Test
     end
     source = { "product" => "fixture", "publisher" => "publisher", "includes" => "polygons", "license" => "fixture", "referenceDate" => "2026-01-01" }
     {
-      "version" => 1, "usYear" => 2026, "caYear" => ca_year, "sources" => { "census" => source, "statcan" => source.merge("referenceDate" => "#{ca_year}-01-01") },
+      "version" => 2, "usYear" => 2026, "caYear" => ca_year, "sources" => { "census" => source, "statcan" => source.merge("referenceDate" => "#{ca_year}-01-01") },
       "toolchain" => { "python" => "3.12", "GEOS" => "3", "PROJ" => "9", "projectionDatabaseSHA256" => "a" * 64,
                        "projectionNetworkEnabled" => false, "packages" => %w[numpy pyproj pyshp shapely certifi].to_h { |name| [name, "1.0"] } },
       "conversion" => { "algorithm" => "simplify", "winding" => "CCW", "coordinateDecimals" => 7, "toleranceMetres" => 180,

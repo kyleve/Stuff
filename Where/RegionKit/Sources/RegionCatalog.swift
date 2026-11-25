@@ -7,7 +7,7 @@ public struct RegionCatalog: Sendable {
         case state, federalDistrict, territory, province, country, bloc
     }
 
-    /// A geographic unit with a drawable outline, including units that cannot be logged.
+    /// A geographic unit, including countries used to group subdivisions.
     public struct Node: Identifiable, Decodable, Hashable, Sendable {
         public struct ID: RawRepresentable, Codable, Hashable, Sendable {
             public let rawValue: String
@@ -24,15 +24,8 @@ public struct RegionCatalog: Sendable {
         public let name: String
         public let isLoggable: Bool
         fileprivate let localizationKey: String?
-        private let geometry: Geometry
-
-        private struct Geometry: Decodable, Hashable {
-            let file: String
-        }
-
-        public var geometryFile: String {
-            geometry.file
-        }
+        /// A physical resource. A tracked parent without one uses its children's coverage.
+        public let geometryFile: String?
 
         public var localizedName: String {
             if let localizationKey {
@@ -60,7 +53,7 @@ public struct RegionCatalog: Sendable {
         public let region: Region
         public let name: String
         public let localizationKey: String?
-        public let geometryFile: String
+        public let geometryFile: String?
     }
 
     /// Every node, including countries that serve only as parents.
@@ -94,14 +87,21 @@ public struct RegionCatalog: Sendable {
         }
         for node in nodes {
             guard !node.id.rawValue.isEmpty, node.id.rawValue != Region.other.rawValue,
-                  !node.name.isEmpty,
-                  node.geometryFile == (node.geometryFile as NSString).lastPathComponent,
-                  node.geometryFile.hasSuffix(".geojson") || node.geometryFile
-                  .hasSuffix(".twkb")
+                  !node.name.isEmpty
             else {
+                throw invalid("Invalid region identifier or name: \(node.id.rawValue)")
+            }
+            guard (node.kind == .country) == (node.geometryFile == nil) else {
                 throw invalid(
-                    "Invalid region identifier, name or geometry file: \(node.id.rawValue)",
+                    "Country nodes group geometry; other nodes require a file: \(node.id.rawValue)",
                 )
+            }
+            if let file = node.geometryFile {
+                guard file == (file as NSString).lastPathComponent,
+                      file.hasSuffix(".geojson") || file.hasSuffix(".twkb")
+                else {
+                    throw invalid("Invalid geometry file: \(file)")
+                }
             }
             guard byID.updateValue(node, forKey: node.id) == nil else {
                 throw invalid("Duplicate region identifier: \(node.id.rawValue)")
@@ -121,6 +121,11 @@ public struct RegionCatalog: Sendable {
             }
         }
         self.init(nodes: nodes, byID: byID)
+        for node in nodes
+            where node.isLoggable && node.geometryFile == nil && geometryNodes(for: node).isEmpty
+        {
+            throw invalid("Loggable region has no geometry: \(node.id.rawValue)")
+        }
     }
 
     public func node(id: Node.ID) -> Node? {
@@ -139,6 +144,13 @@ public struct RegionCatalog: Sendable {
     /// Immediate children in manifest order.
     public func children(of node: Node) -> [Node] {
         childrenByParent[node.id] ?? []
+    }
+
+    /// Physical members of this node's coverage in manifest order.
+    /// A file-backed node is complete. A tracked parent like Canada uses its subdivisions.
+    func geometryNodes(for node: Node) -> [Node] {
+        if node.geometryFile != nil { return [node] }
+        return children(of: node).flatMap(geometryNodes(for:))
     }
 
     /// Every loggable region in manifest order. The separate `.other` sentinel is omitted.
@@ -164,12 +176,13 @@ public struct RegionCatalog: Sendable {
     }
 
     static func geometryURL(for node: Node) -> URL? {
-        Bundle.module.url(
-            forResource: node.geometryFile,
+        guard let file = node.geometryFile else { return nil }
+        return Bundle.module.url(
+            forResource: file,
             withExtension: nil,
             subdirectory: "regions",
         )
-            ?? Bundle.module.url(forResource: node.geometryFile, withExtension: nil)
+            ?? Bundle.module.url(forResource: file, withExtension: nil)
     }
 }
 

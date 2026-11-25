@@ -43,7 +43,13 @@ struct PrimaryRegionSelectionModelTests {
         let model = PrimaryRegionSelectionModel()
         model.toggle(map.attributor.region(at: toronto))
         #expect(model.selectedRegions == [ontario])
-        #expect(map.geometry.visible(in: .world, width: 400).first?.region == .canada)
+        let visible = Set(map.geometry.visible(in: .world, width: 400).compactMap(\.region))
+        #expect(visible == [.canada, ontario])
+        model.toggle(.canada)
+        let quebec = try region("ca-QC")
+        #expect(model.selectedRegionCoveringMapArea(ontario) == ontario)
+        #expect(model.selectedRegionCoveringMapArea(quebec) == .canada)
+        #expect(!model.isSelected(quebec))
     }
 
     @Test func hostedPickerSelectsAndReopensCanadaAndOntario() async throws {

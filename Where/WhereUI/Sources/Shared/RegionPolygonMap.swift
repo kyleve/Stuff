@@ -2,22 +2,19 @@ import MapKit
 import RegionKit
 import SwiftUI
 
-/// Orders the country below its subdivisions and indexes polygon bounds once at
+/// Indexes polygon bounds once at
 /// load. The exact source rings remain available as the camera approaches an island.
 final class RegionMapGeometry: Sendable {
     private struct Part {
         let outline: RegionOutline
         let bounds: MKMapRect
         let extent: Double
-        let isCountry: Bool
     }
 
     private let parts: [Part]
     private let details = DetailCache()
 
     init(outlines: [RegionOutline]) {
-        let countries = Set(RegionCatalog.shared.nodes.filter { $0.kind == .country }
-            .compactMap(\.region))
         parts = outlines.compactMap { outline in
             guard let box = BoundingBox.enclosing([outline]) else { return nil }
             let northWest = MKMapPoint(CLLocationCoordinate2D(
@@ -46,7 +43,6 @@ final class RegionMapGeometry: Sendable {
                 outline: outline,
                 bounds: bounds,
                 extent: max(bounds.width, bounds.height),
-                isCountry: outline.region.map(countries.contains) ?? false,
             )
         }.sorted { $0.extent > $1.extent }
     }
@@ -75,19 +71,12 @@ final class RegionMapGeometry: Sendable {
         let visible = rect.insetBy(dx: -rect.width / 4, dy: -rect.height / 4)
         let west = visible.offsetBy(dx: -MKMapSize.world.width, dy: 0)
         let east = visible.offsetBy(dx: MKMapSize.world.width, dy: 0)
-        var countries: [Part] = []
-        var subdivisions: [Part] = []
-        for part in parts.prefix(while: { $0.extent >= minimumExtent }) {
-            guard title == nil || title == part.outline.title else { continue }
-            guard visible.intersects(part.bounds) || west.intersects(part.bounds) || east
-                .intersects(part.bounds) else { continue }
-            if part.isCountry {
-                countries.append(part)
-            } else {
-                subdivisions.append(part)
-            }
+        return parts.prefix(while: { $0.extent >= minimumExtent }).filter { part in
+            (title == nil || title == part.outline.title)
+                &&
+                (visible.intersects(part.bounds) || west.intersects(part.bounds) || east
+                    .intersects(part.bounds))
         }
-        return countries + subdivisions
     }
 
     /// Retain the detailed coastlines at the current zoom while the map pans.

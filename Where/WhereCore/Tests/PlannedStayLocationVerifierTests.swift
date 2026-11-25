@@ -6,7 +6,7 @@ import Testing
 struct PlannedStayLocationVerifierTests {
     @Test func acceptsCountryStayInsideTrackedProvince() async throws {
         let fixture = CanadianAttributionFixture.self
-        let attributor = try fixture.attributor(tracking: [.canada, fixture.ontario])
+        let attributor = fixture.countryAndOntario
         #expect(attributor.region(at: fixture.toronto) == fixture.ontario)
         let (verifier, source) = try makeVerifier(attributor: attributor)
         source.setNextRequestedLocation(sample(at: fixture.toronto))

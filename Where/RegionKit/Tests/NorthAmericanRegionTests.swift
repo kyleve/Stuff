@@ -50,14 +50,18 @@ struct NorthAmericanRegionTests {
         #expect(RegionAttributor(for: [ontario]).region(at: vancouver) == .other)
     }
 
-    @Test func usCountryUnitesStatesAndUntrackedTerritories() async throws {
+    @Test func countriesHaveNoGeometryFilesAndUSTerritoriesStayUntracked() throws {
         let catalog = RegionCatalog.shared
         let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
         #expect(catalog.children(of: us).count == 52)
         #expect(us.region == nil)
-        let outlines = await RegionGeometryCatalog.outlines(for: us)
-        #expect(!outlines.isEmpty && outlines.allSatisfy { $0.region == nil })
-        let polygons = outlines.map { GeoPolygon(vertices: $0.coordinates, holes: $0.holes) }
+        let canada = try #require(catalog.node(for: .canada))
+        #expect(us.geometryFile == nil && canada.geometryFile == nil)
+        #expect(RegionCatalog.geometryURL(for: us) == nil && RegionCatalog
+            .geometryURL(for: canada) == nil)
+        #expect(catalog.nodes.compactMap(\.geometryFile).count == 66)
+        let storedUS = Region(unchecked: us.id.rawValue)
+        #expect(RegionAttributor(for: [storedUS]).loadedRegions.isEmpty)
         for (code, latitude, longitude) in [
             ("AS", -14.279, -170.701),
             ("GU", 13.4757, 144.7504),
@@ -66,15 +70,9 @@ struct NorthAmericanRegionTests {
         ] {
             let fix = Coordinate(latitude: latitude, longitude: longitude)
             #expect(Region(rawValue: "us-\(code)") == nil)
-            #expect(polygons.contains { $0.contains(fix) })
             #expect(RegionAttributor.all.region(at: fix) == .other)
         }
         let border = Coordinate(latitude: 39.7, longitude: -120.001)
-        let countryDistance = polygons.reduce(Double.infinity) { $1.distanceToBoundary(
-            from: border,
-            nearerThan: $0,
-        ) }
-        #expect(countryDistance > 10000)
         #expect(try #require(RegionAttributor.all.distanceToBoundary(
             of: .california,
             from: border,

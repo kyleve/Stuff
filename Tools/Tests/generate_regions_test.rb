@@ -19,7 +19,7 @@ class GenerateRegionsTest < Minitest::Test
     end
   end
 
-  def test_normalized_features_keep_country_geometry_and_only_explicit_parent_links
+  def test_metadata_only_countries_and_explicit_parent_links_survive_generation
     Dir.mktmpdir do |resources|
       generator = RegionGenerator.new(resources: resources)
       country = normalized("united-states", "country", false)
@@ -32,19 +32,22 @@ class GenerateRegionsTest < Minitest::Test
       refute manifest[1].fetch("isLoggable")
       assert_equal "country", manifest[1].fetch("kind")
       refute manifest.last.key?("parentID")
-      file = manifest[1].fetch("geometry").fetch("file")
-      assert_equal country.fetch("geometry"), JSON.parse(File.read(File.join(resources, "regions", file))).fetch("features").first.fetch("geometry")
+      assert_equal "us-CA.geojson", manifest.first.fetch("geometryFile")
+      assert_equal ["us-CA.geojson"], Dir.children(File.join(resources, "regions"))
+      refute manifest[1].key?("geometryFile")
+      refute manifest.last.key?("geometryFile")
 
       previous = generated_files(resources)
       [
         [state], [state, country, country], [normalized("other", "country", false)],
         [state, normalized("united-states", "country", false, "us-CA")],
-        [country.merge("geometry" => nil)],
+        [country.merge("geometry" => state.fetch("geometry"))],
+        [country, state.merge("geometry" => nil)],
       ].each do |invalid|
         assert_raises(ArgumentError) { generator.generate(invalid) }
         assert_equal previous, generated_files(resources)
       end
-      assert_raises(KeyError) { generator.generate([country.reject { |key, _| key == "geometry" }]) }
+      assert_raises(KeyError) { generator.generate([country, state.reject { |key, _| key == "geometry" }]) }
       assert_equal previous, generated_files(resources)
     end
   end
@@ -94,6 +97,7 @@ class GenerateRegionsTest < Minitest::Test
   def normalized(id, kind, loggable, parent = nil)
     properties = { "id" => id, "name" => id, "kind" => kind, "isLoggable" => loggable }
     properties["parentID"] = parent if parent
+    return { "properties" => properties } if kind == "country"
     feature(nil, [[[0, 0], [1, 0], [0, 1], [0, 0]]]).merge("properties" => properties)
   end
 

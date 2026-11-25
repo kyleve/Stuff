@@ -151,10 +151,13 @@ struct RegionPickerView: View {
 
     private func overlayStyle(for outline: RegionOutline) -> RegionMapOverlayStyle {
         let style = stylesheet.regionPicker
-        let selected = outline.region.map(model.isSelected) ?? false
+        let selection = outline.region.flatMap(model.selectedRegionCoveringMapArea)
+        let selected = selection != nil && selection == outline.region
         let tint = outline.region.map { regionStyles.style(for: $0).tint } ?? .gray
         return RegionMapOverlayStyle(
-            fill: tint.opacity(selected ? style.selectedFillOpacity : style.unselectedFillOpacity),
+            fill: selection
+                .map { regionStyles.style(for: $0).tint.opacity(style.selectedFillOpacity) }
+                ?? tint.opacity(style.unselectedFillOpacity),
             stroke: tint
                 .opacity(selected ? style.selectedStrokeOpacity : style.unselectedStrokeOpacity),
             lineWidth: selected ? style.selectedStrokeWidth : style.unselectedStrokeWidth,

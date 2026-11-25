@@ -266,11 +266,6 @@
         "sampledVertices": 256
       }
     },
-    "outline": {
-      "holes": 20,
-      "parts": 175300,
-      "vertices": 2651899
-    },
     "repairs": [
       {
         "after": {
@@ -1606,16 +1601,12 @@
       "source": []
     },
     "Charlotte Amalie": {
-      "candidate": [
-        "us-VI"
-      ],
+      "candidate": [],
       "lonLat": [
         -64.9307,
         18.3419
       ],
-      "source": [
-        "us-VI"
-      ]
+      "source": []
     },
     "Charlottetown": {
       "candidate": [
@@ -1678,16 +1669,12 @@
       ]
     },
     "Hagåtña": {
-      "candidate": [
-        "us-GU"
-      ],
+      "candidate": [],
       "lonLat": [
         144.7504,
         13.4757
       ],
-      "source": [
-        "us-GU"
-      ]
+      "source": []
     },
     "Halifax": {
       "candidate": [
@@ -2318,16 +2305,12 @@
       ]
     },
     "Pago Pago": {
-      "candidate": [
-        "us-AS"
-      ],
+      "candidate": [],
       "lonLat": [
         -170.701,
         -14.279
       ],
-      "source": [
-        "us-AS"
-      ]
+      "source": []
     },
     "Prairie Canada": {
       "candidate": [
@@ -2378,16 +2361,12 @@
       ]
     },
     "Saipan": {
-      "candidate": [
-        "us-MP"
-      ],
+      "candidate": [],
       "lonLat": [
         145.75,
         15.2
       ],
-      "source": [
-        "us-MP"
-      ]
+      "source": []
     },
     "St John's": {
       "candidate": [
@@ -2515,9 +2494,6 @@
       "STATEFP": "60",
       "STUSPS": "AS",
       "catalogID": null,
-      "coordinateOperations": {
-        "4269-to-4326": "proj=noop ellps=GRS80"
-      },
       "countryID": "united-states"
     },
     {
@@ -2614,9 +2590,6 @@
       "STATEFP": "66",
       "STUSPS": "GU",
       "catalogID": null,
-      "coordinateOperations": {
-        "4269-to-4326": "proj=noop ellps=GRS80"
-      },
       "countryID": "united-states"
     },
     {
@@ -2779,9 +2752,6 @@
       "STATEFP": "69",
       "STUSPS": "MP",
       "catalogID": null,
-      "coordinateOperations": {
-        "4269-to-4326": "proj=noop ellps=GRS80"
-      },
       "countryID": "united-states"
     },
     {
@@ -3032,9 +3002,6 @@
       "STATEFP": "78",
       "STUSPS": "VI",
       "catalogID": null,
-      "coordinateOperations": {
-        "4269-to-4326": "proj=noop ellps=GRS80"
-      },
       "countryID": "united-states"
     },
     {
@@ -3214,13 +3181,9 @@
     "coordinateOperations": {
       "26963-to-4326": "proj=pipeline step inv proj=tmerc lat_0=21.1666666666667 lon_0=-158 k=0.99999 x_0=500000 y_0=0 ellps=GRS80 step proj=push v_3 step proj=cart ellps=GRS80 step proj=helmert x=1 y=1 z=-1 step inv proj=cart ellps=WGS84 step proj=pop v_3 step proj=unitconvert xy_in=rad xy_out=deg",
       "32161-to-4326": "proj=pipeline step inv proj=lcc lat_0=17.8333333333333 lon_0=-66.4333333333333 lat_1=18.4333333333333 lat_2=18.0333333333333 x_0=200000 y_0=200000 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg",
-      "32655-to-4326": "proj=pipeline step inv proj=utm zone=55 ellps=WGS84 step proj=unitconvert xy_in=rad xy_out=deg",
-      "32702-to-4326": "proj=pipeline step inv proj=utm zone=2 south ellps=WGS84 step proj=unitconvert xy_in=rad xy_out=deg",
       "3338-to-4326": "proj=pipeline step inv proj=aea lat_0=50 lon_0=-154 lat_1=55 lat_2=65 x_0=0 y_0=0 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg",
       "4326-to-26963": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=push v_3 step proj=cart ellps=WGS84 step proj=helmert x=-1 y=-1 z=1 step inv proj=cart ellps=GRS80 step proj=pop v_3 step proj=tmerc lat_0=21.1666666666667 lon_0=-158 k=0.99999 x_0=500000 y_0=0 ellps=GRS80",
       "4326-to-32161": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=lcc lat_0=17.8333333333333 lon_0=-66.4333333333333 lat_1=18.4333333333333 lat_2=18.0333333333333 x_0=200000 y_0=200000 ellps=GRS80",
-      "4326-to-32655": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=utm zone=55 ellps=WGS84",
-      "4326-to-32702": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=utm zone=2 south ellps=WGS84",
       "4326-to-3338": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=aea lat_0=50 lon_0=-154 lat_1=55 lat_2=65 x_0=0 y_0=0 ellps=GRS80",
       "4326-to-5070": "proj=pipeline step proj=unitconvert xy_in=deg xy_out=rad step proj=aea lat_0=23 lon_0=-96 lat_1=29.5 lat_2=45.5 x_0=0 y_0=0 ellps=GRS80",
       "5070-to-4326": "proj=pipeline step inv proj=aea lat_0=23 lon_0=-96 lat_1=29.5 lat_2=45.5 x_0=0 y_0=0 ellps=GRS80 step proj=unitconvert xy_in=rad xy_out=deg"
@@ -3283,26 +3246,6 @@
           "holes": 0,
           "parts": 1,
           "vertices": 29787
-        },
-        "sampledVertices": 256
-      },
-      "AS": {
-        "candidate": {
-          "holes": 0,
-          "parts": 4,
-          "vertices": 221
-        },
-        "maximumSampledMetres": 56.13,
-        "projectionEPSG": 32702,
-        "raw": {
-          "holes": 0,
-          "parts": 4,
-          "vertices": 505
-        },
-        "repairedSource": {
-          "holes": 0,
-          "parts": 4,
-          "vertices": 505
         },
         "sampledVertices": 256
       },
@@ -3463,26 +3406,6 @@
           "holes": 0,
           "parts": 1,
           "vertices": 30761
-        },
-        "sampledVertices": 256
-      },
-      "GU": {
-        "candidate": {
-          "holes": 0,
-          "parts": 1,
-          "vertices": 166
-        },
-        "maximumSampledMetres": 86.72,
-        "projectionEPSG": 32655,
-        "raw": {
-          "holes": 0,
-          "parts": 1,
-          "vertices": 608
-        },
-        "repairedSource": {
-          "holes": 0,
-          "parts": 1,
-          "vertices": 608
         },
         "sampledVertices": 256
       },
@@ -3763,26 +3686,6 @@
           "holes": 0,
           "parts": 1,
           "vertices": 20323
-        },
-        "sampledVertices": 256
-      },
-      "MP": {
-        "candidate": {
-          "holes": 0,
-          "parts": 12,
-          "vertices": 512
-        },
-        "maximumSampledMetres": 64.59,
-        "projectionEPSG": 32655,
-        "raw": {
-          "holes": 0,
-          "parts": 12,
-          "vertices": 818
-        },
-        "repairedSource": {
-          "holes": 0,
-          "parts": 12,
-          "vertices": 818
         },
         "sampledVertices": 256
       },
@@ -4226,26 +4129,6 @@
         },
         "sampledVertices": 256
       },
-      "VI": {
-        "candidate": {
-          "holes": 0,
-          "parts": 2,
-          "vertices": 242
-        },
-        "maximumSampledMetres": 79.67,
-        "projectionEPSG": 32161,
-        "raw": {
-          "holes": 0,
-          "parts": 2,
-          "vertices": 491
-        },
-        "repairedSource": {
-          "holes": 0,
-          "parts": 2,
-          "vertices": 491
-        },
-        "sampledVertices": 256
-      },
       "VT": {
         "candidate": {
           "holes": 0,
@@ -4346,11 +4229,6 @@
         },
         "sampledVertices": 256
       }
-    },
-    "outline": {
-      "holes": 0,
-      "parts": 98,
-      "vertices": 23960
     },
     "repairs": []
   }

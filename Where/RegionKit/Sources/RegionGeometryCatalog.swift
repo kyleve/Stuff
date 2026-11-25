@@ -7,8 +7,7 @@ public enum RegionGeometryKind: String, CaseIterable, Sendable, Hashable {
     /// What a `RegionAttributor` actually loaded and uses to attribute
     /// coordinates — the app's tracked subset.
     case attribution
-    /// The bundled outlines of every loggable region, regardless of which
-    /// regions the caller's attributor loaded.
+    /// The bundled physical boundaries, each labeled with its source region.
     case source
 }
 
@@ -111,29 +110,12 @@ public enum RegionGeometryCatalog {
         }
     }
 
-    /// Reads a country or other catalog node on demand, including countries that cannot be logged.
-    public static func outlines(for node: RegionCatalog.Node) async -> [RegionOutline] {
-        if let region = node.region { return await outlines(for: region) }
-        do {
-            return try await RegionCache.shared.outlines(for: node)
-        } catch {
-            RegionLog.geometryCatalog.nodeLoadFailed(
-                nodeID: .restricted(.location, node.id),
-                error: .restricted(.errorDetails, error),
-            )
-            assertionFailure(
-                "Failed to load drawable outlines for \(node.id.rawValue): \(error.localizedDescription)",
-            )
-            return []
-        }
-    }
-
     /// Drawable outlines for `kind`.
     ///
     /// - `.attribution` reflects exactly what `attributor` loaded (the tracked
     ///   subset) — the caller passes the attributor rather than the catalog
     ///   reaching for a global, so the viewer shows the regions it cares about.
-    /// - `.source` decodes every available region from the catalog and ignores
+    /// - `.source` decodes each physical file in the catalog and ignores
     ///   `attributor`.
     ///
     /// `.source` decoding runs on its cache actor. `.attribution` maps the
@@ -158,12 +140,12 @@ public enum RegionGeometryCatalog {
     /// already-resolved polygons.
     private static func attributionOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
         var builder = OutlineBuilder()
-        for entry in attributor.loadedRegionPolygons {
-            let title = entry.region.localizedName
-            for polygon in entry.polygons {
+        attributor.forEachDrawableMember { region, member in
+            let title = region.localizedName
+            for polygon in member.polygons {
                 builder.add(
                     title: title,
-                    region: entry.region,
+                    region: region,
                     coordinates: polygon.vertices,
                     holes: polygon.holes,
                 )
@@ -174,13 +156,13 @@ public enum RegionGeometryCatalog {
 
     // MARK: - Source
 
-    /// Decode every available region's bundled per-region geometry at full
+    /// Decode each bundled geometry file at full
     /// fidelity, each outline tagged with the `Region` it belongs to and titled
     /// by its `localizedName`.
     static func buildSourceOutlines() throws -> [RegionOutline] {
         try RegionLog.geometryCatalog.measure(.buildSourceOutlines, budget: .seconds(2)) {
             var builder = OutlineBuilder()
-            for node in RegionCatalog.shared.nodes where node.isLoggable {
+            for node in RegionCatalog.shared.nodes where node.geometryFile != nil {
                 try builder.add(node: node, resourceURL: RegionCatalog.geometryURL(for: node))
             }
             return builder.outlines
@@ -228,31 +210,36 @@ public enum RegionGeometryCatalog {
                 throw RegionGeometryError.missingResource(region.rawValue)
             }
             guard node.isLoggable else { return [] }
-            return try load(node)
-        }
-
-        func outlines(for node: RegionCatalog.Node) throws -> [RegionOutline] {
-            guard let catalogNode = catalog.node(id: node.id) else {
-                throw RegionGeometryError.missingResource(node.id.rawValue)
-            }
-            return try load(catalogNode)
-        }
-
-        private func load(_ node: RegionCatalog.Node) throws -> [RegionOutline] {
             if let cached = cached[node.id] { return cached }
-            let span: RegionGeometryCatalogLog.SpanName = node.region
-                .map { .loadRegionOutlines($0) }
-                ?? .loadNodeOutlines(node.id)
-            let outlines = try RegionLog.geometryCatalog.measure(span, budget: .seconds(1)) {
+            let outlines = try RegionLog.geometryCatalog.measure(
+                .loadRegionOutlines(region),
+                budget: .seconds(1),
+            ) {
+                if node.geometryFile != nil { return try physicalOutlines(for: node) }
                 var builder = OutlineBuilder()
-                try builder.add(node: node, resourceURL: resourceURL(node))
-                guard !builder.outlines.isEmpty else {
-                    throw RegionGeometryError.emptyResource(node.geometryFile)
+                let title = node.localizedName
+                for member in catalog.geometryNodes(for: node) {
+                    for outline in try physicalOutlines(for: member) {
+                        builder.add(
+                            title: title,
+                            region: region,
+                            coordinates: outline.coordinates,
+                            holes: outline.holes,
+                        )
+                    }
                 }
                 return builder.outlines
             }
             cached[node.id] = outlines
             return outlines
+        }
+
+        private func physicalOutlines(for node: RegionCatalog.Node) throws -> [RegionOutline] {
+            if let cached = cached[node.id] { return cached }
+            var builder = OutlineBuilder()
+            try builder.add(node: node, resourceURL: resourceURL(node))
+            cached[node.id] = builder.outlines
+            return builder.outlines
         }
     }
 }
@@ -265,8 +252,11 @@ private struct OutlineBuilder {
     private var nextIndex = 0
 
     mutating func add(node: RegionCatalog.Node, resourceURL: URL?) throws {
-        guard let resourceURL else { throw RegionGeometryError.missingResource(node.geometryFile) }
+        guard let resourceURL else {
+            throw RegionGeometryError.missingResource(node.geometryFile ?? node.id.rawValue)
+        }
         let title = node.localizedName
+        let start = outlines.count
         for polygon in try RegionGeometryReader.polygons(at: resourceURL) {
             add(
                 title: title,
@@ -274,6 +264,9 @@ private struct OutlineBuilder {
                 coordinates: polygon.vertices,
                 holes: polygon.holes,
             )
+        }
+        guard outlines.count > start else {
+            throw RegionGeometryError.emptyResource(resourceURL.lastPathComponent)
         }
     }
 

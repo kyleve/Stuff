@@ -126,19 +126,24 @@ class BoundaryConversionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "topology has changed"):
                 boundaries.canadian_sources(fixture, fixture.year)
 
-    def test_us_archive_rejects_missing_country_only_territory(self):
+    def test_us_archive_validates_all_records_without_converting_untracked_territories(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             base = path / "tl_2026_us_state"
             with shapefile.Writer(str(base)) as writer:
                 for field in ("STUSPS", "NAME", "STATEFP", "GEOID"):
                     writer.field(field, "C", size=16)
-                for index, code in enumerate(sorted(boundaries.US_CODES - {"VI"})):
+                for index, code in enumerate(sorted(boundaries.US_CODES)):
                     fips = f"{index:02d}"
                     writer.record(code, code, fips, fips)
-                    writer.poly(
-                        [[(-75, 40), (-75, 41), (-74, 41), (-74, 40), (-75, 40)]]
-                    )
+                    if code in boundaries.UNTRACKED_US_CODES:
+                        writer.null()
+                    else:
+                        writer.poly(
+                            [[(-75, 40), (-75, 41), (-74, 41), (-74, 40), (-75, 40)]]
+                        )
             base.with_suffix(".prj").write_text(pyproj.CRS.from_epsg(4269).to_wkt())
             archive_path = path / "state.zip"
             with ZipFile(archive_path, "w") as archive:
@@ -146,8 +151,14 @@ class BoundaryConversionTests(unittest.TestCase):
                     archive.write(source, source.name)
             cache = Mock()
             cache.get.return_value = archive_path
-            with self.assertRaisesRegex(ValueError, "membership changed"):
-                boundaries.us_members(cache, 2026)
+            members, inventory = boundaries.us_members(cache, 2026)
+            self.assertEqual(52, len(members))
+            self.assertEqual(56, len(inventory))
+            excluded = {row["STUSPS"] for row in inventory if row["catalogID"] is None}
+            self.assertEqual(boundaries.UNTRACKED_US_CODES, excluded)
+            with patch.object(boundaries, "US_CODES", boundaries.US_CODES | {"NEW"}):
+                with self.assertRaisesRegex(ValueError, "membership changed"):
+                    boundaries.us_members(cache, 2026)
 
     def test_replay_rejects_modified_same_size_bytes_without_fetching(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -173,7 +184,7 @@ class BoundaryConversionTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "corrupt cached input"):
                     cache.get("fixture", pins[0]["url"])
 
-    def test_dissolve_preserves_hole_remote_island_and_source_only_member(self):
+    def test_only_subdivisions_are_normalized_and_holes_and_islands_survive(self):
         mainland = Polygon(
             [(-101, 40), (-100, 40), (-100, 41), (-101, 41), (-101, 40)],
             [
@@ -197,9 +208,9 @@ class BoundaryConversionTests(unittest.TestCase):
                 5070,
             ),
             boundaries.Member(
-                "AS",
+                "MO",
                 boundaries.node(
-                    None, "American Samoa", "territory", "census", "united-states"
+                    "us-MO", "Missouri", "state", "census", "united-states"
                 ),
                 {},
                 neighbor,
@@ -209,26 +220,25 @@ class BoundaryConversionTests(unittest.TestCase):
         probes = {
             "hole": (-100.6, 40.4),
             "island": (-98.45, 40.05),
-            "source-only": (-99.5, 40.5),
+            "neighbor": (-99.5, 40.5),
         }
-        features, report, source, candidate = boundaries.convert_country(
+        features, report, source, candidate = boundaries.convert_subdivisions(
             members, "united-states", probes
         )
-        self.assertEqual(
-            ["us-KS", "united-states"], [pair[0]["id"] for pair in features]
-        )
+        self.assertEqual(["us-KS", "us-MO"], [pair[0]["id"] for pair in features])
         self.assertEqual(
             [source[name] for name in probes], [candidate[name] for name in probes]
         )
         self.assertEqual(
             {"parts": 2, "holes": 1},
-            {k: report["outline"][k] for k in ("parts", "holes")},
+            {k: report["members"]["KS"]["candidate"][k] for k in ("parts", "holes")},
         )
-        country = features[-1][1]
-        self.assertTrue(country.contains(Point(-100, 40.5)))
-        self.assertFalse(country.covers(Point(*probes["hole"])))
-        self.assertTrue(country.covers(Point(*probes["island"])))
-        self.assertTrue(country.covers(Point(*probes["source-only"])))
+        self.assertNotIn("outline", report)
+        kansas, missouri = (feature[1] for feature in features)
+        self.assertFalse(kansas.covers(Point(*probes["hole"])))
+        self.assertTrue(kansas.covers(Point(*probes["island"])))
+        self.assertFalse(kansas.covers(Point(*probes["neighbor"])))
+        self.assertTrue(missouri.covers(Point(*probes["neighbor"])))
 
     def test_rejects_an_unsplit_antimeridian_edge(self):
         with self.assertRaisesRegex(ValueError, "antimeridian"):

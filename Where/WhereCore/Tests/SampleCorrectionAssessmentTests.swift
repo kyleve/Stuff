@@ -126,17 +126,22 @@ struct SampleCorrectionAssessmentTests {
     }
 
     @Test func trackedCountryOutsideProvinceIsAlreadyResolved() throws {
-        let ontario = CanadianAttributionFixture.ontario
+        let fixture = CanadianAttributionFixture.self
+        let west = fixture.ontarioSide
+        let east = fixture.quebecSide
         let samples = [
-            F.point(101, minutes: 0, longitude: -79.001, latitude: 44),
-            F.point(102, minutes: 5, longitude: -78.9995, latitude: 44),
-            F.point(103, minutes: 10, longitude: -79.001, latitude: 44),
+            F.point(101, minutes: 0, longitude: west.longitude, latitude: west.latitude),
+            F.point(102, minutes: 5, longitude: east.longitude, latitude: east.latitude),
+            F.point(103, minutes: 10, longitude: west.longitude, latitude: west.latitude),
         ]
-        let both = try CanadianAttributionFixture.attributor(tracking: [.canada, ontario])
+        let both = fixture.countryAndOntario
         #expect(F.reviews(samples, attributor: both).isEmpty)
-        let provinceOnly = try CanadianAttributionFixture.attributor(tracking: [ontario])
+        let provinceOnly = fixture.ontarioOnly
         let proposal = try #require(F.reviews(samples, attributor: provinceOnly).first?.proposal)
-        #expect(proposal.edits == [.init(sampleID: samples[1].id, replacementRegions: [ontario])])
+        #expect(proposal.edits == [.init(
+            sampleID: samples[1].id,
+            replacementRegions: [fixture.ontario],
+        )])
     }
 
     @Test(arguments: [false, true])

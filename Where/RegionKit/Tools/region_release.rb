@@ -17,7 +17,7 @@ class RegionRelease
   CANADA_CODES = %w[10 11 12 13 24 35 46 47 48 59 60 61 62]
     .zip(%w[NL PE NS NB QC ON MB SK AB BC YT NT NU]).to_h.freeze
   PROVINCES = CANADA_CODES.values.sort.freeze
-  US_COUNTRY_ONLY = %w[AS GU MP VI].freeze
+  US_UNTRACKED_CODES = %w[AS GU MP VI].freeze
   YEARS = /\A20[0-9]{2}\z/
   SHA256 = /\A[a-f0-9]{64}\z/
 
@@ -137,7 +137,7 @@ class RegionRelease
 
   def validate_inputs(dir)
     lock = JSON.parse(File.binread(regular_file(dir, "sources.lock.json")))
-    raise "Unsupported release lock version" unless lock.fetch("version") == 1
+    raise "Unsupported release lock version; refresh these vintages to generate a subdivision-only release" unless lock.fetch("version") == 2
     validate_provenance(lock)
     validate_pins(lock)
     { "normalized" => INPUTS[0], "report" => INPUTS[1] }.each do |key, name|
@@ -223,18 +223,18 @@ class RegionRelease
   def validate_membership(members, ca_year)
     us, canada = members.partition { |row| row.fetch("countryID") == "united-states" }
     us_codes = us.map { |row| row.fetch("STUSPS") }
-    unless us_codes.sort == (US_TRACKING_CODES + US_COUNTRY_ONLY).sort && us.map { |row| row.fetch("STATEFP") }.uniq.size == us.size
-      raise "Invalid US country membership"
+    unless us_codes.sort == (US_TRACKING_CODES + US_UNTRACKED_CODES).sort && us.map { |row| row.fetch("STATEFP") }.uniq.size == us.size
+      raise "Invalid US source inventory"
     end
     us.each do |row|
       code = row.fetch("STUSPS")
       fips = row.fetch("STATEFP")
-      expected = US_COUNTRY_ONLY.include?(code) ? nil : "us-#{code}"
+      expected = US_UNTRACKED_CODES.include?(code) ? nil : "us-#{code}"
       unless /\A\d{2}\z/.match?(fips) && row.fetch("GEOID") == fips && row.fetch("catalogID") == expected
         raise "Invalid US source member #{code}"
       end
     end
-    raise "Invalid Canadian country membership" unless canada.map { |row| row.fetch("PRUID") }.sort == CANADA_CODES.keys.sort
+    raise "Invalid Canadian source inventory" unless canada.map { |row| row.fetch("PRUID") }.sort == CANADA_CODES.keys.sort
     canada.each do |row|
       uid = row.fetch("PRUID")
       code = CANADA_CODES.fetch(uid)
@@ -305,20 +305,27 @@ class RegionRelease
       raise "Wrong source for #{id}" unless node.fetch("source") == source
       raise "Wrong kind for #{id}" unless node.fetch("kind") == kind
       raise "Wrong eligibility for #{id}" unless node.fetch("isLoggable") == (id != "united-states")
+      if kind == "country"
+        raise "Unexpected geometry for #{id}" if node.key?("geometryFile")
+        next
+      end
       file = id + (source == "original" ? ".geojson" : ".twkb")
-      raise "Unexpected geometry for #{id}" unless node.fetch("geometry").fetch("file") == file
+      raise "Unexpected geometry for #{id}" unless node.fetch("geometryFile") == file
       regular_file(File.join(resources, "regions"), file)
     end
+    expected_files = records.filter_map { |node| node["geometryFile"] }
+    raise "Unexpected geometry files in resources" unless Dir.children(File.join(resources, "regions")).sort == expected_files.sort
   end
 
   def bundle_inventory(resources)
     rows = JSON.parse(File.read(File.join(resources, "regions.json")))
-    sizes = rows.to_h do |node|
-      file = File.join(resources, "regions", node.fetch("geometry").fetch("file"))
+    physical = rows.select { |node| node.key?("geometryFile") }
+    sizes = physical.to_h do |node|
+      file = File.join(resources, "regions", node.fetch("geometryFile"))
       [node.fetch("id"), File.size(file)]
     end
-    available = rows.select { |node| node.fetch("isLoggable") }.map { |node| node.fetch("id") }
-    defaults = %w[us-CA us-NY canada european-union]
+    available = physical.select { |node| node.fetch("isLoggable") }.map { |node| node.fetch("id") }
+    defaults = %w[us-CA us-NY european-union] + physical.filter_map { |node| node.fetch("id") if node["parentID"] == "canada" }
     { "allBytes" => sizes.values.sum, "loggableBytes" => sizes.values_at(*available).sum,
       "defaultBytes" => sizes.values_at(*defaults).sum, "largestID" => sizes.max_by(&:last).first,
       "bytesByID" => sizes }

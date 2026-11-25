@@ -6575,7 +6575,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The bundled source boundaries for every available region."
+            "value" : "The boundaries in the bundled source files."
           }
         }
       }

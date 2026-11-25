@@ -52,12 +52,10 @@ extension RegionAttributing {
 /// ties between matching regions that have no ancestor relationship.
 ///
 /// An attributor is built for a **specific set of regions** and loads only
-/// those regions' bundled geometry (one resource per
-/// region, named by ``RegionCatalog``), so we never parse regions we don't
-/// track. Anything outside every loaded
-/// region (and `.other` itself, which has no geometry) is `.other`.
+/// their physical geometry. A tracked parent references the same child polygons
+/// as its tracked subdivisions. Anything outside the tracked coverage is `.other`.
 public struct RegionAttributor: RegionAttributing {
-    private let regionPolygons: [RegionPolygons]
+    private let trackedGeometry: [TrackedGeometry]
     /// Only ancestors and descendants whose polygons were requested participate.
     private let loadedDescendants: [Region: Set<Region>]
 
@@ -88,15 +86,21 @@ public struct RegionAttributor: RegionAttributing {
 
     init(for regions: [Region], catalog: RegionCatalog, geometryURL: (RegionCatalog.Node) -> URL?) {
         self.init(
-            regionPolygons: Self
+            trackedGeometry: Self
                 .loadPolygons(for: regions, catalog: catalog, geometryURL: geometryURL),
             catalog: catalog,
         )
     }
 
     init(regionPolygons: [RegionPolygons], catalog: RegionCatalog = .shared) {
-        self.regionPolygons = regionPolygons
-        let loaded = Set(regionPolygons.map(\.region))
+        self.init(trackedGeometry: regionPolygons.map {
+            TrackedGeometry(region: $0.region, members: [$0])
+        }, catalog: catalog)
+    }
+
+    private init(trackedGeometry: [TrackedGeometry], catalog: RegionCatalog) {
+        self.trackedGeometry = trackedGeometry
+        let loaded = Set(trackedGeometry.map(\.region))
         var descendants: [Region: Set<Region>] = [:]
         for region in loaded {
             var ancestor = catalog.node(for: region).flatMap(catalog.parent(of:))
@@ -110,36 +114,45 @@ public struct RegionAttributor: RegionAttributing {
         loadedDescendants = descendants
     }
 
-    /// The loaded polygons per region, exposed for the developer region-map
-    /// viewer (`RegionGeometryCatalog`). Internal on purpose: callers outside
-    /// `RegionKit` consume drawable outlines via
-    /// `RegionGeometryCatalog.outlines(for:)`, never raw `RegionPolygons`.
-    var loadedRegionPolygons: [RegionPolygons] {
-        regionPolygons
+    /// Resolve a drawable member to its most specific tracked owner, just as
+    /// attribution does. A picker that offers every subdivision draws each file once.
+    func forEachDrawableMember(_ visit: (Region, RegionPolygons) -> Void) {
+        var owners: [Region: Set<Region>] = [:]
+        for entry in trackedGeometry {
+            for member in entry.members {
+                owners[member.region, default: []].insert(entry.region)
+            }
+        }
+        let preferred = owners.compactMapValues { winner(in: $0)?.region }
+        for entry in trackedGeometry {
+            for member in entry.members where preferred[member.region] == entry.region {
+                visit(entry.region, member)
+            }
+        }
     }
 
     /// The regions this attributor loaded, in load order (excludes `.other`).
     public var loadedRegions: [Region] {
-        regionPolygons.map(\.region)
+        trackedGeometry.map(\.region)
     }
 
     public func region(at coordinate: Coordinate) -> Region {
         winningEntry(at: coordinate)?.region ?? .other
     }
 
-    private func winningEntry(at coordinate: Coordinate) -> RegionPolygons? {
+    private func winningEntry(at coordinate: Coordinate) -> TrackedGeometry? {
         guard !loadedDescendants.isEmpty else {
-            return regionPolygons.first { $0.contains(coordinate) }
+            return trackedGeometry.first { $0.contains(coordinate) }
         }
         return winner(in: matches(at: coordinate))
     }
 
     private func matches(at coordinate: Coordinate) -> Set<Region> {
-        Set(regionPolygons.lazy.filter { $0.contains(coordinate) }.map(\.region))
+        Set(trackedGeometry.lazy.filter { $0.contains(coordinate) }.map(\.region))
     }
 
-    private func winner(in matches: Set<Region>) -> RegionPolygons? {
-        regionPolygons.first {
+    private func winner(in matches: Set<Region>) -> TrackedGeometry? {
+        trackedGeometry.first {
             matches.contains($0.region) && loadedDescendants[$0.region]?
                 .isDisjoint(with: matches) != false
         }
@@ -152,7 +165,7 @@ public struct RegionAttributor: RegionAttributing {
         // A competing boundary can change the winner inside this outline only
         // where their bounds overlap. Use the same ancestor and priority rules
         // on both sides, e.g. crossing into Ontario can displace Canada.
-        for entry in regionPolygons
+        for entry in trackedGeometry
             where entry.region != match.region && entry.boundingBox.overlaps(match.boundingBox)
         {
             let acrossEdge = matches.symmetricDifference([entry.region])
@@ -165,7 +178,7 @@ public struct RegionAttributor: RegionAttributing {
 
     public func distance(to region: Region, from coordinate: Coordinate) -> Double? {
         if region == .other { return self.region(at: coordinate) == .other ? 0 : nil }
-        guard let entry = regionPolygons.first(where: { $0.region == region }) else { return nil }
+        guard let entry = trackedGeometry.first(where: { $0.region == region }) else { return nil }
         return entry.contains(coordinate) ? 0 : entry.distanceToBoundary(from: coordinate)
     }
 
@@ -173,7 +186,7 @@ public struct RegionAttributor: RegionAttributing {
     /// `region`'s loaded polygons. Returns `nil` for regions this attributor
     /// didn't load (including `.other`).
     public func distanceToBoundary(of region: Region, from coordinate: Coordinate) -> Double? {
-        guard let entry = regionPolygons.first(where: { $0.region == region }) else { return nil }
+        guard let entry = trackedGeometry.first(where: { $0.region == region }) else { return nil }
         return entry.distanceToBoundary(from: coordinate)
     }
 
@@ -189,43 +202,110 @@ public struct RegionAttributor: RegionAttributing {
         for regions: [Region],
         catalog: RegionCatalog,
         geometryURL: (RegionCatalog.Node) -> URL?,
-    ) -> [RegionPolygons] {
-        var entries: [RegionPolygons] = []
+    ) -> [TrackedGeometry] {
+        var entries: [TrackedGeometry] = []
+        var members: [RegionCatalog.Node.ID: RegionPolygons] = [:]
+        var requested: Set<Region> = []
         logger.measure(.loadPolygons, budget: .seconds(1)) {
-            for region in regions {
-                guard region != .other else { continue }
-                let node = catalog.node(id: .init(rawValue: region.rawValue))
-                // A round-tripped ID can name an internal country. Only an
-                // explicit geometry-catalog request may load that outline.
-                guard node?.isLoggable != false else { continue }
-                guard let node, let url = geometryURL(node) else {
+            for region in regions where region != .other && requested.insert(region).inserted {
+                guard let node = catalog.node(id: .init(rawValue: region.rawValue)) else {
                     logger.missingGeometry(region: .restricted(.location, region))
-                    assertionFailure("Missing bundled geometry for region \(region.rawValue)")
+                    assertionFailure("Missing bundled region \(region.rawValue)")
                     continue
                 }
-                do {
-                    let polygons = try logger.measure(.loadRegion(region)) {
-                        try RegionGeometryReader.polygons(at: url)
-                    }
-                    guard !polygons.isEmpty else {
-                        logger.emptyPolygons(region: .restricted(.location, region))
-                        assertionFailure("Region \(region.rawValue) decoded no polygons")
-                        continue
-                    }
-                    entries.append(RegionPolygons(region: region, polygons: polygons))
-                } catch {
-                    logger.decodeFailed(
-                        region: .restricted(.location, region),
-                        error: .restricted(.errorDetails, error),
-                    )
-                    assertionFailure(
-                        "Failed to decode bundled geometry for region \(region.rawValue): \(error)",
-                    )
+                guard node.isLoggable else { continue }
+                let sources = catalog.geometryNodes(for: node)
+                let polygons = sources.compactMap { source -> RegionPolygons? in
+                    if let cached = members[source.id] { return cached }
+                    let member = loadMember(source, url: geometryURL(source))
+                    members[source.id] = member
+                    return member
+                }
+                if !polygons.isEmpty, polygons.count == sources.count {
+                    entries.append(TrackedGeometry(region: region, members: polygons))
                 }
             }
         }
         logger.loaded(regionCount: .shared(.count, entries.count))
         return entries
+    }
+
+    private static func loadMember(_ node: RegionCatalog.Node, url: URL?) -> RegionPolygons? {
+        let region = Region(unchecked: node.id.rawValue)
+        guard let url else {
+            logger.missingGeometry(region: .restricted(.location, region))
+            assertionFailure("Missing bundled geometry for region \(region.rawValue)")
+            return nil
+        }
+        do {
+            let polygons = try logger.measure(.loadRegion(region)) {
+                try RegionGeometryReader.polygons(at: url)
+            }
+            guard !polygons.isEmpty else {
+                logger.emptyPolygons(region: .restricted(.location, region))
+                assertionFailure("Region \(region.rawValue) decoded no polygons")
+                return nil
+            }
+            return RegionPolygons(region: region, polygons: polygons)
+        } catch {
+            logger.decodeFailed(
+                region: .restricted(.location, region),
+                error: .restricted(.errorDetails, error),
+            )
+            assertionFailure(
+                "Failed to decode bundled geometry for region \(region.rawValue): \(error)",
+            )
+            return nil
+        }
+    }
+}
+
+/// The geometry referenced by one tracking choice. Members share their decoded
+/// coordinates and spatial indexes with individually tracked subdivisions.
+struct TrackedGeometry {
+    let region: Region
+    let members: [RegionPolygons]
+    let boundingBox: BoundingBox
+
+    init(region: Region, members: [RegionPolygons]) {
+        self.region = region
+        self.members = members
+        boundingBox = members.reduce(.empty) { $0.enclosing($1.boundingBox) }
+    }
+
+    func contains(_ coordinate: Coordinate) -> Bool {
+        boundingBox.contains(coordinate) && members.contains { $0.contains(coordinate) }
+    }
+
+    func distanceToBoundary(from coordinate: Coordinate) -> Double {
+        if members.count == 1 { return members[0].distanceToBoundary(from: coordinate) }
+        func shared(_ a: Coordinate, _ b: Coordinate, with member: RegionPolygons) -> Bool {
+            members.contains { $0.region != member.region && $0.hasEdge(a, b) }
+        }
+
+        // The nearest edge of a member usually lies on the coast or an international
+        // border. Only revisit members whose nearest edge is an internal subdivision edge.
+        var best = Double.infinity
+        var sharedMembers: [RegionPolygons] = []
+        for member in members {
+            var edge: (start: Coordinate, end: Coordinate)?
+            let nearest = member.distanceToBoundary(from: coordinate, nearerThan: best) { a, b in
+                edge = (a, b)
+                return true
+            }
+            guard let edge else { continue }
+            if shared(edge.start, edge.end, with: member) {
+                sharedMembers.append(member)
+            } else {
+                best = nearest
+            }
+        }
+        for member in sharedMembers {
+            best = member.distanceToBoundary(from: coordinate, nearerThan: best) { a, b in
+                !shared(a, b, with: member)
+            }
+        }
+        return best
     }
 }
 
@@ -257,8 +337,22 @@ struct RegionPolygons {
             .contains { polygons[$0].contains(coordinate) }
     }
 
-    func distanceToBoundary(from coordinate: Coordinate) -> Double {
-        polygons.reduce(.infinity) { $1.distanceToBoundary(from: coordinate, nearerThan: $0) }
+    func hasEdge(_ a: Coordinate, _ b: Coordinate) -> Bool {
+        guard boundingBox.contains(a), boundingBox.contains(b) else { return false }
+        if latitudeBands.isEmpty { return polygons.contains { $0.hasEdge(a, b) } }
+        return latitudeBands[Self.band(a.latitude)].contains { polygons[$0].hasEdge(a, b) }
+    }
+
+    func distanceToBoundary(
+        from coordinate: Coordinate,
+        nearerThan distance: Double = .infinity,
+        includingEdge: (Coordinate, Coordinate) -> Bool = { _, _ in true },
+    ) -> Double {
+        polygons.reduce(distance) { $1.distanceToBoundary(
+            from: coordinate,
+            nearerThan: $0,
+            includingEdge: includingEdge,
+        ) }
     }
 
     init(region: Region, polygons: [GeoPolygon]) {

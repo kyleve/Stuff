@@ -365,8 +365,9 @@ journal intent.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
   picker for membership changes. The list offers the US jurisdictions, Canada and its
-  provinces and territories in catalog order. The map draws Canada below its
-  subdivisions and selects the most specific eligible region at the tapped coordinate.
+  provinces and territories in catalog order. The map draws each subdivision once. Selecting Canada fills its
+  subdivisions with the country color. A selected province or territory shows its own color,
+  and a tap selects the most specific eligible region at that coordinate.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

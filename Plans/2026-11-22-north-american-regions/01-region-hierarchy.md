@@ -4,6 +4,8 @@
 - Depends on: none
 - Shared context: [Overview](README.md)
 
+**November 24 execution record.** This completed plan records the original country files and their verification. [Plan 04](04-country-geometry.md) owns the November 25 replacement and its acceptance criteria.
+
 ## Deliverable
 
 With a populated hierarchy, RegionKit can answer “what kind of place is California?” and “which country contains it?” without opening a polygon file. A tracked subdivision wins a coordinate match against its tracked country. An explicit request for a country node’s outline loads that country’s file. Exercise both countries in fixtures here. [Plan 03](03-ship-regions.md) adopts the production US node, its outline and its 52 child links together with the Canadian data.

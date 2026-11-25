@@ -348,7 +348,7 @@ struct WhereFormatTests {
         #expect(
             WhereFormat.regionMapKindFooter(.source)
                 ==
-                "The bundled source boundaries for every available region.",
+                "The boundaries in the bundled source files.",
         )
     }
 

@@ -11,7 +11,7 @@ The same screen as the in-app **developer overlay → Region map** entry:
 
 - A segmented control chooses which regions to display.
   - **Attribution** draws the polygons loaded by the supplied `RegionAttributor`. The standalone viewer uses `.all` so it can inspect every loggable region.
-  - **Source** draws all 67 loggable regions in the bundled catalog. RegionKit also provides a separate on-demand lookup for the US country outline.
+  - **Source** draws the 52 US jurisdictions, 13 Canadian provinces and territories, and EU bloc from the bundled geometry files.
 - `MapPolygon` overlays tinted by `RegionStyle` for known regions and a stable per-title color for unmapped source features.
 - A camera framed to the shown geometry, and a filterable legend that narrows the map to a single feature (keeping the dense source geometry responsive).
 

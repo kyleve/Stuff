@@ -21,7 +21,8 @@ into it for lookup. RegionKit depends only on
   (Day-count *ranking* lives in `WhereCore`, not here.)
 - **`RegionCatalog`** reads all geographic nodes from the bundled `regions.json`.
   Use `node(for:)` for a loggable region or `node(id:)` for any node. A node has a
-  jurisdiction `kind`, localized name, geometry file and optional loggable `region`.
+  jurisdiction `kind`, localized name and optional loggable `region`. Each US or
+  Canadian subdivision carries its parent ID and its own geometry file.
   `parent(of:)` and `children(of:)` look up its immediate relatives entirely in
   memory. `all` and `entries` preserve the manifest order of loggable regions.
 - **`Coordinate`** — a plain WGS84 latitude/longitude value type (no
@@ -35,14 +36,13 @@ into it for lookup. RegionKit depends only on
   `matchWithBoundaryDistance(at:)` measures confidence against the winning
   region and the boundaries of its tracked descendants. An attributor is
   built for a **specific set of regions** (`RegionAttributor(for:)`) and loads
-  only those regions' files. `.all` covers the whole catalog and `.shared` the
+  the geometry needed for that set. Canada uses its thirteen subdivisions. `.all` covers the whole catalog and `.shared` the
   default four. `RegionAttributing` is the protocol the app's live, swappable
   attributor also conforms to.
 - **`RegionGeometryCatalog`** returns drawable `RegionOutline`s. Call
-  `outlines(for:)` with a node to draw its boundary even when its `region`
-  is nil. Requests for a loggable node and its `Region` share a cached
-  outline. The developer region-map viewer's `.attribution` view shows a
-  given attributor's geometry and `.source` shows all loggable regions.
+  `outlines(for:)` with a region for its artwork. Canada draws its provinces and
+  territories together. The developer viewer’s `.attribution` view shows the
+  selected regions, and `.source` shows the individual bundled geometries.
   `RegionGeometrySimplifier` can derive reduced geometry at a
   consumer-chosen normalized tolerance without imposing UI sizes on RegionKit.
 - **`RegionDataSource`** — where the bundled geometry came from: the boundary
@@ -82,8 +82,9 @@ print(region.localizedName) // "California"
 
 ## Bundled data
 
-The catalog manifest and one geometry file per node ship in
-`Sources/Resources/`. Both are **generated** — never hand-edit them.
+The generated resources in `Sources/Resources/` contain the catalog manifest and
+66 geometry files covering 52 US jurisdictions, 13 Canadian subdivisions and the EU bloc.
+The US and Canada are country entries in the manifest.
 
 ### `regions.json` — the catalog manifest
 
@@ -92,7 +93,7 @@ The ordered array has one entry per geographic node.
 ```json
 { "id": "us-CA", "name": "California", "kind": "state", "isLoggable": true,
   "parentID": "united-states", "source": "census", "sourceYear": 2026,
-  "localizationKey": "region.california", "geometry": { "file": "us-CA.twkb" } }
+  "localizationKey": "region.california", "geometryFile": "us-CA.twkb" }
 ```
 
 - `id` — a stable data identifier, never shown to the user. US states are
@@ -113,14 +114,14 @@ The ordered array has one entry per geographic node.
 - `isLoggable` controls whether the node appears in tracking choices and can
   construct a validated `Region`. The independent bare-string `Codable`
   representation preserves stored IDs across catalog changes.
-- `geometry.file` names the required geometry resource under `regions/`. Every
-  node has its own file, including a country used only as a parent.
+- `geometryFile` names a resource under `regions/`. Country entries omit this field.
+  To find their children, use the catalog’s index of `parentID` values.
 - Array order fixes the order of available regions and the day-count ranking
   tiebreak. WhereCore also uses it to order its tracked set for GPS attribution.
 
 ### Per-region geometry
 
-Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. The EU retains its existing plain GeoJSON. Explicit node lookups can read the US country outline while normal tracking loads only loggable regions in the requested set.
+Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. The EU retains its existing plain GeoJSON. Tracking Canada loads its provinces and territories. A Toronto fix therefore matches Canada when tracked on its own and Ontario when both are tracked.
 
 ### Regenerating
 
@@ -144,7 +145,9 @@ ruby "$tool" --replay /tmp/regions-candidate/sources.lock.json --cache "$cache" 
 diff -qr /tmp/regions-candidate /tmp/regions-replay
 ```
 
-The adopted release uses a 180 m simplification setting for the US and 45 m for Canada. These settings guide an area-based algorithm. The report records sampled displacement separately. Both modes create a new output directory. Refresh checks the publisher inventory and prints changed checksums for previously adopted URLs. Replay reads exclusively from the verified cache. Inspect `report.json` for component and hole counts, simplification error and border classifications. `bundle-report.json` measures generated bytes for each node, both country files, all loggable entries and the default tracking set. Compare the candidate manifest with the installed choices before adopting it.
+Release locks use format 2. To migrate an older format-1 release, refresh with the same publisher years and reuse the raw download cache. Replay and adoption require a format-2 lock.
+
+The adopted release uses a 180 m simplification setting for the US and 45 m for Canada. These settings guide an area-based algorithm. The report records sampled displacement separately. Both modes create a new output directory. Refresh checks the publisher inventory and prints changed checksums for previously adopted URLs. Replay reads exclusively from the verified cache. Inspect `report.json` for component and hole counts, simplification error and border classifications. `bundle-report.json` records the installed geometry size and the files needed for the default tracking set. Compare the candidate manifest with the installed choices before adopting it.
 
 ```sh
 ruby "$tool" --adopt /tmp/regions-candidate
@@ -155,8 +158,8 @@ Adoption verifies source and output hashes before it installs the normalized inp
 
 ### Source data (not bundled)
 
-- The US Census Bureau's 2026 TIGER/Line STATE file supplies the 50 states, DC and Puerto Rico. The national outline dissolves all 56 supplied entities, including American Samoa, Guam, the Northern Mariana Islands and the US Virgin Islands. It includes water inside the legal boundaries. The product excludes the US Minor Outlying Islands. US Government works are public domain under 17 U.S.C. § 105. [Census downloads](https://www2.census.gov/geo/tiger/TIGER2026/STATE/)
-- Statistics Canada's 2026 detailed cartographic files supply ten provinces and three territories. The national outline removes their internal borders. The source represents land and coastal islands, so Canadian boats or shoreline observations can fall outside it. The two publishers can disagree close to their common boundary. Contains information licensed under the Open Government Licence – Canada. Where reprojects, simplifies and dissolves the published boundaries. [Province and territory layer](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [licence](https://open.canada.ca/en/open-government-licence-canada)
+- The US Census Bureau's 2026 TIGER/Line STATE file supplies the 50 states, DC and Puerto Rico. The updater validates all 56 source IDs and emits the 52 jurisdictions Where supports. These polygons include water inside their legal boundaries. US Government works are public domain under 17 U.S.C. § 105. [Census downloads](https://www2.census.gov/geo/tiger/TIGER2026/STATE/)
+- Statistics Canada's 2026 detailed cartographic files supply ten provinces and three territories. The source represents land and coastal islands, so Canadian boats or shoreline observations can fall outside it. The two publishers can disagree close to their common boundary. Contains information licensed under the Open Government Licence – Canada. Where reprojects and simplifies the published boundaries. [Province and territory layer](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [licence](https://open.canada.ca/en/open-government-licence-canada)
 - The European Union uses the repository's approximate hand-drawn outline. Each node's `source` identifies its credit in Settings → About.
 
 ## Adding a region

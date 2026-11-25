@@ -28,8 +28,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   is a data change (regenerate via `Tools/generate-regions.rb`), never a new
   case — see [README](README.md#adding-a-region). `regions/` + `regions.json`
   are generated. Never hand-edit them.
-- **Keep geographic nodes and tracking eligibility explicit.** Every node
-  needs a geometry file. The manifest's `parentID` defines ancestry and
+- **Keep geographic nodes and tracking eligibility explicit.** Use each subdivision’s `parentID` to look up
+  ancestry and enumerate children. Country entries omit geometry. The manifest’s
   `isLoggable` determines which nodes enter `RegionCatalog.all`.
   `Region.allCases` appends the separate `.other` sentinel. Preserve stored
   IDs and the relative order of existing tracking choices.
@@ -38,12 +38,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   ties. Resolve live confidence against the same tracked snapshot, including
   a tracked child's edge when its parent wins outside it.
 - **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads
-  only the requested regions' geometry files. Live attribution parses
-  only the tracked set. Core's injected `ElsewhereResolver` may lazily parse the
+  only the geometry needed by the tracked set. Canada uses its children’s files. Core's injected `ElsewhereResolver` may lazily parse the
   full loggable catalog on its actor for read-only historical enrichment.
-  Hierarchy traversal reads metadata alone. Region and node artwork requests
-  share a cache indexed by node ID. Load an internal country's outline only
-  on explicit request. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
+  Hierarchy traversal reads metadata alone. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
   reduction. Rendering fidelity and render-artifact caches belong to consumers.
   `.all` loads the whole catalog (dev viewer/tests). `.shared` loads the default
   four. It is UI-free. `BoundingBox` / `LongitudeSpan` expose the min/max math.
@@ -51,7 +48,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `WhereCore` supply a live, swappable attributor.
 - **Credit bundled geometry in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity. It derives its
-  coverage from each node’s explicit publisher, including internal countries.
+  coverage from the publisher of each bundled geometry file.
   `RegionDataSourceTests` fails when a region is covered zero times or twice.
   Regenerating the catalog must not ship uncredited data. Keep it in step with the
   [README](README.md#source-data-not-bundled) provenance notes.

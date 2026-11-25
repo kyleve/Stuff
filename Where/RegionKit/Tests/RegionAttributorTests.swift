@@ -193,23 +193,32 @@ struct RegionAttributorTests {
         #expect(match.boundaryDistance < 100)
     }
 
-    @Test func loadingTrackedGeometrySkipsRelatives() throws {
+    @Test func loadingTrackedCoverageReadsEachPhysicalMemberOnce() throws {
         let catalog = try RegionHierarchyFixture.catalog()
         let internalCountry = try JSONDecoder().decode(
             Region.self,
             from: Data(#""united-states""#.utf8),
         )
-        for region in [Region.california, .canada] {
+        let ontario = Region(unchecked: "ca-ON")
+        let fixture = try #require(RegionCatalog.shared.geometryURL(for: .california))
+        let inputs: [([Region], [Region])] = [
+            ([.california], [.california]),
+            ([ontario], [ontario]),
+            ([.canada], [ontario]),
+            ([.canada, ontario], [ontario]),
+            ([ontario, .canada], [ontario]),
+        ]
+        for (regions, expectedFiles) in inputs {
             var requested: [RegionCatalog.Node.ID] = []
             let attributor = RegionAttributor(
-                for: [internalCountry, region, .other],
+                for: [internalCountry, .other] + regions + regions,
                 catalog: catalog,
             ) { node in
                 requested.append(node.id)
-                return node.region.flatMap(RegionCatalog.shared.geometryURL(for:))
+                return fixture
             }
-            #expect(requested == [.init(rawValue: region.rawValue)])
-            #expect(attributor.loadedRegions == [region])
+            #expect(requested.map(\.rawValue) == expectedFiles.map(\.rawValue))
+            #expect(attributor.loadedRegions == regions)
         }
     }
 

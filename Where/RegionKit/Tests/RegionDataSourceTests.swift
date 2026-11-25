@@ -10,9 +10,9 @@ struct RegionDataSourceTests {
 
     @Test func everyCatalogRegionIsCoveredExactlyOnce() {
         let covered = RegionDataSource.all.flatMap(\.nodes)
-        #expect(Set(covered) == Set(catalog.nodes))
+        #expect(Set(covered) == Set(catalog.nodes.filter { $0.geometryFile != nil }))
         // Set equality alone would accept a region claimed by two sources.
-        #expect(covered.count == catalog.nodes.count)
+        #expect(covered.count == 66)
     }
 
     @Test func noSourceClaimsARegionOutsideTheCatalog() {
@@ -28,7 +28,7 @@ struct RegionDataSourceTests {
         // hand-drawn bucket as an "everything else" fallback.
         let unattributed = Region(unchecked: "atlantis")
         let catalog = try RegionCatalog(manifest: Data("""
-        [{"id":"atlantis","name":"Atlantis","kind":"country","isLoggable":true,"geometry":{"file":"atlantis.geojson"}}]
+        [{"id":"atlantis","name":"Atlantis","kind":"province","isLoggable":true,"geometryFile":"atlantis.geojson"}]
         """.utf8))
         let covered = RegionDataSource.sources(coveringRegionsIn: catalog).flatMap(\.regions)
         #expect(!covered.contains(unattributed))
@@ -40,13 +40,17 @@ struct RegionDataSourceTests {
         #expect(source.fidelity == .authoritative)
         #expect(source.license == .publicDomain("US Government works — 17 U.S.C. § 105"))
         #expect(source.sourceURL != nil)
-        #expect(source.nodes.count == 53)
-        #expect(source.nodes.contains { $0.id.rawValue == "united-states" && $0.region == nil })
+        #expect(source.nodes.count == 52)
+        #expect(source.nodes.allSatisfy { $0.parentID?.rawValue == "united-states" })
     }
 
-    @Test func creditsStatisticsCanadaForCountryAndSubdivisions() throws {
-        let source = try #require(RegionDataSource.all.first { $0.regions.contains(.canada) })
-        #expect(source.nodes.count == 14)
+    @Test func creditsEveryPhysicalMemberOfCanadasCoverage() throws {
+        let canada = try #require(catalog.node(for: .canada))
+        let members = catalog.geometryNodes(for: canada)
+        let source = try #require(RegionDataSource.all
+            .first { $0.license == .openGovernmentCanada })
+        #expect(members.count == 13)
+        #expect(source.nodes == members)
         #expect(source.fidelity == .authoritative)
         #expect(source.license == .openGovernmentCanada)
         #expect(source.licenseURL != nil)

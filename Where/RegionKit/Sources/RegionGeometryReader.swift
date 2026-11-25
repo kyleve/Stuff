@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 
 /// Share immutable coordinate buffers across tracked snapshots and artwork. Each file
-/// has its own cold-load lock so opening a large country cannot block unrelated hits.
+/// has its own cold-load lock so a large subdivision cannot block unrelated hits.
 enum RegionGeometryReader {
     private final class Entry: Sendable {
         let polygons = Mutex<[GeoPolygon]?>(nil)

@@ -20,7 +20,7 @@ struct RegionGeometryCatalogTests {
         #expect(await RegionGeometryCatalog.outlines(for: .other).isEmpty)
     }
 
-    @Test func nodeOutlinesLoadOnlyOnRequestAndShareTheRegionCache() async throws {
+    @Test func countryArtworkUsesItsChildrenAndInternalCountriesHaveNoArtwork() async throws {
         let catalog = try RegionHierarchyFixture.catalog()
         let reads = Mutex<[RegionCatalog.Node.ID]>([])
         let fixtureURL = try #require(RegionCatalog.shared.geometryURL(for: .california))
@@ -28,33 +28,23 @@ struct RegionGeometryCatalogTests {
             reads.withLock { $0.append(node.id) }
             return fixtureURL
         }
-
-        let california = try #require(catalog.node(for: .california))
-        let us = try #require(catalog.parent(of: california))
-        let canada = try #require(catalog.node(for: .canada))
-        let storedUS = Region(unchecked: us.id.rawValue)
-        let storedOutlines = try await cache.outlines(for: storedUS)
-        #expect(storedOutlines.isEmpty)
+        let storedUS = Region(unchecked: "united-states")
+        #expect(try await cache.outlines(for: storedUS).isEmpty)
         #expect(reads.withLock { $0.isEmpty })
-
-        let canadaOutlines = try await cache.outlines(for: canada)
-        #expect(!canadaOutlines.isEmpty)
-        #expect(canadaOutlines.allSatisfy { $0.region == .canada })
-        let regionOutlines = try await cache.outlines(for: Region.canada)
-        #expect(regionOutlines == canadaOutlines)
-        #expect(reads.withLock { $0 } == [canada.id])
-
-        let usOutlines = try await cache.outlines(for: us)
-        #expect(!usOutlines.isEmpty)
-        #expect(usOutlines.allSatisfy { $0.region == nil && $0.title == us.localizedName })
-        #expect(reads.withLock { $0 } == [canada.id, us.id])
+        let outlines = try await cache.outlines(for: .canada)
+        #expect(!outlines.isEmpty && outlines.allSatisfy { $0.region == .canada })
+        #expect(try await cache.outlines(for: .canada) == outlines)
+        let ontario = Region(unchecked: "ca-ON")
+        let child = try await cache.outlines(for: ontario)
+        #expect(child.allSatisfy { $0.region == ontario })
+        #expect(child.map(\.coordinates) == outlines.map(\.coordinates))
+        #expect(reads.withLock { $0.map(\.rawValue) } == ["ca-ON"])
     }
 
-    @Test func missingCountryOutlineSurfacesItsResourceError() async throws {
+    @Test func missingChildSurfacesItsResourceErrorForParentArtwork() async throws {
         let catalog = try RegionHierarchyFixture.catalog()
-        let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
         let cache = RegionGeometryCatalog.RegionCache(catalog: catalog) { _ in nil }
-        await #expect(throws: RegionGeometryError.self) { try await cache.outlines(for: us) }
+        await #expect(throws: RegionGeometryError.self) { try await cache.outlines(for: .canada) }
     }
 
     @Test func attribution_coversExactlyTheAttributorsRegions() async throws {
@@ -86,14 +76,20 @@ struct RegionGeometryCatalogTests {
         #expect(outlines.allSatisfy { $0.region != nil })
     }
 
-    @Test func source_includesCanadaAndEU() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
-        let canada = outlines.filter { $0.region == .canada }
-        let eu = outlines.filter { $0.region == .europeanUnion }
-        #expect(!canada.isEmpty)
-        #expect(canada.allSatisfy { $0.title == Region.canada.localizedName })
-        #expect(!eu.isEmpty)
-        #expect(eu.allSatisfy { $0.title == Region.europeanUnion.localizedName })
+    @Test func sourceAndAllTrackedGeometryDrawEachPhysicalRegionOnce() async throws {
+        let catalog = RegionCatalog.shared
+        let canada = try #require(catalog.node(for: .canada))
+        let childRegions = Set(catalog.children(of: canada).compactMap(\.region))
+        let source = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
+        let attributed = try await RegionGeometryCatalog.outlines(
+            for: .attribution,
+            attributor: .all,
+        )
+        let owners = Set(source.compactMap(\.region))
+        #expect(childRegions.isSubset(of: owners))
+        #expect(owners.contains(.europeanUnion) && !owners.contains(.canada))
+        #expect(owners == Set(attributed.compactMap(\.region)))
+        #expect(source.count == attributed.count)
     }
 
     @Test func source_tagsEveryStateWithItsRegion() async throws {

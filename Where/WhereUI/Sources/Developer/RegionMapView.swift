@@ -8,7 +8,7 @@ import WhereCore
 
 /// Developer tool: draws region boundary polygons on a real map, toggling
 /// between what `RegionAttributor` actually loads (`.attribution`) and the
-/// bundled source boundaries for every available region (`.source`).
+/// bundled source boundaries from the bundled geometry files (`.source`).
 ///
 /// Self-contained on purpose — it reads geometry straight from
 /// `RegionGeometryCatalog` and holds no `@Environment(WhereSession.self)`,
@@ -292,10 +292,11 @@ private struct RegionOutlinesMap: View {
         }
 
         private static var snapshotLegendGroups: [RegionMapLegendGroup] {
-            RegionCatalog.shared.all.enumerated().map { index, region in
+            let sources = RegionCatalog.shared.entries.filter { $0.geometryFile != nil }
+            return sources.enumerated().map { index, entry in
                 RegionMapLegendGroup(
-                    title: region.localizedName,
-                    region: region,
+                    title: entry.region.localizedName,
+                    region: entry.region,
                     outlineCount: index.isMultiple(of: 10) ? 2 : 1,
                 )
             }

@@ -68,8 +68,9 @@ public struct RegionDataSource: Sendable, Hashable {
     /// The sources for `catalog`'s regions. Split out from ``all`` so tests can
     /// drive it with a catalog of their own.
     static func sources(coveringRegionsIn catalog: RegionCatalog) -> [RegionDataSource] {
-        let census = catalog.nodes.filter { $0.source == .census }
-        let statcan = catalog.nodes.filter { $0.source == .statcan }
+        let files = catalog.nodes.filter { $0.geometryFile != nil }
+        let census = files.filter { $0.source == .census }
+        let statcan = files.filter { $0.source == .statcan }
         return [
             RegionDataSource(
                 name: "US Census Bureau TIGER/Line State and Equivalent Entities",
@@ -99,7 +100,7 @@ public struct RegionDataSource: Sendable, Hashable {
                 obtainedFromURL: nil,
                 license: .originalWork,
                 fidelity: .approximate,
-                nodes: catalog.nodes.filter { $0.source == .original },
+                nodes: files.filter { $0.source == .original },
             ),
         ].filter { !$0.nodes.isEmpty }
     }

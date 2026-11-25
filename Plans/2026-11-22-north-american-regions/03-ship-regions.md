@@ -4,6 +4,8 @@
 - Depends on: [01. Catalog relationships and attribution](01-region-hierarchy.md) and [02. Reusable boundary updater](02-boundary-updater.md)
 - Shared context: [Overview](README.md)
 
+**November 24 execution record.** This completed plan records the original country files and their verification. [Plan 04](04-country-geometry.md) owns the November 25 replacement and its acceptance criteria.
+
 ## Intended outcome
 
 An existing US user keeps their tracking choices and receives refreshed boundaries. A Canadian user can select Ontario and Canada, log a manual day in Nunavut, and find each in the ordinary reports. A RegionKit caller can request either country's outline by catalog node. Canada can also be logged. Maintainers can reproduce both outlines from the released inputs.

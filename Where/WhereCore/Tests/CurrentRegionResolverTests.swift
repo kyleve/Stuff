@@ -64,16 +64,18 @@ struct CurrentRegionResolverTests {
         )
     }
 
-    @Test(arguments: [-79.001, -78.999])
-    func trackedProvinceEdgeIsUncertainOnEitherSide(longitude: Double) async throws {
+    @Test(arguments: [
+        CanadianAttributionFixture.ontarioSide,
+        CanadianAttributionFixture.quebecSide,
+    ])
+    func trackedProvinceEdgeIsUncertainOnEitherSide(nearEdge: Coordinate) async throws {
         let fixture = CanadianAttributionFixture.self
-        let nearEdge = Coordinate(latitude: fixture.toronto.latitude, longitude: longitude)
         let source = ScriptedLocationSource()
         source.setNextRequestedLocation(sample(accuracy: 200, coordinate: nearEdge))
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
-            attributor: fixture.attributor(tracking: [.canada, fixture.ontario]),
+            attributor: fixture.countryAndOntario,
         )
         try await services.ingestor.authorizeRecording()
         #expect(await services.currentRegion
@@ -85,12 +87,12 @@ struct CurrentRegionResolverTests {
         let source = ScriptedLocationSource()
         source.setNextRequestedLocation(sample(
             accuracy: 200,
-            coordinate: Coordinate(latitude: fixture.toronto.latitude, longitude: -78.999),
+            coordinate: fixture.quebecSide,
         ))
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
-            attributor: fixture.attributor(tracking: [.canada]),
+            attributor: fixture.countryOnly,
         )
         try await services.ingestor.authorizeRecording()
         #expect(await services.currentRegion.resolve(now: now) == .resolved(.canada))

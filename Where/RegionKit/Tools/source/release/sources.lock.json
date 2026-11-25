@@ -1,7 +1,7 @@
 {
   "caYear": 2026,
   "conversion": {
-    "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt) and coverage_union_all",
+    "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt)",
     "canadianProjection": 3347,
     "canadianRequest": {
       "geometryPrecision": 7,
@@ -14,12 +14,8 @@
     "toleranceMetres": 180,
     "usProjections": {
       "AK": 3338,
-      "AS": 32702,
-      "GU": 32655,
       "HI": 26963,
-      "MP": 32655,
       "PR": 32161,
-      "VI": 32161,
       "continental": 5070
     },
     "usSourceEPSG": 4269,
@@ -131,11 +127,11 @@
   ],
   "normalized": {
     "file": "north-america.geojson.gz",
-    "sha256": "0b0f0001fef8e6d001276159ab8936571d427076317fca03ad974a4682caf416"
+    "sha256": "46c9c84139eb9133c30d00597103a7a20f115aa1c0d77ee936f28ecb22c9ebfc"
   },
   "report": {
     "file": "report.json",
-    "sha256": "6fdc33ade73a626f31e5ed96eecf55be02648337e4ddf4d8520e9c9360a86262"
+    "sha256": "9805bd6062a1af6079e15e6f38fe76d88862865574d2170702f08f45623edcf1"
   },
   "sources": {
     "census": {
@@ -169,5 +165,5 @@
     "zlib": "1.2.12"
   },
   "usYear": 2026,
-  "version": 1
+  "version": 2
 }

@@ -36,15 +36,11 @@ CANADA = dict(
 US_CODES = set(
     "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR AS GU MP VI".split()
 )
-COUNTRY_ONLY = {"AS", "GU", "MP", "VI"}
+UNTRACKED_US_CODES = {"AS", "GU", "MP", "VI"}
 US_PROJECTIONS = {
     "AK": 3338,
     "HI": 26963,
-    "GU": 32655,
-    "MP": 32655,
-    "AS": 32702,
     "PR": 32161,
-    "VI": 32161,
 }
 # Independently checked against full-precision GeoJSON for the first 12 features and
 # the native and WGS84 ArcGIS PBF ring lengths for Nunavut. A partial but parseable
@@ -67,8 +63,8 @@ CA_2026_TOPOLOGY = {
 FIELDS = ["PRUID", "DGUID", "PRENAME", "PRFNAME"]
 TOLERANCE = 180
 DECIMALS = 7
-# Land samples include both sides of three international boundary segments and all four US
-# source-only territories. Offshore samples expose the products' different water semantics.
+# Land samples include both sides of three international boundary segments and all four
+# excluded US territories. Offshore samples expose the products' different water semantics.
 PROBES = {
     "Whitehorse": (-135.0568, 60.7212, "ca-YT"),
     "Yellowknife": (-114.3718, 62.4540, "ca-NT"),
@@ -91,10 +87,10 @@ PROBES = {
     "Prairie Canada": (-110, 49.01, "ca-SK"),
     "Alaska border west": (-141.04, 64, "us-AK"),
     "Yukon border east": (-140.96, 64, "ca-YT"),
-    "Pago Pago": (-170.701, -14.279, "us-AS"),
-    "Hagåtña": (144.7504, 13.4757, "us-GU"),
-    "Saipan": (145.75, 15.2, "us-MP"),
-    "Charlotte Amalie": (-64.9307, 18.3419, "us-VI"),
+    "Pago Pago": (-170.701, -14.279, None),
+    "Hagåtña": (144.7504, 13.4757, None),
+    "Saipan": (145.75, 15.2, None),
+    "Charlotte Amalie": (-64.9307, 18.3419, None),
     "Honolulu": (-157.8583, 21.3069, "us-HI"),
     "Adak": (-176.64, 51.88, "us-AK"),
     "Attu": (173.19, 52.84, "us-AK"),
@@ -212,17 +208,15 @@ class Member:
     projection: int
 
 
-def node(node_id, name, kind, source, parent=None):
-    row = {
+def node(node_id, name, kind, source, parent):
+    return {
         "id": node_id,
         "name": name,
         "kind": kind,
         "source": source,
-        "isLoggable": node_id != "united-states",
+        "isLoggable": True,
+        "parentID": parent,
     }
-    if parent:
-        row["parentID"] = parent
-    return row
 
 
 def reproject(geometry, source, target, operations=None):
@@ -242,7 +236,7 @@ def us_members(cache, year):
     base = f"tl_{year}_us_state"
     url = f"https://www2.census.gov/geo/tiger/TIGER{year}/STATE/{base}.zip"
     path = cache.get("census-state", url)
-    members = {}
+    members, inventory = {}, {}
     with ZipFile(path) as archive:
         crs = pyproj.CRS.from_wkt(archive.read(f"{base}.prj").decode())
         require(crs.to_epsg() == 4269, f"Unexpected TIGER spatial reference: {crs}")
@@ -252,44 +246,49 @@ def us_members(cache, year):
                 for suffix in ("shp", "shx", "dbf")
             }
         ) as reader:
-            for record in reader.iterShapeRecords():
-                code, name = record.record.STUSPS, record.record.NAME
-                fips = record.record.STATEFP
+            for record in reader.iterRecords():
+                code, name = record.STUSPS, record.NAME
+                fips = record.STATEFP
                 require(
                     code in US_CODES
-                    and code not in members
+                    and code not in inventory
                     and re.fullmatch("[0-9]{2}", fips)
-                    and fips == record.record.GEOID
+                    and fips == record.GEOID
                     and name,
                     f"Unexpected TIGER record {code}/{fips}",
                 )
-                catalog_id = None if code in COUNTRY_ONLY else f"us-{code}"
-                kind = {"DC": "federalDistrict", "PR": "territory"}.get(code, "state")
-                props = node(catalog_id, name, kind, "census", "united-states")
-                inventory = {
+                catalog_id = None if code in UNTRACKED_US_CODES else f"us-{code}"
+                row = {
                     "STUSPS": code,
                     "STATEFP": fips,
-                    "GEOID": record.record.GEOID,
+                    "GEOID": record.GEOID,
                     "NAME": name,
                     "countryID": "united-states",
                     "catalogID": catalog_id,
                 }
-                inventory["coordinateOperations"] = {}
+                inventory[code] = row
+                if catalog_id is None:
+                    continue
+                kind = {"DC": "federalDistrict", "PR": "territory"}.get(code, "state")
+                props = node(catalog_id, name, kind, "census", "united-states")
+                row["coordinateOperations"] = {}
                 geometry = reproject(
-                    shape(record.shape.__geo_interface__),
+                    shape(reader.shape(record.oid).__geo_interface__),
                     4269,
                     4326,
-                    inventory["coordinateOperations"],
+                    row["coordinateOperations"],
                 )
                 members[code] = Member(
-                    code, props, inventory, geometry, US_PROJECTIONS.get(code, 5070)
+                    code, props, row, geometry, US_PROJECTIONS.get(code, 5070)
                 )
     require(
-        set(members) == US_CODES
-        and len({m.membership["STATEFP"] for m in members.values()}) == 56,
+        set(inventory) == US_CODES
+        and len({row["STATEFP"] for row in inventory.values()}) == 56,
         "TIGER STATE membership changed",
     )
-    return [members[key] for key in sorted(members)]
+    return [members[key] for key in sorted(members)], [
+        inventory[key] for key in sorted(inventory)
+    ]
 
 
 def arc_features(document):
@@ -524,7 +523,7 @@ def matches(geometry, points):
     return shapely.covers(geometry, points)
 
 
-def convert_country(members, country, probes):
+def convert_subdivisions(members, country, probes):
     groups = defaultdict(list)
     for member in members:
         groups[member.projection].append(member)
@@ -585,37 +584,16 @@ def convert_country(members, country, probes):
                     output_hits[name].append(m.code)
             converted[m.code] = final
 
-    # Dissolve the complete membership before omitting the Census country-only territories.
-    complete = list(converted.values())
     require(
-        shapely.coverage_is_valid(complete),
+        shapely.coverage_is_valid(list(converted.values())),
         f"Final shared borders do not match in {country}",
     )
-    outline = canonical(shapely.coverage_union_all(complete))
-    require(
-        np.array_equal(
-            matches(outline, points), [bool(output_hits[k]) for k in probes]
-        ),
-        f"Country dissolve changed jurisdiction coverage for {country}",
-    )
-    features = [
-        (m.properties, converted[m.code])
-        for m in members
-        if m.properties["id"] is not None
-    ]
-    props = node(
-        country,
-        "Canada" if country == "canada" else "United States",
-        "country",
-        members[0].properties["source"],
-    )
-    features.append((props, outline))
+    features = [(m.properties, converted[m.code]) for m in members]
     return (
         features,
         {
             "members": rows,
             "repairs": repairs,
-            "outline": counts(outline),
             "coordinateOperations": operations,
         },
         source_hits,
@@ -649,31 +627,23 @@ def normalized_file(path, features):
 
 def build_release(cache, output, us_year, ca_year):
     chain = toolchain()
-    us = us_members(cache, us_year)
+    us, us_inventory = us_members(cache, us_year)
     canada = canadian_sources(cache, ca_year)
     print(
         "Verified 56 TIGER/Line features and 13 Statistics Canada provinces/territories.",
         flush=True,
     )
     probes = border_probes()
-    us_features, us_report, us_source, us_result = convert_country(
+    us_features, us_report, us_source, us_result = convert_subdivisions(
         us, "united-states", probes
     )
-    ca_features, ca_report, ca_source, ca_result = convert_country(
+    ca_features, ca_report, ca_source, ca_result = convert_subdivisions(
         canada, "canada", probes
     )
 
-    def order(pair):
-        p = pair[0]
-        if p.get("parentID") == "united-states":
-            return 0, p["name"]
-        if p["id"] == "canada":
-            return 1, ""
-        if p.get("parentID") == "canada":
-            return 2, p["name"]
-        return 3, ""
-
-    features = sorted(us_features + ca_features, key=order)
+    features = sorted(us_features, key=lambda pair: pair[0]["name"]) + sorted(
+        ca_features, key=lambda pair: pair[0]["name"]
+    )
     samples = {}
     for name, xy in probes.items():
         before = [f"us-{code}" for code in us_source[name]] + [
@@ -697,20 +667,20 @@ def build_release(cache, output, us_year, ca_year):
         "sampleDisagreements": [
             name for name, row in samples.items() if row["source"] != row["candidate"]
         ],
-        "sourceMembership": [m.membership for m in us + canada],
+        "sourceMembership": us_inventory + [m.membership for m in canada],
     }
     report_path = output / "report.json"
     write_json(report_path, report)
     geojson = output / "north-america.geojson.gz"
     normalized_file(geojson, features)
     lock = {
-        "version": 1,
+        "version": 2,
         "usYear": us_year,
         "caYear": ca_year,
         "inputs": cache.inputs,
         "toolchain": chain,
         "conversion": {
-            "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt) and coverage_union_all",
+            "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt)",
             "toleranceMetres": TOLERANCE,
             "canadianToleranceMetres": 45,
             "coordinateDecimals": DECIMALS,
@@ -765,6 +735,10 @@ def main():
             "Replay takes the vintages from the lock",
         )
         previous = json.loads(args.replay.read_text())
+        require(
+            previous.get("version") == 2,
+            "Unsupported release lock version; refresh these vintages to generate a subdivision-only release",
+        )
         require(
             previous["toolchain"] == toolchain(),
             "GIS toolchain differs from the frozen release",
