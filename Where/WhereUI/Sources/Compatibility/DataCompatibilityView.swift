@@ -76,6 +76,10 @@ struct DataCompatibilityView: View {
             }
             if case .checking = state {
                 ProgressView()
+            } else if case .blocked(.updateRequired) = state {
+                if !isInDemoMode, let updates {
+                    CompatibilityAppUpdatesButton(model: updates)
+                }
             } else {
                 Button(String(localized: .compatibilityRetry)) {
                     isRetrying = true
@@ -87,9 +91,6 @@ struct DataCompatibilityView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(isRetrying)
-                if case .blocked(.updateRequired) = state, !isInDemoMode, let updates {
-                    CompatibilityAppUpdatesButton(model: updates)
-                }
                 if case .blocked(.locationPermissionRequired) = state {
                     Button(String(localized: .compatibilityOpenSettings)) {
                         if let url = URL(string: UIApplication.openSettingsURLString) {

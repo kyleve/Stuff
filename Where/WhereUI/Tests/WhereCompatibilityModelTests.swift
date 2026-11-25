@@ -352,6 +352,8 @@ struct WhereCompatibilityModelTests {
                 controller.presentedViewController == nil
                     && HostedAccessibility.isVisible(updatesLabel, in: controller.view)
             }
+            let retryLabel = String(localized: .compatibilityRetry)
+            #expect(HostedAccessibility.isVisible(retryLabel, in: controller.view) == false)
             #expect(model.compatibility.isBlocking(model))
             #expect(harness.opens == 0)
         }
