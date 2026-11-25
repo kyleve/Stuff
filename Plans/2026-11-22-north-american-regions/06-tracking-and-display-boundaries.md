@@ -1,6 +1,7 @@
 # 06. Tracking and display boundaries
 
 - Status: complete
+- The execution evidence below describes the original paired release at `2c0003f67`. [Plan 07](07-tracking-accuracy.md) extends its US tracking policy to Canada and future sources.
 - Depends on [05. Countries as catalog parents](05-country-parents.md). Revision reviewed against `f69ad364d` on [PR #563](https://github.com/kyleve/Stuff/pull/563).
 - Delivers [R-06 through R-08](README.md#requirements) for [S-01, S-03 and S-04](README.md#user-stories). Retains R-01 through R-05 and [X-01 through X-05](README.md#scope-boundaries).
 
