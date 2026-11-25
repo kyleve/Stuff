@@ -122,6 +122,18 @@
         }
       }
     },
+    "compatibility.version1.reason" : {
+      "comment" : "Describes the first version of Where’s shared data format, including data saved before app versions were checked.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where now checks that each device can open your shared data before it syncs."
+          }
+        }
+      }
+    },
     "dataIssues.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

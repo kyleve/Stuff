@@ -67,10 +67,11 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
         conflictVersion = .init(rawValue: version)
     }
 
-    func setVersion(_ version: Int) {
+    func setVersion(_ version: Int, reason: DataModelChangeReason? = nil) {
         remote = .init(
             version: .init(rawValue: version),
             revision: "changed",
+            changeReason: reason,
         )
     }
 

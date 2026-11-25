@@ -33,12 +33,38 @@ struct DataCompatibilityCoordinatorTests {
             version: .init(rawValue: 2),
         )
         await coordinator.refresh { .recording(deviceID) }
-        guard case .blocked(.updateRequired(.init(rawValue: 3))) = coordinator.state else {
+        guard case .blocked(.updateRequired(.init(rawValue: 3), reason: nil)) = coordinator.state
+        else {
             Issue.record("Newer shared data must block this build"); return
         }
         #expect(await transport.saveCount == 0)
         #expect(receipts.receipt?.version.rawValue == 3)
         #expect(receipts.receipt?.access == .blocked)
+    }
+
+    @Test func newerDataReasonSurvivesRelaunchWithoutContactingCloud() async {
+        let transport = ScriptedDataCompatibilityTransport(version: 1)
+        let reason =
+            DataModelChangeReason(translations: ["en": "Location corrections use a new format."])
+        await transport.setVersion(3, reason: reason)
+        let receipts = InMemoryDataCompatibilityReceipt()
+
+        for _ in 0 ..< 2 {
+            let coordinator = DataCompatibilityCoordinator(
+                transport: transport,
+                receipts: receipts,
+                version: .baseline,
+            )
+            await coordinator.refresh { .disabled }
+            guard case let .blocked(.updateRequired(.init(rawValue: 3), observedReason)) =
+                coordinator.state
+            else {
+                Issue.record("Newer shared data must block this build"); return
+            }
+            #expect(observedReason == reason)
+            #expect(receipts.receipt?.changeReason == reason)
+        }
+        #expect(await transport.readCount == 1)
     }
 
     @Test func onlyRecorderCanAdvanceAndWaitingViewerRecovers() async {

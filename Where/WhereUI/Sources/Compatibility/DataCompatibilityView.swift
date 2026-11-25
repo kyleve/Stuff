@@ -43,6 +43,11 @@ struct DataCompatibilityView: View {
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityFocused($titleFocused)
             Text(message).foregroundStyle(.secondary)
+            if case let .blocked(.updateRequired(_, reason)) = state,
+               let explanation = reason?.localized(preferredLocales: Locale.preferredLocales)
+            {
+                Text(verbatim: explanation).foregroundStyle(.secondary)
+            }
             if case .checking = state {
                 ProgressView()
             } else {
@@ -83,7 +88,17 @@ struct DataCompatibilityView: View {
                 configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: .blocked(.updateRequired(.init(rawValue: 2))), retry: {})
+                Self(
+                    state: .blocked(.updateRequired(
+                        .init(rawValue: 2),
+                        reason: .init(
+                            translations: ["en": String(
+                                localized: .compatibilityPreviewUpdateReason,
+                            )],
+                        ),
+                    )),
+                    retry: {},
+                )
             }
             whereThemeSnapshot(
                 name: "RecordingDevice",

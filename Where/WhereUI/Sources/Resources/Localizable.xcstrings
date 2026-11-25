@@ -2560,6 +2560,18 @@
         }
       }
     },
+    "compatibility.preview.updateReason" : {
+      "comment" : "Example data change for the update-required screen preview and snapshots.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The newer version changes how Where saves corrections to your location history."
+          }
+        }
+      }
+    },
     "compatibility.recording.message" : {
       "extractionState" : "manual",
       "localizations" : {

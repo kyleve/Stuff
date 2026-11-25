@@ -29,6 +29,19 @@ public final class DataCompatibilityCoordinator {
         case permissionRequired
     }
 
+    private struct VersionFloor {
+        var version = DataModelVersion.baseline
+        var changeReason: DataModelChangeReason?
+
+        mutating func observe(_ version: DataModelVersion, reason: DataModelChangeReason?) {
+            if version > self.version {
+                self = Self(version: version, changeReason: reason)
+            } else if version == self.version, let reason {
+                changeReason = reason
+            }
+        }
+    }
+
     public private(set) var state = State.checking
     public let version: DataModelVersion
     @ObservationIgnored public var onStateChange: @MainActor () -> Void = {}
@@ -37,7 +50,7 @@ public final class DataCompatibilityCoordinator {
     @ObservationIgnored private var verification: Task<Void, Never>?
     @ObservationIgnored private var accountObservation: Task<Void, Never>?
     @ObservationIgnored private var epoch: UInt64 = 0
-    @ObservationIgnored private var knownVersion = DataModelVersion.baseline
+    @ObservationIgnored private var versionFloor = VersionFloor()
     @ObservationIgnored private var removedDeviceID: RecordingDeviceID?
     private static let logger = WhereLog.root(DataCompatibilityLog.self)
 
@@ -120,6 +133,7 @@ public final class DataCompatibilityCoordinator {
                     version: receipt.version,
                     access: receipt.access,
                     removedDeviceID: deviceID,
+                    changeReason: receipt.changeReason,
                 ))
             }
         } catch { fail(error) }
@@ -129,7 +143,7 @@ public final class DataCompatibilityCoordinator {
         revokeAdmission()
         do {
             if let receipt = try receipts.load() {
-                knownVersion = max(knownVersion, receipt.version)
+                versionFloor.observe(receipt.version, reason: receipt.changeReason)
                 removedDeviceID = receipt.removedDeviceID
                 try save(domain: receipt.domain, access: .blocked)
             }
@@ -152,12 +166,12 @@ public final class DataCompatibilityCoordinator {
         do {
             prior = try receipts.load()
             if let prior {
-                knownVersion = max(knownVersion, prior.version)
+                versionFloor.observe(prior.version, reason: prior.changeReason)
                 removedDeviceID = prior.removedDeviceID
             }
-            if knownVersion > version {
+            if versionFloor.version > version {
                 if let prior { try save(domain: prior.domain, access: .blocked) }
-                set(.blocked(.updateRequired(knownVersion)))
+                blockForUpdate()
                 return
             }
             let currentDomain = try await transport.domain()
@@ -175,10 +189,10 @@ public final class DataCompatibilityCoordinator {
                 let persisted = try await transport.read(domain: currentDomain)
                 try checkEpoch(epoch)
                 let persistedVersion = persisted?.version ?? .baseline
-                knownVersion = max(knownVersion, persistedVersion)
-                if knownVersion > version {
+                versionFloor.observe(persistedVersion, reason: persisted?.changeReason)
+                if versionFloor.version > version {
                     try save(domain: currentDomain, access: .blocked)
-                    set(.blocked(.updateRequired(knownVersion)))
+                    blockForUpdate()
                     return
                 }
                 let eligibility = try await recording()
@@ -204,8 +218,8 @@ public final class DataCompatibilityCoordinator {
                             to: version,
                         )
                         try checkEpoch(epoch)
-                        knownVersion = max(knownVersion, saved.version)
-                        guard knownVersion == version else { continue }
+                        versionFloor.observe(saved.version, reason: saved.changeReason)
+                        guard versionFloor.version == version else { continue }
                     } catch DataCompatibilityTransportError.conflict { continue }
                 }
                 try checkEpoch(epoch)
@@ -220,7 +234,7 @@ public final class DataCompatibilityCoordinator {
             guard self.epoch == epoch else { return }
             if case DataCompatibilityTransportError.unavailable = error,
                let domain, let prior, prior.domain == domain, prior.access == .verified,
-               prior.version == version, knownVersion == version
+               prior.version == version, versionFloor.version == version
             {
                 Self.logger.verificationFailed(error: .restricted(.errorDetails, error))
                 set(.offline(.init(domain: domain, epoch: epoch), error))
@@ -242,10 +256,15 @@ public final class DataCompatibilityCoordinator {
     ) throws {
         try receipts.save(DataCompatibilityReceipt(
             domain: domain,
-            version: knownVersion,
+            version: versionFloor.version,
             access: access,
             removedDeviceID: removedDeviceID,
+            changeReason: versionFloor.changeReason,
         ))
+    }
+
+    private func blockForUpdate() {
+        set(.blocked(.updateRequired(versionFloor.version, reason: versionFloor.changeReason)))
     }
 
     private func checkEpoch(_ expected: UInt64) throws {

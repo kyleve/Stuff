@@ -20,7 +20,7 @@ public protocol DataCompatibilityTransport: Sendable {
 }
 
 public enum DataCompatibilityFailure: Error, LocalizedError {
-    case updateRequired(DataModelVersion)
+    case updateRequired(DataModelVersion, reason: DataModelChangeReason?)
     case recordingDeviceRequired
     case locationPermissionRequired
     case verificationRequired(any Error)
