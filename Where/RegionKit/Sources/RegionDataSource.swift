@@ -46,7 +46,7 @@ public struct RegionDataSource: Sendable, Hashable {
                 case .statcanDigital, .statcanCartographic:
                     let product = self == .statcanDigital ? "Digital" : "Cartographic"
                     return URL(
-                        string: "https://geo.statcan.gc.ca/geo_wa/rest/services/\(year)/\(product)_boundary_files/MapServer/0",
+                        string: "https://geo.statcan.gc.ca/geo_wa/rest/services/\(year)/\(product)_boundary_files/MapServer",
                     )
                 case .original:
                     return nil

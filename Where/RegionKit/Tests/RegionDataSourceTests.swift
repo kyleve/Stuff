@@ -51,9 +51,9 @@ struct RegionDataSourceTests {
             #expect(source.licenseURL != nil)
             let url = try #require(source.sourceURL)
             let role = try #require(source.purposes.first)
-            #expect(url.path
-                .contains(role == .tracking ? "Digital_boundary_files" :
-                    "Cartographic_boundary_files"))
+            let year = try #require(source.nodes.first?.geometry?[role].year)
+            let product = role == .tracking ? "Digital" : "Cartographic"
+            #expect(url.path == "/geo_wa/rest/services/\(year)/\(product)_boundary_files/MapServer")
         }
     }
 
