@@ -4,8 +4,8 @@ Where supports Canada's ten provinces and three territories and the existing 50 
 
 ## Planning checkpoint
 
-- **Operation.** Delivered the November 25 revision on [implementation PR #563](https://github.com/kyleve/Stuff/pull/563) for [STU-348](https://linear.app/kve/issue/STU-348). Both countries serve only as catalog parents. Country-specific records are outside the agreed migration scope.
-- **Current horizon.** All five plans are complete on the implementation branch and ready for review. [Plan 05](05-country-parents.md) records the final behavior, resource verification, simulator results and limitations.
+- **Operation.** Plan a follow-up to [PR #563](https://github.com/kyleve/Stuff/pull/563) for [STU-348](https://linear.app/kve/issue/STU-348). On November 25 the owner selected administrative boundaries for GPS tracking and simpler cartographic shorelines for display, and requested a plan and RegionKit API overview. Execution awaits a separate request.
+- **Current horizon.** Plans 01–05 are complete on the implementation branch. [Plan 06](06-tracking-and-display-boundaries.md) is ready for review and covers the updater, RegionKit API and Where consumers. Its [resume point](06-tracking-and-display-boundaries.md#resume-point) records the next action.
 - **Earlier delivery.** The November 18 research covered the US, Canada and EU. The November 22 request selected North America and plan publication. [Planning PR #560](https://github.com/kyleve/Stuff/pull/560) recorded the November 24 decision to store both country outlines. Plans [01](01-region-hierarchy.md), [02](02-boundary-updater.md) and [03](03-ship-regions.md) were verified on PR #563 in `522a032df`, `0cb45316f`, `a6e0bea86` and `c94ce9640`. Their 68-file release, 1,754 executed unit tests and 438 image references across 27 suites are the baseline for this revision.
 
 ## User stories
@@ -15,6 +15,7 @@ Where supports Canada's ten provinces and three territories and the existing 50 
 | S-01 | A traveler can select Ontario and Quebec separately. A Toronto GPS fix credits Ontario when tracked. Unselected provinces can be identified from saved coordinates in Elsewhere. |
 | S-02 | A RegionKit consumer can look up the country of California or Nunavut and enumerate the subdivisions of either country from metadata. |
 | S-03 | A maintainer can reproduce the checked-in catalog or evaluate a new publisher release, see what changed and retry a failed refresh safely. The installed app works offline. |
+| S-04 | Someone taking a ferry can receive credit for the tracked state or province whose published boundary contains their GPS fix. The same traveler sees Long Island’s shoreline in cards and on maps. |
 
 ## Requirements
 
@@ -25,6 +26,8 @@ Where supports Canada's ten provinces and three territories and the existing 50 
 | R-03 | Provide one documented, version-aware maintainer entry point with deterministic generation, cached/offline replay, explicit upstream refresh and failure recovery. | S-03 | [02](02-boundary-updater.md), [04](04-country-geometry.md) |
 | R-04 | Use official WGS84-transformed boundary data, stable source-to-app ID mapping, traceable licences and reproducible inputs. Validate geographic detail, size and runtime cost before bundling. | S-01, S-03 | [02](02-boundary-updater.md), [03](03-ship-regions.md), [04](04-country-geometry.md) |
 | R-05 | Offer 66 file-backed regions and retain the separate Other sentinel. Country relationships come from subdivision metadata. Credit each bundled geometry. | S-01, S-02, S-03 | [05](05-country-parents.md) |
+| R-06 | Carry a tracking boundary and a display boundary for each North American subdivision. Use tracking for coordinate attribution, distances and confidence. Draw the shoreline in the app and use its polygons for picker taps. | S-01, S-04 | [06](06-tracking-and-display-boundaries.md) |
+| R-07 | Match each product to stable region IDs, credit it by use and reproduce the entire paired release offline. Select display detail for the sizes Where renders. | S-03, S-04 | [06](06-tracking-and-display-boundaries.md) |
 
 ## Scope boundaries
 
@@ -34,6 +37,7 @@ Where supports Canada's ten provinces and three territories and the existing 50 
 | X-02 | Keep existing lists, search, maps and manual entry. Hierarchical browsing, breadcrumbs and parent/child labels are excluded. |
 | X-03 | A single GPS fix earns one region. This work excludes automatic ancestor day totals, assigning subdivisions to historic manual entries or corrections, and rewriting raw observations. Existing read-time GPS attribution still uses the current tracked set and geometry. |
 | X-04 | Source downloads happen on a maintainer's machine. Runtime downloads, location lookups against a server and scheduled update jobs are outside scope. |
+| X-05 | The display product is a generalized shoreline. Survey-grade coastlines, an exact mask of every inland waterway and inferred ownership of water outside the tracking sources are outside scope. |
 
 ## Findings at the start of planning
 
@@ -43,6 +47,7 @@ Where supports Canada's ten provinces and three territories and the existing 50 
 - US Census publishes a versioned national state/equivalent ZIP. Use its 2026 TIGER/Line release and postal codes to carry existing IDs forward. StatCan's 2026 detailed cartographic layer supplies land and coastal islands, English and French names, and all 13 PRUIDs. Map those IDs explicitly to `ca-ON`, `ca-NT`, etc. Its service assigns the Open Government Licence – Canada. These are the selected sources from the research. The Canadian choice follows the land-based logging recommendation. Boats in coastal waters can fall outside that layer. [US archive](https://www2.census.gov/geo/tiger/TIGER2026/STATE/), [Canadian product definitions](https://www150.statcan.gc.ca/n1/daily-quotidien/261118/dq261118f-eng.htm), [province and territory layer](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [licence](https://open.canada.ca/en/open-government-licence-canada/)
 - The selected Census source contains 56 state and equivalent records, including American Samoa, Guam, the Northern Mariana Islands and the US Virgin Islands. Only the existing 52 US jurisdictions become catalog children. The US Minor Outlying Islands are outside this source's coverage. [Census geographic coverage](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2026/TGRSHP2025_TechDoc_Ch2.pdf)
 - Plan 04 originally treated Canada as both a tracking choice and a parent. [Plan 05](05-country-parents.md) supersedes that behavior.
+- November 25 follow-up. The point north of Port Jefferson is inside New York in both the raw 2026 TIGER file and the PR’s bundled polygon. The previous 2010 artwork and the 2025 Census cartographic file both exclude it. A point in the Strait of Georgia similarly distinguishes the two 2026 Canadian services. Q-06 replaces land-based Canadian logging in the original source selection. [Snapshot discussion](https://github.com/kyleve/Stuff/pull/563#discussion_r4700250594) · [Sources and sample coordinates](06-tracking-and-display-boundaries.md#boundary-products)
 
 ## Execution order and planning horizon
 
@@ -53,6 +58,7 @@ Where supports Canada's ten provinces and three territories and the existing 50 
 | 3 | [Ship and verify the catalog](03-ship-regions.md) | The app consumes the approved resources, credits their sources and supports the new regions in its existing workflows. |
 | 4 | [Derive country behavior from subdivisions](04-country-geometry.md) | Replace both stored country files while retaining the existing regional and country-level workflows. |
 | 5 | [Countries as catalog parents](05-country-parents.md) | Retire standalone country tracking and simplify attribution to file-backed regions. |
+| 6 | [Tracking and display boundaries](06-tracking-and-display-boundaries.md) | Use administrative boundaries for GPS and cartographic shorelines for drawing and picker interaction. |
 
 The first two deliverables supplied the fixture results and repeatable source release used to qualify the third. Plan 03 records the accepted simplification settings, file sizes, topology checks and measured lookup costs.
 
@@ -65,6 +71,7 @@ The first two deliverables supplied the fixture results and repeatable source re
 | Q-03 | closed | On November 22 the user chose to publish the plan for review first. | Planning review was published first. The owner authorized execution on November 24. |
 | Q-04 | closed | On November 24 the owner required consistent country handling. The first delivery stored both outlines. On November 25 the owner withdrew that choice because the separate geometry is redundant. | [04](04-country-geometry.md) replaces the former design in R-01, R-04 and R-05. Country relationships come from child metadata. At that revision the US was internal and Canada remained selectable. Q-05 supersedes its tracking eligibility. |
 | Q-05 | closed | November 25. The owner approved deriving countries from subdivisions. No country-specific manual entries, home, stays or explicit corrections need to be retained. | Plan 05 supersedes the Canada tracking assumptions in Q-01 and Q-04. Existing GPS coordinates still support Elsewhere enrichment. |
+| Q-06 | closed | On November 25 the owner selected administrative boundaries for tracking and accepted simplified land boundaries for rendering after reviewing the Long Island snapshots. The verified Canadian pair was part of the same recommendation. | Integrated into S-04, R-06, R-07, X-05 and [plan 06](06-tracking-and-display-boundaries.md). The picker keeps its existing convention of selecting the shape it draws. [Card](https://github.com/kyleve/Stuff/pull/563#discussion_r4700193764) · [Full map](https://github.com/kyleve/Stuff/pull/563#discussion_r4700250594) |
 
 ## Plan review and delivery
 
@@ -72,3 +79,4 @@ The first two deliverables supplied the fixture results and repeatable source re
 - November 24, 2026. The owner requested a consistent country-outline policy. The original execution produced national files from the full source memberships. The three completed plans preserve that decision, implementation, measurements and checks. [Original review comment](https://github.com/kyleve/Stuff/pull/560#discussion_r4685927230)
 - November 25, 2026, starting at `c94ce9640`. Reviewed the revised data flow and inventory against the current consumers, the stable IDs and Q-01 through Q-04. All four Mermaid diagrams rendered and all local plan targets resolved. The direct request replaces the previous US outline lookup and both national resources. [Plan 04](04-country-geometry.md) owns the repeat verification for country confidence, drawings, physical resources and update replay.
 - November 25, 2026, starting at `ab28552e5`. [Plan 05](05-country-parents.md) retired standalone country tracking, kept the 66 boundary files intact and verified subdivision attribution, picker behavior, Spotlight cleanup and the embedded app and extension resources. All five iOS test bundles and the full WhereUI snapshot suite passed. [Implementation PR #563](https://github.com/kyleve/Stuff/pull/563)
+- November 25, 2026, `6425c8ec6`. Reviewed the scope of plans 01–06 and traced the follow-up from both updater adapters through tracking, artwork, map taps, diagnostics and source credits. Independent review identified duplicate batch requests that could collide on outline IDs, the undated EU source and the per-region credit rule. Plan 06 incorporates all three. All six Mermaid diagrams rendered and local links and anchors resolved. These are design checks. Implementation, bundle measurements and visual acceptance remain pending.
