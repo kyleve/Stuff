@@ -1,3 +1,7 @@
+import InstallerKit
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -7,6 +11,8 @@ import WhereCore
 struct DataCompatibilityView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.openURL) private var openURL
+    @Environment(\.isInDemoMode) private var isInDemoMode
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
     @State private var isRetrying = false
     @AccessibilityFocusState private var titleFocused: Bool
     let state: DataCompatibilityCoordinator.State
@@ -61,6 +67,9 @@ struct DataCompatibilityView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(isRetrying)
+                if case .blocked(.updateRequired) = state, !isInDemoMode, let updates {
+                    CompatibilityAppUpdatesButton(model: updates)
+                }
                 if case .blocked(.locationPermissionRequired) = state {
                     Button(String(localized: .compatibilityOpenSettings)) {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -80,25 +89,53 @@ struct DataCompatibilityView: View {
     }
 }
 
+private struct CompatibilityAppUpdatesButton: View {
+    let model: UpdateModel
+    @State private var showsUpdates = false
+
+    var body: some View {
+        Button(String(localized: .updatesTitle)) { showsUpdates = true }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .sheet(isPresented: $showsUpdates) {
+                NavigationStack {
+                    DevelopmentUpdatesView(model: model, focus: nil)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(String(localized: .commonDone)) { showsUpdates = false }
+                            }
+                        }
+                }
+            }
+    }
+}
+
 #if DEBUG
     extension DataCompatibilityView: SnapshotProviding {
+        private static var previewUpdateRequiredState: DataCompatibilityCoordinator.State {
+            .blocked(.updateRequired(
+                .init(rawValue: 2),
+                reason: .init(
+                    translations: ["en": String(localized: .compatibilityPreviewUpdateReason)],
+                ),
+            ))
+        }
+
         static var snapshots: [SnapshotCase] {
             whereThemeSnapshot(
                 name: "UpdateRequired",
                 configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
             ) {
-                Self(
-                    state: .blocked(.updateRequired(
-                        .init(rawValue: 2),
-                        reason: .init(
-                            translations: ["en": String(
-                                localized: .compatibilityPreviewUpdateReason,
-                            )],
-                        ),
-                    )),
-                    retry: {},
-                )
+                Self(state: previewUpdateRequiredState, retry: {})
+            }
+            whereThemeSnapshot(
+                name: "UpdateRequiredWithAppUpdates",
+                configurations: .fullContentPhoneLightDarkWithAX5,
+                measurementReadiness: .immediate,
+            ) {
+                Self(state: previewUpdateRequiredState, retry: {})
+                    .environment(InstallerPreview.model(.available))
             }
             whereThemeSnapshot(
                 name: "RecordingDevice",
