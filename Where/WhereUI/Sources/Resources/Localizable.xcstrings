@@ -2611,7 +2611,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A recording device has updated your data. Install a newer version of Where to open it on this device. Your data has not been erased."
+            "value" : "Install a newer version of Where to open your location history on this device."
+          }
+        }
+      }
+    },
+    "compatibility.update.reasonTitle" : {
+      "comment" : "Label above the specific data format change that requires this device to update Where.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What changed"
           }
         }
       }

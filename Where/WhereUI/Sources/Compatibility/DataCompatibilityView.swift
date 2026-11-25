@@ -52,7 +52,14 @@ struct DataCompatibilityView: View {
             if case let .blocked(.updateRequired(_, reason)) = state,
                let explanation = reason?.localized(preferredLocales: Locale.preferredLocales)
             {
-                Text(verbatim: explanation).foregroundStyle(.secondary)
+                GroupBox {
+                    Text(verbatim: explanation)
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Text(.compatibilityUpdateReasonTitle)
+                }
+                .multilineTextAlignment(.leading)
             }
             if case .checking = state {
                 ProgressView()
