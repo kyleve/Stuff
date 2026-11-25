@@ -12,6 +12,8 @@ struct DataCompatibilityReceiptTests {
         }
         let store = FileDataCompatibilityReceipt(directory: directory)
         #expect(try store.load() == nil)
+        let reason =
+            DataModelChangeReason(translations: ["en": "Location corrections use a new format."])
         try store.save(.init(
             domain: .cloud(.init(
                 containerIdentifier: "iCloud.test",
@@ -20,8 +22,10 @@ struct DataCompatibilityReceiptTests {
             version: .init(rawValue: 2),
             access: .verified,
             removedDeviceID: nil,
+            changeReason: reason,
         ))
         let receipt = try #require(try store.load())
+        #expect(receipt.changeReason == reason)
         try receipt.requireAccess(version: .init(rawValue: 2))
         #expect(throws: DataCompatibilityFailure.self) {
             try receipt.requireAccess(version: .baseline)

@@ -1,141 +1,166 @@
 # Swift Module Audit Report
 
-**Date:** November 16, 2026 (America/New_York)
-**Reviewed source:** `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742` (PR #505), fetched from `origin/main`.
-**Prior audit:** November 9, 2026, source `bbe90c4c58d9d458382335418a18a5dccb434e87`, report merged in [PR #488](https://github.com/kyleve/Stuff/pull/488).
+**Date:** November 23, 2026 (America/New_York)
+**Reviewed source:** `acdae322d90287f1a0bd26319053102c9d4a9cd5`, fetched from `origin/main`.
+**Prior audit:** November 16, 2026, source `6676b36bcd7a6dac1d0f7c72784b1d44b7c7f742`, report merged in [PR #508](https://github.com/kyleve/Stuff/pull/508).
 
 [Linear’s Stuff team](https://linear.app/kve/team/STU/all) owns actionable work under [BACKLOG.md](BACKLOG.md).
 This report records bounded verification and inventory, not a second backlog.
 
-## Access, scope, and reconciliation
+## Access and coverage
 
-The pinned Linear CLI verified workspace `kve` and team `STU`.
-The all-assignee/all-state list and paginated API query with `includeArchived: true` each returned 330 issues.
-The API included descriptions and comments; no returned comment connection had another page.
-Initial states were 150 Backlog, 14 In Review, and 166 Done. Triage had no submissions.
-No unfinished matching audit PR was open. This pass used an isolated worktree from current main.
+The pinned Linear CLI authenticated workspace `kve` and team `STU`.
+The all-assignee/all-state list and paginated API with archived issues both returned **346 issues**.
+Descriptions and comments were retrieved; no comment connection had another page.
+Initial states were 151 Backlog, 21 In Review, 3 Todo, and 171 Done. There were no Triage submissions.
+No unfinished matching audit PR was open; this pass used an isolated worktree from current main.
 
-All 164 open records were screened against the change window by cited filenames and area.
-Source checks concentrated on changed evidence, merge status, coverage policy, and selected persistent defects.
-This is a static maintenance pass, not a fresh line-by-line review of every implementation or a runtime re-verification of every issue.
-Unchanged source supports retaining earlier findings but does not renew their runtime evidence dates.
-Completed and archived history was retrieved before reconciliation; no new issue was filed.
+All 175 open records were screened by area and cited filenames against the change window.
+Detailed source checks focused on merged acceptance, changed WebKit and selector evidence, journal batching, fixture clocks, and catalog counts.
+Filename screening is conservative and is not a fresh verification of every acceptance condition.
+Unchanged source retains prior evidence; it does not renew runtime verification dates.
+Completed and archived descriptions were available for duplicate searches. No new issue was established or filed.
 
-Linear changes preserve human priorities, labels, original descriptions, and attribution dates:
+## Linear reconciliation
 
-- [STU-332](https://linear.app/kve/issue/STU-332) is Done after PR #505 merged on November 16 at 01:30:07 UTC. Published lint, tools, web, architecture, macOS, iOS, audience, and snapshot checks passed. Comparison with its parent confirms 65 deleted PNGs and no changed retained PNGs. This closes the accepted maintenance reduction, not any renderer defect.
-- [STU-114](https://linear.app/kve/issue/STU-114) now distinguishes the provider’s per-configuration builder from remaining externally captured references and the prebuilt inline overload.
-- [STU-243](https://linear.app/kve/issue/STU-243) carries the current catalog inventory; [STU-241](https://linear.app/kve/issue/STU-241) points to the calendar literal’s new file.
-- [STU-7](https://linear.app/kve/issue/STU-7) and [STU-236](https://linear.app/kve/issue/STU-236) now require assessment of distinct behavior gaps under the merged coverage policy, rather than adding tests for missing filenames.
-- STU-316 through STU-328 carry corrected implementation history: #466 closed without merge after absorption into #377 and #372; #377, #378, and #372 have merged. These 13 issues retain their states and acceptance requirements because this pass did not repeat visual, interaction, or native-device verification. [STU-316](https://linear.app/kve/issue/STU-316) owns native release validation; [STU-325](https://linear.app/kve/issue/STU-325) retains the tall annotation defect.
+Human priorities, labels, original descriptions, and attribution dates were preserved.
+Audit evidence was appended after reading each current issue and the saved results were inspected.
 
-Totals: **0 created, 18 corrected without closure, 1 closed**. Verified final distribution is 150 Backlog, 13 In Review, 167 Done.
+- Closed [STU-203](https://linear.app/kve/issue/STU-203): PR #549 merged November 20. The generation-scoped transaction retains ordered overlays, individual audits, rollback, and final widget publication. Its dated record reports 96 selected tests passing.
+- Closed [STU-339](https://linear.app/kve/issue/STU-339): PR #552 merged November 20. Immediate geometry capture retains all twelve inset/attachment/size-class combinations and teardown assertions. Its record reports five rendering tests passing, including adjacent settled native-bar coverage.
+- Closed [STU-340](https://linear.app/kve/issue/STU-340): PR #553 merged November 20. Eleven date-independent cases use the injected January clock; report-content coverage remains. Its record reports 41 tests passing.
+- Refined [STU-122](https://linear.app/kve/issue/STU-122): merged #559 adds call-scoped WebKit reuse. Fresh-view acceptance and runtime isolation/readiness still need reconciliation.
+- Refined [STU-147](https://linear.app/kve/issue/STU-147): merged #555 replaces the old selection implementation. The Tuist decision remains open; registered-artwork selection is already [STU-345](https://linear.app/kve/issue/STU-345).
+- Refreshed [STU-243](https://linear.app/kve/issue/STU-243) with current catalog counts.
+- Corrected merged history in [STU-338](https://linear.app/kve/issue/STU-338), [STU-331](https://linear.app/kve/issue/STU-331), [STU-333](https://linear.app/kve/issue/STU-333), and [STU-334](https://linear.app/kve/issue/STU-334). Visual, interaction, and physical-device requirements remain open.
 
-## Area findings
+Totals: **0 created, 7 materially updated without closure, 3 closed**.
+Final distribution: **151 Backlog, 18 In Review, 3 Todo, 174 Done**.
 
-| Area | Bounded result and Linear findings |
+## Area findings and verified-clean scope
+
+| Area | Bounded result |
 |---|---|
-| Repository and tools | Gregorian implicit-member enforcement remains outside the explicit-base rule ([STU-133](https://linear.app/kve/issue/STU-133)). Atlas publication implementation is unchanged ([STU-134](https://linear.app/kve/issue/STU-134), [STU-135](https://linear.app/kve/issue/STU-135)). Where still lacks its group README ([STU-143](https://linear.app/kve/issue/STU-143)). |
-| WhereCore and extensions | Swift source/tests are unchanged. Local summary fan-out, picker reconciliation, raw-GPS attribution, and widget error distinctions retain prior evidence ([STU-178](https://linear.app/kve/issue/STU-178), [STU-188](https://linear.app/kve/issue/STU-188), [STU-189](https://linear.app/kve/issue/STU-189), [STU-226](https://linear.app/kve/issue/STU-226)). |
-| WhereUI | Adaptive layout and developer lab work shipped. Old UI line numbers and coverage counts are historical. Native release checks, Manual Day range coverage, and calendar behavior remain open ([STU-316](https://linear.app/kve/issue/STU-316), [STU-194](https://linear.app/kve/issue/STU-194), [STU-187](https://linear.app/kve/issue/STU-187)). The catalog has 1,033 keys, 830 without comments. |
-| Broadway | Size-class propagation and scroll restoration shipped; they do not implement catalog content, cache eviction, or observer ownership ([STU-8](https://linear.app/kve/issue/STU-8), [STU-6](https://linear.app/kve/issue/STU-6), [STU-4](https://linear.app/kve/issue/STU-4)). Blanket namesake-test advice was corrected in STU-7. |
-| CreditKit | The permissive `github_slug` expression remains in unchanged generator code ([STU-9](https://linear.app/kve/issue/STU-9)). |
-| Flyover | Native preview churn work shipped. The export error, web shortcut, group identity, and drawer findings concern separate paths ([STU-10](https://linear.app/kve/issue/STU-10), [STU-11](https://linear.app/kve/issue/STU-11), [STU-12](https://linear.app/kve/issue/STU-12), [STU-13](https://linear.app/kve/issue/STU-13)). No browser reproduction was repeated. |
-| Inspector | Three references remain after deletion of the intermittent dark capture. Deletion does not fix the renderer ([STU-20](https://linear.app/kve/issue/STU-20)); reflection and fetch source remain unchanged. |
-| JournalKit and LifecycleKit | Concurrent append still discards original append errors; source count/ordering assertions remain. No new durability or duplicate-ID trap evidence was produced ([STU-25](https://linear.app/kve/issue/STU-25), [STU-26](https://linear.app/kve/issue/STU-26), [STU-27](https://linear.app/kve/issue/STU-27)). |
-| Periscope | Primary-scope hierarchy counts remain explicit. Modeling, pre-attach journaling, and resume requirements remain; the prior blanket mount-test prescription was already narrowed in [STU-49](https://linear.app/kve/issue/STU-49). [STU-37](https://linear.app/kve/issue/STU-37) retains durability scope. |
-| SnapshotKit / SnapshotKitTesting | Provider construction changed, so STU-114 was refined. Accessibility parse catches still trap, and inline duplicate identities remain separate requirements ([STU-115](https://linear.app/kve/issue/STU-115), [STU-125](https://linear.app/kve/issue/STU-125)). Native geometry and tiled annotations retain separate acceptance gates. |
+| Repository and tools | Selector and publication changes shipped. The focused 121-test host selection passes. Registered artwork remains tracked in STU-345; Tuist replacement remains STU-147. No new distribution/runtime claim follows from those host checks. |
+| WhereCore and extensions | Demo batching acceptance is complete in STU-203. Whole-scope compatibility is distinct from per-entity upcasting ([STU-206](https://linear.app/kve/issue/STU-206), [STU-208](https://linear.app/kve/issue/STU-208)). Physical account and extension delivery acceptance remains open. The module contract still identifies summary fan-out and primary-region reconciliation gaps ([STU-178](https://linear.app/kve/issue/STU-178), [STU-188](https://linear.app/kve/issue/STU-188)). |
+| WhereUI | Shared screen roots and Calendar optimization merged. This audit did not inspect rendered images or exercise resizing, scrolling, or native Duo behavior. Their acceptance remains open. Catalog counts are refreshed in STU-243. |
+| SnapshotKit / SnapshotKitTesting | Preparation, measurement, capture reuse, and annotation changes shipped. Native safe-area test acceptance is closed. WebKit reuse evidence is updated in STU-122. Panel timing still emits before sheet composition in AssertComparisonSnapshots ([STU-123](https://linear.app/kve/issue/STU-123)). |
+| Broadway and CreditKit | Source/test Swift contents are unchanged. Existing catalog, observer/cache, and slug findings retain earlier evidence ([STU-8](https://linear.app/kve/issue/STU-8), [STU-4](https://linear.app/kve/issue/STU-4), [STU-6](https://linear.app/kve/issue/STU-6), [STU-9](https://linear.app/kve/issue/STU-9)). |
+| Flyover and InstallerKitUI | Capture preparation and accessibility reference changes do not establish fixes for Flyover browser interactions or error propagation ([STU-10](https://linear.app/kve/issue/STU-10), [STU-13](https://linear.app/kve/issue/STU-13)). No browser reproduction was repeated. |
+| Inspector | Image-suite configuration changed. Reflection and fetch requirements remain; no renderer closure is inferred ([STU-20](https://linear.app/kve/issue/STU-20), [STU-23](https://linear.app/kve/issue/STU-23)). |
+| JournalKit and LifecycleKit | Source/test Swift contents are unchanged. Durability and duplicate-node requirements remain ([STU-26](https://linear.app/kve/issue/STU-26), [STU-27](https://linear.app/kve/issue/STU-27)). |
+| Periscope | Test support and capture configuration changed. No new evidence establishes pre-attach durability, multi-process coordination, or resume mechanics ([STU-37](https://linear.app/kve/issue/STU-37), [STU-39](https://linear.app/kve/issue/STU-39), [STU-36](https://linear.app/kve/issue/STU-36)). |
+
+“Verified clean” is limited to the executed host checks, report links, inventory, and unchanged-source comparisons.
+It does not mean these areas have no open defects.
 
 ## Changes since the prior audit
 
-The source window contains 21 merged PRs. GitHub merge dates were checked separately from local commit dates.
+The November 16 cutoff to this source contains the following 34 merged PRs.
+Merge dates were checked through GitHub; unmerged work is excluded.
+Screening covered change scope and related backlog evidence, not a complete review of the 723-file historical diff.
 
-| PRs | Changes screened and implications |
-|---|---|
-| #487, #488, #489 | Review guidance, prior audit, and snapshot shard rebalance. Current shard inventory is checked below. |
-| #490, #486 | Workstation bootstrap and removal of redundant CI/setup/PNG encoding. Old timing claims remain historical; this pass made no new performance measurement. |
-| #491, #492 | Linear migration and removal of migration execution tools. Historical receipt remains; Markdown backlogs are no longer live state. |
-| #376, #377, #378, #372 | Size classes, measured capture geometry, scroll restoration, and adaptive Where UI. Updated stale Linear implementation history; preserved unverified acceptance. |
-| #494 | Flyover preview churn changes. Separate web interaction and error-preservation requirements remain. |
-| #483, #498, #502, #499, #507 | Durable planning and guidance discovery, validation, and simplification. Current instruction-chain validation passed. |
-| #496, #504 | Device Layout Lab and its dark-mode fix. No new native-device claim follows from a synthetic preview. |
-| #503 | Astro prototype command. All 21 focused command tests passed. |
-| #505 | Test and image-matrix reduction. Confirmed deletion-only PNG changes and merged acceptance; closed STU-332. |
+| PR | Change screened | Merge date (UTC) |
+|---|---|---|
+| [#506](https://github.com/kyleve/Stuff/pull/506) | feat(WhereUI): center screen content with shared roots | 2026-11-16 |
+| [#508](https://github.com/kyleve/Stuff/pull/508) | docs: refresh November 16 Linear backlog audit | 2026-11-16 |
+| [#510](https://github.com/kyleve/Stuff/pull/510) | docs(review): probe retries after partial skill updates | 2026-11-16 |
+| [#509](https://github.com/kyleve/Stuff/pull/509) | chore(ci): rebalance snapshot shards from current timings | 2026-11-16 |
+| [#511](https://github.com/kyleve/Stuff/pull/511) | perf(snapshots): prepare fixtures before settling captures | 2026-11-17 |
+| [#512](https://github.com/kyleve/Stuff/pull/512) | perf(snapshots): reduce fixture measurement and settling | 2026-11-17 |
+| [#514](https://github.com/kyleve/Stuff/pull/514) | perf(WhereUI): shorten adaptive snapshot settling | 2026-11-17 |
+| [#515](https://github.com/kyleve/Stuff/pull/515) | perf(snapshots): share outline paths and prepare artwork earlier | 2026-11-17 |
+| [#516](https://github.com/kyleve/Stuff/pull/516) | perf(snapshots): reuse fixed report fixtures | 2026-11-17 |
+| [#517](https://github.com/kyleve/Stuff/pull/517) | perf(snapshots): share demo world initialization | 2026-11-17 |
+| [#518](https://github.com/kyleve/Stuff/pull/518) | perf(snapshots): await mounted calendar content before measuring | 2026-11-17 |
+| [#520](https://github.com/kyleve/Stuff/pull/520) | perf(snapshots): avoid repeated settling in Elsewhere and MainTabs | 2026-11-17 |
+| [#521](https://github.com/kyleve/Stuff/pull/521) | test(snapshots): remove RTL coverage and focus calendar captures | 2026-11-17 |
+| [#523](https://github.com/kyleve/Stuff/pull/523) | chore(ci): rebalance snapshot shards after capture optimizations | 2026-11-17 |
+| [#535](https://github.com/kyleve/Stuff/pull/535) | perf(snapshots): land independent snapshot and CI improvements | 2026-11-18 |
+| [#537](https://github.com/kyleve/Stuff/pull/537) | fix(WhereCore): recheck remote history when the observed counter repeats | 2026-11-18 |
+| [#495](https://github.com/kyleve/Stuff/pull/495) | feat(Where): gate synced history by data compatibility version | 2026-11-18 |
+| [#539](https://github.com/kyleve/Stuff/pull/539) | chore(snapshots): update testing libraries and accessibility annotations | 2026-11-18 |
+| [#541](https://github.com/kyleve/Stuff/pull/541) | perf(snapshots): capture 478 verified images on a single native mount | 2026-11-20 |
+| [#542](https://github.com/kyleve/Stuff/pull/542) | perf(ci): run snapshots on three active shards | 2026-11-20 |
+| [#543](https://github.com/kyleve/Stuff/pull/543) | perf(ci): reuse full PR validation on identical main merges | 2026-11-20 |
+| [#544](https://github.com/kyleve/Stuff/pull/544) | fix(ci): retry missing PR evidence after auto-merge | 2026-11-20 |
+| [#546](https://github.com/kyleve/Stuff/pull/546) | perf(ci): skip verified Markdown merges and build Where audiences daily | 2026-11-20 |
+| [#549](https://github.com/kyleve/Stuff/pull/549) | perf(WhereCore): publish the completed demo dataset once | 2026-11-20 |
+| [#548](https://github.com/kyleve/Stuff/pull/548) | perf(WhereUI): reduce Calendar zoom layout work | 2026-11-20 |
+| [#550](https://github.com/kyleve/Stuff/pull/550) | fix(ci): skip superseded main installer archives | 2026-11-20 |
+| [#552](https://github.com/kyleve/Stuff/pull/552) | perf(tests): capture native child safe areas after layout | 2026-11-20 |
+| [#553](https://github.com/kyleve/Stuff/pull/553) | perf(tests): seed demo lifecycle tests in early January | 2026-11-20 |
+| [#554](https://github.com/kyleve/Stuff/pull/554) | perf(tests): share library test hosts during full iOS validation | 2026-11-21 |
+| [#555](https://github.com/kyleve/Stuff/pull/555) | fix(test): select affected bundles safely and preview skipped tests | 2026-11-22 |
+| [#557](https://github.com/kyleve/Stuff/pull/557) | perf(ci): cache the installer snapshot fixture | 2026-11-22 |
+| [#558](https://github.com/kyleve/Stuff/pull/558) | perf(ci): reuse the unit simulator for snapshot inventory | 2026-11-22 |
+| [#559](https://github.com/kyleve/Stuff/pull/559) | perf(snapshots): reuse one web view for installer pages | 2026-11-22 |
+| [#551](https://github.com/kyleve/Stuff/pull/551) | fix(pages): deploy completed site artifacts and skip stale retries | 2026-11-22 |
 
-Open #506 and the Mobius PRs #497/#500 remain unmerged and are not shipped evidence.
-No independent new defect was established in this screening. This is not a complete code review of the 1,060-file historical diff.
 No module API or instruction changes are made by this report.
 
-## Module inventory and verified-clean scope
+## Module inventory
 
-Tracked Swift files are counted under each documented leaf’s `Sources`, `Tests`, and `SnapshotTests` directories.
-Counts include support files, not executed tests. The unwired journal benchmark and tool implementation files are outside leaf totals.
-Every listed module has README and AGENTS documents.
-“Unchanged” below means source/test Swift object contents match the prior cutoff; image references and documentation may differ.
-It establishes no new runtime result and does not mean the module has no open findings.
+Counts cover tracked Swift files in each documented leaf’s Sources, Tests, and SnapshotTests directories.
+Test/support counts are files, not executed tests.
+Every listed leaf has README and AGENTS documents.
+“Unchanged” compares those Swift contents with the prior source cutoff; images and documentation can differ.
 
 | Module | Source | Test/support | Image suite | Source/test comparison |
 |---|---:|---:|---:|---|
 | [BroadwayCatalog](Shared/Broadway/BroadwayCatalog/README.md) | 2 | 1 | 0 | Unchanged |
-| [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 21 | 15 | 0 | Changed; bounded screening only |
-| [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 9 | 5 | 0 | Changed; bounded screening only |
+| [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 21 | 15 | 0 | Unchanged |
+| [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 9 | 5 | 0 | Unchanged |
 | [CreditKit](Shared/CreditKit/README.md) | 2 | 3 | 0 | Unchanged |
-| [Flyover](Shared/Flyover/README.md) | 66 | 21 | 1 | Changed; bounded screening only |
-| [Inspector](Shared/Inspector/README.md) | 23 | 14 | 1 | Unchanged |
+| [Flyover](Shared/Flyover/README.md) | 66 | 21 | 1 | Changed; bounded screening |
+| [Inspector](Shared/Inspector/README.md) | 23 | 14 | 1 | Changed; bounded screening |
 | [InstallerKit](Shared/InstallerKit/README.md) | 10 | 11 | 0 | Unchanged |
-| [InstallerKitUI](Shared/InstallerKitUI/README.md) | 27 | 8 | 5 | Changed; bounded screening only |
+| [InstallerKitUI](Shared/InstallerKitUI/README.md) | 27 | 8 | 5 | Changed; bounded screening |
 | [JournalKit](Shared/JournalKit/README.md) | 2 | 3 | 0 | Unchanged |
-| [LifecycleKit](Shared/LifecycleKit/README.md) | 8 | 10 | 0 | Changed; bounded screening only |
+| [LifecycleKit](Shared/LifecycleKit/README.md) | 8 | 10 | 0 | Unchanged |
 | [LifecycleKitUI](Shared/LifecycleKitUI/README.md) | 6 | 4 | 0 | Unchanged |
-| [PeriscopeCore](Shared/Periscope/PeriscopeCore/README.md) | 53 | 49 | 0 | Changed; bounded screening only |
+| [PeriscopeCore](Shared/Periscope/PeriscopeCore/README.md) | 53 | 49 | 0 | Changed; bounded screening |
 | [PeriscopeMacros](Shared/Periscope/PeriscopeMacros/README.md) | 6 | 4 | 0 | Unchanged |
-| [PeriscopeTools](Shared/Periscope/PeriscopeTools/README.md) | 27 | 26 | 1 | Changed; bounded screening only |
+| [PeriscopeTools](Shared/Periscope/PeriscopeTools/README.md) | 27 | 26 | 1 | Changed; bounded screening |
 | [PeriscopeUI](Shared/Periscope/PeriscopeUI/README.md) | 1 | 2 | 0 | Unchanged |
-| [SnapshotKit](Shared/SnapshotKit/README.md) | 17 | 13 | 0 | Changed; bounded screening only |
-| [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md) | 31 | 33 | 0 | Changed; bounded screening only |
-| [StuffTestHost](Shared/StuffTestHost/README.md) | 2 | 0 | 0 | Changed; bounded screening only |
-| [TestHostSupport](Shared/TestHostSupport/README.md) | 1 | 0 | 0 | Changed; bounded screening only |
+| [SnapshotKit](Shared/SnapshotKit/README.md) | 17 | 13 | 0 | Changed; bounded screening |
+| [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md) | 33 | 35 | 0 | Changed; bounded screening |
+| [StuffTestHost](Shared/StuffTestHost/README.md) | 2 | 0 | 0 | Unchanged |
+| [TestHostSupport](Shared/TestHostSupport/README.md) | 1 | 0 | 0 | Unchanged |
 | [RegionKit](Where/RegionKit/README.md) | 15 | 10 | 0 | Unchanged |
 | [RegionViewer](Where/RegionViewer/README.md) | 1 | 0 | 0 | Unchanged |
-| [Where](Where/Where/README.md) | 9 | 5 | 0 | Unchanged |
-| [WhereCore](Where/WhereCore/README.md) | 169 | 126 | 0 | Unchanged |
+| [Where](Where/Where/README.md) | 9 | 6 | 0 | Changed; bounded screening |
+| [WhereCore](Where/WhereCore/README.md) | 186 | 134 | 0 | Changed; bounded screening |
 | [WhereCrashReporting](Where/WhereCrashReporting/README.md) | 3 | 2 | 0 | Unchanged |
-| [WhereIntents](Where/WhereIntents/README.md) | 15 | 9 | 0 | Unchanged |
-| [WhereShareExtension](Where/WhereShareExtension/README.md) | 6 | 0 | 0 | Unchanged |
-| [WhereUI](Where/WhereUI/README.md) | 375 | 158 | 62 | Changed; bounded screening only |
-| [WhereWidgets](Where/WhereWidgets/README.md) | 8 | 0 | 0 | Unchanged |
+| [WhereIntents](Where/WhereIntents/README.md) | 15 | 9 | 0 | Changed; bounded screening |
+| [WhereShareExtension](Where/WhereShareExtension/README.md) | 6 | 0 | 0 | Changed; bounded screening |
+| [WhereUI](Where/WhereUI/README.md) | 393 | 169 | 64 | Changed; bounded screening |
+| [WhereWidgets](Where/WhereWidgets/README.md) | 8 | 0 | 0 | Changed; bounded screening |
 
-**Totals:** 28 leaf modules, 915 source files, 532 test/support files, and 70 leaf image-suite files. Tools adds one image suite.
-The prior audit counted 890 / 514 / 69 respectively.
-
-There are **893 snapshot reference PNGs**: WhereUI 756, InstallerKitUI 103, Tools 24, Flyover 5, Inspector 3, PeriscopeTools 2.
-The prior audit had 885. Reference counts are not capture counts because comparison sheets contain panels.
-The shard plan validates 71 suites: **11 / 19 / 15 / 25**, plus **1 intake suite**.
+**Totals:** 28 leaf modules, 952 source files, 554 test/support files, and 72 leaf image-suite files.
+The prior audit counted 915 / 532 / 70 respectively. Tools adds one image suite.
+There are **902 snapshot PNGs**: Flyover 5, Inspector 3, InstallerKitUI 103, PeriscopeTools 2, Tools 24, WhereUI 765.
+These are reference files, not capture counts.
+The shard plan validates **73 suites**, distributed **25 / 24 / 24**, with zero intake suites.
 
 ## Cross-cutting themes
 
-- Merged implementation, accepted visual output, and native-device validation are separate evidence.
-- Repeated builders cannot isolate reference objects captured outside them.
-- Coverage should guard behavior and visual risk; filename parity is not coverage.
-- Removing a flaky reference does not establish a renderer repair.
-- Inventory and phase timings describe their recorded revisions, not future source.
+- Merged source, rendered correctness, and physical-device behavior require separate evidence.
+- Performance results apply to their measured revisions and environments.
+- Reuse boundaries require isolation and readiness evidence.
+- Test selection and fixture caching have separate input contracts.
+- Earlier issue descriptions remain historical; appended audit notes identify changed evidence.
 
 ## Checks and limits
 
 Host: macOS, Xcode 27.2 (27B52). The repository diff is documentation only.
 
-- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_ci_changes test_ci_circleci test_ci_workflows test_circleci_pipeline test_snapshot_shards test_test_runner`: **91 passed**.
-- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_prototype`: **21 passed**, after allowing the loopback-port fixture outside the sandbox.
-- `./snapshot-shards check`: passed, with the inventory above.
-- `mise exec -- ./sync-agents --check`: passed, 57 instruction files and 13 owned skills. External skills are absent in this checkout, so their layout checks were skipped.
-- Recounted tracked files, snapshot references, and catalog comments; compared retained PNG object identities for #505.
-- Local report links, complete report diff, and `git diff --check` checked before publication.
+- `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=Tools/Tests python3 -m unittest test_ci_changes test_ci_circleci test_ci_workflows test_circleci_pipeline test_snapshot_shards test_test_runner test_test_selection`: **121 passed**.
+- `./snapshot-shards check`: passed, 73 suites across three active shards.
+- `mise exec -- ./sync-agents --check`: passed, 57 instruction files and 13 owned skills. Absent external skills and Claude links were allowed and their layout checks skipped.
+- Tracked inventory, local report links, complete report diff, and `git diff --check` checked before publication.
+- Closure PRs #549, #552, and #553 have successful published lint, tool, web, architecture, macOS, iOS, and snapshot checks. Dated execution records supply the runtime evidence; this audit did not repeat those runs.
 
-An initial test command misspelled the workflow module; the corrected selection passed.
-Bare `./sync-agents --check` used the host’s older Ruby and failed on `filter_map`; the pinned Ruby invocation passed.
-These were invocation/environment failures, not passing checks.
-
-`./test`, architecture execution, SwiftFormat, simulator captures, browser flows, physical devices, and VoiceOver were not run for this documentation-only change.
-The #505 closure uses its merged source and dated published validation; this run does not claim to have repeated that runtime evidence.
-Visual, CloudKit, distribution, Linux portability, billing, and performance acceptance remain unverified here.
-There is no Linear access blocker. Runtime requirements remain open in their owning issues.
+`./test`, architecture execution, SwiftFormat, simulator captures, browser flows, physical devices, VoiceOver, CloudKit transitions, and performance measurements were not run for this documentation-only change.
+There is no Linear access blocker. The audit cannot establish the remaining runtime acceptance conditions.
+Dependency installation reported 16 npm advisories (12 moderate, 4 high); their applicability was not investigated and no package changes were made.

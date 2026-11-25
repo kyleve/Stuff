@@ -31,6 +31,10 @@ public struct LocalDataCompatibilityTransport: DataCompatibilityTransport {
     }
 
     private var observation: PersistedDataModelVersion {
-        .init(version: version, revision: "local-\(version.rawValue)")
+        .init(
+            version: version,
+            revision: "local-\(version.rawValue)",
+            changeReason: version.changeReason,
+        )
     }
 }

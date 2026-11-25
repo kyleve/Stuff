@@ -9,6 +9,7 @@ public struct DataCompatibilityReceipt: Codable, Equatable, Sendable {
     public let version: DataModelVersion
     public let access: Access
     public let removedDeviceID: RecordingDeviceID?
+    let changeReason: DataModelChangeReason?
 
     public init(
         domain: DataCompatibilityDomain,
@@ -16,10 +17,27 @@ public struct DataCompatibilityReceipt: Codable, Equatable, Sendable {
         access: Access,
         removedDeviceID: RecordingDeviceID?,
     ) {
+        self.init(
+            domain: domain,
+            version: version,
+            access: access,
+            removedDeviceID: removedDeviceID,
+            changeReason: nil,
+        )
+    }
+
+    init(
+        domain: DataCompatibilityDomain,
+        version: DataModelVersion,
+        access: Access,
+        removedDeviceID: RecordingDeviceID?,
+        changeReason: DataModelChangeReason?,
+    ) {
         self.domain = domain
         self.version = version
         self.access = access
         self.removedDeviceID = removedDeviceID
+        self.changeReason = changeReason
     }
 
     public func requireAccess(version: DataModelVersion) throws {

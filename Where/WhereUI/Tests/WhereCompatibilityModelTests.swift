@@ -1,6 +1,9 @@
+import AccessibilitySnapshotParser
 import Foundation
+@_spi(Testing) import InstallerKitUI
 import LifecycleKit
 @_spi(Testing) import PeriscopeCore
+import SwiftUI
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
@@ -314,6 +317,67 @@ struct WhereCompatibilityModelTests {
         #expect(harness.discoveries == 0)
         #expect(model.session == nil)
         try await waitForAsync { harness.source.stops > 0 }
+    }
+
+    @Test func updateLockoutCanBrowseAppUpdatesWithoutOpeningHistory() async throws {
+        let harness = CompatibilityLaunchHarness()
+        let model = model(
+            currentVersion: 1,
+            context: .testing,
+            harness: harness,
+            transport: LaunchCompatibilityTransport(version: 2),
+        )
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await model.compatibility.refresh(model: model)
+        let host = UIHostingController(rootView: RootView(
+            model: model,
+            launcher: launcher,
+            primaryAppIconName: "AppIcon",
+            updates: InstallerPreview.model(.available),
+        ))
+        try await show(host) { controller in
+            controller.view.window?.layer.speed = 1
+            let updatesLabel = String(localized: .updatesTitle)
+            let doneLabel = String(localized: .commonDone)
+            try await activateButton(updatesLabel, in: controller.view)
+            let updates = try await presentedSheet(from: controller)
+
+            try await activateButton("Other Builds", in: updates.view)
+            let browser = try await presentedSheet(from: updates)
+            try await activateButton(doneLabel, in: browser.view)
+            try await waitForAsync { updates.presentedViewController == nil }
+
+            try await activateButton(doneLabel, in: updates.view)
+            try await waitForAsync {
+                controller.presentedViewController == nil
+                    && HostedAccessibility.isVisible(updatesLabel, in: controller.view)
+            }
+            let retryLabel = String(localized: .compatibilityRetry)
+            #expect(HostedAccessibility.isVisible(retryLabel, in: controller.view) == false)
+            #expect(model.compatibility.isBlocking(model))
+            #expect(harness.opens == 0)
+        }
+    }
+
+    private func activateButton(_ label: String, in view: UIView) async throws {
+        try await waitForAsync { HostedAccessibility.isVisible(label, in: view) }
+        let button = try #require(HostedAccessibility.objects(in: view)
+            .first { $0.accessibilityLabel == label })
+        if let control = button as? UIControl {
+            control.sendActions(for: .touchUpInside)
+        } else {
+            try #require(button.accessibilityActivate())
+        }
+    }
+
+    private func presentedSheet(from controller: UIViewController) async throws
+        -> UIViewController
+    {
+        try await waitForAsync {
+            guard let sheet = controller.presentedViewController else { return false }
+            return !sheet.isBeingPresented && sheet.transitionCoordinator == nil
+        }
+        return try #require(controller.presentedViewController)
     }
 
     @Test func waitingViewerRecoversWithOneFreshScope() async throws {

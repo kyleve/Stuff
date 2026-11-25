@@ -1,4 +1,7 @@
-import SFSafeSymbols
+import InstallerKit
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -7,10 +10,24 @@ import WhereCore
 struct DataCompatibilityView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.openURL) private var openURL
+    @Environment(\.isInDemoMode) private var isInDemoMode
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
     @State private var isRetrying = false
     @AccessibilityFocusState private var titleFocused: Bool
     let state: DataCompatibilityCoordinator.State
+    private let previewImageName: String?
     let retry: @MainActor () async -> Void
+
+    init(
+        state: DataCompatibilityCoordinator.State,
+        previewImageName: String? = nil,
+        retry: @escaping @MainActor () async -> Void,
+    ) {
+        self.state = state
+        self.previewImageName = previewImageName
+        self.retry = retry
+    }
 
     private var title: LocalizedStringResource {
         switch state {
@@ -34,17 +51,35 @@ struct DataCompatibilityView: View {
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: .lockIcloud)
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+            AppIconImage(
+                name: previewImageName ?? AppIconCatalog
+                    .liveSelectedPreviewImageName(primaryAppIconName: primaryAppIconName),
+                size: stylesheet.size.compatibilityIcon,
+                bordered: false,
+            )
             Text(title)
                 .font(.title.bold())
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityFocused($titleFocused)
             Text(message).foregroundStyle(.secondary)
+            if case let .blocked(.updateRequired(_, reason)) = state,
+               let explanation = reason?.localized(preferredLocales: Locale.preferredLocales)
+            {
+                GroupBox {
+                    Text(verbatim: explanation)
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                } label: {
+                    Text(.compatibilityUpdateReasonTitle)
+                        .frame(maxWidth: .infinity)
+                }
+            }
             if case .checking = state {
                 ProgressView()
+            } else if case .blocked(.updateRequired) = state {
+                if !isInDemoMode, let updates {
+                    CompatibilityAppUpdatesButton(model: updates)
+                }
             } else {
                 Button(String(localized: .compatibilityRetry)) {
                     isRetrying = true
@@ -75,39 +110,78 @@ struct DataCompatibilityView: View {
     }
 }
 
+private struct CompatibilityAppUpdatesButton: View {
+    let model: UpdateModel
+    @State private var showsUpdates = false
+
+    var body: some View {
+        Button(String(localized: .updatesTitle)) { showsUpdates = true }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .sheet(isPresented: $showsUpdates) {
+                NavigationStack {
+                    DevelopmentUpdatesView(model: model, focus: nil)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(String(localized: .commonDone)) { showsUpdates = false }
+                            }
+                        }
+                }
+            }
+    }
+}
+
 #if DEBUG
     extension DataCompatibilityView: SnapshotProviding {
+        private static func preview(state: DataCompatibilityCoordinator.State) -> Self {
+            Self(state: state, previewImageName: "AppIconClassic", retry: {})
+        }
+
+        private static var previewUpdateRequiredState: DataCompatibilityCoordinator.State {
+            .blocked(.updateRequired(
+                .init(rawValue: 2),
+                reason: .init(
+                    translations: ["en": String(localized: .compatibilityPreviewUpdateReason)],
+                ),
+            ))
+        }
+
         static var snapshots: [SnapshotCase] {
             whereThemeSnapshot(
                 name: "UpdateRequired",
                 configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: .blocked(.updateRequired(.init(rawValue: 2))), retry: {})
+                preview(state: previewUpdateRequiredState)
+            }
+            whereThemeSnapshot(
+                name: "UpdateRequiredWithAppUpdates",
+                configurations: .fullContentPhoneLightDarkWithAX5,
+                measurementReadiness: .immediate,
+            ) {
+                preview(state: previewUpdateRequiredState)
+                    .environment(InstallerPreview.model(.available))
             }
             whereThemeSnapshot(
                 name: "RecordingDevice",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: .blocked(.recordingDeviceRequired), retry: {})
+                preview(state: .blocked(.recordingDeviceRequired))
             }
             whereThemeSnapshot(
                 name: "Permission",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                Self(state: .blocked(.locationPermissionRequired), retry: {})
+                preview(state: .blocked(.locationPermissionRequired))
             }
             whereThemeSnapshot(
                 name: "Verification",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                Self(
-                    state: .blocked(.verificationRequired(URLError(.notConnectedToInternet))),
-                    retry: {},
-                )
+                preview(state: .blocked(.verificationRequired(URLError(.notConnectedToInternet))))
             }
         }
     }
