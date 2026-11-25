@@ -65,6 +65,7 @@ These indicators have no separate action and remain visible after correction dis
   `InstallationLocation` exists before history, buffers launch events, and shares the real source with bootstrap assembly. It releases that source after retirement; the next scope gets a fresh stream.
 
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.
+When data compatibility requires a newer build, those builds also offer **App Updates** while history is locked.
 Local builds can browse remote builds without an automatic update badge.
 **Other Builds** opens the shared Main/PR browser and retained build history.
 The screen shows the
