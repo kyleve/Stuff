@@ -102,6 +102,18 @@ struct NorthAmericanRegionTests {
         #expect(tracker.region(at: .init(latitude: 31.097843, longitude: -93.558908)) == texas)
     }
 
+    @Test func restoredOntarioNunavutBendStaysWithinTrackingTolerance() throws {
+        let nunavut = try #require(Region(rawValue: "ca-NU"))
+        let neighbors: [Region] = [.ontario, nunavut]
+        let tracker = RegionAttributor(for: neighbors)
+        // Before vertex restoration, the simplified edge missed this StatCan vertex by 167 m.
+        let vertex = Coordinate(latitude: 54.9925516, longitude: -82.2667869)
+        for region in neighbors {
+            let distance = try #require(tracker.distanceToBoundary(of: region, from: vertex))
+            #expect(distance <= 25)
+        }
+    }
+
     @Test func countriesHaveNoGeometryFilesAndUSTerritoriesStayUntracked() throws {
         let catalog = RegionCatalog.shared
         let us = try #require(catalog.node(id: .init(rawValue: "united-states")))

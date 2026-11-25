@@ -5076,9 +5076,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 3554
+            "vertices": 2468
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.15,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5096,9 +5096,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 3916
+            "vertices": 2873
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.9,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5116,9 +5116,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 18623
+            "vertices": 4830
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.92,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5136,9 +5136,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 3196
+            "vertices": 1626
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.51,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5156,9 +5156,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 12206
+            "vertices": 5911
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.5,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5176,9 +5176,9 @@
           "candidate": {
             "holes": 0,
             "parts": 2,
-            "vertices": 1232
+            "vertices": 578
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 20.26,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5196,9 +5196,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 3468
+            "vertices": 1479
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.84,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5216,9 +5216,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 75342
+            "vertices": 19184
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.23,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5236,9 +5236,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 42847
+            "vertices": 10429
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.37,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5256,9 +5256,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 304
+            "vertices": 122
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 21.79,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5276,9 +5276,9 @@
           "candidate": {
             "holes": 0,
             "parts": 2,
-            "vertices": 40422
+            "vertices": 15250
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 21.96,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5296,9 +5296,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 1346
+            "vertices": 315
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 23.5,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -5316,9 +5316,9 @@
           "candidate": {
             "holes": 0,
             "parts": 1,
-            "vertices": 1280
+            "vertices": 821
           },
-          "maximumSampledMetres": 0.0,
+          "maximumSampledMetres": 13.34,
           "projectionEPSG": 3347,
           "raw": {
             "holes": 0,
@@ -8676,219 +8676,478 @@
       "repairs": []
     }
   },
-  "usTrackingAccuracy": {
+  "trackingAccuracy": {
     "capMetres": 25,
-    "maximumUpperBoundMetres": 24.0,
+    "maximumUpperBoundMetres": 24.008,
     "members": {
+      "ca-AB": {
+        "sha256": "34bcad4784d95c372c401db13db49e6c2b25a1988470b10c938801097d7b15d0",
+        "sourceSHA256": {
+          "statcanDigital-48": "f8449095addb4382370f3f78a91cd387b17dde11b178aeb3f81db2d99f540dba",
+          "statcanDigital-48-topology": "8fd0e74e570425dfe8626d4707b1cc58941c9b1cfed948be9b62a8b4e4a1f64e"
+        },
+        "upperBoundMetres": 24.008
+      },
+      "ca-BC": {
+        "sha256": "ea45c517fa982e7549775b9a4de496b8da8fe394b2ed916e72e833aa11883580",
+        "sourceSHA256": {
+          "statcanDigital-59": "74ae6bba46eb2028e11e7a6f9865f3d8d5f784449800d51af8e02b806ae5d6d5",
+          "statcanDigital-59-topology": "35244c405f26fd2be0ab2caec13418b70e50d2cdec5f5858b9babda6d6029eb1"
+        },
+        "upperBoundMetres": 24.008
+      },
+      "ca-MB": {
+        "sha256": "00f8d80da532d37edb93490d0db7a0ef0551a828e58725f8df084ab8128ff76e",
+        "sourceSHA256": {
+          "statcanDigital-46": "5c1af6bdffd1c2471001a2096622d8a552ac745d00732b1bce1f4d9d83ee98da",
+          "statcanDigital-46-topology": "dd2b174fbca0afab51c019492565420d2e4ab5873a78b15a0a44a3321b33e168"
+        },
+        "upperBoundMetres": 24.006
+      },
+      "ca-NB": {
+        "sha256": "f6a2e4458291b347525e1dccd4a7b272b034daf3b5da5cf7353bdfd82fe53b43",
+        "sourceSHA256": {
+          "statcanDigital-13": "ad0a07ae25a640d34c8c8c160665913c9d40f5cd2eae6e59e9936c67b52c1549",
+          "statcanDigital-13-topology": "0da05fe2b11db326eeebd48c0a196c8db7816667e06f5dafa5f9f909ba4e5fc1"
+        },
+        "upperBoundMetres": 23.998
+      },
+      "ca-NL": {
+        "sha256": "0e034025cbd3424c78ac35800e8405670cfafdd5925cfefb98229cfacf1e98e2",
+        "sourceSHA256": {
+          "statcanDigital-10": "93896a70f2e25c65e4e2e77242f6c9de08d19ef07ad2a84ff52c6f9daa80368b",
+          "statcanDigital-10-topology": "ebad0ca5d0bc1595f191e8bb40dd2d7f168faa1c0d1d66f7b15b06886b6d582f"
+        },
+        "upperBoundMetres": 24.007
+      },
+      "ca-NS": {
+        "sha256": "e068b58670d1b03e3c76cb274c458e99a6bb7e32f73b49e2e767bd6980a51657",
+        "sourceSHA256": {
+          "statcanDigital-12": "8df6fbf2e7fcedb644bf34c25076213c0c1eaedcf4c3a4e1f37b3c6ed9d7e012",
+          "statcanDigital-12-topology": "a05b40d4450802722c7daca4dd700adc613d2caea24868ce47375d6ec7d3a9d9"
+        },
+        "upperBoundMetres": 23.923
+      },
+      "ca-NT": {
+        "sha256": "1e289825e1499eb652cb4b292e90246571130f4a3b09cc5eb2bfb20fb0c91636",
+        "sourceSHA256": {
+          "statcanDigital-61": "725460edf174193965a07f115057e94995e7c39d3e85167360dcc42d72caf79b",
+          "statcanDigital-61-topology": "7dec7f631a1a22a20fcac038ec07b038a0a5e4ec05a02c786c72f288f7cc2e79"
+        },
+        "upperBoundMetres": 24.006
+      },
+      "ca-NU": {
+        "sha256": "aa9ae307773891ee88f4ab46303f11654067a0fdb19c266980d2b59499a1108b",
+        "sourceSHA256": {
+          "statcanDigital-62": "45a9ab45cf1970e83d6fd27add93049063b4efa685e54bd3b020fd5afd8ca624",
+          "statcanDigital-62-topology": "2c965da8d377097c98813b235781e7d410415075d57e6f435b87a8a539a45c10"
+        },
+        "upperBoundMetres": 24.006
+      },
+      "ca-ON": {
+        "sha256": "ebd4a74a881f63995f8ccddda577df7f61229a31dd56415be825574ed0f26ded",
+        "sourceSHA256": {
+          "statcanDigital-35": "439173ed65cb5551f2895300832b58b63864c8002f830c6dc2b64f3e9bfa5a7b",
+          "statcanDigital-35-topology": "354fe5e5b10a76ff44b775d27f69bf06d3ca3212762c7f795108adc99b50f57a"
+        },
+        "upperBoundMetres": 24.005
+      },
+      "ca-PE": {
+        "sha256": "d3dfc05291661ac3da4e8a9b05d79348eaaf6811ef0f6edf10765d292812b00e",
+        "sourceSHA256": {
+          "statcanDigital-11": "a0edebd7ed7b7e128bf910db73635eefe12abf445658ed0fdfcde5088b0bbef4",
+          "statcanDigital-11-topology": "c035f788ed3b579bf211fb298b84cd3215abcf169395f88d60f198c2929dc2af"
+        },
+        "upperBoundMetres": 23.538
+      },
+      "ca-QC": {
+        "sha256": "0a16846405c6e01dc50f7baa64b440ab6f516a971bc640032d546286a43b5e96",
+        "sourceSHA256": {
+          "statcanDigital-24": "9101df41a7862cbee61c9f267322109c2de3eb2af36713f336df1abf7087811a",
+          "statcanDigital-24-topology": "8b50bbe1b23c9d9bf499c2eeef10981be22c96546cf47acc64481cf8f67333d5"
+        },
+        "upperBoundMetres": 24.007
+      },
+      "ca-SK": {
+        "sha256": "c2815a66a4030477e027e22a8331decd456b0357aa77b3f6e561494f41e16776",
+        "sourceSHA256": {
+          "statcanDigital-47": "37e085576ff53602efc1b592ffabc9b677b635878daa4aafa766ea42805b4f85",
+          "statcanDigital-47-topology": "8f9137ea2f8f5ecb88f569de051e3998fb4f9492af93251493bd27c297cf7efc"
+        },
+        "upperBoundMetres": 23.717
+      },
+      "ca-YT": {
+        "sha256": "9ecb3bebc5ba003718a7ce31c074554f988c1f210f9922eb27d160ce3d9a6594",
+        "sourceSHA256": {
+          "statcanDigital-60": "ca79feb50190bf06bcd11353eb4d5c2be239e969e036cb5be6500f5a128d9d47",
+          "statcanDigital-60-topology": "c83f15c9a513f9cda25c2a861ae7bb790e77cfe9496c280454a1cece442853de"
+        },
+        "upperBoundMetres": 19.081
+      },
       "us-AK": {
         "sha256": "50a7613489d1c767a4ebc57ff6d8ec01ddaff19dd0e4678fe06db06298249553",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.971
       },
       "us-AL": {
         "sha256": "434eed948a004e6d6af63d5d02e709e7495f30cb674641c378afe2b1da0a4d6d",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.999
       },
       "us-AR": {
         "sha256": "3131daee9e2677be2c93bbace9671d5de307eff75a53b445d0209621f87312d9",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.972
       },
       "us-AZ": {
         "sha256": "4e8538eab4e2e11fb95827b00299b9fbac6bc6c004dfbb78d784b2687f61382b",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.993
       },
       "us-CA": {
         "sha256": "00d414bd5860a2e51a61e707b8145218ebed2b6ca04c155dd5c210b08837e46a",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.993
       },
       "us-CO": {
         "sha256": "52e6d701eaf04f6f3857fc0f7b6ea5298b694f2d4f5faf2b014452d482c844e9",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.114
       },
       "us-CT": {
         "sha256": "930aaa30c6d0cb8439f34bb70d515d0facdcd1f0c8d189c32da9fa14352a3f56",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.319
       },
       "us-DC": {
         "sha256": "5add0b8d1ec1be10e05ff40d0c74129f09745ae090831b4294cce4b49c9105ea",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.137
       },
       "us-DE": {
         "sha256": "20328e90a6ae71db99feb42f6000cc2ad25a68239523ff5ecf18e0abfb64a4e5",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.615
       },
       "us-FL": {
         "sha256": "13e3e3a349633a8a558cc591323faf80d59e9abdb6cff80618b463595b770974",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.992
       },
       "us-GA": {
         "sha256": "8139824af152de81b418dad6b681f14195e8bdb41a831731b021e82439cd492a",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.977
       },
       "us-HI": {
         "sha256": "b8b823a5461cf7be084e1f8be456b83be07082648a4d02521f475e8b3af3811d",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.955
       },
       "us-IA": {
         "sha256": "d358f345d5009027d447e20a848f3f83acc9afcc22a2a44d4a6531443ce58f35",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 24.0
       },
       "us-ID": {
         "sha256": "378b0ae7918927652daf16fe05fef79541c6c17a058ada62ff2f58b46e3e99a3",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.973
       },
       "us-IL": {
         "sha256": "00712860b777de96a3dfce735a3710379d96136cc1f1b98be69b5702b677c325",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.915
       },
       "us-IN": {
         "sha256": "bf0ded89613cfa20e1d9fc18464d913e867444fa83947cb8aece113f73e346a6",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.995
       },
       "us-KS": {
         "sha256": "4e4a6ca86849e82ab0df7a9a205c8577723fdaadc9603be383f8ca74c9b60ca9",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.969
       },
       "us-KY": {
         "sha256": "1ce1d58d895a7419ebb0edd204f1d99ee6ab48177b62eac86b03df44c3e45f24",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.995
       },
       "us-LA": {
         "sha256": "8f82f1f5bd53e098ead6f794521b1ee21ddbd5371bf5daec452135fbaf75d68c",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.978
       },
       "us-MA": {
         "sha256": "a362c217a10dae5c3d57f12b09190ccd855255466dc0a937cadc86f7786e75a8",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.961
       },
       "us-MD": {
         "sha256": "36e406f11ded0b30d930514de0a28e42e56357359076f7356ae34bc6f065cf9c",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.996
       },
       "us-ME": {
         "sha256": "d98137b9cab94edd26a0199ec14a3e3d9ed030dfe74d3327db998987d3531f3b",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.988
       },
       "us-MI": {
         "sha256": "08a2662f6a64db3bab576a26dda1403fa0d3b4e6b1a7eb895d55d7323322a6ae",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.994
       },
       "us-MN": {
         "sha256": "c9c0a24df073e9b80766624c06add9a8c9e30a41ebfcfbe90d1f00d77425e90f",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.989
       },
       "us-MO": {
         "sha256": "8d895de4b8303959d556b17ca9d3febd7ef4189172de255b769561bcddf07ba5",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.969
       },
       "us-MS": {
         "sha256": "fd0231ac3d46ceb2af5688f3790c2cd01403fde8340e7856ad67c3d3f3233546",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.999
       },
       "us-MT": {
         "sha256": "5f0c3500c0c49c0249cf74e677035ae3e765edaf9c276ac4760ba1dda9fd321c",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.973
       },
       "us-NC": {
         "sha256": "0529ae497d440b537be2b06efe10ef39db03fe3dd377b917c6ee97b03c6264cc",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.994
       },
       "us-ND": {
         "sha256": "e6848e1d302ba3ac838eb1646d0999c091f7cdb7119971e75700ae9740cdba8c",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.989
       },
       "us-NE": {
         "sha256": "626eded235fc6792ac2e83fd1f017f6772499306ff933670abcff5488ef5b714",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.904
       },
       "us-NH": {
         "sha256": "91f84a8db05c753b6073aa57d91ea3c5574d52c6a81983da1c343db26123f3eb",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.989
       },
       "us-NJ": {
         "sha256": "c8660c8e8534091508156030577e7eb86bd82313e3c42aca91ce3ba8c84c0976",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.852
       },
       "us-NM": {
         "sha256": "8f1e22527726741a21cbac2eee9aa98c5df47f867e58a080dfaf48d011da4892",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.965
       },
       "us-NV": {
         "sha256": "7b726427653bd3feb8c104504a0b732938b21c164ab9b837babd929adae2558f",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.732
       },
       "us-NY": {
         "sha256": "819890634e1f3c201c4e5c6daef873d427ae47bad7dd7863aa197d80ef51eaad",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.965
       },
       "us-OH": {
         "sha256": "83cad0bbc43bb536c433065cd5668c28e3287e9a99751751a5012a0c23d466b0",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.994
       },
       "us-OK": {
         "sha256": "ffdb31eab5faa7a8939579bb52e767d1a2eb26c597935bd57d2d48657c6bc5ed",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.972
       },
       "us-OR": {
         "sha256": "48e3669b2251f26f8d09868cd9a4a39559cc7ea2791ff070b0d4c113ab3be4d4",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.996
       },
       "us-PA": {
         "sha256": "657fbd2ac2522050c2e478b690100b3010abc10ddadfe1578b5ad059d12072ab",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.965
       },
       "us-PR": {
         "sha256": "7cf20ecf903677607fdc564f302f110be62011085e2a2401ab2b7adc23d4787a",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.949
       },
       "us-RI": {
         "sha256": "4a317a09cf7de6269d6611cceecb3f8c2e6aa765fecd5a35aca4f3652a08b034",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.652
       },
       "us-SC": {
         "sha256": "584fa3500c3d09b7879f4cccbd4fce3f9d15c53c534e63bceeff7ce809380967",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.985
       },
       "us-SD": {
         "sha256": "bf2e90fc470359dccb6328f70d059c7ba21033f538774c0fbc2ee249ba9771c8",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 24.0
       },
       "us-TN": {
         "sha256": "337bb15fa89260826f2f29b769f1d4647b2ccb0418c2b29d6fbf4d1be94be49d",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.994
       },
       "us-TX": {
         "sha256": "aff4c98748a88498521bc4f21e7cfd801bdc4d5f1e2a8593dfa949564f8800b2",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.994
       },
       "us-UT": {
         "sha256": "d8fc8fadc55acd5184b8ec60fc0bc85678070018728ee148def2566583c8183f",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 22.558
       },
       "us-VA": {
         "sha256": "05d0714a38ebedeb687cde5e8877df6db88f7551f920d49f06358139e5ec630c",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.996
       },
       "us-VT": {
         "sha256": "88b9d0a25cfdc068265cef9e7dd4c599373dc44b436e89890f2f8394b351533c",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.935
       },
       "us-WA": {
         "sha256": "59f18a0b2c6fc0623b29915bbffd8c484767536d219dfeaec726667e46c70044",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.954
       },
       "us-WI": {
         "sha256": "4ca108c58b5d349ac6a7e2db184354736c4336f5ac5fcf3b225168b60d69eb9a",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.994
       },
       "us-WV": {
         "sha256": "677cf03705f4b6ed7ab290c0d534e125a39dbc709505e4e8a51883c642b86391",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.996
       },
       "us-WY": {
         "sha256": "5eaadbab765730cf3cc1f4f06d3461cb7f8d57b3a89c0c35d9df4eed5ecf94b5",
+        "sourceSHA256": {
+          "censusTIGER-state": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+        },
         "upperBoundMetres": 23.862
       }
-    },
-    "sourceSHA256": "2e17ea40dff3e00163eec87a26efa0b0ff7e8fe364a191bf1a7754dcb49ea326"
+    }
   }
 }

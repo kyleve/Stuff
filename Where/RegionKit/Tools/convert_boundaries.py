@@ -68,7 +68,7 @@ CA_2026_TOPOLOGY = {
     "62": (62405, 3, 5091805),
 }
 FIELDS = ["PRUID", "DGUID", "PRENAME", "PRFNAME"]
-US_TRACKING_TOLERANCE = 180
+TRACKING_TOLERANCE = 180
 CA_DISPLAY_TOLERANCE = 45
 CA_DUPLICATE_TOLERANCE = 0.02
 # Land samples include both sides of three international boundary segments and all four
@@ -226,6 +226,7 @@ class Member:
     membership: dict
     geometry: object
     projection: int
+    geometry_inputs: tuple[str, ...]
 
 
 def node(node_id, name, kind, source, parent):
@@ -261,8 +262,9 @@ def us_members(cache, year, product):
         folder = f"GENZ{year}/shp"
     else:
         raise ValueError(f"Unknown Census product: {product}")
+    input_key = f"{product}-state"
     path = cache.get(
-        f"{product}-state", f"https://www2.census.gov/geo/tiger/{folder}/{base}.zip"
+        input_key, f"https://www2.census.gov/geo/tiger/{folder}/{base}.zip"
     )
     members, inventory = {}, {}
     with ZipFile(path) as archive:
@@ -307,7 +309,12 @@ def us_members(cache, year, product):
                     row["coordinateOperations"],
                 )
                 members[code] = Member(
-                    code, props, row, geometry, US_PROJECTIONS.get(code, 5070)
+                    code,
+                    props,
+                    row,
+                    geometry,
+                    US_PROJECTIONS.get(code, 5070),
+                    (input_key,),
                 )
     require(
         set(inventory) == US_CODES
@@ -389,11 +396,17 @@ def canadian_sources(cache, year, product):
                 "outFields": ",".join(FIELDS),
                 "returnGeometry": "true",
                 "outSR": "4326",
-                "geometryPrecision": str(DECIMALS),
+                **(
+                    {"geometryPrecision": str(DECIMALS)}
+                    if product == "statcanCartographic"
+                    else {}
+                ),
                 "f": "geojson",
             }
         )
-        path = cache.get(f"{product}-{uid}", url)
+        feature_key = f"{product}-{uid}"
+        input_keys = [feature_key]
+        path = cache.get(feature_key, url)
         payload = path.read_bytes()
         record = arc_features(json.loads(payload))
         require(
@@ -424,7 +437,9 @@ def canadian_sources(cache, year, product):
                     "f": "pbf",
                 }
             )
-            native = cache.get(f"{product}-{uid}-topology", verification_url)
+            topology_key = f"{feature_key}-topology"
+            input_keys.append(topology_key)
+            native = cache.get(topology_key, verification_url)
             rings, vertices = ring_topology(native.read_bytes())
             actual = counts(geometry)
             require(
@@ -445,7 +460,9 @@ def canadian_sources(cache, year, product):
             "countryID": "canada",
             "catalogID": props["id"],
         }
-        members.append(Member(code, props, membership, geometry, 3347))
+        members.append(
+            Member(code, props, membership, geometry, 3347, tuple(input_keys))
+        )
     return members
 
 
@@ -590,11 +607,31 @@ def repair_digital_seams(projected, group, repairs):
     return corrected
 
 
-def convert_subdivisions(members, country, probes, tolerance, restore=None):
+@dataclass
+class SubdivisionConversion:
+    features: list
+    report: dict
+    source_hits: dict
+    output_hits: dict
+    certificates: dict
+
+
+def convert_subdivisions(
+    members, country, probes, role, input_hashes, *, display_tolerance=0
+):
+    require(role in ("tracking", "display"), f"Unknown geometry role: {role}")
+    tracking = role == "tracking"
+    if tracking:
+        require(
+            all(m.geometry_inputs for m in members),
+            "Tracking geometry requires pinned source inputs",
+        )
+    tolerance = TRACKING_TOLERANCE if tracking else display_tolerance
     groups = defaultdict(list)
     for member in members:
         groups[member.projection].append(member)
     converted = {}
+    working_topology = {}
     rows, repairs, operations = {}, [], {}
     source_hits = defaultdict(list)
     output_hits = defaultdict(list)
@@ -605,12 +642,22 @@ def convert_subdivisions(members, country, probes, tolerance, restore=None):
             "Simplification requires a metric CRS",
         )
         raw = [repaired(m.geometry, m.code, repairs) for m in group]
+        digital = group[0].properties["source"] == "statcanDigital"
+        # Canadian neighbors can coincide on the TWKB grid where their full-precision
+        # lines differ by millimetres. Resolve seams at output precision before GIS
+        # simplification, preserving the unrounded publisher polygons for certification.
+        working_wgs84 = (
+            [shapely.transform(g, lambda xy: np.round(xy, DECIMALS)) for g in raw]
+            if digital
+            else raw
+        )
         projected = [
             repaired(g, m.code, repairs)
-            for m, g in zip(group, reproject(raw, 4326, epsg, operations), strict=True)
+            for m, g in zip(
+                group, reproject(working_wgs84, 4326, epsg, operations), strict=True
+            )
         ]
         working = projected
-        digital = group[0].properties["source"] == "statcanDigital"
         if digital and not shapely.coverage_is_valid(working):
             working = repair_digital_seams(projected, group, repairs)
         require(
@@ -634,9 +681,25 @@ def convert_subdivisions(members, country, probes, tolerance, restore=None):
                 strict=True,
             )
         }
-        if restore is not None:
-            canonical_group = restore(
-                {m.code: m.geometry for m in group}, canonical_group
+        if tracking:
+            restoration_source = working_wgs84
+            if working is not projected:
+                restoration_source = [
+                    canonical(g) for g in reproject(working, epsg, 4326, operations)
+                ]
+            if any(
+                g is not m.geometry
+                for m, g in zip(group, restoration_source, strict=True)
+            ):
+                working_topology.update(
+                    {
+                        m.properties["id"]: g
+                        for m, g in zip(group, restoration_source, strict=True)
+                    }
+                )
+            canonical_group = restore_tracking(
+                {m.code: g for m, g in zip(group, restoration_source, strict=True)},
+                canonical_group,
             )
         forward = pyproj.Transformer.from_pipeline(operations[f"4326-to-{epsg}"])
         for m, before, planar in zip(group, raw, projected, strict=True):
@@ -663,9 +726,9 @@ def convert_subdivisions(members, country, probes, tolerance, restore=None):
                 probes, matches(before, points), matches(final, points), strict=True
             ):
                 if source_hit:
-                    source_hits[name].append(m.code)
+                    source_hits[name].append(m.properties["id"])
                 if output_hit:
-                    output_hits[name].append(m.code)
+                    output_hits[name].append(m.properties["id"])
             converted[m.code] = final
 
     require(
@@ -673,15 +736,22 @@ def convert_subdivisions(members, country, probes, tolerance, restore=None):
         f"Final shared borders do not match in {country}",
     )
     features = [(m.properties, converted[m.code]) for m in members]
-    return (
-        features,
-        {
-            "members": rows,
-            "repairs": repairs,
-            "coordinateOperations": operations,
-        },
-        source_hits,
-        output_hits,
+    report = {"members": rows, "repairs": repairs, "coordinateOperations": operations}
+    certificates = {}
+    if tracking:
+        certificates = certify_tracking(
+            {m.properties["id"]: m.geometry for m in members},
+            {props["id"]: geometry for props, geometry in features},
+            {
+                m.properties["id"]: {
+                    key: input_hashes[key] for key in m.geometry_inputs
+                }
+                for m in members
+            },
+            working_topology,
+        )
+    return SubdivisionConversion(
+        features, report, source_hits, output_hits, certificates
     )
 
 
@@ -735,11 +805,8 @@ def join_memberships(tracking, display):
 def classify_release(role, probes, us, canada):
     samples = {}
     for name, xy in probes.items():
-        before, after = [
-            [f"us-{code}" for code in us[index][name]]
-            + [f"ca-{code}" for code in canada[index][name]]
-            for index in (2, 3)
-        ]
+        before = us.source_hits[name] + canada.source_hits[name]
+        after = us.output_hits[name] + canada.output_hits[name]
         samples[name] = {"lonLat": list(xy), "source": before, "candidate": after}
         if name in PROBES:
             expected = PROBES[name][2]
@@ -820,29 +887,35 @@ def build_release(cache, output, us_year, us_display_year, ca_year):
             f"Verified membership and source topology for {us_product} and {ca_product}.",
             flush=True,
         )
+        pins = {row["key"]: row["sha256"] for row in cache.inputs}
         us_result = convert_subdivisions(
             us,
             "united-states",
             probes,
-            US_TRACKING_TOLERANCE if tracking else 0,
-            restore_tracking if tracking else None,
+            role,
+            pins,
+        )
+        ca_result = convert_subdivisions(
+            canada,
+            "canada",
+            probes,
+            role,
+            pins,
+            display_tolerance=CA_DISPLAY_TOLERANCE,
         )
         if tracking:
-            tiger = next(
-                row for row in cache.inputs if row["key"] == "censusTIGER-state"
-            )
-            report["usTrackingAccuracy"] = certify_tracking(
-                {m.code: m.geometry for m in us},
-                {
-                    props["id"].removeprefix("us-"): geometry
-                    for props, geometry in us_result[0]
-                },
-                tiger["sha256"],
-            )
+            members = us_result.certificates | ca_result.certificates
+            report["trackingAccuracy"] = {
+                "capMetres": CAP_METRES,
+                "maximumUpperBoundMetres": max(
+                    row["upperBoundMetres"] for row in members.values()
+                ),
+                "members": members,
+            }
             # Keep the historically displaced shared bend observable on each side.
             point = reproject(shapely.Point(TEXAS_BORDER_VERTEX), 4326, 5070)
             distances = {}
-            for props, geometry in us_result[0]:
+            for props, geometry in us_result.features:
                 if props["id"] in ("us-TX", "us-LA"):
                     distances[props["id"]] = round(
                         float(point.distance(reproject(geometry, 4326, 5070).boundary)),
@@ -857,13 +930,10 @@ def build_release(cache, output, us_year, us_display_year, ca_year):
                 "lonLat": TEXAS_BORDER_VERTEX,
                 "distanceMetresEPSG5070": distances,
             }
-        ca_result = convert_subdivisions(
-            canada, "canada", probes, 0 if tracking else CA_DISPLAY_TOLERANCE
-        )
         samples = classify_release(role, probes, us_result, ca_result)
         report[role] = {
-            "united-states": us_result[1],
-            "canada": ca_result[1],
+            "united-states": us_result.report,
+            "canada": ca_result.report,
             "probes": samples,
             "sampleDisagreements": [
                 name
@@ -871,9 +941,9 @@ def build_release(cache, output, us_year, us_display_year, ca_year):
                 if row["source"] != row["candidate"]
             ],
         }
-        features = sorted(us_result[0], key=lambda pair: pair[0]["name"]) + sorted(
-            ca_result[0], key=lambda pair: pair[0]["name"]
-        )
+        features = sorted(
+            us_result.features, key=lambda pair: pair[0]["name"]
+        ) + sorted(ca_result.features, key=lambda pair: pair[0]["name"])
         geojson = output / (
             "north-america.geojson.gz"
             if tracking
@@ -885,7 +955,7 @@ def build_release(cache, output, us_year, us_display_year, ca_year):
     report_path = output / "report.json"
     write_json(report_path, report)
     lock = {
-        "version": 3,
+        "version": 4,
         "usYear": us_year,
         "usDisplayYear": us_display_year,
         "caYear": ca_year,
@@ -893,16 +963,13 @@ def build_release(cache, output, us_year, us_display_year, ca_year):
         "toolchain": chain,
         "conversion": {
             "algorithm": "GEOS coverage_simplify (coverage-wide Visvalingam-Whyatt)",
-            "usTracking": {
-                "initialToleranceMetres": US_TRACKING_TOLERANCE,
+            "tracking": {
+                "initialToleranceMetres": TRACKING_TOLERANCE,
                 "maximumDisplacementMetres": CAP_METRES,
                 "restorationMethod": f"Restore source vertices on chains exceeding {RESTORE_METRES} m; certify final TWKB against the source.",
             },
             "usDisplay": {"toleranceMetres": 0, "publisherScale": 500000},
-            "caTracking": {
-                "toleranceMetres": 0,
-                "nearDuplicateToleranceMetres": CA_DUPLICATE_TOLERANCE,
-            },
+            "canadianNearDuplicateToleranceMetres": CA_DUPLICATE_TOLERANCE,
             "caDisplay": {"toleranceMetres": CA_DISPLAY_TOLERANCE},
             "coordinateDecimals": DECIMALS,
             "usSourceEPSG": 4269,
@@ -910,7 +977,7 @@ def build_release(cache, output, us_year, us_display_year, ca_year):
             "canadianProjection": 3347,
             "canadianRequest": {
                 "outSR": 4326,
-                "geometryPrecision": DECIMALS,
+                "displayGeometryPrecision": DECIMALS,
                 "serverReprojects": True,
             },
             "normalizedEPSG": 4326,
@@ -943,8 +1010,8 @@ def main():
         )
         previous = json.loads(args.replay.read_text())
         require(
-            previous.get("version") == 3,
-            "Unsupported release lock version; refresh with --us-year, --us-display-year and --ca-year to create a paired release",
+            previous.get("version") == 4,
+            "Unsupported release lock version; refresh with --us-year, --us-display-year and --ca-year to create a release with tracking certificates for every subdivision",
         )
         require(
             previous["toolchain"] == toolchain(),

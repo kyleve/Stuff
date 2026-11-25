@@ -5,18 +5,20 @@
     "caDisplay": {
       "toleranceMetres": 45
     },
-    "caTracking": {
-      "nearDuplicateToleranceMetres": 0.02,
-      "toleranceMetres": 0
-    },
+    "canadianNearDuplicateToleranceMetres": 0.02,
     "canadianProjection": 3347,
     "canadianRequest": {
-      "geometryPrecision": 7,
+      "displayGeometryPrecision": 7,
       "outSR": 4326,
       "serverReprojects": true
     },
     "coordinateDecimals": 7,
     "normalizedEPSG": 4326,
+    "tracking": {
+      "initialToleranceMetres": 180,
+      "maximumDisplacementMetres": 25,
+      "restorationMethod": "Restore source vertices on chains exceeding 24 m; certify final TWKB against the source."
+    },
     "usDisplay": {
       "publisherScale": 500000,
       "toleranceMetres": 0
@@ -28,11 +30,6 @@
       "continental": 5070
     },
     "usSourceEPSG": 4269,
-    "usTracking": {
-      "initialToleranceMetres": 180,
-      "maximumDisplacementMetres": 25,
-      "restorationMethod": "Restore source vertices on chains exceeding 24 m; certify final TWKB against the source."
-    },
     "winding": "CCW exterior, CW holes"
   },
   "inputs": [
@@ -61,10 +58,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=1%3D1&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=false&orderByFields=PRUID&f=geojson"
     },
     {
-      "bytes": 302201,
+      "bytes": 498021,
       "key": "statcanDigital-10",
-      "sha256": "8f9d2848e80dd79c71d557d49fff0c75d069d116cac25c13edc73011065cd141",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2710%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "93896a70f2e25c65e4e2e77242f6c9de08d19ef07ad2a84ff52c6f9daa80368b",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2710%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 81889,
@@ -73,10 +70,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2710%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 7728,
+      "bytes": 12632,
       "key": "statcanDigital-11",
-      "sha256": "532aa03ee00a8f533d05cd1801fecb24d1c49d3bc560a1f8d0aa9cc745ffd0ea",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2711%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "a0edebd7ed7b7e128bf910db73635eefe12abf445658ed0fdfcde5088b0bbef4",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2711%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 2484,
@@ -85,10 +82,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2711%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 30627,
+      "bytes": 50449,
       "key": "statcanDigital-12",
-      "sha256": "15cc04e1378972f578c1751231d42165456a87252b03a4812a39bdbcaf6857df",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2712%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "8df6fbf2e7fcedb644bf34c25076213c0c1eaedcf4c3a4e1f37b3c6ed9d7e012",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2712%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 9099,
@@ -97,10 +94,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2712%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 78991,
+      "bytes": 130569,
       "key": "statcanDigital-13",
-      "sha256": "c623d63146546d736867b6ee2848cd94e6bc524f2b38501d4ec469b265c81239",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2713%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "ad0a07ae25a640d34c8c8c160665913c9d40f5cd2eae6e59e9936c67b52c1549",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2713%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 22167,
@@ -109,10 +106,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2713%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 1000967,
+      "bytes": 1648676,
       "key": "statcanDigital-24",
-      "sha256": "e0b369a71c4eb9270d64464fc954987fc950de56717b5f9ec78f9b6e2684554b",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2724%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "9101df41a7862cbee61c9f267322109c2de3eb2af36713f336df1abf7087811a",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2724%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 257854,
@@ -121,10 +118,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2724%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 1061131,
+      "bytes": 1747888,
       "key": "statcanDigital-35",
-      "sha256": "0ea64c7a71bbe1c004f1272052cc1667cc99744eaf56f7082bd34f731118ae63",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2735%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "439173ed65cb5551f2895300832b58b63864c8002f830c6dc2b64f3e9bfa5a7b",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2735%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 264738,
@@ -133,10 +130,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2735%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 462001,
+      "bytes": 759548,
       "key": "statcanDigital-46",
-      "sha256": "a2ff1bba7517752f345a5d34da6bedb9918097580b82ae259c94ccc0705a18e3",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2746%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "5c1af6bdffd1c2471001a2096622d8a552ac745d00732b1bce1f4d9d83ee98da",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2746%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 114725,
@@ -145,10 +142,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2746%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 34897,
+      "bytes": 55093,
       "key": "statcanDigital-47",
-      "sha256": "fedff7a60177c5558f0e038eda04167e246bde161379153193f1f5adbd5caf68",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2747%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "37e085576ff53602efc1b592ffabc9b677b635878daa4aafa766ea42805b4f85",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2747%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 10352,
@@ -157,10 +154,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2747%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 91808,
+      "bytes": 145119,
       "key": "statcanDigital-48",
-      "sha256": "892d6cacb00dfa97057c4113ca07331e03b67375c21fe664b2f8247047af52b8",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2748%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "f8449095addb4382370f3f78a91cd387b17dde11b178aeb3f81db2d99f540dba",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2748%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 26768,
@@ -169,10 +166,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2748%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 100863,
+      "bytes": 159901,
       "key": "statcanDigital-59",
-      "sha256": "dcdab28bba18827bdc6b8bc273224066e3252eb6e3371fc8daa7da65e9603276",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2759%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "74ae6bba46eb2028e11e7a6f9865f3d8d5f784449800d51af8e02b806ae5d6d5",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2759%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 29804,
@@ -181,10 +178,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2759%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 31339,
+      "bytes": 52395,
       "key": "statcanDigital-60",
-      "sha256": "64752d349dfae19407bc4a3fd9a2eba13c985def4bd87ce04610940d543fd45f",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2760%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "ca79feb50190bf06bcd11353eb4d5c2be239e969e036cb5be6500f5a128d9d47",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2760%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 10360,
@@ -193,10 +190,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2760%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 87708,
+      "bytes": 141672,
       "key": "statcanDigital-61",
-      "sha256": "2c1e3feb93a9da815e5828d01c5e8b317ebbf14e330a2c347763621cf46156ba",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2761%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "725460edf174193965a07f115057e94995e7c39d3e85167360dcc42d72caf79b",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2761%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 24008,
@@ -205,10 +202,10 @@
       "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2761%27&outFields=PRUID&returnGeometry=true&outSR=3347&f=pbf"
     },
     {
-      "bytes": 1867953,
+      "bytes": 3072649,
       "key": "statcanDigital-62",
-      "sha256": "7d8a0eb90c3eec5d0235f2eaab3febf623335345d0a0101128ae97c2a03101c8",
-      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2762%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&geometryPrecision=7&f=geojson"
+      "sha256": "45a9ab45cf1970e83d6fd27add93049063b4efa685e54bd3b020fd5afd8ca624",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0/query?where=PRUID%3D%2762%27&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&returnGeometry=true&outSR=4326&f=geojson"
     },
     {
       "bytes": 458504,
@@ -326,12 +323,12 @@
     },
     "tracking": {
       "file": "north-america.geojson.gz",
-      "sha256": "da2716fdd468626209b0c9a2821926eb3584f010453d1429ecb77c8fac849ee3"
+      "sha256": "1963ec4536005628ea24485f45e8a4bab4920c59a88598a2534d0722035640e1"
     }
   },
   "report": {
     "file": "report.json",
-    "sha256": "bb12ebc5e53742d47442cfa1bbd06dae92677de50bee43ddc9066b01de3524f4"
+    "sha256": "842825f6e665cc90f3f652990b0225bb8ff3d8e214fc49102ae8816deb8b3eda"
   },
   "sources": {
     "censusCartographic": {
@@ -380,5 +377,5 @@
   },
   "usDisplayYear": 2025,
   "usYear": 2026,
-  "version": 3
+  "version": 4
 }

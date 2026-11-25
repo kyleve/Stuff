@@ -1,4 +1,4 @@
-"""Restore selected TIGER vertices and certify the emitted tracking rings against the source."""
+"""Restore selected publisher vertices and certify the emitted tracking rings against the source."""
 
 import base64
 import hashlib
@@ -67,11 +67,12 @@ class SourceRing:
         source = list(ring.coords)
         self.points = [(round(x, DECIMALS), round(y, DECIMALS)) for x, y in source[:-1]]
         self.indices = {p: i for i, p in enumerate(self.points)}
+        self.unrounded = source[:-1]
         if len(self.indices) != len(self.points):
             raise ValueError("Rounded source ring has an ambiguous vertex")
         if any(abs(a[0] - b[0]) > 180 for a, b in zip(source, source[1:])):
             raise ValueError(
-                "Split the TIGER ring at the antimeridian before certification"
+                "Split the tracking ring at the antimeridian before certification"
             )
         # The same interpolation parameter pairs every point on each raw and rounded edge.
         self.rounding = METRES_PER_DEGREE * max(
@@ -107,7 +108,7 @@ def corresponding_rings(source, simplified):
     source_parts = list(shapely.get_parts(source))
     candidates = list(shapely.get_parts(simplified))
     if len(source_parts) != len(candidates):
-        raise ValueError("TIGER polygon part count changed")
+        raise ValueError("Tracking polygon part count changed")
     parts = [(SourceRing(part.exterior), part.interiors) for part in source_parts]
 
     def take(ring, available):
@@ -122,14 +123,14 @@ def corresponding_rings(source, simplified):
         ]
         if len(matches) != 1:
             raise ValueError(
-                f"Cannot match retained TIGER vertices to one source ring at {anchor}"
+                f"Cannot match retained tracking vertices to one source ring at {anchor}"
             )
         return available.pop(matches[0])
 
     for part in candidates:
         exterior, source_holes = take(part.exterior, parts)
         if len(source_holes) != len(part.interiors):
-            raise ValueError("TIGER polygon hole count changed")
+            raise ValueError("Tracking polygon hole count changed")
         pairs = [(exterior, part.exterior)]
         holes = [(SourceRing(r), None) for r in source_holes]
         for hole in part.interiors:
@@ -164,7 +165,7 @@ def restore_member(source, simplified, forced):
     reason = shapely.is_valid_reason(geometry)
     match = re.search(r"\[([^ ]+) ([^\]]+)\]", reason)
     if not match:
-        raise ValueError(f"Cannot locate invalid restored TIGER boundary: {reason}")
+        raise ValueError(f"Cannot locate invalid restored tracking boundary: {reason}")
     location = Point(float(match[1]), float(match[2]))
     implicated = set()
     for ring in shapely.get_rings(shapely.get_parts(geometry)):
@@ -174,14 +175,14 @@ def restore_member(source, simplified, forced):
                 implicated.add(origins[edge(a, b)])
     if not implicated - forced:
         raise ValueError(
-            f"Full source chains cannot repair restored TIGER boundary: {reason}"
+            f"Full source chains cannot repair restored tracking boundary: {reason}"
         )
     return geometry, implicated
 
 
 def restore_tracking(source, simplified):
     if source.keys() != simplified.keys() or not source:
-        raise ValueError("TIGER coverage membership changed")
+        raise ValueError("Tracking coverage membership changed")
     forced = set()
     while True:
         output, repairs = {}, set()
@@ -191,7 +192,7 @@ def restore_tracking(source, simplified):
         if not repairs:
             if not shapely.coverage_is_valid(list(output.values())):
                 raise ValueError(
-                    "Restored TIGER shared borders do not form a valid coverage"
+                    "Restored tracking shared borders do not form a valid coverage"
                 )
             return output
         forced.update(repairs)
@@ -233,9 +234,34 @@ def decode_twkb(data):
     return MultiPolygon(polygons)
 
 
-def certify_tracking(source, final, tiger_sha256):
-    if source.keys() != final.keys() or not source:
-        raise ValueError("TIGER certification membership changed")
+def compare_rings(code, source, decoded, chords):
+    maximum = 0
+    for pairs in corresponding_rings(source, decoded):
+        for original, ring in pairs:
+            for chain in original.chains(ring):
+                chord = edge(chain[0], chain[-1])
+                upper, _ = chain_bound(chain)
+                maximum = max(maximum, upper + original.rounding)
+                for a, b in zip(chain, chain[1:]):
+                    source_edge = edge(
+                        original.unrounded[original.indices[a]],
+                        original.unrounded[original.indices[b]],
+                    )
+                    if chords.setdefault(source_edge, chord) != chord:
+                        raise ValueError(
+                            f"Different tracking chords on shared source edge in {code}"
+                        )
+    return maximum
+
+
+def certify_tracking(source, final, source_hashes, working_topology):
+    if (
+        source.keys() != final.keys()
+        or source.keys() != source_hashes.keys()
+        or not working_topology.keys() <= source.keys()
+        or not source
+    ):
+        raise ValueError("Tracking certification membership changed")
     encoder = Path(__file__).with_name("tiny_wkb.rb")
     # Use the offline generator's encoder. Adoption hashes the independently regenerated files.
     result = subprocess.run(
@@ -254,38 +280,34 @@ def certify_tracking(source, final, tiger_sha256):
         check=True,
     )
     members = {}
-    # Each source edge owned by two states must map to precisely the same output chord.
+    # Each shared publisher edge must map to the same output chord for both owners.
+    # Rounding can make distinct edges coincide near a seam. Key by the original
+    # coordinates and independently validate the coverage of the decoded output.
+    coverage = []
     chords = {}
+    repaired_chords = {}
     for code, line in zip(final, result.stdout.splitlines(), strict=True):
         data = base64.b64decode(line, validate=True)
         decoded = decode_twkb(data)
         if not decoded.is_valid:
             raise ValueError(f"Invalid tracking TWKB for {code}")
-        maximum = 0
-        for pairs in corresponding_rings(source[code], decoded):
-            for original, ring in pairs:
-                for chain in original.chains(ring):
-                    chord = edge(chain[0], chain[-1])
-                    upper, _ = chain_bound(chain)
-                    maximum = max(maximum, upper + original.rounding)
-                    for a, b in zip(chain, chain[1:]):
-                        if chords.setdefault(edge(a, b), chord) != chord:
-                            raise ValueError(
-                                f"Different tracking chords on shared TIGER edge in {code}"
-                            )
+        coverage.append(decoded)
+        maximum = compare_rings(code, source[code], decoded, chords)
+        if working_topology:
+            # A seam repair can join edges that were disjoint in the original. Those
+            # neighbors must also retain identical chords in the decoded result.
+            compare_rings(
+                code, working_topology.get(code, source[code]), decoded, repaired_chords
+            )
         if maximum > CAP_METRES:
             raise ValueError(
-                f"TIGER displacement in {code} exceeds {CAP_METRES} m: {maximum}"
+                f"Tracking displacement in {code} exceeds {CAP_METRES} m: {maximum}"
             )
-        members[f"us-{code}"] = {
+        members[code] = {
+            "sourceSHA256": source_hashes[code],
             "sha256": hashlib.sha256(data).hexdigest(),
             "upperBoundMetres": math.ceil(maximum * 1000) / 1000,
         }
-    return {
-        "sourceSHA256": tiger_sha256,
-        "capMetres": CAP_METRES,
-        "maximumUpperBoundMetres": max(
-            row["upperBoundMetres"] for row in members.values()
-        ),
-        "members": members,
-    }
+    if not shapely.coverage_is_valid(coverage):
+        raise ValueError("Decoded tracking shared borders do not form a valid coverage")
+    return members

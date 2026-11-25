@@ -44,10 +44,12 @@ class ArcGISFixture:
             }
             for uid, code in boundaries.CANADA.items()
         ]
+        self.urls = {}
         self.error = None
         self.pbf = native_polygon_fixture()
 
-    def get(self, key, _url):
+    def get(self, key, url):
+        self.urls[key] = url
         edition = "a" if self.product == "statcanDigital" else "b"
         layer_name = f"lpr_000{edition}{str(self.year)[-2:]}s_e"
         if key == f"{self.product}-service":
@@ -134,6 +136,12 @@ class BoundaryConversionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             fixture = ArcGISFixture(Path(temp), 2026, "statcanDigital")
             members = boundaries.canadian_sources(fixture, 2026, "statcanDigital")
+            self.assertNotIn("geometryPrecision", fixture.urls["statcanDigital-35"])
+            ontario = next(member for member in members if member.code == "ON")
+            self.assertEqual(
+                ontario.geometry_inputs,
+                ("statcanDigital-35", "statcanDigital-35-topology"),
+            )
             self.assertTrue(
                 all(m.properties["source"] == "statcanDigital" for m in members)
             )
@@ -251,6 +259,7 @@ class BoundaryConversionTests(unittest.TestCase):
                 {},
                 MultiPolygon([mainland, island]),
                 5070,
+                ("archive",),
             ),
             boundaries.Member(
                 "MO",
@@ -260,6 +269,7 @@ class BoundaryConversionTests(unittest.TestCase):
                 {},
                 neighbor,
                 5070,
+                ("archive",),
             ),
         ]
         probes = {
@@ -267,12 +277,18 @@ class BoundaryConversionTests(unittest.TestCase):
             "island": (-98.45, 40.05),
             "neighbor": (-99.5, 40.5),
         }
-        features, report, source, candidate = boundaries.convert_subdivisions(
-            members, "united-states", probes, 180
+        result = boundaries.convert_subdivisions(
+            members, "united-states", probes, "tracking", {"archive": "sha"}
+        )
+        features, report = result.features, result.report
+        self.assertEqual(set(result.certificates), {"us-KS", "us-MO"})
+        self.assertEqual(
+            result.certificates["us-KS"]["sourceSHA256"], {"archive": "sha"}
         )
         self.assertEqual(["us-KS", "us-MO"], [pair[0]["id"] for pair in features])
         self.assertEqual(
-            [source[name] for name in probes], [candidate[name] for name in probes]
+            [result.source_hits[name] for name in probes],
+            [result.output_hits[name] for name in probes],
         )
         self.assertEqual(
             {"parts": 2, "holes": 1},
@@ -284,6 +300,28 @@ class BoundaryConversionTests(unittest.TestCase):
         self.assertTrue(kansas.covers(Point(*probes["island"])))
         self.assertFalse(kansas.covers(Point(*probes["neighbor"])))
         self.assertTrue(missouri.covers(Point(*probes["neighbor"])))
+
+    def test_new_tracking_source_needs_pins_and_receives_a_displacement_certificate(
+        self,
+    ):
+        member = boundaries.Member(
+            "AA",
+            boundaries.node("new-AA", "A", "province", "newPublisher", "new"),
+            {},
+            box(-101, 40, -100, 41),
+            5070,
+            (),
+        )
+        args = ([member], "new", {"home": (-100.5, 40.5)}, "tracking")
+        with self.assertRaisesRegex(ValueError, "pinned source inputs"):
+            boundaries.convert_subdivisions(*args, {})
+        member.geometry_inputs = ("new-shape",)
+        result = boundaries.convert_subdivisions(*args, {"new-shape": "sha"})
+        self.assertEqual(result.source_hits["home"], ["new-AA"])
+        self.assertEqual(
+            result.certificates["new-AA"]["sourceSHA256"], {"new-shape": "sha"}
+        )
+        self.assertLessEqual(result.certificates["new-AA"]["upperBoundMetres"], 25)
 
     def test_digital_seam_repair_only_removes_centimetre_scale_duplicates(self):
         neighbor = box(1, 0, 2, 1)

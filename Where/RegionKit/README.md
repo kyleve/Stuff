@@ -146,21 +146,26 @@ ruby "$tool" --replay /tmp/regions-candidate/sources.lock.json --cache "$cache" 
 diff -qr /tmp/regions-candidate /tmp/regions-replay
 ```
 
-Release locks use format 3. The two US products have independent vintage flags.
+Release locks use format 4. The two US products have independent vintage flags.
 Both Canadian products use `--ca-year`. To upgrade an older release, refresh
 with all three years. The checkout that published an older lock can replay it.
 
 Refresh checks the publisher inventory and prints changed pins for previously
 adopted URLs. Replay reads exclusively from the verified download cache. Both
-write to a new directory. Inspect `report.json` for raw and processed component
-counts, source and candidate classifications, and the 52 US displacement bounds.
-Each bound covers the original TIGER source and the decoded tracking file in
-both directions, including islands and holes. The report binds the source archive
-and each emitted file by SHA-256. The updater starts with a 180 m area-based
-simplification and restores source vertices on edges that exceed the 24 m working
-threshold. It rejects any release exceeding the 25 m cap or disagreeing across
-a shared state edge. `bundle-report.json` accounts for the release and default
-tracking files. Inspect the candidate before adoption.
+write to a new directory. Inspect `report.json` for component counts, source and
+candidate classifications, and the displacement bounds under `trackingAccuracy`.
+`bundle-report.json` lists shipped bytes by role and the default tracking files.
+
+Every generated tracking boundary must stay within **25 m** of its original
+publisher geometry, in both directions along the entire boundary. The updater
+starts with a 180 m area-based simplification and restores source vertices on
+edges that exceed its 24 m working threshold. Both owners of a shared edge
+retain the same vertices. The verifier follows every island and hole in the
+decoded TWKB back to the original coordinates, accounting for rounding and
+source repairs. The report binds the publisher inputs and encoded tracking
+files by SHA-256. Review the bounds and any repairs
+before adoption. The cap measures error introduced by conversion. Source survey
+precision and the device’s reported GPS accuracy are separate quantities.
 
 ```sh
 ruby "$tool" --adopt /tmp/regions-candidate
@@ -173,7 +178,7 @@ Adoption verifies source and output hashes before it installs the normalized inp
 
 - **US tracking.** The 2026 Census TIGER/Line STATE archive defines state and equivalent boundaries, including assigned water. The updater checks all 56 source IDs and ships the existing 52 jurisdictions. [TIGER/Line STATE](https://www2.census.gov/geo/tiger/TIGER2026/STATE/)
 - **US display.** The independently published 2025 Census 1:500,000 cartographic file supplies a generalized shoreline. RegionKit retains the publisher’s detail. Both Census products are public domain. [Cartographic state boundaries](https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_state_500k.zip)
-- **Canadian tracking.** Statistics Canada’s 2026 digital province and territory boundaries include assigned coastal water. Where retains the published linework at seven decimal places, with a small topology repair recorded in the report. [Digital boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0)
+- **Canadian tracking.** Statistics Canada’s 2026 digital province and territory boundaries include assigned coastal water. The updater requests each WGS84 feature at full precision, checks its ring and vertex counts against the native-coordinate response and applies the common displacement cap. [Digital boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0)
 - **Canadian display.** Statistics Canada’s 2026 detailed cartographic boundaries represent land and coastal islands. The 45 m area-based simplification preserves narrow Maritime waterways that disappeared at 180 m. Inland water coverage varies by product and lake. Contains information adapted from Statistics Canada under the Open Government Licence – Canada. [Cartographic boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [Canadian licence](https://open.canada.ca/en/open-government-licence-canada)
 - **EU tracking and display.** The European Union uses the repository’s approximate hand-drawn GeoJSON for both roles.
 
@@ -181,7 +186,7 @@ Adoption verifies source and output hashes before it installs the normalized inp
 
 Map the publisher ID to a stable app ID in the source adapter. Assign the node's immediate parent, jurisdiction kind, tracking eligibility and both source products. Verify a known interior location, add the applicable membership check and update the compatibility gates before shipping a new writable ID. RegionKit resolves a display name from the optional localization key or the publisher's English name.
 
-When adding the first geometry for another country or bloc, map its catalog ID to a directory in `RegionGenerator::GEOMETRY_GROUPS`.
+When adding a publisher source, pass its original coordinates and pinned input hashes to the shared tracking converter. Require an accuracy result for every encoded tracking region from that source. Display uses the cartographic detail appropriate to the app’s maps and artwork. For the first geometry from another country or bloc, map its catalog ID to a directory in `RegionGenerator::GEOMETRY_GROUPS`.
 
 ## Testing
 

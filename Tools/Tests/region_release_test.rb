@@ -65,11 +65,13 @@ class RegionReleaseTest < Minitest::Test
     refute_path_exists stale
 
     lock_path = File.join(@candidate, "sources.lock.json")
-    lock = JSON.parse(File.read(lock_path)).merge("version" => 2)
-    File.write(lock_path, JSON.generate(lock))
-    _out, error, status = invoke("--adopt", @candidate)
-    refute status.success?
-    assert_includes error, "Unsupported release lock version"
+    lock = JSON.parse(File.read(lock_path))
+    [2, 3].each do |version|
+      File.write(lock_path, JSON.generate(lock.merge("version" => version)))
+      _out, error, status = invoke("--adopt", @candidate)
+      refute status.success?
+      assert_includes error, "--refresh with --us-year, --us-display-year and --ca-year"
+    end
     cli("--check")
   end
 
@@ -278,17 +280,26 @@ class RegionReleaseTest < Minitest::Test
     mutations = {
       "duplicate release input pins" => ->(lock, _) { lock["inputs"].pop },
       "Wrong publisher URL for statcanDigital-62" => ->(lock, _) { lock["inputs"].find { |p| p["key"] == "statcanDigital-62" }["url"] += "&maxAllowableOffset=50" },
+      "Wrong publisher URL for statcanDigital-35" => ->(lock, _) { lock["inputs"].find { |p| p["key"] == "statcanDigital-35" }["url"] += "&geometryPrecision=7" },
       "Invalid checksum or size" => ->(lock, _) { lock["inputs"].first["bytes"] = 0 },
       "Wrong publisher URL" => ->(lock, _) { lock["inputs"][1]["url"] = "https://example.com/service" },
       "license" => ->(lock, _) { lock["sources"]["statcanDigital"].delete("license") },
       "GEOS" => ->(lock, _) { lock["toolchain"].delete("GEOS") },
       "Expected all four source products" => ->(lock, _) { lock["sources"].delete("censusCartographic") },
-      "usTrackingAccuracy" => ->(_, report) { report.delete("usTrackingAccuracy") },
-      "pinned TIGER input" => ->(_, report) { report["usTrackingAccuracy"]["sourceSHA256"] = "0" * 64 },
-      "Incomplete US accuracy" => ->(_, report) { report["usTrackingAccuracy"]["members"].delete("us-NY") },
-      "Invalid tracking accuracy" => ->(_, report) { report["usTrackingAccuracy"]["members"]["us-NY"]["upperBoundMetres"] = 25.1 },
-      "certified TWKB" => ->(_, report) { report["usTrackingAccuracy"]["members"]["us-NY"]["sha256"] = "0" * 64 },
-      "Incorrect maximum US tracking" => ->(_, report) { report["usTrackingAccuracy"]["maximumUpperBoundMetres"] = 12.0 },
+      "Incorrect WGS84 or tracking simplification settings" => ->(lock, _) { lock["conversion"]["tracking"]["maximumDisplacementMetres"] = 26 },
+      "trackingAccuracy" => ->(_, report) { report.delete("trackingAccuracy") },
+      "Incorrect tracking displacement cap" => ->(_, report) { report["trackingAccuracy"]["capMetres"] = 50 },
+      "Incorrect source hashes for us-NY" => ->(_, report) { report["trackingAccuracy"]["members"]["us-NY"]["sourceSHA256"]["censusTIGER-state"] = "0" * 64 },
+      "Incorrect source hashes for ca-ON" => ->(_, report) { report["trackingAccuracy"]["members"]["ca-ON"]["sourceSHA256"].delete("statcanDigital-35-topology") },
+      "Incorrect source hashes for ca-QC" => ->(_, report) {
+        members = report["trackingAccuracy"]["members"]
+        members["ca-QC"]["sourceSHA256"] = members["ca-ON"]["sourceSHA256"]
+      },
+      "certificate membership differs" => ->(_, report) { report["trackingAccuracy"]["members"].delete("ca-ON") },
+      "Tracking certificate membership" => ->(_, report) { report["trackingAccuracy"]["members"]["european-union"] = {} },
+      "Invalid tracking accuracy certificate for ca-ON" => ->(_, report) { report["trackingAccuracy"]["members"]["ca-ON"]["upperBoundMetres"] = 25.001 },
+      "Tracking geometry for ca-ON differs from the certified TWKB" => ->(_, report) { report["trackingAccuracy"]["members"]["ca-ON"]["sha256"] = "0" * 64 },
+      "Incorrect maximum tracking" => ->(_, report) { report["trackingAccuracy"]["maximumUpperBoundMetres"] = 12.0 },
       "Invalid US source inventory" => ->(_, report) { report["sourceMembership"].fetch("display").reject! { |r| r["STUSPS"] == "GU" } },
       "Invalid Canadian source member" => ->(_, report) { report["sourceMembership"].fetch("tracking").last["catalogID"] = "ca-ON" },
     }
@@ -367,11 +378,15 @@ class RegionReleaseTest < Minitest::Test
     end
     lock = release_lock
     encoded_sha = Digest::SHA256.hexdigest(TinyWKB.encode(geometry))
+    pins = lock.fetch("inputs").to_h { |pin| [pin.fetch("key"), pin.fetch("sha256")] }
+    members = source_members.select { |row| row.fetch("catalogID") }.to_h do |row|
+      keys = row["PRUID"] ? ["statcanDigital-#{row["PRUID"]}", "statcanDigital-#{row["PRUID"]}-topology"] : ["censusTIGER-state"]
+      [row.fetch("catalogID"), { "sourceSHA256" => pins.slice(*keys), "sha256" => encoded_sha, "upperBoundMetres" => 0.0 }]
+    end
     certificate = {
-      "sourceSHA256" => lock.fetch("inputs").first.fetch("sha256"), "capMetres" => 25, "maximumUpperBoundMetres" => 0.0,
-      "members" => US_TRACKING_CODES.to_h { |code| ["us-#{code}", { "sha256" => encoded_sha, "upperBoundMetres" => 0.0 }] },
+      "capMetres" => 25, "maximumUpperBoundMetres" => 0.0, "members" => members,
     }
-    report = { "usTrackingAccuracy" => certificate, "sourceMembership" => RegionGenerator::NORMALIZED.keys.to_h { |p| [p, source_members] } }
+    report = { "trackingAccuracy" => certificate, "sourceMembership" => RegionGenerator::NORMALIZED.keys.to_h { |p| [p, source_members] } }
     File.write(File.join(@candidate, "report.json"), JSON.generate(report))
     pin_release_files(lock)
     File.write(File.join(@candidate, "sources.lock.json"), JSON.generate(lock))
@@ -408,22 +423,24 @@ class RegionReleaseTest < Minitest::Test
       urls["#{product}-inventory"] = "#{service}/0/query?where=1%3D1&returnGeometry=false&f=geojson&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&orderByFields=PRUID"
       RegionRelease::CANADA_CODES.each_key do |uid|
         query = "#{service}/0/query?where=PRUID%3D%27#{uid}%27&returnGeometry=true"
-        urls["#{product}-#{uid}"] = "#{query}&outSR=4326&f=geojson&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME&geometryPrecision=7"
+        geometry_url = "#{query}&outSR=4326&f=geojson&outFields=PRUID%2CDGUID%2CPRENAME%2CPRFNAME"
+        geometry_url += "&geometryPrecision=7" if product == "statcanCartographic"
+        urls["#{product}-#{uid}"] = geometry_url
         urls["#{product}-#{uid}-topology"] = "#{query}&outFields=PRUID&outSR=3347&f=pbf" if product == "statcanDigital" || ca_year != 2026
       end
     end
     source = { "product" => "fixture", "publisher" => "publisher", "includes" => "polygons", "license" => "fixture" }
     years = { "usYear" => 2026, "usDisplayYear" => 2025, "caYear" => ca_year }
     {
-      **years, "version" => 3, "sources" => RegionGenerator::YEARS.transform_values { |key| source.merge("referenceDate" => "#{years.fetch(key)}-01-01") },
+      **years, "version" => 4, "sources" => RegionGenerator::YEARS.transform_values { |key| source.merge("referenceDate" => "#{years.fetch(key)}-01-01") },
       "toolchain" => { "python" => "3.12", "GEOS" => "3", "PROJ" => "9", "projectionDatabaseSHA256" => "a" * 64,
                        "projectionNetworkEnabled" => false, "packages" => %w[numpy pyproj pyshp shapely certifi].to_h { |name| [name, "1.0"] } },
       "conversion" => { "algorithm" => "simplify", "winding" => "CCW", "coordinateDecimals" => 7,
-                        "usTracking" => { "initialToleranceMetres" => 180, "maximumDisplacementMetres" => 25, "restorationMethod" => "adaptive" },
-                        "caTracking" => { "toleranceMetres" => 45 }, "usDisplay" => { "toleranceMetres" => 0 }, "caDisplay" => { "toleranceMetres" => 180 },
+                        "tracking" => { "initialToleranceMetres" => 180, "maximumDisplacementMetres" => 25, "restorationMethod" => "adaptive" },
+                        "canadianNearDuplicateToleranceMetres" => 0.02, "usDisplay" => { "toleranceMetres" => 0 }, "caDisplay" => { "toleranceMetres" => 180 },
                         "normalizedEPSG" => 4326, "usSourceEPSG" => 4269, "canadianProjection" => 3347,
                         "usProjections" => { "continental" => 5070, "AK" => 3338, "HI" => 26963, "PR" => 32161 },
-                        "canadianRequest" => { "outSR" => 4326, "geometryPrecision" => 7, "serverReprojects" => true } },
+                        "canadianRequest" => { "outSR" => 4326, "displayGeometryPrecision" => 7, "serverReprojects" => true } },
       "inputs" => urls.map { |key, url| { "key" => key, "url" => url, "bytes" => 42, "sha256" => Digest::SHA256.hexdigest(key) } },
     }
   end

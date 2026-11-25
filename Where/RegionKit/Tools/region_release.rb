@@ -22,6 +22,7 @@ class RegionRelease
   STATCAN_SERVICES = { "statcanDigital" => "Digital_boundary_files", "statcanCartographic" => "Cartographic_boundary_files" }.freeze
   YEARS = /\A20[0-9]{2}\z/
   SHA256 = /\A[a-f0-9]{64}\z/
+  TRACKING_CAP_METRES = 25
 
   class InstallTransaction < FileTransaction
     def initialize(directory)
@@ -140,8 +141,8 @@ class RegionRelease
 
   def release_lock(dir)
     lock = JSON.parse(File.binread(regular_file(dir, "sources.lock.json")))
-    unless lock.fetch("version") == 3
-      raise "Unsupported release lock version. Run --refresh with --us-year, --us-display-year and --ca-year to create a paired release."
+    unless lock.fetch("version") == 4
+      raise "Unsupported release lock version. Run --refresh with --us-year, --us-display-year and --ca-year to certify every tracking boundary."
     end
     lock
   end
@@ -163,7 +164,7 @@ class RegionRelease
           .sort_by { |row| [row["STUSPS"].to_s, row["PRUID"].to_s] }
     end
     raise "Tracking and display source members disagree" unless identities.first == identities.last
-    validate_accuracy(report.fetch("usTrackingAccuracy"), lock)
+    validate_accuracy(report.fetch("trackingAccuracy"), lock, membership.fetch("tracking"))
     lock
   end
 
@@ -172,21 +173,35 @@ class RegionRelease
     raise "Hash mismatch for #{name}" unless pin.fetch("sha256") == Digest::SHA256.file(regular_file(dir, name)).hexdigest
   end
 
-  def validate_accuracy(accuracy, lock)
-    tiger = lock.fetch("inputs").find { |pin| pin.fetch("key") == "censusTIGER-state" }
-    unless accuracy.fetch("sourceSHA256") == tiger.fetch("sha256") && accuracy.fetch("capMetres") == 25
-      raise "Tracking accuracy certificate must cover the pinned TIGER input at 25 m"
-    end
+  def validate_accuracy(accuracy, lock, inventory)
+    raise "Incorrect tracking displacement cap" unless accuracy.fetch("capMetres") == TRACKING_CAP_METRES
     members = accuracy.fetch("members")
-    raise "Incomplete US accuracy certificate" unless members.keys.sort == US_TRACKING_CODES.map { |code| "us-#{code}" }.sort
-    bounds = members.map do |id, member|
+    tracked = inventory.select { |row| row.fetch("catalogID") }
+    raise "Tracking certificate membership differs from the source inventory" unless members.keys.sort == tracked.map { |row| row.fetch("catalogID") }.sort
+    pins = lock.fetch("inputs").to_h { |pin| [pin.fetch("key"), pin.fetch("sha256")] }
+    bounds = tracked.map do |row|
+      id = row.fetch("catalogID")
+      member = members.fetch(id)
+      expected_pins = tracking_source_keys(row).to_h { |key| [key, pins.fetch(key)] }
+      raise "Incorrect source hashes for #{id}" unless member.fetch("sourceSHA256") == expected_pins
       bound = member.fetch("upperBoundMetres")
-      unless bound.is_a?(Numeric) && bound.between?(0, 25) && SHA256.match?(member.fetch("sha256"))
+      unless bound.is_a?(Numeric) && bound.between?(0, TRACKING_CAP_METRES) && SHA256.match?(member.fetch("sha256"))
         raise "Invalid tracking accuracy certificate for #{id}"
       end
       bound
     end
-    raise "Incorrect maximum US tracking bound" unless bounds.max == accuracy.fetch("maximumUpperBoundMetres")
+    raise "Incorrect maximum tracking bound" unless bounds.max == accuracy.fetch("maximumUpperBoundMetres")
+  end
+
+  def tracking_source_keys(row)
+    product = RegionGenerator::PRODUCTS.fetch(row.fetch("countryID")).fetch("tracking")
+    case product
+    when "censusTIGER" then ["censusTIGER-state"]
+    when "statcanDigital"
+      key = "statcanDigital-#{row.fetch("PRUID")}"
+      [key, "#{key}-topology"]
+    else raise "Missing tracking source pin mapping for #{product}"
+    end
   end
 
   def validate_provenance(lock)
@@ -207,16 +222,17 @@ class RegionRelease
     end
     conversion = lock.fetch("conversion")
     require_text(conversion, %w[algorithm winding], "conversion")
-    us = conversion.fetch("usTracking")
-    require_text(us, ["restorationMethod"], "US tracking")
+    tracking = conversion.fetch("tracking")
+    require_text(tracking, ["restorationMethod"], "tracking")
     unless conversion.fetch("normalizedEPSG") == 4326 && conversion.fetch("coordinateDecimals") == 7 &&
-           conversion.fetch("canadianRequest") == { "outSR" => 4326, "geometryPrecision" => 7, "serverReprojects" => true } &&
+           conversion.fetch("canadianRequest") == { "outSR" => 4326, "displayGeometryPrecision" => 7, "serverReprojects" => true } &&
            conversion.fetch("usSourceEPSG") == 4269 && conversion.fetch("canadianProjection") == 3347 &&
            %w[continental AK HI PR].all? { |group| conversion.fetch("usProjections").fetch(group).is_a?(Integer) } &&
-           us.fetch("maximumDisplacementMetres") == 25 && us.fetch("initialToleranceMetres") == 180
-      raise "Incorrect WGS84 or US tracking simplification settings"
+           conversion.fetch("canadianNearDuplicateToleranceMetres") == 0.02 &&
+           tracking.fetch("maximumDisplacementMetres") == TRACKING_CAP_METRES && tracking.fetch("initialToleranceMetres") == 180
+      raise "Incorrect WGS84 or tracking simplification settings"
     end
-    %w[usDisplay caTracking caDisplay].each do |role|
+    %w[usDisplay caDisplay].each do |role|
       tolerance = conversion.fetch(role).fetch("toleranceMetres")
       raise "Invalid tolerance for #{role}" unless tolerance.is_a?(Numeric) && tolerance >= 0
     end
@@ -250,7 +266,9 @@ class RegionRelease
       }]
       CANADA_CODES.each_key do |id|
         feature = { "where" => "PRUID='#{id}'", "returnGeometry" => "true" }
-        expected["#{product}-#{id}"] = [query, feature.merge("outSR" => "4326", "f" => "geojson", "outFields" => fields, "geometryPrecision" => "7")]
+        geometry = feature.merge("outSR" => "4326", "f" => "geojson", "outFields" => fields)
+        geometry["geometryPrecision"] = "7" if product == "statcanCartographic"
+        expected["#{product}-#{id}"] = [query, geometry]
         if product == "statcanDigital" || ca_year != 2026
           expected["#{product}-#{id}-topology"] = [query, feature.merge("outSR" => "3347", "f" => "pbf", "outFields" => "PRUID")]
         end
@@ -327,7 +345,7 @@ class RegionRelease
 
   def validate_catalog(resources, release)
     lock = release_lock(release)
-    certificates = JSON.parse(File.read(File.join(release, "report.json"))).fetch("usTrackingAccuracy").fetch("members")
+    certificates = JSON.parse(File.read(File.join(release, "report.json"))).fetch("trackingAccuracy").fetch("members")
     records = JSON.parse(File.binread(regular_file(resources, "regions.json")))
     by_id = records.to_h { |record| [record.fetch("id"), record] }
     states = US_TRACKING_CODES.map { |code| "us-#{code}" }
@@ -364,7 +382,10 @@ class RegionRelease
         expected_descriptor["year"] = lock.fetch(RegionGenerator::YEARS.fetch(product)) unless product == "original"
         raise "Unexpected #{purpose} geometry for #{id}" unless descriptor == expected_descriptor
         path = regular_file(File.join(resources, "regions"), file)
-        if product == "censusTIGER" && Digest::SHA256.file(path).hexdigest != certificates.fetch(id).fetch("sha256")
+        next unless purpose == "tracking"
+        # The existing hand-drawn EU file is the only tracking resource outside the release pipeline.
+        next if id == "european-union" && product == "original"
+        unless Digest::SHA256.file(path).hexdigest == certificates.fetch(id).fetch("sha256")
           raise "Tracking geometry for #{id} differs from the certified TWKB"
         end
       end
