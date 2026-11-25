@@ -30,7 +30,7 @@ struct IntentServicesTests {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let parked = Task { try await handoff.current() }
         try await waitUntil { await handoff.waiterCount == 1 }
-        await handoff.block(.updateRequired(.init(rawValue: 2)))
+        await handoff.block(.updateRequired(.init(rawValue: 2), reason: nil))
         await #expect(throws: DataCompatibilityFailure.self) { try await parked.value }
         await #expect(throws: DataCompatibilityFailure.self) { try await handoff.current() }
         #expect(await handoff.waiterCount == 0)

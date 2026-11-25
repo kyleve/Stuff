@@ -11,6 +11,15 @@ enum DataCompatibilityLog {
         }
     }
 
+    @LogEvent("invalid-change-reason", level: .warning)
+    struct InvalidChangeReason {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Could not read the data model change reason: \(error.description)"
+        }
+    }
+
     @LogEvent("blocked", level: .warning)
     struct Blocked {
         @LogField(exposure: .restricted, kind: .technicalState)

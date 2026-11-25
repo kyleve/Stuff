@@ -625,6 +625,7 @@ extension WhereStylesheet {
     /// the app-icon picker) lives on the component style groups instead.
     struct Size: Equatable {
         var statusIconWidth: CGFloat = 28
+        var compatibilityIcon: CGFloat = 72
         /// Edge of the selected app icon shown as the hero on the launch splash.
         var launchIcon: CGFloat = 120
         /// Inset from the bottom edge for the launch splash's status caption

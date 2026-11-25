@@ -26,7 +26,7 @@ struct OnboardingImportRecoveryModelTests {
             requiresOnboarding: false,
             resolveScope: {
                 if cancelled { throw CancellationError() }
-                throw DataCompatibilityFailure.updateRequired(.init(rawValue: 2))
+                throw DataCompatibilityFailure.updateRequired(.init(rawValue: 2), reason: nil)
             },
             endSession: { Issue.record("Admission failure must not abandon import recovery") },
             completeOnboarding: { Issue.record("Admission failure must not complete onboarding") },
