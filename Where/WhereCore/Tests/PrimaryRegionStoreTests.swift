@@ -48,6 +48,23 @@ struct PrimaryRegionStoreTests {
         #expect(try await store.trackedRegions() == [.california, texas])
     }
 
+    @Test func retiredCountryIDLeavesOtherPicksAndAppearancesIntact() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let formerChoice = try JSONDecoder().decode(Region.self, from: Data(#""canada""#.utf8))
+        let look = appearance(.red, "🍁", .starFill)
+        try await store.perform {
+            try await store.setPrimaryRegions([
+                pick(.ontario, look, 0),
+                pick(formerChoice, nil, 1),
+                pick(.newYork, nil, 2),
+            ])
+        }
+        let primary = try await store.primaryRegions()
+        #expect(primary.map(\.region) == [.ontario, .newYork])
+        #expect(primary.map(\.appearance) == [look, nil])
+        #expect(try await store.trackedRegions() == [.ontario, .newYork])
+    }
+
     @Test func replaceOverwritesAnExistingRowLook() async throws {
         let store = try SwiftDataStore.inMemory()
         let first = appearance(.orange, "🌴", .sunMaxFill)

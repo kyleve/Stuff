@@ -18,11 +18,11 @@ struct RegionArtworkTaskTests {
             let inner = RegionArtworkModel<Region, ObjectIdentifier>()
             var received: RegionOutlinePathCache?
             let host = UIHostingController(rootView: VStack {
-                Color.clear.regionArtworkTask(id: Region.canada, model: outer) {
+                Color.clear.regionArtworkTask(id: Region.ontario, model: outer) {
                     received = $0
                     return ObjectIdentifier($0)
                 }
-                Color.clear.regionArtworkTask(id: Region.canada, model: inner) {
+                Color.clear.regionArtworkTask(id: Region.ontario, model: inner) {
                     ObjectIdentifier($0)
                 }
                 .whereBroadwayRoot(theme: .alternate)
@@ -32,10 +32,10 @@ struct RegionArtworkTaskTests {
 
             try show(host) { _ in
                 try waitFor {
-                    outer.artwork(for: .canada) != nil && inner.artwork(for: .canada) != nil
+                    outer.artwork(for: .ontario) != nil && inner.artwork(for: .ontario) != nil
                 }
-                let root = try #require(outer.artwork(for: .canada))
-                #expect(inner.artwork(for: .canada) == root)
+                let root = try #require(outer.artwork(for: .ontario))
+                #expect(inner.artwork(for: .ontario) == root)
                 if let injected {
                     #expect(root == ObjectIdentifier(injected))
                 }
@@ -55,7 +55,7 @@ struct RegionArtworkTaskTests {
         let content: @MainActor @Sendable () -> AnyView = {
             let model = RegionArtworkModel<Region, ObjectIdentifier>()
             models.append(model)
-            return AnyView(Color.clear.regionArtworkTask(id: Region.canada, model: model) {
+            return AnyView(Color.clear.regionArtworkTask(id: Region.ontario, model: model) {
                 ObjectIdentifier($0)
             })
         }
@@ -79,20 +79,20 @@ struct RegionArtworkTaskTests {
                 let model = models[modelOffset + index]
                 let host = UIHostingController(rootView: subject)
                 try show(host) { _ in
-                    try waitFor { model.artwork(for: .canada) == expected }
+                    try waitFor { model.artwork(for: .ontario) == expected }
                 }
             }
         }
 
         #expect(models.count == 1 + WhereTheme.allCases.count)
         for model in models {
-            #expect(model.artwork(for: .canada) == expected)
+            #expect(model.artwork(for: .ontario) == expected)
         }
         let first = try #require(models.first)
-        await first.load(for: .canada) { nil }
-        #expect(first.artwork(for: .canada) == nil)
+        await first.load(for: .ontario) { nil }
+        #expect(first.artwork(for: .ontario) == nil)
         for model in models.dropFirst() {
-            #expect(model.artwork(for: .canada) == expected)
+            #expect(model.artwork(for: .ontario) == expected)
         }
     }
 
@@ -111,12 +111,12 @@ struct RegionArtworkTaskTests {
                 .environment(\.regionOutlinePathCache, cache)
         }
 
-        let host = UIHostingController(rootView: content(region: .canada, cache: firstCache))
+        let host = UIHostingController(rootView: content(region: .ontario, cache: firstCache))
         try show(host) { _ in
-            try waitFor { model.artwork(for: .canada) == ObjectIdentifier(firstCache) }
+            try waitFor { model.artwork(for: .ontario) == ObjectIdentifier(firstCache) }
             host.rootView = content(region: .newYork, cache: firstCache)
             try waitFor { model.artwork(for: .newYork) == ObjectIdentifier(firstCache) }
-            #expect(model.artwork(for: .canada) == nil)
+            #expect(model.artwork(for: .ontario) == nil)
             host.rootView = content(region: .newYork, cache: secondCache)
             try waitFor { model.artwork(for: .newYork) == ObjectIdentifier(secondCache) }
             host.rootView = content(region: .newYork, cache: nil)

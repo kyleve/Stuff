@@ -85,7 +85,7 @@ enum IntentStrings {
     // MARK: Helpers
 
     /// Region names joined in a localized list, in the catalog's canonical order
-    /// so multi-region output is stable ("California, New York, and Canada").
+    /// so multi-region output is stable ("California, New York, and Ontario").
     private static func regionList(_ regions: [Region]) -> String {
         Region.inCanonicalOrder(regions)
             .map(\.localizedName)

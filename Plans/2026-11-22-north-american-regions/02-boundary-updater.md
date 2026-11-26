@@ -1,8 +1,10 @@
 # 02. Build the US and Canadian boundary updater
 
-- Status: ready
-- Depends on: [01. Region hierarchy](01-region-hierarchy.md)
+- Status: complete
+- Depends on: [01. Region hierarchy](01-region-hierarchy.md) for integration with the manifest writer and acceptance. Publisher acquisition, conversion experiments and the staged installation can be developed independently.
 - Shared context: [Overview](README.md)
+
+**November 24 execution record.** This completed plan records the original country files and their verification. [Plan 04](04-country-geometry.md) owns the November 25 replacement and its acceptance criteria.
 
 ## Deliverable
 
@@ -78,8 +80,11 @@ Incomplete downloads and candidates are disposable. Verify the last good lock an
 | 2026-11-22 | Use explicit dated publisher releases, the current 52 US tracking choices and the detailed Canadian cartographic layer. See the [overview decisions](README.md#questions-and-resolutions). |
 | 2026-11-24 | The user requested a consistent country-outline policy. To preserve Canada-only tracking, the plan supplies an outline for every country. Each uses the full membership of its selected source. See the [revised country decision](README.md#questions-and-resolutions). |
 
-- [ ] Implement and verify the command on fixtures.
-- [ ] Record the two release pins, country membership inventories, reproducibility results, measured geometry trade-offs and resumable candidate location.
-- [ ] Review the completed diff, record tested commits and publish the implementation PR when authorized.
+- [x] Exercised refresh, cached replay, drift, adoption, rollback and interrupted recovery through the Ruby CLI. The Python source adapters have five offline fixture tests.
+- [x] Pins, membership and measurements are in the [adopted release](../../Where/RegionKit/Tools/source/release). Regenerate the candidate with the release lock and publisher cache.
+- [x] Independent review and publication are recorded below.
 
-**Outcome and resume point.** Implementation has not started. Begin after plan 01 is complete and implementation has been requested. Plan 03 can reconstruct the accepted candidate from the verified pins and cache.
+**Outcome and resume point.** The Python converter reads Census through PyShp and uses Shapely/GEOS for topology and pyproj/PROJ for projection. The exact versions and database digest are pinned in the release. Two independent acquisitions produced the same 17 publisher input hashes (298,861,381 bytes). All 56 US and 13 Canadian units contributed to their national dissolves. At 180 m New Brunswick had a sampled 5.63 km coastal shift. A 360 m Canadian trial lost an island. Mixing tolerances broke shared coverage. Canada therefore uses 45 m throughout and the US uses 180 m. Maximum sampled displacements were 195.79 m in New Brunswick and 371.68 m in DC. These are measurements, not error bounds.
+
+The public entry point emits standard seven-decimal 2D Tiny Well-Known Binary for the app from normalized WGS84 GeoJSON. The unchanged EU uses plain GeoJSON. A native comparison against every normalized coordinate in all 67 North American files found zero difference across 5,428,129 vertices and 42 holes. The 68 installed geometry files occupy 27,165,054 bytes, with 27,024,032 bytes loggable and 13,257,318 bytes in the default four. Canada is largest (13,237,024 bytes), followed by Nunavut (6,301,383); the US outline is 141,022 bytes. The selected format reduced a preliminary Canada cold load from 0.88 s to 0.22 s against gzipped GeoJSON with the same geometry.
+The implementation was published in `0cb45316f` on [PR #563](https://github.com/kyleve/Stuff/pull/563). A full offline replay matched the installed normalized source, conversion report, release lock and generated files. The final three transects cover the 49th parallel, the Yukon–Alaska border and the Niagara River. The independent sources overlap at five Yukon–Alaska probes and leave ten probes between the New York river boundary and the Canadian shoreline. Conversion preserved all 184 sampled classifications.

@@ -2,383 +2,1268 @@
   {
     "id": "us-AL",
     "name": "Alabama",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-AL.geojson"
+      "tracking": {
+        "file": "us/us-AL.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AL.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-AK",
     "name": "Alaska",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-AK.geojson"
+      "tracking": {
+        "file": "us/us-AK.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AK.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-AZ",
     "name": "Arizona",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-AZ.geojson"
+      "tracking": {
+        "file": "us/us-AZ.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AZ.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-AR",
     "name": "Arkansas",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-AR.geojson"
+      "tracking": {
+        "file": "us/us-AR.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-AR.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-CA",
     "name": "California",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "localizationKey": "region.california",
     "geometry": {
-      "file": "us-CA.geojson"
+      "tracking": {
+        "file": "us/us-CA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-CA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-CO",
     "name": "Colorado",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-CO.geojson"
+      "tracking": {
+        "file": "us/us-CO.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-CO.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-CT",
     "name": "Connecticut",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-CT.geojson"
+      "tracking": {
+        "file": "us/us-CT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-CT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-DE",
     "name": "Delaware",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-DE.geojson"
+      "tracking": {
+        "file": "us/us-DE.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-DE.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-DC",
     "name": "District of Columbia",
+    "kind": "federalDistrict",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-DC.geojson"
+      "tracking": {
+        "file": "us/us-DC.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-DC.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-FL",
     "name": "Florida",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-FL.geojson"
+      "tracking": {
+        "file": "us/us-FL.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-FL.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-GA",
     "name": "Georgia",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-GA.geojson"
+      "tracking": {
+        "file": "us/us-GA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-GA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-HI",
     "name": "Hawaii",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-HI.geojson"
+      "tracking": {
+        "file": "us/us-HI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-HI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-ID",
     "name": "Idaho",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-ID.geojson"
+      "tracking": {
+        "file": "us/us-ID.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-ID.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-IL",
     "name": "Illinois",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-IL.geojson"
+      "tracking": {
+        "file": "us/us-IL.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-IL.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-IN",
     "name": "Indiana",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-IN.geojson"
+      "tracking": {
+        "file": "us/us-IN.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-IN.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-IA",
     "name": "Iowa",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-IA.geojson"
+      "tracking": {
+        "file": "us/us-IA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-IA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-KS",
     "name": "Kansas",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-KS.geojson"
+      "tracking": {
+        "file": "us/us-KS.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-KS.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-KY",
     "name": "Kentucky",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-KY.geojson"
+      "tracking": {
+        "file": "us/us-KY.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-KY.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-LA",
     "name": "Louisiana",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-LA.geojson"
+      "tracking": {
+        "file": "us/us-LA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-LA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-ME",
     "name": "Maine",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-ME.geojson"
+      "tracking": {
+        "file": "us/us-ME.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-ME.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MD",
     "name": "Maryland",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MD.geojson"
+      "tracking": {
+        "file": "us/us-MD.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MD.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MA",
     "name": "Massachusetts",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MA.geojson"
+      "tracking": {
+        "file": "us/us-MA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MI",
     "name": "Michigan",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MI.geojson"
+      "tracking": {
+        "file": "us/us-MI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MN",
     "name": "Minnesota",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MN.geojson"
+      "tracking": {
+        "file": "us/us-MN.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MN.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MS",
     "name": "Mississippi",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MS.geojson"
+      "tracking": {
+        "file": "us/us-MS.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MS.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MO",
     "name": "Missouri",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MO.geojson"
+      "tracking": {
+        "file": "us/us-MO.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MO.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-MT",
     "name": "Montana",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-MT.geojson"
+      "tracking": {
+        "file": "us/us-MT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-MT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NE",
     "name": "Nebraska",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-NE.geojson"
+      "tracking": {
+        "file": "us/us-NE.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NE.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NV",
     "name": "Nevada",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-NV.geojson"
+      "tracking": {
+        "file": "us/us-NV.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NV.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NH",
     "name": "New Hampshire",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-NH.geojson"
+      "tracking": {
+        "file": "us/us-NH.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NH.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NJ",
     "name": "New Jersey",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-NJ.geojson"
+      "tracking": {
+        "file": "us/us-NJ.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NJ.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NM",
     "name": "New Mexico",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-NM.geojson"
+      "tracking": {
+        "file": "us/us-NM.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NM.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NY",
     "name": "New York",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "localizationKey": "region.newYork",
     "geometry": {
-      "file": "us-NY.geojson"
+      "tracking": {
+        "file": "us/us-NY.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NY.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-NC",
     "name": "North Carolina",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-NC.geojson"
+      "tracking": {
+        "file": "us/us-NC.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-NC.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-ND",
     "name": "North Dakota",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-ND.geojson"
+      "tracking": {
+        "file": "us/us-ND.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-ND.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-OH",
     "name": "Ohio",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-OH.geojson"
+      "tracking": {
+        "file": "us/us-OH.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-OH.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-OK",
     "name": "Oklahoma",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-OK.geojson"
+      "tracking": {
+        "file": "us/us-OK.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-OK.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-OR",
     "name": "Oregon",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-OR.geojson"
+      "tracking": {
+        "file": "us/us-OR.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-OR.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-PA",
     "name": "Pennsylvania",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-PA.geojson"
+      "tracking": {
+        "file": "us/us-PA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-PA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-PR",
     "name": "Puerto Rico",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-PR.geojson"
+      "tracking": {
+        "file": "us/us-PR.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-PR.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-RI",
     "name": "Rhode Island",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-RI.geojson"
+      "tracking": {
+        "file": "us/us-RI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-RI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-SC",
     "name": "South Carolina",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-SC.geojson"
+      "tracking": {
+        "file": "us/us-SC.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-SC.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-SD",
     "name": "South Dakota",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-SD.geojson"
+      "tracking": {
+        "file": "us/us-SD.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-SD.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-TN",
     "name": "Tennessee",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-TN.geojson"
+      "tracking": {
+        "file": "us/us-TN.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-TN.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-TX",
     "name": "Texas",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-TX.geojson"
+      "tracking": {
+        "file": "us/us-TX.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-TX.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-UT",
     "name": "Utah",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-UT.geojson"
+      "tracking": {
+        "file": "us/us-UT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-UT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-VT",
     "name": "Vermont",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-VT.geojson"
+      "tracking": {
+        "file": "us/us-VT.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-VT.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-VA",
     "name": "Virginia",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-VA.geojson"
+      "tracking": {
+        "file": "us/us-VA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-VA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-WA",
     "name": "Washington",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-WA.geojson"
+      "tracking": {
+        "file": "us/us-WA.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WA.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-WV",
     "name": "West Virginia",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-WV.geojson"
+      "tracking": {
+        "file": "us/us-WV.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WV.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-WI",
     "name": "Wisconsin",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-WI.geojson"
+      "tracking": {
+        "file": "us/us-WI.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WI.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "us-WY",
     "name": "Wyoming",
+    "kind": "state",
+    "isLoggable": true,
+    "parentID": "united-states",
     "geometry": {
-      "file": "us-WY.geojson"
+      "tracking": {
+        "file": "us/us-WY.tracking.twkb",
+        "product": "censusTIGER",
+        "year": 2026
+      },
+      "display": {
+        "file": "us/us-WY.display.twkb",
+        "product": "censusCartographic",
+        "year": 2025
+      }
     }
   },
   {
     "id": "canada",
     "name": "Canada",
-    "localizationKey": "region.canada",
+    "kind": "country",
+    "isLoggable": false,
+    "localizationKey": "region.canada"
+  },
+  {
+    "id": "ca-AB",
+    "name": "Alberta",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
     "geometry": {
-      "file": "canada.geojson"
+      "tracking": {
+        "file": "ca/ca-AB.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-AB.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
     }
+  },
+  {
+    "id": "ca-BC",
+    "name": "British Columbia",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-BC.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-BC.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-MB",
+    "name": "Manitoba",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-MB.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-MB.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-NB",
+    "name": "New Brunswick",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NB.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NB.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-NL",
+    "name": "Newfoundland and Labrador",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NL.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NL.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-NT",
+    "name": "Northwest Territories",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NT.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NT.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-NS",
+    "name": "Nova Scotia",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NS.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NS.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-NU",
+    "name": "Nunavut",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-NU.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-NU.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-ON",
+    "name": "Ontario",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-ON.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-ON.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-PE",
+    "name": "Prince Edward Island",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-PE.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-PE.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-QC",
+    "name": "Quebec",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-QC.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-QC.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-SK",
+    "name": "Saskatchewan",
+    "kind": "province",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-SK.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-SK.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "ca-YT",
+    "name": "Yukon",
+    "kind": "territory",
+    "isLoggable": true,
+    "parentID": "canada",
+    "geometry": {
+      "tracking": {
+        "file": "ca/ca-YT.tracking.twkb",
+        "product": "statcanDigital",
+        "year": 2026
+      },
+      "display": {
+        "file": "ca/ca-YT.display.twkb",
+        "product": "statcanCartographic",
+        "year": 2026
+      }
+    }
+  },
+  {
+    "id": "united-states",
+    "name": "United States",
+    "kind": "country",
+    "isLoggable": false
   },
   {
     "id": "european-union",
     "name": "European Union",
+    "kind": "bloc",
+    "isLoggable": true,
     "localizationKey": "region.europeanUnion",
     "geometry": {
-      "file": "european-union.geojson"
+      "tracking": {
+        "file": "eu/european-union.geojson",
+        "product": "original"
+      },
+      "display": {
+        "file": "eu/european-union.geojson",
+        "product": "original"
+      }
     }
   }
 ]

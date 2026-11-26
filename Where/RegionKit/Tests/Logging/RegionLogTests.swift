@@ -48,8 +48,8 @@ struct RegionLogTests {
                 .externalID == Region.california.regionURL.absoluteString,
         )
         #expect(
-            RegionAttributorLog.EmptyPolygons(region: .restricted(.location, .canada))
-                .externalID == Region.canada.regionURL.absoluteString,
+            RegionAttributorLog.EmptyPolygons(region: .restricted(.location, .ontario))
+                .externalID == Region.ontario.regionURL.absoluteString,
         )
         #expect(
             RegionAttributorLog.DecodeFailed(

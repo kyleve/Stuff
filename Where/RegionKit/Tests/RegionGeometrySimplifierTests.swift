@@ -56,7 +56,7 @@ struct RegionGeometrySimplifierTests {
     }
 
     @Test func nonPositiveToleranceLeavesGeometryUnchanged() async throws {
-        let outlines = await RegionGeometryCatalog.outlines(for: .california)
+        let outlines = await RegionGeometryCatalog.displayOutlines(for: .california)
         #expect(try RegionGeometrySimplifier.simplify(outlines, tolerance: 0) == outlines)
     }
 }

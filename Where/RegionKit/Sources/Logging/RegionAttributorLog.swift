@@ -20,7 +20,7 @@ enum RegionAttributorLog {
         @LogField(exposure: .restricted, kind: .location)
         var region: Region
         var message: String {
-            "Missing bundled GeoJSON for region \(region.rawValue)"
+            "Missing bundled geometry for region \(region.rawValue)"
         }
 
         var externalID: String? {
@@ -48,7 +48,7 @@ enum RegionAttributorLog {
         @LogField(exposure: .restricted, kind: .errorDetails)
         var error: LogError
         var message: String {
-            "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error.description)"
+            "Failed to decode bundled geometry for region \(region.rawValue): \(error.description)"
         }
 
         var externalID: String? {

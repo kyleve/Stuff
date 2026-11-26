@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import Testing
 @testable import WhereCore
@@ -7,6 +8,32 @@ import Testing
 /// tracked / used-this-year / everything-else once grouping loads, and expose
 /// the toggle item for a grouped region.
 struct RegionSelectionStateTests {
+    @MainActor @Test func manualPickerLogsNunavutWithoutOfferingCountries() async throws {
+        let state = RegionSelectionState()
+        let nunavut = try region("ca-NU")
+        let item = try #require(state.item(for: nunavut))
+        item.isOn = true
+        #expect(state.selectedRegions == [nunavut])
+        #expect(state.item(for: .europeanUnion) != nil)
+        #expect(state.item(for: .other) != nil)
+        #expect(!state.items.contains { ["united-states", "canada"].contains($0.region.rawValue) })
+
+        let session = PreviewSupport.loadedSession()
+        let date = try #require(Calendar.current.date(from: DateComponents(
+            year: 2028,
+            month: 3,
+            day: 15,
+            hour: 12,
+        )))
+        try await session.services.journal.addManualDay(
+            date: date,
+            regions: state.selectedRegions,
+            audit: nil,
+        )
+        let report = try await session.services.reports.yearReport(for: 2028)
+        #expect(report.days.first { $0.regions.contains(nunavut) }?.regions == [nunavut])
+    }
+
     private func region(_ id: String) throws -> Region {
         try #require(Region(rawValue: id))
     }

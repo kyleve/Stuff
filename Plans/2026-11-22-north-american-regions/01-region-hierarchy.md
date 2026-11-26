@@ -1,8 +1,10 @@
 # 01. Model region relationships and resolve overlapping tracked regions
 
-- Status: ready
+- Status: complete
 - Depends on: none
 - Shared context: [Overview](README.md)
+
+**November 24 execution record.** This completed plan records the original country files and their verification. [Plan 04](04-country-geometry.md) owns the November 25 replacement and its acceptance criteria.
 
 ## Deliverable
 
@@ -93,8 +95,8 @@ The resource directory is generated. If regeneration is interrupted, retain the 
 | --- | --- | --- |
 | 2026-11-22 | The US is an internal parent. A GPS match credits the most specific tracked region and a country remains usable on its own. | User answers to [Q-01 and Q-02](README.md#questions-and-resolutions) |
 
-- [ ] Add and verify catalog metadata, node-level outline access, compatible lookups and generator output.
-- [ ] Verify single-region matching, update documentation and review the completed diff.
-- [ ] Record tested commits, results and implementation PR here when implementation is authorized.
+- [x] Add and verify catalog metadata, node-level outline access, compatible lookups and generator output.
+- [x] Verify single-region matching, update documentation and review the completed diff.
+- [x] Published the tested catalog and matching changes in `522a032df`. [Implementation PR #563](https://github.com/kyleve/Stuff/pull/563)
 
-**Progress and outcome.** Implementation has not started. Resume at step 1 after plan review and a request to implement.
+**Progress and outcome.** On November 24, the host generator passed 6 tests with 36 assertions and reproduced all 54 geometry files. The iPhone 17 / iOS 27.2 simulator passed 146 RegionKit, WhereCore and WhereIntents tests, followed by 59 focused catalog, geometry, GPS and correction tests. Independent review added regressions for an ineligible stored US ID and unrelated overlap priority. Legacy geometry baseline on the same simulator measured 2.9 ms for default attribution, 56.5 ms for all, 50.5 ms for map outlines and 0.13 ms for Toronto.

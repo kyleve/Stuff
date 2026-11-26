@@ -51,20 +51,13 @@ public struct CurrentRegionResolver: Sendable {
             return finish(.unavailable(.excessiveUncertainty), sample: sample, now: now)
         }
 
-        let region = attributor.region(at: sample.coordinate)
-        guard region != .other else {
+        guard let match = attributor.matchWithBoundaryDistance(at: sample.coordinate) else {
             return finish(.unavailable(.outsideTrackedRegions), sample: sample, now: now)
         }
-        guard let boundaryDistance = attributor.distanceToBoundary(
-            of: region,
-            from: sample.coordinate,
-        ) else {
-            return finish(.unavailable(.outsideTrackedRegions), sample: sample, now: now)
-        }
-        guard sample.horizontalAccuracy < boundaryDistance else {
+        guard sample.horizontalAccuracy < match.boundaryDistance else {
             return finish(.unavailable(.boundaryUncertainty), sample: sample, now: now)
         }
-        return finish(.resolved(region), sample: sample, now: now)
+        return finish(.resolved(match.region), sample: sample, now: now)
     }
 
     private func finish(

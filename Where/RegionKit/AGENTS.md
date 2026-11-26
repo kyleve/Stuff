@@ -1,7 +1,7 @@
 # RegionKit – Module Shape
 
 RegionKit is the geometry and region-lookup engine for the Where feature. It
-maps coordinates to `Region` attribution over bundled GeoJSON polygons. It also
+maps coordinates to `Region` attribution over bundled WGS84 polygons. It also
 provides geometry primitives and the developer-viewer geometry catalog. See
 [`README.md`](README.md) for the public API and usage.
 
@@ -28,28 +28,23 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   is a data change (regenerate via `Tools/generate-regions.rb`), never a new
   case — see [README](README.md#adding-a-region). `regions/` + `regions.json`
   are generated. Never hand-edit them.
-- **The catalog's canonical order (`RegionCatalog.all`, hence `Region.allCases`
-  = catalog order then `.other`) fixes attribution priority.** An attributor
-  checks its regions in order. The first polygon match wins (regions are
-  mutually exclusive at our resolution). (Day-count ranking lives in
-  `WhereCore`'s `Region+Ordering`, not here.)
+- **Keep geographic nodes and tracking eligibility explicit.** Use each
+  subdivision’s `parentID` for ancestry and its parent’s child index to enumerate
+  subdivisions. Country nodes have no geometry and cannot be tracked.
+  `Region.allCases` appends the separate `.other` sentinel to the loggable
+  catalog. Preserve the relative order of existing tracking choices.
+- **A GPS observation credits one region.** Preserve caller order when
+  publishers' boundaries overlap. Resolve confidence against the same
+  tracked set, including an earlier region whose edge can change the match.
 - **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads
-  only the passed regions' `regions/<id>.geojson` files. Live attribution parses
-  only the tracked set. Core's injected `ElsewhereResolver` may lazily parse the
-  full catalog on its actor for read-only historical enrichment. `RegionGeometryCatalog.outlines(for: Region)` caches only the
-  drawable region requested by UI artwork. Never load the whole US for one
-  card. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
-  reduction. Rendering fidelity and render-artifact caches belong to consumers.
-  `.all` loads the whole catalog (dev viewer/tests). `.shared` loads the default
-  four. It is UI-free. `BoundingBox` / `LongitudeSpan` expose the min/max math.
-  Drawing and MapKit conversion live in the UI layer. `RegionAttributing` lets
-  `WhereCore` supply a live, swappable attributor.
+  only the selected geometries. Core's injected `ElsewhereResolver` may lazily
+  parse the full loggable catalog on its actor for read-only historical
+  enrichment. Hierarchy traversal reads metadata alone. Rendering fidelity,
+  MapKit conversion and render-artifact caches belong to consumers.
 - **Credit bundled geometry in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity. It derives its
-  coverage from the catalog. The US sources use the `us-` id prefix the generator
-  mints. Everything else uses an explicit id list. Deliberately *not* an
-  "everything else" fallback that would silently mis-credit a new region.
-  `RegionDataSourceTests` fails when a region is covered zero times or twice.
+  coverage from each descriptor’s source product. Credit each (region, purpose)
+  pair exactly once, including both uses of a shared file.
   Regenerating the catalog must not ship uncredited data. Keep it in step with the
   [README](README.md#source-data-not-bundled) provenance notes.
 - **Region names are manifest data (a documented trade-off).** `localizedName`

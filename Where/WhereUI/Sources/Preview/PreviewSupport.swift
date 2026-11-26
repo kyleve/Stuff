@@ -47,7 +47,7 @@
         static let spread: [RegionDays] = [
             RegionDays(region: .california, days: 148),
             RegionDays(region: .newYork, days: 96),
-            RegionDays(region: .canada, days: 21),
+            RegionDays(region: .ontario, days: 21),
             RegionDays(region: .europeanUnion, days: 13),
             RegionDays(region: .other, days: 7),
         ]
@@ -716,7 +716,7 @@
                 DayPresence(
                     date: day(6, 2),
                     in: calendar,
-                    regions: [.canada],
+                    regions: [Region(rawValue: "ca-BC")!],
                     isAuthoritative: true,
                     audit: ManualEntryAudit(
                         recordedAt: day(6, 3),
@@ -962,7 +962,7 @@
                 totals: totals ?? [
                     .california: 132,
                     .newYork: 41,
-                    .canada: 9,
+                    .ontario: 9,
                     .europeanUnion: 4,
                     .other: 2,
                 ],

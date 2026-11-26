@@ -111,8 +111,6 @@ public enum RegionAppearanceCatalog {
             RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill),
         Region.newYork.rawValue:
             RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill),
-        Region.canada.rawValue:
-            RegionAppearance(color: .red, emoji: "🍁", symbolName: .leafFill),
         Region.europeanUnion.rawValue:
             RegionAppearance(color: .blue, emoji: "🇪🇺", symbolName: .starFill),
         // `.other` keeps its original catch-all look; `location.magnifyingglass`
@@ -137,6 +135,13 @@ public enum RegionAppearanceCatalog {
 }
 
 extension RegionColorToken {
+    /// Pale coral keeps the title legible against dark tinted glass.
+    private static let adaptiveCoral = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 1, green: 0.82, blue: 0.76, alpha: 1)
+            : UIColor(red: 0.88, green: 0.26, blue: 0.22, alpha: 1)
+    })
+
     /// The concrete SwiftUI color for this token. Shared by `RegionStyle` and the
     /// color picker so a swatch and the rendered card always match.
     public var color: Color {
@@ -154,7 +159,7 @@ extension RegionColorToken {
             case .brown: .brown
             case .gold: Color(red: 0.65, green: 0.43, blue: 0)
             case .lime: Color(red: 0.40, green: 0.62, blue: 0.08)
-            case .coral: Color(red: 0.88, green: 0.26, blue: 0.22)
+            case .coral: Self.adaptiveCoral
             case .magenta: Color(red: 0.72, green: 0.12, blue: 0.52)
             case .silver: Color(red: 0.55, green: 0.55, blue: 0.55)
             case .slate: Color(red: 0.45, green: 0.45, blue: 0.45)
@@ -166,8 +171,9 @@ extension RegionColorToken {
     var selectionForeground: Color {
         switch self {
             case .gold, .lime, .silver: .black
+            case .coral: Color(uiColor: .systemBackground)
             case .orange, .indigo, .red, .blue, .teal, .green, .mint, .cyan,
-                 .purple, .pink, .brown, .coral, .magenta, .slate, .charcoal: .white
+                 .purple, .pink, .brown, .magenta, .slate, .charcoal: .white
         }
     }
 }

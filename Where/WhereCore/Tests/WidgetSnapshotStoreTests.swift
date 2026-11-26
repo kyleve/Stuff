@@ -36,8 +36,8 @@ struct WidgetSnapshotStoreTests {
 
     @Test func snapshotRoundTripsThroughCodable() throws {
         let snapshot = makeSnapshot(
-            dayRegions: [.california, .canada],
-            totals: [.california: 1, .newYork: 2, .canada: 3, .europeanUnion: 4, .other: 5],
+            dayRegions: [.california, .ontario],
+            totals: [.california: 1, .newYork: 2, .ontario: 3, .europeanUnion: 4, .other: 5],
         )
 
         let data = try JSONEncoder().encode(snapshot)

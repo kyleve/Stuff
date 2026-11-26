@@ -13,8 +13,8 @@ import RegionKit
 /// recording consent are
 /// intentionally excluded because a backup cannot restore proof of local physical state.
 public struct BackupArchive: Codable, Sendable, Hashable {
-    /// Bumped whenever the archive's on-disk shape changes in a way older
-    /// readers can't understand, so an importer can refuse a file it doesn't
+    /// Bumped whenever the archive carries shapes or values that older
+    /// readers cannot restore losslessly, so an importer can refuse a file it doesn't
     /// know how to read instead of silently dropping data (see
     /// `BackupService.readArchive`, which rejects any other version).
     ///
@@ -22,11 +22,12 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
     /// profile's registration-generation key; v5 adds `plannedStayRecords`; v6 retains motion
     /// measurements and sample-attribution revisions. v7 adds independent stay identities,
-    /// arrival/departure windows, and `homeRegionRecords`. There is no in-app
+    /// arrival/departure windows, and `homeRegionRecords`. v8 admits Canadian subdivisions
+    /// in existing region fields, including a manual-only archive. There is no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 7
+    public static let currentFormatVersion = 8
 
     public let formatVersion: Int
     public let exportedAt: Date

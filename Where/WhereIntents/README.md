@@ -55,7 +55,8 @@ The interactive wrapper that wires the button to an intent lives here, since `Wh
 ## Spotlight
 
 `RegionEntity` conforms to `IndexedEntity`.
-The user's **tracked** regions are indexed into Spotlight (`RegionSpotlightIndexer.indexRegions()`, called at app launch, re-run picks up changes).
+At launch, `RegionSpotlightIndexer.indexRegions()` removes any previously indexed country parents
+and indexes the user's **tracked** regions.
 A search for a region name surfaces Where and its day-count query.
 
 ## Shared types
@@ -63,7 +64,8 @@ A search for a region name surfaces Where and its day-count query.
 - `RegionEntity` (+ `RegionEntityQuery`) — the region parameter every intent operates on, the Spotlight-indexable entity, and the reload-safe parameter of the interactive snippet.
   It is an `AppEntity` (not an `AppEnum`) so its per-instance `displayRepresentation` can read `Region.localizedName` at runtime.
   App Intents requires an `AppEnum`'s `caseDisplayRepresentations` to be compile-time-constant literals, which would force restating RegionKit's region names here.
-  `entities(for:)` resolves **any available** region by id (so "days in Texas" answers even when untracked).
+  The query resolves any available region by ID and searches its localized name,
+  including untracked places such as Ontario.
   `suggestedEntities()` and the Spotlight index surface the user's **tracked** set (via `WhereServices.trackedRegions()`).
 
 ## Timing

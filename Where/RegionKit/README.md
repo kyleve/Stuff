@@ -2,7 +2,7 @@
 
 The geometry and region-lookup engine behind the Where app. Given a WGS84
 `Coordinate`, RegionKit answers *which `Region` is it in?* — backed by bundled
-GeoJSON polygons loaded **on demand, per region**. It is pure Swift + Foundation
+WGS84 polygons loaded **on demand, per region**. It uses Swift and Foundation
 (no SwiftUI, UIKit, SwiftData, or CoreLocation), so it can be reused and
 unit-tested in isolation.
 
@@ -14,35 +14,39 @@ into it for lookup. RegionKit depends only on
 ## What you get
 
 - **`Region`** — a `Hashable`/`Codable` value type wrapping a stable string id
-  (`rawValue`, e.g. `"us-CA"`, `"canada"`), with a `localizedName`. It is **not**
+  (`rawValue`, e.g. `"us-CA"`, `"ca-ON"`), with a `localizedName`. It is **not**
   a hardcoded enum: the set of *available* regions is data (see `RegionCatalog`).
-  Conveniences (`.california`, `.newYork`, `.canada`, `.europeanUnion`, `.other`)
+  Conveniences (`.california`, `.newYork`, `.ontario`, `.europeanUnion`, `.other`)
   read naturally at call sites. `.other` is the catch-all sentinel (no geometry).
   (Day-count *ranking* lives in `WhereCore`, not here.)
-- **`RegionCatalog`** — the catalog of available regions, loaded from the bundled
-  `regions.json` manifest: `all`, `localizedName(for:)`, canonical order, and the
-  per-region geometry files. Adding a region is a data change, not a code change.
+- **`RegionCatalog`** reads all geographic nodes from the bundled `regions.json`.
+  Use `node(for:)` for a loggable region or `node(id:)` for any node. A node has a
+  jurisdiction `kind`, localized name and optional loggable `region`. Each US or
+  Canadian subdivision carries its parent ID and a pair of boundaries.
+  `parent(of:)` and `children(of:)` look up its immediate relatives entirely in
+  memory. `all` and `entries` preserve the manifest order of loggable regions.
 - **`Coordinate`** — a plain WGS84 latitude/longitude value type (no
   CoreLocation), plus geometry primitives `GeoPolygon`, `BoundingBox`, and the
   antimeridian-aware `LongitudeSpan`.
 - **`RegionAttributor`** / **`RegionAttributing`** — `region(at:)` maps a
   coordinate to its `Region` (bounding-box pre-pass, then an even-odd ray-cast),
-  and `distanceToBoundary` measures nearness to a region's edge. An attributor is
-  built for a **specific set of regions** (`RegionAttributor(for:)`) and loads
-  only those regions' files. `.all` covers the whole catalog and `.shared` the
-  default four. `RegionAttributing` is the protocol the app's live, swappable
-  attributor also conforms to.
-- **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s: a cached,
-  per-region path for UI artwork, plus the developer region-map viewer's
-  `.attribution` view of a given attributor and `.source` view of the whole
-  catalog. `RegionGeometrySimplifier` can derive reduced geometry at a
-  consumer-chosen normalized tolerance without imposing UI sizes on RegionKit.
-- **`RegionDataSource`** — where the bundled geometry came from: the boundary
-  set's name, its links, its `License`, its `Fidelity` (`.authoritative` vs the
-  `.approximate` hand-drawn outlines), and the regions it covers.
-  `RegionDataSource.all` derives coverage from the catalog, and the Where app's
-  Settings > About screen renders it. Untranslated by design — these are proper
-  nouns and legal terms, and the UI supplies the localized framing.
+  and `distanceToBoundary` measures nearness to a named region's edge. Caller
+  order determines which tracked region wins where publishers' polygons overlap.
+  `matchWithBoundaryDistance(at:)` also checks an earlier region's edge when
+  crossing it could change the winner. An attributor loads the files for its
+  tracked set, including water assigned to each jurisdiction. `.all` covers all 66 available regions. `.shared` tracks
+  California, New York and the European Union.
+- **`RegionGeometryCatalog`** supplies shoreline geometry for rendering. A card
+  calls `await displayOutlines(for: region)` to load one region’s artwork.
+  A picker calls `try await displayGeometry(for: offeredRegions)` once, draws
+  the returned `outlines` and uses `region(containing:)` on the same value
+  for taps. Uncovered water returns `nil`. Input order decides overlaps.
+  The developer map can call `trackingOutlines(for: attributor)` to inspect
+  the polygons used by a loaded tracker. Consumers choose screen-size
+  simplification through `RegionGeometrySimplifier`.
+- **`RegionDataSource.all`** lists each boundary product, its publisher,
+  licence, fidelity, covered regions and use. Settings → About renders these
+  credits. The EU’s original artwork serves both purposes.
 - **`RegionLog`** — RegionKit's Periscope logging facade: one `"RegionKit"`
   root scope with a typed `LogEvent` per collaborator (`RegionAttributor`,
   `RegionCatalog`, `RegionGeometryCatalog`), emitted into the process-wide
@@ -74,20 +78,27 @@ print(region.localizedName) // "California"
 
 ## Bundled data
 
-The catalog manifest and one GeoJSON file per region ship in
-`Sources/Resources/`. Both are **generated** — never hand-edit them.
+The generated resources in `Sources/Resources/` contain the catalog manifest and
+131 geometry files for 66 loggable IDs. Under `regions/`, `us/` holds the 52 US jurisdictions,
+`ca/` holds the 13 Canadian provinces and territories, and `eu/` holds the EU bloc outline.
+Canada and the US have catalog nodes for looking up each subdivision’s parent.
+Users can track individual subdivisions and the EU bloc.
 
 ### `regions.json` — the catalog manifest
 
-An ordered array of entries, one per available region:
+The ordered array has one entry per geographic node.
 
 ```json
-{ "id": "us-CA", "name": "California", "localizationKey": "region.california",
-  "geometry": { "file": "us-CA.geojson" } }
+{ "id": "us-CA", "name": "California", "kind": "state", "isLoggable": true,
+  "parentID": "united-states", "localizationKey": "region.california",
+  "geometry": {
+    "tracking": { "file": "us/us-CA.tracking.twkb", "product": "censusTIGER", "year": 2026 },
+    "display": { "file": "us/us-CA.display.twkb", "product": "censusCartographic", "year": 2025 }
+  } }
 ```
 
 - `id` — a stable data identifier, never shown to the user. US states are
-  `us-<USPS>` (`us-CA`, `us-NY`, …). countries/blocs use a slug (`canada`,
+  `us-<USPS>` (`us-CA`, `us-NY`, …). Canadian subdivisions use `ca-<postal code>`. Countries and blocs use a slug (`canada`,
   `european-union`). The `other` catch-all isn't in the manifest — it's a
   sentinel with no geometry.
 - `name` — the English display name (the `localizedName` fallback).
@@ -96,76 +107,100 @@ An ordered array of entries, one per available region:
   the handful with existing translations carry one. (Dynamic ids mean names are
   data, so region names lose static string-catalog extraction — a deliberate
   trade-off.)
-- `geometry.file` — the per-region file under `regions/`.
-- **Array order is the catalog's canonical order** (US states alphabetically,
-  then countries/blocs, blocs last): it fixes attribution first-match priority
-  (regions are mutually exclusive at our resolution) and the day-count ranking
-  tiebreak.
+- `kind` classifies the jurisdiction as `state`, `federalDistrict`, `territory`,
+  `province`, `country` or `bloc`.
+- `parentID` optionally names the immediate parent by its stable ID. A root
+  omits this field. Parents may occur anywhere in the manifest. The loader
+  rejects unresolved parents, duplicate IDs and cycles.
+- `isLoggable` controls whether the node appears in tracking choices and can
+  construct a validated `Region`. The independent bare-string `Codable`
+  representation preserves stored IDs across catalog changes.
+- Each `geometry` descriptor identifies its file relative to `regions/`, source product and vintage. The EU uses the same undated file for each purpose. Country entries omit geometry.
+  To find their children, use the catalog’s index of `parentID` values.
+- Array order fixes the order of available regions and the day-count ranking
+  tiebreak. WhereCore also uses it to order its tracked set for GPS attribution.
 
-### `regions/<id>.geojson` — per-region geometry
+### Per-region geometry
 
-One FeatureCollection per region (a single `Polygon`/`MultiPolygon` feature,
-exterior rings only). `RegionAttributor` loads only the files for the regions
-it's asked to attribute, so we never parse the whole US at launch.
+Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. Tracking files serve GPS attribution, distance and confidence. Display files serve artwork, projected dots, map overlays and tap selection. A fix north of Port Jefferson in Long Island Sound can count toward New York while a picker tap there selects nothing. The EU retains its existing plain GeoJSON. A Toronto fix matches Ontario when the user tracks it. Otherwise the tracked attributor returns `.other`, and a full-catalog lookup can still identify Ontario.
 
 ### Regenerating
 
-`regions/` and `regions.json` are generated from the (non-bundled) source data
-under [`Tools/source/`](Tools/source) by
-[`Tools/generate-regions.rb`](Tools/generate-regions.rb) — re-run it from the
-repo root after changing the source (the `NAME → us-<USPS>` map lives in the
-script):
+Run the following from the repository root. Ruby alone can regenerate or check the adopted release offline. The source lock, conversion report and compressed normalized features live in [the release directory](Tools/source/release).
 
 ```sh
-ruby Where/RegionKit/Tools/generate-regions.rb
+tool=Where/RegionKit/Tools/generate-regions.rb
+ruby "$tool" --check
+ruby "$tool"
 ```
+
+Refreshing and replaying raw releases also use Python 3.12 and the [pinned GIS dependencies](Tools/requirements-boundaries.txt). Use the Python patch and native library versions recorded in the release lock to reproduce an existing release. Install the pinned binary wheels into an isolated environment. Keep your content-addressed cache outside the checkout and retain it to replay publisher bytes that may later change.
+
+```sh
+python3.12 -m venv /tmp/regionkit-gis
+/tmp/regionkit-gis/bin/pip install --only-binary=:all: -r Where/RegionKit/Tools/requirements-boundaries.txt
+export REGIONKIT_PYTHON=/tmp/regionkit-gis/bin/python
+cache="$HOME/.cache/regionkit-boundaries"
+ruby "$tool" --refresh --us-year 2026 --us-display-year 2025 --ca-year 2026 --cache "$cache" --output /tmp/regions-candidate
+ruby "$tool" --replay /tmp/regions-candidate/sources.lock.json --cache "$cache" --output /tmp/regions-replay
+diff -qr /tmp/regions-candidate /tmp/regions-replay
+```
+
+Release locks use format 4. The two US products have independent vintage flags.
+Both Canadian products use `--ca-year`. To upgrade an older release, refresh
+with all three years. The checkout that published an older lock can replay it.
+
+Refresh checks the publisher inventory and prints changed pins for previously
+adopted URLs. Replay reads exclusively from the verified download cache. Both
+write to a new directory. Inspect `report.json` for component counts, source and
+candidate classifications, and the displacement bounds under `trackingAccuracy`.
+`bundle-report.json` lists shipped bytes by role and the default tracking files.
+
+Every generated tracking boundary must stay within **25 m** of its original
+publisher geometry, in both directions along the entire boundary. The updater
+starts with a 180 m area-based simplification and restores source vertices on
+edges that exceed its 24 m working threshold. Both owners of a shared edge
+retain the same vertices. The verifier follows every island and hole in the
+decoded TWKB back to the original coordinates, accounting for rounding and
+source repairs. The report binds the publisher inputs and encoded tracking
+files by SHA-256. Review the bounds and any repairs
+before adoption. The cap measures error introduced by conversion. Source survey
+precision and the device’s reported GPS accuracy are separate quantities.
+
+```sh
+ruby "$tool" --adopt /tmp/regions-candidate
+ruby "$tool" --check
+```
+
+Adoption verifies source and output hashes before it installs the normalized inputs and generated bundle together. After interruption, rerun the no-argument command to finish the journaled release offline. If validation rejects a changed publisher source, keep the last good release, inspect the reported ID or checksum and refresh into a fresh candidate directory.
 
 ### Source data (not bundled)
 
-Each entry below is also expressed in code as a `RegionDataSource`, which is
-what the app credits on its About screen. Keep the two in step.
-
-- **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
-  `MultiPolygon` per feature keyed by `properties.NAME`. The generator splits it
-  into one `regions/us-<USPS>.geojson` per feature. Originally
-  `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
-  [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
-  converted from US Census Cartographic Boundary Files. License: US Government
-  works are public domain (17 U.S.C. § 105). Attribution requested (see the repo
-  `README.md`).
-- **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
-  deliberately coarse (fine for `RegionAttributorTests` spot-checks; must be
-  replaced with higher-fidelity public-domain sources before any production
-  residency-audit use).
+- **US tracking.** The 2026 Census TIGER/Line STATE archive defines state and equivalent boundaries, including assigned water. The updater checks all 56 source IDs and ships the existing 52 jurisdictions. [TIGER/Line STATE](https://www2.census.gov/geo/tiger/TIGER2026/STATE/)
+- **US display.** The independently published 2025 Census 1:500,000 cartographic file supplies a generalized shoreline. RegionKit retains the publisher’s detail. Both Census products are public domain. [Cartographic state boundaries](https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_state_500k.zip)
+- **Canadian tracking.** Statistics Canada’s 2026 digital province and territory boundaries include assigned coastal water. The updater requests each WGS84 feature at full precision, checks its ring and vertex counts against the native-coordinate response and applies the common displacement cap. [Digital boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0)
+- **Canadian display.** Statistics Canada’s 2026 detailed cartographic boundaries represent land and coastal islands. The 45 m area-based simplification preserves narrow Maritime waterways that disappeared at 180 m. Inland water coverage varies by product and lake. Contains information adapted from Statistics Canada under the Open Government Licence – Canada. [Cartographic boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [Canadian licence](https://open.canada.ca/en/open-government-licence-canada)
+- **EU tracking and display.** The European Union uses the repository’s approximate hand-drawn GeoJSON for both roles.
 
 ## Adding a region
 
-Adding a region is now **pure data** — no new `Region` case, no code:
+Map the publisher ID to a stable app ID in the source adapter. Assign the node's immediate parent, jurisdiction kind, tracking eligibility and both source products. Verify a known interior location, add the applicable membership check and update the compatibility gates before shipping a new writable ID. RegionKit resolves a display name from the optional localization key or the publisher's English name.
 
-1. Add its geometry to `Tools/source/` (a new feature, or a new source file).
-2. Run `ruby Where/RegionKit/Tools/generate-regions.rb` to regenerate
-   `regions/` + `regions.json` (add the `NAME → id` mapping in the script if it's
-   a new US feature; blocs/countries get an entry in the script's `NON_US` list).
-3. Optionally add a `region.<key>` entry to `Localizable.xcstrings` and point the
-   manifest entry's `localizationKey` at it (otherwise the English `name` shows).
-4. Attribute the geometry in `RegionDataSource` — a US state is already covered
-   by the `us-` rule, anything else needs its source named.
-   `RegionDataSourceTests` fails until it is.
-5. Add a `RegionAttributorTests` spot-check.
-
-Everything downstream (`RegionStyle`, region pickers, the App Intents
-`RegionEntity`) derives from the catalog automatically.
+When adding a publisher source, pass its original coordinates and pinned input hashes to the shared tracking converter. Require an accuracy result for every encoded tracking region from that source. Display uses the cartographic detail appropriate to the app’s maps and artwork. For the first geometry from another country or bloc, map its catalog ID to a directory in `RegionGenerator::GEOMETRY_GROUPS`.
 
 ## Testing
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost` (so
-`Bundle.module` resolves the GeoJSON at runtime). Attribution, geometry
+`Bundle.module` resolves the generated files at runtime). Attribution, geometry
 (point-in-polygon, bounding box, longitude span), and the geometry catalog are
 covered here. internal types (`GeoJSON`, `GeoPolygon`, `RegionPolygons`) are
 reached via `@testable import RegionKit`.
 
-**GeoJSON *decoding* is not covered** — there is no `GeoJSONTests.swift`, so the
-unsupported-geometry throw and the malformed-coordinate drop are unexercised, and
-`RegionCatalog`'s degrade-to-empty-catalog path is asserted only at the log-event
-level. Filed in [Where backlog](https://linear.app/kve/view/1cdf347a9c54). This paragraph goes away when it
-closes.
+The binary reader and writer are exercised with a shared, hand-checked delta stream and malformed inputs. The source-format tests verify membership, shape completeness and projection. The release CLI tests cover offline rebuild, drift and interrupted adoption.
+
+```sh
+ruby Tools/Tests/generate_regions_test.rb
+ruby Tools/Tests/region_release_test.rb
+"$REGIONKIT_PYTHON" -B -m unittest discover -s Where/RegionKit/Tools -p 'test_*.py'
+./test RegionKitTests
+```

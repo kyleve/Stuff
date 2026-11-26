@@ -143,7 +143,9 @@ class MergedValidationTests(unittest.TestCase):
                 ]
             )
         self.assertEqual(status, 0)
-        self.assertEqual(stdout.getvalue(), "skip_validation=true\n")
+        self.assertEqual(
+            stdout.getvalue(), "skip_validation=true\nrun_boundary_tests=false\n"
+        )
         self.assertIn("documentation-only push", stderr.getvalue())
         self.assertIn(self.native.return_value, stderr.getvalue())
 

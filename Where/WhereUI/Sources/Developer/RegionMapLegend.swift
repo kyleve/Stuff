@@ -5,7 +5,7 @@ import SwiftUI
 /// The selectable feature list shared by the bounded developer map screen and
 /// its full-content snapshot.
 struct RegionMapLegend: View {
-    let kind: RegionGeometryKind
+    let kind: RegionGeometryPurpose
     let groups: [RegionMapLegendGroup]
     let selectedTitle: String?
     let color: (RegionMapLegendGroup) -> Color
@@ -61,7 +61,7 @@ struct RegionMapLegend: View {
 #if DEBUG
     #Preview {
         RegionMapLegend(
-            kind: .attribution,
+            kind: .display,
             groups: [
                 RegionMapLegendGroup(
                     title: Region.california.localizedName,

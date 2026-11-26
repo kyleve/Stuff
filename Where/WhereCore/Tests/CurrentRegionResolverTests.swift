@@ -12,6 +12,21 @@ struct CurrentRegionResolverTests {
         #expect(await services.currentRegion.resolve(now: now) == .resolved(.california))
     }
 
+    @Test func preciseOffshoreFixResolvesUsingTheTrackingBoundary() async throws {
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample(
+            accuracy: 30,
+            coordinate: .init(latitude: 40.998, longitude: -73.066),
+        ))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: RegionAttributor(for: [.newYork]),
+        )
+        try await services.ingestor.authorizeRecording()
+        #expect(await services.currentRegion.resolve(now: now) == .resolved(.newYork))
+    }
+
     @Test func exactlyOneKilometerIsAccepted() async throws {
         let services = try await authorizedServices(
             sample: sample(accuracy: 1000),
@@ -62,6 +77,41 @@ struct CurrentRegionResolverTests {
             await services.currentRegion.resolve(now: now)
                 == .unavailable(.boundaryUncertainty),
         )
+    }
+
+    @Test(arguments: [
+        CanadianAttributionFixture.ontarioSide,
+        CanadianAttributionFixture.quebecSide,
+    ])
+    func trackedProvinceEdgeIsUncertainOnEitherSide(nearEdge: Coordinate) async throws {
+        let fixture = CanadianAttributionFixture.self
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample(accuracy: 200, coordinate: nearEdge))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: fixture.bothProvinces,
+        )
+        try await services.ingestor.authorizeRecording()
+        #expect(await services.currentRegion
+            .resolve(now: now) == .unavailable(.boundaryUncertainty))
+    }
+
+    @Test func untrackedQuebecFixIsOutsideTrackedOntario() async throws {
+        let fixture = CanadianAttributionFixture.self
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample(
+            accuracy: 200,
+            coordinate: fixture.quebecSide,
+        ))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: fixture.ontarioOnly,
+        )
+        try await services.ingestor.authorizeRecording()
+        #expect(await services.currentRegion
+            .resolve(now: now) == .unavailable(.outsideTrackedRegions))
     }
 
     @Test func locationOutsideTrackedRegionsIsRejected() async throws {
@@ -159,10 +209,11 @@ struct CurrentRegionResolverTests {
     private func sample(
         timestamp: Date? = nil,
         accuracy: Double = 5,
+        coordinate: Coordinate = Coordinate(latitude: 37.7749, longitude: -122.4194),
     ) -> LocationSample {
         LocationSample(
             timestamp: timestamp ?? now,
-            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            coordinate: coordinate,
             horizontalAccuracy: accuracy,
             source: .gpsSignificantChange,
         )

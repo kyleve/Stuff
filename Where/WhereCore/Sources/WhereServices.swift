@@ -368,13 +368,13 @@ public struct WhereServices: WhereShutdownable {
     }
 
     /// Assemble services whose attributor is derived from the store's **tracked
-    /// regions** (the synced set the user chose, or the default four) and stays
+    /// regions** (the synced set the user chose, or the defaults) and stays
     /// live: the returned `RegionAttribution` rebuilds on `store.changes()` when
     /// that set changes — a local edit or a remote CloudKit import.
     ///
     /// Reading the tracked set is why this is `async` where `init` is not: the
     /// synchronous `init` is for tests/previews (in-memory stores with no tracked
-    /// rows resolve to the default four, matching `RegionAttributor.shared`),
+    /// rows resolve to the defaults, matching `RegionAttributor.shared`),
     /// while production wiring — the app launch and the App Intents process —
     /// goes through here so both attribute against the *same* stored set.
     public static func make(

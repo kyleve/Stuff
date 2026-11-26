@@ -2,11 +2,12 @@ import MapKit
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
 /// Picks the user's primary regions — up to `PrimaryRegionSelectionModel.maxSelection`
-/// — either by tapping states on a map or from a searchable list, switched via a
+/// — either by tapping regions on a map or from a searchable list, switched via a
 /// top-aligned segmented control. Selection lives in the shared
 /// ``PrimaryRegionSelectionModel``; this view only reads/toggles it. Used inside
 /// onboarding and the Settings region editor.
@@ -20,16 +21,18 @@ struct RegionPickerView: View {
     }
 
     @State private var mode: Mode
+    @State private var mapPosition: MapCameraPosition = .automatic
     @State private var searchText = ""
     /// Bumped whenever a map tap is ignored because the selection is full, to
     /// drive the warning haptic.
     @State private var capacityBumps = 0
-    /// The loaded map geometry + a matching attributor for tap hit-testing. One
+    /// The loaded map geometry + its display-polygon tap lookup. One
     /// `Result` so "loading" (`nil`), success, and failure can't be confused.
     @State private var mapData: Result<MapData, Error>?
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     private static let logger = WhereLog.session(RegionPickerViewLog.self)
 
@@ -73,7 +76,7 @@ struct RegionPickerView: View {
         // disables rows), so signal it with a warning haptic.
         .sensoryFeedback(.warning, trigger: capacityBumps)
         // Parse region geometry lazily — only once Map mode is actually shown,
-        // so a user who stays in the default List never pays the ~52-file parse.
+        // so a user who stays in the default List never pays the geometry parse.
         .task(id: mode) {
             guard mode == .map, mapData == nil else { return }
             await loadMap()
@@ -114,31 +117,26 @@ struct RegionPickerView: View {
 
     private func map(_ data: MapData) -> some View {
         let style = stylesheet.regionPicker
-        return MapReader { proxy in
-            Map(initialPosition: .region(unitedStatesRegion)) {
-                ForEach(data.outlines) { outline in
-                    let selected = outline.region.map(model.isSelected) ?? false
-                    let tint = outline.region.map { regionStyles.style(for: $0).tint } ?? .gray
-                    MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
-                        .foregroundStyle(tint.opacity(
-                            selected ? style.selectedFillOpacity : style.unselectedFillOpacity,
-                        ))
-                        .stroke(
-                            tint.opacity(
-                                selected
-                                    ? style.selectedStrokeOpacity
-                                    : style.unselectedStrokeOpacity,
-                            ),
-                            lineWidth: selected
-                                ? style.selectedStrokeWidth
-                                : style.unselectedStrokeWidth,
-                        )
+        return Group {
+            if isCapturingSnapshot {
+                RegionMapCanvas(
+                    geometry: data.geometry,
+                    selectedTitle: nil,
+                    region: northAmericanRegion,
+                    style: overlayStyle(for:),
+                )
+            } else {
+                MapReader { proxy in
+                    RegionPolygonMap(
+                        geometry: data.geometry,
+                        position: $mapPosition,
+                        style: overlayStyle(for:),
+                    )
+                    .onTapGesture { point in
+                        guard let coordinate = proxy.convert(point, from: .local) else { return }
+                        handleMapTap(at: coordinate, in: data)
+                    }
                 }
-            }
-            .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .onTapGesture { point in
-                guard let coordinate = proxy.convert(point, from: .local) else { return }
-                handleMapTap(at: coordinate, in: data)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -147,9 +145,20 @@ struct RegionPickerView: View {
         .accessibilityLabel(String(localized: .regionPickerMapAccessibility))
     }
 
-    private func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
-        let region = data.attributor.region(at: Coordinate(coordinate))
-        guard region != .other, model.available.contains(region) else { return }
+    private func overlayStyle(for outline: RegionOutline) -> RegionMapOverlayStyle {
+        let style = stylesheet.regionPicker
+        let selected = outline.region.map(model.isSelected) == true
+        let tint = outline.region.map { regionStyles.style(for: $0).tint } ?? .gray
+        return RegionMapOverlayStyle(
+            fill: tint.opacity(selected ? style.selectedFillOpacity : style.unselectedFillOpacity),
+            stroke: tint
+                .opacity(selected ? style.selectedStrokeOpacity : style.unselectedStrokeOpacity),
+            lineWidth: selected ? style.selectedStrokeWidth : style.unselectedStrokeWidth,
+        )
+    }
+
+    func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
+        guard let region = data.display.region(containing: Coordinate(coordinate)) else { return }
         guard model.canToggle(region) else {
             // At capacity and tapping a new region — the list disables its rows
             // to show this, but the map has no such affordance, so buzz instead
@@ -206,27 +215,27 @@ struct RegionPickerView: View {
 
     // MARK: - Loading
 
-    /// The loaded US geometry plus the attributor built from the same regions,
+    /// The display lookup and MapKit geometry built from its outlines,
     /// so a map tap resolves to exactly the regions the outlines drew.
     struct MapData {
-        let outlines: [RegionOutline]
-        let attributor: RegionAttributor
+        let geometry: RegionMapGeometry
+        let display: RegionDisplayGeometry
+
+        @concurrent init(regions: [Region]) async throws {
+            try Task.checkCancellation()
+            display = try await RegionGeometryCatalog.displayGeometry(for: regions)
+            try Task.checkCancellation()
+            geometry = RegionMapGeometry(outlines: display.outlines)
+        }
     }
 
     private func loadMap() async {
         let regions = model.available
         do {
-            // Building the attributor parses every offered region's GeoJSON, so
-            // keep it off the main actor; the outline read is then cheap.
-            let attributor = await Task
-                .detached(priority: .userInitiated) { RegionAttributor(for: regions) }
-                .value
-            let outlines = try await RegionGeometryCatalog.outlines(
-                for: .attribution,
-                attributor: attributor,
-            )
+            let data = try await MapData(regions: regions)
             guard !Task.isCancelled else { return }
-            mapData = .success(MapData(outlines: outlines, attributor: attributor))
+            mapPosition = .region(northAmericanRegion)
+            mapData = .success(data)
         } catch {
             guard !Task.isCancelled else { return }
             // Keep the failure observable in both the UI (error state) and the
@@ -238,10 +247,8 @@ struct RegionPickerView: View {
         }
     }
 
-    /// A camera framed on the contiguous US, a sensible default for a US-only
-    /// picker (the user can pan to Alaska/Hawaii). Built from the stylesheet's
-    /// raw degrees so the token stays MapKit-free.
-    private var unitedStatesRegion: MKCoordinateRegion {
+    /// Start with both countries in reach. The list also offers offshore jurisdictions.
+    private var northAmericanRegion: MKCoordinateRegion {
         let style = stylesheet.regionPicker
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(
@@ -284,6 +291,51 @@ private struct RegionPickerRow: View {
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
+
+#if DEBUG
+    extension RegionPickerView: SnapshotProviding {
+        private init(model: PrimaryRegionSelectionModel, prepared: MapData) {
+            self.init(model: model, initialMode: .map)
+            _mapData = State(initialValue: .success(prepared))
+        }
+
+        @MainActor @Observable fileprivate final class SnapshotGeometry {
+            var map: MapData?
+        }
+
+        private struct SnapshotMap: View {
+            let model: PrimaryRegionSelectionModel
+            let prepared: SnapshotGeometry
+            var body: some View {
+                if let map = prepared.map { RegionPickerView(model: model, prepared: map) }
+            }
+        }
+
+        static var snapshots: [SnapshotCase] {
+            let model = PrimaryRegionSelectionModel()
+            model.toggle(.california)
+            model.toggle(.ontario)
+            let prepared = SnapshotGeometry()
+            return [
+                whereSnapshot(
+                    name: "AvailableRegions",
+                    configurations: [.init(device: .iPhoneFullContent)],
+                ) {
+                    NavigationStack { RegionPickerView(model: model) }
+                },
+                whereSnapshot(
+                    name: "NorthAmericanMap",
+                    configurations: [.init(device: .iPhone)],
+                    prepareForCapture: {
+                        prepared.map = try await MapData(regions: model.available)
+                    },
+                ) {
+                    NavigationStack { SnapshotMap(model: model, prepared: prepared) }
+                },
+            ]
+        }
+    }
+#endif
 
 #if DEBUG
     #Preview("Empty") {

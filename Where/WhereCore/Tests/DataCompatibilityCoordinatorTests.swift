@@ -75,7 +75,9 @@ struct DataCompatibilityCoordinatorTests {
             version: .init(rawValue: 2),
         )
         await viewer.refresh { .disabled }
-        #expect(!viewer.state.allowsStore)
+        guard case .blocked(.recordingDeviceRequired) = viewer.state else {
+            Issue.record("An upgraded viewer must wait for the recording device"); return
+        }
         #expect(await transport.saveCount == 0)
         let recorder = DataCompatibilityCoordinator(
             transport: transport,
@@ -87,6 +89,61 @@ struct DataCompatibilityCoordinatorTests {
         #expect(await transport.saveCount == 1)
         await viewer.refresh { .disabled }
         #expect(viewer.state.allowsStore)
+    }
+
+    @Test func canadianRegionWriterExplainsTheUpgradeToAnOlderViewer() async throws {
+        let regionVersion = DataModelVersion(rawValue: 2)
+        let reason = try #require(regionVersion.changeReason)
+        let transport = ScriptedDataCompatibilityTransport(version: 1)
+        let receipts = InMemoryDataCompatibilityReceipt()
+        let previous = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .baseline,
+        )
+        await previous.refresh { .disabled }
+        let originalAdmission = try previous.requireAccess()
+        let recorder = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: InMemoryDataCompatibilityReceipt(),
+            version: regionVersion,
+        )
+        await recorder.refresh { .recording(deviceID) }
+        #expect(recorder.state.allowsStore)
+        #expect(await transport.remote?.version == regionVersion)
+        #expect(await transport.remote?.changeReason == reason)
+
+        // An offline installation can only act on its last verified version.
+        await transport.setReadError(offline)
+        await previous.refresh { .disabled }
+        guard case .offline = previous.state else {
+            Issue
+                .record(
+                    "The previous build should retain its last verified offline admission",
+                ); return
+        }
+        await transport.setReadError(nil)
+        await previous.refresh { .disabled }
+        guard case .blocked(.updateRequired(regionVersion, reason: reason)) = previous.state else {
+            Issue.record("The older viewer must receive the reason for the upgrade"); return
+        }
+        #expect(throws: DataCompatibilityFailure.self) {
+            try previous.requireAccess(originalAdmission)
+        }
+        #expect(receipts.receipt?.changeReason == reason)
+        await transport.setReadError(offline)
+        let relaunched = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .baseline,
+        )
+        await relaunched.refresh { .disabled }
+        guard case .blocked(.updateRequired(regionVersion, reason: reason)) = relaunched.state
+        else {
+            Issue
+                .record("The older viewer must retain the reason after an offline relaunch"); return
+        }
+        #expect(await transport.saveCount == 1)
     }
 
     @Test func missingPermissionCannotAdvance() async {

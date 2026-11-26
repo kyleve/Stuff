@@ -9,6 +9,14 @@ struct DataModelVersionTests {
             "Where now checks that each device can open your shared data before it syncs.")
     }
 
+    @Test func versionTwoExplainsCanadianSubdivisionVisits() throws {
+        let version = DataModelVersion(rawValue: 2)
+        #expect(DataModelVersion.current >= version)
+        let reason = try #require(version.changeReason)
+        #expect(reason.localized(preferredLocales: [Locale(identifier: "en")]) ==
+            "Where can now save visits to Canadian provinces and territories.")
+    }
+
     @Test func publishedReasonIncludesEveryTranslationAndSkipsMissingOnes() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).bundle")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

@@ -167,6 +167,8 @@ The workflow retains its triggers and required job names.
 Workflow-level path filters can leave required checks pending, so selection uses job conditions.
 See [GitHub's conditional-job behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions).
 
+Tool Tests runs the offline RegionKit boundary fixtures when a PR changes `Where/RegionKit/Tools/`, the CI workflow, the classifier, or the mise configuration. Manual and fallback full runs also exercise the fixtures.
+
 CircleCI starts with [`.circleci/config.yml`](../.circleci/config.yml) on Linux.
 [`ci_circleci.py`](ci_circleci.py) passes the decision to [`.circleci/continue.yml`](../.circleci/continue.yml) through the continuation API.
 Documentation-only PRs and verified merges complete the existing `iOS CI` workflow with a small Linux job.

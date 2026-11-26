@@ -305,11 +305,11 @@ struct WhereServicesTests {
             regions: [.california],
             audit: nil,
         )
-        // A later range backfill (Canada) sweeps over the same corrected day.
+        // A later range backfill (Ontario) sweeps over the same corrected day.
         try await services.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-07-01T00:00:00-07:00"),
             through: WhereCoreTestSupport.iso("2026-07-07T00:00:00-07:00"),
-            regions: [.canada],
+            regions: [.ontario],
             audit: nil,
         )
 
@@ -318,8 +318,8 @@ struct WhereServicesTests {
             $0.day == CalendarDay(year: 2026, month: 7, day: 4)
         }
         // The relabel survives: New York stays removed (GPS is not resurrected)
-        // and the backfilled Canada unions onto the corrected California.
-        #expect(july4?.regions == [.california, .canada])
+        // and the backfilled Ontario unions onto the corrected California.
+        #expect(july4?.regions == [.california, .ontario])
     }
 
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
@@ -1021,7 +1021,7 @@ struct WhereServicesTests {
         try await destination.journal.addManualSample(sample(at: "2026-01-01T09:00:00-08:00"))
         try await destination.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-02-02T10:00:00-08:00"),
-            regions: [.canada],
+            regions: [.ontario],
             audit: nil,
         )
 

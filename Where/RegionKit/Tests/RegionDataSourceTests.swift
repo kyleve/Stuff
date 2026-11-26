@@ -8,52 +8,62 @@ import Testing
 struct RegionDataSourceTests {
     private let catalog = RegionCatalog.shared
 
-    @Test func everyCatalogRegionIsCoveredExactlyOnce() {
-        let covered = RegionDataSource.all.flatMap(\.regions)
-        #expect(Set(covered) == Set(catalog.all))
-        // Set equality alone would accept a region claimed by two sources.
-        #expect(covered.count == catalog.all.count)
-    }
-
-    @Test func noSourceClaimsARegionOutsideTheCatalog() {
-        let known = Set(catalog.all)
-        for source in RegionDataSource.all {
-            #expect(source.regions.allSatisfy { known.contains($0) })
+    @Test func everyCatalogRegionIsCreditedOnceForEachPurpose() {
+        #expect(RegionDataSource.all.count == 5)
+        for purpose in RegionGeometryPurpose.allCases {
+            let covered = RegionDataSource.all.filter { $0.purposes.contains(purpose) }
+                .flatMap(\.regions)
+            #expect(Set(covered) == Set(catalog.all))
+            #expect(covered.count == 66)
         }
     }
 
-    @Test func aRegionFromAnUnknownSourceStaysUncovered() {
-        // The failure this guard exists for: a new non-US region lands in the
-        // catalog and no source claims it. It must not be swept into the
-        // hand-drawn bucket as an "everything else" fallback.
-        let unattributed = Region(unchecked: "atlantis")
-        let catalog = RegionCatalog(entries: [
-            RegionCatalog.Entry(
-                region: unattributed,
-                name: "Atlantis",
-                localizationKey: nil,
-                geometryFile: "atlantis.geojson",
-            ),
-        ])
-        let covered = RegionDataSource.sources(coveringRegionsIn: catalog).flatMap(\.regions)
-        #expect(!covered.contains(unattributed))
+    @Test func creditsBothCensusProductsAndTheirOwnVintage() throws {
+        let sources = RegionDataSource.all.filter { $0.regions.contains(.california) }
+        #expect(sources.count == 2)
+        for source in sources {
+            #expect(source.fidelity == .authoritative)
+            #expect(source.licenseURL == nil)
+            #expect(source.license == .publicDomain("US Government works — 17 U.S.C. § 105"))
+            #expect(source.nodes.count == 52)
+            #expect(source.nodes.allSatisfy { $0.parentID?.rawValue == "united-states" })
+            let url = try #require(source.sourceURL)
+            let role = try #require(source.purposes.first)
+            let year = try #require(source.nodes.first?.geometry?[role].year)
+            #expect(url.absoluteString.contains(String(year)))
+            switch role {
+                case .tracking:
+                    #expect(source.name.contains("TIGER/Line") && url.path.contains("TIGER"))
+                case .display:
+                    #expect(source.name.contains("Cartographic") && url.path.contains("500k"))
+            }
+        }
     }
 
-    @Test func creditsTheCensusBoundaryFilesForUSStates() throws {
-        let source = try #require(RegionDataSource.all.first { $0.regions.contains(.california) })
-        #expect(source.name == "US Census Bureau Cartographic Boundary Files")
-        #expect(source.fidelity == .authoritative)
-        #expect(source.license == .publicDomain("US Government works — 17 U.S.C. § 105"))
-        #expect(source.sourceURL != nil)
-        // Credited separately from the publisher: the bundled files came via a
-        // conversion, and saying otherwise would overstate the provenance.
-        #expect(source.obtainedFromURL != nil)
+    @Test func creditsBothCanadianProductsAndTheirOwnServices() throws {
+        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let members = catalog.children(of: canada)
+        let sources = RegionDataSource.all.filter { $0.license == .openGovernmentCanada }
+        #expect(sources.count == 2 && members.count == 13)
+        for source in sources {
+            #expect(source.nodes == members)
+            #expect(source.fidelity == .authoritative)
+            #expect(source.licenseURL != nil)
+            let url = try #require(source.sourceURL)
+            let role = try #require(source.purposes.first)
+            let year = try #require(source.nodes.first?.geometry?[role].year)
+            let product = role == .tracking ? "Digital" : "Cartographic"
+            #expect(url.path == "/geo_wa/rest/services/\(year)/\(product)_boundary_files/MapServer")
+        }
     }
 
-    @Test func marksTheHandDrawnOutlinesAsApproximate() throws {
-        let source = try #require(RegionDataSource.all.first { $0.regions.contains(.canada) })
-        #expect(source.regions.contains(.europeanUnion))
+    @Test func marksTheHandDrawnOutlineAsApproximate() throws {
+        let source = try #require(RegionDataSource.all
+            .first { $0.regions.contains(.europeanUnion) })
+        #expect(source.regions == [.europeanUnion])
+        #expect(Set(source.purposes) == Set(RegionGeometryPurpose.allCases))
         #expect(source.fidelity == .approximate)
+        #expect(source.licenseURL == nil)
         #expect(source.license == .originalWork)
         #expect(source.sourceURL == nil)
     }
@@ -65,8 +75,9 @@ struct RegionDataSourceTests {
         }
     }
 
-    @Test func dropsSourcesThatCoverNothing() {
+    @Test func dropsSourcesThatCoverNothing() throws {
         // An empty catalog credits nobody rather than listing bare source names.
-        #expect(RegionDataSource.sources(coveringRegionsIn: RegionCatalog(entries: [])).isEmpty)
+        let empty = try RegionCatalog(manifest: Data("[]".utf8))
+        #expect(RegionDataSource.sources(coveringRegionsIn: empty).isEmpty)
     }
 }

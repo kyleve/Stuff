@@ -6549,24 +6549,24 @@
         }
       }
     },
-    "regionMap.kind.attribution" : {
+    "regionMap.kind.display" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Attribution"
+            "value" : "Display"
           }
         }
       }
     },
-    "regionMap.kind.attribution.footer" : {
+    "regionMap.kind.display.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The simplified polygons the app uses to attribute coordinates today."
+            "value" : "The coastlines and region outlines shown on cards and maps."
           }
         }
       }
@@ -6582,24 +6582,24 @@
         }
       }
     },
-    "regionMap.kind.source" : {
+    "regionMap.kind.tracking" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Source"
+            "value" : "Tracking"
           }
         }
       }
     },
-    "regionMap.kind.source.footer" : {
+    "regionMap.kind.tracking.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity."
+            "value" : "The boundaries the app uses to match coordinates to regions."
           }
         }
       }
@@ -7375,7 +7375,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Simplified from the published boundary set."
+            "value" : "Based on the publisher’s official boundaries."
           }
         }
       }
@@ -7387,6 +7387,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Obtained from %@"
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.openGovernmentCanada" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adapted from Statistics Canada. Contains information licensed under the Open Government Licence – Canada."
           }
         }
       }
@@ -10033,7 +10044,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Log my trip to Canada from July 8 through July 12."
+            "value" : "Log my trip to Ontario from July 8 through July 12."
           }
         }
       }
@@ -10044,7 +10055,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I logged 5 days in Canada."
+            "value" : "I logged 5 days in Ontario."
           }
         }
       }
