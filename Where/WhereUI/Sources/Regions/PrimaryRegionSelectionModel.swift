@@ -20,6 +20,72 @@ public final class PrimaryRegionSelectionModel {
     /// The regions offered, in catalog order.
     public let available: [Region]
 
+    /// Browse groups stay in the order of the offered regions as picks change.
+    let countryGroups: [CountryGroup]
+
+    struct CountryGroup: Identifiable {
+        let country: RegionCatalog.Node?
+        var regions: [Region]
+        var id: RegionCatalog.Node.ID? {
+            country?.id
+        }
+
+        fileprivate static func groups(for regions: [Region]) -> [Self] {
+            let catalog = RegionCatalog.shared
+            var groups: [Self] = []
+            for region in regions {
+                let parent = catalog.node(for: region).flatMap(catalog.parent(of:))
+                let country = parent?.kind == .country ? parent : nil
+                if let index = groups.firstIndex(where: { $0.id == country?.id }) {
+                    groups[index].regions.append(region)
+                } else {
+                    groups.append(Self(country: country, regions: [region]))
+                }
+            }
+            return groups
+        }
+    }
+
+    /// Both supported countries use a two-letter postal code in their subdivision IDs.
+    struct SubdivisionCode {
+        let country: String
+        let subdivision: String
+    }
+
+    var searchText = ""
+
+    private var searchQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var isSearching: Bool {
+        !searchQuery.isEmpty
+    }
+
+    /// Exact postal-code matches precede name matches from either country.
+    var filteredRegions: [Region] {
+        let query = searchQuery
+        guard !query.isEmpty else { return available }
+        let postalCode = query.uppercased()
+        var codeMatches: [Region] = []
+        var nameMatches: [Region] = []
+        for region in available {
+            if code(for: region)?.subdivision == postalCode {
+                codeMatches.append(region)
+            } else if region.localizedName.localizedStandardContains(query) {
+                nameMatches.append(region)
+            }
+        }
+        return codeMatches + nameMatches
+    }
+
+    func code(for region: Region) -> SubdivisionCode? {
+        let parts = region.rawValue.split(separator: "-", maxSplits: 1)
+        guard parts.count == 2, parts[0] == "us" || parts[0] == "ca", parts[1].count == 2
+        else { return nil }
+        return SubdivisionCode(country: parts[0].uppercased(), subdivision: String(parts[1]))
+    }
+
     /// The picked regions, in pick order.
     public private(set) var selectedRegions: [Region] = []
 
@@ -36,9 +102,7 @@ public final class PrimaryRegionSelectionModel {
     /// surface a "used this year" group in the grouped (Settings) list.
     private var usedThisYear: Set<Region> = []
 
-    /// Whether the list groups into your-regions / used-this-year / everything-
-    /// else. Off by default (onboarding shows the flat searchable list); Settings
-    /// turns it on via ``applyGrouping(usedThisYear:)``.
+    /// Settings enables shortcuts for regions used in the selected year.
     public private(set) var isGrouped = false
 
     /// Loggable US and Canadian subdivisions in manifest order.
@@ -61,8 +125,8 @@ public final class PrimaryRegionSelectionModel {
     }
 
     /// A fresh picker with nothing selected (onboarding).
-    public init(available: [Region] = PrimaryRegionSelectionModel.supportedRegions) {
-        self.available = available
+    public convenience init(available: [Region] = PrimaryRegionSelectionModel.supportedRegions) {
+        self.init(existing: [], available: available)
     }
 
     /// A picker seeded from the user's existing primary regions (Settings).
@@ -75,6 +139,7 @@ public final class PrimaryRegionSelectionModel {
         available: [Region] = PrimaryRegionSelectionModel.supportedRegions,
     ) {
         self.available = available
+        countryGroups = CountryGroup.groups(for: available)
         let offered = Set(available)
         selectedRegions = existing.map(\.region).filter { offered.contains($0) }
         initialSelection = selectedRegions

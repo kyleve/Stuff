@@ -366,7 +366,9 @@ journal intent.
   picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
-  picker for membership changes. The list offers US jurisdictions and Canadian provinces and territories in catalog order.
+  picker for membership changes. The list shows the current picks as removable chips.
+  Browse US and Canadian regions by country or search both countries by name or postal
+  abbreviation. In Settings, regions used in the selected year are also available as shortcuts.
   A tap on the map selects the subdivision at that coordinate and highlights it in its own color.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row

@@ -69,6 +69,11 @@ struct WhereStylesheet: BStylesheet {
             category: traits.contentSizeCategory,
         )
 
+        // Let selections scroll away when the keyboard or large type leaves little room for
+        // results.
+        regionPicker.scrollsSelection = traits.contentSizeCategory.isAccessibilitySize ||
+            traits.verticalSizeClass == .compact
+
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             locationWelcome.accessory.copy = .compact
@@ -79,6 +84,7 @@ struct WhereStylesheet: BStylesheet {
             privacyPassportCard.disclosure.layout = .stacked
             themePicker.layout = .stacked
             yearModePicker.layout = .stacked
+            regionPicker.chipLayout = .stacked
             loggedDay.layout = .stacked
             openSourceStamp.layout = .stacked
             plannedStayWarningStamp.layout = .stacked
@@ -1836,6 +1842,12 @@ extension WhereStylesheet {
     /// ``Spacing``. The camera is stored as raw degrees so the stylesheet stays
     /// MapKit-free; the view assembles the `MKCoordinateRegion`.
     struct RegionPickerStyle: Equatable {
+        // Broadway uses compact height until the host supplies its size class.
+        var scrollsSelection = true
+        var chipLayout = ContentLayout.inline
+        var minimumControlHeight: CGFloat = 44
+        var searchCornerRadius: CGFloat = 12
+        var searchPromptColor: Color = .primary.opacity(0.72)
         /// Corner radius of the map's rounded container.
         var mapCornerRadius: CGFloat
         /// Polygon fill opacity for a selected vs unselected region.

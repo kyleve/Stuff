@@ -22,7 +22,6 @@ struct RegionPickerView: View {
 
     @State private var mode: Mode
     @State private var mapPosition: MapCameraPosition = .automatic
-    @State private var searchText = ""
     /// Bumped whenever a map tap is ignored because the selection is full, to
     /// drive the warning haptic.
     @State private var capacityBumps = 0
@@ -45,31 +44,12 @@ struct RegionPickerView: View {
         VStack(spacing: stylesheet.spacing.medium) {
             modePicker
 
-            VStack(spacing: stylesheet.spacing.xSmall) {
-                Text(WhereFormat.regionPickerSelectionCount(
-                    selected: model.selectionCount,
-                    max: PrimaryRegionSelectionModel.maxSelection,
-                ))
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .accessibilityAddTraits(.updatesFrequently)
-
-                if model.isAtCapacity {
-                    Text(WhereFormat
-                        .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .transition(.opacity)
-                }
-            }
-            .animation(stylesheet.motion.captionFade, value: model.isAtCapacity)
-
             switch mode {
                 case .map:
+                    mapSelectionCount
                     mapContent
                 case .list:
-                    listContent
+                    RegionPickerList(model: model)
             }
         }
         // A capped tap on the map is otherwise silent (unlike the list, which
@@ -81,6 +61,8 @@ struct RegionPickerView: View {
             guard mode == .map, mapData == nil else { return }
             await loadMap()
         }
+        // Settings reuses the selection draft when Manage is opened again.
+        .onDisappear { model.searchText = "" }
         // Log View Mode: reveal an inspect badge for region-picker events (map
         // geometry load). A no-op in release.
         .debugLogInspectable(WhereLog.session(RegionPickerViewLog.self))
@@ -97,6 +79,28 @@ struct RegionPickerView: View {
     }
 
     // MARK: - Map
+
+    private var mapSelectionCount: some View {
+        VStack(spacing: stylesheet.spacing.xSmall) {
+            Text(WhereFormat.regionPickerSelectionCount(
+                selected: model.selectionCount,
+                max: PrimaryRegionSelectionModel.maxSelection,
+            ))
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .accessibilityAddTraits(.updatesFrequently)
+
+            if model.isAtCapacity {
+                Text(WhereFormat
+                    .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
+            }
+        }
+        .animation(stylesheet.motion.captionFade, value: model.isAtCapacity)
+    }
 
     @ViewBuilder
     private var mapContent: some View {
@@ -169,50 +173,6 @@ struct RegionPickerView: View {
         model.toggle(region)
     }
 
-    // MARK: - List
-
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    private var filteredRegions: [Region] {
-        guard isSearching else { return model.available }
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        return model.available.filter {
-            $0.localizedName.localizedCaseInsensitiveContains(query)
-        }
-    }
-
-    private func regionRow(_ region: Region) -> some View {
-        Button {
-            model.toggle(region)
-        } label: {
-            RegionPickerRow(region: region, isSelected: model.isSelected(region))
-        }
-        .disabled(!model.canToggle(region))
-    }
-
-    private var listContent: some View {
-        List {
-            // Grouped (Settings) shows your-regions / used-this-year / more via
-            // the shared sections; onboarding and any active search fall back to
-            // a flat list.
-            if model.isGrouped, !isSearching {
-                GroupedRegionSections(grouping: model.grouping, row: regionRow)
-            } else {
-                ForEach(filteredRegions, id: \.self, content: regionRow)
-            }
-        }
-        .listStyle(.plain)
-        .whereFormRoot()
-        .searchable(text: $searchText, prompt: String(localized: .regionPickerSearchPrompt))
-        .overlay {
-            if isSearching, filteredRegions.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-            }
-        }
-    }
-
     // MARK: - Loading
 
     /// The display lookup and MapKit geometry built from its outlines,
@@ -263,35 +223,6 @@ struct RegionPickerView: View {
     }
 }
 
-/// A selectable region row: the region's emoji + name with a trailing checkmark
-/// when picked.
-private struct RegionPickerRow: View {
-    let region: Region
-    let isSelected: Bool
-
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
-
-    var body: some View {
-        let style = regionStyles.style(for: region)
-        return HStack(spacing: stylesheet.spacing.medium) {
-            Text(style.emoji)
-                .accessibilityHidden(true)
-            Text(region.localizedName)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-            if isSelected {
-                Image(systemSymbol: .checkmark)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(style.tint)
-            }
-        }
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-    }
-}
-
 #if DEBUG
     extension RegionPickerView: SnapshotProviding {
         private init(model: PrimaryRegionSelectionModel, prepared: MapData) {
@@ -311,26 +242,52 @@ private struct RegionPickerRow: View {
             }
         }
 
-        static var snapshots: [SnapshotCase] {
+        private static func selectedSnapshotModel(search: String = "")
+            -> PrimaryRegionSelectionModel
+        {
             let model = PrimaryRegionSelectionModel()
             model.toggle(.california)
             model.toggle(.ontario)
+            model.searchText = search
+            return model
+        }
+
+        static var snapshots: [SnapshotCase] {
             let prepared = SnapshotGeometry()
             return [
                 whereSnapshot(
                     name: "AvailableRegions",
+                    configurations: [
+                        .init(device: .iPhoneFullContent),
+                        .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
+                    ],
+                ) {
+                    NavigationStack {
+                        RegionPickerView(model: selectedSnapshotModel())
+                    }
+                },
+                whereSnapshot(
+                    name: "Search",
                     configurations: [.init(device: .iPhoneFullContent)],
                 ) {
-                    NavigationStack { RegionPickerView(model: model) }
+                    NavigationStack {
+                        RegionPickerView(model: selectedSnapshotModel(search: "ON"))
+                            .navigationTitle(String(localized: .settingsRegionsManage))
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
                 },
                 whereSnapshot(
                     name: "NorthAmericanMap",
                     configurations: [.init(device: .iPhone)],
                     prepareForCapture: {
-                        prepared.map = try await MapData(regions: model.available)
+                        prepared
+                            .map = try await MapData(regions: PrimaryRegionSelectionModel
+                                .supportedRegions)
                     },
                 ) {
-                    NavigationStack { SnapshotMap(model: model, prepared: prepared) }
+                    NavigationStack {
+                        SnapshotMap(model: selectedSnapshotModel(), prepared: prepared)
+                    }
                 },
             ]
         }
@@ -338,13 +295,10 @@ private struct RegionPickerRow: View {
 #endif
 
 #if DEBUG
+    #Preview { RegionPickerView.snapshotPreviews }
+
     #Preview("Empty") {
         RegionPickerView(model: PrimaryRegionSelectionModel())
-            .whereBroadwayRoot()
-    }
-
-    #Preview("Seeded") {
-        RegionPickerView(model: PreviewSupport.primaryRegionSelectionModel())
             .whereBroadwayRoot()
     }
 #endif

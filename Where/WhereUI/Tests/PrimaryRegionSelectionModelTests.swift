@@ -34,6 +34,46 @@ struct PrimaryRegionSelectionModelTests {
         #expect(model.selectedRegions.isEmpty)
     }
 
+    @Test func browseGroupsKeepOfferedRegionsTogetherInOrder() {
+        let model = PrimaryRegionSelectionModel(
+            available: [.newYork, .ontario, .other, .california, .europeanUnion],
+        )
+        model.toggle(.ontario)
+        #expect(model.countryGroups.map { $0.country?.id.rawValue } == [
+            "united-states",
+            "canada",
+            nil,
+        ])
+        #expect(model.countryGroups.map(\.regions) == [
+            [.newYork, .california],
+            [.ontario],
+            [.other, .europeanUnion],
+        ])
+    }
+
+    @Test func postalCodePrecedesOtherNameMatchesAcrossCountries() throws {
+        let washington = try region("us-WA")
+        let model = PrimaryRegionSelectionModel(available: [washington, .ontario, .newYork])
+        model.toggle(.newYork)
+        model.searchText = "  oN\n"
+        #expect(model.filteredRegions == [.ontario, washington])
+        model.searchText = "ny"
+        #expect(model.filteredRegions == [.newYork])
+        model.searchText = "alaska"
+        #expect(model.filteredRegions.isEmpty)
+        model.searchText = "  \n"
+        #expect(model.isSearching == false)
+        #expect(model.filteredRegions == model.available)
+        #expect(model.selectedRegions == [.newYork])
+    }
+
+    @Test func searchMatchesAccentsInLocalizedNames() throws {
+        let quebec = try region("ca-QC")
+        let model = PrimaryRegionSelectionModel()
+        model.searchText = "québ"
+        #expect(model.filteredRegions == [quebec])
+    }
+
     @Test func mapTapUsesTheDisplayedCoastlineAndPreservesSelectionOnWater() async throws {
         let map = try await RegionPickerView.MapData(regions: [.newYork, .ontario])
         let model = PrimaryRegionSelectionModel()
@@ -82,6 +122,51 @@ struct PrimaryRegionSelectionModelTests {
             .ontario,
             quebec,
         ])
+    }
+
+    @Test func hostedPickerKeepsSelectionsAndCountryExpansionThroughSearch() async throws {
+        let model = PrimaryRegionSelectionModel(available: [.newYork, .ontario])
+        let canada = try #require(RegionCatalog.shared.node(id: .init(rawValue: "canada")))
+        let host = UIHostingController(rootView: NavigationStack {
+            RegionPickerView(model: model)
+        }.whereBroadwayRoot())
+        try await show(host) { controller in
+            @MainActor func button(_ label: String) -> NSObject? {
+                HostedAccessibility.objects(in: controller.view).first {
+                    $0.accessibilityTraits.contains(.button)
+                        && $0.accessibilityLabel?.hasPrefix(label) == true
+                }
+            }
+            @MainActor func tap(_ label: String) async throws {
+                try await waitForAsync { button(label) != nil }
+                let element = try #require(button(label))
+                if let control = element as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                } else {
+                    try #require(element.accessibilityActivate(), "Activate \(label)")
+                }
+            }
+
+            try await tap(canada.localizedName)
+            try await tap(Region.ontario.localizedName)
+            try await waitForAsync { model.selectedRegions == [.ontario] }
+
+            let field = try #require(HostedAccessibility.objects(in: controller.view)
+                .compactMap { $0 as? UITextField }.first)
+            field.text = "NY"
+            field.sendActions(for: .editingChanged)
+            try await waitForAsync {
+                button(Region.newYork.localizedName)?.accessibilityValue == "US · NY"
+            }
+            try await tap(Region.newYork.localizedName)
+            try await waitForAsync { model.selectedRegions == [.ontario, .newYork] }
+            try await tap(WhereFormat.regionPickerRemoveSelection(.ontario))
+            try await waitForAsync { model.selectedRegions == [.newYork] }
+
+            try await tap(String(localized: .regionPickerClearSearch))
+            try await waitForAsync { button(Region.ontario.localizedName) != nil }
+            #expect(model.searchText.isEmpty)
+        }
     }
 
     @Test func toggleAddsAndRemovesPreservingOrder() throws {

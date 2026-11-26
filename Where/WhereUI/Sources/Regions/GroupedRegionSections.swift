@@ -1,12 +1,9 @@
 import RegionKit
 import SwiftUI
 
-/// The shared sectioned layout behind the manual-day region toggles and the
-/// primary-region picker's list: **Your regions** / **Used this year** /
-/// **More regions** (collapsed). Renders a ``RegionGrouping`` as `Section`s
-/// (drop straight into a `Form` or `List`) and lets the caller supply the row
-/// so each surface keeps its own affordance — a `Toggle` for day membership, a
-/// checkmark button for the capped picker.
+/// The manual-day form and planning picker show **Your regions**, **Used this year**,
+/// and **More regions**. Each caller supplies its row to toggle day membership
+/// or choose a planning region.
 ///
 /// Empty upper groups are omitted, and "More regions" opens expanded when
 /// there's nothing above it (so the list never appears fully collapsed). The

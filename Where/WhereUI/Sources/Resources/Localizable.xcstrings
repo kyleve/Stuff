@@ -6672,6 +6672,39 @@
         }
       }
     },
+    "regionPicker.browseByCountry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browse by country"
+          }
+        }
+      }
+    },
+    "regionPicker.clearSearch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear search"
+          }
+        }
+      }
+    },
+    "regionPicker.compactSearchPrompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
+    },
     "regionPicker.empty.title" : {
       "comment" : "Title of the empty state when there are no matching regions.",
       "extractionState" : "manual",
@@ -6744,6 +6777,40 @@
         }
       }
     },
+    "regionPicker.regionCount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld region"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld regions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "regionPicker.removeSelection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@"
+          }
+        }
+      }
+    },
     "regionPicker.search.prompt" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6751,6 +6818,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Search regions"
+          }
+        }
+      }
+    },
+    "regionPicker.searchByNameOrAbbreviation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search by name or abbreviation"
+          }
+        }
+      }
+    },
+    "regionPicker.searchResults" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search results"
           }
         }
       }

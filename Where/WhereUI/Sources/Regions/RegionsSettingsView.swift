@@ -163,7 +163,6 @@ struct RegionsSettingsView: View {
             // Fall back to an empty picker rather than a stuck spinner.
             built = PrimaryRegionSelectionModel()
         }
-        // Group the list (Your regions / Used this year / More) — Settings only.
         built.applyGrouping(usedThisYear: usedThisYear)
         model = built
     }
