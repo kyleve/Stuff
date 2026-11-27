@@ -39,6 +39,7 @@ struct LocationsRegionCalendar: View {
     let selection: LocationsView.CalendarSelection
     let showsEstimateCard: Bool
     var showsZoomAction = true
+    var onPresentationReady: (() -> Void)?
 
     var body: some View {
         CalendarContentView(
@@ -51,6 +52,7 @@ struct LocationsRegionCalendar: View {
             persistenceKey: .region(selection.region),
             scrollRole: LocationsView.ScrollRole.calendar,
             planningDestination: $navigation.planningDestination,
+            onPresentationReady: onPresentationReady,
         )
     }
 }

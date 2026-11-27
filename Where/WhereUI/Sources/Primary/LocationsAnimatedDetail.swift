@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Keeps each outgoing scroll view mounted until it finishes shrinking out.
+/// Animates mounted calendars so native scroll content moves in both directions.
 struct LocationsAnimatedDetail: View {
     private struct Presentation {
         var current: LocationsView.CalendarSelection?
+        var revealedID: LocationsView.CalendarSelection.ID?
         var calendars: [LocationsView.CalendarSelection]
 
         init(current: LocationsView.CalendarSelection?) {
             self.current = current
+            revealedID = current?.id
             calendars = current.map { [$0] } ?? []
         }
     }
@@ -37,20 +39,21 @@ struct LocationsAnimatedDetail: View {
                     .transition(.opacity)
             }
             ForEach(presentation.calendars) { calendar in
-                let isCurrent = calendar.id == presentation.current?.id
+                let isVisible = calendar.id == presentation.revealedID
                 LocationsRegionCalendar(
                     report: report,
                     navigation: navigation,
                     selection: calendar,
                     showsEstimateCard: false,
-                    showsZoomAction: isCurrent,
+                    showsZoomAction: isVisible,
+                    onPresentationReady: { reveal(calendar.id) },
                 )
-                .scaleEffect(isCurrent ? 1 : motion.calendarScale ?? 1)
-                .opacity(isCurrent ? 1 : 0)
-                .allowsHitTesting(isCurrent)
-                .accessibilityHidden(!isCurrent)
-                .zIndex(isCurrent ? 2 : 1)
-                .transition(.asymmetric(insertion: motion.calendarTransition, removal: .identity))
+                .scaleEffect(isVisible ? 1 : motion.calendarScale ?? 1)
+                .opacity(isVisible ? 1 : 0)
+                .allowsHitTesting(isVisible)
+                .accessibilityHidden(!isVisible)
+                .zIndex(calendar.id == presentation.current?.id ? 2 : 1)
+                .transition(.identity)
             }
         }
         .onChange(of: selection?.id) { updateSelection() }
@@ -60,6 +63,7 @@ struct LocationsAnimatedDetail: View {
         let outgoing = presentation.current
         withAnimation(stylesheet.locationsDetail.animation, completionCriteria: .removed) {
             presentation.current = selection
+            presentation.revealedID = nil
             if let selection {
                 // A region can only have one calendar attached to its scroll position.
                 presentation.calendars.removeAll { $0.region == selection.region }
@@ -68,6 +72,15 @@ struct LocationsAnimatedDetail: View {
         } completion: {
             guard let outgoing, presentation.current?.id != outgoing.id else { return }
             presentation.calendars.removeAll { $0.id == outgoing.id }
+        }
+    }
+
+    private func reveal(_ id: LocationsView.CalendarSelection.ID) {
+        guard presentation.current?.id == id, selection?.id == id,
+              presentation.revealedID != id
+        else { return }
+        withAnimation(stylesheet.locationsDetail.animation) {
+            presentation.revealedID = id
         }
     }
 }

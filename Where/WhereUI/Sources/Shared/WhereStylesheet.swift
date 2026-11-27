@@ -339,11 +339,6 @@ extension WhereStylesheet {
         var animation: Animation
         var calendarScale: CGFloat?
 
-        var calendarTransition: AnyTransition {
-            guard let calendarScale else { return .opacity }
-            return .scale(scale: calendarScale).combined(with: .opacity)
-        }
-
         static let standard = LocationsDetailStyle(
             animation: .smooth(duration: 0.3),
             calendarScale: 0.86,

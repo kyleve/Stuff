@@ -15,6 +15,7 @@ struct CalendarContentView: View {
     private let showsEstimateCard: Bool
     private let showsPlanningAction: Bool
     private let showsZoomAction: Bool
+    private let onPresentationReady: (() -> Void)?
     enum ScrollRole: Hashable { case detail }
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
     private let model: CalendarModel
@@ -73,12 +74,14 @@ struct CalendarContentView: View {
         persistenceKey: CalendarZoomKey? = nil,
         scrollRole: some Hashable = ScrollRole.detail,
         planningDestination: Binding<PlannedStaysDestination?>? = nil,
+        onPresentationReady: (() -> Void)? = nil,
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
         self.showsEstimateCard = showsEstimateCard
         self.showsPlanningAction = showsPlanningAction
         self.showsZoomAction = showsZoomAction
+        self.onPresentationReady = onPresentationReady
         suppliedPresentation = presentationState
         suppliedPlanningDestination = planningDestination
         let model = CalendarModel(report: report, persistenceKey: persistenceKey)
@@ -105,6 +108,7 @@ struct CalendarContentView: View {
                             calendarContent(months: months)
                         case let .failure(error):
                             calendarLayoutError(error)
+                                .onAppear { onPresentationReady?() }
                         case nil:
                             AppIconLoadingView(caption: String(localized: .primaryLoading))
                     }
@@ -210,6 +214,8 @@ struct CalendarContentView: View {
         let estimateMonth = months.first(where: showsForecast(after:))
         let visibleMonths = availableMonths
         let overview = presentation.mode == .overview
+        let hasInitializedPosition = onPresentationReady != nil && presentation.year == report
+            .selectedYear
 
         return ScrollView {
             Group {
@@ -334,6 +340,11 @@ struct CalendarContentView: View {
                 // A new native scroll view must receive the command after its content mounts.
                 _detailPosition.scrollTo(id: target, anchor: _detailPosition.anchor ?? .top)
             }
+        }
+        .onGeometryChange(for: Bool.self) { proxy in
+            hasInitializedPosition && proxy.size.width > 0 && proxy.size.height > 0
+        } action: { isReady in
+            if isReady { onPresentationReady?() }
         }
         // Hide the live tiles while their copies move, leaving the page background visible.
         .opacity(zoom.phase == nil ? 1 : 0)
