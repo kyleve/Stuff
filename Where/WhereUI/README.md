@@ -96,7 +96,7 @@ A report-year change waits for matching data before positioning. Stale visibilit
 Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
 The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
 Timeline stays also measure eagerly so resizing cannot shift the content origin.
-Timeline anchors refer to displayed stay segments or flight identities.
+Timeline anchors refer to displayed stays, flights, or the estimate. The timeline opens at the estimate when available, below the recorded rows through today and any directly joined planned segment. Later rows continue underneath.
 Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.

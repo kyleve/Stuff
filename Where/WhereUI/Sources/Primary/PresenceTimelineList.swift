@@ -22,6 +22,7 @@ struct PresenceTimelineList: View {
         case recorded(RegionStint.ID)
         case flight(FlightAssessment.ID)
         case planned(PlanningTimelineItem.ID)
+        case estimate
 
         init(_ item: PresenceJourneyItem) {
             self = switch item {
@@ -61,6 +62,7 @@ struct PresenceTimelineList: View {
 
     var body: some View {
         let yearReport = report.report
+        let today = report.forecasts.today
         let stints = yearReport
             .map { PresenceTimeline.stints(from: $0, calendar: report.calendar) } ?? []
         let recordedItems = PresenceJourneyItem.items(
@@ -73,11 +75,20 @@ struct PresenceTimelineList: View {
             ? PlanningTimelineItem.items(
                 planning: report.forecasts.planning,
                 year: report.selectedYear,
-                today: report.forecasts.today,
+                today: today,
             )
             : []
-        let rowIDs = recordedItems.map(RowID.init)
-            + plannedItems.map { .planned($0.id) }
+        let forecasts = presentation == .full && report.showsEstimatedTimeAndPlanning
+            ? report.forecasts.leadingForecasts(report: yearReport) : []
+        let items = PresenceTimelineRows.Item.ordered(
+            recorded: recordedItems,
+            planned: plannedItems,
+            estimateDay: forecasts.isEmpty ? nil : today,
+            calendar: report.calendar,
+        )
+        let awaitsForecast = report.showsEstimatedTimeAndPlanning && report.selectedYear == today
+            .year
+            && !report.forecasts.hasLoaded && report.forecasts.loadFailure == nil
 
         Group {
             if presentation == .excerpt {
@@ -87,9 +98,12 @@ struct PresenceTimelineList: View {
                     Text(.settingsExploreHistoryEmpty).font(.subheadline)
                 } else {
                     VStack(spacing: 0) {
-                        journeyRows(
-                            recordedItems: Array(recordedItems.suffix(2)),
-                            plannedItems: Array(plannedItems.prefix(2)),
+                        PresenceTimelineRows(
+                            items: recordedItems.suffix(2).map(PresenceTimelineRows.Item.recorded)
+                                + plannedItems.prefix(2).map(PresenceTimelineRows.Item.planned),
+                            report: report,
+                            forecasts: [],
+                            openPlanning: nil,
                         )
                     }
                 }
@@ -139,43 +153,31 @@ struct PresenceTimelineList: View {
                             }
 
                             VStack(spacing: 0) {
-                                journeyRows(
-                                    recordedItems: recordedItems,
-                                    plannedItems: plannedItems,
+                                PresenceTimelineRows(
+                                    items: items,
+                                    report: report,
+                                    forecasts: forecasts,
+                                    openPlanning: { planningDestination.wrappedValue = $0 },
                                 )
                             }
                             .scrollTargetLayout()
-
-                            if presentation == .full, showsForecast {
-                                LocationForecastPanel(
-                                    forecasts: timelineForecasts,
-                                    microprintRegions: report.ranking.primary.map(\.region),
-                                    homeRegion: report.forecasts.planning.homeRegion,
-                                    planningAction: { planningDestination.wrappedValue = .list },
-                                )
-                            }
                         }
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
                         .padding(
                             .top,
                             pinsOverview ? 0 : stylesheet.spacing.large,
                         )
-                        .padding(.bottom, stylesheet.spacing.large)
+                        .padding(.bottom, items.last == .estimate ? 0 : stylesheet.spacing.large)
                         .whereContentRoot()
                     }
                     .scrollPosition($position)
                     .task(id: TimelineLayoutID(
                         year: report.selectedYear,
-                        recordedItems: recordedItems,
-                        plannedItems: plannedItems,
+                        items: items,
+                        awaitsForecast: awaitsForecast,
                     )) {
-                        guard !Task.isCancelled else { return }
-                        _position.initialize(edge: .bottom)
-                        if let target = position.viewID(type: RowID.self),
-                           !rowIDs.contains(target)
-                        {
-                            _position.scrollTo(edge: .bottom)
-                        }
+                        guard !Task.isCancelled, !awaitsForecast else { return }
+                        positionTimeline(items: items, hasEstimate: !forecasts.isEmpty)
                     }
                     .defaultScrollAnchor(.bottom, for: .initialOffset)
                     .id(report.selectedYear)
@@ -203,97 +205,26 @@ struct PresenceTimelineList: View {
 
     private struct TimelineLayoutID: Equatable {
         let year: Int
-        let recordedItems: [PresenceJourneyItem]
-        let plannedItems: [PlanningTimelineItem]
+        let items: [PresenceTimelineRows.Item]
+        let awaitsForecast: Bool
     }
 
-    /// Both presentations share recorded and planned row rendering.
-    @ViewBuilder
-    private func journeyRows(
-        recordedItems: [PresenceJourneyItem],
-        plannedItems: [PlanningTimelineItem],
-    ) -> some View {
-        let lastStint: RegionStint? = if case let .stay(stint) = recordedItems.last { stint }
-        else { nil }
-        let joinsRecorded = lastStint.map { last in
-            plannedItems.first?.continues(last, calendar: report.calendar) == true
-        } ?? false
-        ForEach(recordedItems) { item in
-            Group {
-                switch item {
-                    case let .stay(stint):
-                        let row = PresenceJourneyRow(
-                            stint: stint,
-                            calendar: report.calendar,
-                            daysInYear: report.daysInSelectedYear,
-                            isFirst: item.id == recordedItems.first?.id,
-                            isLast: plannedItems.isEmpty && item.id == recordedItems.last?.id,
-                            cardPosition: joinsRecorded && item.id == recordedItems.last?.id
-                                ? .top : .standalone,
-                        )
-                        row
-                    case let .flight(flight):
-                        FlightJourneyRow(
-                            flight: flight,
-                            calendar: report.calendar,
-                            isFirst: item.id == recordedItems.first?.id,
-                            isLast: plannedItems.isEmpty && item.id == recordedItems.last?.id,
-                        )
-                }
-            }
-            .fixedSize(horizontal: false, vertical: presentation == .excerpt)
-            .id(RowID(item))
-        }
-        ForEach(plannedItems) { item in
-            let row = PlannedPresenceJourneyRow(
-                item: item,
-                calendar: report.calendar,
-                daysInYear: report.daysInSelectedYear,
-                isFirst: recordedItems.isEmpty && item.id == plannedItems.first?.id,
-                isLast: item.id == plannedItems.last?.id,
-                cardPosition: joinsRecorded && item.id == plannedItems.first?
-                    .id ? .bottom : .standalone,
-            )
-            .fixedSize(horizontal: false, vertical: presentation == .excerpt)
-
-            if presentation != .excerpt {
-                Button {
-                    edit(item)
-                } label: {
-                    row
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button(
-                        String(localized: .plannedStaysTitle),
-                        systemSymbol: .calendarBadgeClock,
-                    ) {
-                        edit(item)
-                    }
-                }
-                .id(RowID.planned(item.id))
-            } else {
-                row
-            }
-        }
-    }
-
-    private func edit(_ item: PlanningTimelineItem) {
-        if case let .stay(interval) = item,
-           let stay = report.forecasts.planning.stays.first(where: { $0.id == interval.stayID })
-        {
-            planningDestination.wrappedValue = .edit(stay)
+    private func positionTimeline(items: [PresenceTimelineRows.Item], hasEstimate: Bool) {
+        if hasEstimate {
+            _position.initialize(id: .estimate, anchor: .bottom)
         } else {
-            planningDestination.wrappedValue = .list
+            _position.initialize(edge: .bottom)
         }
-    }
 
-    private var showsForecast: Bool {
-        report.showsEstimatedTimeAndPlanning && !timelineForecasts.isEmpty
-    }
-
-    private var timelineForecasts: [LocationForecast] {
-        report.forecasts.leadingForecasts(report: report.report)
+        if let target = position.viewID(type: RowID.self),
+           !items.contains(where: { $0.id == target })
+        {
+            if hasEstimate {
+                _position.scrollTo(id: .estimate, anchor: .bottom)
+            } else {
+                _position.scrollTo(edge: .bottom)
+            }
+        }
     }
 }
 
