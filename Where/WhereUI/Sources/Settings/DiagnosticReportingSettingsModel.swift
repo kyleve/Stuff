@@ -21,7 +21,6 @@ public final class DiagnosticReportingSettingsModel {
     public private(set) var savedConfiguration: DiagnosticReportingConfiguration
     public private(set) var effectiveRemoteLogging: RemoteLoggingConfiguration
     public private(set) var applyState: ApplyState = .idle
-    public var isPersonalDataConfirmationPresented = false
 
     private let launchCrashReports: Bool
     private let launchSessionReplays: Bool
@@ -29,7 +28,7 @@ public final class DiagnosticReportingSettingsModel {
     private var effectiveSessionReplays: Bool
     private let preferences: WherePreferences
     private let applyRemoteLogging: ApplyRemoteLogging
-    private var revision: UInt64 = 0
+    private(set) var remoteLoggingRevision: UInt64 = 0
     private var applyTask: Task<Void, Never>?
 
     public init(
@@ -85,18 +84,6 @@ public final class DiagnosticReportingSettingsModel {
             .isDisjoint(with: policy.enabledControls)
     }
 
-    public var includePersonalDataToggle: Bool {
-        get { includesPersonalData }
-        set {
-            if newValue {
-                guard !includesPersonalData else { return }
-                isPersonalDataConfirmationPresented = true
-            } else {
-                disablePersonalData()
-            }
-        }
-    }
-
     public var crashReportsPendingNextLaunch: Bool {
         savedConfiguration.sharesCrashReports != effectiveCrashReports
     }
@@ -138,11 +125,6 @@ public final class DiagnosticReportingSettingsModel {
         persistAndApply(configuration)
     }
 
-    public func confirmPersonalData() {
-        isPersonalDataConfirmationPresented = false
-        enablePersonalData()
-    }
-
     public func disablePersonalData() {
         guard let level = savedConfiguration.remoteLogging.minimumLevel else { return }
         var policy = savedConfiguration.remoteLogging.exportPolicy
@@ -161,7 +143,7 @@ public final class DiagnosticReportingSettingsModel {
     }
 
     public func recordRuntimeFailure(_ message: String) {
-        revision &+= 1
+        remoteLoggingRevision &+= 1
         applyTask?.cancel()
         applyTask = nil
         effectiveCrashReports = false
@@ -174,7 +156,6 @@ public final class DiagnosticReportingSettingsModel {
     /// The new build default is applied live without writing those keys back.
     public func preferencesDidReset() {
         savedConfiguration = preferences.diagnosticReportingConfiguration
-        isPersonalDataConfirmationPresented = false
         requestApply(savedConfiguration.remoteLogging, persist: false)
     }
 
@@ -189,15 +170,15 @@ public final class DiagnosticReportingSettingsModel {
         if shouldPersist {
             persist()
         }
-        revision &+= 1
-        let requestedRevision = revision
+        remoteLoggingRevision &+= 1
+        let requestedRevision = remoteLoggingRevision
         applyTask?.cancel()
         applyState = .applying
         applyTask = Task { [weak self, applyRemoteLogging] in
             do {
                 try await applyRemoteLogging(configuration, requestedRevision)
                 try Task.checkCancellation()
-                guard let self, revision == requestedRevision else { return }
+                guard let self, remoteLoggingRevision == requestedRevision else { return }
                 effectiveCrashReports = launchCrashReports
                 effectiveSessionReplays = launchSessionReplays
                 effectiveRemoteLogging = configuration
@@ -205,7 +186,7 @@ public final class DiagnosticReportingSettingsModel {
             } catch is CancellationError {
                 return
             } catch {
-                guard let self, revision == requestedRevision else { return }
+                guard let self, remoteLoggingRevision == requestedRevision else { return }
                 applyState = .failed(message: String(describing: error))
             }
         }

@@ -282,6 +282,9 @@ The backup coordinator serializes accepted exports for the scope, including requ
 The session applies saved notification choices in order per notification family, independently of the Alerts destination.
 The optional Elsewhere tab hosts one `ElsewhereModel` for its catalog projection, place labels,
 cards, and pushed detail. The Places & Your Year gallery hosts its own projection for its Locations example.
+The Home picker owns its search and selection state. A stay editor owns its draft for one sheet,
+including nested navigation and layout changes. Privacy & Diagnostics owns its personal-data
+confirmation, and the process reporting model applies and discloses the resulting policy.
 
 ### Flight status and GPS corrections
 

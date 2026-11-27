@@ -1,3 +1,4 @@
+import AccessibilitySnapshotParser
 import BroadwayUI
 import InstallerKit
 import RegionKit

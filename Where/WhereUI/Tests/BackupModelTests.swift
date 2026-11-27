@@ -1,3 +1,4 @@
+import AccessibilitySnapshotParser
 import Foundation
 import SwiftUI
 import TestHostSupport

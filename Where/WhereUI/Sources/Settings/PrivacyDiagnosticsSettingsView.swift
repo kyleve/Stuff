@@ -81,33 +81,10 @@ struct PrivacyDiagnosticsSettingsView: View {
 
                 #if DEBUG
                     if reporting.selectedRemoteLevel != nil {
-                        Section {
-                            Toggle(
-                                String(localized: .settingsDiagnosticsFullMetadata),
-                                isOn: $reporting.includePersonalDataToggle,
-                            )
-                            .settingsRow(Item.fullMetadata)
-                            .confirmationDialog(
-                                String(localized: .settingsDiagnosticsFullMetadataConfirmTitle),
-                                isPresented: $reporting.isPersonalDataConfirmationPresented,
-                                titleVisibility: .visible,
-                            ) {
-                                Button(
-                                    String(localized: .settingsDiagnosticsFullMetadataEnable),
-                                    role: .destructive,
-                                    action: reporting.confirmPersonalData,
-                                )
-                                Button(String(localized: .settingsDataCancel), role: .cancel) {}
-                            } message: {
-                                Text(
-                                    String(
-                                        localized: .settingsDiagnosticsFullMetadataConfirmMessage,
-                                    ),
-                                )
-                            }
-                        } footer: {
-                            Text(String(localized: .settingsDiagnosticsFullMetadataWarning))
-                                .foregroundStyle(.red)
+                        ObservableHostingView({
+                            DiagnosticPersonalDataConfirmation(reporting: reporting)
+                        }) { confirmation in
+                            DiagnosticPersonalDataSection(confirmation: confirmation)
                         }
                     }
                 #endif

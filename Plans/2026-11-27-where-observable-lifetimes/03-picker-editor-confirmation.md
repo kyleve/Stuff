@@ -1,6 +1,6 @@
 # 03 — Picker, editor, and confirmation
 
-- Status: outline
+- Status: executing
 - Dependencies: [Settings destinations](01-settings-destinations.md) and [Elsewhere flow](02-elsewhere-flow.md) complete the requested first phase. This is an execution order. The three follow-ups have no code dependency on the Elsewhere model.
 - Shared context: [Overview](README.md)
 
@@ -34,21 +34,50 @@ flowchart LR
 ```
 
 ```swift
-// Proposed ownership only. Binding, fixture, and identity details await refinement.
-HomePickerHost(report: report) // Owns its picker model.
-PlannedStayEditorHost(report: report, route: route) // Owns one draft per sheet.
-DiagnosticsConfirmationState() // Owned by the destination, forwards confirmed intent.
+// Proposed composition. Form controls and prepared fixture injection are omitted.
+ObservableHostingView({ PlanningRegionSelectionModel(report: report) }) { model in
+    PlanningRegionPickerView(model: model, title: homeTitle, selectedRegion: home, onSelect: setHome)
+}
+.sheet(item: $editorRoute) { route in
+    PlannedStayEditorDestination(report: report, mode: route.mode)
+}
+
+ObservableHostingView({ DiagnosticPersonalDataConfirmation(reporting: reporting) }) { confirmation in
+    DiagnosticPersonalDataSection(confirmation: confirmation)
+}
 ```
 
 ## Questions and learning needed
 
-No product questions block Phase 1. Before implementation, trace the real Home push identity, the direct and planner-sheet editor entries, and the DEBUG confirmation's binding and reset behavior. Use Phase 1 results to choose the appropriate host and fixture seams for each named boundary.
+Home opens through the planner's inline `NavigationLink`. The planner's sheet item currently holds a model, while Calendar and Locations route through `PlannedStaysDestinationView`. Both production paths can use a destination host with the same editor content. The DEBUG toggle asks for confirmation only when a remote level is selected and personal-data sharing is off. The process model already exposes grant and disable intents. Use a local bindable confirmation model with the requested remote policy attached to the dialog action, and recheck that policy before applying the grant.
 
 ## Refinement trigger
 
 - Trigger is completion of both Phase 1 deliverables and review of their evidence.
-- Use the mounted identity checks to specify a fresh Home push, a stay draft retained through a fold and a held save, and separate diagnostics confirmation state after reopening. Start with [PlanningRegionSelectionModelTests](../../Where/WhereUI/Tests/PlanningRegionSelectionModelTests.swift), [PlannedStaysModelTests](../../Where/WhereUI/Tests/PlannedStaysModelTests.swift), [PlannedStayEditorTests](../../Where/WhereUI/Tests/PlannedStayEditorTests.swift), and [DiagnosticReportingSettingsModelTests](../../Where/WhereUI/Tests/DiagnosticReportingSettingsModelTests.swift).
-- Expand this outline in place with executable steps, failure recovery, and exact mounted and capture checks. Recheck the existing editor fold behavior and diagnostics policy guards before marking the plan ready.
+- The Phase 1 review confirmed that native navigation should own the host identity and prepared captures should inject the instance their preparation reads. Apply both to the editor paths.
+- Recheck the Phase 1 evidence, the existing editor fold behavior, and diagnostics policy guards before marking this phase ready.
+
+## Steps
+
+1. Remove the planner's picker instance and preload. Construct the Home picker model at the navigation destination using `ObservableHostingView`. Keep the selected Home value and accepted write on the shared forecast. Preserve the editor's existing tracked-region load and Manage Regions refresh.
+2. Replace the planner's sheet model with a value route containing a per-presentation identity and Add or Edit mode. Use the new editor host in the planner sheet, direct planning destinations, and Flyover. Keep the editor content and prepared snapshots able to use an injected model. Leave the sheet and full editor stack above adaptive branches.
+3. Move the DEBUG prompt and derived toggle into a destination-owned observable. Capture the remote policy shown when requesting confirmation and reject a grant if that policy changed or Remote Logging is off. The process model keeps persistence, revisioning, and effective disclosures. Update tests to cover fresh presentation, canceled confirmation, valid grants, and stale grants.
+4. Update WhereUI's ownership documentation. Carry forward Phase 1's separation between mounted navigation checks and settled snapshots.
+
+## Acceptance and verification
+
+Run commands from repository root.
+
+| Requirement | Check | Expected result |
+| --- | --- | --- |
+| R-04 | `./test --only WhereUITests/PlanningRegionSelectionModelTests --only WhereUITests/PlannedStaysModelTests` and exercise Home picker push, leave, and reopen in the mounted planner. | A fresh picker starts with no stale search or selection failure. Confirming Home updates the forecast through the existing path. |
+| R-05, R-07 | `./test --only WhereUITests/PlannedStayEditorTests --only WhereUITests/MainTabsTestsDuo` | The planner uses a fresh presentation ID per Add or Edit. A held save and draft survive fold changes, and the nested picker returns to the original draft. |
+| R-06 | `./test --only WhereUITests/DiagnosticReportingSettingsModelTests` | Leaving and remounting clears an unconfirmed choice. A changed policy invalidates confirmation, and a valid grant retains unrelated controls. |
+| R-07, X-03 | `./test --snapshots --only WhereUISnapshotTests/PlannedStaysViewSnapshotTests --only WhereUISnapshotTests/PlannedStayEditorSnapshotTests --only WhereUISnapshotTests/PrivacyDiagnosticsSettingsViewSnapshotTests` | Existing captures settle with the same editor, navigation, and diagnostics appearance. |
+
+## Recovery
+
+When a draft is recreated during resize, inspect the sheet item ID and the host's position above layout-dependent branches. When diagnostics state survives reopening, inspect the prompt owner's identity and compare the captured policy with current process state. Keep prepared fixtures tied to the instance rendered by the screen.
 
 ## Decisions and revisions
 
@@ -56,6 +85,23 @@ No product questions block Phase 1. Before implementation, trace the real Home p
 | --- | --- | --- |
 | 2026-11-27 | Deliver the three smaller audit recommendations together in Phase 2. | User request |
 
+## Progress
+
+- [x] Move the Home picker and stay editor to their destinations.
+- [x] Move diagnostics confirmation ownership to its destination.
+- [x] Verify mounted behavior, settled snapshots, and policy.
+- [ ] Review and publish the implementation.
+
+## Execution record
+
+- 2026-11-27. Refined and reviewed the plan after Phase 1 passed mounted and settled snapshot checks. Traced the native Home push, planner and direct editor sheets, and the DEBUG diagnostics toggle against the source at `41de638f0`. The same destination and fixture conventions apply. No blocking questions remain.
+- 2026-11-27. The initial Phase 2 simulator run passed 40 tests, including a fresh Home search after popping and reopening, held editor saves during fold changes, and rejection of superseded reporting policy. The four Phase 2 snapshot tests matched byte for byte with recording disabled. Independent review identified the accessibility parser import needed by hosted tests on fresh simulator processes. The changed traversal tests now import it explicitly.
+- 2026-11-27. The final combined iPhone 17 and iOS 27.2 run passed 98 tests across 16 suites. That run includes mounted abandonment and reopening of the native diagnostics prompt and the Flyover data and demo-world checks. Both snapshot runs passed all 11 tests with recording disabled. Architecture checks, SF Symbol lint, SwiftFormat lint, and diff whitespace checks passed.
+
 ## Resume point
 
-After Phase 1, refine this outline using its verification results. Implementation awaits execution authorization.
+Publish the verified Phase 2 changes and link the implementation PR.
+
+## Outcome
+
+Pending implementation.
