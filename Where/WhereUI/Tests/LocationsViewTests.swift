@@ -32,6 +32,10 @@ struct LocationsViewTestsDuo {
                 HostedAccessibility.isVisible(emptyTitle, in: controller.view)
             }
             #expect(HostedAccessibility.isVisible(
+                String(localized: .primaryCalendar),
+                in: controller.view,
+            ) == false)
+            #expect(HostedAccessibility.isVisible(
                 String(localized: .calendarShowYear),
                 in: controller.view,
             ) == false)
@@ -51,6 +55,15 @@ struct LocationsViewTestsDuo {
                 HostedAccessibility.isVisible(calendarTitle, in: controller.view)
             }
             #expect(HostedAccessibility.isVisible(emptyTitle, in: controller.view) == false)
+
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .outerPortrait)
+            try await waitForStage("selected region calendar stays open when folded") {
+                HostedAccessibility.isVisible(calendarTitle, in: controller.view)
+                    && HostedAccessibility.isVisible(
+                        String(localized: .calendarShowYear),
+                        in: controller.view,
+                    )
+            }
         }
     }
 

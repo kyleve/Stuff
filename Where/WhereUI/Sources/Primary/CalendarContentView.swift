@@ -332,6 +332,8 @@ struct CalendarContentView: View {
                 _detailPosition.scrollTo(id: target, anchor: _detailPosition.anchor ?? .top)
             }
         }
+        // Hide the live tiles while their copies move, leaving the page background visible.
+        .opacity(zoom.phase == nil ? 1 : 0)
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
             Color.clear
                 .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
@@ -356,7 +358,6 @@ struct CalendarContentView: View {
                     guard zoom.finish(id) else { return }
                     if presentation.mode == .detail { focusedTarget = detailTarget }
                 })
-                .background(stylesheet.calendar.overview.zoomBackground)
             }
         }
     }
