@@ -146,6 +146,14 @@ Tests use the same module imports without changing Python's search path.
 The [Astro project](InstallerKit/Site/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
 
+## PR change counts
+
+Run `./pr-change-counts` for a Markdown table of changed files, added and deleted lines, and binary files. It compares the merge base of `origin/main` and `HEAD` with `HEAD` using committed trees. Use `./pr-change-counts --base <ref> --head <ref>` for a different base or head.
+
+Rows sort by the sum of added and deleted lines, largest first. File count breaks ties. The total stays at the bottom.
+
+Each file appears in one category. Snapshot references under `__Snapshots__/` have separate added, removed, and changed rows. Renames within snapshot directories count as changed. Moves into or out of those directories count as additions or removals. Other renames use the destination category. Binary files, including Git LFS snapshot references, contribute file counts only.
+
 ## Documentation-only CI
 
 [`ci_changes.py`](ci_changes.py) owns the shared documentation policy for GitHub Actions and CircleCI.
