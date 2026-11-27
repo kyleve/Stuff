@@ -1,6 +1,6 @@
 # 01 — Settings destinations
 
-- Status: executing
+- Status: complete
 - Dependencies: none
 - Shared context: [Overview](README.md)
 
@@ -92,7 +92,7 @@ If export validation fails, hold the store or archive access before dismissing, 
 - [x] Move destination construction and update Flyover and fixtures.
 - [x] Verify export dismissal and repeated requests.
 - [x] Verify scheduling across Alerts presentations and session transitions.
-- [ ] Review, document, and publish the implementation.
+- [x] Review, document, and publish the implementation.
 
 ## Execution record
 
@@ -101,8 +101,8 @@ If export validation fails, hold the store or archive access before dismissing, 
 
 ## Resume point
 
-Publish the verified Settings changes and attach the implementation PR to the execution record. This step has simulator coverage. A full Flyover interaction run and physical-device sharing are unverified.
+Complete. Commit `5b2965ad0` is published in [PR #578](https://github.com/kyleve/Stuff/pull/578). A full Flyover interaction run and physical-device sharing are unverified.
 
 ## Outcome
 
-Pending implementation.
+Data and Alerts create their models at destination mount. The coordinator serializes exports and the session orders saved notification configuration independently of the presenting view.

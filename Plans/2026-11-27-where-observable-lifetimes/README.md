@@ -3,9 +3,9 @@
 ## Planning checkpoint
 
 - Updated 2026-11-27 against main at `c41708712`.
-- Operation is planning. The 2026-11-27 request selects Backup, Reminders, and Elsewhere from the ownership audit, followed by Home region selection, planned-stay editor presentation, and diagnostics confirmation in a separate phase.
-- Stage is review handoff. The Phase 1 plans are ready and Phase 2 has a reviewed outline. [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks implementation.
-- Next action is review of [PR #578](https://github.com/kyleve/Stuff/pull/578). Implementation awaits a separate request.
+- Operation is execution. The user approved the plan and requested both phases.
+- Stage is complete and ready for review. Both phases are published in [PR #578](https://github.com/kyleve/Stuff/pull/578). The PR had no review comments when execution started at `ab1d71b48` or at the handoff check. [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks implementation.
+- Next action is review and eventual merge of the implementation. Test evidence and limits are recorded in [Settings](01-settings-destinations.md#execution-record), [Elsewhere](02-elsewhere-flow.md#execution-record), and the [follow-ups](03-picker-editor-confirmation.md#execution-record).
 
 ## Outcome and scope
 
@@ -73,7 +73,7 @@ Each numbered plan contains its ownership flow and Swift architecture sketch.
 
 ## Planning horizon
 
-Detail both Phase 1 deliverables now. Settings provides the smallest proving ground for destination lifetime and operation ownership. Elsewhere has a distinct shared navigation boundary and can be verified independently. After both Phase 1 deliverables meet acceptance, refine Phase 2 in place using the mounted navigation and fixture evidence from Phase 1.
+Both phases are complete. Phase 1's mounted checks and snapshots established the destination and fixture conventions used in Phase 2.
 
 ## Shared decisions
 
@@ -85,21 +85,22 @@ Detail both Phase 1 deliverables now. Settings provides the smallest proving gro
 
 ## Questions and resolutions
 
-No open product decisions. Phase 2 records its refinement trigger and evidence needs in its numbered outline.
+No open product decisions. The [Phase 2 plan](03-picker-editor-confirmation.md) records the refinement trigger and its execution evidence.
 
 ## Plan review
 
 - Reviewed on 2026-11-27 at `c41708712`. Traced the six selected changes through current owners, production and capture entry points, recovery, test suites, and the relevant module contracts.
 - The review separated mounted dismissal and remount checks from model tests and settled captures. It also specified serialization across coordinator awaits, shared Elsewhere retry ownership, and fixture identity for artwork preparation.
-- Plans 01 and 02 are ready. Plan 03 remains an outline until Phase 1 acceptance evidence is available.
+- Initial review readied Plans 01 and 02 and left Plan 03 as an outline pending Phase 1 acceptance evidence.
 - Static checks verified 72 local links, 12 test suite references, seven requirement mappings, and acyclic dependencies. All three Mermaid diagrams passed structural checks. Diagram rendering and app runtime were outside this verification. Swift sketches are pseudocode.
+- Refined and reviewed Phase 2 on 2026-11-27 after both Phase 1 deliverables passed their scoped checks at `41de638f0`.
 
 ## Review and delivery
 
-- Plan review is open in [PR #578](https://github.com/kyleve/Stuff/pull/578).
-- Implementation awaits a separate request.
+- Planning and implementation are recorded in [PR #578](https://github.com/kyleve/Stuff/pull/578), open for review against main.
+- Independent review covered Settings, Elsewhere, and the follow-ups. The final simulator run passed 98 tests. The two snapshot runs passed 11 tests with recording disabled. The architecture run passed 30 rule tests and found no violations.
 - Review focus is dismissal during export, saved schedule ordering across presentations, Elsewhere refresh identity, and preservation of active editor state.
 
 ## Outcome
 
-Implementation has not started.
+All six selected ownership changes are implemented and verified. Physical-device sharing and a full interactive Flyover walkthrough were outside the simulator verification. [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) remains open pending merge and acceptance.

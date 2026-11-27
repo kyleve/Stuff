@@ -1,6 +1,6 @@
 # 03 — Picker, editor, and confirmation
 
-- Status: executing
+- Status: complete
 - Dependencies: [Settings destinations](01-settings-destinations.md) and [Elsewhere flow](02-elsewhere-flow.md) complete the requested first phase. This is an execution order. The three follow-ups have no code dependency on the Elsewhere model.
 - Shared context: [Overview](README.md)
 
@@ -90,7 +90,7 @@ When a draft is recreated during resize, inspect the sheet item ID and the host'
 - [x] Move the Home picker and stay editor to their destinations.
 - [x] Move diagnostics confirmation ownership to its destination.
 - [x] Verify mounted behavior, settled snapshots, and policy.
-- [ ] Review and publish the implementation.
+- [x] Review and publish the implementation.
 
 ## Execution record
 
@@ -100,8 +100,8 @@ When a draft is recreated during resize, inspect the sheet item ID and the host'
 
 ## Resume point
 
-Publish the verified Phase 2 changes and link the implementation PR.
+Complete. Planner commit `42701203e` and diagnostics commit `54e4a6fa7` are published in [PR #578](https://github.com/kyleve/Stuff/pull/578).
 
 ## Outcome
 
-Pending implementation.
+Home selection and stay drafts start at their presentation boundaries. Diagnostics owns the confirmation prompt and forwards only a still-current consent decision to the process model.

@@ -1,6 +1,6 @@
 # 02 — Elsewhere flow
 
-- Status: executing
+- Status: complete
 - Dependencies: none
 - Shared context: [Overview](README.md)
 
@@ -87,7 +87,7 @@ When a projection or snapshot is stale, compare the selected year, complete inpu
 - [x] Move ownership and preserve refresh and retry.
 - [x] Adapt fixture and capture entry points.
 - [x] Verify tab, detail, and cancellation behavior.
-- [ ] Review, document, and publish the implementation.
+- [x] Review, document, and publish the implementation.
 
 ## Execution record
 
@@ -96,8 +96,8 @@ When a projection or snapshot is stale, compare the selected year, complete inpu
 
 ## Resume point
 
-Publish the verified Elsewhere changes, then advance to Phase 2.
+Complete. Commit `41de638f0` is published in [PR #578](https://github.com/kyleve/Stuff/pull/578). Continue with [Phase 2](03-picker-editor-confirmation.md).
 
 ## Outcome
 
-Pending implementation.
+The Elsewhere flow shares one model across cards and detail. The gallery hosts its own presentation projection. The scene report supplies visit availability and refresh input.
