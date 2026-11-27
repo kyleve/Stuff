@@ -139,9 +139,13 @@ jobs:
     name: Web Checks & Tests
     runs-on: xcode-27
     timeout-minutes: 20
+    env:
+      MISE_ENABLE_TOOLS: node
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+        with:
+          install_args: node
       - name: Install site dependencies
         run: mise exec -- npm ci
       - name: Astro and TypeScript checks
@@ -150,7 +154,7 @@ jobs:
         run: mise exec -- npm run test:unit --workspaces --if-present
       - name: Flyover browser regressions
         run: |
-          mise exec -- npx playwright install chromium webkit
+          mise exec -- npx playwright install --only-shell chromium webkit
           mise exec -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
       - name: Upload browser failure diagnostics
         if: ${{ failure() }}

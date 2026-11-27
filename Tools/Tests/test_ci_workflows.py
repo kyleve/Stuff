@@ -127,6 +127,20 @@ class CIWorkflowTests(unittest.TestCase):
             "${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}",
         )
 
+    def test_web_ci_uses_a_node_only_toolchain_and_headless_browser_install(self):
+        job = self.github["jobs"]["test-web"]
+        self.assertEqual(job["env"]["MISE_ENABLE_TOOLS"], "node")
+        setup = next(
+            step for step in job["steps"] if step.get("uses") == "jdx/mise-action@v3"
+        )
+        self.assertEqual(setup["with"]["install_args"], "node")
+        browsers = next(
+            step["run"]
+            for step in job["steps"]
+            if step.get("name") == "Flyover browser regressions"
+        )
+        self.assertIn("playwright install --only-shell chromium webkit", browsers)
+
     def test_boundary_fixtures_run_in_tool_tests_unless_classified_as_unrelated(self):
         jobs = self.github["jobs"]
         self.assertEqual(
