@@ -7,7 +7,6 @@ import WhereCore
 struct PlacesYearFeaturesView: View {
     let report: YearReportModel
     let focus: SettingsFocus?
-    var makeElsewhere: (() -> ElsewhereModel)?
 
     var body: some View {
         FeatureGuidePage(
@@ -15,7 +14,7 @@ struct PlacesYearFeaturesView: View {
             tagline: .settingsExplorePlacesTagline,
             focus: focus,
         ) {
-            PlacesYearFeaturesContent(report: report, makeElsewhere: makeElsewhere)
+            PlacesYearFeaturesContent(report: report)
         }
     }
 }
@@ -65,24 +64,16 @@ extension PlacesYearFeaturesView: SettingsSection {
             let cache = PreviewSupport.snapshotArtworkCache
             let loaded = PreviewSupport.plannedStayYearReportModel()
             let demo = PreviewSupport.loadedYearReportModel()
-            let loadedElsewhere = ElsewhereModel(
-                resolver: loaded.services.elsewhere,
-                namer: PreviewPlaceNamer(),
-            )
-            let demoElsewhere = ElsewhereModel(
-                resolver: demo.services.elsewhere,
-                namer: PreviewPlaceNamer(),
-            )
             whereSnapshot(
                 name: "Loaded",
                 configurations: .fullContentPhoneLightDarkWithAX5,
                 onReadyToMeasure: {
-                    if let input = loaded.elsewhereInput { await loadedElsewhere.refresh(input) }
+                    if let input = loaded.elsewhereInput { await loaded.elsewhere.refresh(input) }
                 },
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(
                         for: loaded.locationRegions.map(\.region)
-                            + (loadedElsewhere.content(for: loaded.selectedYear)?.regions
+                            + (loaded.elsewhere.content(for: loaded.selectedYear)?.regions
                                 .map(\.region) ?? []),
                         cache: cache,
                     )
@@ -91,7 +82,6 @@ extension PlacesYearFeaturesView: SettingsSection {
                 PlacesYearFeaturesView(
                     report: loaded,
                     focus: nil,
-                    makeElsewhere: { loadedElsewhere },
                 )
                 .environment(\.regionOutlinePathCache, cache)
             }
@@ -110,18 +100,18 @@ extension PlacesYearFeaturesView: SettingsSection {
                 name: "Demo",
                 configurations: .fullContentPhoneLightDark,
                 onReadyToMeasure: {
-                    if let input = demo.elsewhereInput { await demoElsewhere.refresh(input) }
+                    if let input = demo.elsewhereInput { await demo.elsewhere.refresh(input) }
                 },
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(
                         for: demo.locationRegions.map(\.region)
-                            + (demoElsewhere.content(for: demo.selectedYear)?.regions
+                            + (demo.elsewhere.content(for: demo.selectedYear)?.regions
                                 .map(\.region) ?? []),
                         cache: cache,
                     )
                 },
             ) {
-                PlacesYearFeaturesView(report: demo, focus: nil, makeElsewhere: { demoElsewhere })
+                PlacesYearFeaturesView(report: demo, focus: nil)
                     .environment(\.isInDemoMode, true)
                     .environment(\.regionOutlinePathCache, cache)
             }

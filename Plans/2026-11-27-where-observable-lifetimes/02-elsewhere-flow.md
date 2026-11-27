@@ -1,8 +1,10 @@
 # 02 — Elsewhere flow
 
-- Status: complete
+- Status: superseded
 - Dependencies: none
 - Shared context: [Overview](README.md)
+
+The owner withdrew this slice on 2026-11-27. The tab and the Places & Your Year gallery reuse the scene-owned projection and place-name cache. The plan and verification below describe the withdrawn implementation.
 
 ## Deliverable
 
@@ -93,11 +95,12 @@ When a projection or snapshot is stale, compare the selected year, complete inpu
 
 - 2026-11-27. Moved Elsewhere resolution into the navigation host and passed the same model to its detail. The first focused Phase 1 run passed 51 tests. Independent review identified a read-only gallery that shared the report's model and a possible ordering dependency between year invalidation and refresh. The gallery now resolves only its own projection, and the navigation driver prepares the year before reading.
 - 2026-11-27. The final mounted `MainTabsTests` rerun passed both tests. The expanded Elsewhere case exercises tab appearance, card navigation, updating the shared projection with the detail open, tab removal, and a new model on reappearance. The model cancellation and retry suite passed in the combined unit run. All seven Phase 1 snapshot tests passed with recording disabled, including the gallery and Regions Days cases. No image references changed.
+- 2026-11-27. After withdrawal, all nine Elsewhere source and test files matched the baseline. The restored scope passed 23 focused simulator tests, five snapshot tests with recording disabled, and the architecture checks.
 
 ## Resume point
 
-Complete. Commit `41de638f0` is published in [PR #578](https://github.com/kyleve/Stuff/pull/578). Continue with [Phase 2](03-picker-editor-confirmation.md).
+The scope decision is final for this PR. Commit `41de638f0` records the original implementation, and its verification is historical. [PR #578](https://github.com/kyleve/Stuff/pull/578)
 
 ## Outcome
 
-The Elsewhere flow shares one model across cards and detail. The gallery hosts its own presentation projection. The scene report supplies visit availability and refresh input.
+The scene report supplies the shared model, visit availability, and refresh input for the tab, detail, and gallery.

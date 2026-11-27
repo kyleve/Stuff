@@ -8,20 +8,6 @@ import WhereCore
 /// The optional tab for named visits outside the configured primary regions.
 struct ElsewhereView: View {
     let report: YearReportModel
-    var isSelected = true
-    var makeModel: (() -> ElsewhereModel)?
-
-    var body: some View {
-        ObservableHostingView(makeModel ?? {
-            ElsewhereModel(resolver: report.services.elsewhere, namer: LocationNamer())
-        }) { model in
-            ElsewhereNavigation(report: report, model: model, isSelected: isSelected)
-        }
-    }
-}
-
-private struct ElsewhereNavigation: View {
-    let report: YearReportModel
     let model: ElsewhereModel
     var isSelected: Bool
 
@@ -30,8 +16,24 @@ private struct ElsewhereNavigation: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.regionStyles) private var regionStyles
 
-    private var isVisible: Bool {
-        isSelected && scenePhase != .background
+    private struct Request: Hashable {
+        let input: ElsewhereInput?
+        let isVisible: Bool
+        let retrySequence: Int
+    }
+
+    init(report: YearReportModel, model: ElsewhereModel? = nil, isSelected: Bool = true) {
+        self.report = report
+        self.model = model ?? report.elsewhere
+        self.isSelected = isSelected
+    }
+
+    private var request: Request {
+        Request(
+            input: report.elsewhereInput,
+            isVisible: isSelected && scenePhase != .background,
+            retrySequence: retrySequence,
+        )
     }
 
     private var failureMessage: String? {
@@ -55,13 +57,12 @@ private struct ElsewhereNavigation: View {
                 }
                 .navigationBarTitleDisplayMode(.inline)
         }
-        .environment(\.isElsewhereVisible, isVisible)
-        .modifier(ElsewhereRefresh(
-            report: report,
-            model: model,
-            isVisible: isVisible,
-            retrySequence: retrySequence,
-        ))
+        .task(id: request) {
+            guard request.isVisible else { return }
+            if case .failed = report.loadState { await report.refresh() }
+            guard let input = report.elsewhereInput, !Task.isCancelled else { return }
+            await model.refresh(input)
+        }
         .debugLogInspectable(WhereLog.session(ElsewhereModelLog.self))
     }
 
@@ -87,7 +88,6 @@ private struct ElsewhereNavigation: View {
                                             region: item.region,
                                             report: report,
                                             model: model,
-                                            retry: retry,
                                         )
                                     } label: {
                                         RegionSummaryCard(
@@ -136,12 +136,8 @@ private struct ElsewhereNavigation: View {
     }
 
     private var retryButton: some View {
-        Button(String(localized: .commonRetry), action: retry)
+        Button(String(localized: .commonRetry)) { retrySequence += 1 }
             .buttonStyle(.bordered)
-    }
-
-    private func retry() {
-        retrySequence += 1
     }
 
     private var emptyState: some View {
@@ -149,43 +145,6 @@ private struct ElsewhereNavigation: View {
             Label(String(localized: .secondaryEmptyTitle), systemSymbol: .globeAmericas)
         } description: {
             Text(String(localized: .secondaryEmptyDescription))
-        }
-    }
-}
-
-extension EnvironmentValues {
-    @Entry var isElsewhereVisible = true
-}
-
-/// Drives one projection for the entire flow, including pushed detail.
-struct ElsewhereRefresh: ViewModifier {
-    let report: YearReportModel
-    let model: ElsewhereModel
-    var isVisible = true
-    var retrySequence = 0
-
-    private struct Request: Hashable {
-        let year: Int
-        let input: ElsewhereInput?
-        let isVisible: Bool
-        let retrySequence: Int
-    }
-
-    func body(content: Content) -> some View {
-        let request = Request(
-            year: report.selectedYear,
-            input: report.elsewhereInput,
-            isVisible: isVisible,
-            retrySequence: retrySequence,
-        )
-        content.task(id: request) {
-            guard !Task.isCancelled, report.selectedYear == request.year else { return }
-            model.prepare(for: request.year)
-            guard request.isVisible else { return }
-            if case .failed = report.loadState { await report.refresh() }
-            guard !Task.isCancelled, report.selectedYear == request.year,
-                  let input = report.elsewhereInput else { return }
-            await model.refresh(input)
         }
     }
 }
@@ -253,7 +212,7 @@ struct ElsewhereRefresh: ViewModifier {
                     )
                 },
             ) {
-                ElsewhereView(report: report, makeModel: { model })
+                ElsewhereView(report: report, model: model)
                     .environment(\.regionOutlinePathCache, cache)
             }
         }

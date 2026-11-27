@@ -35,7 +35,6 @@ struct MainTabs: View {
     @State private var planningDestination: PlannedStaysDestination?
     @State private var selection = MainTabSelection()
     private var previewConfiguration = PreviewConfiguration()
-    private var makeElsewhere: (() -> ElsewhereModel)?
 
     #if DEBUG
         private var snapshotReadiness: MainTabsSnapshotReadiness?
@@ -103,12 +102,8 @@ struct MainTabs: View {
                     systemSymbol: .globeAmericas,
                     value: TabID.elsewhere,
                 ) {
-                    ElsewhereView(
-                        report: report,
-                        isSelected: selection.selected == .elsewhere,
-                        makeModel: makeElsewhere,
-                    )
-                    .reportingDeveloperTabBarInset()
+                    ElsewhereView(report: report, isSelected: selection.selected == .elsewhere)
+                        .reportingDeveloperTabBarInset()
                 }
             }
 
@@ -238,7 +233,6 @@ struct MainTabs: View {
             welcome: LocationWelcomeModel,
             selection: TabID,
             snapshotReadiness: MainTabsSnapshotReadiness? = nil,
-            makeElsewhere: (() -> ElsewhereModel)? = nil,
         ) {
             let recordingWarningSource = RecordingConfigurationWarningModel.Source(session: session)
             self.recordingWarningSource = recordingWarningSource
@@ -250,7 +244,6 @@ struct MainTabs: View {
             _welcome = State(initialValue: welcome)
             _selection = State(initialValue: MainTabSelection(selected: selection))
             self.snapshotReadiness = snapshotReadiness
-            self.makeElsewhere = makeElsewhere
         }
 
         /// Retains the production shell around a separately built in-memory lab world.
@@ -339,10 +332,6 @@ struct MainTabs: View {
                 preferences: session.preferences,
                 now: session.now,
             )
-            let elsewhere = ElsewhereModel(
-                resolver: report.services.elsewhere,
-                namer: PreviewPlaceNamer(),
-            )
             let welcome = LocationWelcomeModel(
                 services: session.services,
                 preferences: session.preferences,
@@ -372,7 +361,7 @@ struct MainTabs: View {
                     )
                 }
                 await report.refresh()
-                if let input = report.elsewhereInput { await elsewhere.refresh(input) }
+                if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
             }
             return whereSnapshot(
                 name: theme == .standard ? "Elsewhere" : "FlatElsewhere",
@@ -384,30 +373,25 @@ struct MainTabs: View {
                 onReadyToMeasure: prepare,
                 prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(
-                        for: elsewhere.content(for: report.selectedYear)?.regions
+                        for: report.elsewhere.content(for: report.selectedYear)?.regions
                             .map(\.region) ?? [],
                         cache: cache,
                     )
                 },
             ) {
-                PreparedElsewhereSnapshot(
-                    session: session,
-                    report: report,
-                    welcome: welcome,
-                    elsewhere: elsewhere,
-                )
-                .environment(\.regionOutlinePathCache, cache)
-                .task {
-                    // SnapshotCase previews do not invoke capture readiness hooks.
-                    if isPreview {
-                        await prepare()
-                        await PreviewSupport.loadCardArtwork(
-                            for: elsewhere.content(for: report.selectedYear)?.regions
-                                .map(\.region) ?? [],
-                            cache: cache,
-                        )
+                PreparedElsewhereSnapshot(session: session, report: report, welcome: welcome)
+                    .environment(\.regionOutlinePathCache, cache)
+                    .task {
+                        // SnapshotCase previews do not invoke capture readiness hooks.
+                        if isPreview {
+                            await prepare()
+                            await PreviewSupport.loadCardArtwork(
+                                for: report.elsewhere.content(for: report.selectedYear)?.regions
+                                    .map(\.region) ?? [],
+                                cache: cache,
+                            )
+                        }
                     }
-                }
             }
         }
 
@@ -416,7 +400,6 @@ struct MainTabs: View {
             let session: WhereSession
             let report: YearReportModel
             let welcome: LocationWelcomeModel
-            let elsewhere: ElsewhereModel
 
             var body: some View {
                 if report.loadState == .loaded {
@@ -425,7 +408,6 @@ struct MainTabs: View {
                         report: report,
                         welcome: welcome,
                         selection: .elsewhere,
-                        makeElsewhere: { elsewhere },
                     )
                     .environment(session)
                     .environment(\.scenePhase, .inactive)

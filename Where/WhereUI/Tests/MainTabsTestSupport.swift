@@ -44,15 +44,12 @@ struct UpdateSceneHost: View {
 }
 
 @MainActor
-func waitForUpdateScene(
-    _ description: String = "the update scene",
-    _ predicate: () -> Bool,
-) async throws {
+func waitForUpdateScene(_ predicate: () -> Bool) async throws {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: .seconds(10))
     while !predicate() {
         guard clock.now < deadline
-        else { throw TestHostError("Timed out waiting for \(description)") }
+        else { throw TestHostError("Timed out waiting for the update scene") }
         try await Task.sleep(for: .milliseconds(10))
     }
 }

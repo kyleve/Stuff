@@ -6,7 +6,6 @@ import WhereCore
 /// store only this small view, rather than the complete concrete row tree.
 struct PlacesYearFeaturesContent: View {
     let report: YearReportModel
-    let makeElsewhere: (() -> ElsewhereModel)?
 
     var body: some View {
         FeatureGuidePanel(
@@ -22,9 +21,21 @@ struct PlacesYearFeaturesContent: View {
                     year: report.selectedYear,
                 )
             }
-            if report.hasElsewhere {
-                LocationsElsewhereExample(report: report, makeModel: makeElsewhere)
+            if let content = report.elsewhere.content(for: report.selectedYear),
+               let region = content.regions.first
+            {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: region.region, days: region.days.count),
+                    variant: .elsewhere,
+                    year: report.selectedYear,
+                    recordedPoints: content.cardLocations.pointsByRegion[region.region] ?? [],
+                    showsRecordedPoints: report.showsRecordedLocationDots,
+                    recordedPointsID: content.cardLocations.id,
+                )
             }
+        }
+        .task(id: report.elsewhereInput) {
+            if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
         }
         .featureMarketingRow(order: 1)
         .settingsRow(PlacesYearFeaturesView.Item.locations, restingBackground: .clear)
@@ -66,42 +77,6 @@ struct PlacesYearFeaturesContent: View {
             .settingsRow(PlacesYearFeaturesView.Item.welcome, restingBackground: .clear)
         FeatureSettingsLink(destination: .year).featureMarketingRow(order: 5)
         FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 6)
-    }
-}
-
-private struct LocationsElsewhereExample: View {
-    let report: YearReportModel
-    let makeModel: (() -> ElsewhereModel)?
-
-    var body: some View {
-        ObservableHostingView(makeModel ?? {
-            ElsewhereModel(resolver: report.services.elsewhere, namer: LocationNamer())
-        }) { model in
-            LocationsElsewhereCard(report: report, model: model)
-                .task(id: report.elsewhereInput) {
-                    if let input = report.elsewhereInput { await model.refresh(input) }
-                }
-        }
-    }
-}
-
-private struct LocationsElsewhereCard: View {
-    let report: YearReportModel
-    let model: ElsewhereModel
-
-    var body: some View {
-        if let content = model.content(for: report.selectedYear),
-           let region = content.regions.first
-        {
-            RegionSummaryCard(
-                regionDays: RegionDays(region: region.region, days: region.days.count),
-                variant: .elsewhere,
-                year: report.selectedYear,
-                recordedPoints: content.cardLocations.pointsByRegion[region.region] ?? [],
-                showsRecordedPoints: report.showsRecordedLocationDots,
-                recordedPointsID: content.cardLocations.id,
-            )
-        }
     }
 }
 

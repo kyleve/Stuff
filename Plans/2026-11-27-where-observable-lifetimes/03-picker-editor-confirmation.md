@@ -1,8 +1,10 @@
 # 03 — Picker, editor, and confirmation
 
 - Status: complete
-- Dependencies: [Settings destinations](01-settings-destinations.md) and [Elsewhere flow](02-elsewhere-flow.md) complete the requested first phase. This is an execution order. The three follow-ups have no code dependency on the Elsewhere model.
+- Dependencies: [Settings destinations](01-settings-destinations.md) established the destination and fixture conventions.
 - Shared context: [Overview](README.md)
+
+The three follow-ups are independent of the [withdrawn Elsewhere work](02-elsewhere-flow.md).
 
 ## Intended outcome
 
@@ -53,7 +55,7 @@ Home opens through the planner's inline `NavigationLink`. The planner's sheet it
 
 ## Refinement trigger
 
-- Trigger is completion of both Phase 1 deliverables and review of their evidence.
+- The original trigger was completion of Phase 1 and review of its evidence.
 - The Phase 1 review confirmed that native navigation should own the host identity and prepared captures should inject the instance their preparation reads. Apply both to the editor paths.
 - Recheck the Phase 1 evidence, the existing editor fold behavior, and diagnostics policy guards before marking this phase ready.
 
