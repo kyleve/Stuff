@@ -318,6 +318,13 @@ journal intent.
 
 ### Reusable views & styling
 
+- **`ObservableHostingView`** — give it a factory for an observable model and a
+  view builder that receives the model. The factory runs when the host mounts,
+  and the model is retained for that SwiftUI view identity. A changed factory
+  keeps the existing model. Use a new identity when the input calls for a fresh
+  model, and keep edits that span screens in their owning flow.
+  See the [usage example](Sources/Shared/ObservableHostingView.swift).
+
 - **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
   icon, outline, Liquid Glass card treatment, and passport ink. The card stamps into place
   with a quick tilted approach and spring settle, then lifts away on dismissal.

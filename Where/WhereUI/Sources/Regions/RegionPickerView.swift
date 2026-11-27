@@ -1,4 +1,3 @@
-import Observation
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -18,28 +17,6 @@ struct RegionPickerView: View {
 
     var body: some View {
         ObservableHostingView(makeModel) { RegionPickerContent(model: $0) }
-    }
-}
-
-private struct ObservableHostingView<Model: Observable, Content: View>: View {
-    let makeModel: () -> Model
-    let content: (Model) -> Content
-    @State private var model: Model?
-
-    init(_ makeModel: @escaping () -> Model, @ViewBuilder content: @escaping (Model) -> Content) {
-        self.makeModel = makeModel
-        self.content = content
-    }
-
-    var body: some View {
-        if let model {
-            content(model)
-        } else {
-            Color.clear.task {
-                guard model == nil else { return }
-                model = makeModel()
-            }
-        }
     }
 }
 
