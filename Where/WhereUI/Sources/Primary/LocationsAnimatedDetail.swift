@@ -91,7 +91,7 @@ struct LocationsAnimatedDetail: View {
         LocationsAnimatedDetail(
             report: report,
             navigation: LocationsView.Navigation(),
-            selection: LocationsView.CalendarSelection(region: .california, report: report),
+            selection: LocationsView.makeCalendarSelection(for: .california, report: report),
         )
         .whereBroadwayRoot()
     }

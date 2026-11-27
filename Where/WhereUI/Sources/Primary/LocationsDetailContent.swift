@@ -80,7 +80,7 @@ struct LocationsNoRegion: View {
             LocationsDetailContent(
                 report: report,
                 navigation: navigation,
-                selection: LocationsView.CalendarSelection(region: .california, report: report),
+                selection: LocationsView.makeCalendarSelection(for: .california, report: report),
                 arrangement: .compact,
             )
         }

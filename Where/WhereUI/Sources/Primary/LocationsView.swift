@@ -39,15 +39,11 @@ struct LocationsView: View {
     struct CalendarSelection: Identifiable {
         let region: Region
         let presentation: CalendarPresentationState
+
+        /// A region can be reselected before its previous animation completes.
+        /// Each completion must address the specific calendar instance.
         var id: ObjectIdentifier {
             ObjectIdentifier(presentation)
-        }
-
-        @MainActor init(region: Region, report: YearReportModel) {
-            self.region = region
-            let overview = CalendarModel(report: report, persistenceKey: .region(region))
-                .isOverview(fallback: false)
-            presentation = CalendarPresentationState(mode: overview ? .overview : .detail)
         }
     }
 
@@ -72,7 +68,7 @@ struct LocationsView: View {
         if let initialRegion { navigation.select(region: initialRegion) }
         _navigation = State(initialValue: navigation)
         _calendarSelection = State(initialValue: navigation.selectedRegion.map {
-            CalendarSelection(region: $0, report: report)
+            Self.makeCalendarSelection(for: $0, report: report)
         })
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
@@ -142,8 +138,20 @@ struct LocationsView: View {
             destination: $navigation.planningDestination,
         ))
         .onChange(of: navigation.selectedRegion) { _, region in
-            calendarSelection = region.map { CalendarSelection(region: $0, report: report) }
+            calendarSelection = region.map { Self.makeCalendarSelection(for: $0, report: report) }
         }
+    }
+
+    static func makeCalendarSelection(
+        for region: Region,
+        report: YearReportModel,
+    ) -> CalendarSelection {
+        let overview = CalendarModel(report: report, persistenceKey: .region(region))
+            .isOverview(fallback: false)
+        return CalendarSelection(
+            region: region,
+            presentation: CalendarPresentationState(mode: overview ? .overview : .detail),
+        )
     }
 
     private var selectedCalendarTitle: String? {
