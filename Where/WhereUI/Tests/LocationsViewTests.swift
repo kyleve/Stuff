@@ -18,6 +18,42 @@ struct LocationsViewTests {
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
+    @Test func openingWithoutARegionShowsAnEmptyDetailUntilSelection() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
+            LocationsView(report: world.report)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            let emptyTitle = String(localized: .locationsNoRegionTitle)
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .innerPortrait)
+            try await waitForStage("empty detail on the open Duo") {
+                HostedAccessibility.isVisible(emptyTitle, in: controller.view)
+            }
+            #expect(HostedAccessibility.isVisible(
+                String(localized: .calendarShowYear),
+                in: controller.view,
+            ) == false)
+
+            let card = try #require(HostedAccessibility.objects(in: controller.view).first {
+                $0.accessibilityLabel?.hasPrefix("California:") == true
+                    && $0.accessibilityTraits.contains(.button)
+            })
+            if let control = card as? UIControl { control.sendActions(for: .touchUpInside) }
+            else { try #require(card.accessibilityActivate()) }
+
+            let calendarTitle = WhereFormat.calendarRegionTitle(
+                region: .california,
+                year: world.report.selectedYear,
+            )
+            try await waitForStage("selected region calendar") {
+                HostedAccessibility.isVisible(calendarTitle, in: controller.view)
+            }
+            #expect(HostedAccessibility.isVisible(emptyTitle, in: controller.view) == false)
+        }
+    }
+
     @Test func estimateCardFollowsVisibleLocationsPanes() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()

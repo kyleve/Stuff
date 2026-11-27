@@ -91,7 +91,7 @@ struct LocationsView: View {
                         ideal: stylesheet.adaptivePane.minimumControlsWidth,
                     )
                 } detail: {
-                    calendar(
+                    detailPane(
                         showsEstimateCard: arrangement == .compact,
                         usesZoomTransition: arrangement == .compact,
                     )
@@ -128,31 +128,44 @@ struct LocationsView: View {
         }
     }
 
-    private func calendar(
+    private func detailPane(
         showsEstimateCard: Bool,
         usesZoomTransition: Bool,
     ) -> some View {
         @Bindable var navigation = navigation
+        let region = navigation.selectedRegion
         return NavigationStack {
-            CalendarContentView(
-                focusedRegion: navigation.selectedRegion,
-                report: report,
-                showsEstimateCard: showsEstimateCard,
-                showsPlanningAction: false,
-                presentationState: calendarPresentation,
-                persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
-                scrollRole: ScrollRole.calendar,
-                planningDestination: $navigation.planningDestination,
-            )
+            Group {
+                if let region {
+                    CalendarContentView(
+                        focusedRegion: region,
+                        report: report,
+                        showsEstimateCard: showsEstimateCard,
+                        showsPlanningAction: false,
+                        presentationState: calendarPresentation,
+                        persistenceKey: .region(region),
+                        scrollRole: ScrollRole.calendar,
+                        planningDestination: $navigation.planningDestination,
+                    )
+                    .id(region)
+                } else {
+                    ContentUnavailableView {
+                        Label(String(localized: .locationsNoRegionTitle), systemSymbol: .calendar)
+                    } description: {
+                        if !report.locationRegions.isEmpty {
+                            Text(String(localized: .locationsNoRegionDescription))
+                        }
+                    }
+                }
+            }
             .toolbar { LocationsToolbar(report: report, navigation: navigation) }
-            .id(navigation.selectedRegion)
-            .navigationTitle(navigation.selectedRegion.map {
+            .navigationTitle(region.map {
                 WhereFormat.calendarRegionTitle(region: $0, year: report.selectedYear)
             } ?? String(localized: .primaryCalendar))
             .navigationBarTitleDisplayMode(.inline)
         }
         .modifier(RegionCalendarTransition(
-            region: usesZoomTransition ? navigation.selectedRegion : nil,
+            region: usesZoomTransition ? region : nil,
             namespace: calendarTransition,
         ))
     }

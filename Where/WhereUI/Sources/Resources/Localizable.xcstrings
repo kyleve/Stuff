@@ -4790,6 +4790,30 @@
         }
       }
     },
+    "locations.noRegion.description" : {
+      "comment" : "Instruction in the empty Locations detail pane when there are region cards to select.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select a region to see its calendar."
+          }
+        }
+      }
+    },
+    "locations.noRegion.title" : {
+      "comment" : "Heading in the empty Locations detail pane before a region is selected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No Region Selected"
+          }
+        }
+      }
+    },
     "locations.planning.assign" : {
       "comment" : "Menu action for assigning the planned stay to a primary-card region. The placeholder is the localized region name.",
       "extractionState" : "manual",
