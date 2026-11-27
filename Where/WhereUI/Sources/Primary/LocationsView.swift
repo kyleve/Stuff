@@ -7,7 +7,7 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Stable selection and sheet ownership around native browse/detail navigation.
+/// Stable selection and sheet ownership around the adaptive Locations layouts.
 struct LocationsView: View {
     @MainActor @Observable
     final class Navigation {
@@ -61,50 +61,48 @@ struct LocationsView: View {
         @Bindable var navigation = navigation
         AdaptivePaneContainer { arrangement in
             if report.report == nil {
-                LocationsBrowsePane(
-                    report: report,
-                    navigation: navigation,
-                    cardPresentation: cardPresentation,
-                    tilt: tilt,
-                    calendarTransition: calendarTransition,
-                    openElsewhere: openElsewhere,
-                )
+                browsePane
+            } else if arrangement == .columns {
+                NavigationStack {
+                    LocationsColumns(browseWidth: stylesheet.adaptivePane.minimumControlsWidth) {
+                        expandedBrowseContent
+                    } detail: {
+                        detailContent(showsEstimateCard: false)
+                    }
+                    .navigationTitle(selectedCalendarTitle ?? "")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .containerBackground(.clear, for: .navigation)
+                }
             } else {
                 NavigationSplitView(
                     columnVisibility: .constant(.all),
                     preferredCompactColumn: $navigation.compactColumn,
                 ) {
-                    LocationsBrowsePane(
-                        report: report,
-                        navigation: navigation,
-                        cardPresentation: cardPresentation,
-                        tilt: tilt,
-                        calendarTransition: calendarTransition,
-                        cardVariant: arrangement == .compact ? .regular : .column,
-                        showsSelection: arrangement != .compact,
-                        showsToolbarActions: arrangement == .compact,
-                        openElsewhere: openElsewhere,
-                    )
-                    .toolbar(removing: .sidebarToggle)
-                    .navigationSplitViewColumnWidth(
-                        min: stylesheet.adaptivePane.minimumControlsWidth,
-                        ideal: stylesheet.adaptivePane.minimumControlsWidth,
-                    )
+                    browsePane
+                        .containerBackground(.clear, for: .navigation)
+                        .containerBackground(.clear, for: .navigationSplitView)
+                        .toolbar(removing: .sidebarToggle)
                 } detail: {
-                    detailPane(
-                        showsEstimateCard: arrangement == .compact,
-                        usesZoomTransition: arrangement == .compact,
-                    )
-                    .navigationSplitViewColumnWidth(
-                        min: stylesheet.adaptivePane.minimumDetailWidth,
-                        ideal: stylesheet.adaptivePane.minimumDetailWidth,
-                    )
+                    NavigationStack {
+                        detailContent(showsEstimateCard: true)
+                            .navigationTitle(
+                                selectedCalendarTitle ?? String(localized: .primaryCalendar),
+                            )
+                            .navigationBarTitleDisplayMode(.inline)
+                            .containerBackground(.clear, for: .navigation)
+                    }
+                    .modifier(RegionCalendarTransition(
+                        region: navigation.selectedRegion,
+                        namespace: calendarTransition,
+                    ))
+                    .containerBackground(.clear, for: .navigation)
                 }
                 .navigationSplitViewStyle(.balanced)
-                .environment(\.horizontalSizeClass, arrangement == .compact ? .compact : .regular)
-                .bHorizontalSizeClass(arrangement == .compact ? .compact : .regular)
+                .environment(\.horizontalSizeClass, .compact)
+                .bHorizontalSizeClass(.compact)
             }
         }
+        .visitedRegionsBackground(report)
         .sheet(item: $navigation.flightReview) { review in
             NavigationStack {
                 FlightDayDetailView(review: review, report: report)
@@ -128,50 +126,65 @@ struct LocationsView: View {
         }
     }
 
-    private func detailPane(
-        showsEstimateCard: Bool,
-        usesZoomTransition: Bool,
-    ) -> some View {
-        @Bindable var navigation = navigation
-        let region = navigation.selectedRegion
-        return NavigationStack {
-            Group {
-                if let region {
-                    CalendarContentView(
-                        focusedRegion: region,
-                        report: report,
-                        showsEstimateCard: showsEstimateCard,
-                        showsPlanningAction: false,
-                        presentationState: calendarPresentation,
-                        persistenceKey: .region(region),
-                        scrollRole: ScrollRole.calendar,
-                        planningDestination: $navigation.planningDestination,
-                    )
-                    .id(region)
-                } else {
-                    ContentUnavailableView {
-                        Label(String(localized: .locationsNoRegionTitle), systemSymbol: .calendar)
-                    } description: {
-                        if !report.locationRegions.isEmpty {
-                            Text(String(localized: .locationsNoRegionDescription))
-                        }
-                    }
-                }
-            }
-            .toolbar { LocationsToolbar(report: report, navigation: navigation) }
-            .navigationTitle(region.map {
-                WhereFormat.calendarRegionTitle(region: $0, year: report.selectedYear)
-            } ?? String(localized: .primaryCalendar))
-            .navigationBarTitleDisplayMode(.inline)
+    private var selectedCalendarTitle: String? {
+        navigation.selectedRegion.map {
+            WhereFormat.calendarRegionTitle(region: $0, year: report.selectedYear)
         }
-        .modifier(RegionCalendarTransition(
-            region: usesZoomTransition ? region : nil,
-            namespace: calendarTransition,
-        ))
+    }
+
+    private var browsePane: LocationsBrowsePane {
+        LocationsBrowsePane(
+            report: report,
+            navigation: navigation,
+            cardPresentation: cardPresentation,
+            tilt: tilt,
+            calendarTransition: calendarTransition,
+            openElsewhere: openElsewhere,
+        )
+    }
+
+    private var expandedBrowseContent: LocationsContent {
+        LocationsContent(
+            report: report,
+            navigation: navigation,
+            cardPresentation: cardPresentation,
+            tilt: tilt,
+            calendarTransition: calendarTransition,
+            cardVariant: .column,
+            showsSelection: true,
+            showsToolbarActions: false,
+            openElsewhere: openElsewhere,
+        )
+    }
+
+    private func detailContent(showsEstimateCard: Bool) -> LocationsDetailContent {
+        LocationsDetailContent(
+            report: report,
+            navigation: navigation,
+            calendarPresentation: calendarPresentation,
+            showsEstimateCard: showsEstimateCard,
+        )
     }
 }
 
-/// Native split navigation uses the same card zoom when its detail collapses to a push.
+private struct LocationsColumns<Browse: View, Detail: View>: View {
+    let browseWidth: CGFloat
+    @ViewBuilder let browse: () -> Browse
+    @ViewBuilder let detail: () -> Detail
+
+    var body: some View {
+        HStack(spacing: 0) {
+            browse()
+                .frame(width: browseWidth)
+                // Draw the card halos above the neighboring calendar edge.
+                .zIndex(1)
+            detail()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// The compact calendar push zooms from its region card.
 private struct RegionCalendarTransition: ViewModifier {
     let region: Region?
     let namespace: Namespace.ID
@@ -236,6 +249,7 @@ struct LocationsBrowsePane: View {
                 showsToolbarActions: showsToolbarActions,
                 openElsewhere: openElsewhere,
             )
+            .containerBackground(.clear, for: .navigation)
         }
     }
 }
@@ -305,10 +319,6 @@ struct LocationsContent: View {
     var body: some View {
         screen
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                LocationsBackground(regions: backgroundRegions)
-                    .ignoresSafeArea()
-            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if showsToolbarActions {
@@ -352,10 +362,6 @@ struct LocationsContent: View {
                     )
                 }
         }
-    }
-
-    private var backgroundRegions: [Region] {
-        LocationsBackgroundArtwork.regions(in: report.ranking)
     }
 
     private func openPlanning() {
@@ -438,7 +444,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsBrowsePane(report: PreviewSupport.plannedStayYearReportModel())
+                browsePane(report: PreviewSupport.plannedStayYearReportModel())
             }
             whereSnapshot(
                 name: "ForecastsHidden",
@@ -446,7 +452,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsBrowsePane(report: forecastsHiddenReport())
+                browsePane(report: forecastsHiddenReport())
             }
             whereSnapshot(
                 name: "Empty",
@@ -454,7 +460,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsBrowsePane(report: PreviewSupport.emptyYearReportModel())
+                browsePane(report: PreviewSupport.emptyYearReportModel())
             }
             whereSnapshot(
                 name: "MissingDays",
@@ -462,7 +468,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsBrowsePane(report: PreviewSupport.missingDaysYearReportModel())
+                browsePane(report: PreviewSupport.missingDaysYearReportModel())
             }
             whereSnapshot(
                 name: "ElsewhereOnly",
@@ -490,7 +496,7 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsBrowsePane(
+                browsePane(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
@@ -537,7 +543,7 @@ private struct ResolveToolbarLabel: View {
             ) {
                 let navigation = LocationsView.Navigation()
                 let _ = navigation.selectedRegion = selectedRegion
-                LocationsBrowsePane(
+                browsePane(
                     report: report,
                     navigation: navigation,
                     cardVariant: cardVariant,
@@ -551,6 +557,15 @@ private struct ResolveToolbarLabel: View {
                     }
                 }
             }
+        }
+
+        private static func browsePane(
+            report: YearReportModel,
+            navigation: LocationsView.Navigation? = nil,
+            cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
+        ) -> some View {
+            LocationsBrowsePane(report: report, navigation: navigation, cardVariant: cardVariant)
+                .visitedRegionsBackground(report)
         }
 
         private static func forecastsHiddenReport() -> YearReportModel {
@@ -603,8 +618,8 @@ private struct ResolveToolbarLabel: View {
     }
 #endif
 
-/// Shared screen actions appear in the trailing column, or on the visible compact screen.
-private struct LocationsToolbar: ToolbarContent {
+/// Shared actions for the expanded toolbar or the visible compact screen.
+struct LocationsToolbar: ToolbarContent {
     let report: YearReportModel
     let navigation: LocationsView.Navigation
 

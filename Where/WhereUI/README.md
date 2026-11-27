@@ -101,10 +101,12 @@ Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
 The detail pane shows an empty state until a region is selected.
+One region-outline background spans both Locations panes and follows the selected year's visits.
 When Locations displays both panes, only browsing shows the estimate card.
 The compact calendar push retains its estimate card in detail and overview.
 Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
 Your Year uses one navigation stack and the bottom calendar/timeline selector at every window size.
+Its calendar and timeline share the same selected-year background as Locations.
 Settings uses native list and detail navigation.
 Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
 Narrow windows and accessibility text sizes use one pane. Locations marks the selected region only while its browsing and calendar panes are shown together.
@@ -112,18 +114,18 @@ Theme choices stack when the available pane cannot fit two readable card specime
 
 `AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
 `AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
-Locations keeps native browse/detail columns across horizontal and vertical folds when
-both panes fit. Narrow layouts use the same split view's compact navigation.
-There is no separate tabletop calendar or navigation tree. Native containers own
-system-bar placement. The adapter uses container geometry, without device-name
-or hinge-angle checks.
+Locations keeps the browse and detail columns side by side in one navigation stack
+across horizontal and vertical folds when both panes fit. Narrow layouts use
+native compact navigation. Both layouts reuse the same region cards and calendar
+and retain their selection and scroll positions through resizing.
+The adapter uses measured container geometry.
 
 Locations shows one initial loading or failure surface before a report arrives.
-Once loaded, its expanded layout shows the index beside the calendar. SwiftUI
-removes the sidebar toggle; native split gestures retain their system behavior. Shared planning
-and review actions appear in the trailing pane; compact navigation keeps them on
-the visible screen. Calendar receives a caller-owned typed restoration role rather
-than knowing which tab hosts it. Timeline restores its own typed row IDs independently.
+In the expanded layout, card shadows can extend beyond the browse column.
+Shared planning and review actions appear once in the navigation toolbar.
+Compact navigation keeps those actions on the visible screen.
+The host supplies Calendar's typed restoration role.
+Timeline restores its own typed row IDs independently.
 Settings uses native split navigation and the stylesheet's compact-layout policy.
 
 Planning sheets remain above changing containers, with one owner per destination.

@@ -147,9 +147,9 @@ struct LocationsCardsView: View {
             _position.initialize(edge: .top)
         }
         .scrollBounceBehavior(.basedOnSize)
-        // The card normally stays clipped to the scrolling viewport. Reveal
-        // overflow only while the authored arc, scale, and rotation need it.
-        .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
+        // Let card shadows extend past the browse column. Compact cards only
+        // need overflow during an overtake.
+        .scrollClipDisabled(cardVariant == .column || cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }
