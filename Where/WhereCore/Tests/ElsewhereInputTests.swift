@@ -6,8 +6,8 @@ struct ElsewhereInputTests {
     @Test func eligibilityUsesConfiguredRegionsAndRecordedPresence() {
         let day = CalendarDay(year: 2026, month: 6, day: 1)
         let input = ElsewhereTestSupport.input(
-            manualDays: [DayPresence(day: day, regions: [.california, .newYork, .canada])],
-            primaryRegions: [.california, .newYork, .canada],
+            manualDays: [DayPresence(day: day, regions: [.california, .newYork, .ontario])],
+            primaryRegions: [.california, .newYork, .ontario],
         )
         #expect(!input.hasVisits)
         #expect(!ElsewhereTestSupport.input().hasVisits)

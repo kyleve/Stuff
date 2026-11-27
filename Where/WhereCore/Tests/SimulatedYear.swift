@@ -251,7 +251,7 @@ enum SimulatedYear {
                 16,
                 .planeTicket,
                 "LGA → YYZ Toronto trip",
-                .canada,
+                .ontario,
                 "00000000-0000-0000-0000-000000000616"
             ),
         ]

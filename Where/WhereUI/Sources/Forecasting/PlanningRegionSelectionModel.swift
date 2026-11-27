@@ -21,7 +21,7 @@ final class PlanningRegionSelectionModel {
     }
 
     let report: YearReportModel
-    let available = PrimaryRegionSelectionModel.usRegions
+    let available = PrimaryRegionSelectionModel.supportedRegions
     var searchText = ""
     private(set) var loadState: LoadState = .idle
     private(set) var selectionState: SelectionState = .idle

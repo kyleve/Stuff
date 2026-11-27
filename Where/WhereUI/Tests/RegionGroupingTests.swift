@@ -40,7 +40,7 @@ struct RegionGroupingTests {
         let grouping = RegionGrouping(
             available: [.california, .newYork, texas],
             // NY first, then a region not offered (dropped), then CA.
-            primary: [.newYork, .canada, .california],
+            primary: [.newYork, .ontario, .california],
             usedThisYear: [],
         )
         #expect(grouping.primary == [.newYork, .california])

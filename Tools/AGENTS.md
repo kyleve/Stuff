@@ -56,7 +56,7 @@ These rules also apply when changing a root command or installer that calls this
 - Add Markdown build, rendered-content, or fixture directories to the classifier's exclusions before introducing those consumers.
   Keep executable and symlink changes outside the documentation shortcut.
 - Preserve required check names when skipping work. Allocate CircleCI macOS runners only after selection.
-  Reuse validation on a main push only when the landed tree matches one merged PR and both providers completed their full PR checks on that tree. Require a non-forced push. Run full validation when evidence is missing or ambiguous.
+  Reuse validation on a non-forced main push only when the landed tree matches one merged PR and both providers completed its full checks. A PR that passed both providers' documentation checks also qualifies if the complete pushed range passes the same Markdown policy. Run full validation when evidence is missing or ambiguous.
   Manual full runs and publication workflows keep their own gates.
   Guards: [test_ci_changes.py](Tests/test_ci_changes.py), [test_ci_circleci.py](Tests/test_ci_circleci.py), and [test_ci_workflows.py](Tests/test_ci_workflows.py).
 - Validate guidance in Linux classification before the documentation shortcut and repeat it in required lint.
@@ -111,8 +111,8 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 ## Install-site snapshots
 
 - Generate the HTML fixtures through `installer_update_site.render_site` and the production
-  [Astro project](InstallerKit/Site/AGENTS.md) during each `ToolsSnapshotTests` build.
-  Keep fixture catalogs deterministic and offline. Install dependencies before the build.
+  [Astro project](InstallerKit/Site/AGENTS.md). Local builds generate fresh fixtures. The iOS test builder may reuse verified output keyed by all renderer inputs, including registered artwork.
+  Keep fixture catalogs deterministic and offline.
   Inline the generated CSS and artwork in those fixtures without changing the rendered layout.
   Do not copy generated HTML into the test sources.
 - Capture through `SnapshotKitTesting.assertHTMLSnapshots` in the shared

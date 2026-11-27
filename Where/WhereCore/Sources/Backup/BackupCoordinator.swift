@@ -521,7 +521,7 @@ public actor BackupCoordinator {
                     // other data. On `.replace` the store was cleared above, so write
                     // the archive's set exactly; on `.merge` union it into the current
                     // set (reading the *resolved* current set first so a device on the
-                    // implicit default four doesn't collapse to just the imported
+                    // implicit default set doesn't collapse to just the imported
                     // ones), with the archive's appearance winning on overlap.
                     // `setPrimaryRegions` is a whole-set replace, so a merge builds
                     // the full merged list. A handful of rows, so they're not folded

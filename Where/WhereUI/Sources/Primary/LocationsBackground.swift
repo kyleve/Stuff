@@ -86,11 +86,11 @@ struct LocationsBackground: View {
         static var snapshots: [SnapshotCase] {
             artworkSnapshot(name: "Empty", regions: [])
             artworkSnapshot(name: "One", regions: [.california])
-            artworkSnapshot(name: "Several", regions: [.california, .newYork, .canada, .other])
+            artworkSnapshot(name: "Several", regions: [.california, .newYork, .ontario, .other])
             artworkSnapshot(name: "Many", regions: Array(Region.allCases.prefix(40)))
             artworkSnapshot(
                 name: "ReduceTransparency",
-                regions: [.canada, .other],
+                regions: [.ontario, .other],
                 reduceTransparency: true,
             )
         }

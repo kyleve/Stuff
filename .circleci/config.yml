@@ -62,16 +62,30 @@ jobs:
             git sparse-checkout set Tools .circleci
             git checkout --detach "<< pipeline.git.revision >>"
             git config gc.auto 0
+      - when:
+          condition:
+            and:
+              - equal: ["schedule", << pipeline.event.name >>]
+              - equal: ["false", << pipeline.parameters.manual_full_gate >>]
+          steps:
+            - run:
+                name: Check whether Where audiences already built this revision
+                command: |
+                  if python3 -m Tools.ci_daily_audiences; then
+                    circleci-agent step halt
+                  fi
       - run:
           name: Select validation and continue
           command: python3 -m Tools.ci_circleci
 
 workflows:
   "Select workflows":
-    # Keep the existing event gates for CI, signed archives, and Flyover.
+    # The native daily schedule runs the two Where release builds.
     # Only one setup workflow runs, even when an API request sets several flags.
     when: >-
       pipeline.parameters.manual_full_gate == "true" or
+      (pipeline.event.name == "schedule" and pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main") or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
       pipeline.event.github.pull_request.base.ref == "main" and

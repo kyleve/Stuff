@@ -1,4 +1,12 @@
-"""Identify a full CI workflow that ran on the landed PR's exact source tree."""
+"""Identify the successful CI checks on the landed PR's exact source tree."""
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ActionsRun:
+    url: str
+    documentation_only: bool
 
 
 def succeeded(record):
@@ -6,7 +14,7 @@ def succeeded(record):
 
 
 def validated_actions_run(get, pr_number, head_sha, tree_sha, jobs_config):
-    """Return the matching attempt URL. The selector handles API/schema errors."""
+    """Identify a full run or a successful classifier with all its workers skipped."""
     runs = get(
         "actions/workflows/ci.yml/runs"
         f"?event=pull_request&head_sha={head_sha}&per_page=1"
@@ -41,7 +49,7 @@ def validated_actions_run(get, pr_number, head_sha, tree_sha, jobs_config):
         return None
     by_name = {job["name"]: job for job in jobs}
     if by_name.keys() != required or not all(
-        succeeded(job)
+        job["status"] == "completed"
         and job["run_id"] == run_id
         and job["run_attempt"] == attempt
         and job["head_sha"] == head_sha
@@ -49,10 +57,16 @@ def validated_actions_run(get, pr_number, head_sha, tree_sha, jobs_config):
     ):
         return None
 
+    if not succeeded(by_name[classifier]):
+        return None
+    workers = {by_name[name]["conclusion"] for name in jobs_config["workers"]}
+    if workers not in ({"success"}, {"skipped"}):
+        return None
     marker = f"Check agent guidance for PR #{pr_number} on tree {tree_sha}"
     if not any(
         step["name"] == marker and succeeded(step)
         for step in by_name[classifier]["steps"]
     ):
         return None
-    return f"https://github.com/{run['repository']['full_name']}/actions/runs/{run_id}/attempts/{attempt}"
+    url = f"https://github.com/{run['repository']['full_name']}/actions/runs/{run_id}/attempts/{attempt}"
+    return ActionsRun(url, documentation_only=workers == {"skipped"})

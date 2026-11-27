@@ -15,6 +15,7 @@ from urllib.request import Request
 from Tools.InstallerKit.circleci_distribution import (
     ArtifactRedirects,
     CircleCI,
+    SUPERSEDED_MAIN,
     artifact_url,
     download_ipa,
     main,
@@ -49,6 +50,7 @@ class CircleCIDistributionTests(unittest.TestCase):
                     fixture = root / "fixture.ipa"
                     write_archive(fixture)
                     output = root / "output/app.ipa"
+                    outputs = root / "outputs"
                     server = CircleCIServer()
                     lookups = 0
                     downloads = []
@@ -116,9 +118,15 @@ class CircleCIDistributionTests(unittest.TestCase):
                                 request.feed_url,
                                 "--output",
                                 str(output),
+                                "--github-output",
+                                str(outputs),
                             ]
                         )
                     self.assertEqual(result, 0 if recovers else 1)
+                    if recovers:
+                        self.assertEqual(outputs.read_text(), "outcome=archived\n")
+                    else:
+                        self.assertFalse(outputs.exists())
                     self.assertEqual(lookups, 2)
                     self.assertEqual(sleep.call_count, 1 if recovers else 2)
                     self.assertEqual(
@@ -213,6 +221,74 @@ class CircleCIDistributionTests(unittest.TestCase):
                 self.server.artifacts = artifacts
                 with self.assertRaises(ValueError):
                     self.client.artifact(PIPELINE)
+
+    def test_only_a_confirmed_main_supersession_skips_the_signed_handoff(self):
+        request = archive_request()
+        marker = {"path": SUPERSEDED_MAIN, "url": ARTIFACT_URL}
+        ipa = self.server.artifacts[0]
+        for channel, head, artifacts, success in (
+            ("main", "b" * 40, [marker], True),
+            ("main", request.sha, [marker], False),
+            ("main", None, [marker], False),
+            ("main", "b" * 40, [], False),
+            ("main", "b" * 40, [marker, ipa], False),
+            ("main", "b" * 40, [marker, marker], False),
+            ("pr-42", "b" * 40, [marker], False),
+        ):
+            with (
+                self.subTest(channel=channel, head=head, artifacts=artifacts),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.dict("os.environ", {"CIRCLECI_TOKEN": "fixture-token"}),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.CircleCI",
+                    return_value=self.client,
+                ),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.public_github_fetch",
+                    return_value={"object": {"sha": head}},
+                ),
+                patch(
+                    "Tools.InstallerKit.circleci_distribution.download_ipa"
+                ) as download,
+                redirect_stderr(io.StringIO()),
+                redirect_stdout(io.StringIO()),
+            ):
+                self.server.artifacts = artifacts
+                ipa_path = Path(temporary) / "app.ipa"
+                outputs = Path(temporary) / "outputs"
+                code = main(
+                    [
+                        "--project",
+                        PROJECT,
+                        "--definition",
+                        DEFINITION,
+                        "--repository",
+                        request.repository,
+                        "--app",
+                        request.app_id,
+                        "--sha",
+                        request.sha,
+                        "--channel",
+                        channel,
+                        "--run",
+                        request.run,
+                        "--attempt",
+                        request.attempt,
+                        "--feed-url",
+                        request.feed_url,
+                        "--output",
+                        str(ipa_path),
+                        "--github-output",
+                        str(outputs),
+                    ]
+                )
+                self.assertEqual(code, 0 if success else 1)
+                if success:
+                    self.assertEqual(outputs.read_text(), "outcome=superseded\n")
+                else:
+                    self.assertFalse(outputs.exists())
+                self.assertFalse(ipa_path.exists())
+                download.assert_not_called()
 
     def test_polling_waits_for_completion_and_has_a_deadline(self):
         client = Mock()
@@ -457,10 +533,12 @@ class CircleCIDistributionTests(unittest.TestCase):
         from http.client import BadStatusLine
 
         request = archive_request()
-        for error in (
-            ValueError("Authorization: secret"),
-            BadStatusLine("secret"),
-            OSError("secret"),
+        body = io.BytesIO()
+        for error, diagnostic in (
+            (HTTPError("https://host/secret", 403, "secret", {}, body), "HTTP 403"),
+            (ValueError("Authorization: secret"), "ValueError"),
+            (BadStatusLine("secret"), "BadStatusLine"),
+            (OSError("secret"), "OSError"),
         ):
             with (
                 self.subTest(error=type(error).__name__),
@@ -502,5 +580,6 @@ class CircleCIDistributionTests(unittest.TestCase):
                 )
                 self.assertNotIn("secret", stderr.getvalue())
                 self.assertNotIn("fixture-token", stderr.getvalue())
-                self.assertIn(type(error).__name__, stderr.getvalue())
+                self.assertIn(diagnostic, stderr.getvalue())
                 self.assertFalse(output.exists())
+        self.assertTrue(body.closed)

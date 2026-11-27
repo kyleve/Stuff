@@ -106,8 +106,8 @@ It runs the Flyover, attribution, backup-upgrader, and macro tests.
 These required GitHub jobs run alongside the CircleCI builder. CircleCI
 ([`.circleci/config.yml`](../../.circleci/config.yml)) selects work on Linux, then
 continues through [`.circleci/continue.yml`](../../.circleci/continue.yml). Full CI builds `build-ios-tests` once
-and attaches its products to `test-ios` and the sharded `snapshot` job,
-plus two build-only shards for **Where Beta** and **Where App Store**. The iOS
+and attaches its products to `test-ios` and the sharded `snapshot` job. A separate
+[daily CircleCI schedule](../../Tools/README.md#daily-where-audience-builds) compiles **Where Beta** and **Where App Store** when main has changed. The iOS
 tests moved there in PR #237 and gained the build handoff in PR #276. CircleCI
 passes `--skip-architecture` and `--skip-host-tests` because GitHub owns those checks.
 Do not read one configuration as the whole of CI. Documentation-only PRs retain required check names and skip expensive jobs.

@@ -19,11 +19,11 @@ enum RecordedFlightArchiveFixture {
     /// observations stay in the departure and arrival regions. These bands do
     /// not represent the real countries or states on the original route.
     struct Regions: RegionAttributing {
-        let loadedRegions: [Region] = [.california, .newYork, .canada]
+        let loadedRegions: [Region] = [.california, .newYork, .ontario]
 
         func region(at coordinate: Coordinate) -> Region {
             if coordinate.longitude > -40 { return .california }
-            if (-64 ... -61).contains(coordinate.longitude) { return .canada }
+            if (-64 ... -61).contains(coordinate.longitude) { return .ontario }
             return .newYork
         }
 

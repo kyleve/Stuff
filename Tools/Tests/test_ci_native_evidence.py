@@ -7,7 +7,11 @@ from Tools.ci_native_evidence import validated_native_run
 HEAD = "a" * 40
 WORKFLOW = "https://app.circleci.com/workflow/445a225a-8ba2-4e89-8aba-04ae1698d77e"
 PIPELINE = "8883c1e8-657c-4bc6-8562-50510a52b8b6"
-CONFIG = {"workflow": "Device validation", "jobs": ["Compile", "Run tests"]}
+CONFIG = {
+    "workflow": "Device validation",
+    "jobs": ["Compile", "Run tests"],
+    "skipped_job": "Skip validation",
+}
 
 
 class NativeEvidenceTests(unittest.TestCase):
@@ -41,7 +45,15 @@ class NativeEvidenceTests(unittest.TestCase):
             "pipeline.event.github.pull_request.number": 542,
         }
 
-    def evidence(self, statuses, *, config=CONFIG, workflow=None, values=None):
+    def evidence(
+        self,
+        statuses,
+        *,
+        config=CONFIG,
+        workflow=None,
+        values=None,
+        documentation_only=False,
+    ):
         get = Mock(return_value=statuses)
         circle = {
             f"workflow/{self.workflow['id']}": self.workflow
@@ -50,7 +62,13 @@ class NativeEvidenceTests(unittest.TestCase):
             f"pipeline/{PIPELINE}/values": self.values if values is None else values,
         }
         result = validated_native_run(
-            get, HEAD, "kyleve/Stuff", 542, config, circle_get=circle.__getitem__
+            get,
+            HEAD,
+            "kyleve/Stuff",
+            542,
+            config,
+            circle_get=circle.__getitem__,
+            documentation_only=documentation_only,
         )
         get.assert_called_once_with(f"commits/{HEAD}/statuses?per_page=100")
         return result
@@ -64,6 +82,27 @@ class NativeEvidenceTests(unittest.TestCase):
             with self.subTest(missing=missing):
                 remaining = self.statuses[:missing] + self.statuses[missing + 1 :]
                 self.assertIsNone(self.evidence(remaining))
+
+    def test_documentation_status_only_proves_the_matching_pr_validation_mode(self):
+        status = {**self.statuses[0], "context": "ci/circleci: Skip validation"}
+        self.assertEqual(self.evidence([status], documentation_only=True), WORKFLOW)
+        self.assertIsNone(self.evidence([status]))
+        self.assertIsNone(self.evidence(self.statuses, documentation_only=True))
+        self.assertIsNone(
+            self.evidence(
+                [{**status, "state": "pending"}, status], documentation_only=True
+            )
+        )
+        self.assertIsNone(
+            self.evidence([{**status, "creator": None}], documentation_only=True)
+        )
+        self.assertIsNone(
+            self.evidence(
+                [status],
+                documentation_only=True,
+                values={**self.values, "pipeline.event.name": "push"},
+            )
+        )
 
     def test_empty_or_duplicate_configured_jobs_cannot_prove_workflow(self):
         for jobs in [[], ["Compile", "Compile"]]:

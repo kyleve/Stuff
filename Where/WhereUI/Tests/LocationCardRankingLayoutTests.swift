@@ -63,12 +63,12 @@ struct LocationCardRankingLayoutTests {
     }
 
     @Test func appendsUnlistedChildrenInSemanticOrder() {
-        let canada = LocationCardRankingLayout.MeasuredChild(
-            region: .canada,
+        let ontario = LocationCardRankingLayout.MeasuredChild(
+            region: .ontario,
             size: CGSize(width: 260, height: 80),
         )
         let origins = LocationCardRankingLayout.interpolatedYOrigins(
-            children: [newYork, california, canada],
+            children: [newYork, california, ontario],
             spacing: 10,
             fromOrder: [.california],
             toOrder: [.newYork],

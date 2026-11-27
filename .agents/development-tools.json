@@ -93,5 +93,25 @@
     "repo": "schpet/linear-cli",
     "ref": "02571d34be662e5487204841fb80bf23ed79b4f0",
     "version": "3.1.0"
+  },
+  "Shapely": {
+    "repo": "shapely/shapely",
+    "ref": "5fb639d1056888d135fe56bfaf750c9648addeec",
+    "version": "2.1.2"
+  },
+  "pyproj": {
+    "repo": "pyproj4/pyproj",
+    "ref": "f16037d2c45c3274ef28b828998267c3390393c8",
+    "version": "3.7.2"
+  },
+  "PyShp": {
+    "repo": "GeospatialPython/pyshp",
+    "ref": "23002d819dc7083db49d642257603d576582b5e0",
+    "version": "2.3.1"
+  },
+  "NumPy": {
+    "repo": "numpy/numpy",
+    "ref": "c3d60fc8393f3ca3306b8ce8b6453d43737e3d90",
+    "version": "2.3.5"
   }
 }

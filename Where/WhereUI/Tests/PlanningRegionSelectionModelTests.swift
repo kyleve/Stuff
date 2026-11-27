@@ -14,9 +14,16 @@ struct PlanningRegionSelectionModelTests {
         let model = PlanningRegionSelectionModel(report: report)
         await model.load()
         #expect(model.trackedRegions == [.california])
-        #expect(model.available == PrimaryRegionSelectionModel.usRegions)
+        #expect(model.available == PrimaryRegionSelectionModel.supportedRegions)
         #expect(model.grouping.primary == [.california])
         #expect(model.grouping.other.contains(.newYork))
+        let nunavut = try #require(Region(rawValue: "ca-NU"))
+        model.searchText = "Nunavut"
+        #expect(model.filteredRegions == [nunavut])
+        model.searchText = "Canada"
+        #expect(model.filteredRegions.isEmpty)
+        #expect(!model.available.contains(.europeanUnion))
+        #expect(!model.available.contains(.other))
         model.searchText = "  New York \n"
         #expect(model.filteredRegions == [.newYork])
         #expect(try await report.services.primaryRegions().map(\.region) == [.california])

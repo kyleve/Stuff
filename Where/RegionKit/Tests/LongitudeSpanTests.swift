@@ -2,6 +2,35 @@
 import Testing
 
 struct LongitudeSpanTests {
+    @Test func polygonFramingCombinesWrappedIslandsWithoutCuttingThroughTheMainland() throws {
+        let outlines = [(-140.0, 20.0), (-160, -155), (179, -175)].enumerated()
+            .map { index, interval in
+                let (west, east) = interval
+                return RegionOutline(
+                    id: .init(title: "Region", index: index),
+                    title: "Region",
+                    region: nil,
+                    coordinates: [
+                        Coordinate(latitude: 0, longitude: west),
+                        Coordinate(latitude: 0, longitude: east),
+                        Coordinate(latitude: 1, longitude: east),
+                        Coordinate(latitude: 1, longitude: west),
+                    ],
+                )
+            }
+        let box = try #require(BoundingBox.enclosing(outlines))
+        #expect(LongitudeSpan.enclosing(outlines, boundedBy: box) == LongitudeSpan(
+            center: -80.5,
+            degrees: 201,
+        ))
+        let island = try [#require(outlines.last)]
+        let islandBox = try #require(BoundingBox.enclosing(island))
+        #expect(LongitudeSpan.enclosing(island, boundedBy: islandBox) == LongitudeSpan(
+            center: -178,
+            degrees: 6,
+        ))
+    }
+
     @Test func emptyIsNil() {
         #expect(LongitudeSpan.enclosing([] as [Double]) == nil)
     }

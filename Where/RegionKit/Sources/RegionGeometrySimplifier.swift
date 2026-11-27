@@ -17,11 +17,7 @@ public enum RegionGeometrySimplifier {
         guard tolerance > 0 else { return outlines }
         guard
             let box = BoundingBox.enclosing(outlines),
-            let longitudeSpan = LongitudeSpan.enclosing(
-                outlines.lazy.flatMap { outline in
-                    outline.coordinates.lazy.map(\.longitude)
-                },
-            )
+            let longitudeSpan = LongitudeSpan.enclosing(outlines, boundedBy: box)
         else { return [] }
 
         let projection = Projection(box: box, longitudeSpan: longitudeSpan)
@@ -36,6 +32,11 @@ public enum RegionGeometrySimplifier {
                     tolerance: tolerance,
                     projection: projection,
                 ),
+                holes: outline.holes.map { try simplifyRing(
+                    $0,
+                    tolerance: tolerance,
+                    projection: projection,
+                ) },
             )
         }
     }

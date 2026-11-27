@@ -2,6 +2,22 @@
 
 All dates are UTC. Costs are in USD.
 
+## Installer snapshot fixture cache
+
+The iOS test builder can reuse the generated installer-site HTML while running all of its WebKit snapshots. In [the ordinary #555 build](https://app.circleci.com/workflow/4d564cf3-6055-4f7d-8335-8ec870e3c961/job/54de3385-fff7-4e48-af42-f1680c346db8), installing site dependencies took 28.720 seconds. A [cold builder](https://app.circleci.com/workflow/19ab3f24-001b-465c-8483-8e6ab67568a4/job/6b37ed11-f9fc-4e43-b24c-a6ffec530a99) fingerprinted the inputs, missed, rendered and saved the fixture in 35.875 seconds. Its snapshot scheme compiled in 11.575 seconds versus 15.653 seconds previously, for an observed 3.077-second increase across the comparable steps on this miss.
+
+A [warm restore on a fresh large Mac](https://app.circleci.com/workflow/b61de2b1-56eb-4baa-a16a-f99b63c48033/job/4af30fe7-c1f9-4d19-90e0-d82583248689) spent 1.929 seconds fingerprinting, restoring the 3.4 MiB archive and verifying the 19,340,117-byte fixture. This probe ended before compilation or a cache-save check. The [trial record](Plans/2026-11-21-installer-snapshot-fixture/01-fixture-cache.md) links the end-to-end PR evidence and distinguishes setup time from the complete native workflow.
+
+## Daily Where audience builds
+
+The Where Beta and App Store compile checks run on CircleCI's daily schedule when the latest main revision needs a successful build. PRs, regular main pushes and manual PR validation omit those two workers.
+
+The pair consumed 1,320–1,343 credits ($0.79–$0.81) per full validation in PRs #542–544. The daily policy removes that cost from each full PR run and pays for one pair on a day that needs it, plus the Linux selector. Actual savings depend on how many full PR runs occur between daily builds. [PR #542 workflow](https://app.circleci.com/workflow/68ba3889-8541-4297-8772-df3b15e01673) · [PR #544 workflow](https://app.circleci.com/workflow/22a9f2e2-f7c0-42d5-8977-9794274de94e)
+
+## Snapshot inventory validation
+
+When snapshot definitions change, the unit worker uses its booted simulator to compare every compiled snapshot suite with the source inventory. Four [earlier builders](Plans/2026-11-21-snapshot-inventory/01-unit-worker.md#baseline) averaged 106.6 seconds on a large Mac, about 711 credits. The [unit worker trial](https://app.circleci.com/workflow/d882ce18-1c04-40b2-a563-8c7628a15d71/job/b37a8532-1c9d-4046-85a3-79a9ef70e690) took 39.2 seconds on a medium Mac, about 131 credits, and found the same 73 suites. That saves roughly **580 credits on a run that needs the check**. In the historical sample, 24 of 89 paid final PR builds had an eligible change. [Measurement and whole-workflow comparison](Plans/2026-11-21-snapshot-inventory/01-unit-worker.md#results)
+
 ## Snapshot worker reduction on November 20, 2026
 
 Three active snapshot workers saved **1,293 compute credits ($0.7758, 23.2%)**
@@ -246,7 +262,8 @@ Canceled runs consume the work completed before cancellation.
 Eligible Markdown-only PRs skip expensive validation on both existing providers.
 At the November 6 baseline, main pushes repeated full validation. A merge can now reuse a full PR run on the same Git tree.
 If the provider APIs do not yet show the merge or its full PR run, the Linux selectors check again after 65 seconds before allocating test runners.
-A Markdown-only PR that skipped native tests still requires full validation on main.
+A Markdown-only merge can reuse its lightweight PR checks when both providers passed them on the landed tree and the full main push changes only eligible Markdown.
+Between PRs #469 and #544, 10 of 47 main changes met that file policy. Their full native workflows used 111,580 compute credits ($66.95 at the report's rate), before the latest snapshot savings. [Example main run](https://app.circleci.com/workflow/6c276bee-f086-49a1-9862-e20b625de925)
 The documented [CI selection contract](Tools/AGENTS.md#ci-selection) owns eligibility.
 
 The October 7–November 5 GitHub sample contained 1,199 CI attempts:

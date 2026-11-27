@@ -186,7 +186,9 @@ struct AboutSettingsView: View {
                 // Only the prose is dimmed — a link tinted secondary alongside
                 // it stops reading as tappable.
                 Group {
-                    Text(WhereFormat.regionDataSourceRegionCount(source.regions.count))
+                    Text(source.purposes.map(WhereFormat.regionMapKind)
+                        .formatted(.list(type: .and)))
+                    Text(WhereFormat.regionDataSourceRegionCount(source.nodes.count))
                     Text(WhereFormat.regionDataSourceFidelity(source.fidelity))
                     Text(WhereFormat.regionDataSourceLicense(source.license))
                 }
@@ -194,12 +196,17 @@ struct AboutSettingsView: View {
                 if let url = source.sourceURL {
                     Link(WhereFormat.regionDataSourcePublisher(url), destination: url)
                 }
+                if let url = source.licenseURL {
+                    Link(destination: url) { Text(verbatim: "Open Government Licence – Canada") }
+                }
                 if let url = source.obtainedFromURL {
                     Link(WhereFormat.regionDataSourceObtainedFrom(url), destination: url)
                 }
             }
             .font(.caption)
         }
+        .lineLimit(nil)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

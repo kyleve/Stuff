@@ -7,6 +7,34 @@ import Testing
 /// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
     @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func manualCanadianSubdivisionSurvivesPortableBackup(_ strategy: BackupCoordinator
+        .ImportStrategy) async throws
+    {
+        let source = try Self.makeHarness()
+        let ontario = try #require(Region(rawValue: "ca-ON"))
+        let day = DayPresence(
+            day: CalendarDay(year: 2026, month: 11, day: 1),
+            regions: [ontario],
+            isAuthoritative: true,
+        )
+        try await source.store.perform { try await source.store.setManualDay(day) }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let exported = try BackupService().readArchive(at: url).archive
+        #expect(exported.formatVersion == 8)
+        #expect(exported.manualDays == [day])
+        #expect(exported.samples.isEmpty)
+        #expect(!exported.trackedRegions.contains(ontario))
+
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: strategy,
+        )
+        #expect(try await destination.store.allManualDays() == [day])
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
     func importingPreservesMotionAndCorrectionHistoryWithStrategyAppropriateResetAuthority(
         _ strategy: BackupCoordinator.ImportStrategy,
     ) async throws {
@@ -320,7 +348,7 @@ struct BackupCoordinatorTests {
 
         let destination = try Self.makeHarness()
         let unrelated = try PlannedStayTestSupport.record(
-            stay: PlannedStayTestSupport.stay(region: .canada),
+            stay: PlannedStayTestSupport.stay(region: .ontario),
         )
         try await destination.store.perform {
             try await destination.store.restorePlannedStayRecord(unrelated)
@@ -358,7 +386,7 @@ struct BackupCoordinatorTests {
             try await destination.store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
-                regions: [.canada],
+                regions: [.ontario],
             ))
             // A preexisting dismissal that the file doesn't contain must be wiped
             // by `.replace` so synced user data mirrors the file.

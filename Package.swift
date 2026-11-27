@@ -173,7 +173,9 @@ let package = Package(
             ],
             path: "Where/RegionKit/Sources",
             resources: [
-                .process("Resources"),
+                .process("Resources/Localizable.xcstrings"),
+                .process("Resources/regions.json"),
+                .copy("Resources/regions"),
             ],
         ),
         .target(

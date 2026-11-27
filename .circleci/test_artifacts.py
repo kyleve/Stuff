@@ -9,6 +9,14 @@ import subprocess
 import sys
 
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "Tools"))
+
+from grouped_tests import GroupedTestSuites
+
+
+REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
+
+
 FORMAT_VERSION = 2
 
 
@@ -33,7 +41,7 @@ def environment_metadata():
     }
 
 
-def create_manifest(root, schemes, metadata=None):
+def create_manifest(root, schemes, metadata=None, grouped_suite_owners=None):
     root = root.resolve()
     products_root = root / "DerivedData" / "Build" / "Products"
     built_products = products_root / "Debug-iphonesimulator"
@@ -58,6 +66,8 @@ def create_manifest(root, schemes, metadata=None):
         "schemes": resolved_schemes,
         **(metadata or environment_metadata()),
     }
+    if grouped_suite_owners is not None:
+        manifest["groupedSuiteOwners"] = grouped_suite_owners
     manifest_path = root / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     return manifest
@@ -132,9 +142,20 @@ def resolved_path(root, scheme, field, metadata=None):
     return pathlib.Path(paths["schemes"][scheme])
 
 
-def resolved_paths(root, schemes, metadata=None):
+def resolved_paths(root, schemes, metadata=None, unit_schemes=()):
     root = root.resolve()
     manifest = load_and_validate(root, metadata)
+    if unit_schemes:
+        # A focused build contains the module targets. A full build contains
+        # the grouped target. Either artifact supports the logical unit filters.
+        available = [name for name in unit_schemes if name in manifest["schemes"]]
+        if available:
+            schemes = [
+                available[0]
+                if name in unit_schemes and name not in manifest["schemes"]
+                else name
+                for name in schemes
+            ]
     missing = [scheme for scheme in schemes if scheme not in manifest["schemes"]]
     if missing:
         raise ValueError(
@@ -207,6 +228,8 @@ def parse_args():
     resolve_all = subparsers.add_parser("resolve-all")
     resolve_all.add_argument("--root", type=pathlib.Path, required=True)
     resolve_all.add_argument("--scheme", action="append", required=True)
+    resolve_all.add_argument("--unit-schemes", nargs=2, default=())
+    resolve_all.add_argument("--names-only", action="store_true")
 
     suites = subparsers.add_parser("suites")
     suites.add_argument("--input", type=pathlib.Path, required=True)
@@ -218,14 +241,25 @@ def main():
     args = parse_args()
     try:
         if args.command == "create":
-            manifest = create_manifest(args.root, args.scheme)
+            owners = None
+            if "Stuff-iOS-FullTests" in args.scheme:
+                owners = GroupedTestSuites.from_repository(REPOSITORY).owners
+            manifest = create_manifest(
+                args.root, args.scheme, grouped_suite_owners=owners
+            )
             print(
                 f"Created {args.root / 'manifest.json'} for {len(manifest['schemes'])} schemes"
             )
         elif args.command == "resolve":
             print(resolved_path(args.root, args.scheme, args.field))
         elif args.command == "resolve-all":
-            print(json.dumps(resolved_paths(args.root, args.scheme), sort_keys=True))
+            paths = resolved_paths(
+                args.root, args.scheme, unit_schemes=args.unit_schemes
+            )
+            if args.names_only:
+                print("\n".join(paths["schemes"]))
+            else:
+                print(json.dumps(paths, sort_keys=True))
         elif args.command == "suites":
             suites = suite_identifiers(json.loads(args.input.read_text()))
             if not suites:

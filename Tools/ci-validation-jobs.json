@@ -11,11 +11,15 @@
   },
   "circleci": {
     "workflow": "iOS CI",
+    "skipped_job": "Validation skipped",
     "jobs": [
       "Build iOS Tests",
       "Build & Test (iOS)",
-      "Build Where Audiences",
       "Snapshot Tests (iOS)"
     ]
+  },
+  "daily_where_audiences": {
+    "workflow": "Daily Where Audiences",
+    "job": "Build Where Audiences"
   }
 }

@@ -31,6 +31,7 @@ struct DemoModeTests {
     private func makeModel(
         preferences: WherePreferences,
         logSystem: Periscope = .isolated(),
+        now: @escaping @Sendable () -> Date = { Date() },
     ) throws -> (WhereModel, ScriptedBootstrap) {
         let bootstrap = try ScriptedBootstrap(services: makeServices())
         return (
@@ -41,6 +42,7 @@ struct DemoModeTests {
                 logSystem: logSystem,
                 compatibility: .init(coordinator: .local(version: .current)),
                 installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+                now: now,
             ),
             bootstrap,
         )
@@ -88,7 +90,7 @@ struct DemoModeTests {
     /// its real controls instead of a dead-end trip to Settings. Nothing is
     /// ever asked of the system or posted to it — the schedulers are no-ops.
     @Test func demoPresentsAFullyGrantedUser() async throws {
-        let (model, _) = try makeModel(preferences: makePreferences())
+        let (model, _) = try makeModel(preferences: makePreferences(), now: earlyJanuaryDemoDate)
         let scope = try await model.makeDemoScope()
 
         #expect(await scope.services.reminders.isAuthorized())
@@ -104,7 +106,7 @@ struct DemoModeTests {
 
     @Test func demoPreferencesNeverReachTheRealOnes() async throws {
         let realPreferences = makePreferences()
-        let (model, _) = try makeModel(preferences: realPreferences)
+        let (model, _) = try makeModel(preferences: realPreferences, now: earlyJanuaryDemoDate)
         await model.compatibility.refresh(model: model)
         #expect(try await model.activateDemo(model.makeDemoScope()))
 
@@ -123,7 +125,7 @@ struct DemoModeTests {
         // The strongest isolation claim: someone who only ever tries the demo
         // leaves no store behind, because none is ever assembled.
         let preferences = makePreferences()
-        let (model, bootstrap) = try makeModel(preferences: preferences)
+        let (model, bootstrap) = try makeModel(preferences: preferences, now: earlyJanuaryDemoDate)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
@@ -172,7 +174,7 @@ struct DemoModeTests {
         // them back on their own data — a scope built fresh, since logging out
         // released the previous one.
         let preferences = makePreferences()
-        let (model, bootstrap) = try makeModel(preferences: preferences)
+        let (model, bootstrap) = try makeModel(preferences: preferences, now: earlyJanuaryDemoDate)
         model.completeOnboarding()
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
@@ -218,7 +220,7 @@ struct DemoModeTests {
 
     @Test func exitingDemoFromAFreshInstallReturnsToOnboarding() async throws {
         let preferences = makePreferences()
-        let (model, bootstrap) = try makeModel(preferences: preferences)
+        let (model, bootstrap) = try makeModel(preferences: preferences, now: earlyJanuaryDemoDate)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let launch = Task { @MainActor in await launcher.run() }
@@ -266,6 +268,7 @@ struct DemoModeTests {
             logSystem: logSystem,
             compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            now: earlyJanuaryDemoDate,
         )
 
         // Log in for real, and wait for the durable store to be routing.
@@ -319,6 +322,7 @@ struct DemoModeTests {
             logSystem: logSystem,
             compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            now: earlyJanuaryDemoDate,
         )
         bootstrap.gateLogStore()
 
@@ -362,6 +366,7 @@ struct DemoModeTests {
             logSystem: logSystem,
             compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            now: earlyJanuaryDemoDate,
         )
         let abandoned = try await model.makeDemoScope()
         let itsStore = try #require(abandoned.logStore)

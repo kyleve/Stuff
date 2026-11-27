@@ -294,11 +294,9 @@ extension WhereStore {
         AsyncStream { $0.finish() }
     }
 
-    /// Regions tracked out of the box, until the user chooses their own. The
-    /// "no rows yet" fallback for ``trackedRegions()`` and the historical
-    /// California / New York / Canada / European Union set.
+    /// Regions used by ``trackedRegions()`` until the user chooses their own.
     public static var defaultTrackedRegions: Set<Region> {
-        [.california, .newYork, .canada, .europeanUnion]
+        [.california, .newYork, .europeanUnion]
     }
 
     /// Default: the out-of-the-box set. `SwiftDataStore` overrides this with the

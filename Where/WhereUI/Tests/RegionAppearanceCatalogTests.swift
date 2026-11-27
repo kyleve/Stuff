@@ -1,4 +1,5 @@
 import RegionKit
+import SwiftUI
 import Testing
 @testable import WhereCore
 @testable import WhereUI
@@ -36,7 +37,6 @@ struct RegionAppearanceCatalogTests {
         let expected: [Region: RegionColorToken] = [
             .california: .orange,
             .newYork: .indigo,
-            .canada: .red,
             .europeanUnion: .blue,
             .other: .teal,
         ]
@@ -49,6 +49,21 @@ struct RegionAppearanceCatalogTests {
         #expect(RegionColorToken.gold.selectionForeground == .black)
         #expect(RegionColorToken.lime.selectionForeground == .black)
         #expect(RegionColorToken.silver.selectionForeground == .black)
-        #expect(RegionColorToken.coral.selectionForeground == .white)
+    }
+
+    @Test func coralKeepsItsLightColorAndLightensOnDarkSurfaces() {
+        var light = EnvironmentValues()
+        light.colorScheme = .light
+        var dark = EnvironmentValues()
+        dark.colorScheme = .dark
+        let coral = RegionColorToken.coral
+        let lightFill = coral.color.resolve(in: light)
+        let darkFill = coral.color.resolve(in: dark)
+        #expect(lightFill == Color(red: 0.88, green: 0.26, blue: 0.22).resolve(in: light))
+        #expect(darkFill.red > lightFill.red)
+        #expect(darkFill.green > lightFill.green)
+        #expect(darkFill.blue > lightFill.blue)
+        #expect(coral.selectionForeground.resolve(in: light) == Color.white.resolve(in: light))
+        #expect(coral.selectionForeground.resolve(in: dark) == Color.black.resolve(in: dark))
     }
 }

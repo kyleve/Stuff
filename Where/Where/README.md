@@ -93,14 +93,18 @@ report the build/install/launch plan without performing it.
 The regular runtime verifies a separate compatibility record before opening SwiftData.
 Every build injects a transport and receipt store into the same coordinator. Development uses a local transport; the cloud-capable transport also uses local mode when CloudKit confirms no account. Restricted or unavailable account states do not grant local access. The host build environment resolves compiler flags once, and the runtime retains its configured storage policy. Bootstrap applies the verified domain before opening the container. Demo is subject to the same lockout screen; its simulated permission/recording and removal events never advance or invalidate real CloudKit metadata. The regular runtime creates one compatibility coordinator and one installation location owner and injects both into the model and real bootstrap.
 The control record uses the private `WhereStoreCompatibility` zone and record type, with `requiredVersion` (Int64) and `accountID` (String).
+Advancing past version 1 writes the localized explanation to the optional `changeReason` (Bytes) field. Readers also accept records that omit it.
 Its `where-store-compatibility` zone subscription requests silent notifications. Notifications are advisory; foreground polling also refreshes the decision.
 
-Before the first incompatible release:
+The Canadian subdivision release uses data version 2. Confirm these rollout steps
+before distributing it to installations with synced history.
 
-1. Use a recording-enabled validation build with Always permission to create the control record in the Development CloudKit environment.
-2. Deploy its record schema to Production through CloudKit Console before distributing the cloud-enabled build.
-3. Ship `DataModelVersion.current == 1` and the compatibility gate to all supported installations.
-4. Increase `DataModelVersion.current` only when a later release changes data incompatibly.
+1. Use a CloudKit-enabled version-2 validation build with recording enabled and Always permission to publish the control record in the Development CloudKit environment. Verify that `requiredVersion` is 2 and `changeReason` contains the localized explanation.
+2. Deploy the control record schema, including `changeReason`, to Production through CloudKit Console.
+3. Distribute the version-1 compatibility gate to all supported installations before advancing their shared version.
+4. Update the recording device to the version-2 build so it can advance the shared version.
+   A version-2 viewer waits while the shared version is 1. A version-1 reader that
+   observes version 2 must update to reopen history.
 
 Builds that predate the gate cannot obey it. A version increase does not make an existing unsupported build safe.
 The protocol stops the entire session after detection. It does not make metadata and SwiftData synchronization atomic across devices.
@@ -109,7 +113,7 @@ Compatibility acceptance on two devices:
 
 1. Keep one recording device on version 1. Install a version-2 validation build on a viewer and verify that it waits without opening history.
 2. Install version 2 on the recording device. Verify that it publishes before opening history and that the viewer recovers.
-3. Keep a version-1 device open during that publication. Verify that it hides history, stops GPS, and releases its scope.
+3. Keep a version-1 device that supports change reasons open during publication. Verify that it hides history, stops GPS, releases its scope, and shows the version-2 reason in its own language. Relaunch offline and verify that the cached reason still appears.
 4. Repeat through foreground entry, a control-record push, a remote import, and Retry after a network outage.
 5. After successful verification, test offline relaunch on the same account and version. CloudKit must still resolve the account identity.
 6. Test an unverified cloud upgrade, restricted/unavailable account, missing permission for publication, and malformed receipt. Each must remain blocked.

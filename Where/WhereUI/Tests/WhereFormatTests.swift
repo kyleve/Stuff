@@ -339,16 +339,16 @@ struct WhereFormatTests {
     }
 
     @Test func regionMapKindSwitchesResolve() {
-        #expect(WhereFormat.regionMapKind(.attribution) == "Attribution")
-        #expect(WhereFormat.regionMapKind(.source) == "Source")
+        #expect(WhereFormat.regionMapKind(.tracking) == "Tracking")
+        #expect(WhereFormat.regionMapKind(.display) == "Display")
         #expect(
-            WhereFormat.regionMapKindFooter(.attribution)
-                == "The simplified polygons the app uses to attribute coordinates today.",
+            WhereFormat.regionMapKindFooter(.tracking)
+                == "The boundaries the app uses to match coordinates to regions.",
         )
         #expect(
-            WhereFormat.regionMapKindFooter(.source)
+            WhereFormat.regionMapKindFooter(.display)
                 ==
-                "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity.",
+                "The coastlines and region outlines shown on cards and maps.",
         )
     }
 
@@ -379,7 +379,7 @@ struct WhereFormatTests {
     @Test func regionDataSourceFidelitySwitchesResolve() {
         #expect(
             WhereFormat.regionDataSourceFidelity(.authoritative)
-                == "Simplified from the published boundary set.",
+                == "Based on the publisher’s official boundaries.",
         )
         #expect(
             WhereFormat.regionDataSourceFidelity(.approximate)
@@ -392,6 +392,8 @@ struct WhereFormatTests {
             WhereFormat.regionDataSourceLicense(.publicDomain("17 U.S.C. § 105"))
                 == "Public domain — 17 U.S.C. § 105",
         )
+        #expect(WhereFormat.regionDataSourceLicense(.openGovernmentCanada)
+            .contains("Contains information licensed under the Open Government Licence – Canada."))
         #expect(
             WhereFormat.regionDataSourceLicense(.originalWork)
                 == "No external source; covered by the app's own license.",

@@ -167,6 +167,8 @@ The workflow retains its triggers and required job names.
 Workflow-level path filters can leave required checks pending, so selection uses job conditions.
 See [GitHub's conditional-job behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions).
 
+Tool Tests runs the offline RegionKit boundary fixtures when a PR changes `Where/RegionKit/Tools/`, the CI workflow, the classifier, or the mise configuration. Manual and fallback full runs also exercise the fixtures.
+
 CircleCI starts with [`.circleci/config.yml`](../.circleci/config.yml) on Linux.
 [`ci_circleci.py`](ci_circleci.py) passes the decision to [`.circleci/continue.yml`](../.circleci/continue.yml) through the continuation API.
 Documentation-only PRs and verified merges complete the existing `iOS CI` workflow with a small Linux job.
@@ -188,7 +190,8 @@ On a non-forced push to main, the selectors look up the merged PR for the exact 
 - GitHub Actions records the PR number and checked-out tree during its guidance check. The selector verifies that marker and the configured jobs in one successful PR workflow attempt.
 - CircleCI runs on the PR head. The selector verifies the configured native job statuses from the CircleCI app, then checks the workflow and pipeline for the PR number, repository, checkout and configuration.
 - Auto-merge can trigger main before the APIs show the merged PR or its successful checks. If either is missing, the Linux selector logs what it could not verify and checks the full evidence once more after 65 seconds, allowing GitHub’s 60-second response cache to expire.
-- Each selector logs both run links when it reuses validation. A direct change, a forced push, an incomplete or skipped check, or unavailable provider data selects full CI. Runs predating the GitHub tree marker also take that path.
+- A documentation-only merge needs the successful GitHub guidance check and CircleCI documentation job from the PR. Both selectors also apply the Markdown policy to the full change that landed on main. GitHub supplies the previous main SHA in its push event. CircleCI reads it from GitHub's matching branch activity.
+- Each selector logs both run links when it reuses validation. Direct changes, forced pushes, partial checks, and missing evidence select full CI. Runs predating the GitHub tree marker also take that path.
 
 Manual full runs always execute. Signed archives and publication run from the landed commit; this shortcut reuses test results only.
 
@@ -198,6 +201,14 @@ The focused regression command covers Git history, command output, continuation 
 python3 -m unittest discover -s Tools/Tests -p 'test_ci_*.py'
 python3 -m unittest Tools.Tests.test_flyover_workflows
 ```
+
+### Daily Where audience builds
+
+CircleCI's native **Daily Where audience builds** trigger checks `main` at 06:00 UTC each day. The `build-and-test` pipeline reads both configuration and source from `main`. Its scheduled workflow owns the **Where Beta** and **Where App Store** compile checks.
+
+The Linux selector checks the most recent daily audience workflow in CircleCI Insights. A successful compile of both schemes on the current commit lets it stop before starting the Macs. A new commit, a failed build, or missing history starts both builds. This also picks up changes after a missed day. Each scheme compiles on its own `m4pro.medium` worker with the repository's pinned Xcode.
+
+To inspect or change the schedule, open **Project Settings → Project Setup** for the CircleCI pipeline. CircleCI can offset the start by up to ten minutes. [CircleCI schedule triggers](https://circleci.com/docs/guides/orchestrate/schedule-triggers/)
 
 ## Worktree cleanup
 
@@ -229,6 +240,12 @@ The command does not coordinate concurrent builds, checkout restoration, or path
 Suite discovery reads each target's literal source array in `Project.swift`.
 Arrays can span lines and include shared support files. Only `SnapshotTests/**`
 paths define suite roots. Unsupported declarations fail before shard selection.
+
+Changes to the project, snapshot Swift sources or the inventory check itself
+also trigger unfiltered Xcode discovery. After exporting unit test results,
+the CircleCI unit worker uses its booted simulator and the attached snapshot
+scheme to check the source inventory against every compiled suite. This catches
+a suite missing from every shard’s selection.
 
 `./snapshot-shards hydrate --assignment shard.txt` fetches the tracked PNGs in
 each assigned suite's `__Snapshots__` directory, including theme and trait
@@ -297,6 +314,30 @@ Valid existing installations are left alone by `--install`; `--update` explicitl
 
 ## Testing
 
+`./test` selects affected logical bundles from the complete merge-base diff against `origin/main`, plus staged, unstaged, and untracked files.
+The selection follows package products, target dependencies, test hosts, shared source files, resources, and generated installer-site inputs.
+Unknown inputs and unavailable Git history select all bundles and host macro tests.
+Unsupported manifest expressions stop with an error; use `./test --everything` while adding parser support.
+
+Preview the decision before running tests:
+
+```bash
+./test --dry-run
+./test --dry-run --json
+./test --dry-run --base COMMIT_BEFORE_PR --head MERGED_PR_COMMIT
+```
+
+The preview lists selected and skipped bundles, reasons, host tests, and independent checks.
+It evaluates the Swift package manifest but runs no checks, project generation, builds, or simulators.
+`--head` requires `--dry-run`. It excludes local edits and uses the **current checkout's graph** for the historical diff.
+JSON reports preserve paths containing spaces and newlines.
+Preview supports affected selection only; explicit bundle and test filters remain execution options.
+
+Normal execution still runs architecture and host checks. Selection limits test execution; builds still compile the chosen schemes.
+CI continues to run its full unit and snapshot validation.
+
+`./test --all` and `./test --everything` share one test host across twelve library modules. Named bundles, affected tests, and `--only ModuleTests/Suite/test()` keep their original module names. The same identifiers work with `--test-artifacts` from a full build. The full artifact manifest records suite ownership so CircleCI results and failure reruns identify each test by its original module.
+
 Install the site dependencies before the retained installer tests or snapshot builds:
 
 ```bash
@@ -318,8 +359,8 @@ The install site's image tests run on the pinned iOS simulator:
 ./test ToolsSnapshotTests --review
 ```
 
-Each build runs [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
-against the production Astro build. The bundle loads those pages in offline
+Local builds run [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
+against the production Astro build. The CircleCI iOS test builder reuses the generated JSON when its inputs and content digest match. A miss installs the locked npm dependencies and regenerates the fixture. The bundle loads those pages in offline
 `WKWebView` instances through `SnapshotKitTesting.assertHTMLSnapshots`.
 The generator inlines the emitted CSS and artwork for offline capture.
 References cover the main-build homepage, app PR pages, release details, unavailable commit history,

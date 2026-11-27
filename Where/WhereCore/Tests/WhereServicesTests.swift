@@ -305,11 +305,11 @@ struct WhereServicesTests {
             regions: [.california],
             audit: nil,
         )
-        // A later range backfill (Canada) sweeps over the same corrected day.
+        // A later range backfill (Ontario) sweeps over the same corrected day.
         try await services.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-07-01T00:00:00-07:00"),
             through: WhereCoreTestSupport.iso("2026-07-07T00:00:00-07:00"),
-            regions: [.canada],
+            regions: [.ontario],
             audit: nil,
         )
 
@@ -318,8 +318,8 @@ struct WhereServicesTests {
             $0.day == CalendarDay(year: 2026, month: 7, day: 4)
         }
         // The relabel survives: New York stays removed (GPS is not resurrected)
-        // and the backfilled Canada unions onto the corrected California.
-        #expect(july4?.regions == [.california, .canada])
+        // and the backfilled Ontario unions onto the corrected California.
+        #expect(july4?.regions == [.california, .ontario])
     }
 
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
@@ -1021,7 +1021,7 @@ struct WhereServicesTests {
         try await destination.journal.addManualSample(sample(at: "2026-01-01T09:00:00-08:00"))
         try await destination.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-02-02T10:00:00-08:00"),
-            regions: [.canada],
+            regions: [.ontario],
             audit: nil,
         )
 
@@ -1483,6 +1483,46 @@ struct WhereServicesTests {
         return (services, source)
     }
 
+    @Test func demoSeedPublishesTheCompletedYearOnce() async throws {
+        let now = WhereCoreTestSupport.iso("2026-02-16T09:30:00-08:00")
+        let store = try SwiftDataStore.inMemory()
+        let refresher = SpyWidgetRefresher()
+        let (services, _) = try Self.makeWidgetServices(
+            refresher: refresher,
+            store: store,
+            now: now,
+        )
+
+        try await DemoDataBuilder(now: now, calendar: Self.pacificCalendar).seed(into: services)
+
+        let completed = try await WidgetDataReader(
+            store: store,
+            aggregator: Self.makeAggregator(),
+            attributor: RegionAttributor.shared,
+        ).snapshot(asOf: now)
+        #expect(await refresher.publishedSnapshots == [completed])
+    }
+
+    @Test func failedDemoCorrectionRollsBackTheYearWithoutPublishing() async throws {
+        let now = WhereCoreTestSupport.iso("2026-02-16T09:30:00-08:00")
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing, failCorrections: true)
+        let refresher = SpyWidgetRefresher()
+        let (services, _) = try Self.makeWidgetServices(
+            refresher: refresher,
+            store: store,
+            now: now,
+        )
+
+        await #expect(throws: ToggleFailingStoreError.self) {
+            try await DemoDataBuilder(now: now, calendar: Self.pacificCalendar).seed(into: services)
+        }
+
+        #expect(try await backing.allSamples().isEmpty)
+        #expect(try await backing.allManualDays().isEmpty)
+        #expect(await refresher.publishCount == 0)
+    }
+
     @Test func committedWritesPublishWidgetSnapshots() async throws {
         let refresher = SpyWidgetRefresher()
         // Pin "now" to the day we log so the snapshot's `dayRegions` reflects it.
@@ -1749,16 +1789,15 @@ private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
 
 private struct ToggleFailingStoreError: Error {}
 
-/// `WhereStore` that lets a test toggle whether `add(sample:)` succeeds.
-/// Every other API forwards to a real `SwiftDataStore` (in-memory) so
-/// reads stay deterministic and the failure injection point stays
-/// narrow.
+/// Injects sample or manual-correction write failures into an in-memory store.
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
+    private let failCorrections: Bool
     private var shouldFail = false
 
-    init(backing: SwiftDataStore) {
+    init(backing: SwiftDataStore, failCorrections: Bool = false) {
         self.backing = backing
+        self.failCorrections = failCorrections
     }
 
     func setShouldFail(_ value: Bool) {
@@ -1900,6 +1939,7 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     func setManualDay(_ day: DayPresence) async throws {
+        if failCorrections, day.isAuthoritative { throw ToggleFailingStoreError() }
         try await backing.setManualDay(day)
     }
 

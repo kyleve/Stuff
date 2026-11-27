@@ -71,6 +71,7 @@ struct DemoModeEnvironmentTests {
             logSystem: .isolated(),
             compatibility: .init(coordinator: .local(version: .current)),
             installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            now: earlyJanuaryDemoDate,
         )
         await model.compatibility.refresh(model: model)
         #expect(try await model.activateDemo(model.makeDemoScope()))

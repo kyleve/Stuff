@@ -229,9 +229,7 @@ See [agent guidance](.agents/README.md) for ownership, maintenance, and official
 ## Acknowledgements
 
 The Where module bundles offline region polygons under [`Where/RegionKit/Sources/Resources/regions/`](Where/RegionKit/Sources/Resources/regions).
-US state boundaries come from [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/) (`gz_2010_us_040_00_5m.json`), converted from the [US Census Bureau Cartographic Boundary Files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html).
-US Government works are in the public domain.
-See [`Where/RegionKit/README.md`](Where/RegionKit/README.md) for per-file provenance.
+Where tracks US regions with public-domain Census TIGER/Line boundaries and draws them with Census cartographic boundaries. For Canada it uses Statistics Canada’s 2026 digital and cartographic province and territory boundaries. Contains information licensed under the Open Government Licence – Canada. The European Union uses the project’s original artwork. [Census TIGER/Line](https://www2.census.gov/geo/tiger/TIGER2026/STATE/), [Census cartographic boundaries](https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_state_500k.zip), [Statistics Canada digital](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Digital_boundary_files/MapServer/0), [Statistics Canada cartographic](https://geo.statcan.gc.ca/geo_wa/rest/services/2026/Cartographic_boundary_files/MapServer/0), [Canadian licence](https://open.canada.ca/en/open-government-licence-canada), [RegionKit sources and updater](Where/RegionKit/README.md#regenerating)
 
 ## License
 

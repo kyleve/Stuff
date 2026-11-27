@@ -1,21 +1,21 @@
 import Foundation
 
 /// A geographic region we track presence in for purposes like state-residency
-/// audits. Not US-specific: Canada and the European Union are first-class, and
-/// any US state (plus DC / PR) is an available region.
+/// audits. Available regions include Canadian provinces and territories, US
+/// jurisdictions and the European Union.
 ///
 /// A `Region` is a thin `Hashable` value wrapping a **stable string id**
-/// (`rawValue`, e.g. `"us-CA"`, `"canada"`) — the identifier used by SwiftData,
+/// (`rawValue`, e.g. `"us-CA"`, `"ca-ON"`) — the identifier used by SwiftData,
 /// `Codable`, and lookup tables. It is **not** user-facing; use `localizedName`.
-/// The set of available regions and each region's metadata (display name,
-/// geometry file) live in ``RegionCatalog``, loaded from the bundled
+/// The set of available regions and each region's metadata (name, hierarchy,
+/// boundary products) live in ``RegionCatalog``, loaded from the bundled
 /// `regions.json` manifest, so adding a region is a data change, not a new case.
 ///
 /// `.other` is the catch-all for any coordinate outside every loaded region (or
 /// a manual day the user marks as "somewhere else"); it has no geometry and is
 /// not a catalog entry.
 public struct Region: Hashable, Sendable, RawRepresentable {
-    /// The stable data identifier (e.g. `"us-CA"`, `"canada"`). Never shown to
+    /// The stable data identifier (e.g. `"us-CA"`, `"ca-ON"`). Never shown to
     /// the user — user-facing labels go through `localizedName`.
     public let rawValue: String
 
@@ -89,12 +89,10 @@ extension Region {
     /// no geometry and is not a catalog entry.
     public static let other = Region(unchecked: "other")
 
-    /// Conveniences for the regions the app has historically tracked, so call
-    /// sites read as naturally as the former enum cases (`.california`). Every
-    /// other available region is reached through ``RegionCatalog``.
+    /// Frequently used regions in app defaults and previews.
     public static let california = Region(unchecked: "us-CA")
     public static let newYork = Region(unchecked: "us-NY")
-    public static let canada = Region(unchecked: "canada")
+    public static let ontario = Region(unchecked: "ca-ON")
     public static let europeanUnion = Region(unchecked: "european-union")
 }
 

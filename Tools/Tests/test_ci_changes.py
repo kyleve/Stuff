@@ -44,6 +44,30 @@ class CIChangesTests(unittest.TestCase):
         self.repo.write("app.py", "changed = True\n")
         self.repo.commit()
         self.assertFalse(self.decision().skip_validation)
+        self.assertFalse(self.decision().run_boundary_tests)
+
+    def test_boundary_inputs_select_the_fixture_suite(self):
+        for path in (
+            "Where/RegionKit/Tools/convert_boundaries.py",
+            "Where/RegionKit/Tools/Tests/test_tracking_accuracy.py",
+            "Where/RegionKit/Tools/requirements-boundaries.txt",
+            ".github/workflows/ci.yml",
+            ".mise.toml",
+            "Tools/ci_changes.py",
+        ):
+            with self.subTest(path=path):
+                before = self.repo.git("rev-parse", "HEAD")
+                self.repo.write(path, "changed\n")
+                self.repo.commit()
+                self.assertTrue(self.decision(base=before).run_boundary_tests)
+
+    def test_removing_a_boundary_input_from_its_directory_runs_the_suite(self):
+        original = "Where/RegionKit/Tools/tracking_accuracy.py"
+        self.repo.write(original, "fixture = True\n")
+        base = self.repo.commit()
+        self.repo.git("mv", original, "moved.py")
+        self.repo.commit()
+        self.assertTrue(self.decision(base=base).run_boundary_tests)
 
     def test_latest_documentation_commit_cannot_hide_earlier_code(self):
         self.repo.write("app.py", "changed = True\n")
@@ -97,6 +121,7 @@ class CIChangesTests(unittest.TestCase):
 
     def test_empty_diff_runs_ci(self):
         self.assertFalse(self.decision().skip_validation)
+        self.assertTrue(self.decision().run_boundary_tests)
 
     def test_executable_markdown_runs_ci(self):
         (self.repo.root / "README.md").chmod(0o755)
@@ -180,7 +205,7 @@ class CIChangesTests(unittest.TestCase):
         for raw in (b"record", b"record\0", b"record\0README.md\0"):
             with self.subTest(raw=raw):
                 with self.assertRaises(ValueError):
-                    ci_changes.documentation_diff(raw)
+                    ci_changes.diff_inputs(raw)
 
     def test_command_emits_github_output_and_diagnostic_separately(self):
         self.repo.write("README.md", "Revised docs\n")
@@ -203,7 +228,9 @@ class CIChangesTests(unittest.TestCase):
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "skip_validation=true\n")
+        self.assertEqual(
+            result.stdout, "skip_validation=true\nrun_boundary_tests=false\n"
+        )
         self.assertIn("complete PR diff", result.stderr)
 
     def test_command_reports_full_ci_for_missing_history(self):
@@ -217,5 +244,7 @@ class CIChangesTests(unittest.TestCase):
                 ["--event", "pull_request", "--base", "", "--head", ""]
             )
         self.assertEqual(status, 0)
-        self.assertEqual(stdout.getvalue(), "skip_validation=false\n")
+        self.assertEqual(
+            stdout.getvalue(), "skip_validation=false\nrun_boundary_tests=true\n"
+        )
         self.assertIn("Running full CI", stderr.getvalue())

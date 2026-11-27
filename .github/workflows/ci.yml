@@ -34,6 +34,7 @@ jobs:
       statuses: read
     outputs:
       skip_validation: ${{ steps.classify.outputs.skip_validation }}
+      run_boundary_tests: ${{ steps.classify.outputs.run_boundary_tests }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,7 +46,8 @@ jobs:
         env:
           CI_EVENT: ${{ github.event_name }}
           CI_PUSH_FORCED: ${{ toJSON(github.event.forced) }}
-          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # A synchronize event also has a before SHA, pointing to the previous PR head.
+          CI_BASE_SHA: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GH_TOKEN: ${{ github.event_name == 'push' && github.token || '' }}
         run: |
@@ -118,6 +120,13 @@ jobs:
         run: |
           python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
           mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+      - name: RegionKit boundary converter tests
+        if: ${{ needs.changes.result != 'success' || needs.changes.outputs.run_boundary_tests != 'false' }}
+        run: |
+          venv="$RUNNER_TEMP/regionkit-gis"
+          mise exec python@3.12 -- python -m venv "$venv"
+          "$venv/bin/python" -m pip install --only-binary=:all: -r Where/RegionKit/Tools/requirements-boundaries.txt
+          mise exec -- "$venv/bin/python" -B -m unittest discover -s Where/RegionKit/Tools -p 'test_*.py'
       - name: CircleCI helper tests and snapshot plan
         run: |
           python3 .circleci/Tests/test_xcresult_to_junit.py

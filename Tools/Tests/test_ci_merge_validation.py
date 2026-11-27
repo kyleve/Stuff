@@ -3,10 +3,11 @@ import io
 import json
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
-from Tools.ci_changes import classify_changes
+from Tools.ci_actions_evidence import ActionsRun
+from Tools.ci_changes import classify_changes, main
 from Tools.Tests.ci_test_support import GitRepository
 
 
@@ -15,11 +16,16 @@ class MergedValidationTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         repo = GitRepository(temporary.name)
+        self.old_main = repo.base
+        repo.git("switch", "main")
         repo.write("app.py", "feature = True\n")
+        self.before = repo.commit()
+        repo.git("switch", "-c", "docs")
+        repo.write("README.md", "Document feature\n")
         self.head = repo.commit()
         repo.git("switch", "main")
-        repo.git("merge", "--squash", "topic")
-        repo.git("commit", "-m", "Land feature")
+        repo.git("merge", "--squash", "docs")
+        repo.git("commit", "-m", "Land documentation")
         self.tree = repo.git("rev-parse", "HEAD^{tree}")
         self.landed = repo.git("rev-parse", "HEAD")
         self.root = repo.root
@@ -53,7 +59,9 @@ class MergedValidationTests(unittest.TestCase):
         self.actions = self.enter_patch(
             "Tools.ci_merge_validation.validated_actions_run"
         )
-        self.actions.return_value = "https://github.com/example/Stuff/actions/runs/123"
+        self.actions.return_value = ActionsRun(
+            "https://github.com/example/Stuff/actions/runs/123", False
+        )
         self.native = self.enter_patch("Tools.ci_merge_validation.validated_native_run")
         self.native.return_value = "https://app.circleci.com/workflow/example"
         self.sleep = self.enter_patch("Tools.ci_merge_validation.sleep")
@@ -81,7 +89,7 @@ class MergedValidationTests(unittest.TestCase):
         self.assertNotEqual(self.landed, self.head)
         result = self.classify()
         self.assertTrue(result.skip_validation)
-        for url in (self.actions.return_value, self.native.return_value):
+        for url in (self.actions.return_value.url, self.native.return_value):
             self.assertIn(url, result.reason)
         jobs = json.loads((self.root / "Tools/ci-validation-jobs.json").read_text())
         self.assertEqual(
@@ -93,6 +101,79 @@ class MergedValidationTests(unittest.TestCase):
             (self.head, self.repository, 18, jobs["circleci"]),
         )
         self.sleep.assert_not_called()
+
+    def test_documentation_proof_requires_the_entire_push_and_both_providers(self):
+        self.actions.return_value = ActionsRun(self.actions.return_value.url, True)
+        result = self.classify(base=self.before)
+        self.assertTrue(result.skip_validation)
+        self.assertIn("documentation-only push", result.reason)
+        self.assertTrue(self.native.call_args.kwargs["documentation_only"])
+        self.native.reset_mock()
+        # The associated PR and final commit contain only Markdown. The push
+        # also included a previous commit changing app.py.
+        for base in (self.old_main, self.landed, "f" * 40, "unknown"):
+            with self.subTest(base=base):
+                self.assertFalse(self.classify(base=base).skip_validation)
+        self.native.assert_not_called()
+        self.native.return_value = None
+        self.assertFalse(self.classify(base=self.before).skip_validation)
+
+    def test_documentation_merge_command_emits_skip_and_verification_diagnostic(self):
+        self.actions.return_value = ActionsRun(self.actions.return_value.url, True)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (
+            patch("Tools.ci_changes.repository_root", return_value=self.root),
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            status = main(
+                [
+                    "--event",
+                    "push",
+                    "--branch",
+                    "main",
+                    "--push-forced",
+                    "false",
+                    "--repository",
+                    self.repository,
+                    "--head",
+                    self.landed,
+                    "--base",
+                    self.before,
+                ]
+            )
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            stdout.getvalue(), "skip_validation=true\nrun_boundary_tests=false\n"
+        )
+        self.assertIn("documentation-only push", stderr.getvalue())
+        self.assertIn(self.native.return_value, stderr.getvalue())
+
+    def test_circleci_uses_only_the_matching_main_ref_update_for_missing_before(self):
+        self.actions.return_value = ActionsRun(self.actions.return_value.url, True)
+        path = "activity?ref=refs/heads/main&per_page=1"
+        update = {
+            "activity_type": "pr_merge",
+            "timestamp": self.pr["merged_at"],
+            "ref": "refs/heads/main",
+            "before": self.before,
+            "after": self.landed,
+        }
+        self.responses[path] = [update]
+        self.assertTrue(self.classify().skip_validation)
+        for updates in (
+            [],
+            [update, update],
+            [{**update, "ref": "refs/heads/other"}],
+            [{**update, "after": self.head}],
+            [{**update, "timestamp": "2026-11-19T00:00:00Z"}],
+            [{**update, "activity_type": "push"}],
+            [{**update, "before": self.old_main}],
+            [{**update, "before": "invalid"}],
+        ):
+            with self.subTest(updates=updates):
+                self.responses[path] = updates
+                self.assertFalse(self.classify().skip_validation)
 
     def test_waits_for_empty_or_unmerged_pr_association(self):
         for initial in ([], [dict(self.pr, state="open", merged_at=None)]):

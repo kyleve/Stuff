@@ -1,4 +1,5 @@
-import RegionKit
+import Foundation
+@testable import RegionKit
 import Testing
 
 struct RegionAttributorTests {
@@ -45,19 +46,15 @@ struct RegionAttributorTests {
 
     // MARK: - Canada
 
-    @Test func toronto_isCanada() {
+    @Test func torontoAndMontrealRequireTheirProvincesToBeTracked() throws {
         let toronto = Coordinate(latitude: 43.6532, longitude: -79.3832)
-        #expect(attributor.region(at: toronto) == .canada)
-    }
-
-    @Test func montreal_isCanada() {
         let montreal = Coordinate(latitude: 45.5017, longitude: -73.5673)
-        #expect(attributor.region(at: montreal) == .canada)
-    }
-
-    @Test func buffalo_isNotCanada() {
-        let buffalo = Coordinate(latitude: 42.8864, longitude: -78.8784)
-        #expect(attributor.region(at: buffalo) != .canada)
+        let quebec = try #require(Region(rawValue: "ca-QC"))
+        let tracked = RegionAttributor(for: [.ontario, quebec])
+        #expect(attributor.region(at: toronto) == .other)
+        #expect(attributor.region(at: montreal) == .other)
+        #expect(tracked.region(at: toronto) == .ontario)
+        #expect(tracked.region(at: montreal) == quebec)
     }
 
     // MARK: - European Union
@@ -102,12 +99,34 @@ struct RegionAttributorTests {
         #expect(californiaOnly.region(at: nyc) == .other)
     }
 
-    /// Any catalog state — not just the historical four — can be tracked, since
-    /// each region loads from its own bundled file.
+    /// Each catalog region loads from its own bundled file.
     @Test func attributorCanTrackAnyCatalogState() throws {
         let illinois = try #require(Region(rawValue: "us-IL"))
         let attributor = RegionAttributor(for: [illinois])
         let chicago = Coordinate(latitude: 41.8781, longitude: -87.6298)
         #expect(attributor.region(at: chicago) == illinois)
+    }
+
+    @Test func onlyRequestedTrackingChoicesLoadGeometryOnce() throws {
+        let catalog = try RegionHierarchyFixture.catalog()
+        let node = try #require(RegionCatalog.shared.node(for: .ontario))
+        let fixture = try #require(RegionCatalog.geometryURL(for: node, purpose: .tracking))
+        var requested: [RegionCatalog.Node.ID] = []
+        let attributor = RegionAttributor(
+            for: [
+                Region(unchecked: "canada"),
+                .other,
+                .ontario,
+                Region(unchecked: "united-states"),
+                .ontario,
+            ],
+            catalog: catalog,
+        ) { node, purpose in
+            #expect(purpose == .tracking)
+            requested.append(node.id)
+            return fixture
+        }
+        #expect(requested.map(\.rawValue) == ["ca-ON"])
+        #expect(attributor.loadedRegions == [.ontario])
     }
 }

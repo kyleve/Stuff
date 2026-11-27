@@ -5,15 +5,15 @@ import Testing
 struct LocationsBackgroundArtworkTests {
     @Test func membershipIncludesBothRanksAndIgnoresRankChanges() {
         let first = RegionRanking(
-            primary: [.init(region: .canada, days: 30), .init(region: .newYork, days: 20)],
-            secondary: [.init(region: .other, days: 1), .init(region: .canada, days: 2)],
+            primary: [.init(region: .ontario, days: 30), .init(region: .newYork, days: 20)],
+            secondary: [.init(region: .other, days: 1), .init(region: .ontario, days: 2)],
         )
         let reordered = RegionRanking(
             primary: [.init(region: .newYork, days: 40)],
-            secondary: [.init(region: .canada, days: 30), .init(region: .other, days: 1)],
+            secondary: [.init(region: .ontario, days: 30), .init(region: .other, days: 1)],
         )
         let regions = LocationsBackgroundArtwork.regions(in: first)
-        #expect(Set(regions) == Set([Region.canada, .newYork, .other]))
+        #expect(Set(regions) == Set([Region.ontario, .newYork, .other]))
         #expect(regions.count == 3)
         #expect(regions == LocationsBackgroundArtwork.regions(in: reordered))
         #expect(LocationsBackgroundArtwork.regions(in: .init(primary: [], secondary: [])).isEmpty)
@@ -21,10 +21,10 @@ struct LocationsBackgroundArtworkTests {
 
     @Test func changedMembershipHidesPreviousArtwork() async throws {
         let artwork = try #require(await LocationsBackgroundArtwork.load(
-            regions: [.canada, .other],
+            regions: [.ontario, .other],
             cache: RegionOutlinePathCache(),
         ))
-        #expect(artwork.items(for: [.canada, .other]).count == 2)
+        #expect(artwork.items(for: [.ontario, .other]).count == 2)
         #expect(artwork.items[0].path.isEmpty == false)
         #expect(artwork.items[1].path.isEmpty)
         #expect(artwork.items(for: [.newYork]).isEmpty)
@@ -35,7 +35,7 @@ struct LocationsBackgroundArtworkTests {
     @Test func cancelledLoadCannotPublishArtwork() async {
         let task = Task { @MainActor in
             await LocationsBackgroundArtwork.load(
-                regions: [.canada],
+                regions: [.ontario],
                 cache: RegionOutlinePathCache(),
             )
         }

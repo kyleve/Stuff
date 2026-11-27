@@ -44,7 +44,7 @@ struct FlightPointCorrectionAssessmentTests {
         #expect(pending.pointCorrections.isEmpty)
         let manual = DayPresence(
             day: pending.day.day,
-            regions: [.canada],
+            regions: [.ontario],
             isAuthoritative: true,
             audit: nil,
         )
@@ -105,7 +105,7 @@ struct FlightPointCorrectionAssessmentTests {
             } else if sample.id == F.sampleID(5) {
                 [.newYork, .other]
             } else if sample.id == F.sampleID(6) {
-                [.canada]
+                [.ontario]
             } else {
                 [.california]
             }
@@ -117,7 +117,7 @@ struct FlightPointCorrectionAssessmentTests {
         entries += [
             AttributedLocationSample(
                 sample: F.sample(100, minutes: 25, east: 120, source: .manual),
-                regions: [.canada],
+                regions: [.ontario],
             ),
             AttributedLocationSample(
                 sample: F.sample(101, minutes: 25, east: 120, deviceID: nil),
@@ -168,7 +168,7 @@ struct FlightPointCorrectionAssessmentTests {
         if !allGPSExcluded {
             let soleSupport = try #require(corrections.first { $0.sampleID == F.sampleID(5) })
             #expect(soleSupport.resultingRegions.contains(.newYork) == additiveManualDay)
-            #expect(soleSupport.resultingRegions.isSuperset(of: [.canada, .other]))
+            #expect(soleSupport.resultingRegions.isSuperset(of: [.ontario, .other]))
         }
     }
 

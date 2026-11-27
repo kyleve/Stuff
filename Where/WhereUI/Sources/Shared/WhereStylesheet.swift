@@ -625,6 +625,7 @@ extension WhereStylesheet {
     /// the app-icon picker) lives on the component style groups instead.
     struct Size: Equatable {
         var statusIconWidth: CGFloat = 28
+        var compatibilityIcon: CGFloat = 72
         /// Edge of the selected app icon shown as the hero on the launch splash.
         var launchIcon: CGFloat = 120
         /// Inset from the bottom edge for the launch splash's status caption
@@ -1829,18 +1830,18 @@ extension WhereStylesheet {
 
 extension WhereStylesheet {
     /// Style for the primary-region picker (`RegionPickerView`) and per-region
-    /// customization (`RegionAppearanceEditor`): the selectable-state map fills,
-    /// the color swatch and emoji/symbol tile geometry, and the default US map
+    /// customization (`RegionAppearanceEditor`): the selectable-region map fills,
+    /// the color swatch and emoji/symbol tile geometry, and the default North American map
     /// framing. Generic spacing (grid gaps, section stacks) still comes from
     /// ``Spacing``. The camera is stored as raw degrees so the stylesheet stays
     /// MapKit-free; the view assembles the `MKCoordinateRegion`.
     struct RegionPickerStyle: Equatable {
         /// Corner radius of the map's rounded container.
         var mapCornerRadius: CGFloat
-        /// Polygon fill opacity for a selected vs unselected state.
+        /// Polygon fill opacity for a selected vs unselected region.
         var selectedFillOpacity: Double
         var unselectedFillOpacity: Double
-        /// Polygon stroke opacity + width for a selected vs unselected state.
+        /// Polygon stroke opacity + width for a selected vs unselected region.
         var selectedStrokeOpacity: Double
         var unselectedStrokeOpacity: Double
         var selectedStrokeWidth: CGFloat
@@ -1858,7 +1859,7 @@ extension WhereStylesheet {
         var glyphSelectionStrokeWidth: CGFloat
         /// Background tint opacity of a selected glyph tile.
         var glyphSelectedBackgroundOpacity: Double
-        /// Default map camera framing the contiguous US (raw degrees).
+        /// Default map camera framing the US and Canada (raw degrees).
         var mapCenterLatitude: Double
         var mapCenterLongitude: Double
         var mapSpanLatitude: Double
@@ -1880,10 +1881,10 @@ extension WhereStylesheet {
             glyphCornerRadius: 6,
             glyphSelectionStrokeWidth: 2,
             glyphSelectedBackgroundOpacity: 0.2,
-            mapCenterLatitude: 39.5,
-            mapCenterLongitude: -98.35,
-            mapSpanLatitude: 45,
-            mapSpanLongitude: 55,
+            mapCenterLatitude: 52,
+            mapCenterLongitude: -99,
+            mapSpanLatitude: 65,
+            mapSpanLongitude: 95,
         )
     }
 }

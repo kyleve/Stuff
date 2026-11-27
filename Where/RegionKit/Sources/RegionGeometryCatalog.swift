@@ -1,26 +1,20 @@
 import Foundation
 import PeriscopeCore
 
-/// Which set of region polygons to vend, for the developer region-map
-/// viewer's source toggle.
-public enum RegionGeometryKind: String, CaseIterable, Sendable, Hashable {
-    /// What a `RegionAttributor` actually loaded and uses to attribute
-    /// coordinates — the app's tracked subset, exterior rings only.
-    case attribution
-    /// Every available region in the catalog, decoded straight from its bundled
-    /// per-region GeoJSON at full authored fidelity — what attribution is built
-    /// *from*, before the bounding-box pre-pass simplifications.
-    case source
+/// The purpose a publisher's boundary product serves in Where.
+public enum RegionGeometryPurpose: String, CaseIterable, Sendable, Hashable {
+    case display
+    case tracking
 }
 
 /// One drawable region boundary: a single exterior ring tagged with a
 /// display title and, when known, the `Region` it belongs to. A
 /// MultiPolygon feature expands into several `RegionOutline`s (one per
-/// sub-polygon). Holes are not represented — consistent with what
-/// `RegionAttributor` uses and with MapKit's `MapPolygon`.
+/// sub-polygon). Interior rings accompany their exterior so a map can cut out holes when filling a
+/// polygon.
 public struct RegionOutline: Identifiable, Sendable, Hashable {
     /// Typed identity (never a raw `String`): the title plus a running
-    /// index, unique across a single `outlines(for:)` result so SwiftUI
+    /// index, unique within a set of outlines so SwiftUI
     /// `ForEach` stays stable even when one feature yields many rings or
     /// several features share a title.
     public struct ID: Hashable, Sendable {
@@ -31,14 +25,28 @@ public struct RegionOutline: Identifiable, Sendable, Hashable {
     public let id: ID
     /// Human-readable label: a `Region.localizedName` (e.g. "California").
     public let title: String
-    /// The tracked region this outline belongs to, or `nil` for a source
-    /// feature not modeled as a `Region`.
+    /// The catalog region that owns this outline, when known.
     public let region: Region?
     /// The exterior ring, in order.
     public let coordinates: [Coordinate]
+    public let holes: [[Coordinate]]
 
-    /// Hash on identity alone. `id` is unique within an `outlines(for:)`
-    /// result, so this avoids walking the (often thousands-of-points)
+    init(
+        id: ID,
+        title: String,
+        region: Region?,
+        coordinates: [Coordinate],
+        holes: [[Coordinate]] = [],
+    ) {
+        self.id = id
+        self.title = title
+        self.region = region
+        self.coordinates = coordinates
+        self.holes = holes
+    }
+
+    /// Hash on identity alone. Each result assigns unique IDs, so this
+    /// avoids walking the (often thousands-of-points)
     /// coordinate ring on every `Set`/dictionary insertion. The
     /// synthesized `==` still compares every field, so value equality is
     /// unchanged and the `a == b ⇒ hash(a) == hash(b)` contract holds.
@@ -58,21 +66,20 @@ public enum RegionGeometryError: Error {
 extension RegionGeometryError: LocalizedError {
     /// A developer-facing message that names the missing file, rather than
     /// the generic "operation couldn't be completed" the viewer's error
-    /// state would otherwise show. Not localized — this only ever appears
-    /// in the DEBUG region-map tool.
+    /// state would otherwise show. The diagnostic includes the failing bundle resource.
     public var errorDescription: String? {
         switch self {
             case let .missingResource(resource):
-                "Missing bundled region geometry resource “\(resource).geojson”."
+                "Missing bundled region geometry resource “\(resource)”."
             case let .emptyResource(resource):
-                "Bundled region geometry resource “\(resource).geojson” contains no drawable outlines."
+                "Bundled region geometry resource “\(resource)” contains no drawable outlines."
         }
     }
 }
 
 /// Read-only catalog of region boundary geometry for region artwork and the
 /// developer region-map viewer. UI never touches `RegionAttributor`'s internal
-/// polygons or the `GeoJSON` decoder directly.
+/// polygons or the geometry decoder directly.
 public enum RegionGeometryCatalog {
     /// Drawable outlines for one region, cached after the first request.
     ///
@@ -81,7 +88,7 @@ public enum RegionGeometryCatalog {
     /// empty array because it intentionally has no geometry. Missing, corrupt,
     /// or empty bundled geometry logs a fault and asserts in debug; release
     /// builds safely omit the decorative outline.
-    public static func outlines(for region: Region) async -> [RegionOutline] {
+    public static func displayOutlines(for region: Region) async -> [RegionOutline] {
         guard region != .other else { return [] }
         do {
             return try await RegionCache.shared.outlines(for: region)
@@ -97,146 +104,147 @@ public enum RegionGeometryCatalog {
         }
     }
 
-    /// Drawable outlines for `kind`.
-    ///
-    /// - `.attribution` reflects exactly what `attributor` loaded (the tracked
-    ///   subset) — the caller passes the attributor rather than the catalog
-    ///   reaching for a global, so the viewer shows the regions it cares about.
-    /// - `.source` decodes every available region from the catalog and ignores
-    ///   `attributor`.
-    ///
-    /// `.source` decoding runs on its cache actor. `.attribution` maps the
-    /// caller-provided attributor on the caller's actor because it is already
-    /// resolved in memory. Throws `RegionGeometryError` / a `DecodingError`
-    /// rather than absorbing a missing or malformed bundle into an empty list.
-    public static func outlines(
-        for kind: RegionGeometryKind,
-        attributor: RegionAttributor,
-    ) async throws -> [RegionOutline] {
-        switch kind {
-            case .attribution:
-                attributionOutlines(for: attributor)
-            case .source:
-                try await SourceCache.shared.outlines()
-        }
+    /// Prepares both the overlays and tap lookup from the offered regions' display boundaries.
+    @concurrent public static func displayGeometry(for regions: [Region]) async throws
+        -> RegionDisplayGeometry
+    {
+        try displayGeometry(
+            for: regions,
+            catalog: .shared,
+            resourceURL: RegionCatalog.geometryURL(for:purpose:),
+        )
     }
 
-    // MARK: - Attribution
-
-    /// Outlines for exactly what `attributor` loaded — cheap, since it reads the
-    /// already-resolved polygons.
-    private static func attributionOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
-        var builder = OutlineBuilder()
-        for entry in attributor.loadedRegionPolygons {
-            for polygon in entry.polygons {
-                builder.add(
-                    title: entry.region.localizedName,
-                    region: entry.region,
-                    coordinates: polygon.vertices,
+    static func displayGeometry(
+        for regions: [Region],
+        catalog: RegionCatalog,
+        resourceURL: (RegionCatalog.Node, RegionGeometryPurpose) -> URL?,
+    ) throws -> RegionDisplayGeometry {
+        try RegionLog.geometryCatalog.measure(.buildDisplayGeometry, budget: .seconds(2)) {
+            var entries: [RegionPolygons] = []
+            var seen: Set<Region> = []
+            for region in regions where region != .other && seen.insert(region).inserted {
+                try Task.checkCancellation()
+                let polygons = try displayPolygons(
+                    for: region,
+                    catalog: catalog,
+                    resourceURL: resourceURL,
                 )
+                if !polygons.isEmpty { entries.append(RegionPolygons(
+                    region: region,
+                    polygons: polygons,
+                )) }
             }
-        }
-        return builder.outlines
-    }
-
-    // MARK: - Source
-
-    /// Decode every available region's bundled per-region GeoJSON at full
-    /// fidelity, each outline tagged with the `Region` it belongs to and titled
-    /// by its `localizedName`.
-    static func buildSourceOutlines() throws -> [RegionOutline] {
-        try RegionLog.geometryCatalog.measure(.buildSourceOutlines, budget: .seconds(2)) {
-            var builder = OutlineBuilder()
-            for entry in RegionCatalog.shared.entries {
-                for feature in try namedPolygons(for: entry.region) {
-                    for polygon in feature.polygons {
-                        builder.add(
-                            title: entry.region.localizedName,
-                            region: entry.region,
-                            coordinates: polygon.vertices,
-                        )
-                    }
-                }
-            }
-            return builder.outlines
+            let result = RegionDisplayGeometry(entries: entries)
+            try Task.checkCancellation()
+            return result
         }
     }
 
-    private static func namedPolygons(for region: Region) throws -> [GeoJSON.NamedPolygons] {
-        guard let url = RegionCatalog.shared.geometryURL(for: region) else {
+    private static func displayPolygons(
+        for region: Region,
+        catalog: RegionCatalog,
+        resourceURL: (RegionCatalog.Node, RegionGeometryPurpose) -> URL?,
+    ) throws -> [GeoPolygon] {
+        guard region != .other else { return [] }
+        guard let node = catalog.node(id: .init(rawValue: region.rawValue)) else {
             throw RegionGeometryError.missingResource(region.rawValue)
         }
-        return try GeoJSON.namedPolygons(at: url)
+        guard node.isLoggable else { return [] }
+        guard let url = resourceURL(node, .display) else {
+            throw RegionGeometryError
+                .missingResource(node.geometry?.display.file ?? region.rawValue)
+        }
+        let polygons = try RegionGeometryReader.polygons(at: url)
+        guard !polygons.isEmpty
+        else { throw RegionGeometryError.emptyResource(url.lastPathComponent) }
+        return polygons
     }
 
-    /// Decode one region for card/overlay artwork without loading unrelated
-    /// catalog entries.
-    private static func buildRegionOutlines(for region: Region) throws -> [RegionOutline] {
-        try RegionLog.geometryCatalog.measure(.loadRegionOutlines(region), budget: .seconds(1)) {
-            var builder = OutlineBuilder()
-            for feature in try namedPolygons(for: region) {
-                for polygon in feature.polygons {
-                    builder.add(
-                        title: region.localizedName,
-                        region: region,
-                        coordinates: polygon.vertices,
-                    )
-                }
-            }
-            guard !builder.outlines.isEmpty else {
-                throw RegionGeometryError.emptyResource(region.rawValue)
-            }
-            return builder.outlines
+    /// Reuses the exact polygons already loaded into a tracking snapshot for the diagnostic map.
+    public static func trackingOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
+        outlines(for: attributor.loadedRegionPolygons)
+    }
+
+    fileprivate static func outlines(for entries: [RegionPolygons]) -> [RegionOutline] {
+        var outlines: [RegionOutline] = []
+        for entry in entries {
+            append(entry.polygons, for: entry.region, to: &outlines)
+        }
+        return outlines
+    }
+
+    private static func append(
+        _ polygons: [GeoPolygon],
+        for region: Region,
+        to outlines: inout [RegionOutline],
+    ) {
+        let title = region.localizedName
+        for polygon in polygons {
+            outlines.append(RegionOutline(
+                id: .init(title: title, index: outlines.count),
+                title: title,
+                region: region,
+                coordinates: polygon.vertices,
+                holes: polygon.holes,
+            ))
         }
     }
 
-    /// Caches the heavy `.source` decode (parsing every per-region file) so
-    /// toggling back to source after the first load is instant. An `actor` both
-    /// serializes the one-time build and runs it off the main thread.
-    private actor SourceCache {
-        static let shared = SourceCache()
-        private var cached: [RegionOutline]?
+    /// Cards request individual regions repeatedly. Keep their outlines off the main actor.
+    actor RegionCache {
+        static let shared = RegionCache(
+            catalog: .shared,
+            resourceURL: RegionCatalog.geometryURL(for:purpose:),
+        )
 
-        func outlines() throws -> [RegionOutline] {
-            if let cached { return cached }
-            let built = try RegionGeometryCatalog.buildSourceOutlines()
-            cached = built
-            return built
-        }
-    }
-
-    /// Per-region cache for UI artwork. Actor isolation serializes simultaneous
-    /// requests for the same first-use decode without introducing a global
-    /// mutable registry in the UI layer.
-    private actor RegionCache {
-        static let shared = RegionCache()
+        private let catalog: RegionCatalog
+        private let resourceURL: @Sendable (RegionCatalog.Node, RegionGeometryPurpose) -> URL?
         private var cached: [Region: [RegionOutline]] = [:]
 
+        init(
+            catalog: RegionCatalog,
+            resourceURL: @escaping @Sendable (RegionCatalog.Node, RegionGeometryPurpose) -> URL?,
+        ) {
+            self.catalog = catalog
+            self.resourceURL = resourceURL
+        }
+
         func outlines(for region: Region) throws -> [RegionOutline] {
-            if let cached = cached[region] { return cached }
-            let built = try RegionGeometryCatalog.buildRegionOutlines(for: region)
-            cached[region] = built
-            return built
+            if let outlines = cached[region] { return outlines }
+            let outlines = try RegionLog.geometryCatalog.measure(
+                .loadRegionOutlines(region),
+                budget: .seconds(1),
+            ) {
+                let polygons = try RegionGeometryCatalog.displayPolygons(
+                    for: region,
+                    catalog: catalog,
+                    resourceURL: resourceURL,
+                )
+                var outlines: [RegionOutline] = []
+                RegionGeometryCatalog.append(polygons, for: region, to: &outlines)
+                return outlines
+            }
+            cached[region] = outlines
+            return outlines
         }
     }
 }
 
-/// Accumulates `RegionOutline`s while assigning each a unique, stable
-/// `ID`, and drops degenerate rings (fewer than 3 vertices can't be
-/// drawn).
-private struct OutlineBuilder {
-    private(set) var outlines: [RegionOutline] = []
-    private var nextIndex = 0
+/// Display geometry for the offered regions, in input order. The outlines and hit testing
+/// share coordinate buffers, including islands, holes and antimeridian handling.
+public struct RegionDisplayGeometry: Sendable {
+    public let outlines: [RegionOutline]
+    private let entries: [RegionPolygons]
 
-    mutating func add(title: String, region: Region?, coordinates: [Coordinate]) {
-        guard coordinates.isValidPolygonRing else { return }
-        outlines.append(RegionOutline(
-            id: RegionOutline.ID(title: title, index: nextIndex),
-            title: title,
-            region: region,
-            coordinates: coordinates,
-        ))
-        nextIndex += 1
+    init(entries: [RegionPolygons]) {
+        self.entries = entries
+        outlines = RegionGeometryCatalog.outlines(for: entries)
+    }
+
+    /// Returns the first offered region whose displayed polygon contains the coordinate.
+    public func region(containing coordinate: Coordinate) -> Region? {
+        entries.first { $0.contains(coordinate) }?.region
     }
 }
 

@@ -36,10 +36,19 @@ public struct BoundingBox: Hashable, Sendable {
 
     /// The smallest box that contains every vertex of every polygon in
     /// `polygons`. Returns `nil` only when every polygon is empty
-    /// (which never happens with bundled GeoJSON; the optional is
+    /// (which never happens with bundled geometry; the optional is
     /// there so the helper is safe to use on arbitrary inputs too).
     static func enclosing(_ polygons: [GeoPolygon]) -> BoundingBox? {
-        enclosing(polygons.lazy.flatMap(\.vertices))
+        guard let first = polygons.first(where: { !$0.vertices.isEmpty }) else { return nil }
+        return polygons.reduce(first.geographicBounds) { box, polygon in
+            let next = polygon.geographicBounds
+            return BoundingBox(
+                minLatitude: min(box.minLatitude, next.minLatitude),
+                maxLatitude: max(box.maxLatitude, next.maxLatitude),
+                minLongitude: min(box.minLongitude, next.minLongitude),
+                maxLongitude: max(box.maxLongitude, next.maxLongitude),
+            )
+        }
     }
 
     /// The smallest box that contains every coordinate in `coordinates`,
@@ -67,74 +76,156 @@ public struct BoundingBox: Hashable, Sendable {
     }
 }
 
-/// A simple planar polygon used for offline region attribution.
-///
-/// `vertices` is the exterior ring. Holes aren't modeled because the bundled
-/// simplified region polygons don't use them. Point-in-polygon is the
-/// standard even-odd ray-cast on lat/lng treated as planar (x = longitude,
-/// y = latitude). This is accurate enough at the scale of US states / EU /
-/// Canada and is fully deterministic for snapshot tests.
+/// Polygon containment and distances in the local longitude/latitude plane.
+/// Each polygon has an exterior ring and any holes it encloses.
 struct GeoPolygon: Hashable {
     let vertices: [Coordinate]
+    let holes: [[Coordinate]]
+    private let bounds: BoundingBox
+    private let crossesAntimeridian: Bool
+    private let edgeGroups: [EdgeGroup]
 
-    func contains(_ coordinate: Coordinate) -> Bool {
-        guard vertices.isValidPolygonRing else { return false }
-        let vertexCount = vertices.count
-        let pointX = coordinate.longitude
-        let pointY = coordinate.latitude
-
-        // Even-odd ray-casting: shoot a horizontal ray east from the
-        // query point and count how many polygon edges it crosses. An
-        // odd count means inside, even means outside. Each iteration
-        // tests the edge between `vertices[previousIndex]` and
-        // `vertices[currentIndex]`; the previous-index trick wraps the
-        // final edge back to vertex 0 without a separate closing pass.
-        var inside = false
-        var previousIndex = vertexCount - 1
-        for currentIndex in 0 ..< vertexCount {
-            let currentX = vertices[currentIndex].longitude
-            let currentY = vertices[currentIndex].latitude
-            let previousX = vertices[previousIndex].longitude
-            let previousY = vertices[previousIndex].latitude
-
-            // The edge straddles the ray's latitude only if one
-            // endpoint is above and the other is at-or-below `pointY`.
-            if (currentY > pointY) != (previousY > pointY) {
-                let t = (pointY - currentY) / (previousY - currentY)
-                let intersectionX = currentX + t * (previousX - currentX)
-                if pointX < intersectionX {
-                    inside.toggle()
-                }
-            }
-            previousIndex = currentIndex
-        }
-        return inside
+    /// Consecutive edges on a detailed coast are usually close together. Their
+    /// bounds let both ray casting and distance skip whole stretches of coastline.
+    private struct EdgeGroup: Hashable {
+        let edges: Range<Int>
+        let bounds: BoundingBox
     }
 
-    /// Smallest distance in meters from `coordinate` to this polygon's edge ring.
-    func distanceToBoundary(from coordinate: Coordinate) -> Double {
-        guard vertices.count >= 2 else { return .infinity }
-        let metersPerLatitude = 111_320.0
-        let metersPerLongitude = 111_320.0 * cos(coordinate.latitude * .pi / 180)
+    init(vertices: [Coordinate], holes: [[Coordinate]] = []) {
+        self.vertices = vertices
+        self.holes = holes
+        let box = BoundingBox.enclosing(vertices) ?? .empty
+        crossesAntimeridian = box.maxLongitude - box.minLongitude > 180 &&
+            zip(vertices, vertices.dropFirst() + vertices.prefix(1)).contains {
+                abs($0.longitude - $1.longitude) > 180
+            }
+        if crossesAntimeridian {
+            bounds = BoundingBox.enclosing(vertices.lazy.map {
+                Coordinate(
+                    latitude: $0.latitude,
+                    longitude: $0.longitude < 0 ? $0.longitude + 360 : $0.longitude,
+                )
+            }) ?? .empty
+        } else {
+            bounds = box
+        }
+        if vertices.count > 512, !crossesAntimeridian {
+            var groups: [EdgeGroup] = []
+            for start in stride(from: 0, to: vertices.count, by: 64) {
+                let end = min(start + 64, vertices.count)
+                let preceding = vertices[start == 0 ? vertices.count - 1 : start - 1]
+                let points = vertices[start ..< end]
+                if let box = BoundingBox.enclosing(points) {
+                    groups.append(EdgeGroup(edges: start ..< end, bounds: BoundingBox(
+                        minLatitude: min(box.minLatitude, preceding.latitude),
+                        maxLatitude: max(box.maxLatitude, preceding.latitude),
+                        minLongitude: min(box.minLongitude, preceding.longitude),
+                        maxLongitude: max(box.maxLongitude, preceding.longitude),
+                    )))
+                }
+            }
+            edgeGroups = groups
+        } else {
+            edgeGroups = []
+        }
+    }
+
+    var geographicBounds: BoundingBox {
+        guard crossesAntimeridian else { return bounds }
+        return BoundingBox(
+            minLatitude: bounds.minLatitude,
+            maxLatitude: bounds.maxLatitude,
+            minLongitude: -180,
+            maxLongitude: 180,
+        )
+    }
+
+    private func longitude(_ value: Double) -> Double {
+        crossesAntimeridian && value < 0 ? value + 360 : value
+    }
+
+    func contains(_ coordinate: Coordinate) -> Bool {
+        let x = longitude(coordinate.longitude)
+        let y = coordinate.latitude
+        guard x >= bounds.minLongitude, x <= bounds.maxLongitude,
+              y >= bounds.minLatitude, y <= bounds.maxLatitude else { return false }
+        var inside = false
+        if edgeGroups.isEmpty {
+            inside = crosses(x: x, y: y, ring: vertices, edges: vertices.indices)
+        } else {
+            for group in edgeGroups
+                where y >= group.bounds.minLatitude && y < group.bounds.maxLatitude && x <= group
+                .bounds.maxLongitude
+            {
+                if crosses(x: x, y: y, ring: vertices, edges: group.edges) { inside.toggle() }
+            }
+        }
+        return inside && !holes.contains { crosses(x: x, y: y, ring: $0, edges: $0.indices) }
+    }
+
+    private func crosses(x: Double, y: Double, ring: [Coordinate], edges: Range<Int>) -> Bool {
+        guard ring.isValidPolygonRing, !edges.isEmpty else { return false }
+        var previous = ring[edges.lowerBound == 0 ? ring.count - 1 : edges.lowerBound - 1]
+        var odd = false
+        for index in edges {
+            let current = ring[index]
+            if (current.latitude > y) != (previous.latitude > y) {
+                let fraction = (y - current.latitude) / (previous.latitude - current.latitude)
+                let start = longitude(current.longitude)
+                if x < start + fraction * (longitude(previous.longitude) - start) { odd.toggle() }
+            }
+            previous = current
+        }
+        return odd
+    }
+
+    /// Closest boundary in metres, including holes. The box lower bound avoids
+    /// walking an island's coastline when a nearer edge has already been found.
+    func distanceToBoundary(
+        from coordinate: Coordinate,
+        nearerThan bestSoFar: Double = .infinity,
+    ) -> Double {
+        guard vertices.count >= 2 else { return bestSoFar }
+        let latitudeScale = 111_320.0
+        let longitudeScale = latitudeScale * cos(coordinate.latitude * .pi / 180)
+        var x = longitude(coordinate.longitude)
+        let mid = (bounds.maxLongitude + bounds.minLongitude) / 2
+        if x - mid > 180 { x -= 360 } else if mid - x > 180 { x += 360 }
+        let y = coordinate.latitude
+        func lowerBoundSquared(_ box: BoundingBox) -> Double {
+            let dx = max(box.minLongitude - x, x - box.maxLongitude, 0) * longitudeScale
+            let dy = max(box.minLatitude - y, y - box.maxLatitude, 0) * latitudeScale
+            return dx * dx + dy * dy
+        }
+        guard lowerBoundSquared(bounds) < bestSoFar * bestSoFar else { return bestSoFar }
         func project(_ c: Coordinate) -> PlanarPoint {
             PlanarPoint(
-                x: (c.longitude - coordinate.longitude) * metersPerLongitude,
-                y: (c.latitude - coordinate.latitude) * metersPerLatitude,
+                x: (longitude(c.longitude) - x) * longitudeScale,
+                y: (c.latitude - y) * latitudeScale,
             )
         }
         let origin = PlanarPoint(x: 0, y: 0)
-        var best = Double.infinity
-        var previous = vertices.count - 1
-        for current in vertices.indices {
-            best = min(
-                best,
-                Self.distance(
-                    origin,
-                    toSegment: project(vertices[previous]),
-                    project(vertices[current]),
-                ),
-            )
-            previous = current
+        var best = bestSoFar
+        func visit(_ ring: [Coordinate], edges: Range<Int>) {
+            guard !edges.isEmpty else { return }
+            let previous = ring[edges.lowerBound == 0 ? ring.count - 1 : edges.lowerBound - 1]
+            var start = project(previous)
+            for index in edges {
+                let end = project(ring[index])
+                best = min(best, Self.distance(origin, toSegment: start, end))
+                start = end
+            }
+        }
+        if edgeGroups.isEmpty {
+            visit(vertices, edges: vertices.indices)
+        } else {
+            for group in edgeGroups where lowerBoundSquared(group.bounds) < best * best {
+                visit(vertices, edges: group.edges)
+            }
+        }
+        for hole in holes {
+            visit(hole, edges: hole.indices)
         }
         return best
     }

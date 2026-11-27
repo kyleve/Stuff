@@ -94,7 +94,7 @@ struct WidgetDataReaderTests {
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-05-01T00:00:00-07:00"),
                 in: WhereCoreTestSupport.calendar(),
-                regions: [.canada],
+                regions: [.ontario],
             ))
         }
 
@@ -103,7 +103,7 @@ struct WidgetDataReaderTests {
 
         #expect(snapshot.year == 2026)
         #expect(snapshot.dayRegions == [.california])
-        #expect(snapshot.totals == [.california: 1, .newYork: 1, .canada: 1])
+        #expect(snapshot.totals == [.california: 1, .newYork: 1, .ontario: 1])
     }
 
     @Test func dayRegionsAreEmptyWhenTodayHasNoData() async throws {

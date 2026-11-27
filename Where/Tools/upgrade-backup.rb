@@ -1,11 +1,12 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes legacy Where backups into the current v7 manifest. The automatic-recording feature
+# Reshapes legacy Where backups into the current v8 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
 # v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
 # v6 preserves optional motion readings and adds per-sample attribution history.
 # v7 expands the stay register into independent plans and adds the forecast home-region register.
+# v8 expands the vocabulary of region IDs to include Canadian subdivisions.
 
 require "json"
 require "tmpdir"
@@ -15,7 +16,7 @@ require "set"
 require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 7
+CURRENT_FORMAT_VERSION = 8
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -57,7 +58,7 @@ end
 def catalog_region_ids
   path = File.expand_path("../RegionKit/Sources/Resources/regions.json", __dir__)
   die "regions.json not found at #{path}" unless File.exist?(path)
-  (JSON.parse(File.read(path)).map { |entry| entry.fetch("id") } + ["other"]).to_set
+  (JSON.parse(File.read(path)).filter_map { |entry| entry.fetch("id") if entry.fetch("isLoggable") } + ["other"]).to_set
 end
 
 VALID_REGION_IDS = catalog_region_ids
@@ -207,6 +208,12 @@ end
 
 def upgrade_manifest(manifest)
   source_version = source_format_version(manifest)
+  manifest = manifest.except("recordingDevices", "recordingDeviceCheckIns", "recordingPolicyChanges")
+  # The forecast Home register distinguishes released v7 from older prototypes
+  # that reused version 7. Its successor changes only the supported region vocabulary.
+  if source_version == 8 || (source_version == 7 && manifest.key?("homeRegionRecords"))
+    return manifest.merge("formatVersion" => CURRENT_FORMAT_VERSION)
+  end
   warnings = []
   upgrade_evidence!(manifest, warnings)
   upgrade_manual_days!(manifest, warnings)
@@ -233,9 +240,6 @@ def upgrade_manifest(manifest)
   manifest["sampleAttributionRevisions"] ||= []
   upgrade_recording_devices!(manifest, source_version)
   upgrade_planned_stays!(manifest, source_version)
-  manifest.delete("recordingDevices")
-  manifest.delete("recordingDeviceCheckIns")
-  manifest.delete("recordingPolicyChanges")
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest

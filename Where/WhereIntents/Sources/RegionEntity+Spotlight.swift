@@ -21,7 +21,11 @@ public enum RegionSpotlightIndexer {
     public static func indexRegions(resolving intentServices: IntentServices) async {
         do {
             let entities = try await RegionEntity.tracked(from: intentServices.current())
-            try await CSSearchableIndex.default().indexAppEntities(entities)
+            let index = CSSearchableIndex.default()
+            // Upserting tracked entities leaves older entries, including Canada, in Spotlight.
+            let retired = RegionCatalog.shared.nodes.filter { !$0.isLoggable }.map(\.id.rawValue)
+            try await index.deleteAppEntities(identifiedBy: retired, ofType: RegionEntity.self)
+            try await index.indexAppEntities(entities)
             logger.spotlightIndexed(regionCount: .restricted(.count, entities.count))
         } catch {
             // Degraded-but-handled: search integration is a nicety, so a failure

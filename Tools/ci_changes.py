@@ -22,6 +22,7 @@ INPUT_DIRECTORIES = {"resources", "fixtures", "__snapshots__", "src", "public"}
 class Decision:
     skip_validation: bool
     reason: str
+    run_boundary_tests: bool = True
 
 
 def documentation_path(path):
@@ -31,14 +32,15 @@ def documentation_path(path):
     )
 
 
-def documentation_diff(raw_diff):
-    """Read NUL-delimited raw Git records with rename detection disabled."""
+def diff_inputs(raw_diff):
+    """Check documentation eligibility and boundary-test inputs in the full raw diff."""
     if not raw_diff:
-        return False
+        return False, True
     fields = raw_diff.split(b"\0")
     if fields.pop() != b"" or len(fields) % 2:
         raise ValueError("Incomplete Git diff")
     docs_only = True
+    boundary_tests = False
     for index in range(0, len(fields), 2):
         metadata = fields[index].split()
         if (
@@ -53,9 +55,68 @@ def documentation_diff(raw_diff):
         modes = (metadata[0][1:], metadata[1])
         if any(mode not in (b"000000", b"100644") for mode in modes):
             docs_only = False
-        if not documentation_path(os.fsdecode(fields[index + 1])):
+        path = os.fsdecode(fields[index + 1])
+        if path.startswith("Where/RegionKit/Tools/") or path in {
+            ".github/workflows/ci.yml",
+            ".mise.toml",
+            "Tools/ci_changes.py",
+        }:
+            boundary_tests = True
+        if not documentation_path(path):
             docs_only = False
-    return docs_only
+    return docs_only, boundary_tests
+
+
+def classify_diff(root, base, head, *, pull_request):
+    scope = "PR" if pull_request else "push"
+    try:
+        if not all(re.fullmatch(r"[0-9a-fA-F]{40}", sha) for sha in (base, head)):
+            raise ValueError("Missing commit identity")
+        # PRs contribute changes since their merge base. A push contributes
+        # everything that changed from the previous main tip to the new tip.
+        if not pull_request:
+            subprocess.run(
+                ["git", "merge-base", "--is-ancestor", base, head],
+                cwd=root,
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+        revisions = f"{base}...{head}" if pull_request else f"{base}..{head}"
+        result = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--raw",
+                "-z",
+                "--no-renames",
+                "--no-ext-diff",
+                "--no-textconv",
+                revisions,
+                "--",
+            ],
+            cwd=root,
+            capture_output=True,
+            check=True,
+            timeout=60,
+        )
+        docs_only, boundary_tests = diff_inputs(result.stdout)
+        if docs_only:
+            return Decision(
+                True,
+                f"The complete {scope} diff changes only documentation.",
+                run_boundary_tests=False,
+            )
+        return Decision(
+            False,
+            f"The {scope} contains CI inputs or has an empty diff.",
+            run_boundary_tests=boundary_tests,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        return Decision(
+            False,
+            f"Cannot classify the {scope} ({type(error).__name__}). Running full CI.",
+        )
 
 
 def classify_changes(
@@ -71,8 +132,19 @@ def classify_changes(
     token=None,
 ):
     if not force and event == "push" and branch == "main" and push_forced == "false":
+
+        def documentation_push(before):
+            return classify_diff(root, before, head, pull_request=False).skip_validation
+
         try:
-            evidence = validated_merge(root, repository, head, token)
+            evidence = validated_merge(
+                root,
+                repository,
+                head,
+                token,
+                before=base,
+                documentation_push=documentation_push,
+            )
         except MissingMergeEvidence as error:
             return Decision(False, f"{error}. Running full CI.")
         except Exception as error:
@@ -83,38 +155,11 @@ def classify_changes(
                 f"Cannot verify the merged PR ({type(error).__name__}). Running full CI.",
             )
         if evidence:
-            return Decision(True, evidence)
-        return Decision(False, "No matching full PR validation. Running full CI.")
+            return Decision(True, evidence, run_boundary_tests=False)
+        return Decision(False, "No matching PR validation. Running full CI.")
     if force or event != "pull_request":
         return Decision(False, "Full CI requested by this event.")
-    try:
-        if not all(re.fullmatch(r"[0-9a-fA-F]{40}", sha) for sha in (base, head)):
-            raise ValueError("Missing PR commit identity")
-        result = subprocess.run(
-            [
-                "git",
-                "diff",
-                "--raw",
-                "-z",
-                "--no-renames",
-                "--no-ext-diff",
-                "--no-textconv",
-                f"{base}...{head}",
-                "--",
-            ],
-            cwd=root,
-            capture_output=True,
-            check=True,
-            timeout=60,
-        )
-        if documentation_diff(result.stdout):
-            return Decision(True, "The complete PR diff changes only documentation.")
-        return Decision(False, "The PR contains CI inputs or has an empty diff.")
-    except (OSError, ValueError, subprocess.SubprocessError) as error:
-        return Decision(
-            False,
-            f"Cannot classify the PR ({type(error).__name__}). Running full CI.",
-        )
+    return classify_diff(root, base, head, pull_request=True)
 
 
 def main(argv=None):
@@ -140,6 +185,7 @@ def main(argv=None):
     )
     print(decision.reason, file=sys.stderr)
     print(f"skip_validation={str(decision.skip_validation).lower()}")
+    print(f"run_boundary_tests={str(decision.run_boundary_tests).lower()}")
     return 0
 
 

@@ -13,10 +13,10 @@ struct YearReportModelTests {
         let model = YearReportModel(
             services: PreviewSupport.previewServices(),
             details: YearReportDetails(
-                primaryRegions: [.california, .newYork, .canada, .europeanUnion],
+                primaryRegions: [.california, .newYork, .ontario, .europeanUnion],
                 report: YearReport(year: 2026, days: [], totals: [
                     .other: 40,
-                    .canada: 10,
+                    .ontario: 10,
                     .newYork: 8,
                     .california: 8,
                     .europeanUnion: 0,
@@ -26,7 +26,7 @@ struct YearReportModelTests {
             selectedYear: 2026,
             preferences: makePreferences(),
         )
-        #expect(model.locationRegions.map(\.region) == [.canada, .california, .newYork])
+        #expect(model.locationRegions.map(\.region) == [.ontario, .california, .newYork])
         #expect(model.locationRegions.map(\.days) == [10, 8, 8])
         #expect(model.ranking.primary.count == 2)
         #expect(model.hasElsewhere)

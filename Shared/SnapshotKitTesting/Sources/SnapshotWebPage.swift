@@ -20,38 +20,51 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
     private enum LoadState {
         case loading
         case loaded
+        case ready
         case failed(any Error)
     }
 
     /// The DOM measurement owns sizing; UIKit's scroll mirror can lag behind it.
     final class DocumentView: WKWebView, SnapshotContentSizeProviding {}
 
-    let webView: WKWebView
+    let webView: DocumentView
+    var reusableWebView: DocumentView? {
+        guard case .ready = loadState else { return nil }
+        return webView
+    }
+
     private(set) var size: CGSize
+    private let initialSize: CGSize
     private let html: String
+    private let contentMode: WKWebpagePreferences.ContentMode
+    private let decodesImages: Bool
+    private var navigation: WKNavigation?
     private var loadState: LoadState = .loading
     private var paintContinuation: CheckedContinuation<CGFloat, any Error>?
 
-    private init(html: String, size: CGSize, configuration: WKWebViewConfiguration) {
+    private init(
+        html: String,
+        size: CGSize,
+        webView: DocumentView,
+        contentMode: WKWebpagePreferences.ContentMode,
+        decodesImages: Bool,
+    ) {
         self.html = html
+        initialSize = size
         self.size = size
-        webView = DocumentView(
-            frame: CGRect(origin: .zero, size: size),
-            configuration: configuration,
-        )
+        self.webView = webView
+        self.contentMode = contentMode
+        self.decodesImages = decodesImages
         super.init()
+        webView.frame = CGRect(origin: .zero, size: size)
         webView.navigationDelegate = self
-        webView.scrollView.contentInsetAdjustmentBehavior = .never
-        // Capture the document itself, without native chrome blurring its edges.
-        webView.scrollView.topEdgeEffect.isHidden = true
-        webView.scrollView.bottomEdgeEffect.isHidden = true
-        webView.scrollView.leftEdgeEffect.isHidden = true
-        webView.scrollView.rightEdgeEffect.isHidden = true
     }
 
     static func make(
         _ html: String,
         configuration: SnapshotConfiguration,
+        reusing previous: DocumentView? = nil,
+        decodesImages: Bool = false,
     ) async throws -> SnapshotWebPage {
         try Task.checkCancellation()
         guard configuration.snapshotType == .standard,
@@ -59,12 +72,32 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
         else { throw Failure.requiresStandardFullContent }
         let size = CGSize(width: width, height: minimumHeight ?? 1)
         try validateSize(size, scale: 1)
+        let webView: DocumentView
+        if let previous {
+            let dataStore = previous.configuration.websiteDataStore
+            await dataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                modifiedSince: .distantPast,
+            )
+            try Task.checkCancellation()
+            webView = previous
+        } else {
+            webView = try await makeWebView(size: size)
+        }
+        return SnapshotWebPage(
+            html: html,
+            size: size,
+            webView: webView,
+            contentMode: configuration.uiTraitCollection
+                .userInterfaceIdiom == .pad ? .desktop : .recommended,
+            decodesImages: decodesImages,
+        )
+    }
+
+    private static func makeWebView(size: CGSize) async throws -> DocumentView {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.websiteDataStore = .nonPersistent()
         webConfiguration.defaultWebpagePreferences.allowsContentJavaScript = false
-        if configuration.uiTraitCollection.userInterfaceIdiom == .pad {
-            webConfiguration.defaultWebpagePreferences.preferredContentMode = .desktop
-        }
         let rules = try await WKContentRuleListStore.default().compileContentRuleList(
             forIdentifier: "SnapshotKitTesting.offline",
             encodedContentRuleList: #"[{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}}]"#,
@@ -72,19 +105,33 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
         guard let rules else { throw Failure.missingContentRules }
         try Task.checkCancellation()
         webConfiguration.userContentController.add(rules)
-        return SnapshotWebPage(html: html, size: size, configuration: webConfiguration)
+        let webView = DocumentView(
+            frame: CGRect(origin: .zero, size: size),
+            configuration: webConfiguration,
+        )
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        // Capture the document itself, without native chrome blurring its edges.
+        webView.scrollView.topEdgeEffect.isHidden = true
+        webView.scrollView.bottomEdgeEffect.isHidden = true
+        webView.scrollView.leftEdgeEffect.isHidden = true
+        webView.scrollView.rightEdgeEffect.isHidden = true
+        return webView
     }
 
-    /// Runs once from the shared pre-measure hook, while this view is hosted.
+    /// Runs from the shared pre-measure hook on each hosted capture attempt.
     /// Its timeout includes navigation, fonts, and every viewport reflow pass.
     func prepare() async throws {
         try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let minimumSize = size
+            // A retry can start after the previous attempt grew to the full document height.
+            loadState = .loading
+            size = initialSize
+            webView.frame.size = size
+            webView.scrollView.setContentOffset(.zero, animated: false)
             let scale = webView.traitCollection.displayScale
             try Self.validateSize(size, scale: scale)
-            guard webView.loadHTMLString(html, baseURL: nil) != nil
-            else { throw Failure.navigationDidNotStart }
+            navigation = webView.loadHTMLString(html, baseURL: nil)
+            guard navigation != nil else { throw Failure.navigationDidNotStart }
             try await waitForLoad()
             // A viewport resize can change CSS layout. Await each paint before
             // remeasurement; never record the final arbitrary height on failure.
@@ -92,12 +139,16 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
             for _ in 0 ..< 5 {
                 try Task.checkCancellation()
                 let documentHeight = try await waitForPaint()
+                if case let .failed(error) = loadState { throw error }
                 let measured = CGSize(
-                    width: minimumSize.width,
-                    height: max(minimumSize.height, ceil(documentHeight)),
+                    width: initialSize.width,
+                    height: max(initialSize.height, ceil(documentHeight)),
                 )
                 try Self.validateSize(measured, scale: scale)
-                if size == measured { return }
+                if size == measured {
+                    loadState = .ready
+                    return
+                }
                 size = measured
                 webView.frame.size = measured
                 webView.invalidateIntrinsicContentSize()
@@ -110,14 +161,22 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
     }
 
     func stop() {
-        webView.stopLoading()
-        webView.navigationDelegate = nil
-        loadState = .failed(CancellationError())
+        // A cancelled hook can deliver its cleanup after the next wrapper took ownership.
+        if webView.navigationDelegate === self {
+            webView.navigationDelegate = nil
+            webView.stopLoading()
+        }
+        fail(CancellationError())
+    }
+
+    private func fail(_ error: any Error) {
+        navigation = nil
+        loadState = .failed(error)
         // WebKit's async JavaScript overlay does not cancel a pending RAF.
         // Resume our waiter on cancellation; a later callback is harmless.
         let continuation = paintContinuation
         paintContinuation = nil
-        continuation?.resume(throwing: CancellationError())
+        continuation?.resume(throwing: error)
     }
 
     private static func validateSize(_ size: CGSize, scale: CGFloat) throws {
@@ -133,7 +192,7 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
         while true {
             try Task.checkCancellation()
             switch loadState {
-                case .loaded: return
+                case .loaded, .ready: return
                 case let .failed(error): throw error
                 case .loading: try await Task.sleep(for: .milliseconds(10))
             }
@@ -147,10 +206,14 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
             webView.callAsyncJavaScript(
                 """
                 await document.fonts.ready;
+                if (decodesImages) {
+                    const selectedImages = Array.from(document.images).filter(image => image.currentSrc);
+                    await Promise.all(selectedImages.map(image => image.decode()));
+                }
                 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                 return Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0);
                 """,
-                arguments: [:],
+                arguments: ["decodesImages": decodesImages],
                 in: nil,
                 in: .page,
             ) { [weak self] result in
@@ -169,24 +232,38 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
         return height
     }
 
-    func webView(_: WKWebView, didFinish _: WKNavigation!) {
+    func webView(
+        _: WKWebView,
+        decidePolicyFor action: WKNavigationAction,
+        preferences: WKWebpagePreferences,
+    ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+        if action.targetFrame?.isMainFrame == true {
+            preferences.preferredContentMode = contentMode
+        }
+        return (.allow, preferences)
+    }
+
+    func webView(_: WKWebView, didFinish completed: WKNavigation!) {
+        guard let completed, navigation === completed else { return }
         loadState = .loaded
     }
 
-    func webView(_: WKWebView, didFail _: WKNavigation!, withError error: any Error) {
-        loadState = .failed(error)
+    func webView(_: WKWebView, didFail failed: WKNavigation!, withError error: any Error) {
+        guard let failed, navigation === failed else { return }
+        fail(error)
     }
 
     func webView(
         _: WKWebView,
-        didFailProvisionalNavigation _: WKNavigation!,
+        didFailProvisionalNavigation failed: WKNavigation!,
         withError error: any Error,
     ) {
-        loadState = .failed(error)
+        guard let failed, navigation === failed else { return }
+        fail(error)
     }
 
     func webViewWebContentProcessDidTerminate(_: WKWebView) {
-        loadState = .failed(WKError(.webContentProcessTerminated))
+        fail(WKError(.webContentProcessTerminated))
     }
 }
 

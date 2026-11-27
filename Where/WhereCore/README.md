@@ -20,13 +20,16 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 `DataCompatibilityCoordinator` decides whether the app can open history before SwiftData starts.
 `DataModelVersion.current` describes data semantics independently of the app version. Version 1 also covers data from builds without this gate.
+Append each incompatible version to the version history with its user-facing reason from the WhereCore string catalog. The last entry sets `current`.
+Version 2 admits Canadian province and territory IDs in existing region fields. A
+version-1 reader can discard an unfamiliar ID when it reads a stored manual day.
 The private CloudKit control record lives outside SwiftData's zone. Conditional saves only advance its version.
 Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
 Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
-A newer shared version requires an app update.
+A newer shared version requires an app update. The publishing device includes every bundled translation of the reason in the same CloudKit save. The lockout screen matches the reader’s preferred languages, falls back to English, and uses the standard update instructions when no reason is available.
 The [publication model](../Specifications/CompatibilityPublication/README.md) checks bounded competing writes, recording eligibility, and receipt-based admission.
 
-The atomic App Group receipt preserves the highest observed version and excludes itself from backups.
+The atomic App Group receipt preserves the highest observed version and its reason so the lockout can explain the change on relaunch. The receipt is excluded from backups.
 Transient failures permit offline access only after the same account and version passed verification.
 CloudKit must still identify that account. Missing, corrupt, unreadable, or blocked receipts do not grant offline access.
 `LocalDataCompatibilityTransport` reports this build's format through the same coordinator, which still checks the durable floor and saves a receipt. The cloud transport delegates to it only after CloudKit confirms `.noAccount`; restricted, indeterminate, and temporarily unavailable accounts remain blocking. A local receipt never substitutes for cloud publication or cloud offline evidence.
@@ -69,7 +72,7 @@ one it belongs to rather than to a god-object:
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
-  per region, defaulting to the four until the user chooses in the onboarding /
+  per region, defaulting to California, New York and the EU until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
   advisory check-ins rather than one mutable device row. Recording consent stays local.
@@ -85,7 +88,7 @@ one it belongs to rather than to a god-object:
   app + App Intents process attribute against the same synced set. Assemble
   services with `WhereServices.make(...)` (async — it reads the tracked set) in
   production. The synchronous `WhereServices.init` uses `RegionAttributor.shared`
-  (the default four) for tests/previews.
+  (the default set) for tests/previews.
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
@@ -114,7 +117,9 @@ one it belongs to rather than to a god-object:
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
   California trips, plus the backfills and corrected attributions a real year
-  has. Its configuration independently includes missing-day, border-drift,
+  has. The journal commits the GPS and manual entries together and publishes
+  one widget snapshot of the completed year.
+  Its configuration independently includes missing-day, border-drift,
   abrupt-change, and detected-flight fixtures; unchecked detector categories
   stay absent. The standard onboarding demo includes missing days. Bound to the
   current year and derived from it, so it normally stops at today and is the
@@ -320,7 +325,9 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v7** retains independent stays, date windows, Home choices, optional motion,
+  Backup format **v8** adds Canadian subdivision IDs. An older importer rejects the
+  archive before changing any user data, including a manual-only backup moved between
+  accounts. Version 8 retains independent stays, date windows, Home choices, optional motion,
   and every sample-attribution revision. Merge preserves revision IDs and timestamps.
   Replace restores revisions into its new generation.
   The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.
@@ -414,7 +421,7 @@ import WhereCore
 // Production wiring reads the tracked regions from the store to build the
 // attributor, so `make(...)` is the one public entry and is async. Tests and
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
-// attributor, default four) via `@_spi(Testing) import WhereCore`.
+// attributor, default set) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
     store: try SwiftDataStore.make(storage: .cloudKit(
         appGroupIdentifier: "group.com.stuff.where"

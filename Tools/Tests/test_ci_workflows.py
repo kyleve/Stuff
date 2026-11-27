@@ -3,6 +3,8 @@
 import ast
 import json
 import re
+from pathlib import Path
+import tempfile
 import subprocess
 import unittest
 
@@ -16,7 +18,7 @@ class CIWorkflowTests(unittest.TestCase):
         cls.validation_jobs = json.loads(
             (root / "Tools/ci-validation-jobs.json").read_text()
         )
-        cls.github, cls.setup, cls.continued = json.loads(
+        cls.github, cls.setup, cls.continued, cls.distribution = json.loads(
             subprocess.check_output(
                 [
                     "ruby",
@@ -27,6 +29,7 @@ class CIWorkflowTests(unittest.TestCase):
                     str(root / ".github/workflows/ci.yml"),
                     str(root / ".circleci/config.yml"),
                     str(root / ".circleci/continue.yml"),
+                    str(root / ".github/workflows/installer-distribute-app.yml"),
                 ],
                 text=True,
             )
@@ -58,9 +61,32 @@ class CIWorkflowTests(unittest.TestCase):
             for key, options in item.items()
         ]
         self.assertEqual(len({name for _, name in jobs}), len(jobs))
+        skipped_names = [name for key, name in jobs if key == "validation-skipped"]
+        self.assertEqual(
+            skipped_names, [self.validation_jobs["circleci"]["skipped_job"]]
+        )
         full_names = [name for key, name in jobs if key != "validation-skipped"]
         self.assertEqual(
             sorted(full_names), sorted(self.validation_jobs["circleci"]["jobs"])
+        )
+
+    def test_snapshot_inventory_runs_once_after_exporting_unit_results(self):
+        jobs = self.continued["jobs"]
+        owners = [
+            (job, index)
+            for job, config in jobs.items()
+            for index, step in enumerate(config["steps"])
+            if isinstance(step, dict)
+            and isinstance(step.get("run"), dict)
+            and step["run"].get("command")
+            == "bash .circleci/validate_snapshot_inventory.sh"
+        ]
+        self.assertEqual([job for job, _ in owners], ["test-ios"])
+        steps = jobs["test-ios"]["steps"]
+        _, gate = owners[0]
+        self.assertTrue(any("export_test_results" in step for step in steps[:gate]))
+        self.assertTrue(
+            any("collect_diagnostics" in step for step in steps[gate + 1 :])
         )
 
     def test_every_github_worker_uses_the_same_fail_safe_selection(self):
@@ -88,7 +114,25 @@ class CIWorkflowTests(unittest.TestCase):
             "${{ github.event.pull_request.head.sha || github.sha }}",
         )
         self.assertEqual(
-            command["env"]["CI_BASE_SHA"], "${{ github.event.pull_request.base.sha }}"
+            command["env"]["CI_BASE_SHA"],
+            "${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}",
+        )
+
+    def test_boundary_fixtures_run_in_tool_tests_unless_classified_as_unrelated(self):
+        jobs = self.github["jobs"]
+        self.assertEqual(
+            jobs["changes"]["outputs"]["run_boundary_tests"],
+            "${{ steps.classify.outputs.run_boundary_tests }}",
+        )
+        step = next(
+            step
+            for step in jobs["test-tools"]["steps"]
+            if "unittest discover -s Where/RegionKit/Tools " in step.get("run", "")
+        )
+        self.assertIn("Where/RegionKit/Tools/requirements-boundaries.txt", step["run"])
+        self.assertEqual(
+            step["if"],
+            "${{ needs.changes.result != 'success' || needs.changes.outputs.run_boundary_tests != 'false' }}",
         )
 
     def test_github_uses_push_identity_and_reads_evidence_only_on_main_pushes(self):
@@ -245,6 +289,160 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertIn("docker", self.continued["executors"][job["executor"]])
         self.assertEqual(len(job["steps"]), 1)
         self.assertIn("echo", job["steps"][0]["run"])
+
+    def test_where_release_builds_run_only_in_the_daily_main_workflow(self):
+        daily = self.validation_jobs["daily_where_audiences"]
+        workflows = self.continued["workflows"]
+        audience_jobs = [
+            (name, item["build-where-audiences"])
+            for name, workflow in workflows.items()
+            for item in workflow["jobs"]
+            if "build-where-audiences" in item
+        ]
+        self.assertEqual(audience_jobs, [(daily["workflow"], {"name": daily["job"]})])
+        conditions = {
+            'pipeline.event.name == "schedule"',
+            'pipeline.git.branch == "main"',
+            'pipeline.config.ref == "refs/heads/main"',
+        }
+        workflow_condition = workflows[daily["workflow"]]["when"]
+        self.assertEqual(set(workflow_condition.split(" and ")), conditions)
+        self.assertIn(
+            f"({workflow_condition})",
+            self.setup["workflows"]["Select workflows"]["when"],
+        )
+        audience = self.continued["jobs"]["build-where-audiences"]
+        self.assertIn("macos", self.continued["executors"][audience["executor"]])
+        self.assertEqual(audience["parallelism"], 2)
+        commands = "\n".join(
+            step["run"]["command"] for step in audience["steps"] if "run" in step
+        )
+        self.assertIn('0) scheme="Where Beta"', commands)
+        self.assertIn('1) scheme="Where App Store"', commands)
+
+    def test_schedule_halts_before_continuation_only_after_verified_success(self):
+        steps = self.setup["jobs"]["select-workflows"]["steps"]
+        gate = next(step["when"] for step in steps[:-1] if "when" in step)
+        self.assertEqual(
+            gate["condition"],
+            {
+                "and": [
+                    {"equal": ["schedule", "<< pipeline.event.name >>"]},
+                    {"equal": ["false", "<< pipeline.parameters.manual_full_gate >>"]},
+                ]
+            },
+        )
+        command = gate["steps"][0]["run"]["command"]
+        shell = """
+            proof_status="$1"
+            python3() { [[ "$*" == "-m Tools.ci_daily_audiences" ]] || exit 99; return "$proof_status"; }
+            circleci-agent() { [[ "$*" == "step halt" ]] || exit 99; echo halted; }
+        """
+        for proof_status, expected in ((0, "halted"), (1, ""), (2, "")):
+            with self.subTest(proof_status=proof_status):
+                result = subprocess.check_output(
+                    [
+                        "bash",
+                        "-eu",
+                        "-c",
+                        shell + command,
+                        "selector",
+                        str(proof_status),
+                    ],
+                    text=True,
+                )
+                self.assertEqual(result.strip(), expected)
+
+    def test_superseded_main_halts_only_after_uploading_its_marker(self):
+        steps = self.continued["jobs"]["archive-app"]["steps"]
+        upload = next(
+            i
+            for i, step in enumerate(steps)
+            if isinstance(step, dict) and "store_artifacts" in step
+        )
+        marker_dir = steps[upload]["store_artifacts"]
+        self.assertEqual(
+            marker_dir,
+            {"path": "/tmp/installer-archive/eligibility", "destination": "installer"},
+        )
+        prepare = steps[upload - 1]["run"]["command"]
+        self.assertIn('mkdir -p "$RUNNER_TEMP/eligibility"', prepare)
+        self.assertIn(
+            '--superseded-marker "$RUNNER_TEMP/eligibility/superseded-main"', prepare
+        )
+        halt = steps[upload + 1]["run"]["command"]
+        self.assertTrue(
+            any(
+                "Install temporary signing material" in str(step)
+                for step in steps[upload + 2 :]
+            )
+        )
+        for stale in (False, True):
+            with self.subTest(stale=stale), tempfile.TemporaryDirectory() as temporary:
+                directory = Path(temporary) / "eligibility"
+                directory.mkdir()
+                if stale:
+                    (directory / "superseded-main").write_text("superseded commit")
+                output = subprocess.check_output(
+                    [
+                        "bash",
+                        "-eu",
+                        "-c",
+                        'RUNNER_TEMP=$1; circleci-agent() { [[ "$*" == "step halt" ]] && echo halted; }; '
+                        + halt,
+                        "test",
+                        temporary,
+                    ],
+                    text=True,
+                )
+                self.assertEqual(output.strip(), "halted" if stale else "")
+
+    def test_archive_handoff_routes_ready_skipped_and_failed_jobs(self):
+        jobs = self.distribution["jobs"]
+        archive = jobs["archive"]
+        steps = archive["steps"]
+        self.assertEqual(
+            archive["outputs"]["outcome"], "${{ steps.archive.outputs.outcome }}"
+        )
+        controller = next(step for step in steps if step.get("id") == "archive")
+        self.assertIn('--github-output "$GITHUB_OUTPUT"', controller["run"])
+        cleanup = next(
+            step for step in steps if "--clear-superseded" in step.get("run", "")
+        )
+        upload = next(
+            step for step in steps if "upload-artifact" in step.get("uses", "")
+        )
+        self.assertEqual(cleanup["if"], "steps.archive.outputs.outcome == 'superseded'")
+        self.assertEqual(upload["if"], "steps.archive.outputs.outcome == 'archived'")
+        self.assertEqual(upload["with"]["if-no-files-found"], "error")
+        # Ruby and these Actions gates share the same boolean and comparison operators.
+        script = f"""
+            def always; true; end
+            needs = JSON.parse(ARGV.fetch(0), object_class: OpenStruct)
+            puts JSON.generate([{jobs["publish"]["if"]}, {jobs["publication-failed"]["if"]}])
+        """
+        for action, result, outcome, publish, expected in (
+            ("publish", "success", "archived", "success", [True, False]),
+            ("publish", "success", "archived", "failure", [True, True]),
+            ("publish", "success", "superseded", "skipped", [False, False]),
+            ("publish", "failure", "superseded", "skipped", [False, True]),
+            ("publish", "failure", "", "skipped", [False, True]),
+            ("publish", "success", "", "skipped", [False, True]),
+            ("retire", "skipped", "", "success", [True, False]),
+        ):
+            with self.subTest(
+                action=action, result=result, outcome=outcome, publish=publish
+            ):
+                needs = {
+                    "plan": {"result": "success", "outputs": {"action": action}},
+                    "archive": {"result": result, "outputs": {"outcome": outcome}},
+                    "publish": {"result": publish},
+                }
+                actual = subprocess.check_output(
+                    ["ruby", "-rjson", "-rostruct", "-e", script, json.dumps(needs)],
+                    text=True,
+                )
+                self.assertEqual(json.loads(actual), expected)
 
     def test_publication_workflows_remain_separate_from_validation_selection(self):
         for name in ("Flyover Export", "Installer Archive"):

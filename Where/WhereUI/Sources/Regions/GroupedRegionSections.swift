@@ -55,9 +55,9 @@ struct GroupedRegionSections<Row: View>: View {
         Form {
             GroupedRegionSections(
                 grouping: RegionGrouping(
-                    available: [.california, .newYork, .canada, .europeanUnion, .other],
+                    available: [.california, .newYork, .ontario, .europeanUnion, .other],
                     primary: [.california, .newYork],
-                    usedThisYear: [.canada],
+                    usedThisYear: [.ontario],
                 ),
                 yoursFooter: nil,
             ) { region in

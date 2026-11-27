@@ -54,7 +54,7 @@ struct WhereServicesForIntentsSharingTests {
         let later = FlightTrajectoryFixtures.sample(501, minutes: 240, east: 1505)
         try await h.store.perform { try await h.store.add(sample: later) }
 
-        let expected = proposal.resultingRegions.union([.canada])
+        let expected = proposal.resultingRegions.union([.ontario])
         let intents = WhereServices.forIntents(sharingStoreOf: h.services)
         let report = try await h.reader.yearReport(for: h.day.year)
         let intentReport = try await intents.reports.yearReport(for: h.day.year)
@@ -67,16 +67,16 @@ struct WhereServicesForIntentsSharingTests {
         #expect(try await h.store.sampleAttributionRevisions(for: [later.id]).isEmpty)
 
         let maps = try await h.reader.locations(onDay: h.day)
-        #expect(maps[.canada]?.map(\.coordinate) == [later.coordinate])
+        #expect(maps[.ontario]?.map(\.coordinate) == [later.coordinate])
         let originalSamples = FlightTrajectoryFixtures.turningFlight().samples
         let excludedIDs = Set(proposal.edits.filter(\.replacementRegions.isEmpty).map(\.sampleID))
         let excludedCoordinates = Set(originalSamples.filter { excludedIDs.contains($0.id) }
             .map(\.coordinate))
         let mappedCoordinates = Set(maps.values.flatMap { $0.map(\.coordinate) })
         #expect(mappedCoordinates.isDisjoint(with: excludedCoordinates))
-        #expect(try await h.reader.representativeCoordinates(for: h.day.year)[.canada] == later
+        #expect(try await h.reader.representativeCoordinates(for: h.day.year)[.ontario] == later
             .coordinate)
-        #expect(try await h.reader.locations(in: .canada, year: h.day.year).first?.points
+        #expect(try await h.reader.locations(in: .ontario, year: h.day.year).first?.points
             .map(\.coordinate) == [later.coordinate])
         #expect(try await h.store.allSamples().count == originalSamples.count + 1)
     }

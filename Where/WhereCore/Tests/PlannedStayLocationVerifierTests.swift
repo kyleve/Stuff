@@ -4,6 +4,15 @@ import Testing
 @_spi(Testing) import WhereCore
 
 struct PlannedStayLocationVerifierTests {
+    @Test func acceptsAnOntarioStayInToronto() async throws {
+        let fixture = CanadianAttributionFixture.self
+        let attributor = fixture.bothProvinces
+        #expect(attributor.region(at: fixture.toronto) == .ontario)
+        let (verifier, source) = try makeVerifier(attributor: attributor)
+        source.setNextRequestedLocation(sample(at: fixture.toronto))
+        #expect(await verifier.status(for: .ontario, driftThreshold: .km1) == .accepted)
+    }
+
     @Test func acceptsLocationInsideRegion() async throws {
         let (verifier, source) = try makeVerifier()
         source.setNextRequestedLocation(sample(

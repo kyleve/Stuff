@@ -26,6 +26,9 @@ def push_forced(environ):
         return ""
     try:
         values = public_circleci_get(f"pipeline/{pipeline_id}/values")
+    except HTTPError as error:
+        error.close()
+        return ""
     except (OSError, HTTPException, ValueError):
         return ""
     expected = {
@@ -48,7 +51,9 @@ def continue_pipeline(root, environ, transport):
         root,
         event=event,
         push_forced=push_forced(environ),
-        base=environ.get("CI_BASE_SHA", ""),
+        # CircleCI exposes the PR base but omits GitHub's push before SHA.
+        # The merged-PR verifier can read that range from main's branch activity.
+        base="" if event == "push" else environ.get("CI_BASE_SHA", ""),
         head=environ.get("CI_CHECKOUT_SHA" if event == "push" else "CI_HEAD_SHA", ""),
         branch=environ.get("CI_BRANCH", ""),
         repository=environ.get("CI_REPOSITORY", ""),
@@ -81,6 +86,7 @@ def main():
     try:
         continue_pipeline(repository_root(__file__), os.environ, request_json)
     except HTTPError as error:
+        error.close()
         print(f"CircleCI continuation failed (HTTP {error.code}).", file=sys.stderr)
         return 1
     except Exception as error:

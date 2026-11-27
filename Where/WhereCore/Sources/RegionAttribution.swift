@@ -8,8 +8,8 @@ import RegionKit
 /// sees a rebuild the moment the tracked set changes — a local edit or a remote
 /// CloudKit import, both of which arrive on `store.changes()`.
 ///
-/// `region(at:)` / `distanceToBoundary(_:from:)` forward to the current
-/// snapshot. Rebuilding (re-parsing the per-region GeoJSON) happens only when
+/// Each lookup reads one immutable snapshot, including a match with its
+/// boundary distance. Rebuilding the polygon lookup happens only when
 /// the tracked *set* actually changes, so reacting to every `changes()` ping
 /// stays cheap on the GPS hot path (a fetch + a set compare).
 final class RegionAttribution: RegionAttributing, WhereShutdownable {
@@ -101,6 +101,14 @@ final class RegionAttribution: RegionAttributing, WhereShutdownable {
         current.region(at: coordinate)
     }
 
+    func matchWithBoundaryDistance(at coordinate: Coordinate) -> RegionBoundaryMatch? {
+        current.matchWithBoundaryDistance(at: coordinate)
+    }
+
+    func distance(to region: Region, from coordinate: Coordinate) -> Double? {
+        current.distance(to: region, from: coordinate)
+    }
+
     func distanceToBoundary(of region: Region, from coordinate: Coordinate) -> Double? {
         current.distanceToBoundary(of: region, from: coordinate)
     }
@@ -135,9 +143,8 @@ final class RegionAttribution: RegionAttributing, WhereShutdownable {
         let ids = Set(tracked.map(\.rawValue))
         let changed = state.withLock { $0.trackedIDs != ids }
         guard changed else { return }
-        // Canonical order so the rebuilt attributor's first-match priority is
-        // deterministic (see WhereServices.make). Re-parsing every tracked
-        // region's GeoJSON is the expensive part, hence the span.
+        // Catalog order gives overlapping unrelated regions a stable tiebreak.
+        // The span includes loading and indexing the tracked regions' polygons.
         let rebuilt = Self.logger.measure(.rebuild, budget: .seconds(1)) {
             RegionAttributor(for: Region.inCanonicalOrder(tracked))
         }

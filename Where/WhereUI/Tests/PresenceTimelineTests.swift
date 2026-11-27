@@ -68,10 +68,10 @@ struct PresenceTimelineTests {
         let days = [
             DayPresence(date: day(2026, 3, 1), in: calendar, regions: [.newYork]),
             DayPresence(date: day(2026, 1, 1), in: calendar, regions: [.california]),
-            DayPresence(date: day(2026, 2, 1), in: calendar, regions: [.canada]),
+            DayPresence(date: day(2026, 2, 1), in: calendar, regions: [.ontario]),
         ]
         let stints = PresenceTimeline.stints(from: report(days), calendar: calendar)
-        #expect(stints.map(\.region) == [.california, .canada, .newYork])
+        #expect(stints.map(\.region) == [.california, .ontario, .newYork])
     }
 
     @Test func emptyReportProducesNoStints() {

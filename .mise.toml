@@ -20,6 +20,10 @@ ruff = "0.17.2"
 postinstall = "./sync-agents --install"
 
 [settings]
+# Keep pinned tools ahead of macOS system tools during login-shell setup.
+# The sync-agents hook resolves Ruby through PATH.
+activate_aggressive = true
+
 # Use mise's precompiled Ruby binaries instead of building from source with
 # ruby-build. Source builds need a full C toolchain plus libyaml/openssl and
 # routinely fail (e.g. the `psych` extension), which would break `./ide

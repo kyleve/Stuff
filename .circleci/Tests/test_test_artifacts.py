@@ -81,6 +81,32 @@ class ArtifactTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "test artifact commit"):
                 MODULE.load_and_validate(root, different)
 
+    def test_unit_scheme_fallback_requires_an_available_compatible_scheme(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.make_artifacts(directory)
+            products = root / "DerivedData" / "Build" / "Products"
+            focused, full = "Stuff-iOS-Tests", "Stuff-iOS-FullTests"
+            unit_schemes = (focused, full)
+            for name in unit_schemes:
+                (products / f"{name}_iphone.xctestrun").touch()
+            for preferred, alternative in (unit_schemes, unit_schemes[::-1]):
+                with self.subTest(preferred=preferred):
+                    MODULE.create_manifest(root, [alternative], METADATA)
+                    paths = MODULE.resolved_paths(
+                        root, [preferred], METADATA, unit_schemes
+                    )
+                    self.assertEqual([alternative], list(paths["schemes"]))
+
+                    MODULE.create_manifest(root, unit_schemes, METADATA)
+                    paths = MODULE.resolved_paths(
+                        root, [preferred], METADATA, unit_schemes
+                    )
+                    self.assertEqual([preferred], list(paths["schemes"]))
+
+            MODULE.create_manifest(root, ["StuffSnapshotTests"], METADATA)
+            with self.assertRaisesRegex(ValueError, f"no scheme named {full}"):
+                MODULE.resolved_paths(root, [full], METADATA, unit_schemes)
+
     def test_manifest_rejects_more_than_one_test_run_for_a_scheme(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.make_artifacts(directory)

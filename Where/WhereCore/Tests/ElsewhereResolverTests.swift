@@ -4,15 +4,33 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct ElsewhereResolverTests {
-    @Test func expandsCanadaAndTheEuropeanUnionUsingExistingCatalogIdentities() async throws {
-        let input = ElsewhereTestSupport.input(samples: [
-            ElsewhereTestSupport.sample(Coordinate(latitude: 49.2827, longitude: -123.1207)),
-            ElsewhereTestSupport.sample(Coordinate(latitude: 48.8566, longitude: 2.3522)),
-        ])
+    @Test func identifiesUntrackedQuebecAndTheEUFromSavedCoordinates() async throws {
+        let montreal = Coordinate(latitude: 45.5019, longitude: -73.5674)
+        let paris = Coordinate(latitude: 48.8566, longitude: 2.3522)
+        let tracked = RegionAttributor(for: [.ontario])
+        #expect(tracked.region(at: montreal) == .other)
+        let input = ElsewhereTestSupport.input(
+            samples: [ElsewhereTestSupport.sample(montreal), ElsewhereTestSupport.sample(paris)],
+            primaryRegions: [.ontario],
+        )
         let result = try await ElsewhereResolver().resolve(input)
-        #expect(result.regions.map(\.region) == [.canada, .europeanUnion])
+        let quebec = try #require(Region(rawValue: "ca-QC"))
+        #expect(result.regions.map(\.region) == [quebec, .europeanUnion])
         #expect(result.regions.allSatisfy { $0.days.count == 1 && $0.locations.count == 1 })
+        let province = try #require(RegionCatalog.shared.node(for: quebec))
+        #expect(RegionCatalog.shared.parent(of: province)?.id.rawValue == "canada")
         #expect(input.report.totals == [.other: 1])
+    }
+
+    @Test func savedOffshoreFixResolvesWithTheUntrackedRegionsTrackingBoundary() async throws {
+        let water = Coordinate(latitude: 40.998, longitude: -73.066)
+        let input = ElsewhereTestSupport.input(
+            samples: [ElsewhereTestSupport.sample(water)],
+            primaryRegions: [.ontario],
+        )
+        let result = try await ElsewhereResolver().resolve(input)
+        #expect(result.regions.map(\.region) == [.newYork])
+        #expect(result.regions.first?.representativeCoordinate == water)
     }
 
     @Test func namesUntrackedRegionsAndCountsDistinctDaysWithoutChangingTheReport() async throws {
@@ -62,17 +80,17 @@ struct ElsewhereResolverTests {
             samples: [ElsewhereTestSupport.sample(ElsewhereTestSupport.vegas)],
             manualDays: [
                 DayPresence(day: day, regions: [.other]),
-                DayPresence(day: CalendarDay(year: 2026, month: 6, day: 2), regions: [.canada]),
+                DayPresence(day: CalendarDay(year: 2026, month: 6, day: 2), regions: [.ontario]),
             ],
         )
         let result = try await ElsewhereResolver().resolve(input)
         let nevada = try #require(Region(rawValue: "us-NV"))
-        #expect(Set(result.regions.map(\.region)) == [nevada, .canada, .other])
-        #expect(result.regions.first { $0.region == .canada }?.locations.isEmpty == true)
+        #expect(Set(result.regions.map(\.region)) == [nevada, .ontario, .other])
+        #expect(result.regions.first { $0.region == .ontario }?.locations.isEmpty == true)
         #expect(result.regions.first { $0.region == .other }?.days.map(\.day) == [day])
     }
 
-    @Test(arguments: [Set<Region>(), [.other], [.canada], [.california]])
+    @Test(arguments: [Set<Region>(), [.other], [.ontario], [.california]])
     func explicitSampleCorrectionsWin(regions: Set<Region>) async throws {
         let sample = ElsewhereTestSupport.sample(ElsewhereTestSupport.vegas)
         let correction = SampleAttributionRevision(
@@ -108,8 +126,8 @@ struct ElsewhereResolverTests {
     @Test func primarySelectionExcludesManualRegions() async throws {
         let day = CalendarDay(year: 2026, month: 6, day: 1)
         let input = ElsewhereTestSupport.input(
-            manualDays: [DayPresence(day: day, regions: [.california, .newYork, .canada, .other])],
-            primaryRegions: [.california, .newYork, .canada],
+            manualDays: [DayPresence(day: day, regions: [.california, .newYork, .ontario, .other])],
+            primaryRegions: [.california, .newYork, .ontario],
         )
         let result = try await ElsewhereResolver().resolve(input)
         #expect(result.regions.map(\.region) == [.other])

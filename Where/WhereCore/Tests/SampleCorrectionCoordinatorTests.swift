@@ -223,7 +223,7 @@ struct SampleCorrectionCoordinatorTests {
                 case .manual:
                     try await h.store.setManualDay(.init(
                         day: h.day,
-                        regions: [.canada],
+                        regions: [.ontario],
                         isAuthoritative: true,
                         audit: nil,
                     ))
@@ -319,16 +319,16 @@ struct SampleCorrectionCoordinatorTests {
         )
         let proposal = try #require(review?.proposal)
         #expect(Set(proposal.edits.map(\.sampleID)) == trace.airborneSampleIDs)
-        #expect(proposal.resultingRegions == [.california, .canada, .newYork])
+        #expect(proposal.resultingRegions == [.california, .ontario, .newYork])
         guard case .applied = try await services.corrections.apply(proposal) else {
             Issue.record("The completed flight review must preserve the uncertain layover")
             return
         }
         #expect(try await services.reports.yearReport(for: day.year).days.first?.regions
-            == [.california, .canada, .newYork])
+            == [.california, .ontario, .newYork])
         let history = try await services.reports.dataIssueReads(for: day.year).history
         #expect(history.samples.filter { trace.layoverSampleIDs.contains($0.sample.id) }
-            .allSatisfy { $0.regions == [.canada] })
+            .allSatisfy { $0.regions == [.ontario] })
         #expect(try await store.allSamples() == trace.samples)
     }
 
@@ -364,7 +364,7 @@ struct SampleCorrectionCoordinatorTests {
         let before = try await services.reports.dataIssueReads(for: F.day.year)
         #expect(before.history.samples.count == fixture.samples.count)
         #expect(before.report.days.first { $0.day == F.day }?.regions
-            == [.california, .newYork, .canada])
+            == [.california, .newYork, .ontario])
 
         let review = try await services.corrections.review(
             id: .flightDay(day: F.day),
@@ -538,7 +538,7 @@ struct SampleCorrectionCoordinatorTests {
                 case .manual:
                     try await h.store.setManualDay(.init(
                         day: h.day,
-                        regions: [.canada],
+                        regions: [.ontario],
                         isAuthoritative: true,
                         audit: nil,
                     ))

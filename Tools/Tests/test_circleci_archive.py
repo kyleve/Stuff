@@ -1,4 +1,4 @@
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
 import io
 from pathlib import Path
@@ -51,6 +51,26 @@ class CircleCIArchiveTests(unittest.TestCase):
             self.assertEqual(commands[2][-3:], ["checkout", "--detach", request.sha])
             self.assertIn("core.hooksPath=/dev/null", commands[2])
 
+    def test_only_a_valid_different_main_sha_skips_checkout(self):
+        request = replace(archive_request(), channel="main")
+        for head in ("b" * 40, "", "main", None, 1):
+            with self.subTest(head=head), tempfile.TemporaryDirectory() as temporary:
+                fetch = Mock(
+                    side_effect=[
+                        {"private": False, "full_name": request.repository},
+                        {"object": {"sha": head}},
+                    ]
+                )
+                run = Mock()
+                source = Path(temporary) / "source"
+                if head == "b" * 40:
+                    self.assertFalse(prepare(request, source, fetch, run))
+                else:
+                    with self.assertRaisesRegex(ValueError, "invalid main commit SHA"):
+                        prepare(request, source, fetch, run)
+                run.assert_not_called()
+                self.assertFalse(source.exists())
+
     def test_stale_unlabeled_forked_or_conflicted_requests_never_checkout_code(self):
         request = archive_request()
         original = pull_request()
@@ -78,6 +98,43 @@ class CircleCIArchiveTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     prepare(request, Path(temporary) / "source", fetch, run)
                 run.assert_not_called()
+
+    def test_prepare_command_emits_skip_marker_only_for_a_superseded_main(self):
+        request = replace(archive_request(), channel="main")
+        environment = {
+            "INSTALLER_REPOSITORY": request.repository,
+            "INSTALLER_APP_ID": request.app_id,
+            "INSTALLER_BUILD_SHA": request.sha,
+            "INSTALLER_CHANNEL": request.channel,
+            "INSTALLER_RUN": request.run,
+            "INSTALLER_ATTEMPT": request.attempt,
+            "INSTALLER_FEED_URL": request.feed_url,
+        }
+        for result, expected in ((False, 0), (True, 0), (ValueError("bad ref"), 1)):
+            with (
+                self.subTest(result=result),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.dict("os.environ", environment, clear=True),
+                patch(
+                    "Tools.InstallerKit.circleci_archive.prepare", side_effect=[result]
+                ),
+                redirect_stderr(io.StringIO()),
+                redirect_stdout(io.StringIO()),
+            ):
+                marker = Path(temporary) / "superseded-main"
+                code = main(
+                    [
+                        "prepare",
+                        str(Path(temporary) / "source"),
+                        "--superseded-marker",
+                        str(marker),
+                    ]
+                )
+                self.assertEqual(code, expected)
+                if result is False:
+                    self.assertEqual(marker.read_text(), request.sha + "\n")
+                else:
+                    self.assertFalse(marker.exists())
 
     def test_wrong_or_private_repository_never_checks_out_code(self):
         for repository in (

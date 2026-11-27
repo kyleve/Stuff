@@ -18,7 +18,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 Locations shows every configured primary region with recorded days.
 Elsewhere appears beside Locations when the selected year has other visits.
-Its compact cards name visited US jurisdictions, Canada, and the European Union
+Its compact cards name visited US jurisdictions, Canadian provinces and territories, and the European Union
 from the existing catalog. Unknown visits stay under Other. Each card shows
 distinct recorded days and can show an optional place label. A multi-region
 day can appear on more than one card.
@@ -55,6 +55,7 @@ These indicators have no separate action and remain visible after correction dis
 ### App shell & view models
 
 - **`WhereCompatibilityModel` / `DataCompatibilityView`** — process-owned monitoring and a history-free lockout screen.
+  The update-required screen shows the newer version’s localized reason when available, alongside the update instructions.
   Verification precedes onboarding discovery, import recovery, and scope construction, including headless launches.
   The runtime owns foreground entry and the 60-second foreground poll; CloudKit pushes, remote imports, and Retry also refresh the decision.
   One outer lockout presentation in `RootView` hides history immediately, stops recording, and tears down the old scope through the launch runner. The registered compatibility gate uses the launch splash while the monitor completes its handle; it owns no second lockout screen.
@@ -65,6 +66,7 @@ These indicators have no separate action and remain visible after correction dis
   `InstallationLocation` exists before history, buffers launch events, and shares the real source with bootstrap assembly. It releases that source after retirement; the next scope gets a fresh stream.
 
 Configured Development builds keep **App Updates** first in Settings, including local and current builds.
+When data compatibility requires a newer build, those builds also offer **App Updates** while history is locked.
 Local builds can browse remote builds without an automatic update badge.
 **Other Builds** opens the shared Main/PR browser and retained build history.
 The screen shows the
@@ -98,7 +100,7 @@ Timeline anchors refer to displayed stay segments or flight identities.
 Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
-Without a region selection, the detail pane shows the year calendar.
+The detail pane shows an empty state until a region is selected.
 When Locations displays both panes, only browsing shows the estimate card.
 The compact calendar push retains its estimate card in detail and overview.
 Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
@@ -336,7 +338,7 @@ journal intent.
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
   there is no session behind it: a paged intro,
-  then picking up to five primary US regions (map or searchable list) and
+  then picking up to five regions in the United States and Canada (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
@@ -364,7 +366,8 @@ journal intent.
   picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
-  picker for membership changes.
+  picker for membership changes. The list offers US jurisdictions and Canadian provinces and territories in catalog order.
+  A tap on the map selects the subdivision at that coordinate and highlights it in its own color.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

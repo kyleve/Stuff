@@ -18,6 +18,7 @@ struct SimulatedYearTests {
         return WhereServices(
             store: store,
             locationSource: source,
+            attributor: RegionAttributor(for: [.california, .newYork, .ontario, .europeanUnion]),
             aggregator: DayAggregator(
                 calendar: Calendar(identifier: .gregorian),
                 timeZone: pacific,
@@ -50,7 +51,7 @@ struct SimulatedYearTests {
 
         #expect(report.totals[.california] == 250)
         #expect(report.totals[.newYork] == 94)
-        #expect(report.totals[.canada] == 7)
+        #expect(report.totals[.ontario] == 7)
         #expect(report.totals[.europeanUnion] == 13)
         #expect(report.totals[.other, default: 0] == 0)
 
@@ -92,7 +93,7 @@ struct SimulatedYearTests {
         #expect(totals(3) == [.california: 16, .newYork: 16])
         #expect(totals(4) == [.california: 15, .newYork: 16])
         #expect(totals(5) == [.california: 15, .europeanUnion: 13, .newYork: 5])
-        #expect(totals(6) == [.canada: 7, .newYork: 25])
+        #expect(totals(6) == [.ontario: 7, .newYork: 25])
         #expect(totals(7) == [.california: 16, .newYork: 16])
         #expect(totals(8) == [.california: 31])
         #expect(totals(9) == [.california: 23])
@@ -143,6 +144,6 @@ struct SimulatedYearTests {
         let kinds = Set(evidence.map(\.kind))
         #expect(kinds == [.planeTicket, .boardingPass])
         let regions = Set(evidence.compactMap(\.region))
-        #expect(regions == [.california, .europeanUnion, .canada])
+        #expect(regions == [.california, .europeanUnion, .ontario])
     }
 }
