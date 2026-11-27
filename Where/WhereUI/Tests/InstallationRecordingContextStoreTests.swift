@@ -72,6 +72,27 @@ struct InstallationRecordingContextStoreTests {
         #expect(try fixture.makeStore().resolve().recordingEnabledAt == enabledAt)
     }
 
+    @Test func photoReceiptAndConsentSurviveFileRecreation() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        let context = try store.confirmInitialRecording(isEnabled: false)
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            installationContext: context,
+        )
+        var receipt = try await services.preparePhotoReceipt(in: .local)
+        try store.setPhotoHistoryReceipt(receipt)
+        #expect(fixture.makeStore().photoHistoryReceipt == receipt)
+        receipt.acknowledged = true
+        try store.setPhotoHistoryReceipt(receipt)
+        let reopened = fixture.makeStore()
+        #expect(reopened.photoHistoryReceipt == receipt)
+        #expect(reopened.onboardingContext.automaticRecordingEnabled == false)
+        #expect(reopened.backupImportRecovery == nil)
+    }
+
     @Test func importRecoveryTransitionsSurviveStoreRecreation() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }

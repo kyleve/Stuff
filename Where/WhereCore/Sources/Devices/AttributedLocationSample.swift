@@ -13,6 +13,9 @@ public struct AttributedLocationSample: Hashable, Sendable {
     }
 
     static func raw(_ samples: [LocationSample], attributor: any RegionAttributing) -> [Self] {
-        samples.map { Self(sample: $0, regions: [attributor.region(at: $0.coordinate)]) }
+        samples.map { Self(
+            sample: $0,
+            regions: [$0.source.photoAttribution?.region ?? attributor.region(at: $0.coordinate)],
+        ) }
     }
 }

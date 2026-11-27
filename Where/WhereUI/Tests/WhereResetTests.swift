@@ -532,6 +532,11 @@ private final class CommittedFailingResetInstallationContextStore:
     InstallationRecordingContextStoring
 {
     private(set) var onboardingContext: InstallationRecordingContext
+    private(set) var photoHistoryReceipt: PhotoHistoryReceipt?
+    func setPhotoHistoryReceipt(_ receipt: PhotoHistoryReceipt?) {
+        photoHistoryReceipt = receipt
+    }
+
     private(set) var backupImportRecovery: BackupCoordinator.DurableImportRecovery?
     private(set) var onboardingImportCompletion:
         BackupCoordinator.OnboardingImportCompletion?
@@ -582,6 +587,7 @@ private final class CommittedFailingResetInstallationContextStore:
     }
 
     func reset() throws {
+        photoHistoryReceipt = nil
         backupImportRecovery = nil
         onboardingImportCompletion = nil
         onboardingContext = InstallationRecordingContext(

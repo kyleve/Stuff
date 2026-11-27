@@ -113,6 +113,9 @@ public protocol WhereStore: Sendable {
 
     func add(sample: LocationSample) async throws
     func samples(in interval: DateInterval) async throws -> [LocationSample]
+    func photoSamples(on days: ClosedRange<CalendarDay>) async throws -> [LocationSample]
+    func hasExplicitPrimaryRegions() async throws -> Bool
+
     func allSamples() async throws -> [LocationSample]
 
     /// Every current-generation attribution revision for the requested raw sample identities.
@@ -257,6 +260,16 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    public func photoSamples(on days: ClosedRange<CalendarDay>) async throws -> [LocationSample] {
+        try await allSamples().filter { sample in
+            sample.source.photoAttribution.map { days.contains($0.day) } ?? false
+        }
+    }
+
+    public func hasExplicitPrimaryRegions() async throws -> Bool {
+        false
+    }
+
     /// Run one mutation against the generation current at command start, failing if a reset or
     /// Replace wins before commit. Use this when the command does not already hold a snapshot id.
     public func performInCurrentGeneration<T: Sendable>(

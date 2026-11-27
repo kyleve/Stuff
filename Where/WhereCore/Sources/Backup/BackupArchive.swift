@@ -23,11 +23,12 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// profile's registration-generation key; v5 adds `plannedStayRecords`; v6 retains motion
     /// measurements and sample-attribution revisions. v7 adds independent stay identities,
     /// arrival/departure windows, and `homeRegionRecords`. v8 admits Canadian subdivisions
-    /// in existing region fields, including a manual-only archive. There is no in-app
+    /// in existing region fields, including a manual-only archive. v9 preserves reviewed photo
+    /// attributions and the approval time of photo assertions. There is no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 8
+    public static let currentFormatVersion = 9
 
     public let formatVersion: Int
     public let exportedAt: Date

@@ -5690,6 +5690,171 @@
         }
       }
     },
+    "photo.conflict.changed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The existing entries changed. Review your choices and continue to save."
+          }
+        }
+      }
+    },
+    "photo.conflict.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where found existing entries. Leave a switch off to keep the existing entry, or turn it on to include your reviewed stay on that date."
+          }
+        }
+      }
+    },
+    "photo.conflict.existing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Existing"
+          }
+        }
+      }
+    },
+    "photo.conflict.picks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the primary regions I just chose"
+          }
+        }
+      }
+    },
+    "photo.conflict.reviewed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reviewed"
+          }
+        }
+      }
+    },
+    "photo.conflict.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review existing history"
+          }
+        }
+      }
+    },
+    "photo.map.location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo location"
+          }
+        }
+      }
+    },
+    "photo.offer.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use locations from photos taken this year. Where skips Shared Album photos and looks for photos added within five minutes of capture. Received or synced photos can still appear. Review the places and dates before saving your chosen locations and stay corrections."
+          }
+        }
+      }
+    },
+    "photo.offer.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The available photos have no qualifying locations this year."
+          }
+        }
+      }
+    },
+    "photo.offer.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The photo scan could not finish. Try again or choose your regions."
+          }
+        }
+      }
+    },
+    "photo.offer.progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking photo locations"
+          }
+        }
+      }
+    },
+    "photo.offer.scan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use photo locations"
+          }
+        }
+      }
+    },
+    "photo.offer.skip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue without photos"
+          }
+        }
+      }
+    },
+    "photo.offer.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build this year’s history"
+          }
+        }
+      }
+    },
+    "photo.offer.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo access is unavailable. You can change access in Settings or choose your regions now."
+          }
+        }
+      }
+    },
     "photo.review.add" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5884,6 +6049,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Review stays"
+          }
+        }
+      }
+    },
+    "photo.save.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t save photo history"
           }
         }
       }

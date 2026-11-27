@@ -11,6 +11,7 @@ final class OnboardingFlowModel {
     enum Phase: Hashable {
         case intro
         case theme
+        case photos, review
         case pickRegions
         case customize
         case location
@@ -28,6 +29,7 @@ final class OnboardingFlowModel {
     var phase: Phase
     var page = 0
     var theme: WhereTheme
+    let photo = OnboardingPhotoHistory()
     var selection = PrimaryRegionSelectionModel()
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
@@ -74,7 +76,7 @@ final class OnboardingFlowModel {
     }
 
     func continueAfterThemeSelection() {
-        phase = restoreSelection.readyImport == nil ? .pickRegions : .location
+        phase = restoreSelection.readyImport == nil ? .photos : .location
     }
 
     func discoverRecordingDevices(using model: WhereModel) async {
@@ -167,7 +169,30 @@ final class OnboardingFlowModel {
                 return
             }
 
-            if selection.hasSelection {
+            if photo.review != nil {
+                do {
+                    guard try await photo.save(using: model, scope: scope, selection: selection)
+                    else {
+                        isFinishing = false
+                        return
+                    }
+                } catch {
+                    isFinishing = false
+                    if error is DataCompatibilityFailure || error is CancellationError { return }
+                    if (error as? RecordingPersistenceError) == .dataGenerationChanged {
+                        do { try model.rememberPhotoReceipt(nil) } catch { gate.fail(error); return
+                        }
+                        photo.cancel()
+                        photo.review = nil
+                        photo.receipt = nil
+                        photo.conflicts = nil
+                        selection.suggestRegions(from: [:])
+                        phase = .photos
+                    }
+                    photo.saveError = error.localizedDescription
+                    return
+                }
+            } else if selection.hasSelection {
                 do {
                     try await selection.commit(using: scope)
                 } catch {

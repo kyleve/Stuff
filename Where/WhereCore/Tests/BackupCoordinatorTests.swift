@@ -21,7 +21,7 @@ struct BackupCoordinatorTests {
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let exported = try BackupService().readArchive(at: url).archive
-        #expect(exported.formatVersion == 8)
+        #expect(exported.formatVersion == 9)
         #expect(exported.manualDays == [day])
         #expect(exported.samples.isEmpty)
         #expect(!exported.trackedRegions.contains(ontario))

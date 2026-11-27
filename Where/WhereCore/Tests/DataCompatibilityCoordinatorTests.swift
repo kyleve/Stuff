@@ -67,7 +67,7 @@ struct DataCompatibilityCoordinatorTests {
         #expect(await transport.readCount == 1)
     }
 
-    @Test func onlyRecorderCanAdvanceAndWaitingViewerRecovers() async {
+    @Test func onlyRecorderCanAdvanceAndWaitingViewerRecovers() async throws {
         let transport = ScriptedDataCompatibilityTransport(version: 1)
         let viewer = DataCompatibilityCoordinator(
             transport: transport,
@@ -78,6 +78,8 @@ struct DataCompatibilityCoordinatorTests {
         guard case .blocked(.recordingDeviceRequired) = viewer.state else {
             Issue.record("An upgraded viewer must wait for the recording device"); return
         }
+        let review = try viewer.onboardingReviewContext()
+        #expect(throws: DataCompatibilityFailure.self) { try viewer.requireAccess() }
         #expect(await transport.saveCount == 0)
         let recorder = DataCompatibilityCoordinator(
             transport: transport,
@@ -89,6 +91,7 @@ struct DataCompatibilityCoordinatorTests {
         #expect(await transport.saveCount == 1)
         await viewer.refresh { .disabled }
         #expect(viewer.state.allowsStore)
+        #expect(try viewer.requireAccess().reviewContext == review)
     }
 
     @Test func canadianRegionWriterExplainsTheUpgradeToAnOlderViewer() async throws {

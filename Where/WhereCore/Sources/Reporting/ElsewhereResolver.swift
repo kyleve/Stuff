@@ -43,13 +43,13 @@ public actor ElsewhereResolver: ElsewhereResolving {
         var resolvedHistory: [AttributedLocationSample] = []
         for entry in input.history.samples {
             try Task.checkCancellation()
-            let day = CalendarDay(from: entry.sample.timestamp, in: input.calendar)
+            let day = entry.sample.presenceDay(in: input.calendar)
             guard originalDays[day] != nil else { continue }
             var regions = entry.regions
             if let asserted = authoritative[day] {
                 // Whole-day assertions win; GPS can illustrate only their exact regions.
                 regions.formIntersection(asserted)
-            } else if regions.contains(.other),
+            } else if regions.contains(.other), entry.sample.source.photoAttribution == nil,
                       !(entry.sample.source.isGPS && revisions[entry.sample.id]?
                           .replacementRegions != nil)
             {

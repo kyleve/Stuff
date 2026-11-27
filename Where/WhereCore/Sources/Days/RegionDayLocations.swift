@@ -12,7 +12,10 @@ public struct RegionDayPoint: Hashable, Sendable {
     /// confidence circle, per `CLLocation`). Larger means a coarser fix.
     public let horizontalAccuracy: Double
 
-    public init(coordinate: Coordinate, horizontalAccuracy: Double) {
+    public let isPhoto: Bool
+
+    public init(coordinate: Coordinate, horizontalAccuracy: Double, isPhoto: Bool = false) {
+        self.isPhoto = isPhoto
         self.coordinate = coordinate
         self.horizontalAccuracy = horizontalAccuracy
     }

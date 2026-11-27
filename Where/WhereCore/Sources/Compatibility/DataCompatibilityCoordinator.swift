@@ -104,6 +104,13 @@ public final class DataCompatibilityCoordinator {
         if self.epoch == epoch { verification = nil }
     }
 
+    public func onboardingReviewContext() throws -> OnboardingReviewContext {
+        if case .blocked(.recordingDeviceRequired) = state, let receipt = try receipts.load() {
+            return OnboardingReviewContext(domain: receipt.domain, epoch: epoch)
+        }
+        return try requireAccess().reviewContext
+    }
+
     @discardableResult
     public func requireAccess() throws -> DataCompatibilityAdmission {
         switch state {

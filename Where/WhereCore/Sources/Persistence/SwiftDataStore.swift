@@ -1351,6 +1351,34 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    public func photoSamples(on days: ClosedRange<CalendarDay>) async throws -> [LocationSample] {
+        let context = readContext()
+        let generation = try readGenerationID(in: context)
+        return try context.fetch(Self.photoRows(on: days, in: generation))
+            .compactMap { $0.toValue() }
+    }
+
+    private static func photoRows(
+        on days: ClosedRange<CalendarDay>,
+        in generationID: WhereDataGenerationID,
+    ) -> FetchDescriptor<SDLocationSample> {
+        let generation = generationID.rawValue
+        let start = days.lowerBound.iso8601
+        let end = days.upperBound.iso8601
+        return FetchDescriptor<SDLocationSample>(predicate: #Predicate {
+            if $0.generationID == generation {
+                if let day = $0.photoDay { day >= start && day <= end } else { false }
+            } else { false }
+        })
+    }
+
+    public func hasExplicitPrimaryRegions() async throws -> Bool {
+        let context = readContext()
+        let descriptor = try GenerationScopedFetch
+            .trackedRegions(belongingTo: readGenerationID(in: context))
+        return try context.fetchCount(descriptor) > 0
+    }
+
     public func allSamples() async throws -> [LocationSample] {
         let context = readContext()
         let generationID = try readGenerationID(in: context)
@@ -1796,6 +1824,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             regions: existingRegions.union(day.regions),
             isAuthoritative: true,
             audit: day.audit,
+            photoApprovedAt: day.photoApprovedAt,
         )
     }
 
@@ -1848,10 +1877,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     ) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let samples = try context.fetch(GenerationScopedFetch.samples(
+        let timed = try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
             in: interval,
-        ))
+        )).filter { $0.photoDay == nil }
+        let samples = try timed + context.fetch(Self.photoRows(on: dayRange, in: generationID))
         // Clearing history also clears its reviewed attributions. Keep reset revisions
         // so a delayed old correction cannot regain authority if its raw sample returns.
         let sampleIDs = Set(samples.compactMap(\.id))
@@ -2305,6 +2335,27 @@ final class SDLocationSample {
     /// `EvidenceKind.discriminator` of the originating evidence; the
     /// `.other` label is not preserved here (fetch the `Evidence` row
     /// for that).
+    var photoDay: String?
+    var photoObservedDay: String?
+    var photoRegion: String?
+    var photoObservedRegion: String?
+    var photoApprovedAt: Date?
+
+    var photoAttribution: PhotoStayAttribution? {
+        guard let day = photoDay.flatMap(CalendarDay.init(iso:)),
+              let observedDay = photoObservedDay.flatMap(CalendarDay.init(iso:)),
+              let region = photoRegion.flatMap(Region.init(rawValue:)),
+              let observedRegion = photoObservedRegion.flatMap(Region.init(rawValue:)),
+              let photoApprovedAt else { return nil }
+        return PhotoStayAttribution(
+            observedDay: observedDay,
+            observedRegion: observedRegion,
+            day: day,
+            region: region,
+            approvedAt: photoApprovedAt,
+        )
+    }
+
     var evidenceKindRaw: String?
     /// Installation that produced an automatic sample. Nil on legacy rows and
     /// manual/evidence-implied samples.
@@ -2331,6 +2382,12 @@ final class SDLocationSample {
         longitude = value.coordinate.longitude
         horizontalAccuracy = value.horizontalAccuracy
         sourceRaw = value.source.discriminator
+        let photo = value.source.photoAttribution
+        photoDay = photo?.day.iso8601
+        photoObservedDay = photo?.observedDay.iso8601
+        photoRegion = photo?.region.rawValue
+        photoObservedRegion = photo?.observedRegion.rawValue
+        photoApprovedAt = photo?.approvedAt
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
         recordingDeviceID = value.recordingDeviceID?.rawValue
@@ -2349,6 +2406,7 @@ final class SDLocationSample {
             sourceRaw,
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
+            photo: photoAttribution,
         ) else { return nil }
         // Optional motion may arrive partially without invalidating the raw
         // position. Preserve each complete measurement independently, and keep
@@ -2507,6 +2565,7 @@ final class SDManualDay {
     // is the presence-of-audit discriminator — the location fields are populated
     // together only when a fix was captured.
     var note: String?
+    var photoApprovedAt: Date?
     var auditRecordedAt: Date?
     var auditLatitude: Double?
     var auditLongitude: Double?
@@ -2525,6 +2584,7 @@ final class SDManualDay {
         dayKey = value.day.iso8601
         regionRaws = value.regions.map(\.rawValue).sorted()
         isAuthoritative = value.isAuthoritative
+        photoApprovedAt = value.photoApprovedAt
         applyAudit(value.audit)
     }
 
@@ -2544,6 +2604,7 @@ final class SDManualDay {
             regions: Set(regionRaws.compactMap { Region(rawValue: $0) }),
             isAuthoritative: isAuthoritative,
             audit: auditValue(),
+            photoApprovedAt: photoApprovedAt,
         )
     }
 

@@ -23,6 +23,7 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 Append each incompatible version to the version history with its user-facing reason from the WhereCore string catalog. The last entry sets `current`.
 Version 2 admits Canadian province and territory IDs in existing region fields. A
 version-1 reader can discard an unfamiliar ID when it reads a stored manual day.
+Version 3 adds photo-sourced coordinates, their observed and approved regions and days, and photo approval timestamps. Calendar reports and year clearing use the reviewed day even after travel. Recording and flight inference continue to use passive GPS sources.
 The private CloudKit control record lives outside SwiftData's zone. Conditional saves only advance its version.
 Only a locally enabled installation with Always location permission can advance the version. A known removed installation cannot advance it.
 Other devices wait for their recording device when the shared version is older. Any device can use an equal version.
@@ -332,6 +333,7 @@ An explicit onboarding scan uses `PhotoLocationScanner` with an injected metadat
   accounts. Version 8 retains independent stays, date windows, Home choices, optional motion,
   and every sample-attribution revision. Merge preserves revision IDs and timestamps.
   Replace restores revisions into its new generation.
+  Format **v9** preserves photo provenance, original and reviewed attributions, and approval timestamps alongside the original manual audit. Upgrading a released v8 manifest changes its format number.
   The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.
   Legacy stay revisions retain one shared identity, including deletion tombstones.
   The converter infers arrival from each revision's UTC date, capped at its final day.

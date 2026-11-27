@@ -38,6 +38,7 @@ struct RegionDaysView: View {
                 coordinate: $0.coordinate,
                 horizontalAccuracy: $0.horizontalAccuracy,
                 region: region,
+                isPhoto: $0.isPhoto,
             )
         }
     }

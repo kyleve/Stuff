@@ -1,5 +1,6 @@
 import LifecycleKit
 import PeriscopeCore
+import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -7,8 +8,8 @@ import UniformTypeIdentifiers
 @_spi(Testing) import WhereCore
 
 /// First-run onboarding, run as the launch's user-facing gate. A short paged
-/// intro to the passport concept, then picking the primary regions you spend
-/// time in and giving each a look, then confirming whether this device should
+/// intro and theme choice, an optional photo-based stay review, then choosing
+/// primary regions and their appearance before confirming whether this device should
 /// record automatically. Enabling it requests background-location permission
 /// here, rather than burying that decision in Settings.
 ///
@@ -18,7 +19,7 @@ import UniformTypeIdentifiers
 /// Onboarding is what brings the
 /// user's world into being — restoring a backup or finishing the flow logs in
 /// to the real scope (`WhereModel.resolveScope()`, which performs the app's one
-/// store open), commits the picked regions + appearances to it, persists the
+/// store open), commits the approved history and primary choices, persists the
 /// confirmed recording choice beside this installation's non-backed-up
 /// identity, and resolves the `LifecycleGateHandle` so launch continues. The
 /// steps after the gate then build the session, seed region styling, and pick
@@ -77,6 +78,23 @@ public struct OnboardingView: View {
                         onSelect: { flow.selectTheme($0, using: model) },
                         onContinue: flow.continueAfterThemeSelection,
                     )
+                case .photos:
+                    OnboardingPhotoOffer(photo: flow.photo, scan: flow.photo.begin) {
+                        flow.photo.cancel()
+                        flow.phase = .pickRegions
+                    }
+                    .task(id: flow.photo.attempt) {
+                        guard let id = flow.photo.attempt else { return }
+                        if await flow.photo
+                            .scan(id, using: model, selection: flow.selection)
+                        {
+                            flow.phase = .review
+                        }
+                    }
+                case .review:
+                    if let review = flow.photo.review {
+                        PhotoStayReviewView(model: review) { flow.phase = .pickRegions }
+                    }
                 case .pickRegions: pickRegions
                 case .customize: customize
                 case .location: location
@@ -96,6 +114,15 @@ public struct OnboardingView: View {
         )
         .animation(stylesheet.motion.reducedReveal, value: flow.phase)
         .onDisappear { flow.discardPendingRestore() }
+        .alert(
+            String(localized: .photoSaveFailed),
+            isPresented: Binding(
+                get: { flow.photo.saveError != nil },
+                set: { if !$0 { flow.photo.saveError = nil } },
+            ),
+        ) {
+            Button { flow.photo.saveError = nil } label: { Text(.commonOk) }
+        } message: { Text(flow.photo.saveError ?? "") }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
         .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
@@ -233,6 +260,11 @@ public struct OnboardingView: View {
             RegionPickerView(model: flow.selection)
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
                 .toolbar {
+                    if flow.photo.review != nil {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { flow.phase = .review } label: { Text(.photoReviewTitle) }
+                        }
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(String(localized: .onboardingNext)) { flow.phase = .customize }
                             .disabled(!flow.selection.hasSelection)
@@ -301,6 +333,62 @@ public struct OnboardingView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                        if let conflict = flow.photo.conflicts {
+                            Text(.photoConflictTitle).font(.headline)
+                            Text(conflict
+                                .isEmpty ? .photoConflictChanged : .photoConflictDescription)
+                            ForEach(conflict.affectedDays.sorted(), id: \.self) { day in
+                                Toggle(isOn: Binding(
+                                    get: { flow.photo.useReviewedDays.contains(day) },
+                                    set: { use in
+                                        if use { flow.photo.useReviewedDays.insert(day) }
+                                        else { flow.photo.useReviewedDays.remove(day) }
+                                    },
+                                )) {
+                                    Text(day.iso8601)
+                                    let old = conflict.manualDays.first { $0.day == day }?
+                                        .regions ?? []
+                                    if !old.isEmpty {
+                                        LabeledContent(
+                                            String(localized: .photoConflictExisting),
+                                            value: Region.inCanonicalOrder(old).map(\.localizedName)
+                                                .joined(separator: ", "),
+                                        )
+                                    }
+                                    ForEach(conflict.priorPoints[day, default: []]) { point in
+                                        if case let .photo(previous) = point.source {
+                                            LabeledContent(
+                                                String(localized: .photoConflictExisting),
+                                                value: "\(previous.region.localizedName), \(previous.day.iso8601)",
+                                            )
+                                        }
+                                    }
+                                    let proposed = flow.photo.review?.draft.report.days
+                                        .first { $0.day == day }?.regions ?? []
+                                    LabeledContent(
+                                        String(localized: .photoConflictReviewed),
+                                        value: Region.inCanonicalOrder(proposed)
+                                            .map(\.localizedName).joined(separator: ", "),
+                                    )
+                                }
+                            }
+                            if !conflict.primaryRegions.isEmpty {
+                                Toggle(isOn: Binding(
+                                    get: { flow.photo.useReviewedPicks },
+                                    set: { flow.photo.useReviewedPicks = $0 },
+                                )) { Text(.photoConflictPicks) }
+                                LabeledContent(
+                                    String(localized: .photoConflictExisting),
+                                    value: conflict.primaryRegions.map(\.region.localizedName)
+                                        .joined(separator: ", "),
+                                )
+                                LabeledContent(
+                                    String(localized: .photoConflictReviewed),
+                                    value: flow.selection.selectedRegions.map(\.localizedName)
+                                        .joined(separator: ", "),
+                                )
+                            }
+                        }
                         Button {
                             // Request Always-location only after the user confirms an
                             // enabled choice; the launch's reconcile step picks up

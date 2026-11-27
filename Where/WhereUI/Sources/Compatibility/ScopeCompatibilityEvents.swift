@@ -3,6 +3,7 @@ import WhereCore
 /// Scope composition selects whether events describe the real installation or a demo world.
 @MainActor
 protocol ScopeCompatibilityEvents {
+    var domain: DataCompatibilityDomain { get }
     var permitsVersionPublication: Bool { get }
     var isAdmitted: Bool { get }
     func requireAccess() throws
@@ -11,6 +12,10 @@ protocol ScopeCompatibilityEvents {
 }
 
 struct InstallationCompatibilityEvents: ScopeCompatibilityEvents {
+    var domain: DataCompatibilityDomain {
+        admission.domain
+    }
+
     let services: WhereServices
     let coordinator: DataCompatibilityCoordinator
     let admission: DataCompatibilityAdmission
@@ -34,6 +39,7 @@ struct InstallationCompatibilityEvents: ScopeCompatibilityEvents {
 }
 
 struct NoopScopeCompatibilityEvents: ScopeCompatibilityEvents {
+    let domain = DataCompatibilityDomain.local
     let permitsVersionPublication = false
     let isAdmitted = true
     func requireAccess() throws {}

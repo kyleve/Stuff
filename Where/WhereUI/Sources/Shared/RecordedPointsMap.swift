@@ -13,19 +13,32 @@ struct RecordedMapPoint: Hashable {
 
     let coordinate: Coordinate
     let horizontalAccuracy: Double
+    let isPhoto: Bool
     let attribution: Attribution
 
-    init(coordinate: Coordinate, horizontalAccuracy: Double, attribution: Attribution) {
+    init(
+        coordinate: Coordinate,
+        horizontalAccuracy: Double,
+        attribution: Attribution,
+        isPhoto: Bool = false,
+    ) {
+        self.isPhoto = isPhoto
         self.coordinate = coordinate
         self.horizontalAccuracy = horizontalAccuracy
         self.attribution = attribution
     }
 
-    init(coordinate: Coordinate, horizontalAccuracy: Double, region: Region) {
+    init(
+        coordinate: Coordinate,
+        horizontalAccuracy: Double,
+        region: Region,
+        isPhoto: Bool = false,
+    ) {
         self.init(
             coordinate: coordinate,
             horizontalAccuracy: horizontalAccuracy,
             attribution: .region(region),
+            isPhoto: isPhoto,
         )
     }
 }
@@ -79,7 +92,10 @@ struct RecordedPointsMap: View {
                                 lineWidth: stylesheet.regionMap.uncertaintyStrokeWidth,
                             )
                         }
-                        Marker("", coordinate: pin.point.coordinate.clLocationCoordinate).tint(tint)
+                        Marker(
+                            pin.point.isPhoto ? String(localized: .photoMapLocation) : "",
+                            coordinate: pin.point.coordinate.clLocationCoordinate,
+                        ).tint(tint)
                     }
                 }
                 .mapStyle(.standard(pointsOfInterest: .excludingAll))

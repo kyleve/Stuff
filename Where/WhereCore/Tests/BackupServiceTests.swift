@@ -291,7 +291,7 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test(arguments: [5, 6, 7, 9])
+    @Test(arguments: [5, 6, 7, 8, BackupArchive.currentFormatVersion + 1])
     func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded(version: Int) {
         let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
 

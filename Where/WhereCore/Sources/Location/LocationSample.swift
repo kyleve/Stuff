@@ -12,6 +12,8 @@ public enum SampleSource: Sendable, Hashable, Codable {
     case gpsVisit
     /// A `CLLocationManager` significant-change callback.
     case gpsSignificantChange
+    /// A geotagged photograph explicitly accepted during onboarding.
+    case photo(PhotoStayAttribution)
     /// User typed in a coordinate or picked a place after the fact.
     case manual
     /// Derived from an attached piece of evidence (e.g. a boarding pass).
@@ -26,6 +28,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
         switch self {
             case .gpsVisit: "gpsVisit"
             case .gpsSignificantChange: "gpsSignificantChange"
+            case .photo: "photo"
             case .manual: "manual"
             case .evidenceImplied: "evidenceImplied"
         }
@@ -37,7 +40,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
     public var isGPS: Bool {
         switch self {
             case .gpsVisit, .gpsSignificantChange: true
-            case .manual, .evidenceImplied: false
+            case .manual, .photo, .evidenceImplied: false
         }
     }
 
@@ -60,39 +63,34 @@ public enum SampleSource: Sendable, Hashable, Codable {
         _ discriminator: String,
         evidenceId: UUID? = nil,
         evidenceKindRaw: String? = nil,
+        photo: PhotoStayAttribution? = nil,
     ) -> SampleSource? {
-        for candidate in knownCases where candidate.discriminator == discriminator {
-            // Exhaustive over `SampleSource` (no `default`): adding a
-            // new case forces a compile error here, surfacing the
-            // discriminator <-> case mapping that needs updating.
-            switch candidate {
-                case .gpsVisit: return .gpsVisit
-                case .gpsSignificantChange: return .gpsSignificantChange
-                case .manual: return .manual
-                case .evidenceImplied:
-                    guard let evidenceId,
-                          let evidenceKindRaw,
-                          let kind = EvidenceKind.fromDiscriminator(evidenceKindRaw)
-                    else { return nil }
-                    return .evidenceImplied(id: evidenceId, kind: kind)
-            }
+        switch discriminator {
+            case "gpsVisit": .gpsVisit
+            case "gpsSignificantChange": .gpsSignificantChange
+            case "manual": .manual
+            case "photo": photo.map(Self.photo)
+            case "evidenceImplied":
+                if let evidenceId, let evidenceKindRaw,
+                   let kind = EvidenceKind.fromDiscriminator(evidenceKindRaw)
+                {
+                    .evidenceImplied(id: evidenceId, kind: kind)
+                } else { nil }
+            default: nil
         }
-        return nil
     }
 
-    /// Used by `fromDiscriminator` to walk every case exhaustively.
-    /// `.evidenceImplied` uses placeholder associated values; they're
-    /// only here to make the case visitable for discriminator
-    /// matching.
-    private static let knownCases: [SampleSource] = [
-        .gpsVisit,
-        .gpsSignificantChange,
-        .manual,
-        .evidenceImplied(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
-            kind: .other(nil),
-        ),
-    ]
+    var photoAttribution: PhotoStayAttribution? {
+        if case let .photo(attribution) = self { attribution } else { nil }
+    }
+}
+
+public struct PhotoStayAttribution: Hashable, Codable, Sendable {
+    public let observedDay: CalendarDay
+    public let observedRegion: Region
+    public let day: CalendarDay
+    public let region: Region
+    public let approvedAt: Date
 }
 
 /// A single point-in-time observation of where the user was. The smallest
@@ -125,6 +123,10 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.source = source
         self.recordingDeviceID = recordingDeviceID
         self.motion = motion
+    }
+
+    func presenceDay(in calendar: Calendar) -> CalendarDay {
+        source.photoAttribution?.day ?? CalendarDay(from: timestamp, in: calendar)
     }
 
     /// Stamp an automatic sample with the installation that received it.

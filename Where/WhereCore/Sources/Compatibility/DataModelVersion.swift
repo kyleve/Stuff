@@ -12,6 +12,7 @@ public struct DataModelVersion: RawRepresentable, Codable, Hashable, Comparable,
         // Version 1 also describes history written before the compatibility gate existed.
         Change(version: baseline, reason: .compatibilityVersion1Reason),
         Change(version: Self(rawValue: 2), reason: .compatibilityVersion2Reason),
+        Change(version: Self(rawValue: 3), reason: .compatibilityVersion3Reason),
     ]
     public static let current = changes.last!.version
     public let rawValue: Int

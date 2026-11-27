@@ -26,15 +26,26 @@ public struct LocationHistoryReader: Sendable {
         }
     }
 
-    /// Join corrections after applying device cutoffs. Store and trajectory reads
-    /// remain lossless; only the region attribution changes.
+    /// Join reviewed photo days and GPS corrections after applying device cutoffs.
+    /// Time-bounded raw reads retain each point's original capture instant.
     public func projection(
         in interval: DateInterval,
         attributor: any RegionAttributing,
+        calendar: Calendar = .current,
     ) async throws -> LocationHistoryProjection {
         try await store.readSnapshot {
             let attribution = try await attributionSnapshot(attributor)
-            let visible = try await samples(in: interval)
+            guard interval.duration > 0 else { return LocationHistoryProjection(
+                samples: [],
+                revisions: [],
+            ) }
+            let first = CalendarDay(from: interval.start, in: calendar)
+            let endDay = CalendarDay(from: interval.end, in: calendar)
+            let last = interval.end == endDay.startOfDay(in: calendar) ? endDay
+                .adding(days: -1) : endDay
+            let photo = try await store.photoSamples(on: first ... last)
+            let timed = try await samples(in: interval).filter { $0.source.photoAttribution == nil }
+            let visible = (timed + photo)
                 .sorted { lhs, rhs in
                     if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
                     return lhs.id.uuidString < rhs.id.uuidString
@@ -53,7 +64,9 @@ public struct LocationHistoryReader: Sendable {
                         ? winners[sample.id]?.replacementRegions : nil
                     return AttributedLocationSample(
                         sample: sample,
-                        regions: replacement ?? [attribution.region(at: sample.coordinate)],
+                        regions: replacement ??
+                            [sample.source.photoAttribution?.region ?? attribution
+                                .region(at: sample.coordinate)],
                     )
                 },
                 revisions: revisions,

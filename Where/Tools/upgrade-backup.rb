@@ -16,7 +16,7 @@ require "set"
 require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 8
+CURRENT_FORMAT_VERSION = 9
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -211,7 +211,7 @@ def upgrade_manifest(manifest)
   manifest = manifest.except("recordingDevices", "recordingDeviceCheckIns", "recordingPolicyChanges")
   # The forecast Home register distinguishes released v7 from older prototypes
   # that reused version 7. Its successor changes only the supported region vocabulary.
-  if source_version == 8 || (source_version == 7 && manifest.key?("homeRegionRecords"))
+  if source_version >= 8 || (source_version == 7 && manifest.key?("homeRegionRecords"))
     return manifest.merge("formatVersion" => CURRENT_FORMAT_VERSION)
   end
   warnings = []

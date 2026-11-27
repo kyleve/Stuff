@@ -8,6 +8,9 @@ public protocol InstallationRecordingContextStoring: AnyObject, BackupImportReco
     /// Context used to render onboarding before any real store is opened.
     var onboardingContext: InstallationRecordingContext { get }
 
+    var photoHistoryReceipt: PhotoHistoryReceipt? { get }
+    func setPhotoHistoryReceipt(_ receipt: PhotoHistoryReceipt?) throws
+
     /// Resolve this installation's context. Repeated calls return the same
     /// value for the lifetime of the store object.
     func resolve() throws -> InstallationRecordingContext

@@ -216,6 +216,7 @@ private struct PhotoStayEditor: View {
                 configurations: [
                     .init(device: .iPhone),
                     .init(device: .iPad),
+                    .init(device: .iPhone, snapshotType: .accessibility),
                     .init(
                         dynamicType: .accessibility5,
                         device: .iPhone,

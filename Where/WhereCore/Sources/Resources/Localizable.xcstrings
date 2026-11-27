@@ -146,6 +146,17 @@
         }
       }
     },
+    "compatibility.version3.reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where can now save reviewed photo locations and the dates you approved for each stay."
+          }
+        }
+      }
+    },
     "dataIssues.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

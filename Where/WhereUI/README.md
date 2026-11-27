@@ -337,17 +337,22 @@ journal intent.
   observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
-  there is no session behind it: a paged intro,
-  then picking up to five regions in the United States and Canada (map or searchable list) and
-  giving each a look, then verifying this installation's automatic-recording
-  choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
+  there is no session behind it. Fresh setup offers a current-year photo scan after theme
+  selection. The stay editor holds the original points and corrections in memory. Confirming
+  a gap adds reviewed days to the totals. The picker ranks eligible regions by days spent
+  and preserves the user's explicit selection and appearance choices. The user can skip
+  photos and choose regions directly before confirming automatic recording. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
   other installation recently reported recording. Tablets, other devices, and explicit rejoins
   recommend Off. Only an enabled confirmation requests location permission. A restored device can
   inherit the backed-up onboarding flag but not the installation sidecar, so it
   skips straight to that final page. Finishing logs in to the real scope. The
   app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
-  appearances before resolving the gate. The intro also offers **Restore from
+  appearances before resolving the gate. For reviewed photos, one transaction saves the
+  accepted points, stay corrections, primary picks and an installation-scoped receipt.
+  Launch checks the sidecar token against the admitted domain and generation before
+  acknowledging an interrupted Finish. Recovery works with Photos access revoked.
+  The intro also offers **Restore from
   a backup**, which skips the manual pick/customize steps, verifies this
   installation's recording choice, then opens the store and imports the backup
   after asking whether to **Merge** (recommended, preserving existing data) or
@@ -888,5 +893,3 @@ one mount registration and observes its year, with cancellation at both waits.
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
-
-The photo stay editor keeps corrections in memory during onboarding. Confirming a suggested gap adds reviewed days to the regional totals. Removing or moving a stay updates the suggestions while preserving explicit primary-region selections.

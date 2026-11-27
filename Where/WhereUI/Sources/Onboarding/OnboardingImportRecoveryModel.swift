@@ -17,7 +17,8 @@ final class OnboardingImportRecoveryModel {
     }
 
     var hasInterruptedImport: Bool {
-        installationContextStore.backupImportRecovery != nil
+        installationContextStore.backupImportRecovery != nil || installationContextStore
+            .photoHistoryReceipt?.acknowledged == false
     }
 
     func repairCompletedImportIfNeeded(
@@ -34,7 +35,10 @@ final class OnboardingImportRecoveryModel {
         in scope: WhereScope,
         completeOnboarding: () -> Void,
     ) async throws {
-        guard hasInterruptedImport else { return }
+        if let token = installationContextStore.photoHistoryReceipt, !token.acknowledged {
+            _ = try await recoverPhoto(token, in: scope, completeOnboarding: completeOnboarding)
+        }
+        guard installationContextStore.backupImportRecovery != nil else { return }
         switch try await scope.services.backup.importRecoveryState() {
             case .ready:
                 return
@@ -55,11 +59,24 @@ final class OnboardingImportRecoveryModel {
         completeOnboarding: () -> Void,
     ) async -> Bool {
         interruptedImportError = nil
-        guard hasInterruptedImport else {
+        guard hasInterruptedImport ||
+            (requiresOnboarding && installationContextStore.photoHistoryReceipt != nil)
+        else {
             return requiresOnboarding
         }
         do {
             let scope = try await resolveScope()
+            if let token = installationContextStore.photoHistoryReceipt {
+                let completed = try await recoverPhoto(
+                    token,
+                    in: scope,
+                    completeOnboarding: completeOnboarding,
+                )
+                if installationContextStore.backupImportRecovery == nil {
+                    if !completed { await endSession() }
+                    return !completed && requiresOnboarding
+                }
+            }
             switch try await scope.services.backup.importRecoveryState() {
                 case .ready:
                     await endSession()
@@ -82,6 +99,34 @@ final class OnboardingImportRecoveryModel {
             interruptedImportError = error
             return false
         }
+    }
+
+    private func recoverPhoto(
+        _ token: PhotoHistoryReceipt,
+        in scope: WhereScope,
+        completeOnboarding: () -> Void,
+    ) async throws -> Bool {
+        try scope.compatibilityEvents.requireAccess()
+        guard scope.compatibilityEvents.domain == token.domain,
+              try await scope.services.hasCommittedPhotoHistory(token)
+        else {
+            try installationContextStore.setPhotoHistoryReceipt(nil)
+            return false
+        }
+        await scope.services.reconcilePhotoHistory()
+        try Task.checkCancellation()
+        try scope.compatibilityEvents.requireAccess()
+        guard try await scope.services.hasCommittedPhotoHistory(token) else {
+            try installationContextStore.setPhotoHistoryReceipt(nil)
+            return false
+        }
+        try Task.checkCancellation()
+        try scope.compatibilityEvents.requireAccess()
+        var terminal = token
+        terminal.acknowledged = true
+        try installationContextStore.setPhotoHistoryReceipt(terminal)
+        completeOnboarding()
+        return true
     }
 
     func takeInterruptedImportError() -> (any Error)? {

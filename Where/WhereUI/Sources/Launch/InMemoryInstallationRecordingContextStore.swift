@@ -8,6 +8,11 @@ public final class InMemoryInstallationRecordingContextStore:
     InstallationRecordingContextStoring
 {
     public private(set) var onboardingContext: InstallationRecordingContext
+    public private(set) var photoHistoryReceipt: PhotoHistoryReceipt?
+    public func setPhotoHistoryReceipt(_ receipt: PhotoHistoryReceipt?) {
+        photoHistoryReceipt = receipt
+    }
+
     public private(set) var backupImportRecovery: BackupCoordinator.DurableImportRecovery?
     public private(set) var onboardingImportCompletion:
         BackupCoordinator.OnboardingImportCompletion?
@@ -28,6 +33,7 @@ public final class InMemoryInstallationRecordingContextStore:
         now: @escaping @MainActor () -> Date,
     ) {
         onboardingContext = context
+        photoHistoryReceipt = nil
         backupImportRecovery = nil
         onboardingImportCompletion = nil
         self.makeUUID = makeUUID
@@ -68,6 +74,7 @@ public final class InMemoryInstallationRecordingContextStore:
     }
 
     public func reset() throws {
+        photoHistoryReceipt = nil
         backupImportRecovery = nil
         onboardingImportCompletion = nil
         onboardingContext = proposedContext(isRejoining: false)
