@@ -214,11 +214,11 @@ struct CalendarContentViewTests {
         }
     }
 
-    @Test func theUnselectedLocationsCalendarKeepsItsSessionOnlyZoomMode() async throws {
+    @Test func selectedLocationsCalendarKeepsItsOverviewAcrossDuoPoses() async throws {
         let report = PreviewSupport.loadedYearReportModel()
         let state = AdaptivePaneHostState()
         let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
-            LocationsView(report: report)
+            LocationsView(report: report, initialRegion: .california)
         }.bScrollRestorationScope())
         host.safeAreaRegions = []
         try await show(host) { controller in
@@ -227,12 +227,12 @@ struct CalendarContentViewTests {
                 state: state,
                 to: .innerLandscape,
             )
-            try await waitForCalendar("unselected detail calendar") { isEnabled(
+            try await waitForCalendar("California detail calendar") { isEnabled(
                 "Show Year",
                 in: host.view,
             ) }
             try activate(#require(element("Show Year", in: host.view)))
-            try await waitForCalendar("session-only overview") { isEnabled(
+            try await waitForCalendar("California overview") { isEnabled(
                 "Show Months",
                 in: host.view,
             ) }
@@ -250,10 +250,11 @@ struct CalendarContentViewTests {
                 state: state,
                 to: .innerLandscape,
             )
-            try await waitForCalendar("session-only overview after folding") { isEnabled(
+            try await waitForCalendar("California overview after folding") { isEnabled(
                 "Show Months",
                 in: host.view,
             ) }
+            #expect(report.preferences.calendarOverview(forKey: .region(.california)) == true)
             #expect(report.preferences.calendarOverview(forKey: .year) == nil)
         }
     }
