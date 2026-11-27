@@ -48,7 +48,7 @@ The timeline inserts a plane in a circle at departure, with supported travel per
 When arrival timing is uncertain, it labels that uncertainty and shows the later ground observation separately.
 A flight can split a displayed regional stay into segments without changing residency totals.
 A stay that began before departure and ends that day remains intact before the flight. The arrival stay follows the flight.
-Shorter visits interrupt longer displayed stays at their start day. Shared days remain counted once for each region.
+Overlapping visits keep their continuous date spans. Shared days remain counted once for each region.
 One-day recorded visits use less vertical padding and grow with their text instead of reserving the minimum height of longer stays.
 These indicators have no separate action and remain visible after correction dismissal.
 
@@ -96,7 +96,7 @@ A report-year change waits for matching data before positioning. Stale visibilit
 Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
 The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
 Timeline stays also measure eagerly so resizing cannot shift the content origin.
-Timeline anchors refer to displayed stay segments or flight identities.
+Timeline anchors refer to displayed stays, flights, or the estimate. The timeline opens at the estimate when available, below the recorded rows through today and any directly joined planned segment. Later rows continue underneath.
 Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.

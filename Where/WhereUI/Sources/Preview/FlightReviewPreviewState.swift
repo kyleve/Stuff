@@ -15,7 +15,7 @@
     }
 
     extension PreviewSupport {
-        /// A short visit interrupts a longer stay before a shared flight day.
+        /// A short visit overlaps a longer stay before a shared flight day.
         @MainActor
         static func interruptedStayYearReportModel() -> YearReportModel {
             var calendar = Calendar(identifier: .gregorian)

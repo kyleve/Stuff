@@ -8,14 +8,63 @@ import WhereCore
 
 @MainActor
 struct PresenceTimelineListTests {
+    @Test(arguments: [false, true])
+    func estimateFollowsOnlyTheCurrentCardAndItsJoinedPlan(joins: Bool) throws {
+        let today = PlanningModelTestSupport.today
+        let calendar = PlanningModelTestSupport.calendar
+        let current = RegionStint(
+            region: .newYork,
+            start: today.adding(days: -4).startOfDay(in: calendar),
+            end: today.startOfDay(in: calendar),
+            dayCount: 5,
+        )
+        let overlappingDay = today.adding(days: -2).startOfDay(in: calendar)
+        let overlappingVisit = RegionStint(
+            region: .ontario,
+            start: overlappingDay,
+            end: overlappingDay,
+            dayCount: 1,
+        )
+        let plan = try PlannedStay(
+            id: .init(rawValue: UUID()),
+            region: joins ? .newYork : .california,
+            arrival: .init(exact: today.adding(days: 1)),
+            departure: .init(exact: today.adding(days: 5)),
+        )
+        let later = try PlannedStay(
+            id: .init(rawValue: UUID()),
+            region: .newYork,
+            arrival: .init(exact: today.adding(days: 12)),
+            departure: .init(exact: today.adding(days: 18)),
+        )
+        let planned = PlanningTimelineItem.items(
+            planning: .init(stays: [later, plan], homeRegion: nil),
+            year: today.year,
+            today: today,
+        )
+        let items = PresenceTimelineRows.Item.ordered(
+            recorded: [.stay(current), .stay(overlappingVisit)],
+            planned: planned,
+            estimateDay: today,
+            calendar: calendar,
+        )
+        let currentRow = PresenceTimelineList.RowID.recorded(current.id)
+        let overlappingRow = PresenceTimelineList.RowID.recorded(overlappingVisit.id)
+        let firstPlan = PresenceTimelineList.RowID.planned(.stay(plan.id))
+        let laterPlan = PresenceTimelineList.RowID.planned(.stay(later.id))
+        #expect(items.map(\.id) == (joins
+                ? [overlappingRow, currentRow, firstPlan, .estimate, laterPlan]
+                : [currentRow, overlappingRow, .estimate, firstPlan, laterPlan]))
+    }
+
     @Test func aRemountedTimelineRestoresItsBrowsedRowWithoutSelectionState() async throws {
-        let world = try await WhereFlyoverWorld.build()
-        let report = try #require(world.report.report)
+        let model = PreviewSupport.itineraryYearReportModel()
+        let report = try #require(model.report)
         let items = PresenceJourneyItem.items(
-            stints: PresenceTimeline.stints(from: report, calendar: world.report.calendar),
-            flights: world.report.completedFlights,
+            stints: PresenceTimeline.stints(from: report, calendar: model.calendar),
+            flights: model.completedFlights,
             year: report.year,
-            calendar: world.report.calendar,
+            calendar: model.calendar,
         )
         let stint = try #require(items.compactMap { item -> RegionStint? in
             if case let .stay(stint) = item { return stint }
@@ -27,14 +76,14 @@ struct PresenceTimelineListTests {
             range: DateRangeFormatting.abbreviated(
                 start: stint.start,
                 end: stint.end,
-                calendar: world.report.calendar,
+                calendar: model.calendar,
             ),
             days: stint.dayCount,
         )
         let store = BScrollRestorationStore()
         let capture = ScrollPositionCapture()
         func timeline() -> some View {
-            PresenceTimelineList(report: world.report)
+            PresenceTimelineList(report: model)
                 .overlay {
                     ScrollPositionProbe(
                         PresenceTimelineList.self,
@@ -69,19 +118,13 @@ struct PresenceTimelineListTests {
         }
         let first = UIHostingController(rootView: timeline())
         try await show(first) { _ in
-            // Native scrolling can clear ScrollPosition.edge after reaching the bottom.
-            // Wait for the rendered offset, not for the transient command to remain stored.
-            try await waitForTimeline("initial bottom", in: first.view) {
-                guard capture.binding != nil,
-                      let scroll = AdaptivePaneTestSupport.descendants(
-                          of: first.view,
-                          matching: UIScrollView.self,
-                      )
-                      .first(where: { $0.contentSize.height > $0.bounds.height })
-                else { return false }
-                let bottom = scroll.contentSize.height - scroll.bounds.height + scroll
-                    .adjustedContentInset.bottom
-                return abs(scroll.contentOffset.y - bottom) < 1
+            try await waitForTimeline("initial estimate", in: first.view) {
+                capture.binding?.wrappedValue
+                    .viewID(type: PresenceTimelineList.RowID.self) == .estimate
+                    && HostedAccessibility.isVisible(
+                        String(localized: .locationForecastTitle),
+                        in: first.view,
+                    )
             }
             capture.binding?.wrappedValue.scrollTo(id: target, anchor: .top)
             try await waitForTimeline("browsed row", in: first.view) {
