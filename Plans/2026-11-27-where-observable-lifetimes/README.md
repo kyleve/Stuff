@@ -5,7 +5,7 @@
 - Updated 2026-11-27 against main at `c41708712`.
 - Operation is planning. The 2026-11-27 request selects Backup, Reminders, and Elsewhere from the ownership audit, followed by Home region selection, planned-stay editor presentation, and diagnostics confirmation in a separate phase.
 - Stage is review handoff. The Phase 1 plans are ready and Phase 2 has a reviewed outline. [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks implementation.
-- Next action is plan review on GitHub. Implementation awaits a separate request.
+- Next action is review of [PR #578](https://github.com/kyleve/Stuff/pull/578). Implementation awaits a separate request.
 
 ## Outcome and scope
 
@@ -96,7 +96,7 @@ No open product decisions. Phase 2 records its refinement trigger and evidence n
 
 ## Review and delivery
 
-- Plan review PR pending.
+- Plan review is open in [PR #578](https://github.com/kyleve/Stuff/pull/578).
 - Implementation awaits a separate request.
 - Review focus is dismissal during export, saved schedule ordering across presentations, Elsewhere refresh identity, and preservation of active editor state.
 
