@@ -21,7 +21,7 @@ struct BackupCoordinatorTests {
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let exported = try BackupService().readArchive(at: url).archive
-        #expect(exported.formatVersion == 8)
+        #expect(exported.formatVersion == 9)
         #expect(exported.manualDays == [day])
         #expect(exported.samples.isEmpty)
         #expect(!exported.trackedRegions.contains(ontario))
@@ -44,6 +44,7 @@ struct BackupCoordinatorTests {
             coordinate: Coordinate(latitude: 40, longitude: -100),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDeviceID: RecordingDeviceID(rawValue: UUID()),
             motion: LocationMotion(
                 speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                 altitude: .init(meters: 11000, accuracyMeters: 12),
@@ -55,6 +56,7 @@ struct BackupCoordinatorTests {
                 id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: Date(timeIntervalSince1970: 1000 + Double(offset)),
+                changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
                 replacementRegions: regions,
             )
         }
@@ -85,6 +87,7 @@ struct BackupCoordinatorTests {
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: Date(timeIntervalSince1970: 2000),
+            changedByDeviceID: Self.recordingDeviceID,
             replacementRegions: nil,
         )
         try await destination.store.perform {
@@ -98,6 +101,11 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.plannedStayRecords() == [stay])
         #expect(try await destination.store.homeRegionRecords() == [home])
         let restored = try await destination.store.allSampleAttributionRevisions()
+        let reexportURL = try await destination.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: reexportURL.deletingLastPathComponent()) }
+        let reexport = try BackupService().readArchive(at: reexportURL).archive
+        #expect(reexport.samples == [sample])
+        #expect(reexport.sampleAttributionRevisions == restored)
         switch strategy {
             case .merge:
                 #expect(restored == revisions + [reset])

@@ -35,17 +35,21 @@ public struct SampleAttributionRevision: Identifiable, Hashable, Codable, Sendab
     public let id: ID
     public let sampleID: UUID
     public let updatedAt: Date
+    /// Installation that issued this correction or reset, independent of the GPS recorder.
+    public let changedByDeviceID: RecordingDeviceID
     public let replacementRegions: Set<Region>?
 
     public init(
         id: ID,
         sampleID: UUID,
         updatedAt: Date,
+        changedByDeviceID: RecordingDeviceID,
         replacementRegions: Set<Region>?,
     ) {
         self.id = id
         self.sampleID = sampleID
         self.updatedAt = updatedAt
+        self.changedByDeviceID = changedByDeviceID
         self.replacementRegions = replacementRegions
     }
 

@@ -155,9 +155,6 @@ public struct DemoDataBuilder: Sendable {
         try await services.setPrimaryRegions(Self.primaryRegions)
 
         let script = makeScript()
-        let samples = script.samples.map {
-            $0.recorded(by: services.recording.currentDevice.id)
-        }
         let journalCalendar = services.aggregator.calendar
         let backfills = script.backfills.map { $0.presence(
             in: journalCalendar,
@@ -167,7 +164,7 @@ public struct DemoDataBuilder: Sendable {
             in: journalCalendar,
             isAuthoritative: true,
         ) }
-        try await services.journal.ingest(samples, manualDays: backfills + corrections)
+        try await services.journal.ingest(script.samples, manualDays: backfills + corrections)
     }
 
     // MARK: - The script

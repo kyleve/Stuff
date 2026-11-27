@@ -14,6 +14,7 @@ struct SampleAttributionResetTests {
         if repeated {
             try await SampleAttributionReset.write(
                 sampleIDs: [sample.id],
+                changedBy: SampleCorrectionTestSupport.editingDevice.id,
                 store: h.store,
                 now: FlightTrajectoryFixtures.date(minutes: 10),
             )
@@ -22,6 +23,7 @@ struct SampleAttributionResetTests {
         let resetAt = FlightTrajectoryFixtures.date(minutes: 30)
         try await SampleAttributionReset.write(
             sampleIDs: [sample.id],
+            changedBy: SampleCorrectionTestSupport.editingDevice.id,
             store: h.store,
             now: resetAt,
         )
@@ -32,6 +34,7 @@ struct SampleAttributionResetTests {
                 id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: FlightTrajectoryFixtures.date(minutes: 20),
+                changedByDeviceID: FlightTrajectoryFixtures.device,
                 replacementRegions: [.newYork],
             ))
         }
@@ -46,7 +49,35 @@ struct SampleAttributionResetTests {
         #expect(revisions.count(where: { $0.replacementRegions == nil }) == (repeated ? 2 : 1))
         let winner = try #require(revisions.last)
         #expect(winner.updatedAt == resetAt)
+        #expect(winner.changedByDeviceID == SampleCorrectionTestSupport.editingDevice.id)
         #expect(winner.replacementRegions == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func cancellationRollsBackPreviouslyStagedResets(atLastRevision: Bool) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let editor = SampleCorrectionTestSupport.editingDevice.id
+        let resetAt = FlightTrajectoryFixtures.date(minutes: 30)
+        let task = Task {
+            try await store.perform {
+                try await SampleAttributionReset.write(
+                    sampleIDs: [UUID()],
+                    changedBy: editor,
+                    store: store,
+                    now: resetAt,
+                )
+                withUnsafeCurrentTask { $0?.cancel() }
+                if atLastRevision { return }
+                try await SampleAttributionReset.write(
+                    sampleIDs: [UUID()],
+                    changedBy: editor,
+                    store: store,
+                    now: resetAt,
+                )
+            }
+        }
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(try await store.allSampleAttributionRevisions().isEmpty)
     }
 
     @Test(arguments: [false, true])
@@ -57,12 +88,14 @@ struct SampleAttributionResetTests {
             id: .init(rawValue: UUID()),
             sampleID: sampleID,
             updatedAt: FlightTrajectoryFixtures.date(minutes: 30),
+            changedByDeviceID: FlightTrajectoryFixtures.device,
             replacementRegions: alreadyReset ? nil : [.newYork],
         )
         try await store.perform { try await store.addSampleAttributionRevision(prior) }
 
         try await SampleAttributionReset.write(
             sampleIDs: [sampleID],
+            changedBy: SampleCorrectionTestSupport.editingDevice.id,
             store: store,
             now: FlightTrajectoryFixtures.date(minutes: 20),
         )
@@ -71,6 +104,7 @@ struct SampleAttributionResetTests {
         #expect(revisions.count == 2)
         let winner = try #require(revisions.last)
         #expect(winner.updatedAt > prior.updatedAt)
+        #expect(winner.changedByDeviceID == SampleCorrectionTestSupport.editingDevice.id)
         #expect(winner.replacementRegions == nil)
     }
 }

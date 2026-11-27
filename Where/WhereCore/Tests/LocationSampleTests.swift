@@ -17,7 +17,7 @@ struct LocationSampleTests {
             motion: motion,
         )
         let deviceID = RecordingDeviceID(rawValue: UUID())
-        let stamped = sample.recorded(by: deviceID)
+        let stamped = try sample.recorded(by: deviceID)
         #expect(stamped.id == sample.id)
         #expect(stamped.motion == motion)
         #expect(stamped.recordingDeviceID == deviceID)

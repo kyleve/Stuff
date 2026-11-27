@@ -1,6 +1,6 @@
 import Foundation
 import RegionKit
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 enum ElsewhereTestSupport {
     static let calendar = WhereCoreTestSupport.calendar()
@@ -14,6 +14,7 @@ enum ElsewhereTestSupport {
             coordinate: coordinate,
             horizontalAccuracy: 10,
             source: .gpsVisit,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 

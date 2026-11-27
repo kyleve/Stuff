@@ -91,26 +91,27 @@ struct DataCompatibilityCoordinatorTests {
         #expect(viewer.state.allowsStore)
     }
 
-    @Test func canadianRegionWriterExplainsTheUpgradeToAnOlderViewer() async throws {
-        let regionVersion = DataModelVersion(rawValue: 2)
-        let reason = try #require(regionVersion.changeReason)
-        let transport = ScriptedDataCompatibilityTransport(version: 1)
+    @Test(arguments: [2, 3])
+    func recorderExplainsTheUpgradeToAnOlderViewer(version: Int) async throws {
+        let newVersion = DataModelVersion(rawValue: version)
+        let reason = try #require(newVersion.changeReason)
+        let transport = ScriptedDataCompatibilityTransport(version: version - 1)
         let receipts = InMemoryDataCompatibilityReceipt()
         let previous = DataCompatibilityCoordinator(
             transport: transport,
             receipts: receipts,
-            version: .baseline,
+            version: .init(rawValue: version - 1),
         )
         await previous.refresh { .disabled }
         let originalAdmission = try previous.requireAccess()
         let recorder = DataCompatibilityCoordinator(
             transport: transport,
             receipts: InMemoryDataCompatibilityReceipt(),
-            version: regionVersion,
+            version: newVersion,
         )
         await recorder.refresh { .recording(deviceID) }
         #expect(recorder.state.allowsStore)
-        #expect(await transport.remote?.version == regionVersion)
+        #expect(await transport.remote?.version == newVersion)
         #expect(await transport.remote?.changeReason == reason)
 
         // An offline installation can only act on its last verified version.
@@ -124,7 +125,7 @@ struct DataCompatibilityCoordinatorTests {
         }
         await transport.setReadError(nil)
         await previous.refresh { .disabled }
-        guard case .blocked(.updateRequired(regionVersion, reason: reason)) = previous.state else {
+        guard case .blocked(.updateRequired(newVersion, reason: reason)) = previous.state else {
             Issue.record("The older viewer must receive the reason for the upgrade"); return
         }
         #expect(throws: DataCompatibilityFailure.self) {
@@ -135,10 +136,10 @@ struct DataCompatibilityCoordinatorTests {
         let relaunched = DataCompatibilityCoordinator(
             transport: transport,
             receipts: receipts,
-            version: .baseline,
+            version: .init(rawValue: version - 1),
         )
         await relaunched.refresh { .disabled }
-        guard case .blocked(.updateRequired(regionVersion, reason: reason)) = relaunched.state
+        guard case .blocked(.updateRequired(newVersion, reason: reason)) = relaunched.state
         else {
             Issue
                 .record("The older viewer must retain the reason after an offline relaunch"); return

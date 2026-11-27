@@ -84,6 +84,7 @@ public actor DayJournal {
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
+        let sample = try sample.recorded(by: currentDeviceID)
         try await store.performInCurrentGeneration {
             try await store.add(sample: sample)
         }
@@ -106,7 +107,7 @@ public actor DayJournal {
         try await Self.logger.measure(.ingestBatch, budget: .seconds(5)) {
             try await store.performInCurrentGeneration {
                 for sample in samples {
-                    try await store.add(sample: sample)
+                    try await store.add(sample: sample.recorded(by: currentDeviceID))
                 }
                 for day in manualDays {
                     try await store.setManualDay(day)
@@ -119,10 +120,7 @@ public actor DayJournal {
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
-        try await store.performInCurrentGeneration {
-            try await store.add(sample: sample)
-        }
-        await reconcileAfterSampleIngest(sample)
+        try await ingest(sample)
     }
 
     public func addManualDay(
@@ -169,10 +167,7 @@ public actor DayJournal {
     /// remain unchanged and delayed older revisions cannot revive the correction.
     public func clearManualDay(date: Date) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
-        try await store.performInCurrentGeneration {
-            try await store.clearManualDay(day)
-            try await resetSampleCorrections(on: day)
-        }
+        try await clearManualOverlayAndResetCorrections(on: day)
         await reconcileAfterDayDataChange()
         Self.logger.clearedManualDay(
             day: .restricted(.dateTime, String(describing: day)),
@@ -194,8 +189,7 @@ public actor DayJournal {
         try await Self.logger.measure(.clearManualDays, budget: .seconds(2)) {
             try await store.performInCurrentGeneration {
                 for day in days {
-                    try await store.clearManualDay(day)
-                    try await resetSampleCorrections(on: day)
+                    try await clearManualOverlayAndResetCorrections(on: day)
                 }
             }
         }
@@ -242,17 +236,22 @@ public actor DayJournal {
 
     // MARK: - Clearing
 
-    private func resetSampleCorrections(on day: CalendarDay) async throws {
+    private func clearManualOverlayAndResetCorrections(on day: CalendarDay) async throws {
         let start = day.startOfDay(in: aggregator.calendar)
         guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
             preconditionFailure("A valid calendar day must have a successor")
         }
-        let samples = try await store.samples(in: DateInterval(start: start, end: end))
-        try await SampleAttributionReset.write(
-            sampleIDs: Set(samples.filter(\.source.isGPS).map(\.id)),
-            store: store,
-            now: now(),
-        )
+        let interval = DateInterval(start: start, end: end)
+        try await store.performInCurrentGeneration {
+            let samples = try await store.readSnapshot { try await store.samples(in: interval) }
+            try await store.clearManualDay(day)
+            try await SampleAttributionReset.write(
+                sampleIDs: Set(samples.filter(\.source.isGPS).map(\.id)),
+                changedBy: currentDeviceID,
+                store: store,
+                now: now(),
+            )
+        }
     }
 
     public func clearYear(_ year: Int) async throws {
@@ -260,7 +259,11 @@ public actor DayJournal {
         let dayRange = CalendarDay.yearRange(year)
         try await Self.logger.measure(.clearYear, budget: .seconds(5)) {
             try await store.performInCurrentGeneration {
-                try await store.clear(in: interval, manualDays: dayRange)
+                try await store.clear(
+                    in: interval,
+                    manualDays: dayRange,
+                    changedBy: currentDeviceID,
+                )
             }
         }
         await reconcileAfterDayDataChange()

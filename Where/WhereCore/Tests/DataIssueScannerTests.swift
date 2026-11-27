@@ -749,6 +749,7 @@ struct DataIssueScannerTests {
                     coordinate: coordinate,
                     horizontalAccuracy: 20,
                     source: source,
+                    recordingDeviceID: source.isGPS ? CurrentRecordingDevice.preview.id : nil,
                 ))
             }
         }

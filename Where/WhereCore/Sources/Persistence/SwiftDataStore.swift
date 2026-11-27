@@ -720,6 +720,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// The earliest snapshot read in this transaction determines which
         /// external commits may invalidate the pending evidence-based writes.
         var snapshotHistoryTransactionID: Int64?
+        var writesSampleAttributionRevisions = false
     }
 
     private struct ActiveSnapshot {
@@ -807,13 +808,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     ) async throws -> T {
         let storeID = ObjectIdentifier(self)
         if Self.activeTransactionStores.contains(storeID) {
-            guard let transaction = activeTransaction else {
-                preconditionFailure("A nested snapshot must retain its active transaction.")
-            }
-            if transaction.snapshotHistoryTransactionID == nil {
-                activeTransaction?.snapshotHistoryTransactionID = try Self
-                    .latestHistoryTransactionID(in: transaction.context)
-            }
+            try pinMutationHistory()
             return try await block()
         }
         if Self.activeSnapshotStores.contains(storeID) {
@@ -977,6 +972,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                     try Self.latestHistoryTransactionID(in: peer) != startingHistoryTransactionID
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
+                }
+                if activeTransaction?.writesSampleAttributionRevisions == true {
+                    try Task.checkCancellation()
                 }
                 try peer.save()
                 // The persistent store can import a CloudKit reset while this
@@ -1241,6 +1239,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         try resolvedDataGenerationResolution(in: context).current
     }
 
+    /// Keep a decision based on existing rows valid until the transaction saves.
+    private func pinMutationHistory() throws {
+        guard let transaction = activeTransaction else {
+            preconditionFailure("Reading mutation history requires an active transaction.")
+        }
+        if transaction.snapshotHistoryTransactionID == nil {
+            activeTransaction?.snapshotHistoryTransactionID = try Self
+                .latestHistoryTransactionID(in: transaction.context)
+        }
+    }
+
     private func mutationGenerationID() -> WhereDataGenerationID {
         guard let activeTransaction else {
             preconditionFailure("SwiftDataStore mutations require an active data generation.")
@@ -1315,6 +1324,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func add(sample: LocationSample) async throws {
+        try sample.validateRecordingOrigin()
+        try pinMutationHistory()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.samples(
@@ -1322,6 +1333,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sampleID: sample.id,
         ))
         if let canonical = existing.first {
+            for row in existing {
+                guard let source = row.decodedSource,
+                      !source.isGPS || row.recordingDeviceID != nil
+                else {
+                    // CloudKit may deliver origin fields separately. A retry can resolve them.
+                    throw SDLocationSample.IncompleteOrigin()
+                }
+                let deviceID = row.recordingDeviceID.map(RecordingDeviceID.init(rawValue:))
+                guard sample.hasOrigin(source: source, recordingDeviceID: deviceID) else {
+                    throw LocationSampleOriginError.conflictingOrigin(sampleID: sample.id)
+                }
+            }
             canonical.update(from: sample, generationID: generationID)
             for duplicate in existing.dropFirst() {
                 context.delete(duplicate)
@@ -1359,6 +1382,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.timestamp)],
         )
         return try context.fetch(descriptor).compactMap { record in
+            if let id = record.id, record.recordingDeviceID == nil,
+               record.decodedSource?.isGPS == true
+            {
+                throw LocationSampleOriginError.missingRecordingDevice(sampleID: id)
+            }
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
@@ -1403,11 +1431,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
+        try Task.checkCancellation()
         guard revision.updatedAt.timeIntervalSince1970.isFinite else {
             throw SampleAttributionPersistenceError.incompleteHistory
         }
+        try pinMutationHistory()
         let context = mutationContext()
         let generationID = mutationGenerationID()
+        activeTransaction?.writesSampleAttributionRevisions = true
         let existing = try context.fetch(GenerationScopedFetch.sampleAttributions(
             belongingTo: generationID,
             revisionID: revision.id,
@@ -1845,7 +1876,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func clear(
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
+        changedBy deviceID: RecordingDeviceID,
     ) async throws {
+        try pinMutationHistory()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let samples = try context.fetch(GenerationScopedFetch.samples(
@@ -1855,7 +1888,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // Clearing history also clears its reviewed attributions. Keep reset revisions
         // so a delayed old correction cannot regain authority if its raw sample returns.
         let sampleIDs = Set(samples.compactMap(\.id))
-        try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
+        try await SampleAttributionReset.write(
+            sampleIDs: sampleIDs,
+            changedBy: deviceID,
+            store: self,
+            now: Date(),
+        )
         for record in samples {
             context.delete(record)
         }
@@ -2306,8 +2344,7 @@ final class SDLocationSample {
     /// `.other` label is not preserved here (fetch the `Evidence` row
     /// for that).
     var evidenceKindRaw: String?
-    /// Installation that produced an automatic sample. Nil on legacy rows and
-    /// manual/evidence-implied samples.
+    /// Capturing installation. CloudKit may deliver a GPS row before this field arrives.
     var recordingDeviceID: UUID?
     /// Retains the distinction between absent motion and a present, empty measurement bundle.
     var motionPresent: Bool?
@@ -2341,15 +2378,21 @@ final class SDLocationSample {
         altitudeAccuracyMeters = value.motion?.altitude?.accuracyMeters
     }
 
-    func toValue() -> LocationSample? {
-        guard let id, let timestamp, let latitude, let longitude, let horizontalAccuracy,
-              let sourceRaw
-        else { return nil }
-        guard let source = SampleSource.fromDiscriminator(
+    struct IncompleteOrigin: Error {}
+
+    var decodedSource: SampleSource? {
+        guard let sourceRaw else { return nil }
+        return SampleSource.fromDiscriminator(
             sourceRaw,
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
-        ) else { return nil }
+        )
+    }
+
+    func toValue() -> LocationSample? {
+        guard let id, let timestamp, let latitude, let longitude, let horizontalAccuracy,
+              let source = decodedSource, !source.isGPS || recordingDeviceID != nil
+        else { return nil }
         // Optional motion may arrive partially without invalidating the raw
         // position. Preserve each complete measurement independently, and keep
         // these reads non-mutating so a later sync can complete the other one.
@@ -2393,6 +2436,7 @@ final class SDSampleAttributionRevision {
     var id: UUID?
     var sampleID: UUID?
     var updatedAt: Date?
+    var changedByDeviceID: UUID?
     var replacementRegionIDs: [String]?
 
     init() {}
@@ -2403,11 +2447,12 @@ final class SDSampleAttributionRevision {
         id = value.id.rawValue
         sampleID = value.sampleID
         updatedAt = value.updatedAt
+        changedByDeviceID = value.changedByDeviceID.rawValue
         replacementRegionIDs = value.replacementRegions.map { $0.map(\.rawValue).sorted() }
     }
 
     func toValue() -> SampleAttributionRevision? {
-        guard generationID != nil, let id, let sampleID, let updatedAt,
+        guard generationID != nil, let id, let sampleID, let updatedAt, let changedByDeviceID,
               updatedAt.timeIntervalSince1970.isFinite else { return nil }
         let replacementRegions: Set<Region>?
         if let replacementRegionIDs {
@@ -2421,6 +2466,7 @@ final class SDSampleAttributionRevision {
             id: .init(rawValue: id),
             sampleID: sampleID,
             updatedAt: updatedAt,
+            changedByDeviceID: RecordingDeviceID(rawValue: changedByDeviceID),
             replacementRegions: replacementRegions,
         )
     }

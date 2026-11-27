@@ -13,6 +13,19 @@ public struct LocationOutboxEntry: Codable, Sendable, Hashable {
         self.sample = sample
         self.dataGenerationID = dataGenerationID
     }
+
+    var hasReplayableOrigin: Bool {
+        do {
+            try sample.validateRecordingOrigin()
+            return true
+        } catch {
+            WhereLog.location(LocationIngestorLog.self).persistFailed(
+                sampleID: .restricted(.identifier, String(describing: sample.id)),
+                error: .restricted(.errorDetails, error),
+            )
+            return false
+        }
+    }
 }
 
 /// A durable backlog of GPS samples that failed to persist, so a transient
@@ -164,6 +177,9 @@ public actor FileLocationOutbox: LocationOutbox {
             return
         }
         do {
+            for entry in entries {
+                try entry.sample.validateRecordingOrigin()
+            }
             let data = try JSONEncoder().encode(entries)
             try openJournal().append(data, sync: .processDeath)
         } catch {
@@ -243,7 +259,7 @@ public actor FileLocationOutbox: LocationOutbox {
         }
         let entries: [LocationOutboxEntry]
         do {
-            entries = try Self.decodeEntries(from: data)
+            entries = try Self.decodeEntries(from: data).filter(\.hasReplayableOrigin)
         } catch {
             Self.logger.droppedUnreadableBacklog(
                 error: .restricted(.errorDetails, error),

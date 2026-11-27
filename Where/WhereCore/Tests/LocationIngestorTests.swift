@@ -233,8 +233,9 @@ struct LocationIngestorTests {
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
         // A passive GPS sample already covers today.
-        try await store
-            .perform { try await store.add(sample: sample(at: "2026-03-15T02:00:00-07:00")) }
+        let existing = try sample(at: "2026-03-15T02:00:00-07:00")
+            .recorded(by: CurrentRecordingDevice.preview.id)
+        try await store.perform { try await store.add(sample: existing) }
         source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
         try await ingestor.authorizeRecording()
 
@@ -247,28 +248,32 @@ struct LocationIngestorTests {
         #expect(try await store.allSamples().count == 1)
     }
 
-    @Test func captureTodayStillCapturesWhenOnlyManualSampleExistsToday() async throws {
+    @Test(arguments: [false, true])
+    func captureTodayStillCapturesWhenOnlyManualOrAnotherDevicesGPSExistsToday(
+        foreignGPS: Bool,
+    ) async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
-        // A manual entry isn't a passive-tracking data point, so it must not
-        // suppress the GPS fix.
-        try await store.perform {
-            try await store.add(sample: LocationSample(
-                timestamp: WhereCoreTestSupport.iso("2026-03-15T02:00:00-07:00"),
-                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
-                horizontalAccuracy: 0,
-                source: .manual,
-            ))
-        }
-        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+        let earlier = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T02:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: foreignGPS ? .gpsVisit : .manual,
+            recordingDeviceID: foreignGPS ? RecordingDeviceID(rawValue: UUID()) : nil,
+        )
+        try await store.perform { try await store.add(sample: earlier) }
+        let fix = sample(at: "2026-03-15T08:05:00-07:00")
+        source.setNextRequestedLocation(fix)
         try await ingestor.authorizeRecording()
 
         await ingestor
             .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
 
-        try await waitUntil { await (try? store.allSamples().count) == 2 }
+        let captured = try fix.recorded(by: CurrentRecordingDevice.preview.id)
+        try await waitUntil { await recorder.last?.liveSample == captured }
+        #expect(try await store.allSamples() == [earlier, captured])
     }
 
     @Test func captureTodaySkipsWhenSourceHasNoFix() async throws {
@@ -618,6 +623,43 @@ struct LocationIngestorTests {
         #expect(await outbox.contents.isEmpty)
     }
 
+    @Test func conflictingQueuedAndLiveOriginsDoNotBlockLaterFixes() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let fix = sample(at: "2026-03-15T12:00:00-07:00")
+        let original = try fix.recorded(by: RecordingDeviceID(rawValue: UUID()))
+        try await store.perform { try await store.add(sample: original) }
+        let outbox = try SpyLocationOutbox([fix.recorded(by: CurrentRecordingDevice.preview.id)])
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: recorder,
+            outbox: outbox,
+        )
+        try await ingestor.start()
+        #expect(await outbox.entries.isEmpty)
+
+        let retry = try sample(at: "2026-03-14T13:00:00-07:00")
+            .recorded(by: CurrentRecordingDevice.preview.id)
+        await ingestor.testingEnqueueForRetry(retry, dataGenerationID: .initial)
+        source.emit(fix)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: fix.id) }
+        let recovered = try #require(await recorder.last)
+        #expect(recovered.liveSample == nil)
+        #expect(recovered
+            .changedDays == [WhereCoreTestSupport.calendar().startOfDay(for: retry.timestamp)])
+        #expect(recovered.needsFullWidgetRebuild)
+        let next = sample(at: "2026-03-15T12:05:00-07:00")
+        source.emit(next)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: next.id) }
+
+        let captured = try next.recorded(by: CurrentRecordingDevice.preview.id)
+        #expect(try await store.allSamples() == [retry, original, captured])
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await outbox.entries.isEmpty)
+    }
+
     @Test func durableBacklogPreservesExistingDeviceProvenance() async throws {
         let store = try SwiftDataStore.inMemory()
         let originalDeviceID = try RecordingDeviceID(
@@ -682,7 +724,9 @@ struct LocationIngestorTests {
         let gatedStore = ToggleFailingStore(backing: backing)
         let gate = OneShotGate()
         await gatedStore.gateNextExpectedGenerationPerform(with: gate)
-        let outbox = SpyLocationOutbox([sample(at: "2026-03-15T12:00:00-07:00")])
+        let pending = try sample(at: "2026-03-15T12:00:00-07:00")
+            .recorded(by: CurrentRecordingDevice.preview.id)
+        let outbox = SpyLocationOutbox([pending])
         let ingestor = Self.makeIngestor(
             store: gatedStore,
             source: ScriptedLocationSource(authorizationStatus: .always),
@@ -1176,8 +1220,9 @@ private actor ToggleFailingStore: WhereStore {
     func clear(
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
+        changedBy deviceID: RecordingDeviceID,
     ) async throws {
-        try await backing.clear(in: interval, manualDays: dayRange)
+        try await backing.clear(in: interval, manualDays: dayRange, changedBy: deviceID)
     }
 
     func dismissedIssueIDs() async throws -> Set<DataIssueID> {

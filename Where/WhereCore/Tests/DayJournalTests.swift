@@ -32,6 +32,8 @@ struct DayJournalTests {
         let resets = revisions.filter { $0.replacementRegions == nil }
         let raw = FlightTrajectoryFixtures.turningFlight().samples
         #expect(resets.count == raw.count)
+        #expect(Set(resets.map(\.changedByDeviceID)) ==
+            [SampleCorrectionTestSupport.editingDevice.id])
         #expect(Set(resets.map(\.sampleID)) == Set(raw.map(\.id)))
         #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
         let originalRegions = Set(raw
@@ -47,6 +49,7 @@ struct DayJournalTests {
                 id: .init(rawValue: UUID()),
                 sampleID: first.sampleID,
                 updatedAt: first.updatedAt,
+                changedByDeviceID: first.changedByDeviceID,
                 replacementRegions: first.replacementRegions,
             ))
         }
@@ -190,6 +193,10 @@ struct DayJournalTests {
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.totals == [.california: 2, .newYork: 1])
+        let samples = try await h.store.allSamples()
+        #expect(samples.filter(\.source.isGPS)
+            .map(\.recordingDeviceID) == [CurrentRecordingDevice.preview.id])
+        #expect(samples.filter { !$0.source.isGPS }.allSatisfy { $0.recordingDeviceID == nil })
         #expect(await h.reminders.reconcileCount == 1)
         #expect(await h.widgets.publishCount == 1)
     }
@@ -307,11 +314,17 @@ struct DayJournalTests {
 
     @Test func clearYearWipesAndReconciles() async throws {
         let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
-        try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
+        let raw = FlightTrajectoryFixtures.sample(401, minutes: 1440, east: 0)
+        try await h.store.perform { try await h.store.add(sample: raw) }
         try await h.journal.clearYear(2026)
 
         #expect(try await h.reader.yearReport(for: 2026).days.isEmpty)
-        #expect(await h.reminders.reconcileCount == 2)
+        #expect(try await h.store.allSamples().isEmpty)
+        let revisions = try await h.store.allSampleAttributionRevisions()
+        #expect(revisions.count == 1)
+        #expect(revisions.first?.sampleID == raw.id)
+        #expect(revisions.first?.changedByDeviceID == CurrentRecordingDevice.preview.id)
+        #expect(await h.reminders.reconcileCount == 1)
     }
 
     @Test func eraseAllDataWipesEveryYearAndReconciles() async throws {

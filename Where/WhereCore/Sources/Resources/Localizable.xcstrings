@@ -146,6 +146,18 @@
         }
       }
     },
+    "compatibility.version3.reason" : {
+      "comment" : "Explains the shared data update that identifies recording and correcting devices.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where now saves which device recorded a location and which device corrected it."
+          }
+        }
+      }
+    },
     "dataIssues.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -179,7 +179,8 @@ one it belongs to rather than to a god-object:
   and republishes the widget snapshot. Every automatic sample is stamped with
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data generation that authorized it, so a pre-reset fix can be
-  discarded but never written into the replacement generation.
+  discarded but never written into the replacement generation. The ingestor reports and drops
+  conflicting origins for the same sample UUID, then continues with valid queued and live fixes.
 - **`LocationOutbox`** — a backup-excluded, JournalKit-backed sidecar for samples
   SwiftData could not commit. It appends complete bounded queue snapshots, so a
   crash-torn final write falls back to the preceding intact state. Reset and
@@ -193,8 +194,8 @@ one it belongs to rather than to a god-object:
   including removed devices, for historical labels.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
   and foreground capture checks. It hides a removed identity's GPS samples at
-  and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
-  without provenance, and user-asserted samples lossless.
+  and after its earliest tombstone. Raw backups retain the captured observations and their
+  original installation IDs. Manual and evidence-derived samples retain their sources.
 
 ### Detection, notifications & the rest
 
@@ -288,7 +289,7 @@ one it belongs to rather than to a god-object:
   by sample identity; conflicting representations remain uncorrected.
   A `FlightPointCorrection` lets the user explicitly include or restore one GPS point within a completed flight.
   Both actions recheck the same evidence and data generation as automatic proposals.
-  Restoration writes a reset revision. It preserves the original GPS sample and the earlier correction history.
+  Each correction and reset retains the installation that wrote it. The original GPS sample retains its capturing installation, including when a different device restores the point.
   `LocationHistoryReader.projection`
   joins lossless raw samples to the effective attribution for reports, maps,
   artwork, widgets, summaries, reminders, and intents.
@@ -325,7 +326,7 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v8** adds Canadian subdivision IDs. An older importer rejects the
+  Backup format **v9** requires a capture device on GPS samples and an author on correction and reset revisions. An older importer rejects the
   archive before changing any user data, including a manual-only backup moved between
   accounts. Version 8 retains independent stays, date windows, Home choices, optional motion,
   and every sample-attribution revision. Merge preserves revision IDs and timestamps.

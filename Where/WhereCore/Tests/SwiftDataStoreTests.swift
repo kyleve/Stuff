@@ -145,6 +145,61 @@ struct SwiftDataStoreTests {
         #expect(try await refreshed.allSamples() == [sample])
     }
 
+    @Test @MainActor func gpsOriginCanArriveAfterTheRawPosition() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let sample = FlightTrajectoryFixtures.sample(802, minutes: 1, east: 0)
+        let row = SDLocationSample(value: sample, generationID: .initial)
+        row.recordingDeviceID = nil
+        context.insert(row)
+        try context.save()
+        let store = SwiftDataStore(modelContainer: container)
+        let interval = DateInterval(start: sample.timestamp, duration: 1)
+        #expect(try await store.samples(in: interval).isEmpty)
+        await #expect(throws: LocationSampleOriginError
+            .missingRecordingDevice(sampleID: sample.id))
+        {
+            _ = try await store.allSamples()
+        }
+        await #expect(throws: SDLocationSample.IncompleteOrigin.self) {
+            try await store.perform { try await store.add(sample: sample) }
+        }
+
+        row.recordingDeviceID = sample.recordingDeviceID?.rawValue
+        try context.save()
+        let refreshed = SwiftDataStore(modelContainer: container)
+        #expect(try await refreshed.allSamples() == [sample])
+    }
+
+    @Test func sampleOriginIsRequiredAndCannotChangeOnUpsert() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let raw = LocationSample(
+            timestamp: Date(),
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+        )
+        await #expect(throws: LocationSampleOriginError.missingRecordingDevice(sampleID: raw.id)) {
+            try await store.perform { try await store.add(sample: raw) }
+        }
+        let original = try raw.recorded(by: CurrentRecordingDevice.preview.id)
+        let other = try raw.recorded(by: RecordingDeviceID(rawValue: UUID()))
+        let manual = LocationSample(
+            id: raw.id,
+            timestamp: raw.timestamp,
+            coordinate: raw.coordinate,
+            horizontalAccuracy: raw.horizontalAccuracy,
+            source: .manual,
+        )
+        try await store.perform { try await store.add(sample: original) }
+        for replacement in [other, manual] {
+            await #expect(throws: LocationSampleOriginError.conflictingOrigin(sampleID: raw.id)) {
+                try await store.perform { try await store.add(sample: replacement) }
+            }
+        }
+        #expect(try await store.allSamples() == [original])
+    }
+
     @Test func rawMotionAndAllAttributionStatesRoundTripWithoutChangingTheSample() async throws {
         let store = try SwiftDataStore.inMemory()
         let sample = LocationSample(
@@ -152,6 +207,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 40, longitude: -100),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
             motion: LocationMotion(
                 speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                 altitude: .init(meters: 11000, accuracyMeters: 10),
@@ -163,6 +219,7 @@ struct SwiftDataStoreTests {
                 id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: Date(timeIntervalSince1970: 1000 + Double(offset)),
+                changedByDeviceID: Self.generationWriterID,
                 replacementRegions: replacement,
             )
         }
@@ -188,12 +245,14 @@ struct SwiftDataStoreTests {
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))),
             sampleID: sampleID,
             updatedAt: timestamp,
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: [],
         )
         let higher = try SampleAttributionRevision(
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))),
             sampleID: sampleID,
             updatedAt: timestamp,
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: nil,
         )
         try await store.perform {
@@ -205,12 +264,16 @@ struct SwiftDataStoreTests {
         #expect(try await store.sampleAttributionRevisions(for: [sampleID]) == [lower, higher])
     }
 
-    @Test func conflictingAttributionRevisionFailsWithoutChangingTheWinner() async throws {
+    @Test(arguments: [false, true])
+    func conflictingAttributionRevisionFailsWithoutChangingTheWinner(
+        differentAuthor: Bool,
+    ) async throws {
         let store = try SwiftDataStore.inMemory()
         let revision = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
             sampleID: UUID(),
             updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: [],
         )
         try await store.perform { try await store.addSampleAttributionRevision(revision) }
@@ -218,7 +281,9 @@ struct SwiftDataStoreTests {
             id: revision.id,
             sampleID: revision.sampleID,
             updatedAt: revision.updatedAt,
-            replacementRegions: nil,
+            changedByDeviceID: differentAuthor ? SampleCorrectionTestSupport.editingDevice
+                .id : revision.changedByDeviceID,
+            replacementRegions: differentAuthor ? revision.replacementRegions : nil,
         )
         await #expect(throws: SampleAttributionPersistenceError
             .conflictingRevision(id: revision.id))
@@ -236,11 +301,13 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 40, longitude: -100),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         let revision = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: timestamp,
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: [],
         )
         try await store.perform {
@@ -252,6 +319,7 @@ struct SwiftDataStoreTests {
             try await store.clear(
                 in: DateInterval(start: timestamp, end: timestamp.addingTimeInterval(1)),
                 manualDays: day ... day,
+                changedBy: SampleCorrectionTestSupport.editingDevice.id,
             )
             try await store.addSampleAttributionRevision(revision)
         }
@@ -272,6 +340,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 0, longitude: 0),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform {
             try await store.add(sample: sample)
@@ -280,6 +349,7 @@ struct SwiftDataStoreTests {
                     id: .init(rawValue: UUID()),
                     sampleID: sample.id,
                     updatedAt: timestamp.addingTimeInterval(100),
+                    changedByDeviceID: Self.generationWriterID,
                     replacementRegions: nil,
                 ))
             }
@@ -287,7 +357,11 @@ struct SwiftDataStoreTests {
         let day = CalendarDay(from: timestamp, in: Self.calendar)
         let interval = DateInterval(start: timestamp, duration: 1)
         try await store.perform {
-            try await store.clear(in: interval, manualDays: day ... day)
+            try await store.clear(
+                in: interval,
+                manualDays: day ... day,
+                changedBy: SampleCorrectionTestSupport.editingDevice.id,
+            )
         }
         #expect(try await store.allSamples().isEmpty)
 
@@ -299,6 +373,7 @@ struct SwiftDataStoreTests {
                 id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: timestamp.addingTimeInterval(200),
+                changedByDeviceID: Self.generationWriterID,
                 replacementRegions: [.newYork],
             ))
         }
@@ -316,6 +391,34 @@ struct SwiftDataStoreTests {
         #expect(winner.replacementRegions == nil)
     }
 
+    @Test func overlappingRevisionWritesCannotCommitConflictingAuthors() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let local = SwiftDataStore(modelContainer: container)
+        let remote = SwiftDataStore(modelContainer: container)
+        let staged = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: UUID(),
+            updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: Self.generationWriterID,
+            replacementRegions: nil,
+        )
+        let delivered = SampleAttributionRevision(
+            id: staged.id,
+            sampleID: staged.sampleID,
+            updatedAt: staged.updatedAt,
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
+            replacementRegions: staged.replacementRegions,
+        )
+        await #expect(throws: WhereStoreReadConflictError.changedDuringTransaction) {
+            try await local.perform {
+                try await local.addSampleAttributionRevision(staged)
+                try await remote
+                    .perform { try await remote.addSampleAttributionRevision(delivered) }
+            }
+        }
+        #expect(try await remote.allSampleAttributionRevisions() == [delivered])
+    }
+
     @Test @MainActor func attributionHistoryIsGenerationScopedAndCorruptionFailsClosed(
     ) async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
@@ -324,6 +427,7 @@ struct SwiftDataStoreTests {
             id: .init(rawValue: UUID()),
             sampleID: UUID(),
             updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: [],
         )
         try await store.perform { try await store.addSampleAttributionRevision(revision) }
@@ -339,9 +443,8 @@ struct SwiftDataStoreTests {
         try context.save()
         let reader = SwiftDataStore(modelContainer: container)
         #expect(try await reader.allSampleAttributionRevisions().isEmpty)
-        let corrupt = SDSampleAttributionRevision()
-        corrupt.generationID = current.id.rawValue
-        corrupt.id = UUID()
+        let corrupt = SDSampleAttributionRevision(value: revision, generationID: current.id)
+        corrupt.changedByDeviceID = nil
         context.insert(corrupt)
         try context.save()
         let corruptReader = SwiftDataStore(modelContainer: container)
@@ -1351,12 +1454,14 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 0, longitude: 0),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform { try await store.add(sample: sample) }
         let correction = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: Date(timeIntervalSince1970: 600),
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: [],
         )
         let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
@@ -1417,11 +1522,13 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 0, longitude: 0),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         let correction = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: Date(timeIntervalSince1970: 600),
+            changedByDeviceID: Self.generationWriterID,
             replacementRegions: [],
         )
         try await store.perform(expectedDataGenerationID: .initial) {

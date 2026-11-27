@@ -24,6 +24,7 @@ struct SampleCorrectionCoordinatorTests {
             id: .init(rawValue: UUID()),
             sampleID: excluded.id,
             updatedAt: F.date(minutes: 4330),
+            changedByDeviceID: FlightTrajectoryFixtures.device,
             replacementRegions: [],
         )
         try await h.store.perform {
@@ -101,6 +102,7 @@ struct SampleCorrectionCoordinatorTests {
                 id: .init(rawValue: UUID()),
                 sampleID: samples[0].id,
                 updatedAt: F.date(minutes: 30),
+                changedByDeviceID: FlightTrajectoryFixtures.device,
                 replacementRegions: [],
             ))
         }
@@ -160,6 +162,7 @@ struct SampleCorrectionCoordinatorTests {
             id: .init(rawValue: UUID()),
             sampleID: FlightTrajectoryFixtures.sampleID(4),
             updatedAt: FlightTrajectoryFixtures.date(minutes: 149),
+            changedByDeviceID: FlightTrajectoryFixtures.device,
             replacementRegions: [],
         )
         try await h.store.perform {
@@ -180,6 +183,7 @@ struct SampleCorrectionCoordinatorTests {
         #expect(excluded.count == 1)
         #expect(excluded.first?.sampleID == endpoint.sampleID)
         #expect(excluded.first?.replacementRegions == [])
+        #expect(excluded.first?.changedByDeviceID == SampleCorrectionTestSupport.editingDevice.id)
         #expect(try await h.reader.yearReport(for: h.day.year).days.first?.regions == endpoint
             .resultingRegions)
         let updated = try await h.review()
@@ -196,6 +200,7 @@ struct SampleCorrectionCoordinatorTests {
         let latest = try #require(revisions.max { $0.updatedAt < $1.updatedAt })
         #expect(latest.replacementRegions == nil)
         #expect(latest.updatedAt > excluded[0].updatedAt)
+        #expect(latest.changedByDeviceID == SampleCorrectionTestSupport.editingDevice.id)
         #expect(try await Set(h.store.allSamples()) == Set(before))
         #expect(try await h.reader.yearReport(for: h.day.year).days.first?.regions == restore
             .resultingRegions)
@@ -232,6 +237,7 @@ struct SampleCorrectionCoordinatorTests {
                         id: .init(rawValue: UUID()),
                         sampleID: correction.sampleID,
                         updatedAt: FlightTrajectoryFixtures.date(minutes: 149),
+                        changedByDeviceID: FlightTrajectoryFixtures.device,
                         replacementRegions: [],
                     ))
                 case .generation:
@@ -336,7 +342,7 @@ struct SampleCorrectionCoordinatorTests {
     ) async throws {
         typealias F = RecordedFlightArchiveFixture
         let fixture = try RecordedFlightFixture.load(.resumedCruise)
-        let archiveURL = try F.makeArchiveFile(fixture: fixture)
+        let archiveURL = try F.makeArchiveFile(fixture: fixture, revisions: [])
         defer {
             do {
                 try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
@@ -489,6 +495,9 @@ struct SampleCorrectionCoordinatorTests {
         let revisions = try await h.store.allSampleAttributionRevisions()
         #expect(Set(revisions.map(\.sampleID)) == Set(proposal.edits.map(\.sampleID)))
         #expect(revisions.count == proposal.edits.count)
+        #expect(Set(originals.map(\.recordingDeviceID)) == [FlightTrajectoryFixtures.device])
+        #expect(Set(revisions.map(\.changedByDeviceID)) ==
+            [SampleCorrectionTestSupport.editingDevice.id])
         #expect(try await Set(h.store.allSamples()) == Set(originals))
         #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
         #expect(try await h.reader.yearReport(for: h.day.year).days.first?.regions == proposal
@@ -547,6 +556,7 @@ struct SampleCorrectionCoordinatorTests {
                         id: .init(rawValue: UUID()),
                         sampleID: FlightTrajectoryFixtures.sampleID(1),
                         updatedAt: FlightTrajectoryFixtures.date(minutes: 149),
+                        changedByDeviceID: FlightTrajectoryFixtures.device,
                         replacementRegions: [.california],
                     ))
                 case .generation:

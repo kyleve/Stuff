@@ -589,6 +589,33 @@ struct WhereServicesTests {
         #expect(persisted == [s], "saved peer changes should be visible to the main read context")
     }
 
+    @Test func resetRejectsAnEditDeliveredAfterReadingThePriorRevisions() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let local = SwiftDataStore(modelContainer: container)
+        let remote = SwiftDataStore(modelContainer: container)
+        let sampleID = UUID()
+        let remoteEdit = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: sampleID,
+            updatedAt: FlightTrajectoryFixtures.date(minutes: 40),
+            changedByDeviceID: FlightTrajectoryFixtures.device,
+            replacementRegions: [.newYork],
+        )
+        let intercepted = ToggleFailingStore(backing: local, afterReadingRevisions: {
+            try await remote.perform { try await remote.addSampleAttributionRevision(remoteEdit) }
+        })
+        let services = WhereServices(
+            store: intercepted,
+            locationSource: ScriptedLocationSource(),
+            aggregator: Self.makeAggregator(),
+            now: { FlightTrajectoryFixtures.date(minutes: 30) },
+        )
+        await #expect(throws: WhereStoreReadConflictError.changedDuringTransaction) {
+            try await services.corrections.reset(sampleIDs: [sampleID])
+        }
+        #expect(try await local.allSampleAttributionRevisions() == [remoteEdit])
+    }
+
     @Test func readsInsidePerform_seePendingWritesOnPeer() async throws {
         let store = try SwiftDataStore.inMemory()
         let s = sample(at: "2026-04-10T08:00:00-07:00")
@@ -620,6 +647,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 
@@ -1793,11 +1821,17 @@ private struct ToggleFailingStoreError: Error {}
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
     private let failCorrections: Bool
+    private let afterReadingRevisions: (@Sendable () async throws -> Void)?
     private var shouldFail = false
 
-    init(backing: SwiftDataStore, failCorrections: Bool = false) {
+    init(
+        backing: SwiftDataStore,
+        failCorrections: Bool = false,
+        afterReadingRevisions: (@Sendable () async throws -> Void)? = nil,
+    ) {
         self.backing = backing
         self.failCorrections = failCorrections
+        self.afterReadingRevisions = afterReadingRevisions
     }
 
     func setShouldFail(_ value: Bool) {
@@ -1814,6 +1848,12 @@ private actor ToggleFailingStore: WhereStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         try await backing.perform(block)
+    }
+
+    func readSnapshot<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        try await backing.readSnapshot(block)
     }
 
     nonisolated func changes() -> AsyncStream<Void> {
@@ -1875,7 +1915,9 @@ private actor ToggleFailingStore: WhereStore {
     func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
         -> [SampleAttributionRevision]
     {
-        try await backing.sampleAttributionRevisions(for: sampleIDs)
+        let revisions = try await backing.sampleAttributionRevisions(for: sampleIDs)
+        try await afterReadingRevisions?()
+        return revisions
     }
 
     func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
@@ -1958,8 +2000,9 @@ private actor ToggleFailingStore: WhereStore {
     func clear(
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
+        changedBy deviceID: RecordingDeviceID,
     ) async throws {
-        try await backing.clear(in: interval, manualDays: dayRange)
+        try await backing.clear(in: interval, manualDays: dayRange, changedBy: deviceID)
     }
 
     func dismissedIssueIDs() async throws -> Set<DataIssueID> {

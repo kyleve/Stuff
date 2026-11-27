@@ -16,12 +16,21 @@ struct SampleAttributionRevisionTests {
             id: revisionID,
             sampleID: UUID(),
             updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: nil,
         )
         let encodedRevision = try JSONEncoder().encode(revision)
         let object = try #require(JSONSerialization.jsonObject(with: encodedRevision)
             as? [String: Any])
         #expect(object["id"] as? String == uuid.uuidString)
+        #expect(object["changedByDeviceID"] as? String == revision.changedByDeviceID.storeURL
+            .absoluteString)
+        var missingAuthor = object
+        missingAuthor.removeValue(forKey: "changedByDeviceID")
+        let incomplete = try JSONSerialization.data(withJSONObject: missingAuthor)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(SampleAttributionRevision.self, from: incomplete)
+        }
     }
 
     @Test func resetExclusionAndReplacementRemainDistinctOnTheWire() throws {
@@ -32,6 +41,7 @@ struct SampleAttributionRevisionTests {
                 id: .init(rawValue: UUID()),
                 sampleID: sampleID,
                 updatedAt: Date(timeIntervalSince1970: 1000),
+                changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
                 replacementRegions: $0,
             )
         }
@@ -46,12 +56,14 @@ struct SampleAttributionRevisionTests {
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))),
             sampleID: sampleID,
             updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: [],
         )
         let higher = try SampleAttributionRevision(
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))),
             sampleID: sampleID,
             updatedAt: lower.updatedAt,
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: nil,
         )
         #expect(SampleAttributionRevision.newer(higher, than: lower))
@@ -60,6 +72,7 @@ struct SampleAttributionRevisionTests {
             id: lower.id,
             sampleID: sampleID,
             updatedAt: lower.updatedAt.addingTimeInterval(1),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: [],
         )
         #expect(SampleAttributionRevision.newer(later, than: higher))
@@ -76,6 +89,7 @@ struct SampleAttributionRevisionTests {
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))),
             sampleID: UUID(),
             updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: [],
         )
         let now = prior.updatedAt.addingTimeInterval(clockOffset)
@@ -84,6 +98,7 @@ struct SampleAttributionRevisionTests {
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))),
             sampleID: prior.sampleID,
             updatedAt: updatedAt,
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: nil,
         )
 

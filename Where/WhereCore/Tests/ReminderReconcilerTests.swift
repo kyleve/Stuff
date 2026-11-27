@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the reminder intent + badge/schedule reconciliation the controller
 /// delegates every reminder call to.
@@ -86,6 +86,7 @@ struct ReminderReconcilerTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         await h.reconciler.configure(

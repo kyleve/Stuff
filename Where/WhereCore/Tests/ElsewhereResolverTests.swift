@@ -97,6 +97,7 @@ struct ElsewhereResolverTests {
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: sample.timestamp,
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: regions,
         )
         let input = ElsewhereTestSupport.input(samples: [sample], revisions: [correction])
@@ -110,12 +111,14 @@ struct ElsewhereResolverTests {
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: sample.timestamp,
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: [.other],
         )
         let reset = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: sample.timestamp.addingTimeInterval(1),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: nil,
         )
         let input = ElsewhereTestSupport.input(samples: [sample], revisions: [reset, older])
