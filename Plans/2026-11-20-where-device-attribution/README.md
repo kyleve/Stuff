@@ -5,7 +5,7 @@ If Travel Phone records a location and Home iPad corrects it, the saved point sh
 ## Planning checkpoint
 
 - **Request.** On November 20, 2026 the owner asked for a plan covering device names, model-based fallback, and the origin of actions and locations. Their existing history comes from one phone. They selected the offline upgrader for old data.
-- **Stage.** The owner settled the setup, model label and history choices on November 20. Source discovery at `1b04fdd2c` is complete. The plan is ready for review. [Linear STU-337](https://linear.app/kve/issue/STU-337/name-where-devices-and-retain-their-role-in-location-and-action)
+- **Stage.** The owner settled the setup, model label and history choices on November 20. On November 27 the owner requested a revision against the merged main branch (`a6b213ebe`). The revised versioning, rollout and upgrade steps are ready for review. [Linear STU-337](https://linear.app/kve/issue/STU-337/name-where-devices-and-retain-their-role-in-location-and-action)
 - **Resume.** Implementation awaits a separate request. Start with [01](01-location-provenance.md#resume-point), then use its tested archive format in 02.
 
 ## User stories
@@ -38,7 +38,7 @@ If Travel Phone records a location and Home iPad corrects it, the saved point sh
 
 ## Discovery and evidence
 
-Findings are from source revision `1b04fdd2c`. The migrated [STU-301](https://linear.app/kve/issue/STU-301) records earlier naming work as Done. The current setup flow still lacks a name field. [STU-221](https://linear.app/kve/issue/STU-221) separately tracks an entitlement for reading a system-assigned name. Neither issue covers attribution for actions.
+Discovery began at `1b04fdd2c`. The November 27 revision uses `a6b213ebe` for store admission and archive behavior. The migrated [STU-301](https://linear.app/kve/issue/STU-301) records earlier naming work as Done. The current setup flow still lacks a name field. [STU-221](https://linear.app/kve/issue/STU-221) separately tracks an entitlement for reading a system-assigned name. Neither issue covers attribution for actions.
 
 | Workflow | Existing behavior and consequence |
 | --- | --- |
@@ -46,7 +46,7 @@ Findings are from source revision `1b04fdd2c`. The migrated [STU-301](https://li
 | Name and rename | [DeviceRecordingController](../../Where/WhereCore/Sources/Devices/DeviceRecordingController.swift) already registers immutable profiles, attributes nickname changes and supplies historical names including removed profiles. [Settings](../../Where/WhereUI/Sources/Settings/DeviceSettingsRowModel.swift) has its own display rule. The phone currently supplies a family name such as “iPhone”. The logging module already reads the machine identifier, with a simulator caveat. [Apple's model documentation](https://developer.apple.com/documentation/uikit/uidevice/model) · [LogSession](../../Shared/Periscope/PeriscopeCore/Sources/Store/LogSession.swift) |
 | Record, correct, retry | [LocationIngestor](../../Where/WhereCore/Sources/Location/LocationIngestor.swift) stamps live GPS and retries buffered observations. [LocationSample](../../Where/WhereCore/Sources/Location/LocationSample.swift) can still represent an unstamped fix. [SampleAttributionRevision](../../Where/WhereCore/Sources/DataResolution/SampleAttributionRevision.swift) records the sample, time and revised regions but has no editor ID. Device removal and flight grouping rely on capture identity. |
 | Act on another device | A [manual-entry audit](../../Where/WhereCore/Sources/Journal/ManualEntryAudit.swift) records time, optional note and optional fix. A [day clear or issue restore](../../Where/WhereCore/Sources/Journal/DayJournal.swift) removes state. Under the agreed retention rule, a day clear can still remove the sole record of that entry. The [action inventory](03-action-attribution.md#coverage-inventory) covers the other writers. |
-| Restore on B | The [v7 archive](../../Where/WhereCore/Sources/Backup/BackupArchive.swift) carries raw observations, correction revisions, device profiles and metadata. [Replace](../../Where/WhereCore/Sources/Backup/BackupCoordinator.swift) starts a new generation under B's authority. The old capture retains its own ID. V7 lacks the correction author, which the upgrader can supply for the owner’s single-phone history. An input containing only “iPhone” cannot reveal the old phone's specific model. |
+| Restore on B | The [v8 archive](../../Where/WhereCore/Sources/Backup/BackupArchive.swift) carries raw observations, correction revisions, device profiles and metadata. [Replace](../../Where/WhereCore/Sources/Backup/BackupCoordinator.swift) starts a new generation under B's authority. The old capture retains its own ID. V8 supports Canadian subdivision IDs and lacks the correction author, which the upgrader can supply for the owner’s single-phone history. An input containing only “iPhone” cannot reveal the old phone's specific model. |
 
 ## Execution order and planning horizon
 
@@ -62,9 +62,22 @@ The current horizon covers 01 and 02. Their diagrams and Swift sketches show the
 
 - The owner chose an editable model-based name, a familiar label for known hardware and the raw identifier for unknown hardware. Existing records and revisions own their author. Existing places that display devices use the same names. Inspection of stored and exported records covers new author fields.
 - Use `RecordingDeviceID` throughout. The field identifies the role of recorder, editor or target. Store IDs with data. Resolve names on read through the existing device registry.
-- Observe the existing Where contracts for removal, generation-checked writes, committed change notifications, strict backup versioning and upgrade order. The app's compatibility gate and backup file version have different jobs. Revise both where a change makes previous writers or archives incompatible. [WhereCore contracts](../../Where/WhereCore/AGENTS.md) · [Backup contracts](../../Where/WhereCore/Sources/Backup/AGENTS.md)
+- Use the [versioning and rollout rules](#versioning-and-rollout) for each independently shipped change. Keep the existing removal, generation and store-notification contracts. [WhereCore contracts](../../Where/WhereCore/AGENTS.md)
 - Keep the hardware identifier with the global installation profile through a field in the existing device metadata table. The immutable profile can then match a profile already synced from the old phone. Nickname edits keep their existing generation boundaries.
 - Use the owner's single-phone assumption only to fill absent information in an offline archive. The importing installation's identity and GPS consent belong to the destination. Existing IDs, timestamps, tombstones, notes and evidence bytes travel with their original records.
+
+## Versioning and rollout
+
+| Boundary | On main at `a6b213ebe` | What each implementation changes |
+| --- | --- | --- |
+| Opening shared history | The last entry in `DataModelVersion.changes` sets `current`. Entry 2 explains why visits to Canadian provinces and territories require an update. Baseline is 1. | For each incompatible release, append the next version with a user-facing reason from the WhereCore string catalog. Preserve prior entries and their reasons. [Version history](../../Where/WhereCore/Sources/Compatibility/DataModelVersion.swift) · [String catalog](../../Where/WhereCore/Sources/Resources/Localizable.xcstrings) |
+| Importing a ZIP | `BackupArchive.currentFormatVersion` and the Ruby upgrader target 8. The importer checks the envelope before decoding the payload. | Advance the archive format when an older app cannot restore the exported data losslessly. Extend the offline conversion in the same change, including for ZIPs moved between accounts. [Archive history](../../Where/WhereCore/BACKUP_FORMAT.md) · [Upgrader](../../Where/Tools/upgrade-backup.rb) |
+
+With this base and separate releases, 01 takes shared data from **2 to 3** and archives from **8 to 9**. The next release for 02 would use **4 and 10**. Read both histories again at implementation time so another release can take the next number.
+
+In CloudKit, the eligible recording device publishes the higher version and all bundled translations of its reason in one conditional save. An older reader that observes the new version blocks access and caches the version and reason in its receipt. The lockout uses the reader’s preferred language, falls back to English, and uses the standard update message if the reason is unavailable. A local-only installation verifies the build’s version against its durable floor. [Compatibility contract](../../Where/WhereCore/README.md#data-compatibility)
+
+Before distributing a cloud-enabled recorder build, exercise its new mirrored fields in CloudKit Development and verify that the control record carries the version and reason. Confirm the fields exist in Production, deploying any additions before rollout. Bring participating installations onto a gate-aware build before the recorder advances their account. A disconnected reader can continue under its last verified version until it observes the higher floor. [CloudKit rollout and device validation](../../Where/Where/README.md#cloudkit-rollout-and-device-validation)
 
 ## Questions and resolutions
 
@@ -90,7 +103,8 @@ Reviewed November 20, 2026 against `1b04fdd2c`. The review traced all seven requ
 
 - Same-ID profile changes would conflict with a generic profile already in CloudKit. Plan 02 preserves the profile and adds model information to existing metadata. Its restore test starts with that profile already present.
 - A permanent capture-ID conflict could otherwise keep re-entering the retry queue. Plan 01 distinguishes this failure from a transient save error. Its year-clear case also checks that a retained reset identifies the editor even after the raw fix is deleted.
+- November 27, 2026. Rechecked all three plans against merged main `a6b213ebe`. The November 20 version instructions are superseded. Each incompatible release now appends its own localized reason to the shared-data history. The archive upgrade covers v8 and both v7 paths, with a manual-only Ontario fixture to catch lost region IDs or invented device records. The live verification uses a CloudKit-enabled Development build.
 - **Readiness.** 01 and 02 are ready in order. 03 is an outline awaiting their implementation evidence. All product questions are closed.
-- **Validation.** Reviewed relative links and anchors, plan dependencies and named test suites. The diagrams and Swift sketches received source review. Mermaid rendering, app tests and live-device checks are outside the evidence collected for this plan.
+- **Validation on November 27.** Checked relative links and anchors, dependency order and referenced test suites against the merged tree. `./test` passed its architecture and host checks and selected zero affected iOS bundles. The backup upgrader passed 16 tests and 61 assertions. Runtime acceptance of the proposed changes, including the two-device CloudKit check, awaits implementation.
 
-Implementation awaits a separate request. [Plan review on GitHub](https://github.com/kyleve/Stuff/pulls?q=is%3Apr+head%3Acodex%2Fwhere-device-attribution-plan)
+Implementation awaits a separate request. [Planning PR #547](https://github.com/kyleve/Stuff/pull/547)
