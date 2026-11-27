@@ -338,7 +338,7 @@ journal intent.
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
   there is no session behind it: a paged intro,
-  then picking up to five regions in the United States and Canada (map or searchable list) and
+  then picking up to five regions in the United States and Canada and
   giving each a look, then verifying this installation's automatic-recording
   choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
@@ -363,13 +363,12 @@ journal intent.
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
   the process-wide `WhereModel`. Settings offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
-  picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
+  picker and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
   picker for membership changes. The list shows the current picks as removable chips.
   Browse US and Canadian regions by country or search both countries by name or postal
   abbreviation. In Settings, regions used in the selected year are also available as shortcuts.
-  A tap on the map selects the subdivision at that coordinate and highlights it in its own color.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

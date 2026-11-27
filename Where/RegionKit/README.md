@@ -38,9 +38,9 @@ into it for lookup. RegionKit depends only on
   California, New York and the European Union.
 - **`RegionGeometryCatalog`** supplies shoreline geometry for rendering. A card
   calls `await displayOutlines(for: region)` to load one region’s artwork.
-  A picker calls `try await displayGeometry(for: offeredRegions)` once, draws
-  the returned `outlines` and uses `region(containing:)` on the same value
-  for taps. Uncovered water returns `nil`. Input order decides overlaps.
+  The developer map draws the outlines from `try await displayGeometry(for:)`.
+  The returned geometry also supports coordinate lookup with `region(containing:)`.
+  Uncovered water returns `nil`. Input order decides overlaps.
   The developer map can call `trackingOutlines(for: attributor)` to inspect
   the polygons used by a loaded tracker. Consumers choose screen-size
   simplification through `RegionGeometrySimplifier`.
@@ -122,7 +122,7 @@ The ordered array has one entry per geographic node.
 
 ### Per-region geometry
 
-Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. Tracking files serve GPS attribution, distance and confidence. Display files serve artwork, projected dots, map overlays and tap selection. A fix north of Port Jefferson in Long Island Sound can count toward New York while a picker tap there selects nothing. The EU retains its existing plain GeoJSON. A Toronto fix matches Ontario when the user tracks it. Otherwise the tracked attributor returns `.other`, and a full-catalog lookup can still identify Ontario.
+Each North American file holds a 2D MultiPolygon in [Tiny Well-Known Binary](https://github.com/TWKB/Specification/blob/master/twkb.md). Its integer deltas preserve all seven decimal places of the normalized GeoJSON, including every island and interior ring. Tracking files serve GPS attribution, distance and confidence. Display files serve artwork, projected dots and map overlays. A fix north of Port Jefferson in Long Island Sound can count toward New York while falling outside its displayed shoreline. The EU retains its existing plain GeoJSON. A Toronto fix matches Ontario when the user tracks it. Otherwise the tracked attributor returns `.other`, and a full-catalog lookup can still identify Ontario.
 
 ### Regenerating
 

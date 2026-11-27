@@ -10,7 +10,7 @@ It is a precursor surface for expanding the number and quality of regions the ap
 The same screen as the in-app **developer overlay → Region map** entry:
 
 - A segmented control chooses the boundary product.
-  - **Display** opens by default and draws the cartographic shorelines used in cards and the region picker.
+  - **Display** opens by default and draws the cartographic shorelines used in region cards.
   - **Tracking** loads all 66 loggable regions into a `RegionAttributor` and draws the boundaries used for GPS attribution. Compare Long Island Sound or the Strait of Georgia in both modes to see where water counts toward a region.
 - `MapPolygon` overlays tinted by `RegionStyle` for known regions and a stable per-title color for unmapped source features.
 - A camera framed to the shown geometry, and a filterable legend that narrows the map to a single feature (keeping the dense geometry responsive).

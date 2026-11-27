@@ -74,22 +74,6 @@ struct PrimaryRegionSelectionModelTests {
         #expect(model.filteredRegions == [quebec])
     }
 
-    @Test func mapTapUsesTheDisplayedCoastlineAndPreservesSelectionOnWater() async throws {
-        let map = try await RegionPickerView.MapData(regions: [.newYork, .ontario])
-        let model = PrimaryRegionSelectionModel()
-        let land = Coordinate(latitude: 40.946, longitude: -73.067)
-        let water = Coordinate(latitude: 40.998, longitude: -73.066)
-        let picker = RegionPickerView(model: model)
-        picker.handleMapTap(at: land.clLocationCoordinate, in: map)
-        #expect(model.selectedRegions == [.newYork])
-        picker.handleMapTap(at: water.clLocationCoordinate, in: map)
-        #expect(model.selectedRegions == [.newYork])
-        picker.handleMapTap(at: .init(latitude: 43.6532, longitude: -79.3832), in: map)
-        #expect(model.selectedRegions == [.newYork, .ontario])
-        let visible = Set(map.geometry.visible(in: .world, width: 400).compactMap(\.region))
-        #expect(visible == [.ontario, .newYork])
-    }
-
     @Test func hostedPickerSelectsAndReopensTwoProvinces() async throws {
         let quebec = try region("ca-QC")
         let session = PreviewSupport.loadedSession()
