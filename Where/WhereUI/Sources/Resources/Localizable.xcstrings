@@ -5690,6 +5690,204 @@
         }
       }
     },
+    "photo.review.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a stay"
+          }
+        }
+      }
+    },
+    "photo.review.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm stay"
+          }
+        }
+      }
+    },
+    "photo.review.confirmed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmed days without photos"
+          }
+        }
+      }
+    },
+    "photo.review.continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose primary regions"
+          }
+        }
+      }
+    },
+    "photo.review.decline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave unknown"
+          }
+        }
+      }
+    },
+    "photo.review.edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit stay"
+          }
+        }
+      }
+    },
+    "photo.review.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No stays selected"
+          }
+        }
+      }
+    },
+    "photo.review.gapFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm a gap only if you were in that region on those days."
+          }
+        }
+      }
+    },
+    "photo.review.gaps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days without photos"
+          }
+        }
+      }
+    },
+    "photo.review.limited" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the photos you shared with Where are included."
+          }
+        }
+      }
+    },
+    "photo.review.more" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other regions"
+          }
+        }
+      }
+    },
+    "photo.review.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the places and dates. You can change or remove visits, including ones from photos someone sent you."
+          }
+        }
+      }
+    },
+    "photo.review.observed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo-backed days"
+          }
+        }
+      }
+    },
+    "photo.review.region" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region"
+          }
+        }
+      }
+    },
+    "photo.review.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this stay"
+          }
+        }
+      }
+    },
+    "photo.review.stays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your stays"
+          }
+        }
+      }
+    },
+    "photo.review.suggestions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggested by days spent"
+          }
+        }
+      }
+    },
+    "photo.review.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review stays"
+          }
+        }
+      }
+    },
     "planned_stay_editor.arrival" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -187,7 +187,14 @@ struct RegionPickerView: View {
         Button {
             model.toggle(region)
         } label: {
-            RegionPickerRow(region: region, isSelected: model.isSelected(region))
+            HStack {
+                RegionPickerRow(region: region, isSelected: model.isSelected(region))
+                if let days = model
+                    .suggestedDays[region]
+                {
+                    Text(WhereFormat.dayCount(days)).foregroundStyle(.secondary)
+                }
+            }
         }
         .disabled(!model.canToggle(region))
     }
@@ -197,7 +204,16 @@ struct RegionPickerView: View {
             // Grouped (Settings) shows your-regions / used-this-year / more via
             // the shared sections; onboarding and any active search fall back to
             // a flat list.
-            if model.isGrouped, !isSearching {
+            if !model.suggestedRegions.isEmpty, !isSearching {
+                Section { ForEach(model.suggestedRegions, id: \.self, content: regionRow) }
+                    header: { Text(.photoReviewSuggestions) }
+                Section { ForEach(
+                    model.available.filter { model.suggestedDays[$0] == nil },
+                    id: \.self,
+                    content: regionRow,
+                ) }
+                header: { Text(.photoReviewMore) }
+            } else if model.isGrouped, !isSearching {
                 GroupedRegionSections(grouping: model.grouping, row: regionRow)
             } else {
                 ForEach(filteredRegions, id: \.self, content: regionRow)

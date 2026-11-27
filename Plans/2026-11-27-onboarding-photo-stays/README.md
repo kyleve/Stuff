@@ -4,8 +4,8 @@
 
 - Updated November 27, 2026, against `2f639e987`.
 - The user requested a plan for current-year photo GPS backfill during Where onboarding, followed by stay correction and selection of primary regions using the result.
-- Planning and review are complete. [STU-185](https://linear.app/kve/issue/STU-185) owns the work. The latest revision incorporates the user’s photo-source and timing decision (Q-06). The scan and stay-review plans are ready, in that order. The final save is an outline pending Q-05.
-- Execution authorized November 27. Plan PR #570 at `695c111ab` has no conversation, review or inline feedback. Phase 01 is in progress on `feature/onboarding-photo-history`. Next, build and verify the scanner before starting 02.
+- Planning and review are complete. [STU-185](https://linear.app/kve/issue/STU-185) owns the work. The latest revision incorporates the user’s photo-source and timing decision (Q-06). The approved photo point carries original and reviewed days and regions. Q-05 is resolved in the final save plan.
+- Execution authorized November 27. Plan PR #570 at `695c111ab` has no conversation, review or inline feedback. Phase 01 landed on the implementation branch in [PR #579](https://github.com/kyleve/Stuff/pull/579). Phase 02 delivered the stay editor, suggestions and nine verified snapshots. Phase 03 is the next execution horizon.
 
 ## Experience
 
@@ -93,7 +93,7 @@ The first two deliverables establish the evidence and review inputs that the fin
 | Q-02 | closed | The user chose to keep approved GPS points as photo-sourced history, plus stay corrections. Reviewed in R-07, the 02 handoff and 03. | Confirmed gap days produce zero invented coordinates. |
 | Q-03 | closed | The user chose suggestions by days spent, with manual primary selection. Reviewed in R-06 and 02. | Approval of the history starts the picker with zero primaries selected. |
 | Q-04 | closed | The user set the maximum bridge to seven missing days. Reviewed in R-04 and 02. | The seven/eight fixtures count intervening calendar dates only. |
-| Q-05 | deferred | Which persisted attribution and completion receipt will reproduce the approved draft across unselected regions, retries, sync and restore? This depends on the concrete approved payload and the writer versions at execution. | Blocks readiness of [03](03-finish-onboarding.md) only. At refinement, trace the report, backup and Finish paths with an unselected-region and crash/retry fixture and specify the writable format and recovery boundary. |
+| Q-05 | resolved | Which persisted attribution and completion receipt will reproduce the approved draft across unselected regions, retries, sync and restore? This depends on the concrete approved payload and the writer versions at execution. | Store reviewed day and region beside photo source metadata. Use an installation sidecar token and matching generation-bound transaction receipt. See the execution steps in [03](03-finish-onboarding.md). |
 | Q-06 | closed | On November 27 the user chose identifiable Shared Album exclusion and the five-minute window from PR #201. This narrows the original authorized-library scan in R-02. | Reviewed the source guard, inclusive cutoff, missing timestamps and quick-save limitation in 01 and the onboarding offer in 03. |
 
 ## Plan review and delivery
@@ -102,4 +102,4 @@ Reviewed November 27 against `2f639e987`, including the whole dependency chain a
 
 All four Mermaid flows rendered in local Chromium. The plan checks cover local links and anchors, the 01 → 02 → 03 dependency chain, and agreement between the linked requirements and acceptance fixtures. Swift sketches are illustrative. Device behavior, compatibility and recovery will be verified during implementation.
 
-Implementation has not started. [Plan PR #570](https://github.com/kyleve/Stuff/pull/570) · [STU-185](https://linear.app/kve/issue/STU-185)
+The scan and editor are on the implementation branch. [Plan PR #570](https://github.com/kyleve/Stuff/pull/570) · [STU-185](https://linear.app/kve/issue/STU-185)

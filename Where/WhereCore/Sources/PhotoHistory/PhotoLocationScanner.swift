@@ -46,6 +46,13 @@ public struct DatedPhotoLocation: Sendable {
     public let observation: PhotoObservation
     public let day: CalendarDay
     public let region: Region
+
+    @_spi(Testing)
+    public init(observation: PhotoObservation, day: CalendarDay, region: Region) {
+        self.observation = observation
+        self.day = day
+        self.region = region
+    }
 }
 
 public struct PhotoLocationScan: Sendable {
@@ -53,6 +60,19 @@ public struct PhotoLocationScan: Sendable {
     public let through: CalendarDay
     public let access: PhotoLibraryAccess
     public let points: [DatedPhotoLocation]
+
+    @_spi(Testing)
+    public init(
+        calendar: Calendar,
+        through: CalendarDay,
+        access: PhotoLibraryAccess,
+        points: [DatedPhotoLocation],
+    ) {
+        self.calendar = calendar
+        self.through = through
+        self.access = access
+        self.points = points
+    }
 }
 
 public enum PhotoScanError: Error { case accessChanged, unavailable }

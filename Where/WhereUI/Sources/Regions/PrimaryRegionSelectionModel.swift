@@ -85,6 +85,19 @@ public final class PrimaryRegionSelectionModel {
         self.drafts = drafts
     }
 
+    private(set) var suggestedRegions: [Region] = []
+    private(set) var suggestedDays: [Region: Int] = [:]
+
+    func suggestRegions(from totals: [Region: Int]) {
+        let eligible = Set(available)
+        suggestedDays = totals.filter { eligible.contains($0.key) && $0.value > 0 }
+        suggestedRegions = Region.rankedByDayCount(
+            suggestedDays,
+            days: { $0.value },
+            region: { $0.key },
+        ).map(\.key)
+    }
+
     public var selectionCount: Int {
         selectedRegions.count
     }

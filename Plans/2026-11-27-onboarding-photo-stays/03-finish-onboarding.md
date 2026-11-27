@@ -1,6 +1,6 @@
 # 03 — Save the reviewed year and finish onboarding
 
-- Status: outline
+- Status: ready
 - Depends on: [02 — Review stays](02-review-stays.md)
 - Shared context: [Overview](README.md)
 
@@ -62,4 +62,16 @@ After 02 demonstrates explicit gap confirmation and corrected rankings, use its 
 
 ## Decisions and resume point
 
-The November 27 product choices [Q-01–Q-04](README.md#questions-and-resolutions) govern gap confirmation, photo retention, active region selection and the seven-missing-day suggestion limit. [Q-05](README.md#questions-and-resolutions) affects this plan's storage and recovery design. Refine it with the reviewed draft and a failure-injection fixture after 02 completes. Implementation has not started.
+The November 27 product choices [Q-01–Q-04](README.md#questions-and-resolutions) govern gap confirmation, photo retention, active region selection and the seven-missing-day suggestion limit. [Q-05](README.md#questions-and-resolutions) affects this plan's storage and recovery design. Refine it with the reviewed draft and a failure-injection fixture after 02 completes. The phase 02 fixture now produces the accepted original capture, reviewed day and region, and separate asserted days. Its move and co-presence regression tests passed. This resolves Q-05.
+
+## Execution steps
+
+1. Add a distinct photo sample source carrying the observed and reviewed region/day and approval time. Hash the capture instant and coordinates for a stable identity. Store day keys with the sample. Project these rows by reviewed day and attribution in reports, widgets and maps, including across New Year. Keep raw trajectory reads timed by capture. Bump the strict archive to 9 and model version to 3. The external v8 upgrade preserves rows and changes the version.
+2. Write accepted points, day assertions, explicit primary rows and an installation-scoped receipt in a generation-guarded transaction. Read conflicting days and picks inside the snapshot. Show affected dates and regions, offer to keep prior entries or apply the reviewed additions, recheck on retry, preserve old audit details. Reconcile day-dependent outputs after save.
+3. Write the receipt token, domain and generation into the installation sidecar before the transaction. Compare the receipt during ordinary Finish and launch recovery before acknowledgment. A superseded or uncommitted token cannot replay the draft. Keep backup-import recovery independent.
+4. Connect the optional fresh-onboarding scan, cancellable progress, review, picker and Finish. Continue to the manual picker after skip, denial or empty results. Pass the reviewed history only after explicit Finish. Route failed commits back to the final page with retry.
+5. Run the focused scanner, editor, persistence, backup, admission and onboarding suites and architecture checks. Verify stable stored capture data in different calendar zones and in both backup strategies. Recheck snapshots, the installation sidecar and the combined diff before publication.
+
+### Plan review
+
+November 27, 2026 against `982916f20` and the verified phase 02 draft. Review traced the moved June 2 capture to its June 3 reviewed assignment, the accepted gap to audited day assertions, and an unselected region through the existing tracked-only projection. The store supports a single rollback boundary and installation-scoped receipts. A backed-up preference alone cannot distinguish an interrupted write. The sidecar must retain the independent operation identity. Physical-device Photos and VoiceOver checks require a suitable device and test library.

@@ -888,3 +888,5 @@ one mount registration and observes its year, with cancellation at both waits.
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
+
+The photo stay editor keeps corrections in memory during onboarding. Confirming a suggested gap adds reviewed days to the regional totals. Removing or moving a stay updates the suggestions while preserving explicit primary-region selections.
