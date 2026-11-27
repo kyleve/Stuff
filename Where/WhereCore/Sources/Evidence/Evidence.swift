@@ -158,6 +158,8 @@ public struct Evidence: Identifiable, Hashable, Codable, Sendable {
     public let region: Region?
     public let note: String?
     public let contentType: EvidenceContentType
+    /// Installation that added the item, independent of when or where its contents were captured.
+    public let addedByDeviceID: RecordingDeviceID?
 
     public init(
         id: UUID = UUID(),
@@ -166,6 +168,7 @@ public struct Evidence: Identifiable, Hashable, Codable, Sendable {
         region: Region? = nil,
         note: String? = nil,
         contentType: EvidenceContentType,
+        addedByDeviceID: RecordingDeviceID? = nil,
     ) {
         self.id = id
         self.kind = kind
@@ -173,5 +176,23 @@ public struct Evidence: Identifiable, Hashable, Codable, Sendable {
         self.region = region
         self.note = note
         self.contentType = contentType
+        self.addedByDeviceID = addedByDeviceID
+    }
+
+    public func added(by deviceID: RecordingDeviceID) throws -> Self {
+        if let addedByDeviceID {
+            guard addedByDeviceID == deviceID
+            else { throw ActionAttributionError.conflictingEvidenceAuthor(id) }
+            return self
+        }
+        return Self(
+            id: id,
+            kind: kind,
+            capturedAt: capturedAt,
+            region: region,
+            note: note,
+            contentType: contentType,
+            addedByDeviceID: deviceID,
+        )
     }
 }

@@ -31,6 +31,7 @@ struct SwiftDataStoreFactoryTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 10,
             source: .manual,
+            assertedByDeviceID: WhereCoreTestSupport.authorID,
         )
         try await store.perform { try await store.add(sample: sample) }
 
@@ -58,6 +59,7 @@ struct SDLocationSampleTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                assertedByDeviceID: WhereCoreTestSupport.authorID,
             ),
             generationID: .initial,
         )
@@ -72,6 +74,7 @@ struct SDLocationSampleTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                assertedByDeviceID: WhereCoreTestSupport.authorID,
             ),
             generationID: .initial,
         )

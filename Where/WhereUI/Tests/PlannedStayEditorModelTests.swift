@@ -73,6 +73,7 @@ struct PlannedStayEditorModelTests {
         let report = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
         let primary = [PrimaryRegion(region: .california, appearance: nil, order: 0)]
         try await report.services.setPrimaryRegions(primary)
+        let saved = try await report.services.primaryRegions()
         let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: .newYork))
         model.arrival.earliest = PlanningTestSupport.today.adding(days: 40)
             .startOfDay(in: report.calendar)
@@ -80,7 +81,7 @@ struct PlannedStayEditorModelTests {
             .startOfDay(in: report.calendar)
 
         #expect(await model.save())
-        #expect(try await report.services.primaryRegions() == primary)
+        #expect(try await report.services.primaryRegions() == saved)
         let snapshot = try await report.services.plannedStays.snapshot()
         #expect(snapshot.stays.count == 1)
         #expect(snapshot.stays.first?.region == .newYork)

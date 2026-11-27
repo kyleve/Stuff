@@ -49,6 +49,7 @@ public struct BackupService: Sendable {
         case missingDeviceModel
         /// Planning revisions violate identity or date-window invariants.
         case invalidPlanningData
+        case invalidActionAttribution
 
         public var errorDescription: String? {
             switch self {
@@ -60,6 +61,8 @@ public struct BackupService: Sendable {
                     String(localized: .backupErrorInvalidRecordingData)
                 case .missingDeviceModel:
                     String(localized: .backupErrorMissingDeviceModel)
+                case .invalidActionAttribution:
+                    String(localized: .backupErrorInvalidActionAttribution)
                 case .invalidPlanningData:
                     String(localized: .backupErrorInvalidPlanningData)
             }
@@ -120,6 +123,12 @@ public struct BackupService: Sendable {
             sampleAttributionRevisions: sampleAttributionRevisions,
         )
         try Self.validatePlanningData(stays: plannedStayRecords, homes: homeRegionRecords)
+        try Self.validateActionAuthors(
+            samples: samples,
+            evidence: evidence,
+            manualDays: manualDays,
+            primaryRegions: primaryRegions,
+        )
         let fileManager = FileManager.default
         let workRoot = fileManager.temporaryDirectory
             .appendingPathComponent("where-backup-\(UUID().uuidString)", isDirectory: true)
@@ -268,6 +277,12 @@ public struct BackupService: Sendable {
             metadataChanges: archive.recordingDeviceMetadataChanges,
             sampleAttributionRevisions: archive.sampleAttributionRevisions,
         )
+        try validateActionAuthors(
+            samples: archive.samples,
+            evidence: archive.evidence,
+            manualDays: archive.manualDays,
+            primaryRegions: archive.primaryRegions,
+        )
         return archive
     }
 
@@ -278,6 +293,16 @@ public struct BackupService: Sendable {
         homes: [HomeRegionRecord],
     ) throws {
         do {
+            for revisions in Dictionary(grouping: stays, by: \.id).values {
+                guard let first = revisions.first,
+                      revisions.allSatisfy({ $0.hasSamePortableValue(as: first) })
+                else { throw BackupError.invalidPlanningData }
+            }
+            for revisions in Dictionary(grouping: homes, by: \.id).values {
+                guard let first = revisions.first,
+                      revisions.allSatisfy({ $0.hasSamePortableValue(as: first) })
+                else { throw BackupError.invalidPlanningData }
+            }
             for record in stays {
                 try record.validate()
             }
@@ -286,6 +311,35 @@ public struct BackupService: Sendable {
             }
         } catch {
             throw BackupError.invalidPlanningData
+        }
+    }
+
+    /// An evidence row and its derived points may sync separately. When both are
+    /// present, their author must agree even if the device profile has yet to arrive.
+    private static func validateActionAuthors(
+        samples: [LocationSample],
+        evidence: [Evidence],
+        manualDays: [DayPresence],
+        primaryRegions: [PrimaryRegion],
+    ) throws {
+        guard manualDays.allSatisfy({ $0.changedByDeviceID != nil }),
+              primaryRegions.allSatisfy({ $0.changedByDeviceID != nil })
+        else { throw BackupError.invalidActionAttribution }
+
+        var authors: [UUID: RecordingDeviceID] = [:]
+        func register(_ author: RecordingDeviceID?, evidenceID: UUID) throws {
+            guard let author, authors[evidenceID] == nil || authors[evidenceID] == author else {
+                throw BackupError.invalidActionAttribution
+            }
+            authors[evidenceID] = author
+        }
+        for item in evidence {
+            try register(item.addedByDeviceID, evidenceID: item.id)
+        }
+        for sample in samples {
+            if let evidenceID = sample.source.evidenceId {
+                try register(sample.assertedByDeviceID, evidenceID: evidenceID)
+            }
         }
     }
 

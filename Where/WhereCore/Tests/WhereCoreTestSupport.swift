@@ -21,6 +21,8 @@ extension BackupCoordinator {
 }
 
 enum WhereCoreTestSupport {
+    static let authorID =
+        RecordingDeviceID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000123")!)
     static let pacific = TimeZone(identifier: "America/Los_Angeles")!
 
     static func calendar(timeZone: TimeZone = pacific) -> Calendar {

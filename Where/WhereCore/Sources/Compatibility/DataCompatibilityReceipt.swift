@@ -5,6 +5,20 @@ import Foundation
 public struct DataCompatibilityReceipt: Codable, Equatable, Sendable {
     public enum Access: String, Codable, Equatable, Sendable { case verified, blocked }
 
+    /// The authorization ID changes after withdrawal, even if the same installation returns.
+    public struct ShareAuthor: Codable, Equatable, Sendable {
+        public let authorizationID: UUID
+        public let deviceID: RecordingDeviceID
+        public let generationID: WhereDataGenerationID
+
+        init(deviceID: RecordingDeviceID, generationID: WhereDataGenerationID) {
+            authorizationID = UUID()
+            self.deviceID = deviceID
+            self.generationID = generationID
+        }
+    }
+
+    public let shareAuthor: ShareAuthor?
     public let domain: DataCompatibilityDomain
     public let version: DataModelVersion
     public let access: Access
@@ -32,12 +46,25 @@ public struct DataCompatibilityReceipt: Codable, Equatable, Sendable {
         access: Access,
         removedDeviceID: RecordingDeviceID?,
         changeReason: DataModelChangeReason?,
+        shareAuthor: ShareAuthor? = nil,
     ) {
+        self.shareAuthor = shareAuthor
         self.domain = domain
         self.version = version
         self.access = access
         self.removedDeviceID = removedDeviceID
         self.changeReason = changeReason
+    }
+
+    func withShareAuthor(_ author: ShareAuthor?) -> Self {
+        Self(
+            domain: domain,
+            version: version,
+            access: access,
+            removedDeviceID: removedDeviceID,
+            changeReason: changeReason,
+            shareAuthor: author,
+        )
     }
 
     public func requireAccess(version: DataModelVersion) throws {

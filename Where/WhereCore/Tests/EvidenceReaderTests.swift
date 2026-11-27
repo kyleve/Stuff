@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct EvidenceReaderTests {
     private static let aggregator = DayAggregator()
@@ -11,6 +11,7 @@ struct EvidenceReaderTests {
             capturedAt: date,
             note: note,
             contentType: .pdf,
+            addedByDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 

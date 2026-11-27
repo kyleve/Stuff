@@ -24,12 +24,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// measurements and sample-attribution revisions. v7 adds independent stay identities,
     /// arrival/departure windows, and `homeRegionRecords`. v8 admits Canadian subdivisions
     /// in existing region fields, including a manual-only archive. v9 requires the capturing
-    /// device on GPS fixes and the editing device on correction and reset revisions. There is no
-    /// in-app
+    /// device on GPS fixes and the editing device on correction and reset revisions. v10 adds
+    /// device model identifiers. v11 records the original author on saved actions and excludes
+    /// inferred primary regions. There is no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 10
+    public static let currentFormatVersion = 11
 
     public let formatVersion: Int
     public let exportedAt: Date

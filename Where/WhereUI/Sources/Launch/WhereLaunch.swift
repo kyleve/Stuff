@@ -355,6 +355,20 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 widgetRefresher: makeWidgetRefresher(admission),
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
+                updateShareAuthor: { @MainActor [
+                    compatibility,
+                    installationContextStore,
+                ] generationID in
+                    let current = try installationContextStore.resolve()
+                    guard current.currentDevice.id == installationContext.currentDevice.id,
+                          current.automaticRecordingEnabled != nil
+                    else { throw CancellationError() }
+                    try compatibility.updateShareAuthor(
+                        deviceID: current.currentDevice.id,
+                        generationID: generationID,
+                        admission: admission,
+                    )
+                },
                 acknowledgeInitialNickname: { [installationContextStore] deviceID, eventID in
                     try await installationContextStore.acknowledgeInitialNickname(
                         deviceID: deviceID,

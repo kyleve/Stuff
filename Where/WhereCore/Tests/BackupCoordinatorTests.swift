@@ -16,12 +16,13 @@ struct BackupCoordinatorTests {
             day: CalendarDay(year: 2026, month: 11, day: 1),
             regions: [ontario],
             isAuthoritative: true,
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         try await source.store.perform { try await source.store.setManualDay(day) }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let exported = try BackupService().readArchive(at: url).archive
-        #expect(exported.formatVersion == 10)
+        #expect(exported.formatVersion == 11)
         #expect(exported.manualDays == [day])
         #expect(exported.samples.isEmpty)
         #expect(!exported.trackedRegions.contains(ontario))
@@ -65,6 +66,7 @@ struct BackupCoordinatorTests {
             id: UUID(),
             region: .california,
             updatedAt: Date(timeIntervalSince1970: 1000),
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         try await source.store.perform {
             try await source.store.add(sample: sample)
@@ -276,12 +278,14 @@ struct BackupCoordinatorTests {
         region: .california,
         note: "SFO → JFK",
         contentType: .pdf,
+        addedByDeviceID: WhereCoreTestSupport.authorID,
     )
     private static let blob = Data("boarding-pass-pdf".utf8)
 
     private static let dismissal = DismissedIssue(
         id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
         dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
+        dismissedByDeviceID: WhereCoreTestSupport.authorID,
     )
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
@@ -306,6 +310,7 @@ struct BackupCoordinatorTests {
                 date: WhereCoreTestSupport.iso("2026-07-04T00:00:00-07:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ))
             try await store.restoreDismissedIssue(dismissal)
             try await store.restorePlannedStayRecord(plannedStay())
@@ -346,6 +351,64 @@ struct BackupCoordinatorTests {
                 removedByDeviceID: recordingDeviceID,
             ))
         }
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func restoredActionsKeepTheirOriginalAuthorsWhenExportedOnAnotherDevice(
+        _ strategy: BackupCoordinator.ImportStrategy,
+    ) async throws {
+        let source = try Self.makeHarness()
+        try await Self.seed(source.store)
+        let second = RecordingDeviceID(rawValue: UUID())
+        let home = try HomeRegionRecord(
+            id: UUID(),
+            region: nil,
+            updatedAt: Date(timeIntervalSince1970: 50),
+            changedByDeviceID: second,
+        )
+        try await source.store.perform {
+            try await source.store.restoreHomeRegionRecord(home)
+            try await source.store.setPrimaryRegions(
+                [PrimaryRegion(region: .ontario, appearance: nil, order: 0)],
+                changedBy: second,
+            )
+        }
+        let exported = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: exported.deletingLastPathComponent()) }
+        let destination = try Self.makeHarness()
+        #expect(try await destination.store.persistedPrimaryRegions().isEmpty)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: exported,
+            strategy: strategy,
+        )
+        let restored = try await destination.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: restored.deletingLastPathComponent()) }
+        let result = try BackupService().readArchive(at: restored)
+        let first = WhereCoreTestSupport.authorID
+        #expect(result.archive.samples.map(\.assertedByDeviceID) == [first])
+        #expect(result.archive.evidence.map(\.addedByDeviceID) == [first])
+        #expect(result.archive.manualDays.map(\.changedByDeviceID) == [first])
+        #expect(result.archive.dismissedIssues.map(\.dismissedByDeviceID) == [first])
+        #expect(result.archive.plannedStayRecords.map(\.changedByDeviceID) == [first])
+        #expect(result.archive.homeRegionRecords == [home])
+        let imported = result.archive.primaryRegions.filter { $0.region == .ontario }
+        #expect(imported.map(\.changedByDeviceID) == [second])
+        let newlySavedDefaults = result.archive.primaryRegions.filter { $0.region != .ontario }
+        let expectedDefaults: Set<Region> = strategy == .merge ? SwiftDataStore
+            .defaultTrackedRegions : []
+        #expect(Set(newlySavedDefaults.map(\.region)) == expectedDefaults.subtracting([.ontario]))
+        #expect(newlySavedDefaults.allSatisfy { $0.changedByDeviceID == Self.recordingDeviceID })
+        #expect(result.blobs[Self.evidence.id] == Self.blob)
+    }
+
+    @Test func exportOfUntouchedPickerHasNoAuthoredChoices() async throws {
+        let harness = try Self.makeHarness()
+        #expect(try await !harness.store.primaryRegions().isEmpty)
+        let url = try await harness.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let archive = try BackupService().readArchive(at: url).archive
+        #expect(archive.primaryRegions.isEmpty)
+        #expect(archive.trackedRegions.isEmpty)
     }
 
     @Test func exportThenMergeImportReproducesRestorableTables() async throws {
@@ -422,16 +485,19 @@ struct BackupCoordinatorTests {
             stayID: deleted.stayID,
             value: nil,
             updatedAt: deleted.updatedAt.addingTimeInterval(1),
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         let home = try HomeRegionRecord(
             id: UUID(),
             region: .california,
             updatedAt: deleted.updatedAt,
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         let historical = try HomeRegionRecord(
             id: UUID(),
             region: nil,
             updatedAt: home.updatedAt.addingTimeInterval(1),
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         try await source.store.perform {
             for record in [active, deleted, deletion] {
@@ -462,7 +528,11 @@ struct BackupCoordinatorTests {
         }
         #expect(try await Set(destination.store.plannedStayRecords()) == Set(expectedRecords))
         #expect(try await Set(destination.store.homeRegionRecords()) == Set([home, historical]))
-        let planning = PlannedStayCoordinator(store: destination.store, now: { Date() })
+        let planning = PlannedStayCoordinator(
+            store: destination.store,
+            currentDeviceID: WhereCoreTestSupport.authorID,
+            now: { Date() },
+        )
         let snapshot = try await planning.snapshot()
         #expect(snapshot.homeRegion == nil)
         #expect(snapshot.stays.contains { $0.id == deleted.stayID } == false)
@@ -484,12 +554,14 @@ struct BackupCoordinatorTests {
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.ontario],
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ))
             // A preexisting dismissal that the file doesn't contain must be wiped
             // by `.replace` so synced user data mirrors the file.
             try await destination.store.restoreDismissedIssue(DismissedIssue(
                 id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 2)),
                 dismissedAt: Date(timeIntervalSince1970: 1),
+                dismissedByDeviceID: WhereCoreTestSupport.authorID,
             ))
             try await destination.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
                 id: .init(rawValue: UUID()),
@@ -519,8 +591,16 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await source.store.perform {
-            try await source.store.setTrackedRegion(true, region: .california)
-            try await source.store.setTrackedRegion(true, region: texas)
+            try await source.store.setTrackedRegion(
+                true,
+                region: .california,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
+            try await source.store.setTrackedRegion(
+                true,
+                region: texas,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -540,8 +620,12 @@ struct BackupCoordinatorTests {
         let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
-                PrimaryRegion(region: .california, appearance: caLook, order: 0),
-            ])
+                PrimaryRegion(
+                    region: .california,
+                    appearance: caLook,
+                    order: 0,
+                ),
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -564,8 +648,12 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
-                PrimaryRegion(region: .california, appearance: nil, order: 0),
-            ])
+                PrimaryRegion(
+                    region: .california,
+                    appearance: nil,
+                    order: 0,
+                ),
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -573,8 +661,12 @@ struct BackupCoordinatorTests {
         let destination = try Self.makeHarness()
         try await destination.store.perform {
             try await destination.store.setPrimaryRegions([
-                PrimaryRegion(region: .california, appearance: caLook, order: 0),
-            ])
+                PrimaryRegion(
+                    region: .california,
+                    appearance: caLook,
+                    order: 0,
+                ),
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
         _ = try await destination.coordinator.importAndAcknowledgeBackup(
             from: url,
@@ -597,9 +689,17 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
-                PrimaryRegion(region: .california, appearance: archiveCALook, order: 0),
-                PrimaryRegion(region: texas, appearance: txLook, order: 1),
-            ])
+                PrimaryRegion(
+                    region: .california,
+                    appearance: archiveCALook,
+                    order: 0,
+                ),
+                PrimaryRegion(
+                    region: texas,
+                    appearance: txLook,
+                    order: 1,
+                ),
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -608,8 +708,12 @@ struct BackupCoordinatorTests {
         let deviceCALook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await destination.store.perform {
             try await destination.store.setPrimaryRegions([
-                PrimaryRegion(region: .california, appearance: deviceCALook, order: 0),
-            ])
+                PrimaryRegion(
+                    region: .california,
+                    appearance: deviceCALook,
+                    order: 0,
+                ),
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
         _ = try await destination.coordinator.importAndAcknowledgeBackup(
             from: url,
@@ -628,14 +732,22 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await source.store.perform {
-            try await source.store.setTrackedRegion(true, region: texas)
+            try await source.store.setTrackedRegion(
+                true,
+                region: texas,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
         try await destination.store.perform {
-            try await destination.store.setTrackedRegion(true, region: .california)
+            try await destination.store.setTrackedRegion(
+                true,
+                region: .california,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         _ = try await destination.coordinator.importAndAcknowledgeBackup(
             from: url,
@@ -929,6 +1041,7 @@ struct BackupCoordinatorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: WhereCoreTestSupport.authorID,
         )
     }
 }

@@ -146,6 +146,9 @@ public struct WhereServices: WhereShutdownable {
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
             NoopBackupImportRecoveryPersistence(),
+        updateShareAuthor: @escaping @Sendable (WhereDataGenerationID?) async throws
+            -> Void = { _ in
+            },
         acknowledgeInitialNickname: @escaping @Sendable (
             RecordingDeviceID,
             RecordingDeviceMetadataChange.ID
@@ -165,6 +168,7 @@ public struct WhereServices: WhereShutdownable {
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
+            updateShareAuthor: updateShareAuthor,
             acknowledgeInitialNickname: acknowledgeInitialNickname,
             now: now,
         )
@@ -184,6 +188,9 @@ public struct WhereServices: WhereShutdownable {
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
             NoopBackupImportRecoveryPersistence(),
+        updateShareAuthor: @escaping @Sendable (WhereDataGenerationID?) async throws
+            -> Void = { _ in
+            },
         acknowledgeInitialNickname: @escaping @Sendable (
             RecordingDeviceID,
             RecordingDeviceMetadataChange.ID
@@ -285,6 +292,7 @@ public struct WhereServices: WhereShutdownable {
             store: store,
             ingestor: ingestor,
             installationContext: installationContext,
+            updateShareAuthor: updateShareAuthor,
             acknowledgeInitialNickname: acknowledgeInitialNickname,
             now: now,
             onPolicyChanged: {
@@ -335,6 +343,7 @@ public struct WhereServices: WhereShutdownable {
         )
         let plannedStays = PlannedStayCoordinator(
             store: store,
+            currentDeviceID: currentDevice.id,
             now: now,
         )
         let plannedStayLocation = PlannedStayLocationVerifier(
@@ -399,6 +408,9 @@ public struct WhereServices: WhereShutdownable {
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
+        updateShareAuthor: @escaping @Sendable (WhereDataGenerationID?) async throws
+            -> Void = { _ in
+            },
         acknowledgeInitialNickname: @escaping @Sendable (
             RecordingDeviceID,
             RecordingDeviceMetadataChange.ID
@@ -427,6 +439,7 @@ public struct WhereServices: WhereShutdownable {
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
+            updateShareAuthor: updateShareAuthor,
             acknowledgeInitialNickname: acknowledgeInitialNickname,
             now: now,
         )
@@ -463,7 +476,7 @@ public struct WhereServices: WhereShutdownable {
     /// pings `changes()` once.
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
         try await store.performInCurrentGeneration {
-            try await store.setPrimaryRegions(regions)
+            try await store.setPrimaryRegions(regions, changedBy: recording.currentDevice.id)
         }
     }
 

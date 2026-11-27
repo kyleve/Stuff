@@ -88,6 +88,7 @@ struct BackupServiceTests {
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 10,
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
+                assertedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
     }
@@ -186,6 +187,7 @@ struct BackupServiceTests {
                 region: .california,
                 note: "SFO → JFK",
                 contentType: .pdf,
+                addedByDeviceID: WhereCoreTestSupport.authorID,
             ),
             Evidence(
                 id: evidenceNoBlobId,
@@ -194,6 +196,7 @@ struct BackupServiceTests {
                 region: nil,
                 note: nil,
                 contentType: .other(nil),
+                addedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
     }
@@ -204,6 +207,7 @@ struct BackupServiceTests {
                 date: Date(timeIntervalSince1970: 1_700_000_000),
                 in: calendar,
                 regions: [.california, .newYork],
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
     }
@@ -213,10 +217,12 @@ struct BackupServiceTests {
             DismissedIssue(
                 id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
                 dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                dismissedByDeviceID: WhereCoreTestSupport.authorID,
             ),
             DismissedIssue(
                 id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 5)),
                 dismissedAt: Date(timeIntervalSince1970: 1_700_100_000),
+                dismissedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
     }
@@ -233,11 +239,17 @@ struct BackupServiceTests {
         let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
         let sampleAttributionRevisions = Self.attributionFixtures()
         let homeRegionRecords = try [
-            HomeRegionRecord(id: UUID(), region: .california, updatedAt: Self.exportDate),
+            HomeRegionRecord(
+                id: UUID(),
+                region: .california,
+                updatedAt: Self.exportDate,
+                changedByDeviceID: WhereCoreTestSupport.authorID,
+            ),
             HomeRegionRecord(
                 id: UUID(),
                 region: nil,
                 updatedAt: Self.exportDate.addingTimeInterval(1),
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
         let deviceArchive = RecordingDeviceRemoval(
@@ -293,7 +305,7 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test(arguments: [5, 6, 7, 8, 9, BackupArchive.currentFormatVersion + 1])
+    @Test(arguments: [5, 6, 7, 8, 9, 10, BackupArchive.currentFormatVersion + 1])
     func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded(version: Int) {
         let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
 
@@ -327,6 +339,58 @@ struct BackupServiceTests {
         }
         #expect(throws: BackupService.BackupError.invalidRecordingData) {
             try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsMissingActionAuthors() throws {
+        let encoder = BackupService.makeEncoder()
+        let base = try #require(JSONSerialization
+            .jsonObject(with: encoder.encode(Self.archive())) as? [String: Any])
+        let rows = try [
+            ("manualDays", "changedByDeviceID", encoder.encode(Self.manualDayFixtures()[0])),
+            ("evidence", "addedByDeviceID", encoder.encode(Self.evidenceFixtures()[0])),
+            (
+                "dismissedIssues",
+                "dismissedByDeviceID",
+                encoder.encode(Self.dismissedIssueFixtures()[0])
+            ),
+            (
+                "primaryRegions",
+                "changedByDeviceID",
+                encoder.encode(PrimaryRegion(region: .ontario, appearance: nil, order: 0))
+            ),
+            ("samples", "assertedByDeviceID", encoder.encode(Self.sampleFixtures()[1])),
+            (
+                "plannedStayRecords",
+                "changedByDeviceID",
+                encoder.encode(Self.plannedStayFixtures()[0])
+            ),
+        ]
+        for (table, field, data) in rows {
+            var manifest = base
+            var row = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            row.removeValue(forKey: field)
+            manifest[table] = [row]
+            let bytes = try JSONSerialization.data(withJSONObject: manifest)
+            #expect(throws: (any Error).self, "Missing \(table).\(field)") {
+                try BackupService.decodeManifest(bytes)
+            }
+        }
+    }
+
+    @Test func conflictingLinkedEvidenceAuthorFailsBeforeRestore() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(JSONSerialization
+            .jsonObject(with: encoder.encode(Self.archive())) as? [String: Any])
+        var point = try #require(JSONSerialization
+            .jsonObject(with: encoder.encode(Self.sampleFixtures()[1])) as? [String: Any])
+        point["assertedByDeviceID"] = Self.recordingDeviceID.storeURL.absoluteString
+        manifest["samples"] = [point]
+        manifest["evidence"] = try JSONSerialization
+            .jsonObject(with: encoder.encode(Self.evidenceFixtures()))
+        let bytes = try JSONSerialization.data(withJSONObject: manifest)
+        #expect(throws: BackupService.BackupError.invalidActionAttribution) {
+            try BackupService.decodeManifest(bytes)
         }
     }
 
@@ -506,6 +570,7 @@ struct BackupServiceTests {
                 in: Self.calendar,
                 regions: [.newYork],
                 isAuthoritative: true,
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
         let url = try service.makeArchiveFile(
@@ -563,8 +628,14 @@ struct BackupServiceTests {
                     symbolName: .sunMaxFill,
                 ),
                 order: 0,
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ),
-            PrimaryRegion(region: texas, appearance: nil, order: 1),
+            PrimaryRegion(
+                region: texas,
+                appearance: nil,
+                order: 1,
+                changedByDeviceID: WhereCoreTestSupport.authorID,
+            ),
         ]
         let url = try service.makeArchiveFile(
             samples: [],
@@ -606,6 +677,7 @@ struct BackupServiceTests {
                         timestamp: Date(timeIntervalSince1970: 1_700_050_000),
                     ),
                 ),
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             ),
         ]
         let url = try service.makeArchiveFile(
@@ -645,8 +717,14 @@ struct BackupServiceTests {
                         symbolName: .sunMaxFill,
                     ),
                     order: 0,
+                    changedByDeviceID: WhereCoreTestSupport.authorID,
                 ),
-                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+                PrimaryRegion(
+                    region: .newYork,
+                    appearance: nil,
+                    order: 1,
+                    changedByDeviceID: WhereCoreTestSupport.authorID,
+                ),
             ],
             recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
             recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
@@ -727,6 +805,7 @@ struct BackupServiceTests {
         manifest["homeRegionRecords"] = [[
             "id": UUID().uuidString,
             "region": "not-a-region",
+            "changedByDeviceID": Self.recordingDeviceID.storeURL.absoluteString,
             "updatedAt": 1_700_000_000,
         ]]
 

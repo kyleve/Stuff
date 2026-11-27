@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the issue-alert intent + notification reconciliation: the alert is
 /// scheduled while the current year has unresolved issues (and the user has it
@@ -51,6 +51,7 @@ struct DataIssueAlertReconcilerTests {
                 date: WhereCoreTestSupport.iso("2026-01-10T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
     }
@@ -130,7 +131,11 @@ struct DataIssueAlertReconcilerTests {
         #expect(!outstanding.isEmpty)
         for issue in outstanding {
             try await h.store.perform {
-                try await h.store.setIssueDismissed(true, id: issue.id)
+                try await h.store.setIssueDismissed(
+                    true,
+                    id: issue.id,
+                    by: CurrentRecordingDevice.preview.id,
+                )
             }
         }
         await h.scanner.invalidate()

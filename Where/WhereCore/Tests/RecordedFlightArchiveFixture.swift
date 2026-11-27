@@ -54,7 +54,12 @@ enum RecordedFlightArchiveFixture {
             dismissedIssues: [],
             trackedRegions: regions,
             primaryRegions: regions.enumerated().map {
-                PrimaryRegion(region: $0.element, appearance: nil, order: $0.offset)
+                PrimaryRegion(
+                    region: $0.element,
+                    appearance: nil,
+                    order: $0.offset,
+                    changedByDeviceID: deviceID,
+                )
             },
             recordingDeviceProfiles: [profile],
             recordingDeviceMetadataChanges: [.hardwareModelIdentifier("Fixture1,1", for: profile)],

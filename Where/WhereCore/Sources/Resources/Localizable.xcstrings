@@ -23,6 +23,17 @@
         }
       }
     },
+    "backup.error.invalidActionAttribution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup contains missing or conflicting device information for a saved action."
+          }
+        }
+      }
+    },
     "backup.error.invalidPlanningData" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -177,6 +188,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where can now show the model of each device in your history."
+          }
+        }
+      }
+    },
+    "compatibility.version5.reason" : {
+      "comment" : "Explains why older installations cannot open history with authors for saved actions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where now saves which device made changes to your entries, evidence, and plans."
           }
         }
       }

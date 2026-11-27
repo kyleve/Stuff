@@ -91,7 +91,7 @@ struct DataCompatibilityCoordinatorTests {
         #expect(viewer.state.allowsStore)
     }
 
-    @Test(arguments: [2, 3, 4])
+    @Test(arguments: [2, 3, 4, 5])
     func recorderExplainsTheUpgradeToAnOlderViewer(version: Int) async throws {
         let newVersion = DataModelVersion(rawValue: version)
         let reason = try #require(newVersion.changeReason)
@@ -411,6 +411,54 @@ struct DataCompatibilityCoordinatorTests {
         await coordinator.refresh { .disabled }
         #expect(coordinator.state.allowsStore == false)
         #expect(receipts.receipt?.version.rawValue == 3)
+    }
+
+    @Test func sharedAuthorFollowsVerifiedAccountAndConfirmedInstallation() async throws {
+        let transport = ScriptedDataCompatibilityTransport(version: 1)
+        let receipts = InMemoryDataCompatibilityReceipt()
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: receipts,
+            version: .baseline,
+        )
+        await coordinator.refresh { .disabled }
+        let original = try coordinator.requireAccess()
+        #expect(receipts.receipt?.shareAuthor == nil)
+        try coordinator.updateShareAuthor(
+            deviceID: deviceID,
+            generationID: .initial,
+            admission: original,
+        )
+        let first = try #require(receipts.receipt?.shareAuthor)
+        await coordinator.refresh { .disabled }
+        #expect(receipts.receipt?.shareAuthor == first)
+        await transport.setDomain(original.domain, notify: true)
+        try await waitForCompatibility { coordinator.state.allowsStore == false }
+        #expect(receipts.receipt?.shareAuthor == nil)
+        await coordinator.refresh { .disabled }
+        #expect(throws: DataCompatibilityFailure.self) {
+            try coordinator.updateShareAuthor(
+                deviceID: deviceID,
+                generationID: .initial,
+                admission: original,
+            )
+        }
+        let next = try coordinator.requireAccess()
+        try coordinator.updateShareAuthor(
+            deviceID: deviceID,
+            generationID: .initial,
+            admission: next,
+        )
+        #expect(receipts.receipt?.shareAuthor?.authorizationID != first.authorizationID)
+        coordinator.recordRemoval(of: deviceID)
+        #expect(receipts.receipt?.shareAuthor == nil)
+        let replacement = RecordingDeviceID(rawValue: UUID())
+        try coordinator.updateShareAuthor(
+            deviceID: replacement,
+            generationID: .initial,
+            admission: next,
+        )
+        #expect(receipts.receipt?.shareAuthor?.deviceID == replacement)
     }
 
     @Test func returningToTheSameAccountDoesNotRestoreAnOldAdmission() async throws {

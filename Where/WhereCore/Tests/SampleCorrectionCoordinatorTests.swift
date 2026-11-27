@@ -231,6 +231,7 @@ struct SampleCorrectionCoordinatorTests {
                         regions: [.ontario],
                         isAuthoritative: true,
                         audit: nil,
+                        changedByDeviceID: CurrentRecordingDevice.preview.id,
                     ))
                 case .revision:
                     try await h.store.addSampleAttributionRevision(.init(
@@ -430,7 +431,7 @@ struct SampleCorrectionCoordinatorTests {
         try await store.perform {
             try await store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: nil, order: 0),
-            ])
+            ], changedBy: WhereCoreTestSupport.authorID)
             for sample in FlightTrajectoryFixtures.turningFlight().samples {
                 try await store.add(sample: sample)
             }
@@ -465,7 +466,7 @@ struct SampleCorrectionCoordinatorTests {
         try await store.perform {
             try await store.setPrimaryRegions([
                 PrimaryRegion(region: .newYork, appearance: nil, order: 0),
-            ])
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
         #expect(live.loadedRegions == [.california])
         let result = try await services.corrections.apply(proposal)
@@ -550,6 +551,7 @@ struct SampleCorrectionCoordinatorTests {
                         regions: [.ontario],
                         isAuthoritative: true,
                         audit: nil,
+                        changedByDeviceID: CurrentRecordingDevice.preview.id,
                     ))
                 case .revision:
                     try await h.store.addSampleAttributionRevision(.init(

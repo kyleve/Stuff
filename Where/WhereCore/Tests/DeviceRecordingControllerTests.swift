@@ -24,6 +24,9 @@ struct DeviceRecordingControllerTests {
         enabledAt: Date? = nil,
         authorization: LocationAuthorizationStatus = .always,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
+        updateShareAuthor: @escaping @Sendable (WhereDataGenerationID?) async throws
+            -> Void = { _ in
+            },
     ) throws
         -> (DeviceRecordingController, SwiftDataStore, LocationIngestor, ScriptedLocationSource)
     {
@@ -50,6 +53,7 @@ struct DeviceRecordingControllerTests {
                 store: store,
                 ingestor: ingestor,
                 installationContext: context,
+                updateShareAuthor: updateShareAuthor,
                 now: { Self.now },
                 onPolicyChanged: {},
             ),
@@ -57,6 +61,33 @@ struct DeviceRecordingControllerTests {
             ingestor,
             source,
         )
+    }
+
+    @Test func recordingOffPublishesShareAuthorAndImportRevokesItUntilRecovery() async throws {
+        let updates = ShareAuthorityUpdates()
+        let (controller, store, _, _) = try makeController(
+            enabled: false,
+            authorization: .denied,
+            updateShareAuthor: { await updates.record($0) },
+        )
+        _ = try await controller.register(authorization: .denied)
+        #expect(await updates.values == [.initial])
+        try await controller.pause()
+        #expect(await updates.values.last == .some(nil))
+        await controller.resumeAfterImportRollback()
+        #expect(await updates.values.last == .some(.initial))
+        try await controller.pause()
+        let next = try await store.perform {
+            try await store.rotateDataGeneration(
+                reason: .backupReplace,
+                changedBy: controller.currentDevice.id,
+                at: Self.now,
+            )
+        }
+        try await controller.resumeAfterImport(discardPendingSamples: true)
+        #expect(await updates.values.last == .some(next.id))
+        try await controller.retireForRejoin()
+        #expect(await updates.values.last == .some(nil))
     }
 
     @Test func historicalNamesSurviveRemovalAndUseTheLatestNickname() async throws {
@@ -350,5 +381,12 @@ struct DeviceRecordingControllerTests {
             .localAutomaticRecordingEnabled == false)
         #expect(devices.first(where: { $0.id == remoteID })?
             .localAutomaticRecordingEnabled == nil)
+    }
+}
+
+private actor ShareAuthorityUpdates {
+    private(set) var values: [WhereDataGenerationID?] = []
+    func record(_ value: WhereDataGenerationID?) {
+        values.append(value)
     }
 }

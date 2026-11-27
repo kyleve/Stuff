@@ -12,6 +12,7 @@ public actor DeviceRecordingController: WhereShutdownable {
     private let ingestor: LocationIngestor
     public nonisolated let currentDevice: CurrentRecordingDevice
     private let registeredAt: Date
+    private let updateShareAuthor: @Sendable (WhereDataGenerationID?) async throws -> Void
     private var pendingInitialNickname: InstallationRecordingContext.PendingNickname?
     private let acknowledgeInitialNickname: @Sendable (
         RecordingDeviceID,
@@ -56,6 +57,9 @@ public actor DeviceRecordingController: WhereShutdownable {
         store: any WhereStore,
         ingestor: LocationIngestor,
         installationContext: InstallationRecordingContext,
+        updateShareAuthor: @escaping @Sendable (WhereDataGenerationID?) async throws
+            -> Void = { _ in
+            },
         acknowledgeInitialNickname: @escaping @Sendable (
             RecordingDeviceID,
             RecordingDeviceMetadataChange.ID
@@ -75,6 +79,7 @@ public actor DeviceRecordingController: WhereShutdownable {
         )
         registeredAt = installationContext.registeredAt
         pendingInitialNickname = installationContext.pendingInitialNickname
+        self.updateShareAuthor = updateShareAuthor
         self.acknowledgeInitialNickname = acknowledgeInitialNickname
         if automaticRecordingEnabled {
             guard let enabledAt = installationContext.recordingEnabledAt else {
@@ -269,6 +274,7 @@ public actor DeviceRecordingController: WhereShutdownable {
         guard !isRewritePaused else {
             throw RecordingPersistenceError.recordingRewriteInProgress
         }
+        try await updateShareAuthor(nil)
         isRewritePaused = true
         shouldResumeAfterPause = shouldResumeAfterPause || recordingLifecycleStarted
         recordingLifecycleStarted = false
@@ -359,6 +365,7 @@ public actor DeviceRecordingController: WhereShutdownable {
         observationTask = nil
         await ingestor.pause()
         do {
+            try await updateShareAuthor(nil)
             try await ingestor.discardRetryBacklog()
             publishRuntimeState(.removed)
             endExclusive()
@@ -534,6 +541,7 @@ public actor DeviceRecordingController: WhereShutdownable {
 
         await ingestor.revokeRecordingAuthorization()
         if removal != nil || snapshot.currentDeviceResetBarrier != nil {
+            try await updateShareAuthor(nil)
             try await ingestor.discardRetryBacklog()
             needsReconciliation = false
             publishRuntimeState(.removed)
@@ -603,6 +611,7 @@ public actor DeviceRecordingController: WhereShutdownable {
             checkIn: checkIn,
             snapshot: snapshot,
         )
+        try await updateShareAuthor(generation.id)
         needsReconciliation = false
         publishRuntimeState(.applied(configuration))
         return configuration

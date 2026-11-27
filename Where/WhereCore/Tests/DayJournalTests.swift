@@ -7,6 +7,53 @@ import Testing
 /// backfills, clears, evidence) and the reminder reconcile + widget publish
 /// each one fans out to — the work the controller delegates to `DayJournal`.
 struct DayJournalTests {
+    @Test func assertedPointsKeepTheManualOrEvidenceAuthorWhenRecordingIsOff() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let device = SampleCorrectionTestSupport.editingDevice
+        let context = InstallationRecordingContext(
+            currentDevice: device,
+            registeredAt: Date(),
+            recordingChoice: .off,
+            isRejoining: false,
+        )
+        let journal = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            installationContext: context,
+        ).journal
+        let contributor = CurrentRecordingDevice.preview.id
+        let evidence = Evidence(
+            kind: .boardingPass,
+            capturedAt: Date(),
+            contentType: .other(nil),
+            addedByDeviceID: contributor,
+        )
+        try await store.perform { try await store.write(evidence: evidence, blob: nil) }
+        let manual = sample(at: "2026-03-15T12:00:00-07:00")
+        let linked = LocationSample(
+            timestamp: manual.timestamp,
+            coordinate: manual.coordinate,
+            horizontalAccuracy: 1,
+            source: .evidenceImplied(id: evidence.id, kind: evidence.kind),
+        )
+        try await journal.ingest([manual, linked])
+        let stored = try await store.allSamples()
+        #expect(stored.first { $0.id == manual.id }?.assertedByDeviceID == device.id)
+        #expect(stored.first { $0.id == linked.id }?.assertedByDeviceID == contributor)
+        #expect(stored.allSatisfy { $0.recordingDeviceID == nil })
+        let missingID = UUID()
+        let orphan = LocationSample(
+            timestamp: manual.timestamp,
+            coordinate: manual.coordinate,
+            horizontalAccuracy: 1,
+            source: .evidenceImplied(id: missingID, kind: .photo),
+        )
+        await #expect(throws: ActionAttributionError.missingEvidence(missingID)) {
+            try await journal.ingest(orphan)
+        }
+        #expect(try await store.allSamples().count == 2)
+    }
+
     @Test(arguments: [false, true])
     func resetToGPSClearsManualOverlayAndWritesCorrectionTombstones(bulk: Bool) async throws {
         let h = try await SampleCorrectionTestSupport.completedFlight()
@@ -348,6 +395,7 @@ struct DayJournalTests {
             region: .california,
             note: "SFO → JFK",
             contentType: .plainText,
+            addedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let blob = Data("ticket pdf".utf8)
         try await h.journal.addEvidence(evidence, blob: blob)

@@ -1,6 +1,14 @@
 import Foundation
 import RegionKit
 
+public enum ActionAttributionError: Error, Equatable, Sendable {
+    case missingAuthor
+    case incompleteRecord
+    case conflictingAuthor
+    case missingEvidence(UUID)
+    case conflictingEvidenceAuthor(UUID)
+}
+
 /// Persistence boundary for the Where feature. Everything that crosses
 /// this protocol is a value type, so callers (the `WhereServices` collaborators)
 /// never see SwiftData, CoreData, or CloudKit internals.
@@ -157,6 +165,7 @@ public protocol WhereStore: Sendable {
     func addRecordingDeviceRemoval(_ removal: RecordingDeviceRemoval) async throws
 
     func write(evidence: Evidence, blob: Data?) async throws
+    func evidence(withID id: UUID) async throws -> Evidence?
     func evidence(in interval: DateInterval) async throws -> [Evidence]
     /// Every evidence record in the store, regardless of `capturedAt`. Used
     /// by the whole-database backup export.
@@ -222,7 +231,11 @@ public protocol WhereStore: Sendable {
     /// Persist or remove a dismissed data-resolution issue. Must run inside
     /// `perform { ... }`. Upserts when `dismissed == true` (stamping the current
     /// date); deletes when false.
-    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws
+    func setIssueDismissed(
+        _ dismissed: Bool,
+        id: DataIssueID,
+        by deviceID: RecordingDeviceID,
+    ) async throws
 
     /// Restore a dismissal verbatim, preserving its original `dismissedAt`
     /// instead of stamping "now". Upserts by id. Must run inside
@@ -244,10 +257,17 @@ public protocol WhereStore: Sendable {
     /// (in canonical order, with no stored appearance).
     func primaryRegions() async throws -> [PrimaryRegion]
 
+    /// Only choices the user actually saved. An untouched store has no rows.
+    func persistedPrimaryRegions() async throws -> [PrimaryRegion]
+
     /// Add (`tracked == true`) or remove (`false`) a single tracked region.
     /// Per-region so two devices adding different regions
     /// both survive a sync. Must run inside `perform { ... }`.
-    func setTrackedRegion(_ tracked: Bool, region: Region) async throws
+    func setTrackedRegion(
+        _ tracked: Bool,
+        region: Region,
+        changedBy: RecordingDeviceID,
+    ) async throws
 
     /// Replace the entire primary set with `regions`: upsert a row per entry
     /// (storing its `appearance` — cleared when `nil` — and pick `order`) and
@@ -318,7 +338,37 @@ extension WhereStore {
 
     /// Default: a no-op. `SwiftDataStore` overrides this to persist rows; test
     /// fakes that don't exercise tracked-region persistence inherit the no-op.
-    public func setTrackedRegion(_: Bool, region _: Region) async throws {}
+    public func setTrackedRegion(
+        _: Bool,
+        region _: Region,
+        changedBy _: RecordingDeviceID,
+    ) async throws {}
+
+    public func persistedPrimaryRegions() async throws -> [PrimaryRegion] {
+        try await primaryRegions().filter { $0.changedByDeviceID != nil }
+    }
+
+    /// Stamp just the choices this edit changes, preserving other devices' authors.
+    public func setPrimaryRegions(
+        _ drafts: [PrimaryRegion],
+        changedBy device: RecordingDeviceID,
+    ) async throws {
+        let previous = try await readSnapshot { try await self.persistedPrimaryRegions() }
+        let saved = drafts.map { draft in
+            let unchanged = previous
+                .first {
+                    $0.region == draft.region && $0.order == draft.order && $0.appearance == draft
+                        .appearance
+                }
+            return PrimaryRegion(
+                region: draft.region,
+                appearance: draft.appearance,
+                order: draft.order,
+                changedByDeviceID: unchanged?.changedByDeviceID ?? device,
+            )
+        }
+        try await setPrimaryRegions(saved)
+    }
 
     /// Default: a no-op. `SwiftDataStore` overrides this to replace the persisted
     /// rows; test fakes that don't exercise persistence inherit the no-op.

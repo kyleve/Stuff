@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "digest"
 require "json"
 require "open3"
 require "optparse"
@@ -64,6 +65,7 @@ class UpgradeAndVerify
         "mise", "exec", "--", "ruby", @upgrader, input_zip, @output, *mapping,
         chdir: @repo_root,
       )
+      verify_asset_bytes!(input_zip, @output, source_manifest)
     end
 
     run_command!("unzip", "-tq", @output)
@@ -71,14 +73,12 @@ class UpgradeAndVerify
     destination_version = integer_format_version(upgraded_manifest, "upgraded")
     current_version = upgrader_current_version
     fail_with("upgraded format is v#{destination_version}; expected v#{current_version}") unless destination_version == current_version
-    if @source_profile_path
-      profile = JSON.parse(File.read(@source_profile_path))
-      if added_source_profile?(profile, source_manifest, upgraded_manifest)
-        expected_counts["recordingDeviceProfiles"] += 1
-      end
+    profile = JSON.parse(File.read(@source_profile_path)) if @source_profile_path
+    if profile && added_source_profile?(profile, source_manifest, upgraded_manifest)
+      expected_counts["recordingDeviceProfiles"] += 1
     end
     models = @device_models_path ? JSON.parse(File.read(@device_models_path)) : {}
-    expected_counts["recordingDeviceMetadataChanges"] += verify_model_events!(source_manifest, upgraded_manifest, models)
+    expected_counts["recordingDeviceMetadataChanges"] += verify_model_events!(source_manifest, upgraded_manifest, models, profile)
     verify_counts!(upgraded_manifest, expected_counts)
     Dir.mktmpdir("where-backup-verification") do |work_directory|
       configuration_path = File.join(work_directory, "configuration.json")
@@ -123,6 +123,24 @@ class UpgradeAndVerify
     fail_with("invalid manifest JSON in #{path}: #{error.message}")
   end
 
+  def verify_asset_bytes!(input, output, manifest)
+    manifest.fetch("assets", []).map { |entry| entry.fetch("filename") }.uniq.each do |name|
+      # Info-ZIP uses wildcard patterns even when called without a shell.
+      literal = name.gsub(/[\\*?\[\]]/) { |character| "\\#{character}" }
+      digests = [input, output].map do |archive|
+        digest = Digest::SHA256.new
+        IO.popen(["unzip", "-p", archive, literal], "rb") do |contents|
+          while (chunk = contents.read(64 * 1024))
+            digest.update(chunk)
+          end
+        end
+        fail_with("could not read evidence asset #{name}") unless $?.success?
+        digest.hexdigest
+      end
+      fail_with("evidence asset bytes changed for #{name}") unless digests.first == digests.last
+    end
+  end
+
   def integer_format_version(manifest, label)
     version = manifest["formatVersion"]
     fail_with("#{label} manifest formatVersion must be an integer") unless version.is_a?(Integer)
@@ -140,16 +158,35 @@ class UpgradeAndVerify
     counts.merge("primaryRegions" => primary_regions.length)
   end
 
-  # One profile may be added when an explicitly supplied profile filled a missing origin.
+  ACTION_FIELDS = {
+    "evidence" => "addedByDeviceID", "manualDays" => "changedByDeviceID",
+    "dismissedIssues" => "dismissedByDeviceID", "plannedStayRecords" => "changedByDeviceID",
+    "homeRegionRecords" => "changedByDeviceID", "primaryRegions" => "changedByDeviceID",
+    "sampleAttributionRevisions" => "changedByDeviceID",
+  }.freeze
+
+  def role_field(table, row)
+    return ACTION_FIELDS.fetch(table) unless table == "samples"
+    row.fetch("source").keys.intersect?(%w[manual evidenceImplied]) ? "assertedByDeviceID" : "recordingDeviceID"
+  end
+
+  def original_rows(source, table)
+    return source.fetch(table, []) if table != "primaryRegions" || source.key?(table)
+    # The oldest archives carry primary region selection as an ordered list of IDs.
+    source.fetch("trackedRegions", []).map { |id| { "region" => id } }
+  end
+
+  # Count a full profile only when it supplied a previously missing role. An ID-only
+  # selection can legitimately refer to an installation whose profile hasn't synced.
   def added_source_profile?(profile, source, result)
     return false if profile.keys == ["id"]
     selected = profile.fetch("id").downcase
     return false if source.fetch("recordingDeviceProfiles", []).any? { |item| item.fetch("id").downcase == selected }
-    used = { "samples" => "recordingDeviceID", "sampleAttributionRevisions" => "changedByDeviceID" }.any? do |table, field|
-      result_rows = result.fetch(table)
-      source.fetch(table, []).each_with_index.any? do |row, index|
-        restored = result_rows[index]
-        row[field].nil? && restored && restored["id"] == row["id"] && restored[field]&.downcase == selected
+    used = (ACTION_FIELDS.keys + ["samples"]).any? do |table|
+      restored = result.fetch(table)
+      original_rows(source, table).each_with_index.any? do |row, index|
+        key = role_field(table, row)
+        row[key].nil? && restored[index] && restored[index][key]&.downcase == selected
       end
     end
     return false unless used
@@ -157,7 +194,66 @@ class UpgradeAndVerify
     true
   end
 
-  def verify_model_events!(source, result, models)
+  def action_group(table, row, index)
+    return ["evidence", row.dig("source", "evidenceImplied", "id").downcase] if table == "samples" && row.fetch("source").key?("evidenceImplied")
+    return [table, index] if %w[manualDays primaryRegions dismissedIssues].include?(table)
+    [table, row.fetch("id").downcase]
+  end
+
+  # Independently identify the admissible original devices for each backfill.
+  def source_authors(source, profile)
+    known = source.fetch("recordingDeviceProfiles").map { |row| row.fetch("id").downcase }.to_set
+    { "recordingDeviceMetadataChanges" => "changedByDeviceID", "recordingDeviceRemovals" => "removedByDeviceID" }.each do |table, actor|
+      source.fetch(table).each { |row| known << row.fetch("deviceID").downcase << row.fetch(actor).downcase }
+    end
+    groups = {}
+    (ACTION_FIELDS.keys + ["samples"]).each do |table|
+      source.fetch(table).each_with_index do |row, index|
+        known << row["recordingDeviceID"].downcase if table == "samples" && row["recordingDeviceID"]
+        actor = row[role_field(table, row)]
+        next unless actor
+        groups[action_group(table, row, index)] = actor.downcase
+        known << actor.downcase
+      end
+    end
+    [groups, profile ? profile.fetch("id").downcase : (known.first if known.one?)]
+  end
+
+  # A v9+ record is already portable. Its existing keys, values and position must
+  # survive exactly. Remove only a verified addition to a previously missing role.
+  def verify_portable_records!(source, result, profile)
+    obsolete = %w[formatVersion recordingDevices recordingDeviceCheckIns recordingPolicyChanges recordingDeviceMetadataChanges]
+    expected = source.except(*obsolete)
+    restored = result.except("formatVersion", "recordingDeviceMetadataChanges")
+    if profile && added_source_profile?(profile, source, result)
+      restored["recordingDeviceProfiles"] = restored.fetch("recordingDeviceProfiles").reject { |row| row == profile }
+    end
+
+    groups, selected = source_authors(source, profile)
+    (ACTION_FIELDS.keys + ["samples"]).each do |table|
+      originals = source.fetch(table)
+      restored[table] = result.fetch(table).map.with_index do |row, index|
+        original = originals[index]
+        fail_with("unexpected #{table} row") unless original
+        key = role_field(table, original)
+        next row if !original[key].nil? || source.fetch("formatVersion") >= 11
+        # v9 already required both GPS capture and correction authors.
+        next row if table == "sampleAttributionRevisions" || key == "recordingDeviceID"
+        author = groups[action_group(table, original, index)]
+        if table == "samples" && original.fetch("source").key?("manual")
+          author ||= original["recordingDeviceID"]&.downcase
+        end
+        author ||= selected
+        unless author && row[key].is_a?(String) && row[key].downcase == author
+          fail_with("upgraded #{table}.#{key} differs from its original installation")
+        end
+        original.key?(key) ? row.merge(key => nil) : row.except(key)
+      end
+    end
+    fail_with("original v9+ manifest values changed during upgrade") unless restored == expected
+  end
+
+  def verify_model_events!(source, result, models, profile = nil)
     table = "recordingDeviceMetadataChanges"
     original = source.fetch(table, [])
     original_ids = original.map { |row| row.fetch("id").downcase }
@@ -165,15 +261,9 @@ class UpgradeAndVerify
     retained, added = result.fetch(table).partition { |row| ids.include?(row.fetch("id").downcase) }
     fail_with("original metadata event identities changed") unless retained.map { |row| row.fetch("id").downcase }.sort == original_ids.sort
 
-    # Starting at v9 every original record can be compared directly. Earlier versions
-    # have documented transformations for dates, regions, device payloads and attribution.
     if source.fetch("formatVersion") >= 9
-      obsolete = %w[recordingDevices recordingDeviceCheckIns recordingPolicyChanges]
-      original_data = source.reject { |key, _| key == "formatVersion" || key == table || obsolete.include?(key) }
-      restored_data = result.reject { |key, _| key == "formatVersion" || key == table }
-      unless retained == original && original_data == restored_data
-        fail_with("v9 or later manifest values changed during hardware model upgrade")
-      end
+      fail_with("original device metadata changed") unless retained == original
+      verify_portable_records!(source, result, profile)
     end
 
     field = "hardwareModelIdentifier"

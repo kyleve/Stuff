@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereIntents
 
 /// The write seam the action intents delegate to: proves logging commits
@@ -28,11 +28,16 @@ struct WhereIntentWriterTests {
         let manual = try #require(await store.allManualDays().first)
         #expect(manual.audit?.note == IntentStrings.manualEntryNote)
         #expect(manual.audit?.location == nil)
+        #expect(manual.changedByDeviceID == services.recording.currentDevice.id)
     }
 
     @Test func logTripBackfillsInclusiveRangeAndReturnsCount() async throws {
         let store = try SwiftDataStore.inMemory()
-        let services = IntentTestSupport.services(store: store)
+        let context = InstallationRecordingContext.testing.settingAutomaticRecordingEnabled(
+            false,
+            at: Date(),
+        )
+        let services = IntentTestSupport.services(store: store, installationContext: context)
         let count = try await writer(services).logTrip(
             from: IntentTestSupport.iso("2026-02-10T09:00:00-08:00"),
             through: IntentTestSupport.iso("2026-02-14T20:00:00-08:00"),
@@ -40,6 +45,12 @@ struct WhereIntentWriterTests {
         )
 
         #expect(count == 5)
+        let raw = try await store.allManualDays()
+        #expect(raw.count == 5)
+        #expect(raw
+            .allSatisfy {
+                $0.changedByDeviceID == context.currentDevice.id && $0.audit?.location == nil
+            })
         let report = try await services.reports.yearReport(for: 2026)
         #expect(report.totals[.newYork] == 5)
         #expect(report.days.allSatisfy { $0.regions == [.newYork] })

@@ -1,6 +1,6 @@
 # 02 — Name devices during setup and in history
 
-- Status: executing
+- Status: complete
 - Depends on: [01 — Location provenance](01-location-provenance.md). Build on its delivered archive format and shared-data history entry.
 - Shared context: [Overview](README.md)
 
@@ -79,7 +79,7 @@ If a sidecar write fails, retain the setup input and surface the failure. Retry 
 
 - [x] Implement and verify registration, name resolution and onboarding.
 - [x] Verify registration against an existing generic profile, strict upgrade of the synthetic archive and both import strategies.
-- [ ] Review and publish the implementation.
+- [x] Review and publish the implementation.
 
 November 27, 2026. This plan now extends the delivered 01 version history and names the lockout reason for model identifiers. On November 20 the owner settled the setup, fallback and scope questions. The immutable-profile conflict found during plan review is addressed in steps 1, 2, 4 and 7. Execution started on `codex/where-device-names` from verified [PR #573](https://github.com/kyleve/Stuff/pull/573). Start with the existing-profile and two-device resolution tests.
 
@@ -94,3 +94,5 @@ The final `--record never --review` run passed both onboarding and device settin
 The production loader opened the v9-to-v10 synthetic upgrade with two generic source profiles, four metadata events, a removal, two correction revisions, a GPS point and an attachment. The Ruby converter passed 36 tests with 287 assertions.
 
 After the historical-label fixture was updated to deliver its model fact, the final device, archive, launch, settings and report selection passed 239 executed tests. Host, architecture, and catalog checks passed.
+
+Delivered in [PR #575](https://github.com/kyleve/Stuff/pull/575) at `6649b9016`.

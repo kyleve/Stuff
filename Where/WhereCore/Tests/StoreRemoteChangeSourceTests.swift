@@ -33,7 +33,11 @@ struct StoreRemoteChangeSourceTests {
         let stream = source.remoteChanges
         let external = ModelContext(sibling)
         external.author = "where-other-process"
-        external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
+        external.insert(SDTrackedRegion(
+            regionID: "us-TX",
+            generationID: .initial,
+            changedBy: WhereCoreTestSupport.authorID,
+        ))
         try external.save()
 
         #expect(await firstPing(stream, within: .seconds(5)))
@@ -51,7 +55,11 @@ struct StoreRemoteChangeSourceTests {
             modelContainer: store.container,
             localTransactionAuthor: "where-local",
             testingMakeObservations: {
-                external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
+                external.insert(SDTrackedRegion(
+                    regionID: "us-TX",
+                    generationID: .initial,
+                    changedBy: WhereCoreTestSupport.authorID,
+                ))
                 try external.save()
                 let observer = try HistoryObserver(modelContainer: store.container)
                 return Observations {
@@ -62,7 +70,11 @@ struct StoreRemoteChangeSourceTests {
         )
 
         try #require(await firstPing(source.remoteChanges, within: .seconds(5)))
-        external.insert(SDTrackedRegion(regionID: "us-CA", generationID: .initial))
+        external.insert(SDTrackedRegion(
+            regionID: "us-CA",
+            generationID: .initial,
+            changedBy: WhereCoreTestSupport.authorID,
+        ))
         try external.save()
         #expect(await firstPing(source.remoteChanges, within: .seconds(5)))
     }
@@ -80,7 +92,11 @@ struct StoreRemoteChangeSourceTests {
         let stream = source.remoteChanges
         let local = ModelContext(store.container)
         local.author = localAuthor
-        local.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
+        local.insert(SDTrackedRegion(
+            regionID: "us-TX",
+            generationID: .initial,
+            changedBy: WhereCoreTestSupport.authorID,
+        ))
         try local.save()
 
         #expect(await firstPing(stream, within: .milliseconds(500)) == false)
@@ -100,7 +116,11 @@ struct StoreRemoteChangeSourceTests {
         let stream = source.remoteChanges
         let other = ModelContext(otherStore.container)
         other.author = "periscope"
-        other.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
+        other.insert(SDTrackedRegion(
+            regionID: "us-TX",
+            generationID: .initial,
+            changedBy: WhereCoreTestSupport.authorID,
+        ))
         try other.save()
 
         #expect(await firstPing(stream, within: .milliseconds(500)) == false)

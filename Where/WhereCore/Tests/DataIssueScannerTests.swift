@@ -130,7 +130,11 @@ struct DataIssueScannerTests {
         )
         let issue = try #require(initial.issues.first)
         try #require(initial.reviews.first?.proposal != nil)
-        try await store.perform { try await store.setIssueDismissed(true, id: issue.id) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: issue.id,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
         let dismissed = try await scanner.scan(
             year: 2026,
             primaryRegions: attributor.loadedRegions,
@@ -160,9 +164,14 @@ struct DataIssueScannerTests {
                     day: day,
                     regions: [.california],
                     isAuthoritative: true,
+                    changedByDeviceID: CurrentRecordingDevice.preview.id,
                 ))
             }
-            try await store.setIssueDismissed(true, id: reviewID)
+            try await store.setIssueDismissed(
+                true,
+                id: reviewID,
+                by: CurrentRecordingDevice.preview.id,
+            )
         }
         let scanner = makeReviewScanner(store: store, now: { now })
         let scan = try await scanner.scan(
@@ -200,7 +209,11 @@ struct DataIssueScannerTests {
         try #require(initial.issues.count == 1)
         let review = try #require(initial.reviews.first)
         try #require(review.proposal != nil)
-        try await store.perform { try await store.setIssueDismissed(true, id: review.id) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: review.id,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
 
         let dismissed = try await scanner.scan(
             year: 2026,
@@ -450,8 +463,16 @@ struct DataIssueScannerTests {
             FlightTrajectoryFixtures.sample(5, minutes: 5768, east: 150),
         ]
         try await store.perform {
-            try await store.setManualDay(DayPresence(day: unrelatedEarlier, regions: [.newYork]))
-            try await store.setManualDay(DayPresence(day: unrelatedLater, regions: [.ontario]))
+            try await store.setManualDay(DayPresence(
+                day: unrelatedEarlier,
+                regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
+            ))
+            try await store.setManualDay(DayPresence(
+                day: unrelatedLater,
+                regions: [.ontario],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
+            ))
             for sample in samples {
                 try await store.add(sample: sample)
             }
@@ -540,7 +561,11 @@ struct DataIssueScannerTests {
             SampleCorrectionAssessmentFixtures.point(3, minutes: 1450, longitude: -0.001),
         ]
         try await store.perform {
-            try await store.setManualDay(DayPresence(day: earlier, regions: [.newYork]))
+            try await store.setManualDay(DayPresence(
+                day: earlier,
+                regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
+            ))
             for sample in samples {
                 try await store.add(sample: sample)
             }
@@ -750,6 +775,7 @@ struct DataIssueScannerTests {
                     horizontalAccuracy: 20,
                     source: source,
                     recordingDeviceID: source.isGPS ? CurrentRecordingDevice.preview.id : nil,
+                    assertedByDeviceID: source.isGPS ? nil : CurrentRecordingDevice.preview.id,
                 ))
             }
         }
@@ -821,7 +847,11 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
         )
         let dismissedID = try #require(first.first).id
-        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: dismissedID,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
 
         // Within the interval: the cache is served, so the new dismissal is not
         // yet reflected.
@@ -855,7 +885,11 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
         )
         let dismissedID = try #require(first.first).id
-        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: dismissedID,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
 
         // `force` ignores the throttle and reflects the dismissal immediately,
         // without advancing `now`.
@@ -879,7 +913,11 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
         )
         let dismissedID = try #require(first.first).id
-        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: dismissedID,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
 
         // A different threshold is a cache-key miss, so it recomputes even
         // within the interval and without `force`.
@@ -908,7 +946,11 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
         )
         let dismissedID = try #require(first.first).id
-        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: dismissedID,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
 
         // 40 min later it is the next calendar day but still well inside the 1h
         // throttle, so only the day-key miss can drive the recompute that drops
@@ -957,7 +999,11 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
         )
         let dismissedID = try #require(first.first).id
-        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
+        try await store.perform { try await store.setIssueDismissed(
+            true,
+            id: dismissedID,
+            by: CurrentRecordingDevice.preview.id,
+        ) }
 
         await scanner.invalidate()
 

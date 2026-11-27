@@ -84,11 +84,27 @@ public actor DayJournal {
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
-        let sample = try sample.recorded(by: currentDeviceID)
-        try await store.performInCurrentGeneration {
-            try await store.add(sample: sample)
+        let stored = try await store.performInCurrentGeneration {
+            let stored = try await stamped(sample)
+            try await store.add(sample: stored)
+            return stored
         }
-        await reconcileAfterSampleIngest(sample)
+        await reconcileAfterSampleIngest(stored)
+    }
+
+    private func stamped(_ sample: LocationSample) async throws -> LocationSample {
+        switch sample.source {
+            case .gpsVisit, .gpsSignificantChange:
+                return try sample.recorded(by: currentDeviceID)
+            case .manual:
+                return try sample.asserted(by: currentDeviceID)
+            case let .evidenceImplied(id, _):
+                guard let evidence = try await store
+                    .readSnapshot({ try await store.evidence(withID: id) }),
+                    let author = evidence.addedByDeviceID
+                else { throw ActionAttributionError.missingEvidence(id) }
+                return try sample.asserted(by: author)
+        }
     }
 
     /// Persist many samples in a *single* transaction, rebuilding the widget
@@ -107,10 +123,10 @@ public actor DayJournal {
         try await Self.logger.measure(.ingestBatch, budget: .seconds(5)) {
             try await store.performInCurrentGeneration {
                 for sample in samples {
-                    try await store.add(sample: sample.recorded(by: currentDeviceID))
+                    try await store.add(sample: stamped(sample))
                 }
                 for day in manualDays {
-                    try await store.setManualDay(day)
+                    try await store.setManualDay(day.changed(by: currentDeviceID))
                 }
             }
         }
@@ -129,7 +145,12 @@ public actor DayJournal {
         audit: ManualEntryAudit?,
     ) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
-        let presence = DayPresence(day: day, regions: regions, audit: audit)
+        let presence = DayPresence(
+            day: day,
+            regions: regions,
+            audit: audit,
+            changedByDeviceID: currentDeviceID,
+        )
         try await store.performInCurrentGeneration {
             try await store.setManualDay(presence)
         }
@@ -151,7 +172,13 @@ public actor DayJournal {
         audit: ManualEntryAudit?,
     ) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
-        let presence = DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
+        let presence = DayPresence(
+            day: day,
+            regions: regions,
+            isAuthoritative: true,
+            audit: audit,
+            changedByDeviceID: currentDeviceID,
+        )
         try await store.performInCurrentGeneration {
             try await store.setManualDay(presence)
         }
@@ -222,7 +249,12 @@ public actor DayJournal {
             try await store.performInCurrentGeneration {
                 for day in days {
                     try await store.setManualDay(
-                        DayPresence(day: day, regions: regions, audit: audit),
+                        DayPresence(
+                            day: day,
+                            regions: regions,
+                            audit: audit,
+                            changedByDeviceID: currentDeviceID,
+                        ),
                     )
                 }
             }
@@ -304,7 +336,7 @@ public actor DayJournal {
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
         try await store.performInCurrentGeneration {
-            try await store.write(evidence: evidence, blob: blob)
+            try await store.write(evidence: evidence.added(by: currentDeviceID), blob: blob)
         }
         Self.logger.wroteEvidence(
             id: .restricted(.identifier, String(describing: evidence.id)),
@@ -324,7 +356,7 @@ public actor DayJournal {
 
     public func dismissIssue(id: DataIssueID) async throws {
         try await store.performInCurrentGeneration {
-            try await store.setIssueDismissed(true, id: id)
+            try await store.setIssueDismissed(true, id: id, by: currentDeviceID)
         }
         // Dismissing removes the issue from the unresolved count, so the badge
         // and the "issues to resolve" notification both have to recount. No
@@ -334,7 +366,7 @@ public actor DayJournal {
 
     public func restoreIssue(id: DataIssueID) async throws {
         try await store.performInCurrentGeneration {
-            try await store.setIssueDismissed(false, id: id)
+            try await store.setIssueDismissed(false, id: id, by: currentDeviceID)
         }
         await reconcileIssueState()
     }

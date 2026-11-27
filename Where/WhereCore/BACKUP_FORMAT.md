@@ -1,4 +1,4 @@
-# Where backup format v10
+# Where backup format v11
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -24,6 +24,7 @@ Current imports require the current schema, including its required collections.
 | 8 | Adds Canadian province and territory IDs to the region values a writer can store. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 | 9 | Requires a capture installation on every GPS observation and an author on every sample-attribution revision. | [Version 9 contents](#version-9-contents) |
 | 10 | Adds an immutable hardware-model event for every device profile. | [Version 10 contents](#version-10-contents) |
+| 11 | Identifies the device behind each retained manual entry, evidence item, assertion, dismissal, forecast revision and primary region. | [Version 11 contents](#version-11-contents) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -110,7 +111,7 @@ existing capture and author IDs, immutable profiles, raw observations, timestamp
 region values such as `ca-ON`, and evidence bytes. A matching record with the same
 UUID can supply its own origin. Otherwise, the upgrader uses the single installation
 identified by the archive's profile, samples, or device and correction history.
-A manual-only archive with no corrections needs no source mapping.
+Version 11 also covers manual-only archives. See the [retained action fields](#version-11-contents).
 
 When the archive contains several possible installations, select the original
 phone. Save its existing installation ID in a JSON file such as `original-phone.json`.
@@ -178,8 +179,59 @@ ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb v9.zip v1
 
 An older ZIP that also needs a historical source profile accepts both mapping
 flags. An existing model fact supplies its own identifier. A supplied mapping
-must agree with it. A manual-only archive with no profiles needs no map. The
+must agree with it. The
 upgrader preserves profile values, original nickname history, GPS capture and
 correction authors, and assets. A valid model fact that synced before its profile
 can round-trip on its own. For a v10 input, a profile missing its hardware event
 or any contradictory hardware fact fails validation, even with a map.
+
+## Version 11 contents
+
+Device IDs use `store://devices/<uuid>`. Merge and Replace retain each original
+actor, including the actor of a revision whose value has been cleared.
+
+| Archived record | Author field |
+| --- | --- |
+| Manual day, including an entry without audit details | `manualDays[].changedByDeviceID` |
+| Evidence metadata, with or without attachment bytes | `evidence[].addedByDeviceID` |
+| Manual or evidence-implied location point | `samples[].assertedByDeviceID` |
+| Dismissed issue | `dismissedIssues[].dismissedByDeviceID` |
+| Planned stay and forecast home revisions, including tombstones | `plannedStayRecords[].changedByDeviceID` and `homeRegionRecords[].changedByDeviceID` |
+| Saved primary-region choice | `primaryRegions[].changedByDeviceID` |
+
+GPS observations retain their capture ID and corrections retain their editor.
+A manual point can also retain an older capture tag. Revisions resolve by their
+existing timestamps and IDs. Each winning value carries its own actor. A linked
+evidence item and its implied points share an author. A point can arrive before
+the evidence or device profile.
+
+The offline upgrader preserves every explicit actor. An immutable record with
+the same identity can supply a missing actor. For a linked evidence item and
+its points, any known adding or asserting installation supplies their shared
+actor. Conflicting known actors stop conversion. A manual point’s historical
+capture tag can identify its missing author. Other missing actors require one
+unambiguous installation across the archive or an explicit source selection.
+
+For a manual-only v10 archive with no device identity, supply the original
+phone’s full [profile](#version-9-contents) and [hardware identifier](#version-10-contents).
+Reuse the same files for overlapping backups. If an original actor is already
+known, the ID-only selection works even before its profile arrives. When a
+profile is added, its matching existing model event can supply the identifier.
+
+```sh
+ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb v10.zip v11.zip --source-profile original-phone.json --device-models models.json
+```
+
+The converter checks each input against the roles required by its version.
+A v9 GPS fix missing its recorder, a v10 registered profile missing its model
+fact, or a v11 action missing its author fails even with mapping files. It
+preserves original attachments, record values and the order of authored edits.
+
+Older exports could serialize the default primary-region list just like an
+explicit selection. They carry no marker that distinguishes the two. During
+upgrade, each exported region retains its order and appearance and acquires the
+original installation’s ID. New v11 exports include the persisted choices and
+leave the list empty when the picker is showing its synthesized defaults. A
+nonempty Merge preserves those defaults on the destination. The importing
+device authors only the extra default choices that the merge materializes.
+An archived choice retains its original author even when it overlaps a default.

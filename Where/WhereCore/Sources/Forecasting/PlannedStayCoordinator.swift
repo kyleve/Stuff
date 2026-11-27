@@ -19,10 +19,16 @@ public struct PlannedStayCoordinator: Sendable {
     }
 
     private let store: any WhereStore
+    private let currentDeviceID: RecordingDeviceID
     private let now: @Sendable () -> Date
 
-    init(store: any WhereStore, now: @escaping @Sendable () -> Date) {
+    init(
+        store: any WhereStore,
+        currentDeviceID: RecordingDeviceID,
+        now: @escaping @Sendable () -> Date,
+    ) {
         self.store = store
+        self.currentDeviceID = currentDeviceID
         self.now = now
     }
 
@@ -83,19 +89,24 @@ public struct PlannedStayCoordinator: Sendable {
                 id: UUID(),
                 region: region,
                 updatedAt: nextTimestamp(after: latest?.updatedAt),
+                changedByDeviceID: currentDeviceID,
             )
             try await store.replaceHomeRegionRecord(with: record)
         }
     }
 
     private func latestRecord(stayID: PlannedStay.ID) async throws -> PlannedStayRecord? {
-        try await store.plannedStayRecords().filter { $0.stayID == stayID }.max {
-            PlannedStayRecord.newer($1, than: $0)
+        try await store.readSnapshot {
+            try await store.plannedStayRecords().filter { $0.stayID == stayID }.max {
+                PlannedStayRecord.newer($1, than: $0)
+            }
         }
     }
 
     private func latestHomeRecord() async throws -> HomeRegionRecord? {
-        try await store.homeRegionRecords().max { HomeRegionRecord.newer($1, than: $0) }
+        try await store.readSnapshot {
+            try await store.homeRegionRecords().max { HomeRegionRecord.newer($1, than: $0) }
+        }
     }
 
     private func write(stayID: PlannedStay.ID, value: PlannedStay?) async throws {
@@ -105,6 +116,7 @@ public struct PlannedStayCoordinator: Sendable {
             stayID: stayID,
             value: value,
             updatedAt: nextTimestamp(after: latest?.updatedAt),
+            changedByDeviceID: currentDeviceID,
         )
         try await store.replacePlannedStayRecord(with: record)
     }

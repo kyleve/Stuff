@@ -262,6 +262,7 @@ struct LocationIngestorTests {
             horizontalAccuracy: 0,
             source: foreignGPS ? .gpsVisit : .manual,
             recordingDeviceID: foreignGPS ? RecordingDeviceID(rawValue: UUID()) : nil,
+            assertedByDeviceID: foreignGPS ? nil : WhereCoreTestSupport.authorID,
         )
         try await store.perform { try await store.add(sample: earlier) }
         let fix = sample(at: "2026-03-15T08:05:00-07:00")
@@ -1193,6 +1194,10 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.evidence(in: interval)
     }
 
+    func evidence(withID id: UUID) async throws -> Evidence? {
+        try await backing.evidence(withID: id)
+    }
+
     func allEvidence() async throws -> [Evidence] {
         try await backing.allEvidence()
     }
@@ -1233,8 +1238,12 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.allDismissedIssues()
     }
 
-    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
-        try await backing.setIssueDismissed(dismissed, id: id)
+    func setIssueDismissed(
+        _ dismissed: Bool,
+        id: DataIssueID,
+        by deviceID: RecordingDeviceID,
+    ) async throws {
+        try await backing.setIssueDismissed(dismissed, id: id, by: deviceID)
     }
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {

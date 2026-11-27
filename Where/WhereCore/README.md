@@ -36,7 +36,7 @@ CloudKit must still identify that account. Missing, corrupt, unreadable, or bloc
 
 `DataCompatibilityAdmission` binds an allowed decision to its domain and process epoch. Bootstrap selects local or cloud storage from that decision and checks the token after opening. An account change revokes it before a replacement container can be used, even if the same account returns.
 
-`AppGroupDataAccess` owns the durable receipt and requires an exact verified receipt before the share extension opens its local store in any audience. Widget reads use this same boundary: the published envelope must match the receipt's version and local/cloud domain, and a second receipt read rejects changes observed during the read. Missing or old-format payloads are empty caches; missing, withdrawn, or mismatched access is blocked. It does not contact CloudKit. Cloud account identity retains both its container identifier and CloudKit user-record name; the wire record still stores the user-record name in `accountID`.
+`AppGroupDataAccess` owns the durable receipt and requires an exact verified receipt before the share extension opens its local store in any audience. The host publishes a share author only after registering the installation in that data generation. A share checks its original grant before opening the store and checks it again while saving the evidence and bytes. Account changes, identity retirement and data replacement revoke the grant. Widget reads use this same boundary: the published envelope must match the receipt's version and local/cloud domain, and a second receipt read rejects changes observed during the read. Missing or old-format payloads are empty caches; missing, withdrawn, or mismatched access is blocked. It does not contact CloudKit. Cloud account identity retains both its container identifier and CloudKit user-record name; the wire record still stores the user-record name in `accountID`.
 
 `WhereShutdownable.shutdown()` is terminal, idempotent retirement: cancel and join owned background tasks without erasing data, consent, or pending location samples. `WhereServices` retires recording first, then drains remote reconciliation, its explicitly owned live attribution observer, and issue invalidation. Immutable geometry readers own no observation. `LocationSource.stop()` is reversible physical acquisition control; it does not retire the source or recording authority. Derived App Intents services share the same ownership; only the app scope shuts them down.
 The app discards that service scope. Recovery creates a fresh scope after verification succeeds.
@@ -326,11 +326,13 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v10** carries each known installation model alongside existing nickname events. It preserves the v9 capture device on GPS samples and the author on correction and reset revisions. An older importer rejects the
-  archive before changing any user data, including a manual-only backup moved between
-  accounts. Version 8 retains independent stays, date windows, Home choices, optional motion,
-  and every sample-attribution revision. Merge preserves revision IDs and timestamps.
-  Replace restores revisions into its new generation.
+  Backup format **v11** carries the original author of manual days, asserted coordinates,
+  evidence, dismissals, stay and home revisions, and saved region choices. An untouched
+  region picker exports no choices. A nonempty Merge retains the active destination defaults.
+  The importing installation authors only defaults that the merge turns into new saved choices.
+  GPS retains its recorder and each correction or reset retains its editor. A hard delete removes the row and its author together. Merge and
+  Replace preserve the actors, including those on stay deletions and cleared home choices.
+  A missing actor or conflicting evidence link fails validation before restore.
   The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.
   Legacy stay revisions retain one shared identity, including deletion tombstones.
   The converter infers arrival from each revision's UTC date, capped at its final day.

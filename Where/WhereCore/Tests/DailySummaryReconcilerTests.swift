@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the daily-summary intent + recap reconciliation the controller
 /// delegates `configureDailySummary` to.
@@ -37,11 +37,13 @@ struct DailySummaryReconcilerTests {
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         await reconciler.configure(enabled: true, time: .defaultMorning)
@@ -60,6 +62,7 @@ struct DailySummaryReconcilerTests {
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         await reconciler.configure(enabled: true, time: .defaultMorning)

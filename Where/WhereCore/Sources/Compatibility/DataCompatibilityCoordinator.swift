@@ -124,6 +124,37 @@ public final class DataCompatibilityCoordinator {
         }
     }
 
+    /// Only the scope that registered this confirmed installation may publish its identity.
+    public func updateShareAuthor(
+        deviceID: RecordingDeviceID,
+        generationID: WhereDataGenerationID?,
+        admission: DataCompatibilityAdmission,
+    ) throws {
+        guard let generationID else {
+            // Account invalidation already removed the old scope's grant. A retiring scope
+            // cannot revoke permission granted to a later scope for the same account.
+            if let current = state.admission, current != admission { return }
+            guard let receipt = try receipts.load(), receipt.domain == admission.domain,
+                  receipt.shareAuthor?.deviceID == deviceID else { return }
+            try receipts.save(receipt.withShareAuthor(nil))
+            return
+        }
+        try requireAccess(admission)
+        guard let receipt = try receipts.load(), receipt.domain == admission.domain else {
+            throw DataCompatibilityTransportError.accountChanged
+        }
+        try receipt.requireAccess(version: version)
+        guard receipt.removedDeviceID != deviceID else {
+            throw RecordingPersistenceError.currentDeviceRemoved(deviceID)
+        }
+        if let current = receipt.shareAuthor, current.deviceID == deviceID,
+           current.generationID == generationID { return }
+        try receipts.save(receipt.withShareAuthor(.init(
+            deviceID: deviceID,
+            generationID: generationID,
+        )))
+    }
+
     public func recordRemoval(of deviceID: RecordingDeviceID) {
         removedDeviceID = deviceID
         do {
@@ -134,6 +165,8 @@ public final class DataCompatibilityCoordinator {
                     access: receipt.access,
                     removedDeviceID: deviceID,
                     changeReason: receipt.changeReason,
+                    shareAuthor: receipt.shareAuthor?.deviceID == deviceID ? nil : receipt
+                        .shareAuthor,
                 ))
             }
         } catch { fail(error) }
@@ -254,12 +287,26 @@ public final class DataCompatibilityCoordinator {
         domain: DataCompatibilityDomain,
         access: DataCompatibilityReceipt.Access,
     ) throws {
+        // Refresh can suspend while registration or withdrawal updates the durable receipt.
+        // Preserve only the latest grant for uninterrupted verification of the same account.
+        let previous = try receipts.load()
+        let retainedAuthor: DataCompatibilityReceipt.ShareAuthor? = if access == .verified,
+                                                                       previous?
+                                                                       .access == .verified,
+                                                                       previous?.domain == domain,
+                                                                       previous?
+                                                                       .version == versionFloor
+                                                                       .version
+        {
+            previous?.shareAuthor
+        } else { nil }
         try receipts.save(DataCompatibilityReceipt(
             domain: domain,
             version: versionFloor.version,
             access: access,
             removedDeviceID: removedDeviceID,
             changeReason: versionFloor.changeReason,
+            shareAuthor: retainedAuthor,
         ))
     }
 

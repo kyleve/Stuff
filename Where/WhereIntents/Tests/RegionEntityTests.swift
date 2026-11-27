@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import Testing
 import WhereCore
@@ -45,13 +46,14 @@ struct RegionEntityTests {
     }
 
     @Test func trackedEntitiesFollowTheStoresTrackedSet() async throws {
+        let deviceID = RecordingDeviceID(rawValue: UUID())
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         let ontario = try #require(Region(rawValue: "ca-ON"))
         try await store.perform {
-            try await store.setTrackedRegion(true, region: .california)
-            try await store.setTrackedRegion(true, region: texas)
-            try await store.setTrackedRegion(true, region: ontario)
+            try await store.setTrackedRegion(true, region: .california, changedBy: deviceID)
+            try await store.setTrackedRegion(true, region: texas, changedBy: deviceID)
+            try await store.setTrackedRegion(true, region: ontario, changedBy: deviceID)
         }
         let entities = try await RegionEntity
             .tracked(from: IntentTestSupport.services(store: store))
@@ -60,6 +62,7 @@ struct RegionEntityTests {
     }
 
     @Test func trackedEntitiesUseTheStoreDefaultsWhenUnset() async throws {
+        let deviceID = RecordingDeviceID(rawValue: UUID())
         let store = try SwiftDataStore.inMemory()
         let entities = try await RegionEntity
             .tracked(from: IntentTestSupport.services(store: store))

@@ -29,7 +29,9 @@ Host app Share sheet
 
 ## Why write to the store directly
 
-The extension opens the store and writes through `SwiftDataStore.perform { … }` rather than going through `WhereServices`/`DayJournal`.
+The compose sheet captures the confirmed installation and generation from the host’s backup-excluded App Group receipt. At Save, `SharedEvidenceWriter` verifies the same grant before opening the local store. It checks the profile and removal/reset state inside a generation-checked transaction, stamps every attachment or metadata-only note with its adding device, and rechecks the grant before committing. An expired grant shows Open Where.
+
+The extension writes through `SwiftDataStore.perform`.
 Those assemble a live GPS ingestor, notification reconcilers, and widget publishing — machinery with no place in a short-lived share process.
 The commit enters persistent history. The app’s container-scoped `HistoryObserverRemoteChangeSource` classifies external authors and forwards the change to its reconciliation streams; Beta and App Store also mirror the shared store through CloudKit.
 

@@ -51,6 +51,7 @@ enum FlightTrajectoryFixtures {
             horizontalAccuracy: accuracy,
             source: source,
             recordingDeviceID: deviceID,
+            assertedByDeviceID: source.isGPS ? nil : device,
             motion: motion,
         )
     }
@@ -242,6 +243,7 @@ enum FlightTrajectoryFixtures {
             horizontalAccuracy: sample.horizontalAccuracy,
             source: sample.source,
             recordingDeviceID: sample.recordingDeviceID,
+            assertedByDeviceID: sample.assertedByDeviceID,
             motion: motion,
         )
     }

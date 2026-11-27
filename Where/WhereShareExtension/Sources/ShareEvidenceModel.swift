@@ -42,7 +42,7 @@ final class ShareEvidenceModel {
     /// Storage the extension opens; injectable so a future test can point it at
     /// an in-memory store instead of the shared container.
     private let storage: SwiftDataStore.Storage
-    private let compatibilityAccess: any DataCompatibilityAccessChecking
+    private let writer: SharedEvidenceWriter
     private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     init(
@@ -53,7 +53,7 @@ final class ShareEvidenceModel {
     ) {
         self.items = items
         self.storage = storage
-        self.compatibilityAccess = compatibilityAccess
+        writer = SharedEvidenceWriter(access: compatibilityAccess)
         capturedAt = now()
     }
 
@@ -94,25 +94,15 @@ final class ShareEvidenceModel {
     /// the write error.
     func save() async -> Bool {
         phase = .saving
-        do {
-            _ = try compatibilityAccess.requireAccess(version: .current)
-        } catch {
-            phase = .failed(String(localized: .shareCompatibilityOpenWhere))
-            Self.logger.saveFailed(error: .restricted(.errorDetails, error))
-            return false
-        }
         let pending = buildPendingEvidence()
         do {
-            let store = try SwiftDataStore.make(storage: storage)
-            try await store.perform {
-                for item in pending {
-                    try await store.write(evidence: item.evidence, blob: item.blob)
-                }
-            }
+            let storage = storage
+            try await writer.save(pending) { try SwiftDataStore.make(storage: storage) }
             Self.logger.saved(evidenceCount: .restricted(.count, pending.count))
             return true
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed(error is SharedEvidenceWriter.AccessUnavailable
+                ? String(localized: .shareCompatibilityOpenWhere) : error.localizedDescription)
             Self.logger.saveFailed(
                 error: .restricted(.errorDetails, error),
             )
@@ -120,25 +110,17 @@ final class ShareEvidenceModel {
         }
     }
 
-    /// One evidence record plus its attachment bytes, ready to persist. A small
-    /// named value (not a tuple) since it escapes `buildPendingEvidence` into
-    /// `save`.
-    struct PendingEvidence {
-        let evidence: Evidence
-        let blob: Data?
-    }
-
     /// Assemble the evidence records from the current field state via the shared
     /// `Evidence.composed` factory: one per attachment (each classified from its
     /// own bytes), or a single metadata-only record when nothing was shared.
     /// `internal` so a test can assert the mapping without going through
     /// persistence.
-    func buildPendingEvidence() -> [PendingEvidence] {
+    func buildPendingEvidence() -> [SharedEvidenceWriter.Item] {
         guard !attachments.isEmpty else {
-            return [PendingEvidence(evidence: composed(attachment: nil), blob: nil)]
+            return [.init(evidence: composed(attachment: nil), blob: nil)]
         }
         return attachments.map { attachment in
-            PendingEvidence(evidence: composed(attachment: attachment), blob: attachment.data)
+            .init(evidence: composed(attachment: attachment), blob: attachment.data)
         }
     }
 

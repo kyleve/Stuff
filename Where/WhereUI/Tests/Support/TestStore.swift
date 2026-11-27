@@ -309,6 +309,10 @@ actor TestStore: WhereStore {
         try await backing.evidence(in: interval)
     }
 
+    func evidence(withID id: UUID) async throws -> Evidence? {
+        try await backing.evidence(withID: id)
+    }
+
     func allEvidence() async throws -> [Evidence] {
         try await backing.allEvidence()
     }
@@ -350,8 +354,12 @@ actor TestStore: WhereStore {
         try await backing.allDismissedIssues()
     }
 
-    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
-        try await backing.setIssueDismissed(dismissed, id: id)
+    func setIssueDismissed(
+        _ dismissed: Bool,
+        id: DataIssueID,
+        by deviceID: RecordingDeviceID,
+    ) async throws {
+        try await backing.setIssueDismissed(dismissed, id: id, by: deviceID)
     }
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {

@@ -45,11 +45,13 @@ enum IntentTestSupport {
     /// Pacific aggregator, no-op schedulers/refresher.
     static func services(
         store: SwiftDataStore,
+        installationContext: InstallationRecordingContext = .testing,
         now: @escaping @Sendable () -> Date = { Date() },
     ) -> WhereServices {
         WhereServices(
             store: store,
             locationSource: IdleLocationSource(),
+            installationContext: installationContext,
             aggregator: DayAggregator(calendar: calendar(), timeZone: pacific),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
