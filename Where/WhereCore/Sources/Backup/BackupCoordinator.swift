@@ -153,16 +153,13 @@ public actor BackupCoordinator {
 
         let snapshot = try await store.readSnapshot {
             let tables = try await Self.logger.measure(.exportReads) {
-                // The user's primary regions with their picked looks + order (the
-                // resolved default set when they haven't chosen yet). Check-ins are deliberately
-                // excluded: they are live proofs about a target's local outbox, not restorable
-                // user data.
+                // Export saved choices. A fresh picker derives its defaults locally.
                 try await ExportTables(
                     samples: store.allSamples(),
                     evidence: store.allEvidence(),
                     manualDays: store.allManualDays(),
                     dismissedIssues: store.allDismissedIssues(),
-                    primaryRegions: store.primaryRegions(),
+                    primaryRegions: store.persistedPrimaryRegions(),
                     recordingDeviceProfiles: store.recordingDeviceProfiles(),
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
                     recordingDeviceRemovals: store.recordingDeviceRemovals(),
@@ -517,22 +514,20 @@ public actor BackupCoordinator {
                         try await store.addRecordingDeviceRemoval(removal)
                         report()
                     }
-                    // Primary regions (with their picked looks) round-trip like any
-                    // other data. On `.replace` the store was cleared above, so write
-                    // the archive's set exactly; on `.merge` union it into the current
-                    // set (reading the *resolved* current set first so a device on the
-                    // implicit default set doesn't collapse to just the imported
-                    // ones), with the archive's appearance winning on overlap.
-                    // `setPrimaryRegions` is a whole-set replace, so a merge builds
-                    // the full merged list. A handful of rows, so they're not folded
-                    // into the progress total.
+                    // Restore saved choices with their original authors and picked appearances.
                     let archivePrimary = archive.primaryRegions
-                    let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
-                        try await Self.merge(archivePrimary, into: store.primaryRegions())
-                    } else {
-                        archivePrimary
+                    if strategy == .replace {
+                        try await store.setPrimaryRegions(archivePrimary)
+                    } else if !archivePrimary.isEmpty {
+                        let current = try await store
+                            .readSnapshot { try await store.primaryRegions() }
+                        let merged = Self.merge(
+                            archivePrimary,
+                            into: current,
+                            changedBy: currentDeviceID,
+                        )
+                        try await store.setPrimaryRegions(merged)
                     }
-                    try await store.setPrimaryRegions(regionsToWrite)
                     try await store.addBackupImportReceipt(
                         id: transactionID,
                         installationID: currentDeviceID,
@@ -820,23 +815,26 @@ public actor BackupCoordinator {
     private static func merge(
         _ archive: [PrimaryRegion],
         into current: [PrimaryRegion],
+        changedBy importingDevice: RecordingDeviceID,
     ) -> [PrimaryRegion] {
-        var appearances: [Region: RegionAppearance] = [:]
+        var choices: [Region: PrimaryRegion] = [:]
         var order: [Region] = []
-        var seen: Set<Region> = []
-        func add(_ region: Region) {
-            if seen.insert(region).inserted { order.append(region) }
+        for entry in current + archive {
+            if choices[entry.region] == nil {
+                order.append(entry.region)
+            } else if entry.appearance == nil, choices[entry.region]?.changedByDeviceID != nil {
+                continue
+            }
+            choices[entry.region] = entry
         }
-        for entry in current {
-            add(entry.region)
-            if let appearance = entry.appearance { appearances[entry.region] = appearance }
-        }
-        for entry in archive {
-            add(entry.region)
-            if let appearance = entry.appearance { appearances[entry.region] = appearance }
-        }
-        return order.enumerated().map { index, region in
-            PrimaryRegion(region: region, appearance: appearances[region], order: index)
+        return order.enumerated().compactMap { index, region in
+            guard let choice = choices[region] else { return nil }
+            return PrimaryRegion(
+                region: region,
+                appearance: choice.appearance,
+                order: index,
+                changedByDeviceID: choice.changedByDeviceID ?? importingDevice,
+            )
         }
     }
 }

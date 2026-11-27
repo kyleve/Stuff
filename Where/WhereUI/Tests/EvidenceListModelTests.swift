@@ -49,7 +49,8 @@ struct EvidenceListModelTests {
 
         await model.load(for: 2026)
 
-        #expect(model.loadState == .loaded([evidence]))
+        let stored = try evidence.added(by: InstallationRecordingContext.testing.currentDevice.id)
+        #expect(model.loadState == .loaded([stored]))
     }
 
     @Test func loadExcludesOtherYears() async throws {

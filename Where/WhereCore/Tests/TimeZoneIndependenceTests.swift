@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Regression guard for the reported bug: a manual day (override / backfill)
 /// resolved in one time zone must stay resolved when the same store is read in
@@ -36,7 +36,11 @@ struct TimeZoneIndependenceTests {
             .date(from: DateComponents(year: 2026, month: 2, day: 8, hour: 9)))
         let logged = CalendarDay(from: picked, in: calendar(newYork))
         try await store.perform {
-            try await store.setManualDay(DayPresence(day: logged, regions: [.newYork]))
+            try await store.setManualDay(DayPresence(
+                day: logged,
+                regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
+            ))
         }
 
         let feb8 = CalendarDay(year: 2026, month: 2, day: 8)

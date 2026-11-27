@@ -9,6 +9,166 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    @Test(arguments: [false, true])
+    func conflictingEvidenceAndAssertionAuthorsRollbackInEitherOrder(
+        evidenceFirst: Bool,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let evidence = Evidence(
+            kind: .document,
+            capturedAt: Date(),
+            contentType: .plainText,
+            addedByDeviceID: Self.generationWriterID,
+        )
+        let point = LocationSample(
+            timestamp: evidence.capturedAt,
+            coordinate: Coordinate(latitude: 2, longitude: 2),
+            horizontalAccuracy: 1,
+            source: .evidenceImplied(id: evidence.id, kind: evidence.kind),
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
+        )
+        let blob = Data("document".utf8)
+        if evidenceFirst {
+            try await store.perform { try await store.write(evidence: evidence, blob: blob) }
+            await #expect(throws: ActionAttributionError.conflictingEvidenceAuthor(evidence.id)) {
+                try await store.perform { try await store.add(sample: point) }
+            }
+            #expect(try await store.allSamples().isEmpty)
+            #expect(try await store.evidenceBlob(for: evidence.id) == blob)
+        } else {
+            try await store.perform { try await store.add(sample: point) }
+            await #expect(throws: ActionAttributionError.conflictingEvidenceAuthor(evidence.id)) {
+                try await store.perform { try await store.write(evidence: evidence, blob: blob) }
+            }
+            #expect(try await store.allEvidence().isEmpty)
+            #expect(try await store.allSamples() == [point])
+        }
+    }
+
+    @Test func orphanAssertionsMustAgreeBeforeTheEvidenceArrives() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let evidenceID = UUID()
+        let source = SampleSource.evidenceImplied(id: evidenceID, kind: .document)
+        let first = LocationSample(
+            timestamp: Date(),
+            coordinate: .init(latitude: 2, longitude: 2),
+            horizontalAccuracy: 0,
+            source: source,
+            assertedByDeviceID: Self.generationWriterID,
+        )
+        let second = LocationSample(
+            timestamp: first.timestamp.addingTimeInterval(60),
+            coordinate: .init(latitude: 3, longitude: 3),
+            horizontalAccuracy: 0,
+            source: source,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
+        )
+        let conflict = ActionAttributionError.conflictingEvidenceAuthor(evidenceID)
+        try await store.perform { try await store.add(sample: first) }
+        await #expect(throws: conflict) {
+            try await store.perform { try await store.add(sample: second) }
+        }
+        #expect(try await store.allSamples() == [first])
+
+        let remote = ModelContext(container)
+        remote.insert(SDLocationSample(value: second, generationID: .initial))
+        try remote.save()
+        let reader = SwiftDataStore(modelContainer: container)
+        await #expect(throws: conflict) { try await reader.allSamples() }
+    }
+
+    @Test func partialCloudAuthorsFailRawBackupReads() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let remote = ModelContext(container)
+        let day = DayPresence(day: .init(year: 2026, month: 2, day: 3), regions: [.newYork])
+        let evidence = Evidence(kind: .document, capturedAt: Date(), contentType: .plainText)
+        let point = LocationSample(
+            timestamp: evidence.capturedAt,
+            coordinate: .init(latitude: 1, longitude: 1),
+            horizontalAccuracy: 2,
+            source: .manual,
+        )
+        let dismissal = SDDismissedIssue(
+            key: DataIssueID.borderDrift(day: day.day).storeURL.absoluteString,
+            dismissedAt: evidence.capturedAt,
+            dismissedByDeviceID: Self.generationWriterID,
+            generationID: .initial,
+        )
+        dismissal.dismissedByDeviceID = nil
+        remote.insert(dismissal)
+        remote.insert(SDManualDay(value: day, generationID: .initial))
+        remote.insert(SDEvidence(value: evidence, blob: nil, generationID: .initial))
+        remote.insert(SDLocationSample(value: point, generationID: .initial))
+        try remote.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+        let missing = ActionAttributionError.missingAuthor
+        await #expect(throws: missing) { try await store.allManualDays() }
+        await #expect(throws: missing) { try await store.allEvidence() }
+        await #expect(throws: missing) { try await store.allDismissedIssues() }
+        let missingAssertion = LocationSampleOriginError.missingAssertionDevice(sampleID: point.id)
+        await #expect(throws: missingAssertion) { try await store.allSamples() }
+    }
+
+    @Test(arguments: [false, true])
+    func incomingManualDayOwnsWinningAuditEvenWithoutANote(authoritativeFirst: Bool) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let date = CalendarDay(year: 2026, month: 1, day: 2)
+        let override = DayPresence(
+            day: date,
+            regions: [.newYork],
+            isAuthoritative: true,
+            audit: .init(
+                recordedAt: Date(),
+                note: "Correction",
+                location: nil,
+            ),
+            changedByDeviceID: Self.generationWriterID,
+        )
+        let additive = DayPresence(
+            day: date,
+            regions: [.california],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
+        )
+        let incoming = authoritativeFirst ? additive : override
+        try await store.perform {
+            try await store.setManualDay(authoritativeFirst ? override : additive)
+            try await store.setManualDay(incoming)
+        }
+        let result = try #require(try await store.allManualDays().first)
+        #expect(result.audit == incoming.audit)
+        #expect(result.changedByDeviceID == incoming.changedByDeviceID)
+        #expect(result.isAuthoritative)
+        #expect(result.regions == (authoritativeFirst ? [.newYork, .california] : [.newYork]))
+    }
+
+    @Test func unsignedDurableWritesFailWithoutPartialHistory() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let day = DayPresence(day: .init(year: 2026, month: 1, day: 2), regions: [.newYork])
+        let evidence = Evidence(kind: .document, capturedAt: Date(), contentType: .plainText)
+        await #expect(throws: ActionAttributionError.missingAuthor) {
+            try await store.perform { try await store.setManualDay(day) }
+        }
+        await #expect(throws: ActionAttributionError.missingAuthor) {
+            try await store.perform { try await store.write(evidence: evidence, blob: Data([1])) }
+        }
+        let point = LocationSample(
+            timestamp: Date(),
+            coordinate: .init(latitude: 0, longitude: 0),
+            horizontalAccuracy: 2,
+            source: .manual,
+        )
+        await #expect(throws: LocationSampleOriginError
+            .missingAssertionDevice(sampleID: point.id))
+        {
+            try await store.perform { try await store.add(sample: point) }
+        }
+        #expect(try await store.allManualDays().isEmpty)
+        #expect(try await store.allEvidence().isEmpty)
+        #expect(try await store.allSamples().isEmpty)
+    }
+
     @Test func portableTimestampReplayPreservesOriginalProfileAndMetadataRows() async throws {
         let date = Date(timeIntervalSinceReferenceDate: 700_000_000.0.nextUp)
         let wire = Date(timeIntervalSince1970: date.timeIntervalSince1970)
@@ -190,7 +350,12 @@ struct SwiftDataStoreTests {
     }
 
     @Test func homeRowsDistinguishHistoricalTombstonesFromCorruption() throws {
-        let tombstone = try HomeRegionRecord(id: UUID(), region: nil, updatedAt: Date())
+        let tombstone = try HomeRegionRecord(
+            id: UUID(),
+            region: nil,
+            updatedAt: Date(),
+            changedByDeviceID: WhereCoreTestSupport.authorID,
+        )
         let row = SDHomeRegion(value: tombstone, generationID: .initial)
         #expect(row.toValue() == tombstone)
         row.regionID = "not-a-region"
@@ -206,7 +371,12 @@ struct SwiftDataStoreTests {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let stay = try PlannedStayTestSupport.record(stay: PlannedStayTestSupport.stay())
-        let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
+        let home = try HomeRegionRecord(
+            id: UUID(),
+            region: .california,
+            updatedAt: Date(),
+            changedByDeviceID: WhereCoreTestSupport.authorID,
+        )
         try await store.perform {
             try await store.restorePlannedStayRecord(stay)
             try await store.restoreHomeRegionRecord(home)
@@ -343,6 +513,7 @@ struct SwiftDataStoreTests {
             coordinate: raw.coordinate,
             horizontalAccuracy: raw.horizontalAccuracy,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform { try await store.add(sample: original) }
         for replacement in [other, manual] {
@@ -630,6 +801,7 @@ struct SwiftDataStoreTests {
         date: Date(timeIntervalSince1970: 0),
         in: SwiftDataStoreTests.calendar,
         regions: [.california],
+        changedByDeviceID: CurrentRecordingDevice.preview.id,
     )
 
     @Test func committedWritePingsChanges() async throws {
@@ -683,6 +855,7 @@ struct SwiftDataStoreTests {
                             date: Date(timeIntervalSince1970: TimeInterval(index) * 86400),
                             in: Self.calendar,
                             regions: [.california],
+                            changedByDeviceID: CurrentRecordingDevice.preview.id,
                         ))
                         await observer.exit()
                     }
@@ -705,6 +878,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
         let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
@@ -1059,15 +1233,18 @@ struct SwiftDataStoreTests {
             capturedAt: date,
             region: .california,
             contentType: .pdf,
+            addedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let manualDay = DayPresence(
             date: date,
             in: Self.calendar,
             regions: [.california],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let dismissal = DismissedIssue(
             id: .borderDrift(day: manualDay.day),
             dismissedAt: date,
+            dismissedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let texas = try #require(Region(rawValue: "us-TX"))
         let metadata = try RecordingDeviceMetadataChange(
@@ -1097,11 +1274,16 @@ struct SwiftDataStoreTests {
         let dismissalRow = SDDismissedIssue(
             key: dismissal.id.storeURL.absoluteString,
             dismissedAt: dismissal.dismissedAt,
+            dismissedByDeviceID: dismissal.dismissedByDeviceID,
             generationID: .initial,
         )
         dismissalRow.generationID = nil
         context.insert(dismissalRow)
-        let regionRow = SDTrackedRegion(regionID: texas.rawValue, generationID: .initial)
+        let regionRow = SDTrackedRegion(
+            regionID: texas.rawValue,
+            generationID: .initial,
+            changedBy: WhereCoreTestSupport.authorID,
+        )
         regionRow.generationID = nil
         context.insert(regionRow)
         let metadataRow = SDRecordingDeviceMetadataChange(value: metadata, generationID: .initial)
@@ -1148,15 +1330,18 @@ struct SwiftDataStoreTests {
             region: .california,
             note: nil,
             contentType: .pdf,
+            addedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let manualDay = DayPresence(
             date: date,
             in: Self.calendar,
             regions: [.california],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let dismissal = DismissedIssue(
             id: .borderDrift(day: manualDay.day),
             dismissedAt: date,
+            dismissedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let profile = RecordingDeviceProfile(
             id: deviceID,
@@ -1211,11 +1396,16 @@ struct SwiftDataStoreTests {
         let dismissalRow = SDDismissedIssue(
             key: dismissal.id.storeURL.absoluteString,
             dismissedAt: dismissal.dismissedAt,
+            dismissedByDeviceID: dismissal.dismissedByDeviceID,
             generationID: .initial,
         )
         dismissalRow.generationID = nil
         remoteContext.insert(dismissalRow)
-        let trackedRegionRow = SDTrackedRegion(regionID: "us-TX", generationID: .initial)
+        let trackedRegionRow = SDTrackedRegion(
+            regionID: "us-TX",
+            generationID: .initial,
+            changedBy: WhereCoreTestSupport.authorID,
+        )
         trackedRegionRow.generationID = nil
         remoteContext.insert(trackedRegionRow)
         let metadataRow = SDRecordingDeviceMetadataChange(
@@ -1266,6 +1456,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
 
         #expect(currentGeneration.id != staleGenerationID)
@@ -1411,6 +1602,7 @@ struct SwiftDataStoreTests {
             date: Date(timeIntervalSinceReferenceDate: 10000),
             in: Self.calendar,
             regions: [.california],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let initialContext = ModelContext(container)
         initialContext.insert(SDWhereDataGeneration(value: first))
@@ -1453,6 +1645,7 @@ struct SwiftDataStoreTests {
             date: Date(timeIntervalSinceReferenceDate: 20000),
             in: Self.calendar,
             regions: [.newYork],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let replacementContext = ModelContext(container)
         replacementContext.insert(SDWhereDataGeneration(value: replacement))
@@ -1489,6 +1682,7 @@ struct SwiftDataStoreTests {
             date: Date(timeIntervalSinceReferenceDate: 20000),
             in: Self.calendar,
             regions: [.newYork],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let store = SwiftDataStore(modelContainer: container)
         let replacement = try await store.perform {
@@ -1558,6 +1752,7 @@ struct SwiftDataStoreTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
         let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
@@ -1650,6 +1845,7 @@ struct SwiftDataStoreTests {
             in: Self.calendar,
             regions: [.newYork],
             isAuthoritative: true,
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let remoteContext = ModelContext(container)
         remoteContext.insert(SDManualDay(value: remoteDay, generationID: .initial))
@@ -1737,6 +1933,7 @@ struct SwiftDataStoreTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .manual,
+                assertedByDeviceID: CurrentRecordingDevice.preview.id,
             ),
             generationID: .initial,
         ))
@@ -1810,6 +2007,7 @@ struct SwiftDataStoreTests {
             region: .california,
             note: "Restored metadata",
             contentType: .pdf,
+            addedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let inactiveBlob = Data("inactive attachment".utf8)
         let remoteContext = ModelContext(container)
@@ -2015,6 +2213,7 @@ struct SwiftDataStoreTests {
                 date: date,
                 in: Self.calendar,
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         let afterInsert = try await store.allManualDays()
@@ -2027,6 +2226,7 @@ struct SwiftDataStoreTests {
                 date: date,
                 in: Self.calendar,
                 regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         let afterUpdate = try await store.allManualDays()
@@ -2073,6 +2273,7 @@ struct SwiftDataStoreTests {
                     regions: [.newYork],
                     isAuthoritative: true,
                     audit: audit,
+                    changedByDeviceID: CurrentRecordingDevice.preview.id,
                 ),
             )
         }
@@ -2096,6 +2297,7 @@ struct SwiftDataStoreTests {
                 in: Self.calendar,
                 regions: [.california],
                 audit: audit,
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -2128,6 +2330,7 @@ struct SwiftDataStoreTests {
                     regions: [.california],
                     isAuthoritative: true,
                     audit: firstAudit,
+                    changedByDeviceID: CurrentRecordingDevice.preview.id,
                 ),
             )
         }
@@ -2139,6 +2342,7 @@ struct SwiftDataStoreTests {
                     regions: [.newYork],
                     isAuthoritative: false,
                     audit: laterAudit,
+                    changedByDeviceID: CurrentRecordingDevice.preview.id,
                 ),
             )
         }

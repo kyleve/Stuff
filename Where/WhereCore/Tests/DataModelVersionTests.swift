@@ -33,6 +33,14 @@ struct DataModelVersionTests {
             "Where can now show the model of each device in your history.")
     }
 
+    @Test func dataVersion5ExplainsChange() throws {
+        let version = DataModelVersion(rawValue: 5)
+        #expect(DataModelVersion.current >= version)
+        let reason = try #require(version.changeReason)
+        #expect(reason.localized(preferredLocales: [Locale(identifier: "en")]) ==
+            "Where now saves which device made changes to your entries, evidence, and plans.")
+    }
+
     @Test func publishedReasonIncludesEveryTranslationAndSkipsMissingOnes() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).bundle")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

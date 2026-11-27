@@ -98,6 +98,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
 /// Permanent origin errors at the boundary between a fresh fix and durable history.
 public enum LocationSampleOriginError: Error, Equatable, Sendable {
     case missingRecordingDevice(sampleID: UUID)
+    case missingAssertionDevice(sampleID: UUID)
     case conflictingOrigin(sampleID: UUID)
 }
 
@@ -112,6 +113,9 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     /// Capturing installation for persisted GPS. A fresh sensor fix can remain unassigned
     /// while a caller uses it for a transient location query.
     public let recordingDeviceID: RecordingDeviceID?
+    /// Author of a manual assertion or its originating evidence. GPS uses the capturing
+    /// installation.
+    public let assertedByDeviceID: RecordingDeviceID?
     /// Sensor readings when the source supplies valid speed or altitude evidence.
     public let motion: LocationMotion?
 
@@ -122,6 +126,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         horizontalAccuracy: Double,
         source: SampleSource,
         recordingDeviceID: RecordingDeviceID? = nil,
+        assertedByDeviceID: RecordingDeviceID? = nil,
         motion: LocationMotion? = nil,
     ) {
         self.id = id
@@ -130,33 +135,63 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.horizontalAccuracy = horizontalAccuracy
         self.source = source
         self.recordingDeviceID = recordingDeviceID
+        self.assertedByDeviceID = assertedByDeviceID
         self.motion = motion
     }
 
     /// Compare the source identity persisted by SwiftData. Evidence labels are display metadata.
     func hasSameOrigin(as other: Self) -> Bool {
-        hasOrigin(source: other.source, recordingDeviceID: other.recordingDeviceID)
+        hasOrigin(
+            source: other.source,
+            recordingDeviceID: other.recordingDeviceID,
+            assertedByDeviceID: other.assertedByDeviceID,
+        )
     }
 
     func hasOrigin(
         source other: SampleSource,
         recordingDeviceID deviceID: RecordingDeviceID?,
+        assertedByDeviceID authorID: RecordingDeviceID?,
     ) -> Bool {
         source.discriminator == other.discriminator
             && source.evidenceId == other.evidenceId
             && source.evidenceKind?.discriminator == other.evidenceKind?.discriminator
-            && recordingDeviceID == deviceID
+            && recordingDeviceID == deviceID && assertedByDeviceID == authorID
     }
 
     func validateRecordingOrigin() throws {
+        if source.isGPS,
+           assertedByDeviceID !=
+           nil { throw LocationSampleOriginError.conflictingOrigin(sampleID: id) }
+        if !source.isGPS,
+           assertedByDeviceID ==
+           nil { throw LocationSampleOriginError.missingAssertionDevice(sampleID: id) }
         if source.isGPS, recordingDeviceID == nil {
             throw LocationSampleOriginError.missingRecordingDevice(sampleID: id)
         }
     }
 
+    public func asserted(by deviceID: RecordingDeviceID) throws -> Self {
+        guard !source.isGPS, assertedByDeviceID == nil || assertedByDeviceID == deviceID else {
+            throw LocationSampleOriginError.conflictingOrigin(sampleID: id)
+        }
+        return Self(
+            id: id,
+            timestamp: timestamp,
+            coordinate: coordinate,
+            horizontalAccuracy: horizontalAccuracy,
+            source: source,
+            recordingDeviceID: recordingDeviceID,
+            assertedByDeviceID: deviceID,
+            motion: motion,
+        )
+    }
+
     /// Only fresh GPS fixes acquire the local installation's identity.
     func recorded(by deviceID: RecordingDeviceID) throws -> LocationSample {
         guard source.isGPS else { return self }
+        guard assertedByDeviceID == nil
+        else { throw LocationSampleOriginError.conflictingOrigin(sampleID: id) }
         if let recordingDeviceID {
             guard recordingDeviceID == deviceID else {
                 throw LocationSampleOriginError.conflictingOrigin(sampleID: id)

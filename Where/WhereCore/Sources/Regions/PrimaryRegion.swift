@@ -15,9 +15,18 @@ public struct PrimaryRegion: Hashable, Sendable, Codable {
     public let appearance: RegionAppearance?
     public let order: Int
 
-    public init(region: Region, appearance: RegionAppearance?, order: Int) {
+    /// Nil for an unsaved picker choice or an inferred default.
+    public let changedByDeviceID: RecordingDeviceID?
+
+    public init(
+        region: Region,
+        appearance: RegionAppearance?,
+        order: Int,
+        changedByDeviceID: RecordingDeviceID? = nil,
+    ) {
         self.region = region
         self.appearance = appearance
         self.order = order
+        self.changedByDeviceID = changedByDeviceID
     }
 }

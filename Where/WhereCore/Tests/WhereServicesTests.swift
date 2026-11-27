@@ -42,6 +42,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 
@@ -52,7 +53,11 @@ struct WhereServicesTests {
         let store = try SwiftDataStore.inMemory()
         // Track only California.
         try await store.perform {
-            try await store.setTrackedRegion(true, region: .california)
+            try await store.setTrackedRegion(
+                true,
+                region: .california,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         let services = try await WhereServices.make(
             store: store,
@@ -135,6 +140,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await services.journal.ingest(sf)
 
@@ -191,6 +197,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         ))
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
@@ -373,6 +380,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         ))
         try await services.journal.clearYear(2026)
         let report = try await services.reports.yearReport(for: 2026)
@@ -388,6 +396,7 @@ struct WhereServicesTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
+                assertedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -548,6 +557,7 @@ struct WhereServicesTests {
                 date: now,
                 in: Self.pacificCalendar,
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             )],
         )
         remoteChanges.yield()
@@ -637,6 +647,7 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 
@@ -659,6 +670,7 @@ struct WhereServicesTests {
             region: .california,
             note: "SFO → JFK",
             contentType: .plainText,
+            addedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let blob = Data("ticket pdf".utf8)
         try await services.journal.addEvidence(evidence, blob: blob)
@@ -679,6 +691,7 @@ struct WhereServicesTests {
         region: .california,
         note: "SFO → JFK",
         contentType: .pdf,
+        addedByDeviceID: CurrentRecordingDevice.preview.id,
     )
     private static let backupBlob = Data("boarding-pass-pdf".utf8)
 
@@ -1160,6 +1173,7 @@ struct WhereServicesTests {
             date: Date(timeIntervalSince1970: 1_700_000_000),
             in: Self.pacificCalendar,
             regions: [.california],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         let deviceID = CurrentRecordingDevice.preview.id
         try await store.perform {
@@ -1972,6 +1986,10 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.evidence(in: interval)
     }
 
+    func evidence(withID id: UUID) async throws -> Evidence? {
+        try await backing.evidence(withID: id)
+    }
+
     func allEvidence() async throws -> [Evidence] {
         try await backing.allEvidence()
     }
@@ -2013,8 +2031,12 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.allDismissedIssues()
     }
 
-    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
-        try await backing.setIssueDismissed(dismissed, id: id)
+    func setIssueDismissed(
+        _ dismissed: Bool,
+        id: DataIssueID,
+        by deviceID: RecordingDeviceID,
+    ) async throws {
+        try await backing.setIssueDismissed(dismissed, id: id, by: deviceID)
     }
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {

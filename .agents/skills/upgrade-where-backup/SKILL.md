@@ -15,11 +15,12 @@ ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb INPUT [OU
 ```
 
 `INPUT` may be an unpacked backup directory or ZIP. `OUTPUT` defaults to a
-sibling named `<input>-upgraded.zip`. For historical GPS or corrections with an
-ambiguous or missing source, pass the original phone's reusable profile JSON.
+sibling named `<input>-upgraded.zip`. When older entries have no identifiable author, pass the original phone's reusable profile JSON.
 See the [v9 mapping format](../../../Where/WhereCore/BACKUP_FORMAT.md#version-9-contents).
 For older archives with device profiles, supply their original hardware identifiers
 with the [v10 device model map](../../../Where/WhereCore/BACKUP_FORMAT.md#version-10-contents).
+A v10 archive containing only manual entries can need both files. See the
+[v11 action fields](../../../Where/WhereCore/BACKUP_FORMAT.md#version-11-contents).
 Keep mapping files with the original backup for repeat upgrades. The driver:
 
 1. Reads the source manifest and records the counts that migration must preserve.

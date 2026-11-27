@@ -124,6 +124,7 @@ struct ReminderReconcilerTests {
                 date: WhereCoreTestSupport.iso("2026-01-10T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         let threshold = Double(DriftThreshold.default.rawValue)
@@ -163,6 +164,7 @@ struct ReminderReconcilerTests {
                 date: WhereCoreTestSupport.iso("2026-01-10T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         let threshold = Double(DriftThreshold.default.rawValue)

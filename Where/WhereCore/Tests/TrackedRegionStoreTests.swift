@@ -18,15 +18,27 @@ struct TrackedRegionStoreTests {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
-            try await store.setTrackedRegion(true, region: .california)
-            try await store.setTrackedRegion(true, region: texas)
+            try await store.setTrackedRegion(
+                true,
+                region: .california,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
+            try await store.setTrackedRegion(
+                true,
+                region: texas,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         // Once any row exists, the tracked set is exactly the rows (not the
         // implicit defaults unioned in).
         #expect(try await store.trackedRegions() == [.california, texas])
 
         try await store.perform {
-            try await store.setTrackedRegion(false, region: .california)
+            try await store.setTrackedRegion(
+                false,
+                region: .california,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         #expect(try await store.trackedRegions() == [texas])
     }
@@ -35,8 +47,16 @@ struct TrackedRegionStoreTests {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
-            try await store.setTrackedRegion(true, region: texas)
-            try await store.setTrackedRegion(true, region: texas)
+            try await store.setTrackedRegion(
+                true,
+                region: texas,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
+            try await store.setTrackedRegion(
+                true,
+                region: texas,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         #expect(try await store.trackedRegions() == [texas])
     }
@@ -45,7 +65,11 @@ struct TrackedRegionStoreTests {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
-            try await store.setTrackedRegion(true, region: texas)
+            try await store.setTrackedRegion(
+                true,
+                region: texas,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         try await store.perform {
             _ = try await store.rotateDataGeneration(

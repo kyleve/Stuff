@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 struct DismissedIssueStoreTests {
     private static let borderDrift = DataIssueID.borderDrift(
@@ -19,13 +19,13 @@ struct DismissedIssueStoreTests {
         let id = Self.borderDrift
 
         try await store.perform {
-            try await store.setIssueDismissed(true, id: id)
+            try await store.setIssueDismissed(true, id: id, by: CurrentRecordingDevice.preview.id)
         }
         var ids = try await store.dismissedIssueIDs()
         #expect(ids == [id])
 
         try await store.perform {
-            try await store.setIssueDismissed(false, id: id)
+            try await store.setIssueDismissed(false, id: id, by: CurrentRecordingDevice.preview.id)
         }
         ids = try await store.dismissedIssueIDs()
         #expect(ids.isEmpty)
@@ -36,17 +36,23 @@ struct DismissedIssueStoreTests {
         let id = Self.abruptChange
 
         try await store.perform {
-            try await store.setIssueDismissed(true, id: id)
-            try await store.setIssueDismissed(true, id: id)
+            try await store.setIssueDismissed(true, id: id, by: CurrentRecordingDevice.preview.id)
+            try await store.setIssueDismissed(true, id: id, by: WhereCoreTestSupport.authorID)
         }
         let ids = try await store.dismissedIssueIDs()
         #expect(ids == [id])
+        #expect(try await store.allDismissedIssues().first?
+            .dismissedByDeviceID == CurrentRecordingDevice.preview.id)
     }
 
     @Test func rotatingTheDataGenerationWipesDismissals() async throws {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
-            try await store.setIssueDismissed(true, id: Self.missingDays)
+            try await store.setIssueDismissed(
+                true,
+                id: Self.missingDays,
+                by: CurrentRecordingDevice.preview.id,
+            )
         }
         try await store.perform {
             _ = try await store.rotateDataGeneration(
@@ -64,12 +70,20 @@ struct DismissedIssueStoreTests {
         let when = Date(timeIntervalSince1970: 1_700_000_000)
         try await store.perform {
             try await store.restoreDismissedIssue(
-                DismissedIssue(id: Self.borderDrift, dismissedAt: when),
+                DismissedIssue(
+                    id: Self.borderDrift,
+                    dismissedAt: when,
+                    dismissedByDeviceID: CurrentRecordingDevice.preview.id,
+                ),
             )
         }
 
         let dismissed = try await store.allDismissedIssues()
-        #expect(dismissed == [DismissedIssue(id: Self.borderDrift, dismissedAt: when)])
+        #expect(dismissed == [DismissedIssue(
+            id: Self.borderDrift,
+            dismissedAt: when,
+            dismissedByDeviceID: CurrentRecordingDevice.preview.id,
+        )])
     }
 
     @Test func restoreDismissedIssue_preservesTimestampAndUpsertsByID() async throws {
@@ -79,7 +93,11 @@ struct DismissedIssueStoreTests {
         let replacement = Date(timeIntervalSince1970: 1_700_500_000)
 
         try await store.perform {
-            try await store.restoreDismissedIssue(DismissedIssue(id: id, dismissedAt: original))
+            try await store.restoreDismissedIssue(DismissedIssue(
+                id: id,
+                dismissedAt: original,
+                dismissedByDeviceID: CurrentRecordingDevice.preview.id,
+            ))
         }
         #expect(try await store.allDismissedIssues().first?.dismissedAt == original)
 
@@ -89,9 +107,14 @@ struct DismissedIssueStoreTests {
             try await store.restoreDismissedIssue(DismissedIssue(
                 id: id,
                 dismissedAt: replacement,
+                dismissedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         let dismissed = try await store.allDismissedIssues()
-        #expect(dismissed == [DismissedIssue(id: id, dismissedAt: replacement)])
+        #expect(dismissed == [DismissedIssue(
+            id: id,
+            dismissedAt: replacement,
+            dismissedByDeviceID: CurrentRecordingDevice.preview.id,
+        )])
     }
 }

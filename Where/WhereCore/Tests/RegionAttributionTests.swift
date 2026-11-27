@@ -26,7 +26,11 @@ struct RegionAttributionTests {
         // Switch the tracked set to Illinois. The commit pings `changes()` (the
         // observer reconciles); reconcile again for a deterministic assertion.
         try await store.perform {
-            try await store.setTrackedRegion(true, region: illinois)
+            try await store.setTrackedRegion(
+                true,
+                region: illinois,
+                changedBy: WhereCoreTestSupport.authorID,
+            )
         }
         await attribution.reconcile()
 

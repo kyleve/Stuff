@@ -102,6 +102,7 @@ struct WhereSessionTests {
             date: date(year: 2026, month: 3, day: 1),
             in: .current,
             regions: [.california],
+            changedByDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform { try await store.setManualDay(seed) }
         let refresher = SpyWidgetRefresher()

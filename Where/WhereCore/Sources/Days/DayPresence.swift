@@ -22,17 +22,21 @@ public struct DayPresence: Hashable, Sendable, Codable {
     /// the device was at the time. `nil` for GPS-derived days and the
     /// aggregator's own report-output days (which are never user entries).
     public let audit: ManualEntryAudit?
+    /// Editing installation of a persisted manual day. Calculated report days have no author.
+    public let changedByDeviceID: RecordingDeviceID?
 
     public init(
         day: CalendarDay,
         regions: Set<Region>,
         isAuthoritative: Bool = false,
         audit: ManualEntryAudit? = nil,
+        changedByDeviceID: RecordingDeviceID? = nil,
     ) {
         self.day = day
         self.regions = regions
         self.isAuthoritative = isAuthoritative
         self.audit = audit
+        self.changedByDeviceID = changedByDeviceID
     }
 
     /// Convenience for producers that hold a `Date` and the calendar that
@@ -44,12 +48,24 @@ public struct DayPresence: Hashable, Sendable, Codable {
         regions: Set<Region>,
         isAuthoritative: Bool = false,
         audit: ManualEntryAudit? = nil,
+        changedByDeviceID: RecordingDeviceID? = nil,
     ) {
         self.init(
             day: CalendarDay(from: date, in: calendar),
             regions: regions,
             isAuthoritative: isAuthoritative,
             audit: audit,
+            changedByDeviceID: changedByDeviceID,
+        )
+    }
+
+    public func changed(by deviceID: RecordingDeviceID) -> Self {
+        Self(
+            day: day,
+            regions: regions,
+            isAuthoritative: isAuthoritative,
+            audit: audit,
+            changedByDeviceID: deviceID,
         )
     }
 

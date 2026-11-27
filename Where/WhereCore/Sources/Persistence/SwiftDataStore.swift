@@ -36,6 +36,19 @@ private enum GenerationScopedFetch {
 
     static func samples(
         belongingTo generationID: WhereDataGenerationID,
+        evidenceID: UUID,
+    ) -> FetchDescriptor<SDLocationSample> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil))
+                && $0.evidenceId == evidenceID
+        })
+    }
+
+    static func samples(
+        belongingTo generationID: WhereDataGenerationID,
         in interval: DateInterval,
         sortBy: [SortDescriptor<SDLocationSample>] = [],
     ) -> FetchDescriptor<SDLocationSample> {
@@ -725,7 +738,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// The earliest snapshot read in this transaction determines which
         /// external commits may invalidate the pending evidence-based writes.
         var snapshotHistoryTransactionID: Int64?
-        var writesSampleAttributionRevisions = false
+        var writesAttributedAction = false
     }
 
     private struct ActiveSnapshot {
@@ -978,7 +991,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
-                if activeTransaction?.writesSampleAttributionRevisions == true {
+                if activeTransaction?.writesAttributedAction == true {
                     try Task.checkCancellation()
                 }
                 try peer.save()
@@ -1244,6 +1257,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         try resolvedDataGenerationResolution(in: context).current
     }
 
+    /// Protect both the decision that selected the author and cancellation before commit.
+    private func beginAttributedAction() throws {
+        try Task.checkCancellation()
+        try pinMutationHistory()
+        activeTransaction?.writesAttributedAction = true
+    }
+
     /// Keep a decision based on existing rows valid until the transaction saves.
     private func pinMutationHistory() throws {
         guard let transaction = activeTransaction else {
@@ -1332,9 +1352,26 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     public func add(sample: LocationSample) async throws {
         try sample.validateRecordingOrigin()
-        try pinMutationHistory()
+        if sample.source.isGPS { try pinMutationHistory() }
+        else { try beginAttributedAction() }
         let context = mutationContext()
         let generationID = mutationGenerationID()
+        if let evidenceID = sample.source.evidenceId {
+            let linked = try context.fetch(GenerationScopedFetch.evidence(
+                belongingTo: generationID,
+                evidenceID: evidenceID,
+            ))
+            let points = try context.fetch(GenerationScopedFetch.samples(
+                belongingTo: generationID,
+                evidenceID: evidenceID,
+            ))
+            guard linked.allSatisfy({ $0.addedByDeviceID == sample.assertedByDeviceID?.rawValue }),
+                  points
+                  .allSatisfy({ $0.assertedByDeviceID == sample.assertedByDeviceID?.rawValue })
+            else {
+                throw ActionAttributionError.conflictingEvidenceAuthor(evidenceID)
+            }
+        }
         let existing = try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
             sampleID: sample.id,
@@ -1342,13 +1379,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         if let canonical = existing.first {
             for row in existing {
                 guard let source = row.decodedSource,
-                      !source.isGPS || row.recordingDeviceID != nil
+                      source.isGPS ? row.recordingDeviceID != nil : row.assertedByDeviceID != nil
                 else {
                     // CloudKit may deliver origin fields separately. A retry can resolve them.
                     throw SDLocationSample.IncompleteOrigin()
                 }
                 let deviceID = row.recordingDeviceID.map(RecordingDeviceID.init(rawValue:))
-                guard sample.hasOrigin(source: source, recordingDeviceID: deviceID) else {
+                guard sample.hasOrigin(
+                    source: source,
+                    recordingDeviceID: deviceID,
+                    assertedByDeviceID: row.assertedByDeviceID
+                        .map(RecordingDeviceID.init(rawValue:)),
+                ) else {
                     throw LocationSampleOriginError.conflictingOrigin(sampleID: sample.id)
                 }
             }
@@ -1388,16 +1430,34 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.timestamp)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            if let id = record.id, record.recordingDeviceID == nil,
-               record.decodedSource?.isGPS == true
-            {
-                throw LocationSampleOriginError.missingRecordingDevice(sampleID: id)
+        var evidenceAuthors: [UUID: RecordingDeviceID] = [:]
+        let samples = try context.fetch(descriptor).map { record in
+            let sample: LocationSample
+            do {
+                sample = try record.validatedValue()
+            } catch {
+                Self.logFault(forCorrupt: record)
+                throw error
             }
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+            if let evidenceID = sample.source.evidenceId, let author = sample.assertedByDeviceID,
+               let previous = evidenceAuthors.updateValue(author, forKey: evidenceID),
+               previous != author
+            {
+                throw ActionAttributionError.conflictingEvidenceAuthor(evidenceID)
+            }
+            return sample
         }
+        if !evidenceAuthors.isEmpty {
+            let items = try context.fetch(GenerationScopedFetch.evidence(belongingTo: generationID))
+            for item in items {
+                if let id = item.id, let author = evidenceAuthors[id],
+                   item.addedByDeviceID != author.rawValue
+                {
+                    throw ActionAttributionError.conflictingEvidenceAuthor(id)
+                }
+            }
+        }
+        return samples
     }
 
     // MARK: - Sample attributions
@@ -1438,14 +1498,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
-        try Task.checkCancellation()
         guard revision.updatedAt.timeIntervalSince1970.isFinite else {
             throw SampleAttributionPersistenceError.incompleteHistory
         }
-        try pinMutationHistory()
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        activeTransaction?.writesSampleAttributionRevisions = true
         let existing = try context.fetch(GenerationScopedFetch.sampleAttributions(
             belongingTo: generationID,
             revisionID: revision.id,
@@ -1756,12 +1814,24 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func write(evidence: Evidence, blob: Data?) async throws {
+        guard let author = evidence.addedByDeviceID
+        else { throw ActionAttributionError.missingAuthor }
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let matchingRecords = try context.fetch(GenerationScopedFetch.evidence(
             belongingTo: generationID,
             evidenceID: evidence.id,
         ))
+        let assertions = try context.fetch(GenerationScopedFetch.samples(
+            belongingTo: generationID,
+            evidenceID: evidence.id,
+        ))
+        guard matchingRecords.allSatisfy({ $0.addedByDeviceID == author.rawValue }),
+              assertions.allSatisfy({ $0.assertedByDeviceID == author.rawValue })
+        else {
+            throw ActionAttributionError.conflictingEvidenceAuthor(evidence.id)
+        }
         if let existing = matchingRecords.first {
             // Treat `blob == nil` as "no change" so a metadata-only edit
             // (note, kind, region) does not wipe a previously stored
@@ -1777,6 +1847,21 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // metadata without a declared asset.
             context.insert(SDEvidence(value: evidence, blob: blob, generationID: generationID))
         }
+    }
+
+    public func evidence(withID id: UUID) async throws -> Evidence? {
+        let context = readContext()
+        let generationID = try readGenerationID(in: context)
+        let values = try context.fetch(GenerationScopedFetch.evidence(
+            belongingTo: generationID,
+            evidenceID: id,
+        ))
+        guard let first = values.first else { return nil }
+        guard let item = first.toValue() else { throw ActionAttributionError.incompleteRecord }
+        guard values.allSatisfy({ $0.addedByDeviceID == first.addedByDeviceID }) else {
+            throw ActionAttributionError.conflictingEvidenceAuthor(id)
+        }
+        return item
     }
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {
@@ -1803,9 +1888,19 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.capturedAt)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+        var originalAuthors: [UUID: RecordingDeviceID] = [:]
+        return try context.fetch(descriptor).map { record in
+            guard record.addedByDeviceID != nil else { throw ActionAttributionError.missingAuthor }
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw ActionAttributionError.incompleteRecord
+            }
+            if let author = value.addedByDeviceID, let earlier = originalAuthors.updateValue(
+                author,
+                forKey: value.id,
+            ),
+                author !=
+                earlier { throw ActionAttributionError.conflictingEvidenceAuthor(value.id) }
             return value
         }
     }
@@ -1851,6 +1946,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setManualDay(_ day: DayPresence) async throws {
+        guard day.changedByDeviceID != nil else { throw ActionAttributionError.missingAuthor }
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.manualDays(
@@ -1888,6 +1985,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             regions: existingRegions.union(day.regions),
             isAuthoritative: true,
             audit: day.audit,
+            changedByDeviceID: day.changedByDeviceID,
         )
     }
 
@@ -1927,9 +2025,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.dayKey)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+        return try context.fetch(descriptor).map { record in
+            guard record.changedByDeviceID != nil
+            else { throw ActionAttributionError.missingAuthor }
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw ActionAttributionError.incompleteRecord
+            }
             return value
         }
     }
@@ -1995,14 +2097,23 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.key)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+        return try context.fetch(descriptor).map { record in
+            guard record.dismissedByDeviceID != nil
+            else { throw ActionAttributionError.missingAuthor }
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw ActionAttributionError.incompleteRecord
+            }
             return value
         }
     }
 
-    public func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
+    public func setIssueDismissed(
+        _ dismissed: Bool,
+        id: DataIssueID,
+        by deviceID: RecordingDeviceID,
+    ) async throws {
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let key = id.storeURL.absoluteString
@@ -2016,6 +2127,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             context.insert(SDDismissedIssue(
                 key: key,
                 dismissedAt: Date(),
+                dismissedByDeviceID: deviceID,
                 generationID: generationID,
             ))
         } else {
@@ -2026,6 +2138,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let key = issue.id.storeURL.absoluteString
@@ -2035,16 +2148,36 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         if let record = try context.fetch(descriptor).first {
             record.dismissedAt = issue.dismissedAt
+            record.dismissedByDeviceID = issue.dismissedByDeviceID.rawValue
         } else {
             context.insert(SDDismissedIssue(
                 key: key,
                 dismissedAt: issue.dismissedAt,
+                dismissedByDeviceID: issue.dismissedByDeviceID,
                 generationID: generationID,
             ))
         }
     }
 
     // MARK: - Planned stay
+
+    /// CloudKit can deliver multiple rows for one immutable revision. Retain the query's
+    /// chronological order, coalesce identical deliveries, and reject ambiguous history.
+    private static func uniquePlanningRevisions<Record: Identifiable>(
+        _ records: [Record],
+        equivalent: (Record, Record) -> Bool,
+    ) throws -> [Record] {
+        var seen: [Record.ID: Record] = [:]
+        return try records.filter { record in
+            if let previous = seen[record.id] {
+                guard equivalent(previous, record)
+                else { throw ActionAttributionError.conflictingAuthor }
+                return false
+            }
+            seen[record.id] = record
+            return true
+        }
+    }
 
     public func plannedStayRecords() async throws -> [PlannedStayRecord] {
         let context = readContext()
@@ -2053,35 +2186,53 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.updatedAt), SortDescriptor(\.id)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+        let values = try context.fetch(descriptor).map { record in
+            guard record.changedByDeviceID != nil
+            else { throw ActionAttributionError.missingAuthor }
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw ActionAttributionError.incompleteRecord
+            }
             return value
         }
+        return try Self.uniquePlanningRevisions(values) { $0.hasSamePortableValue(as: $1) }
     }
 
     public func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
-        try record.validate()
-        let context = mutationContext()
-        let generationID = mutationGenerationID()
-        for existing in try context.fetch(GenerationScopedFetch.plannedStays(
-            belongingTo: generationID,
-            stayID: record.stayID,
-        )) {
-            context.delete(existing)
-        }
-        context.insert(SDPlannedStay(value: record, generationID: generationID))
+        try savePlannedStayRecord(record, replacingPrevious: true)
     }
 
     public func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
+        try savePlannedStayRecord(record, replacingPrevious: false)
+    }
+
+    private func savePlannedStayRecord(
+        _ record: PlannedStayRecord,
+        replacingPrevious: Bool,
+    ) throws {
+        try beginAttributedAction()
         try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        for duplicate in try context.fetch(GenerationScopedFetch.plannedStays(
+        let existing = try context.fetch(GenerationScopedFetch.plannedStays(
             belongingTo: generationID,
             id: record.id,
-        )) {
-            context.delete(duplicate)
+        ))
+        if !existing.isEmpty {
+            guard existing.allSatisfy({ $0.toValue()?.hasSamePortableValue(as: record) == true })
+            else { throw ActionAttributionError.conflictingAuthor }
+            for duplicate in existing.dropFirst() {
+                context.delete(duplicate)
+            }
+            return
+        }
+        if replacingPrevious {
+            for previous in try context.fetch(GenerationScopedFetch.plannedStays(
+                belongingTo: generationID,
+                stayID: record.stayID,
+            )) {
+                context.delete(previous)
+            }
         }
         context.insert(SDPlannedStay(value: record, generationID: generationID))
     }
@@ -2093,34 +2244,49 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             sortBy: [SortDescriptor(\.updatedAt), SortDescriptor(\.id)],
         )
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+        let values = try context.fetch(descriptor).map { record in
+            guard record.changedByDeviceID != nil
+            else { throw ActionAttributionError.missingAuthor }
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw ActionAttributionError.incompleteRecord
+            }
             return value
         }
+        return try Self.uniquePlanningRevisions(values) { $0.hasSamePortableValue(as: $1) }
     }
 
     public func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws {
-        try record.validate()
-        let context = mutationContext()
-        let generationID = mutationGenerationID()
-        for existing in try context.fetch(GenerationScopedFetch.homeRegions(
-            belongingTo: generationID,
-        )) {
-            context.delete(existing)
-        }
-        context.insert(SDHomeRegion(value: record, generationID: generationID))
+        try saveHomeRegionRecord(record, replacingPrevious: true)
     }
 
     public func restoreHomeRegionRecord(_ record: HomeRegionRecord) async throws {
+        try saveHomeRegionRecord(record, replacingPrevious: false)
+    }
+
+    private func saveHomeRegionRecord(_ record: HomeRegionRecord, replacingPrevious: Bool) throws {
+        try beginAttributedAction()
         try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        for duplicate in try context.fetch(GenerationScopedFetch.homeRegions(
+        let existing = try context.fetch(GenerationScopedFetch.homeRegions(
             belongingTo: generationID,
             id: record.id,
-        )) {
-            context.delete(duplicate)
+        ))
+        if !existing.isEmpty {
+            guard existing.allSatisfy({ $0.toValue()?.hasSamePortableValue(as: record) == true })
+            else { throw ActionAttributionError.conflictingAuthor }
+            for duplicate in existing.dropFirst() {
+                context.delete(duplicate)
+            }
+            return
+        }
+        if replacingPrevious {
+            for previous in try context.fetch(GenerationScopedFetch.homeRegions(
+                belongingTo: generationID,
+            )) {
+                context.delete(previous)
+            }
         }
         context.insert(SDHomeRegion(value: record, generationID: generationID))
     }
@@ -2162,7 +2328,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return resolved
     }
 
-    public func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
+    public func setTrackedRegion(
+        _ tracked: Bool,
+        region: Region,
+        changedBy: RecordingDeviceID,
+    ) async throws {
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.trackedRegions(
@@ -2179,7 +2350,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 }
                 return
             }
-            context.insert(SDTrackedRegion(regionID: region.rawValue, generationID: generationID))
+            context.insert(SDTrackedRegion(
+                regionID: region.rawValue,
+                generationID: generationID,
+                changedBy: changedBy,
+            ))
         } else {
             // TODO: Untracking deletes the row, which drops the region from the
             // attributor's load set — so re-aggregating a past year would
@@ -2197,6 +2372,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func primaryRegions() async throws -> [PrimaryRegion] {
+        try readPrimaryRegions(defaultsWhenEmpty: true)
+    }
+
+    public func persistedPrimaryRegions() async throws -> [PrimaryRegion] {
+        try readPrimaryRegions(defaultsWhenEmpty: false)
+    }
+
+    private func readPrimaryRegions(defaultsWhenEmpty: Bool) throws -> [PrimaryRegion] {
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.trackedRegions(
@@ -2207,6 +2390,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // default fallback so the picker/customization UI opens on the
         // out-of-the-box set rather than empty.
         guard !rows.isEmpty else {
+            guard defaultsWhenEmpty else { return [] }
             return Region.inCanonicalOrder(Self.defaultTrackedRegions)
                 .enumerated()
                 .map { PrimaryRegion(region: $1, appearance: nil, order: $0) }
@@ -2229,10 +2413,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 continue
             }
             guard seen.insert(id).inserted else { continue }
+            guard let actor = row.changedByDeviceID
+            else { throw ActionAttributionError.missingAuthor }
             resolved.append(PrimaryRegion(
                 region: region,
                 appearance: row.appearanceValue,
                 order: row.orderIndex ?? resolved.count,
+                changedByDeviceID: RecordingDeviceID(rawValue: actor),
             ))
         }
         if !unknown.isEmpty {
@@ -2245,6 +2432,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
+        try beginAttributedAction()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let desiredIDs = Set(regions.map(\.region.rawValue))
@@ -2260,6 +2448,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // collapsing any accidental duplicate rows to one (CloudKit can't
         // enforce uniqueness).
         for entry in regions {
+            guard let actor = entry.changedByDeviceID
+            else { throw ActionAttributionError.missingAuthor }
             let existing = try context.fetch(GenerationScopedFetch.trackedRegions(
                 belongingTo: generationID,
                 region: entry.region,
@@ -2269,14 +2459,21 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 for extra in existing.dropFirst() {
                     context.delete(extra)
                 }
+                if first.changedByDeviceID == actor.rawValue, first.orderIndex == entry.order,
+                   first.appearanceValue == entry.appearance
+                {
+                    continue
+                }
                 row = first
             } else {
                 row = SDTrackedRegion(
                     regionID: entry.region.rawValue,
                     generationID: generationID,
+                    changedBy: actor,
                 )
                 context.insert(row)
             }
+            row.changedByDeviceID = actor.rawValue
             row.apply(appearance: entry.appearance, order: entry.order)
         }
     }
@@ -2407,6 +2604,7 @@ final class SDLocationSample {
     var evidenceKindRaw: String?
     /// Capturing installation. CloudKit may deliver a GPS row before this field arrives.
     var recordingDeviceID: UUID?
+    var assertedByDeviceID: UUID?
     /// Retains the distinction between absent motion and a present, empty measurement bundle.
     var motionPresent: Bool?
     var speedMetersPerSecond: Double?
@@ -2432,6 +2630,7 @@ final class SDLocationSample {
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
         recordingDeviceID = value.recordingDeviceID?.rawValue
+        assertedByDeviceID = value.assertedByDeviceID?.rawValue
         motionPresent = value.motion.map { _ in true }
         speedMetersPerSecond = value.motion?.speed?.metersPerSecond
         speedAccuracyMetersPerSecond = value.motion?.speed?.accuracyMetersPerSecond
@@ -2451,9 +2650,13 @@ final class SDLocationSample {
     }
 
     func toValue() -> LocationSample? {
+        try? validatedValue()
+    }
+
+    func validatedValue() throws -> LocationSample {
         guard let id, let timestamp, let latitude, let longitude, let horizontalAccuracy,
-              let source = decodedSource, !source.isGPS || recordingDeviceID != nil
-        else { return nil }
+              let source = decodedSource
+        else { throw ActionAttributionError.incompleteRecord }
         // Optional motion may arrive partially without invalidating the raw
         // position. Preserve each complete measurement independently, and keep
         // these reads non-mutating so a later sync can complete the other one.
@@ -2476,16 +2679,19 @@ final class SDLocationSample {
         let altitude: LocationMotion.Altitude? = if let altitudeMeters, let altitudeAccuracyMeters {
             .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
         } else { nil }
-        return LocationSample(
+        let sample = LocationSample(
             id: id,
             timestamp: timestamp,
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: horizontalAccuracy,
             source: source,
             recordingDeviceID: recordingDeviceID.map(RecordingDeviceID.init(rawValue:)),
+            assertedByDeviceID: assertedByDeviceID.map(RecordingDeviceID.init(rawValue:)),
             motion: motionPresent == true || speed != nil || altitude != nil
                 ? LocationMotion(speed: speed, altitude: altitude) : nil,
         )
+        try sample.validateRecordingOrigin()
+        return sample
     }
 }
 
@@ -2543,6 +2749,7 @@ final class SDEvidence {
     /// other kind.
     var otherLabel: String?
     var capturedAt: Date?
+    var addedByDeviceID: UUID?
     var note: String?
     var regionRaw: String?
     /// `EvidenceContentType.discriminator` ("pdf", "image", "other", ...).
@@ -2569,6 +2776,7 @@ final class SDEvidence {
         kindRaw = value.kind.discriminator
         otherLabel = if case let .other(label) = value.kind { label } else { nil }
         capturedAt = value.capturedAt
+        addedByDeviceID = value.addedByDeviceID?.rawValue
         note = value.note
         regionRaw = value.region?.rawValue
         contentTypeDiscriminator = value.contentType.discriminator
@@ -2577,7 +2785,7 @@ final class SDEvidence {
     }
 
     func toValue() -> Evidence? {
-        guard let id, let kindRaw, let capturedAt else { return nil }
+        guard let id, let kindRaw, let capturedAt, let addedByDeviceID else { return nil }
         let kind = EvidenceKind.fromDiscriminator(kindRaw, otherLabel: otherLabel) ?? .other(nil)
         let contentType = contentTypeDiscriminator
             .flatMap { EvidenceContentType.fromDiscriminator($0, otherLabel: contentTypeOtherLabel)
@@ -2590,6 +2798,7 @@ final class SDEvidence {
             region: regionRaw.flatMap { Region(rawValue: $0) },
             note: note,
             contentType: contentType,
+            addedByDeviceID: .init(rawValue: addedByDeviceID),
         )
     }
 }
@@ -2602,6 +2811,7 @@ final class SDManualDay {
     /// it; a row that somehow has no `dayKey` can't be placed on a day and is
     /// dropped (fault-logged) by `toValue()`.
     var dayKey: String?
+    var changedByDeviceID: UUID?
     /// Whether this manual day replaces (rather than unions with) GPS for its
     /// date. Defaults to `false` (additive) — a CloudKit-safe default that keeps
     /// the column non-optional.
@@ -2630,6 +2840,7 @@ final class SDManualDay {
     func update(from value: DayPresence, generationID: WhereDataGenerationID) {
         self.generationID = generationID.rawValue
         dayKey = value.day.iso8601
+        changedByDeviceID = value.changedByDeviceID?.rawValue
         regionRaws = value.regions.map(\.rawValue).sorted()
         isAuthoritative = value.isAuthoritative
         applyAudit(value.audit)
@@ -2645,12 +2856,13 @@ final class SDManualDay {
     }
 
     func toValue() -> DayPresence? {
-        guard let day = resolvedDay() else { return nil }
+        guard let day = resolvedDay(), let changedByDeviceID else { return nil }
         return DayPresence(
             day: day,
             regions: Set(regionRaws.compactMap { Region(rawValue: $0) }),
             isAuthoritative: isAuthoritative,
             audit: auditValue(),
+            changedByDeviceID: .init(rawValue: changedByDeviceID),
         )
     }
 
@@ -2692,21 +2904,32 @@ final class SDDismissedIssue {
     /// `#Predicate` dedup/upsert stays a real query.
     var key: String?
     var dismissedAt: Date?
+    var dismissedByDeviceID: UUID?
 
     init() {}
 
-    init(key: String, dismissedAt: Date, generationID: WhereDataGenerationID) {
+    init(
+        key: String,
+        dismissedAt: Date,
+        dismissedByDeviceID: RecordingDeviceID,
+        generationID: WhereDataGenerationID,
+    ) {
         self.generationID = generationID.rawValue
         self.key = key
         self.dismissedAt = dismissedAt
+        self.dismissedByDeviceID = dismissedByDeviceID.rawValue
     }
 
     func toValue() -> DismissedIssue? {
-        guard let key, let dismissedAt,
+        guard let key, let dismissedAt, let dismissedByDeviceID,
               let url = URL(string: key),
               let id = DataIssueID(storeURL: url)
         else { return nil }
-        return DismissedIssue(id: id, dismissedAt: dismissedAt)
+        return DismissedIssue(
+            id: id,
+            dismissedAt: dismissedAt,
+            dismissedByDeviceID: .init(rawValue: dismissedByDeviceID),
+        )
     }
 }
 
@@ -2723,6 +2946,7 @@ final class SDDismissedIssue {
 /// needs all three style fields present.
 @Model
 final class SDTrackedRegion {
+    var changedByDeviceID: UUID?
     var generationID: UUID?
     var regionID: String?
     var colorRaw: String?
@@ -2732,7 +2956,8 @@ final class SDTrackedRegion {
 
     init() {}
 
-    init(regionID: String, generationID: WhereDataGenerationID) {
+    init(regionID: String, generationID: WhereDataGenerationID, changedBy: RecordingDeviceID) {
+        changedByDeviceID = changedBy.rawValue
         self.generationID = generationID.rawValue
         self.regionID = regionID
     }
@@ -2768,6 +2993,7 @@ final class SDPlannedStay {
     var departureEarliestDayKey: String?
     var departureLatestDayKey: String?
     var updatedAt: Date?
+    var changedByDeviceID: UUID?
 
     init() {}
 
@@ -2782,10 +3008,11 @@ final class SDPlannedStay {
         departureEarliestDayKey = value.value?.departure.earliest.iso8601
         departureLatestDayKey = value.value?.departure.latest.iso8601
         updatedAt = value.updatedAt
+        changedByDeviceID = value.changedByDeviceID.rawValue
     }
 
     func toValue() -> PlannedStayRecord? {
-        guard let id, let stayID, let updatedAt else { return nil }
+        guard let id, let stayID, let updatedAt, let changedByDeviceID else { return nil }
         let identity = PlannedStay.ID(rawValue: stayID)
         do {
             let stay: PlannedStay?
@@ -2816,6 +3043,7 @@ final class SDPlannedStay {
                 stayID: identity,
                 value: stay,
                 updatedAt: updatedAt,
+                changedByDeviceID: .init(rawValue: changedByDeviceID),
             )
         } catch {
             // The owning store logs every row that fails to materialize.
@@ -2832,6 +3060,7 @@ final class SDHomeRegion {
     var id: UUID?
     var regionID: String?
     var updatedAt: Date?
+    var changedByDeviceID: UUID?
 
     init() {}
 
@@ -2841,10 +3070,11 @@ final class SDHomeRegion {
         id = value.id
         regionID = value.region?.rawValue
         updatedAt = value.updatedAt
+        changedByDeviceID = value.changedByDeviceID.rawValue
     }
 
     func toValue() -> HomeRegionRecord? {
-        guard let id, let updatedAt else { return nil }
+        guard let id, let updatedAt, let changedByDeviceID else { return nil }
         let region: Region?
         if let regionID {
             guard let decoded = Region(rawValue: regionID) else { return nil }
@@ -2853,7 +3083,12 @@ final class SDHomeRegion {
             region = nil
         }
         do {
-            return try HomeRegionRecord(id: id, region: region, updatedAt: updatedAt)
+            return try HomeRegionRecord(
+                id: id,
+                region: region,
+                updatedAt: updatedAt,
+                changedByDeviceID: .init(rawValue: changedByDeviceID),
+            )
         } catch {
             // The owning store logs every row that fails to materialize.
             return nil

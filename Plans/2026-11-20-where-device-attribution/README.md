@@ -6,8 +6,8 @@ If Travel Phone records a location and Home iPad corrects it, the saved point sh
 
 - **Request.** On November 20, 2026 the owner asked for a plan covering device names, model-based fallback, and the origin of actions and locations. Their existing history comes from one phone. They selected the offline upgrader for old data.
 - **Operation.** On November 27 the owner approved execution of the full series. Plan PR #547 at `41b1b116b` has no review comments or threads. Main is `a6b213ebe`. The owner selected synthetic archives for this run and asked to leave the live two-device CloudKit test pending.
-- **Stage.** [01](01-location-provenance.md) shipped for review in [PR #573](https://github.com/kyleve/Stuff/pull/573) at `be7c927c7`. Executing [02](02-device-names.md) on `codex/where-device-names`. The identity worker owns setup, local identity and Settings. The events worker owns synced metadata, registration and resolution. The backup worker owns offline conversion and its verification driver. The primary agent owns model labels, archive admission and compatibility, end-to-end checks, review and publication.
-- **Resume.** Verify registration on a generic profile, an upgraded synthetic archive, and setup snapshots. Publish 02 and use its results to refine and execute [03](03-action-attribution.md). [STU-337](https://linear.app/kve/issue/STU-337)
+- **Stage.** [GPS attribution](https://github.com/kyleve/Stuff/pull/573) and [device names](https://github.com/kyleve/Stuff/pull/575) are verified and published. [Saved action attribution](https://github.com/kyleve/Stuff/pull/577) passed simulator, synthetic archive and independent review checks. All three implementation PRs are ready for review.
+- **Resume.** Review the [implementation stack](https://github.com/kyleve/Stuff/stack/574). Verify the CloudKit fields and live two-device sync before rollout. [STU-337](https://linear.app/kve/issue/STU-337)
 
 ## User stories
 
@@ -57,7 +57,7 @@ Discovery began at `1b04fdd2c`. The November 27 revision uses `a6b213ebe` for st
 | 2 | [Name each installation](02-device-names.md). Setup, Settings and historical lookups use the same name rules. | Follows 01 so any changes to the metadata format extend its tested upgrader. |
 | 3 | [Attribute existing actions](03-action-attribution.md). Extend the pattern to manual entries, evidence and other agreed changes. | Uses the proven origin/actor distinction from 01 and historical names from 02. |
 
-The current horizon covers 01 and 02. Their diagrams and Swift sketches show the proposed boundaries. Refine 03 using the actual storage and resolver APIs that 01 and 02 deliver. Its coverage and retention rules are settled.
+The series uses the same installation identity for capture, display and saved actions. Plan 03 was refined against the storage and name resolution delivered in 01 and 02.
 
 ## Shared decisions
 
@@ -74,7 +74,7 @@ The current horizon covers 01 and 02. Their diagrams and Swift sketches show the
 | Opening shared history | The last entry in `DataModelVersion.changes` sets `current`. Entry 2 explains why visits to Canadian provinces and territories require an update. Baseline is 1. | For each incompatible release, append the next version with a user-facing reason from the WhereCore string catalog. Preserve prior entries and their reasons. [Version history](../../Where/WhereCore/Sources/Compatibility/DataModelVersion.swift) · [String catalog](../../Where/WhereCore/Sources/Resources/Localizable.xcstrings) |
 | Importing a ZIP | `BackupArchive.currentFormatVersion` and the Ruby upgrader target 8. The importer checks the envelope before decoding the payload. | Advance the archive format when an older app cannot restore the exported data losslessly. Extend the offline conversion in the same change, including for ZIPs moved between accounts. [Archive history](../../Where/WhereCore/BACKUP_FORMAT.md) · [Upgrader](../../Where/Tools/upgrade-backup.rb) |
 
-With this base and separate releases, 01 takes shared data from **2 to 3** and archives from **8 to 9**. The next release for 02 would use **4 and 10**. Read both histories again at implementation time so another release can take the next number.
+The three implementation slices advance shared data and archive formats together. GPS attribution uses **3 and 9**, device naming uses **4 and 10**, and saved action authors use **5 and 11**.
 
 In CloudKit, the eligible recording device publishes the higher version and all bundled translations of its reason in one conditional save. An older reader that observes the new version blocks access and caches the version and reason in its receipt. The lockout uses the reader’s preferred language, falls back to English, and uses the standard update message if the reason is unavailable. A local-only installation verifies the build’s version against its durable floor. [Compatibility contract](../../Where/WhereCore/README.md#data-compatibility)
 
@@ -105,7 +105,7 @@ Reviewed November 20, 2026 against `1b04fdd2c`. The review traced all seven requ
 - Same-ID profile changes would conflict with a generic profile already in CloudKit. Plan 02 preserves the profile and adds model information to existing metadata. Its restore test starts with that profile already present.
 - A permanent capture-ID conflict could otherwise keep re-entering the retry queue. Plan 01 distinguishes this failure from a transient save error. Its year-clear case also checks that a retained reset identifies the editor even after the raw fix is deleted.
 - November 27, 2026. Rechecked all three plans against merged main `a6b213ebe`. The November 20 version instructions are superseded. Each incompatible release now appends its own localized reason to the shared-data history. The archive upgrade covers v8 and both v7 paths, with a manual-only Ontario fixture to catch lost region IDs or invented device records. The live verification uses a CloudKit-enabled Development build.
-- **Readiness.** 01 and 02 are ready in order. 03 is an outline awaiting their implementation evidence. All product questions are closed.
+- **Readiness at approval.** 01 and 02 were ready in order. After both shipped for review, their results supported refinement and execution of 03. All product questions were resolved.
 - **Validation on November 27.** Checked relative links and anchors, dependency order and referenced test suites against the merged tree. `./test` passed its architecture and host checks and selected zero affected iOS bundles. The backup upgrader passed 16 tests and 61 assertions. Runtime acceptance of the proposed changes, including the two-device CloudKit check, awaits implementation.
 
 The owner approved implementation on November 27. [Planning PR #547](https://github.com/kyleve/Stuff/pull/547)

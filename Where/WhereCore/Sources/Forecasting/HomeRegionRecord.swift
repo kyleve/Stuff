@@ -6,13 +6,25 @@ import RegionKit
 public struct HomeRegionRecord: Hashable, Sendable, Codable, Identifiable {
     public let id: UUID
     public let region: Region?
+    public let changedByDeviceID: RecordingDeviceID
     public let updatedAt: Date
 
-    public init(id: UUID, region: Region?, updatedAt: Date) throws {
+    public init(
+        id: UUID,
+        region: Region?,
+        updatedAt: Date,
+        changedByDeviceID: RecordingDeviceID,
+    ) throws {
         self.id = id
         self.region = region
         self.updatedAt = updatedAt
+        self.changedByDeviceID = changedByDeviceID
         try validate()
+    }
+
+    func hasSamePortableValue(as other: Self) -> Bool {
+        id == other.id && region == other.region && changedByDeviceID == other.changedByDeviceID
+            && updatedAt.timeIntervalSince1970 == other.updatedAt.timeIntervalSince1970
     }
 
     public func validate() throws {

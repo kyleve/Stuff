@@ -1,13 +1,14 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes legacy Where backups into the current v10 manifest. The automatic-recording feature
+# Reshapes legacy Where backups into the current v11 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
 # v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
 # v6 preserves optional motion readings and adds per-sample attribution history.
 # v7 expands the stay register into independent plans and adds the forecast home-region register.
 # v8 admits Canadian subdivisions. v9 requires GPS capture and correction author device IDs.
 # v10 adds a stable hardware-model fact for each registered installation.
+# v11 records the author of each retained action.
 
 require "json"
 require "digest"
@@ -18,7 +19,7 @@ require "set"
 require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 10
+CURRENT_FORMAT_VERSION = 11
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -258,6 +259,28 @@ def validate_revisions!(revisions)
   end
 end
 
+# A stay or home revision's UUID permanently identifies both its author and
+# its value. Multiple revisions of the same logical stay keep distinct UUIDs.
+def validate_planning_duplicates!(manifest)
+  %w[plannedStayRecords homeRegionRecords].each do |table|
+    manifest.fetch(table).group_by { |row| record_uuid(row.fetch("id")) }.each_value do |duplicates|
+      next if duplicates.one?
+      values = duplicates.map do |row|
+        identity = [device_id(row.fetch("changedByDeviceID")), row.fetch("updatedAt")]
+        if table == "homeRegionRecords"
+          identity << row["region"]
+        else
+          value = row["value"]
+          identity << record_uuid(row.fetch("stayID"))
+          identity << (value && [record_uuid(value.fetch("id")), value.fetch("region"), value.fetch("arrival"), value.fetch("departure")])
+        end
+        identity
+      end
+      die "conflicting immutable #{table} revisions for the same ID" unless values.uniq.one?
+    end
+  end
+end
+
 def profile_identity(profile)
   die "expected an immutable recording-device profile" unless profile.is_a?(Hash)
   id = device_id(profile["id"])
@@ -301,21 +324,49 @@ def selected_device(source_profile, profiles, known)
   id
 end
 
-def each_location_origin(manifest)
+# A group identifies one immutable role. An evidence item and all observations
+# derived from it share its adding device. Mutable day, dismissal and region
+# snapshots can represent different edits of the same natural key.
+def each_device_role(manifest)
   manifest.fetch("samples").each do |sample|
+    id = record_uuid(sample["id"])
     source = sample.fetch("source")
     die "invalid sample source" unless source.is_a?(Hash) && source.size == 1
-    case source.keys.first
-    when "gpsVisit", "gpsSignificantChange" then yield sample, "recordingDeviceID"
+    kind, payload = source.first
+    case kind
+    when "gpsVisit", "gpsSignificantChange"
+      die "GPS sample contains an assertion author" unless sample["assertedByDeviceID"].nil?
+      yield sample, "recordingDeviceID", 9, [:capture, id]
     when "manual", "evidenceImplied"
-      yield sample, "recordingDeviceID" unless sample["recordingDeviceID"].nil?
+      # A historical capture tag on a non-GPS sample is preserved as a separate field.
+      capture = sample["recordingDeviceID"]
+      yield sample, "recordingDeviceID", 9, [:capture, id] unless capture.nil?
+      if kind == "manual"
+        yield sample, "assertedByDeviceID", 11, [:assertion, id], capture
+      else
+        yield sample, "assertedByDeviceID", 11, [:evidence, record_uuid(payload.fetch("id"))]
+      end
     else die "unknown sample source"
     end
   end
-  manifest.fetch("sampleAttributionRevisions").each { |revision| yield revision, "changedByDeviceID" }
+  manifest.fetch("sampleAttributionRevisions").each do |row|
+    yield row, "changedByDeviceID", 9, [:correction, record_uuid(row["id"])]
+  end
+  manifest.fetch("evidence").each do |row|
+    yield row, "addedByDeviceID", 11, [:evidence, record_uuid(row["id"])]
+  end
+  %w[plannedStayRecords homeRegionRecords].each do |table|
+    manifest.fetch(table).each do |row|
+      yield row, "changedByDeviceID", 11, [table, record_uuid(row["id"])]
+    end
+  end
+  { "manualDays" => "changedByDeviceID", "dismissedIssues" => "dismissedByDeviceID",
+    "primaryRegions" => "changedByDeviceID" }.each do |table, key|
+    manifest.fetch(table).each_with_index { |row, index| yield row, key, 11, [table, index] }
+  end
 end
 
-def upgrade_location_origins!(manifest, source_version, source_profile)
+def upgrade_device_roles!(manifest, source_version, source_profile)
   profiles = index_profiles(manifest.fetch("recordingDeviceProfiles"))
   known = profiles.keys.to_set
   manifest.fetch("recordingDeviceMetadataChanges").each do |change|
@@ -325,40 +376,33 @@ def upgrade_location_origins!(manifest, source_version, source_profile)
     known << device_id(removal.fetch("deviceID")) << device_id(removal.fetch("removedByDeviceID"))
   end
 
-  # Read all existing origins before assigning any. A profile or its events can arrive
-  # in a different sync batch from the fix or correction, including in the exported snapshot.
   missing = []
   origins = {}
-  each_location_origin(manifest) do |row, key|
-    record = [key, record_uuid(row["id"])]
+  each_device_role(manifest) do |row, key, required_since, group, prior_capture|
     if row[key].nil?
-      die "v#{source_version} archive is missing #{key}" if source_version >= 9
-      missing << [row, key, record]
+      die "v#{source_version} archive is missing #{key}" if source_version >= required_since
+      missing << [row, key, group, prior_capture]
     else
       id = device_id(row[key])
-      die "conflicting #{key} for the same record ID" if origins.key?(record) && origins[record] != id
-      origins[record] = id
+      die "conflicting authors or origins for #{group.first}" if origins.key?(group) && origins[group] != id
+      origins[group] = id
       known << id
     end
   end
 
-
   selected = selected_device(source_profile, profiles, known) if source_profile
-  return if missing.empty?
-
-  # Exact duplicates already establish their own origin, independent of the single-phone
-  # assumption used for the rest of an archive.
   selected ||= known.first if known.one?
-  used_selected_profile = false
-  missing.each do |row, key, record|
-    origin = origins[record] || selected
+  used_selected = false
+  missing.each do |row, key, group, prior_capture|
+    origin = origins[group] || (prior_capture && device_id(prior_capture)) || selected
     die "cannot identify the original installation unambiguously. Pass --source-profile FILE" unless origin
     row[key] = origin
-    used_selected_profile ||= origin == selected
+    used_selected ||= origin == selected
   end
-  if source_profile && source_profile.keys != ["id"] && used_selected_profile && !profiles.key?(selected)
-    manifest.fetch("recordingDeviceProfiles") << source_profile
-  end
+  return unless used_selected && source_profile && source_profile.keys != ["id"] && !profiles.key?(selected)
+
+  manifest.fetch("recordingDeviceProfiles") << source_profile
+  selected
 end
 
 HARDWARE_MODEL_FIELD = "hardwareModelIdentifier"
@@ -388,7 +432,7 @@ def device_model_map(mapping)
   end
 end
 
-def upgrade_hardware_models!(manifest, source_version, mapping)
+def upgrade_hardware_models!(manifest, source_version, mapping, added_profile_id)
   models = device_model_map(mapping)
   metadata = manifest.fetch("recordingDeviceMetadataChanges")
   profiles = manifest.fetch("recordingDeviceProfiles").to_h { |profile| [device_id(profile.fetch("id")), profile] }
@@ -430,7 +474,7 @@ def upgrade_hardware_models!(manifest, source_version, mapping)
     id = hardware_model_event_id(uuid)
     die "a nickname uses the reserved hardware model event ID" if nickname_ids.include?(id)
     next if facts.key?(target)
-    die "v#{source_version} archive profile is missing its hardware model fact" if source_version >= 10
+    die "v#{source_version} archive profile is missing its hardware model fact" if source_version >= 10 && target != added_profile_id
     model = models[uuid]
     die "missing original hardware identifier for #{uuid}. Pass --device-models FILE" unless model
     metadata << {
@@ -452,10 +496,11 @@ def upgrade_manifest(manifest, source_profile: nil, device_models: {})
   MANIFEST_COLLECTIONS.each do |key|
     die "manifest is missing array #{key}" unless manifest[key].is_a?(Array)
   end
-  upgrade_location_origins!(manifest, source_version, source_profile)
+  added_profile_id = upgrade_device_roles!(manifest, source_version, source_profile)
   validate_duplicate_samples!(manifest.fetch("samples"))
   validate_revisions!(manifest.fetch("sampleAttributionRevisions"))
-  upgrade_hardware_models!(manifest, source_version, device_models)
+  validate_planning_duplicates!(manifest)
+  upgrade_hardware_models!(manifest, source_version, device_models, added_profile_id)
   manifest.merge("formatVersion" => CURRENT_FORMAT_VERSION)
 end
 

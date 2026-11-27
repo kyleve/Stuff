@@ -23,6 +23,12 @@ enum PlannedStayTestSupport {
         revisionID: UUID = UUID(),
         updatedAt: Date = .init(timeIntervalSince1970: 1_700_000_000),
     ) throws -> PlannedStayRecord {
-        try PlannedStayRecord(id: revisionID, stayID: stay.id, value: stay, updatedAt: updatedAt)
+        try PlannedStayRecord(
+            id: revisionID,
+            stayID: stay.id,
+            value: stay,
+            updatedAt: updatedAt,
+            changedByDeviceID: WhereCoreTestSupport.authorID,
+        )
     }
 }

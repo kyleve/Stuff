@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 struct WidgetDataReaderTests {
     private static func makeReader() throws -> (WidgetDataReader, SwiftDataStore) {
@@ -24,6 +24,7 @@ struct WidgetDataReaderTests {
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: 5,
             source: .manual,
+            assertedByDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 
@@ -47,7 +48,7 @@ struct WidgetDataReaderTests {
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
                 // A tracked region with no picked look contributes no appearance.
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
-            ])
+            ], changedBy: WhereCoreTestSupport.authorID)
         }
 
         let snapshot = try await reader
@@ -95,6 +96,7 @@ struct WidgetDataReaderTests {
                 date: WhereCoreTestSupport.iso("2026-05-01T00:00:00-07:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.ontario],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -162,6 +164,7 @@ struct WidgetDataReaderTests {
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
                 isAuthoritative: true,
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 

@@ -11,12 +11,14 @@ struct PlannedStayRecordTests {
             stayID: stayID,
             value: nil,
             updatedAt: updatedAt,
+            changedByDeviceID: RecordingDeviceID(rawValue: UUID()),
         )
         let higher = try PlannedStayRecord(
             id: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002")),
             stayID: stayID,
             value: nil,
             updatedAt: updatedAt,
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         #expect(PlannedStayRecord.newer(higher, than: lower))
         #expect(PlannedStayRecord.newer(lower, than: higher) == false)
@@ -34,6 +36,7 @@ struct PlannedStayRecordTests {
                 stayID: .init(rawValue: UUID()),
                 value: stay,
                 updatedAt: PlanningTestSupport.date(PlanningTestSupport.day(9, 1)),
+                changedByDeviceID: WhereCoreTestSupport.authorID,
             )
         }
     }
@@ -44,6 +47,7 @@ struct PlannedStayRecordTests {
             stayID: .init(rawValue: UUID()),
             value: nil,
             updatedAt: PlanningTestSupport.date(PlanningTestSupport.day(9, 1)),
+            changedByDeviceID: WhereCoreTestSupport.authorID,
         )
         let decoded = try JSONDecoder().decode(
             PlannedStayRecord.self,
@@ -52,5 +56,27 @@ struct PlannedStayRecordTests {
         try decoded.validate()
         #expect(decoded == record)
         #expect(decoded.value == nil)
+    }
+
+    @Test func missingAuthorOnDeletedValueFailsCurrentDecoding() throws {
+        let record = try PlannedStayRecord(
+            id: UUID(),
+            stayID: .init(rawValue: UUID()),
+            value: nil,
+            updatedAt: .now,
+            changedByDeviceID: WhereCoreTestSupport.authorID,
+        )
+        var json = try #require(JSONSerialization
+            .jsonObject(with: JSONEncoder().encode(record)) as? [String: Any])
+        json.removeValue(forKey: "changedByDeviceID")
+        do {
+            _ = try JSONDecoder().decode(
+                PlannedStayRecord.self,
+                from: JSONSerialization.data(withJSONObject: json),
+            )
+            Issue.record("A retained deletion must name its author.")
+        } catch let DecodingError.keyNotFound(key, _) {
+            #expect(key.stringValue == "changedByDeviceID")
+        }
     }
 }

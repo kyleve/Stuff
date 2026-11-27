@@ -36,6 +36,7 @@ struct ReportReaderTests {
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -87,12 +88,14 @@ struct ReportReaderTests {
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
             // A day just before the requested year (Pacific) must be excluded.
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2025-12-31T00:00:00-08:00"),
                 in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
+                changedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -239,7 +242,7 @@ struct ReportReaderTests {
                 PrimaryRegion(region: .california, appearance: nil, order: 0),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
                 PrimaryRegion(region: .ontario, appearance: nil, order: 2),
-            ])
+            ], changedBy: WhereCoreTestSupport.authorID)
             for coordinate in [
                 Coordinate(latitude: 37.7749, longitude: -122.4194),
                 Coordinate(latitude: 40.7128, longitude: -74.0060),
@@ -349,6 +352,7 @@ struct ReportReaderTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .manual,
+                assertedByDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 

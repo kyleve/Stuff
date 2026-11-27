@@ -15,11 +15,11 @@ class UpgradeBackupTest < Minitest::Test
   GENERATION = { "rawValue" => "00000000-0000-0000-0000-0000000000E0" }.freeze
 
   def test_v1_adds_current_tables_without_inventing_recording_consent
-    upgraded = upgrade_manifest(base_manifest(1))
+    upgraded = upgrade_single_phone(base_manifest(1))
 
     assert_equal CURRENT_FORMAT_VERSION, upgraded.fetch("formatVersion")
-    assert_equal [], upgraded.fetch("recordingDeviceProfiles")
-    assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
+    assert_equal [profile], upgraded.fetch("recordingDeviceProfiles")
+    assert_equal [phone_fact], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
     assert_equal [], upgraded.fetch("plannedStayRecords")
     assert_equal [], upgraded.fetch("homeRegionRecords")
@@ -31,12 +31,12 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_synthesizes_primary_regions_and_rekeys_legacy_ids
     manifest = base_manifest(1).merge("trackedRegions" => ["california", "newYork"])
 
-    upgraded = upgrade_manifest(manifest)
+    upgraded = upgrade_single_phone(manifest)
 
     assert_equal ["us-CA", "us-NY"], upgraded.fetch("trackedRegions")
     assert_equal [
-      { "region" => "us-CA", "appearance" => nil, "order" => 0 },
-      { "region" => "us-NY", "appearance" => nil, "order" => 1 },
+      { "region" => "us-CA", "appearance" => nil, "order" => 0, "changedByDeviceID" => PHONE },
+      { "region" => "us-NY", "appearance" => nil, "order" => 1, "changedByDeviceID" => PHONE },
     ], upgraded.fetch("primaryRegions")
   end
 
@@ -48,7 +48,8 @@ class UpgradeBackupTest < Minitest::Test
       ],
     )
 
-    assert_equal manifest["primaryRegions"], upgrade_manifest(manifest)["primaryRegions"]
+    assert_equal [{ "region" => "us-CA", "appearance" => appearance, "order" => 0, "changedByDeviceID" => PHONE }],
+                 upgrade_single_phone(manifest)["primaryRegions"]
   end
 
   def test_v3_reshapes_recording_device_data
@@ -90,16 +91,17 @@ class UpgradeBackupTest < Minitest::Test
       "recordingDeviceProfiles" => [], "recordingDeviceMetadataChanges" => [], "recordingDeviceRemovals" => [],
       "plannedStayRecords" => [], "homeRegionRecords" => [], "sampleAttributionRevisions" => [],
     )
-    upgraded = upgrade_manifest(Marshal.load(Marshal.dump(legacy)))
-    assert_equal legacy.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgraded
-    ontario = Marshal.load(Marshal.dump(legacy)).merge("formatVersion" => 8)
-    ontario.fetch("manualDays").first.fetch("regions") << "ca-ON"
-    assert_equal ontario.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgrade_manifest(ontario)
-    assert_empty upgraded.fetch("recordingDeviceProfiles")
-    assert_equal upgraded, upgrade_manifest(Marshal.load(Marshal.dump(upgraded)))
-    obsolete = { "recordingDevices" => ["old-device"], "recordingDeviceCheckIns" => ["old-check-in"], "recordingPolicyChanges" => ["old-policy"] }
-    assert_equal legacy.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgrade_manifest(legacy.merge(obsolete))
-    assert_equal upgraded, upgrade_manifest(upgraded.merge(obsolete))
+    [legacy, legacy.merge("formatVersion" => 8)].each do |archive|
+      original = Marshal.load(Marshal.dump(archive))
+      original["manualDays"].first["regions"] << "ca-ON" if archive["formatVersion"] == 8
+      upgraded = upgrade_single_phone(Marshal.load(Marshal.dump(original)))
+      assert_equal original["manualDays"].first.merge("changedByDeviceID" => PHONE), upgraded["manualDays"].first
+      assert_equal original["primaryRegions"].first.merge("changedByDeviceID" => PHONE), upgraded["primaryRegions"].first
+      assert_equal [profile], upgraded.fetch("recordingDeviceProfiles")
+      assert_equal upgraded, upgrade_manifest(Marshal.load(Marshal.dump(upgraded)))
+      obsolete = { "recordingDevices" => [], "recordingDeviceCheckIns" => [], "recordingPolicyChanges" => [] }
+      assert_equal upgraded, upgrade_single_phone(original.merge(obsolete))
+    end
   end
 
   def test_v5_gains_empty_corrections_and_unknown_motion_without_altering_raw_fixes
@@ -125,17 +127,17 @@ class UpgradeBackupTest < Minitest::Test
     manifest["samples"] = [gps_sample.merge("recordingDeviceID" => PHONE)]
     manifest["samples"].first["motion"] = motion
     manifest["plannedStayRecords"] = [{
-      "id" => "stay-revision", "updatedAt" => Time.utc(2026, 9, 13).to_f, "value" => {
+      "id" => "50000000-0000-0000-0000-000000000000", "updatedAt" => Time.utc(2026, 9, 13).to_f, "value" => {
         "region" => "us-NY", "through" => { "year" => 2026, "month" => 10, "day" => 1 },
       },
-    }, { "id" => "stay-deletion", "updatedAt" => Time.utc(2026, 9, 14).to_f }]
+    }, { "id" => "50000000-0000-0000-0000-000000000001", "updatedAt" => Time.utc(2026, 9, 14).to_f }]
 
-    upgraded = upgrade_manifest(manifest)
+    upgraded = upgrade_single_phone(manifest)
 
     assert_equal motion, upgraded.fetch("samples").first.fetch("motion")
     assert_equal revisions.map { |revision| revision.merge("changedByDeviceID" => PHONE) }, upgraded.fetch("sampleAttributionRevisions")
     stays = upgraded.fetch("plannedStayRecords")
-    assert_equal %w[stay-revision stay-deletion], stays.map { |record| record.fetch("id") }
+    assert_equal %w[50000000-0000-0000-0000-000000000000 50000000-0000-0000-0000-000000000001], stays.map { |record| record.fetch("id") }
     assert_equal [LEGACY_PLANNED_STAY_ID], stays.map { |record| record.fetch("stayID") }.uniq
     assert_equal({ "year" => 2026, "month" => 9, "day" => 13 }, stays.first.fetch("value").fetch("arrival").fetch("earliest"))
     assert_nil stays.last["value"]
@@ -144,7 +146,7 @@ class UpgradeBackupTest < Minitest::Test
   end
 
   def test_verification_driver_counts_planned_stays_and_correction_tombstones
-    manifest = upgrade_manifest(base_manifest(6))
+    manifest = upgrade_single_phone(base_manifest(6))
     manifest["plannedStayRecords"] = [{ "id" => "stay", "value" => nil, "updatedAt" => 1000 }]
     manifest["sampleAttributionRevisions"] = [{ "id" => "reset", "sampleID" => "sample", "updatedAt" => 1001 }]
     manifest["homeRegionRecords"] = [{ "id" => "home-reset", "updatedAt" => 1002 }]
@@ -167,7 +169,7 @@ class UpgradeBackupTest < Minitest::Test
     manifest["exportedAt"] = "2023-11-14T22:13:20Z"
     manifest["samples"].first["timestamp"] = "2023-11-14T22:15:00.500Z"
 
-    upgraded = upgrade_manifest(manifest)
+    upgraded = upgrade_single_phone(manifest)
 
     assert_equal 1_700_000_000.0, upgraded.fetch("exportedAt")
     assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
@@ -181,16 +183,16 @@ class UpgradeBackupTest < Minitest::Test
   def test_v5_stay_revisions_share_one_identity_and_keep_tombstones
     timestamp = Time.iso8601("2026-09-13T23:45:00Z").to_f
     revisions = [
-      { "id" => "old", "updatedAt" => timestamp, "value" => {
+      { "id" => "50000000-0000-0000-0000-000000000002", "updatedAt" => timestamp, "value" => {
         "region" => "us-NY", "through" => { "year" => 2026, "month" => 10, "day" => 1 },
       } },
-      { "id" => "clear", "updatedAt" => timestamp + 1 },
+      { "id" => "50000000-0000-0000-0000-000000000003", "updatedAt" => timestamp + 1 },
     ]
     manifest = base_manifest(5).merge("plannedStayRecords" => revisions)
 
-    upgraded = upgrade_manifest(manifest).fetch("plannedStayRecords")
+    upgraded = upgrade_single_phone(manifest).fetch("plannedStayRecords")
 
-    assert_equal %w[old clear], upgraded.map { |record| record.fetch("id") }
+    assert_equal %w[50000000-0000-0000-0000-000000000002 50000000-0000-0000-0000-000000000003], upgraded.map { |record| record.fetch("id") }
     assert_equal [LEGACY_PLANNED_STAY_ID], upgraded.map { |record| record.fetch("stayID") }.uniq
     assert_equal timestamp, upgraded.first.fetch("updatedAt")
     assert_nil upgraded.last["value"]
@@ -205,14 +207,14 @@ class UpgradeBackupTest < Minitest::Test
 
   def test_v5_inferred_arrival_is_independent_of_export_date
     manifest = base_manifest(5).merge("plannedStayRecords" => [{
-      "id" => "revision", "updatedAt" => "2026-09-13T23:45:00-04:00", "value" => {
+      "id" => "50000000-0000-0000-0000-000000000004", "updatedAt" => "2026-09-13T23:45:00-04:00", "value" => {
         "region" => "us-NY", "through" => { "year" => 2026, "month" => 10, "day" => 1 },
       },
     }])
     another = Marshal.load(Marshal.dump(manifest)).merge("exportedAt" => 2_000_000_000)
 
-    first = upgrade_manifest(manifest).fetch("plannedStayRecords")
-    second = upgrade_manifest(another).fetch("plannedStayRecords")
+    first = upgrade_single_phone(manifest).fetch("plannedStayRecords")
+    second = upgrade_single_phone(another).fetch("plannedStayRecords")
 
     assert_equal first, second
     assert_equal({ "year" => 2026, "month" => 9, "day" => 14 }, first.first.fetch("value").fetch("arrival").fetch("earliest"))
@@ -220,11 +222,11 @@ class UpgradeBackupTest < Minitest::Test
 
   def test_v5_inferred_arrival_is_clamped_to_departure_for_clock_skew_or_completed_stays
     manifest = base_manifest(5).merge("plannedStayRecords" => [{
-      "id" => "revision", "updatedAt" => Time.iso8601("2026-12-01T00:00:00Z").to_f, "value" => {
+      "id" => "50000000-0000-0000-0000-000000000004", "updatedAt" => Time.iso8601("2026-12-01T00:00:00Z").to_f, "value" => {
         "region" => "us-NY", "through" => { "year" => 2026, "month" => 9, "day" => 1 },
       },
     }])
-    upgraded = upgrade_manifest(manifest)
+    upgraded = upgrade_single_phone(manifest)
     value = upgraded.fetch("plannedStayRecords").first.fetch("value")
 
     assert_equal value.fetch("departure"), value.fetch("arrival")
@@ -234,12 +236,12 @@ class UpgradeBackupTest < Minitest::Test
   def test_v5_inferred_arrival_uses_gregorian_leap_dates_before_the_historical_calendar_switch
     leap_day = { "year" => 1504, "month" => 2, "day" => 29 }
     manifest = base_manifest(5).merge("plannedStayRecords" => [{
-      "id" => "revision", "updatedAt" => Time.utc(1504, 2, 29).to_f, "value" => {
+      "id" => "50000000-0000-0000-0000-000000000004", "updatedAt" => Time.utc(1504, 2, 29).to_f, "value" => {
         "region" => "us-NY", "through" => leap_day,
       },
     }])
 
-    value = upgrade_manifest(manifest).fetch("plannedStayRecords").first.fetch("value")
+    value = upgrade_single_phone(manifest).fetch("plannedStayRecords").first.fetch("value")
 
     assert_equal leap_day, value.fetch("arrival").fetch("earliest")
     assert_equal leap_day, value.fetch("departure").fetch("earliest")
@@ -247,7 +249,7 @@ class UpgradeBackupTest < Minitest::Test
 
   def test_v5_rejects_a_julian_only_leap_date
     manifest = base_manifest(5).merge("plannedStayRecords" => [{
-      "id" => "revision", "updatedAt" => Time.utc(1500, 2, 28).to_f, "value" => {
+      "id" => "50000000-0000-0000-0000-000000000004", "updatedAt" => Time.utc(1500, 2, 28).to_f, "value" => {
         "region" => "us-NY", "through" => { "year" => 1500, "month" => 2, "day" => 29 },
       },
     }])
@@ -258,20 +260,20 @@ class UpgradeBackupTest < Minitest::Test
 
   def test_v6_keeps_flexible_windows_and_home_tombstones_unchanged
     manifest = base_manifest(6).merge(
-      "plannedStayRecords" => [{ "id" => "revision", "stayID" => "stay", "value" => {
+      "plannedStayRecords" => [{ "id" => "50000000-0000-0000-0000-000000000004", "stayID" => "stay", "value" => {
         "id" => "stay", "region" => "us-NY",
         "arrival" => { "earliest" => { "year" => 2026, "month" => 10, "day" => 10 }, "latest" => { "year" => 2026, "month" => 10, "day" => 12 } },
         "departure" => { "earliest" => { "year" => 2026, "month" => 10, "day" => 20 }, "latest" => { "year" => 2026, "month" => 10, "day" => 25 } },
       } }],
-      "homeRegionRecords" => [{ "id" => "home", "region" => "us-CA", "updatedAt" => 1 }, { "id" => "clear", "updatedAt" => 2 }],
+      "homeRegionRecords" => [{ "id" => "50000000-0000-0000-0000-000000000005", "region" => "us-CA", "updatedAt" => 1 }, { "id" => "50000000-0000-0000-0000-000000000003", "updatedAt" => 2 }],
     )
     stays = Marshal.load(Marshal.dump(manifest.fetch("plannedStayRecords")))
     homes = Marshal.load(Marshal.dump(manifest.fetch("homeRegionRecords")))
 
-    upgraded = upgrade_manifest(manifest)
+    upgraded = upgrade_single_phone(manifest)
 
-    assert_equal stays, upgraded.fetch("plannedStayRecords")
-    assert_equal homes, upgraded.fetch("homeRegionRecords")
+    assert_equal stays.map { |record| record.merge("changedByDeviceID" => PHONE) }, upgraded.fetch("plannedStayRecords")
+    assert_equal homes.map { |record| record.merge("changedByDeviceID" => PHONE) }, upgraded.fetch("homeRegionRecords")
   end
 
   def test_supports_missing_gps_origin_across_every_legacy_shape
@@ -286,7 +288,7 @@ class UpgradeBackupTest < Minitest::Test
     prototype = base_manifest(7).merge("samples" => [gps_sample], "trackedRegions" => ["california"])
     result = upgrade_manifest(prototype, source_profile: profile, device_models: PHONE_MODELS)
     assert_equal PHONE, result.fetch("samples").first.fetch("recordingDeviceID")
-    assert_equal [{ "region" => "us-CA", "appearance" => nil, "order" => 0 }], result.fetch("primaryRegions")
+    assert_equal [{ "region" => "us-CA", "appearance" => nil, "order" => 0, "changedByDeviceID" => PHONE }], result.fetch("primaryRegions")
   end
 
   def test_infers_single_origin_from_profile_or_stamped_fix_and_keeps_known_fields
@@ -385,8 +387,8 @@ class UpgradeBackupTest < Minitest::Test
       gps_sample.merge("id" => SECOND_SAMPLE, "source" => { "evidenceImplied" => { "id" => SAMPLE, "kind" => { "photo" => {} } } }),
     ]
     result = upgrade_manifest(modern_manifest(8).merge("samples" => Marshal.load(Marshal.dump(samples))), source_profile: profile, device_models: PHONE_MODELS)
-    assert_equal samples, result.fetch("samples")
-    assert_empty result.fetch("recordingDeviceProfiles")
+    assert_equal [samples.first.merge("assertedByDeviceID" => TABLET), samples.last.merge("assertedByDeviceID" => PHONE)], result.fetch("samples")
+    assert_equal [profile], result.fetch("recordingDeviceProfiles")
   end
 
   def test_zip_keeps_original_archive_and_all_evidence_bytes_even_after_a_failed_conversion
@@ -418,13 +420,22 @@ class UpgradeBackupTest < Minitest::Test
       assert_equal verified, File.binread(output)
       assert_rejected { main([input, input, "--source-profile", mapping]) }
       assert_equal original, File.binread(input)
+      driver = UpgradeAndVerify.new([input, output])
+      driver.send(:verify_asset_bytes!, input, output, manifest)
+      Dir.mktmpdir do |staging|
+        FileUtils.mkdir(File.join(staging, "assets"))
+        File.binwrite(File.join(staging, "assets/proof"), asset_bytes.reverse)
+        tampered = File.join(work, "wrong-bytes.zip")
+        assert system("zip", "-q", "-r", tampered, ".", chdir: staging)
+        assert_raises(RuntimeError) { driver.send(:verify_asset_bytes!, input, tampered, manifest) }
+      end
     end
   end
 
   def test_duplicate_sample_identity_matches_swift_persistence_including_evidence_links
     gps = gps_sample.merge("recordingDeviceID" => PHONE)
     evidence = lambda do |id, kind|
-      gps_sample.merge("source" => { "evidenceImplied" => { "id" => id, "kind" => kind } })
+      gps_sample.merge("source" => { "evidenceImplied" => { "id" => id, "kind" => kind } }, "assertedByDeviceID" => TABLET)
     end
     labeled = evidence.call(SAMPLE, { "other" => { "_0" => "ticket" } })
     unlabeled = evidence.call(SAMPLE, { "other" => {} })
@@ -486,7 +497,7 @@ class UpgradeBackupTest < Minitest::Test
       "id" => "96959470-96E9-8A27-B60E-FB546E3CDC66", "deviceID" => TABLET, "changedByDeviceID" => TABLET,
       "changedAt" => 3.125, "payload" => { "field" => "hardwareModelIdentifier", "hardwareModelIdentifier" => "iPad99,9" },
     )]
-    assert_equal source.merge("formatVersion" => 10, "recordingDeviceMetadataChanges" => renames + facts), result
+    assert_equal source.merge("formatVersion" => CURRENT_FORMAT_VERSION, "recordingDeviceMetadataChanges" => renames + facts), result
     assert_equal result, upgrade_manifest(Marshal.load(Marshal.dump(result)), source_profile: profile, device_models: models)
     driver = UpgradeAndVerify.new(["in", "out"])
     assert_equal 2, driver.send(:verify_model_events!, source, result, models)
@@ -507,7 +518,7 @@ class UpgradeBackupTest < Minitest::Test
     assert_rejected { upgrade_manifest(source, device_models: { PHONE => "iPhone16,1" }) }
     assert_rejected { upgrade_manifest(source, device_models: { PHONE.delete_prefix("store://devices/") => "\u200B\u00a0\n" }) }
     manual = modern_manifest(9).merge("manualDays" => [{ "regions" => ["ca-ON"] }])
-    assert_equal manual.merge("formatVersion" => 10), upgrade_manifest(manual)
+    assert_rejected { upgrade_manifest(manual) }
   end
 
   def test_current_metadata_rejects_two_fields_in_one_event
@@ -531,7 +542,7 @@ class UpgradeBackupTest < Minitest::Test
     [[], [profile]].each do |profiles|
       [9, 10].each do |version|
         source = modern_manifest(version).merge("recordingDeviceProfiles" => profiles, "recordingDeviceMetadataChanges" => [phone_fact])
-        assert_equal source.merge("formatVersion" => 10), upgrade_manifest(Marshal.load(Marshal.dump(source)))
+        assert_equal source.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgrade_manifest(Marshal.load(Marshal.dump(source)))
         assert_rejected { upgrade_manifest(source, device_models: PHONE_MODELS.transform_values { "iPhone99,42" }) }
       end
     end
@@ -553,7 +564,107 @@ class UpgradeBackupTest < Minitest::Test
     end
     assert_rejected { upgrade_manifest(source.merge("formatVersion" => 9, "recordingDeviceMetadataChanges" => [collision]), device_models: PHONE_MODELS) }
     duplicate = source.merge("recordingDeviceMetadataChanges" => [phone_fact, phone_fact.dup])
-    assert_equal duplicate, upgrade_manifest(Marshal.load(Marshal.dump(duplicate)))
+    assert_equal duplicate.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgrade_manifest(Marshal.load(Marshal.dump(duplicate)))
+  end
+
+  def test_v10_manual_only_upgrade_requires_the_original_phone_and_preserves_every_action
+    original = modern_manifest(10).merge(action_records)
+    assert_rejected { upgrade_manifest(deep_copy(original)) }
+    assert_rejected { upgrade_manifest(deep_copy(original), source_profile: { "id" => PHONE }) }
+    assert_rejected { upgrade_manifest(deep_copy(original), source_profile: profile) }
+
+    result = upgrade_single_phone(deep_copy(original))
+    assert_equal [profile], result["recordingDeviceProfiles"]
+    assert_equal [phone_fact], result["recordingDeviceMetadataChanges"]
+    fields = {
+      "samples" => "assertedByDeviceID", "evidence" => "addedByDeviceID", "manualDays" => "changedByDeviceID",
+      "dismissedIssues" => "dismissedByDeviceID", "plannedStayRecords" => "changedByDeviceID",
+      "homeRegionRecords" => "changedByDeviceID", "primaryRegions" => "changedByDeviceID",
+    }
+    fields.each do |table, role|
+      assert_equal original.fetch(table).map { |row| row.merge(role => PHONE) }, result.fetch(table)
+    end
+    assert_equal result, upgrade_single_phone(deep_copy(result))
+
+    driver = UpgradeAndVerify.new(["in.zip", "out.zip"])
+    assert driver.send(:added_source_profile?, profile, original, result)
+    assert_equal 1, driver.send(:verify_model_events!, original, result, PHONE_MODELS, profile)
+    fields.each do |table, field|
+      wrong = deep_copy(result)
+      wrong[table].first[field] = TABLET
+      assert_raises(RuntimeError) { driver.send(:verify_model_events!, original, wrong, PHONE_MODELS, profile) }
+      wrong[table].first.delete(field)
+      assert_rejected { upgrade_single_phone(wrong) }
+    end
+    wrong = deep_copy(result)
+    wrong["manualDays"].first["audit"] = { "recordedAt" => 20 }
+    assert_raises(RuntimeError) { driver.send(:verify_model_events!, original, wrong, PHONE_MODELS, profile) }
+  end
+
+  def test_existing_actors_resolve_their_own_evidence_and_manual_samples_before_mapping
+    source = modern_manifest(10).merge(action_records)
+    source["manualDays"].first["changedByDeviceID"] = PHONE
+    source["samples"].first["recordingDeviceID"] = TABLET
+    driver = UpgradeAndVerify.new(["in.zip", "out.zip"])
+    # Either half of evidence + implied point establishes the group's single original actor.
+    [["samples", 1, "assertedByDeviceID"], ["evidence", 0, "addedByDeviceID"]].each do |table, index, field|
+      original = deep_copy(source)
+      original[table][index][field] = TABLET
+      assert_rejected { upgrade_manifest(deep_copy(original)) }
+      result = upgrade_manifest(deep_copy(original), source_profile: { "id" => PHONE })
+      assert_equal [TABLET, TABLET], result["samples"].map { |row| row["assertedByDeviceID"] }
+      assert_equal TABLET, result["samples"].first["recordingDeviceID"]
+      assert_equal TABLET, result["evidence"].first["addedByDeviceID"]
+      assert_equal PHONE, result["dismissedIssues"].first["dismissedByDeviceID"]
+      assert_empty result["recordingDeviceProfiles"]
+      assert_equal 0, driver.send(:verify_model_events!, original, result, {}, { "id" => PHONE })
+    end
+
+    known = deep_copy(source)
+    known["samples"].first["assertedByDeviceID"] = PHONE
+    known["evidence"].first["addedByDeviceID"] = TABLET
+    result = upgrade_manifest(known, source_profile: { "id" => PHONE })
+    assert_equal PHONE, result["samples"].first["assertedByDeviceID"]
+    assert_equal TABLET, result["samples"].first["recordingDeviceID"]
+    orphan = modern_manifest(11).merge("samples" => [result.fetch("samples").last])
+    assert_equal orphan, upgrade_manifest(deep_copy(orphan))
+  end
+
+  def test_v10_keeps_original_model_requirement_separate_from_adding_historical_profile
+    source = modern_manifest(10).merge("recordingDeviceProfiles" => [profile], "manualDays" => [{ "regions" => ["ca-ON"] }])
+    assert_rejected { upgrade_single_phone(deep_copy(source)) }
+    # A model fact can arrive before its profile. Adding the matching descriptor
+    # during backfill must reuse that original fact, including the registration time.
+    known = source.merge("recordingDeviceProfiles" => [], "recordingDeviceMetadataChanges" => [phone_fact])
+    result = upgrade_manifest(deep_copy(known), source_profile: profile)
+    assert_equal [profile], result["recordingDeviceProfiles"]
+    assert_equal [phone_fact], result["recordingDeviceMetadataChanges"]
+    assert_rejected { upgrade_manifest(deep_copy(known), source_profile: profile.merge("registeredAt" => 8)) }
+    empty = modern_manifest(10)
+    assert_equal empty.merge("formatVersion" => 11), upgrade_manifest(deep_copy(empty), source_profile: profile)
+  end
+
+  def test_rejects_conflicting_immutable_actors_but_keeps_distinct_edits_on_mutable_rows
+    result = upgrade_single_phone(modern_manifest(10).merge(action_records))
+    fields = { "evidence" => "addedByDeviceID", "samples" => "assertedByDeviceID",
+               "plannedStayRecords" => "changedByDeviceID", "homeRegionRecords" => "changedByDeviceID" }
+    fields.each do |table, field|
+      conflict = deep_copy(result)
+      conflict[table] << conflict[table].first.merge(field => TABLET)
+      assert_rejected { upgrade_manifest(conflict) }
+    end
+    %w[plannedStayRecords homeRegionRecords].each do |table|
+      conflict = deep_copy(result)
+      conflict[table] << conflict[table].first.merge("updatedAt" => 55)
+      assert_rejected { upgrade_manifest(conflict) }
+    end
+    conflict = deep_copy(result)
+    conflict["samples"].last["assertedByDeviceID"] = TABLET
+    assert_rejected { upgrade_single_phone(conflict) }
+    gps = modern_manifest(11).merge("samples" => [gps_sample.merge("recordingDeviceID" => PHONE, "assertedByDeviceID" => TABLET)])
+    assert_rejected { upgrade_manifest(gps) }
+    result["manualDays"] << result["manualDays"].first.merge("changedByDeviceID" => TABLET, "regions" => ["us-CA"])
+    assert_equal result, upgrade_manifest(deep_copy(result))
   end
 
   private
@@ -563,6 +674,29 @@ class UpgradeBackupTest < Minitest::Test
     _stdout, stderr = capture_io { rejected = assert_raises(SystemExit, &operation) }
     assert_includes stderr, "error:"
     rejected
+  end
+
+  def upgrade_single_phone(manifest)
+    upgrade_manifest(manifest, source_profile: profile, device_models: PHONE_MODELS)
+  end
+
+  def deep_copy(value)
+    Marshal.load(Marshal.dump(value))
+  end
+
+  def action_records
+    day = { "year" => 2026, "month" => 11, "day" => 20 }
+    {
+      "samples" => [gps_sample.merge("source" => { "manual" => {} }),
+                    gps_sample.merge("id" => SECOND_SAMPLE, "source" => { "evidenceImplied" => { "id" => SAMPLE, "kind" => { "document" => {} } } })],
+      "evidence" => [{ "id" => SAMPLE, "kind" => { "document" => {} }, "capturedAt" => 123.5, "contentType" => { "plainText" => {} } }],
+      "manualDays" => [{ "day" => day, "regions" => ["ca-ON"], "isAuthoritative" => false }],
+      "dismissedIssues" => [{ "id" => "store://issues/missingDays?start=2026-11-20", "dismissedAt" => 2 }],
+      "plannedStayRecords" => [{ "id" => SAMPLE, "stayID" => SECOND_SAMPLE, "updatedAt" => 3 }],
+      "homeRegionRecords" => [{ "id" => SAMPLE, "updatedAt" => 4 }],
+      "primaryRegions" => [{ "region" => "ca-ON", "order" => 0 }],
+      "trackedRegions" => ["ca-ON"],
+    }
   end
 
   def gps_sample
