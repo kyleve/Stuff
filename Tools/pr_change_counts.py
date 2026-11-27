@@ -188,8 +188,13 @@ def markdown_table(diff):
         "| Category | Files | Lines added | Lines deleted | Binary files |",
         "| --- | ---: | ---: | ---: | ---: |",
     ]
+    ordered_counts = sorted(
+        counts.items(),
+        key=lambda item: (item[1].added + item[1].deleted, item[1].files),
+        reverse=True,
+    )
     rows.extend(
-        count.row(category) for category, count in counts.items() if count.files
+        count.row(category) for category, count in ordered_counts if count.files
     )
     rows.append(total.row("**Total**"))
     return "\n".join(rows)

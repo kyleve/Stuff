@@ -64,7 +64,7 @@ class PRChangeCountsTests(unittest.TestCase):
         snapshots = "App/SnapshotTests/__Snapshots__/Example"
         self.write(".gitattributes", "**/__Snapshots__/**/*.png diff=lfs\n")
         self.write("App/Sources/Test.swift", "keep\nold\n")
-        self.write("remove.md", "remove this\n")
+        self.write("remove.md", "remove this\nand this\nand this too\n")
         self.write(f"{snapshots}/changed.png", b"\0before")
         self.write(f"{snapshots}/removed.png", b"\0delete")
         self.write(f"{snapshots}/renamed.png", b"\0rename")
@@ -98,17 +98,17 @@ class PRChangeCountsTests(unittest.TestCase):
         expected = (
             "| Category | Files | Lines added | Lines deleted | Binary files |\n"
             "| --- | ---: | ---: | ---: | ---: |\n"
+            "| Markdown | 2 | 1 | 3 | 0 |\n"
             "| App code | 1 | 2 | 1 | 0 |\n"
+            "| Resources | 2 | 1 | 0 | 1 |\n"
             "| Tests | 1 | 1 | 0 | 0 |\n"
+            "| Configuration | 1 | 1 | 0 | 0 |\n"
+            "| Tooling | 1 | 1 | 0 | 0 |\n"
+            "| Other | 1 | 1 | 0 | 0 |\n"
             "| Snapshots added | 2 | 0 | 0 | 2 |\n"
             "| Snapshots removed | 2 | 0 | 0 | 2 |\n"
             "| Snapshots changed | 2 | 0 | 0 | 2 |\n"
-            "| Markdown | 2 | 1 | 1 | 0 |\n"
-            "| Configuration | 1 | 1 | 0 | 0 |\n"
-            "| Tooling | 1 | 1 | 0 | 0 |\n"
-            "| Resources | 2 | 1 | 0 | 1 |\n"
-            "| Other | 1 | 1 | 0 | 0 |\n"
-            "| **Total** | 15 | 8 | 2 | 7 |\n"
+            "| **Total** | 15 | 8 | 4 | 7 |\n"
         )
         self.git("switch", "-q", "main")
         self.assert_report(expected, "--base", "main", "--head", head)
