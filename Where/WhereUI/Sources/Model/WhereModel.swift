@@ -25,6 +25,7 @@ import PeriscopeCore
 @Observable
 public final class WhereModel {
     public let compatibility: WhereCompatibilityModel
+    let photoLocationReader: (any PhotoLocationReading)?
     let installationLocation: InstallationLocation
     private var onboardingTask: Task<Void, Never>?
 
@@ -370,6 +371,7 @@ public final class WhereModel {
         logSystem: Periscope,
         compatibility: WhereCompatibilityModel,
         installationLocation: InstallationLocation,
+        photoLocationReader: (any PhotoLocationReading)? = nil,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -378,6 +380,7 @@ public final class WhereModel {
     ) {
         self.compatibility = compatibility
         self.installationLocation = installationLocation
+        self.photoLocationReader = photoLocationReader
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
@@ -416,6 +419,7 @@ public final class WhereModel {
         logSystem: Periscope,
         compatibility: WhereCompatibilityModel,
         installationLocation: InstallationLocation,
+        photoLocationReader: (any PhotoLocationReading)? = nil,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -432,6 +436,7 @@ public final class WhereModel {
         )
         self.compatibility = compatibility
         self.installationLocation = installationLocation
+        self.photoLocationReader = photoLocationReader
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,

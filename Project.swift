@@ -491,6 +491,10 @@ let project = Project(
                 "WhereAudience": .string("$(WHERE_AUDIENCE)"),
                 "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
                 "WherePrimaryAppIconName": .string("$(WHERE_PRIMARY_APP_ICON_NAME)"),
+                "NSPhotoLibraryUsageDescription": .string(
+                    "Where reads photo dates and locations to suggest stays for you to review.",
+                ),
+                "PHPhotoLibraryPreventAutomaticLimitedAccessAlert": .boolean(true),
                 "NSLocationWhenInUseUsageDescription": .string(
                     "Where uses your location to figure out which region you're in.",
                 ),

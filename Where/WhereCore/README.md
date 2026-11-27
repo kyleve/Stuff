@@ -162,6 +162,8 @@ one it belongs to rather than to a god-object:
 
 ### Location
 
+An explicit onboarding scan uses `PhotoLocationScanner` with an injected metadata reader. It resolves qualifying photo coordinates against the full bundled catalog and returns logical days and distinct points in memory. The scan runs before primary-region selection and works independently of recording permission.
+
 - **`LocationSource`** — the GPS abstraction: `CoreLocationSource` (Visits +
   significant-change) in production, `ScriptedLocationSource` in tests/previews.
   Passive `sampleStream` plus a bounded one-shot `requestCurrentLocation()`

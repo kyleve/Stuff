@@ -1,6 +1,6 @@
 # 01 — Read current-year photo locations
 
-- Status: ready
+- Status: executing
 - Depends on: None
 - Shared context: [Overview](README.md)
 
@@ -93,10 +93,10 @@ The proposal uses local polygon lookup across the catalog so a place can be disc
 
 ## Progress
 
-- [ ] Implement and test the metadata reader and regional observations.
-- [ ] Verify authorization branches, limited results and cancellation in the host tests.
+- [x] Implement and test the metadata reader and regional observations.
+- [x] Verify authorization branches, limited results and cancellation in the host tests.
 - [ ] Review and publish the groundwork.
 
 ## Execution record, resume point and outcome
 
-Implementation has not started. On an execution request, verify the current host assembly and geometry-loading boundary, then start with the synthetic scan fixtures. Record host and Core results here. The integrated device check belongs to 03.
+November 27. The regular runtime injects the metadata reader. The host and Core scanner suites passed inside `./test WhereCoreTests WhereTests` (959 tests passed). The architecture checks passed. Independent review identified late cancellation and limited-library selection changes. The scanner now rechecks cancellation before returning and verifies that fetched assets remain visible under limited access. Synthetic host tests cover Shared Album, synced, unknown and mixed source values. Phase 03 owns integrated device verification.

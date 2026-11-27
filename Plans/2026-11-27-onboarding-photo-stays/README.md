@@ -5,7 +5,7 @@
 - Updated November 27, 2026, against `2f639e987`.
 - The user requested a plan for current-year photo GPS backfill during Where onboarding, followed by stay correction and selection of primary regions using the result.
 - Planning and review are complete. [STU-185](https://linear.app/kve/issue/STU-185) owns the work. The latest revision incorporates the user’s photo-source and timing decision (Q-06). The scan and stay-review plans are ready, in that order. The final save is an outline pending Q-05.
-- The next action is implementation of 01 if requested. After 02 produces a reviewed draft, refine 03 using its recovery and compatibility fixtures. Implementation awaits a separate request.
+- Execution authorized November 27. Plan PR #570 at `695c111ab` has no conversation, review or inline feedback. Phase 01 is in progress on `feature/onboarding-photo-history`. Next, build and verify the scanner before starting 02.
 
 ## Experience
 
