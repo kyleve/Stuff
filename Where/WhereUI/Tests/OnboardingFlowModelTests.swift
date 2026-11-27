@@ -11,6 +11,7 @@ struct OnboardingFlowModelTests {
 
         #expect(model.phase == .location)
         #expect(model.recordingEnabled)
+        #expect(model.deviceName == "iPhone 15 Pro")
     }
 
     @Test func finalIntroPageAdvancesToThemeSelection() {

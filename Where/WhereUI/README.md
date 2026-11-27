@@ -339,8 +339,9 @@ journal intent.
   side-effect-free demo preflight and precedes every world-building step, so
   there is no session behind it: a paged intro,
   then picking up to five regions in the United States and Canada (map or searchable list) and
-  giving each a look, then verifying this installation's automatic-recording
-  choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
+  giving each a look, then confirming this installation's name and automatic-recording
+  choice. Setup suggests the model name. An unknown model displays its hardware identifier.
+  A custom name can be changed or cleared later in Devices. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
   other installation recently reported recording. Tablets, other devices, and explicit rejoins
   recommend Off. Only an enabled confirmation requests location permission. A restored device can

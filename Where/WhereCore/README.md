@@ -74,7 +74,7 @@ one it belongs to rather than to a god-object:
   token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
   per region, defaulting to California, New York and the EU until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
-  immutable profiles, append-only nickname events and removal tombstones, and target-owned
+  immutable profiles and hardware model identifiers, append-only nickname events and removal tombstones, and target-owned
   advisory check-ins rather than one mutable device row. Recording consent stays local.
 - **`WhereDataGeneration`** — the account-wide logical generation that keeps late
   uploads from an offline device from repopulating data after Reset or Replace.
@@ -326,7 +326,7 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v9** requires a capture device on GPS samples and an author on correction and reset revisions. An older importer rejects the
+  Backup format **v10** carries each known installation model alongside existing nickname events. It preserves the v9 capture device on GPS samples and the author on correction and reset revisions. An older importer rejects the
   archive before changing any user data, including a manual-only backup moved between
   accounts. Version 8 retains independent stays, date windows, Home choices, optional motion,
   and every sample-attribution revision. Merge preserves revision IDs and timestamps.
@@ -338,6 +338,11 @@ one it belongs to rather than to a god-object:
   Export before upgrading the app. Upgrade the archive offline, then replace-import it.
   Update every syncing installation before editing plans. Older builds use a single
   stay register and can delete independent stays in the shared store.
+- Device labels resolve the current nickname first, then the installation’s model. A known
+  model identifier has a familiar name such as “iPhone 15 Pro”. Other identifiers display
+  verbatim. A removed installation keeps its historical label. The model fact has a stable
+  ID and survives generation changes with its immutable profile. Nicknames follow their data
+  generation. A receiver can hold a sample or correction before the referenced profile arrives.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.

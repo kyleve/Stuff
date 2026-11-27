@@ -13,7 +13,16 @@ public protocol InstallationRecordingContextStoring: AnyObject, BackupImportReco
     func resolve() throws -> InstallationRecordingContext
 
     /// Persist the first explicit local choice beside the installation identity.
-    func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext
+    func confirmInitialRecording(
+        isEnabled: Bool,
+        name: String?,
+    ) throws -> InstallationRecordingContext
+
+    /// Acknowledge the setup name after the matching immutable registry event commits.
+    func acknowledgeInitialNickname(
+        deviceID: RecordingDeviceID,
+        eventID: RecordingDeviceMetadataChange.ID,
+    ) throws
 
     /// Persist a later Settings choice locally. The installation must already be confirmed.
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws
@@ -45,6 +54,10 @@ public protocol InstallationRecordingContextStoring: AnyObject, BackupImportReco
 }
 
 extension InstallationRecordingContextStoring {
+    public func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext {
+        try confirmInitialRecording(isEnabled: isEnabled, name: nil)
+    }
+
     public func loadBackupImportRecovery() async throws
         -> BackupCoordinator.DurableImportRecovery?
     {

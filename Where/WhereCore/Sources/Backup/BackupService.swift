@@ -46,6 +46,7 @@ public struct BackupService: Sendable {
         /// Recording rows decoded structurally but violate persisted invariants (for example a
         /// a negative causal revision or incomplete removal history).
         case invalidRecordingData
+        case missingDeviceModel
         /// Planning revisions violate identity or date-window invariants.
         case invalidPlanningData
 
@@ -57,6 +58,8 @@ public struct BackupService: Sendable {
                     String(localized: .backupErrorUnsupportedFormatVersion(version))
                 case .invalidRecordingData:
                     String(localized: .backupErrorInvalidRecordingData)
+                case .missingDeviceModel:
+                    String(localized: .backupErrorMissingDeviceModel)
                 case .invalidPlanningData:
                     String(localized: .backupErrorInvalidPlanningData)
             }
@@ -303,11 +306,21 @@ public struct BackupService: Sendable {
                !sample.hasSameOrigin(as: previous)
             { throw BackupError.invalidRecordingData }
         }
+        guard metadataChanges.allSatisfy(\.isValid) else { throw BackupError.invalidRecordingData }
+        let modelFacts: [RecordingDeviceID: RecordingDeviceMetadataChange]
+        do { modelFacts = try RecordingDeviceMetadataChange.hardwareModels(
+            in: metadataChanges,
+            for: profiles,
+        ) } catch { throw BackupError.invalidRecordingData }
+        let modelIDs = Set(modelFacts.values.map(\.id))
+        guard !metadataChanges
+            .contains(where: { $0.field == .nickname && modelIDs.contains($0.id) })
+        else { throw BackupError.invalidRecordingData }
         for duplicates in Dictionary(grouping: profiles, by: \.id).values {
-            guard Set(duplicates).count == 1 else { throw BackupError.invalidRecordingData }
-        }
-        guard metadataChanges.allSatisfy({ $0.revision >= 0 }) else {
-            throw BackupError.invalidRecordingData
+            guard let profile = duplicates.first,
+                  duplicates.allSatisfy({ $0.hasSamePortableValue(as: profile) })
+            else { throw BackupError.invalidRecordingData }
+            guard modelFacts[profile.id] != nil else { throw BackupError.missingDeviceModel }
         }
         for (_, revisions) in Dictionary(grouping: sampleAttributionRevisions, by: \.id) {
             guard Set(revisions).count == 1,

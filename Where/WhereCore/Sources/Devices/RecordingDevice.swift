@@ -66,6 +66,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     /// Hardware-family fallback captured at registration (for example “iPhone” or “iPad”), not
     /// the user's device name. `nickname` is the synced user-editable display name.
     public let systemName: String
+    public let hardwareModelIdentifier: String?
     public let nickname: String?
     public let kind: RecordingDeviceKind
     public let registeredAt: Date
@@ -83,9 +84,11 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         lastSeenAt: Date,
         removedAt: Date?,
         status: RecordingDeviceStatus,
+        hardwareModelIdentifier: String? = nil,
     ) {
         self.id = id
         self.systemName = systemName
+        self.hardwareModelIdentifier = hardwareModelIdentifier
         self.nickname = nickname
         self.kind = kind
         self.registeredAt = registeredAt
@@ -94,19 +97,24 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         self.status = status
     }
 
+    public var modelName: String {
+        hardwareModelIdentifier.map(RecordingDeviceName.modelLabel(for:)) ?? systemName
+    }
+
     public var displayName: String {
-        let trimmed = nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return if let trimmed, !trimmed.isEmpty { trimmed } else { systemName }
+        RecordingDeviceName.displayName(nickname: nickname, fallback: modelName)
     }
 
     init(
         profile: RecordingDeviceProfile,
         nicknameChange: RecordingDeviceMetadataChange?,
+        hardwareModelChange: RecordingDeviceMetadataChange?,
         checkIn: RecordingDeviceCheckIn?,
         removal: RecordingDeviceRemoval?,
     ) {
         id = profile.id
         systemName = profile.systemName
+        hardwareModelIdentifier = hardwareModelChange?.hardwareModelIdentifier
         nickname = nicknameChange?.nickname
         kind = profile.kind
         registeredAt = profile.registeredAt
@@ -124,7 +132,19 @@ public struct CurrentRecordingDevice: Sendable, Hashable {
     public let systemName: String
     public let kind: RecordingDeviceKind
 
-    public init(id: RecordingDeviceID, systemName: String, kind: RecordingDeviceKind) {
+    public let hardwareModelIdentifier: String?
+
+    public var modelName: String {
+        hardwareModelIdentifier.map(RecordingDeviceName.modelLabel(for:)) ?? systemName
+    }
+
+    public init(
+        id: RecordingDeviceID,
+        systemName: String,
+        kind: RecordingDeviceKind,
+        hardwareModelIdentifier: String? = nil,
+    ) {
+        self.hardwareModelIdentifier = hardwareModelIdentifier
         self.id = id
         self.systemName = systemName
         self.kind = kind
@@ -139,5 +159,6 @@ public struct CurrentRecordingDevice: Sendable, Hashable {
         ),
         systemName: "iPhone",
         kind: .phone,
+        hardwareModelIdentifier: "iPhone16,1",
     )
 }

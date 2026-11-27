@@ -40,6 +40,13 @@ enum RecordedFlightArchiveFixture {
         let first = try #require(samples.min { $0.timestamp < $1.timestamp })
         let deviceID = try #require(first.recordingDeviceID)
         let regions = Regions().loadedRegions
+        let profile = RecordingDeviceProfile(
+            id: deviceID,
+            systemName: "Recorded fixture phone",
+            kind: .phone,
+            registeredAt: first.timestamp,
+            registrationGenerationID: .initial,
+        )
         return try BackupService().makeArchiveFile(
             samples: samples,
             evidence: [],
@@ -49,14 +56,8 @@ enum RecordedFlightArchiveFixture {
             primaryRegions: regions.enumerated().map {
                 PrimaryRegion(region: $0.element, appearance: nil, order: $0.offset)
             },
-            recordingDeviceProfiles: [RecordingDeviceProfile(
-                id: deviceID,
-                systemName: "Recorded fixture phone",
-                kind: .phone,
-                registeredAt: first.timestamp,
-                registrationGenerationID: .initial,
-            )],
-            recordingDeviceMetadataChanges: [],
+            recordingDeviceProfiles: [profile],
+            recordingDeviceMetadataChanges: [.hardwareModelIdentifier("Fixture1,1", for: profile)],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],

@@ -12,6 +12,11 @@ public actor DeviceRecordingController: WhereShutdownable {
     private let ingestor: LocationIngestor
     public nonisolated let currentDevice: CurrentRecordingDevice
     private let registeredAt: Date
+    private var pendingInitialNickname: InstallationRecordingContext.PendingNickname?
+    private let acknowledgeInitialNickname: @Sendable (
+        RecordingDeviceID,
+        RecordingDeviceMetadataChange.ID
+    ) async throws -> Void
     private let now: @Sendable () -> Date
     private let onPolicyChanged: @Sendable () async -> Void
     private let configurationBroadcaster = RecordingConfigurationBroadcaster()
@@ -51,6 +56,10 @@ public actor DeviceRecordingController: WhereShutdownable {
         store: any WhereStore,
         ingestor: LocationIngestor,
         installationContext: InstallationRecordingContext,
+        acknowledgeInitialNickname: @escaping @Sendable (
+            RecordingDeviceID,
+            RecordingDeviceMetadataChange.ID
+        ) async throws -> Void = { _, _ in },
         now: @escaping @Sendable () -> Date,
         onPolicyChanged: @escaping @Sendable () async -> Void,
     ) {
@@ -65,6 +74,8 @@ public actor DeviceRecordingController: WhereShutdownable {
             currentDeviceID: installationContext.currentDevice.id,
         )
         registeredAt = installationContext.registeredAt
+        pendingInitialNickname = installationContext.pendingInitialNickname
+        self.acknowledgeInitialNickname = acknowledgeInitialNickname
         if automaticRecordingEnabled {
             guard let enabledAt = installationContext.recordingEnabledAt else {
                 preconditionFailure("An enabled installation context must carry its consent date.")
@@ -173,7 +184,12 @@ public actor DeviceRecordingController: WhereShutdownable {
         try requireActive()
         return try await store.readSnapshot {
             let devices = try await self.store.recordingDevices()
-            return Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0.displayName) })
+            return Dictionary(uniqueKeysWithValues: devices.compactMap { device in
+                guard device.hardwareModelIdentifier != nil
+                    || RecordingDeviceName.normalizedNickname(device.nickname, fallback: "") != nil
+                else { return nil }
+                return (device.id, device.displayName)
+            })
         }
     }
 
@@ -186,7 +202,7 @@ public actor DeviceRecordingController: WhereShutdownable {
         defer { endExclusive() }
         try requireActive()
         let snapshot = try await storeSnapshot()
-        guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
+        guard let profile = snapshot.profiles.first(where: { $0.id == deviceID }) else {
             throw RecordingPersistenceError.deviceNotFound(deviceID)
         }
         let latest = RecordingDevicePolicyResolver.latestMetadata(
@@ -194,8 +210,10 @@ public actor DeviceRecordingController: WhereShutdownable {
             field: .nickname,
             in: snapshot.metadataChanges,
         )
-        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedNickname = trimmed.isEmpty ? nil : trimmed
+        let modelChange = snapshot.hardwareModels[deviceID]
+        let fallback = modelChange?.hardwareModelIdentifier
+            .map(RecordingDeviceName.modelLabel(for:)) ?? profile.systemName
+        let resolvedNickname = RecordingDeviceName.normalizedNickname(nickname, fallback: fallback)
         guard latest?.nickname != resolvedNickname else {
             return try await configurationsLocked(includeRemoved: false)
         }
@@ -393,27 +411,76 @@ public actor DeviceRecordingController: WhereShutdownable {
         authorization: LocationAuthorizationStatus,
     ) async throws -> RecordingDeviceConfiguration {
         do {
-            let snapshot = try await storeSnapshot()
-            let generation = snapshot.generation
-            let existing = snapshot.profiles.first(where: { $0.id == currentDevice.id })
-            if let existing, let resetAt = snapshot.currentDeviceResetBarrier {
-                try await store.perform(expectedDataGenerationID: generation.id) {
-                    try await self.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                        id: .init(rawValue: UUID()),
-                        deviceID: existing.id,
-                        removedAt: resetAt,
-                        removedByDeviceID: self.currentDevice.id,
-                    ))
-                }
+            let device = currentDevice
+            let pending = pendingInitialNickname
+            let observed = try await storeSnapshot()
+            if observed.removals.contains(where: { $0.deviceID == device.id }) {
                 return try await reconcileLocked(authorization: authorization)
             }
-            let expected = expectedProfile(
-                registrationGenerationID: existing?.registrationGenerationID ?? generation.id,
-            )
-            if existing != expected {
-                try await store.perform(expectedDataGenerationID: generation.id) {
-                    try await self.store.addRecordingDeviceProfile(expected)
+            if let profile = observed.profiles.first(where: { $0.id == device.id }),
+               observed.currentDeviceResetBarrier == nil, pending == nil
+            {
+                _ = try registrationProfile(existing: profile, generationID: observed.generation.id)
+                let expectedModel = device.hardwareModelIdentifier.map {
+                    RecordingDeviceMetadataChange.hardwareModelIdentifier($0, for: profile)
                 }
+                if expectedModel
+                    .map({ observed.hardwareModels[device.id]?.hasSamePortableValue(as: $0) == true
+                    }) ?? true
+                {
+                    return try await reconcileLocked(authorization: authorization)
+                }
+            }
+            let registrationDate = registeredAt
+            let registered = try await store
+                .perform(expectedDataGenerationID: observed.generation.id) {
+                    let snapshot = try await self.policyResolver.snapshot()
+                    guard !snapshot.removals.contains(where: { $0.deviceID == device.id })
+                    else { return false }
+                    let existing = snapshot.profiles.first { $0.id == device.id }
+                    if let existing, let resetAt = snapshot.currentDeviceResetBarrier {
+                        try await self.store.addRecordingDeviceRemoval(.init(
+                            id: .init(rawValue: UUID()),
+                            deviceID: existing.id,
+                            removedAt: resetAt,
+                            removedByDeviceID: device.id,
+                        ))
+                        return false
+                    }
+                    let profile = try self.registrationProfile(
+                        existing: existing,
+                        generationID: snapshot.generation.id,
+                    )
+                    if existing == nil { try await self.store.addRecordingDeviceProfile(profile) }
+                    if let identifier = device.hardwareModelIdentifier {
+                        let fact = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+                            identifier,
+                            for: profile,
+                        )
+                        try await self.store.addRecordingDeviceMetadataChange(fact)
+                    }
+                    if let pending {
+                        let event = RecordingDeviceMetadataChange(
+                            id: pending.id,
+                            deviceID: device.id,
+                            revision: 0,
+                            changedAt: registrationDate,
+                            changedByDeviceID: device.id,
+                            payload: .nickname(pending.nickname),
+                        )
+                        let replay = snapshot.metadataChanges.contains { $0.id == event.id }
+                        let hasNicknameHistory = snapshot.metadataChanges
+                            .contains { $0.deviceID == device.id && $0.field == .nickname }
+                        if replay || !hasNicknameHistory {
+                            try await self.store.addRecordingDeviceMetadataChange(event)
+                        }
+                    }
+                    try Task.checkCancellation()
+                    return true
+                }
+            if registered, let pending {
+                try await acknowledgeInitialNickname(device.id, pending.id)
+                pendingInitialNickname = nil
             }
             return try await reconcileLocked(authorization: authorization)
         } catch RecordingPersistenceError.currentDeviceRemoved {
@@ -461,19 +528,20 @@ public actor DeviceRecordingController: WhereShutdownable {
             try await discardRetryBacklogForOffChoice()
         }
         let snapshot = try await storeSnapshot()
-        guard let profile = snapshot.profiles.first(where: { $0.id == currentDevice.id }) else {
-            throw RecordingPersistenceError.currentDeviceNotRegistered(currentDevice.id)
-        }
         let removal = snapshot.removals
             .filter { $0.deviceID == currentDevice.id }
             .min { $0.removedAt < $1.removedAt }
 
         await ingestor.revokeRecordingAuthorization()
-        if removal != nil {
+        if removal != nil || snapshot.currentDeviceResetBarrier != nil {
             try await ingestor.discardRetryBacklog()
             needsReconciliation = false
             publishRuntimeState(.removed)
             throw RecordingPersistenceError.currentDeviceRemoved(currentDevice.id)
+        }
+
+        guard let profile = snapshot.profiles.first(where: { $0.id == currentDevice.id }) else {
+            throw RecordingPersistenceError.currentDeviceNotRegistered(currentDevice.id)
         }
 
         let generation = snapshot.generation
@@ -530,7 +598,22 @@ public actor DeviceRecordingController: WhereShutdownable {
             preconditionFailure("A required recording check-in was not created.")
         }
 
-        let configuration = RecordingDeviceConfiguration(
+        let configuration = currentConfiguration(
+            profile: profile,
+            checkIn: checkIn,
+            snapshot: snapshot,
+        )
+        needsReconciliation = false
+        publishRuntimeState(.applied(configuration))
+        return configuration
+    }
+
+    private func currentConfiguration(
+        profile: RecordingDeviceProfile,
+        checkIn: RecordingDeviceCheckIn,
+        snapshot: RecordingDevicePolicySnapshot,
+    ) -> RecordingDeviceConfiguration {
+        RecordingDeviceConfiguration(
             device: RecordingDevice(
                 profile: profile,
                 nicknameChange: RecordingDevicePolicyResolver.latestMetadata(
@@ -538,15 +621,13 @@ public actor DeviceRecordingController: WhereShutdownable {
                     field: .nickname,
                     in: snapshot.metadataChanges,
                 ),
+                hardwareModelChange: snapshot.hardwareModels[currentDevice.id],
                 checkIn: checkIn,
                 removal: nil,
             ),
             isCurrentDevice: true,
             localAutomaticRecordingEnabled: automaticRecordingChoice.isEnabled,
         )
-        needsReconciliation = false
-        publishRuntimeState(.applied(configuration))
-        return configuration
     }
 
     private func configurationsLocked(
@@ -578,14 +659,30 @@ public actor DeviceRecordingController: WhereShutdownable {
             } else {
                 .off
             }
-            let profileMatches = snapshot.profiles.first(where: { $0.id == currentDevice.id }).map {
-                $0 == expectedProfile(registrationGenerationID: $0.registrationGenerationID)
-            } ?? false
-            if needsReconciliation || removalExists || heartbeatDue
-                || currentCheckIn?.status != expectedStatus || !profileMatches
+            let profile = snapshot.profiles.first { $0.id == currentDevice.id }
+            if let profile, !removalExists, snapshot.currentDeviceResetBarrier == nil {
+                _ = try registrationProfile(existing: profile, generationID: snapshot.generation.id)
+            }
+            if needsReconciliation || removalExists || snapshot
+                .currentDeviceResetBarrier != nil || heartbeatDue
+                || currentCheckIn?.status != expectedStatus || profile == nil
+                ||
+                (currentDevice.hardwareModelIdentifier != nil && snapshot
+                    .hardwareModels[currentDevice.id] == nil)
             {
                 let authorization = await ingestor.authorizationStatus()
                 _ = try await registerAndReconcileLocked(authorization: authorization)
+            } else if let profile, let currentCheckIn,
+                      case let .applied(previous) = latestRuntimeUpdate?.state
+            {
+                let configuration = currentConfiguration(
+                    profile: profile,
+                    checkIn: currentCheckIn,
+                    snapshot: snapshot,
+                )
+                if configuration != previous {
+                    publishRuntimeState(.applied(configuration))
+                }
             }
         } catch RecordingPersistenceError.currentDeviceRemoved {
             // `reconcileLocked` already stopped ingestion and published the terminal state.
@@ -604,16 +701,22 @@ public actor DeviceRecordingController: WhereShutdownable {
         try await policyResolver.snapshot()
     }
 
-    private func expectedProfile(
-        registrationGenerationID: WhereDataGenerationID,
-    ) -> RecordingDeviceProfile {
-        RecordingDeviceProfile(
+    private nonisolated func registrationProfile(
+        existing: RecordingDeviceProfile?,
+        generationID: WhereDataGenerationID,
+    ) throws -> RecordingDeviceProfile {
+        let expected = RecordingDeviceProfile(
             id: currentDevice.id,
             systemName: currentDevice.systemName,
             kind: currentDevice.kind,
             registeredAt: registeredAt,
-            registrationGenerationID: registrationGenerationID,
+            registrationGenerationID: existing?.registrationGenerationID ?? generationID,
         )
+        guard let existing else { return expected }
+        guard existing.hasSamePortableValue(as: expected) else {
+            throw RecordingPersistenceError.conflictingImmutableRecord(id: existing.id.rawValue)
+        }
+        return existing
     }
 
     private func publishRuntimeState(_ state: RecordingDeviceRuntimeState) {

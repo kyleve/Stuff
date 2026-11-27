@@ -5,6 +5,7 @@ struct RecordingDevicePolicySnapshot {
     let generation: WhereDataGeneration
     let profiles: [RecordingDeviceProfile]
     let metadataChanges: [RecordingDeviceMetadataChange]
+    let hardwareModels: [RecordingDeviceID: RecordingDeviceMetadataChange]
     let checkIns: [RecordingDeviceCheckIn]
     let removals: [RecordingDeviceRemoval]
     let currentDeviceResetBarrier: Date?
@@ -31,10 +32,14 @@ struct RecordingDevicePolicyResolver {
             } else {
                 nil
             }
-            return RecordingDevicePolicySnapshot(
+            return try RecordingDevicePolicySnapshot(
                 generation: values.0,
                 profiles: values.1,
                 metadataChanges: values.2,
+                hardwareModels: RecordingDeviceMetadataChange.hardwareModels(
+                    in: values.2,
+                    for: values.1,
+                ),
                 checkIns: values.3,
                 removals: values.4,
                 currentDeviceResetBarrier: resetBarrier,

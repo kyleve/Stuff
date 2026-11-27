@@ -1,4 +1,4 @@
-# Where backup format v9
+# Where backup format v10
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -23,6 +23,7 @@ Current imports require the current schema, including its required collections.
 | 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 | 8 | Adds Canadian province and territory IDs to the region values a writer can store. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 | 9 | Requires a capture installation on every GPS observation and an author on every sample-attribution revision. | [Version 9 contents](#version-9-contents) |
+| 10 | Adds an immutable hardware-model event for every device profile. | [Version 10 contents](#version-10-contents) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -135,9 +136,50 @@ the output file is replaced. The upgrader adds a supplied profile only when it
 uses that profile to fill a missing origin.
 
 ```sh
-ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb old.zip upgraded.zip --source-profile original-phone.json
+ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb old.zip upgraded.zip --source-profile original-phone.json --device-models models.json
 ```
 
-A current v9 archive must already carry the required origins. The production
+An archive declaring v9 or later must already carry the required origins. The production
 decoder checks it before restoring any rows. Preserve the original ZIP and
 verify a separate upgraded copy before replacing an old phone's store.
+
+## Version 10 contents
+
+Each immutable device profile has a hardware-model event in
+`recordingDeviceMetadataChanges`. The payload field and its value key are both
+`hardwareModelIdentifier`. The value is the original raw machine identifier, such
+as `iPhone16,1`. The event targets and is authored by that installation, has
+revision zero, and uses its profile’s registration timestamp. The event survives
+Replace with its profile. Renames and nickname clears keep their existing IDs
+and generation semantics. A removed profile still has a model fact.
+
+Swift and the offline converter derive one UUIDv8 event ID for the installation.
+They concatenate the UTF-8 bytes of `com.stuff.where.device-hardware-model.v1`
+and the lowercase hyphenated installation UUID, hash the result with SHA-256,
+and take the first 16 bytes with the UUIDv8 version and RFC variant bits set.
+For installation `65000000-0000-0000-0000-000000000001`, the event ID is
+`64347ff5-9708-8b3b-ab2c-b2043fe0ff4f`. Repeated upgrades and live registration
+produce the same fact.
+
+For an older archive, supply a JSON model map keyed by the **original installation
+UUID**, with one entry for each profile missing its model fact. This illustrative
+map supplies identifiers for two installations.
+
+```json
+{
+  "50a308e2-1630-41c1-af3c-b42e8b1c4588": "iPhone16,1",
+  "853cdc06-e235-44c7-86ca-3edd0f14aeef": "iPad14,5"
+}
+```
+
+```sh
+ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb v9.zip v10.zip --device-models models.json
+```
+
+An older ZIP that also needs a historical source profile accepts both mapping
+flags. An existing model fact supplies its own identifier. A supplied mapping
+must agree with it. A manual-only archive with no profiles needs no map. The
+upgrader preserves profile values, original nickname history, GPS capture and
+correction authors, and assets. A valid model fact that synced before its profile
+can round-trip on its own. For a v10 input, a profile missing its hardware event
+or any contradictory hardware fact fails validation, even with a map.

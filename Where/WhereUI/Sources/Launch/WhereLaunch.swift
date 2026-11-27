@@ -355,6 +355,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 widgetRefresher: makeWidgetRefresher(admission),
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
+                acknowledgeInitialNickname: { [installationContextStore] deviceID, eventID in
+                    try await installationContextStore.acknowledgeInitialNickname(
+                        deviceID: deviceID,
+                        eventID: eventID,
+                    )
+                },
             )
             Self.logger.servicesAssembled()
             return services

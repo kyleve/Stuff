@@ -106,6 +106,8 @@ before distributing it to installations with synced history.
    A version-2 viewer waits while the shared version is 1. A version-1 reader that
    observes version 2 must update to reopen history.
 
+The device attribution releases use shared-data versions 3 (GPS capture and correction authors) and 4 (device models). Exercise the author and hardware-model fields in CloudKit Development. Verify the published floor and reason on a recorder and an older viewer, then deploy added schema fields before distributing the recorder build. Export the original phone’s history and verify its upgraded archive before cutover.
+
 Builds that predate the gate cannot obey it. A version increase does not make an existing unsupported build safe.
 The protocol stops the entire session after detection. It does not make metadata and SwiftData synchronization atomic across devices.
 

@@ -1,4 +1,6 @@
 import Foundation
+import LifecycleKit
+import TestHostSupport
 import Testing
 import UIKit
 @_spi(Testing) import WhereCore
@@ -46,6 +48,106 @@ struct InstallationRecordingContextStoreTests {
             try fixture.directory.resourceValues(forKeys: [.isExcludedFromBackupKey])
                 .isExcludedFromBackup == true,
         )
+    }
+
+    @Test(arguments: ["iPhone16,1", "iPhone99,8"])
+    func acceptingTheSuggestedNameNeedsOnlyTheModelFact(identifier: String) throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore(hardwareModelIdentifier: identifier)
+        let name = identifier == "iPhone16,1" ? "iPhone 15 Pro" : identifier
+        #expect(store.onboardingContext.currentDevice.modelName == name)
+        let confirmed = try store.confirmInitialRecording(isEnabled: false, name: name)
+        #expect(confirmed.pendingInitialNickname == nil)
+        #expect(try fixture.makeStore().resolve().currentDevice
+            .hardwareModelIdentifier == identifier)
+    }
+
+    @Test func aFailedSetupWriteRetainsTheNameForRetry() async throws {
+        let fixture = try makeFixture(ids: [Self.deviceID, UUID(), UUID()])
+        defer { fixture.cleanup() }
+        let sidecar = fixture.makeStore()
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: sidecar,
+            makeBootstrap: { _ in UnusedBootstrap() },
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+        )
+        let flow = OnboardingFlowModel(
+            gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
+            installationContext: sidecar.onboardingContext,
+            startsAtRecordingChoice: true,
+            initialTheme: .standard,
+        )
+        // Occupying the sidecar's directory path with a file forces the atomic write to fail.
+        try Data().write(to: fixture.directory)
+        flow.deviceName = "Travel Phone"
+        flow.recordingEnabled = false
+        flow.finish(using: model)
+        try await waitForAsync { !model.isCompletingOnboarding }
+
+        #expect(flow.confirmationError != nil)
+        #expect(flow.phase == .location)
+        #expect(!flow.isFinishing)
+        #expect(flow.deviceName == "Travel Phone")
+        #expect(try sidecar.resolve().automaticRecordingEnabled == nil)
+        try FileManager.default.removeItem(at: fixture.directory)
+        let retry = try model.confirmInitialRecordingChoice(
+            isEnabled: flow.recordingEnabled,
+            name: flow.deviceName,
+        )
+        #expect(retry.pendingInitialNickname?.nickname == "Travel Phone")
+    }
+
+    @Test func customNameSurvivesRelaunchUntilItsExactEventIsAcknowledged() throws {
+        let eventID = UUID()
+        let fixture = try makeFixture(ids: [Self.deviceID, eventID])
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        let confirmed = try store.confirmInitialRecording(
+            isEnabled: false,
+            name: "  Travel Phone  ",
+        )
+        let pending = try #require(confirmed.pendingInitialNickname)
+        #expect(pending.id.rawValue == eventID)
+        #expect(pending.nickname == "Travel Phone")
+
+        let restored = fixture.makeStore()
+        #expect(try restored.resolve() == confirmed)
+        #expect(try restored.confirmInitialRecording(isEnabled: true, name: "Another") == confirmed)
+        try restored.acknowledgeInitialNickname(
+            deviceID: RecordingDeviceID(rawValue: UUID()),
+            eventID: pending.id,
+        )
+        try restored.acknowledgeInitialNickname(
+            deviceID: confirmed.currentDevice.id,
+            eventID: .init(rawValue: UUID()),
+        )
+        #expect(try fixture.makeStore().resolve().pendingInitialNickname == pending)
+        try restored.acknowledgeInitialNickname(
+            deviceID: confirmed.currentDevice.id,
+            eventID: pending.id,
+        )
+        #expect(try fixture.makeStore().resolve().pendingInitialNickname == nil)
+    }
+
+    @Test func oldConfirmedContextUsesThisPhonesModelAndRetainsItsImmutableProfile() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let confirmed = try fixture.makeStore().confirmInitialRecording(isEnabled: false)
+        var bytes = try #require(JSONSerialization
+            .jsonObject(with: Data(contentsOf: fixture.fileURL)) as? [String: Any])
+        bytes.removeValue(forKey: "hardwareModelIdentifier")
+        try JSONSerialization.data(withJSONObject: bytes).write(to: fixture.fileURL)
+        let restored = try fixture.makeStore(hardwareModelIdentifier: "iPhone99,8").resolve()
+        #expect(restored.currentDevice.id == confirmed.currentDevice.id)
+        #expect(restored.currentDevice.systemName == confirmed.currentDevice.systemName)
+        #expect(restored.registeredAt == confirmed.registeredAt)
+        #expect(restored.currentDevice.modelName == "iPhone99,8")
+        #expect(restored.pendingInitialNickname == nil)
+        #expect(restored.automaticRecordingEnabled == false)
     }
 
     @Test func repeatedResolutionAndConfirmationReuseTheSameContext() throws {
@@ -105,10 +207,13 @@ struct InstallationRecordingContextStoreTests {
     }
 
     @Test func completedOnboardingImportRepairsLostPreferenceAfterStoreRecreation() async throws {
-        let fixture = try makeFixture()
+        let fixture = try makeFixture(ids: [Self.deviceID, UUID()])
         defer { fixture.cleanup() }
         let installationStore = fixture.makeStore()
-        let installationContext = try installationStore.confirmInitialRecording(isEnabled: true)
+        let installationContext = try installationStore.confirmInitialRecording(
+            isEnabled: false,
+            name: "Travel Phone",
+        )
         let details = try BackupCoordinator.ImportRecoveryDetails(
             transactionID: #require(UUID(
                 uuidString: "11111111-2222-3333-4444-555555555555",
@@ -171,6 +276,25 @@ struct InstallationRecordingContextStoreTests {
         #expect(!isNeeded)
         #expect(relaunchedModel.hasOnboarded)
         #expect(relaunchedStore.backupImportRecovery == nil)
+        #expect(relaunchedStore.onboardingImportCompletion?.transactionID == details.transactionID)
+
+        // Foreground registration completes the name after import recovery bypasses setup.
+        let identity = try relaunchedStore.resolve()
+        let registry = try SwiftDataStore.inMemory()
+        let resumed = WhereServices(
+            store: registry,
+            locationSource: ScriptedLocationSource(),
+            installationContext: identity,
+            acknowledgeInitialNickname: { deviceID, eventID in
+                try await relaunchedStore.acknowledgeInitialNickname(
+                    deviceID: deviceID,
+                    eventID: eventID,
+                )
+            },
+        )
+        let registration = try await resumed.recording.register(authorization: .denied)
+        #expect(registration.device.displayName == "Travel Phone")
+        #expect(try relaunchedStore.resolve().pendingInitialNickname == nil)
         #expect(relaunchedStore.onboardingImportCompletion?.transactionID == details.transactionID)
     }
 
@@ -256,12 +380,13 @@ struct InstallationRecordingContextStoreTests {
 
     @Test func rejoinPersistsANewIdentityWithRecordingDefaultedOff() throws {
         let fixture = try makeFixture(
-            ids: [Self.deviceID, Self.resetDeviceID],
+            ids: [Self.deviceID, UUID(), Self.resetDeviceID, UUID()],
             dates: [Self.registeredAt, Self.resetRegisteredAt],
         )
         defer { fixture.cleanup() }
         let store = fixture.makeStore()
-        _ = try store.confirmInitialRecording(isEnabled: true)
+        let old = try store.confirmInitialRecording(isEnabled: true, name: "Old Name")
+        let oldEventID = try #require(old.pendingInitialNickname?.id)
 
         let rejoined = try store.rejoin()
         let relaunched = try fixture.makeStore().resolve()
@@ -271,6 +396,12 @@ struct InstallationRecordingContextStoreTests {
         #expect(rejoined.isRejoining)
         #expect(rejoined.recommendedRecordingEnabled == false)
         #expect(relaunched == rejoined)
+        #expect(rejoined.currentDevice.modelName == "iPhone 15 Pro")
+        #expect(rejoined.pendingInitialNickname == nil)
+        let named = try store.confirmInitialRecording(isEnabled: false, name: "New Name")
+        try store.acknowledgeInitialNickname(deviceID: old.currentDevice.id, eventID: oldEventID)
+        #expect(try fixture.makeStore().resolve().pendingInitialNickname == named
+            .pendingInitialNickname)
     }
 
     @Test func committedResetCleanupRetriesWithoutRestoringTheOldContextOrRotatingAgain() throws {
@@ -385,6 +516,7 @@ struct InstallationRecordingContextStoreTests {
         @MainActor
         func makeStore(
             fileManager: FileManager = .default,
+            hardwareModelIdentifier: String = "iPhone16,1",
         ) -> FileInstallationRecordingContextStore {
             let sequence = IDSequence(ids)
             let clock = DateSequence(dates)
@@ -392,6 +524,7 @@ struct InstallationRecordingContextStoreTests {
                 fileURL: fileURL,
                 fileManager: fileManager,
                 systemName: "iPhone",
+                hardwareModelIdentifier: hardwareModelIdentifier,
                 kind: .phone,
                 makeUUID: sequence.next,
                 now: clock.next,

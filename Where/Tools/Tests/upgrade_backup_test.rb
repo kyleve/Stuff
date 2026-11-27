@@ -8,6 +8,8 @@ require_relative "../../../.agents/skills/upgrade-where-backup/scripts/upgrade_a
 class UpgradeBackupTest < Minitest::Test
   PHONE = "store://devices/65000000-0000-0000-0000-000000000001"
   TABLET = "store://devices/65000000-0000-0000-0000-000000000002"
+  PHONE_MODELS = { PHONE.delete_prefix("store://devices/") => "iPhone16,1" }.freeze
+  PHONE_MODEL_EVENT_ID = "64347FF5-9708-8B3B-AB2C-B2043FE0FF4F"
   SAMPLE = "70000000-0000-0000-0000-000000000001"
   SECOND_SAMPLE = "70000000-0000-0000-0000-000000000002"
   GENERATION = { "rawValue" => "00000000-0000-0000-0000-0000000000E0" }.freeze
@@ -53,25 +55,29 @@ class UpgradeBackupTest < Minitest::Test
     manifest = base_manifest(3).merge(
       "recordingDeviceProfiles" => [profile.except("registrationGenerationID").merge("kind" => "other", "registrationEpochID" => GENERATION.dup)],
       "recordingDeviceMetadataChanges" => [{
+        "id" => SAMPLE, "revision" => 1, "changedAt" => 2,
         "field" => "nickname", "deviceID" => PHONE, "changedByDeviceID" => PHONE,
         "nickname" => "Travel iPad",
       }, {
+        "id" => SECOND_SAMPLE, "revision" => 2, "changedAt" => 3,
         "field" => "nickname", "deviceID" => PHONE, "changedByDeviceID" => PHONE,
       }],
     )
 
-    upgraded = upgrade_manifest(manifest)
+    upgraded = upgrade_manifest(manifest, device_models: PHONE_MODELS)
 
     assert_equal CURRENT_FORMAT_VERSION, upgraded.fetch("formatVersion")
     assert_equal profile.merge("kind" => { "other" => {} }), upgraded.fetch("recordingDeviceProfiles").first
     assert_equal({
+      "id" => SAMPLE, "revision" => 1, "changedAt" => 2,
       "deviceID" => PHONE, "changedByDeviceID" => PHONE,
       "payload" => { "field" => "nickname", "nickname" => "Travel iPad" },
     }, upgraded.fetch("recordingDeviceMetadataChanges").first)
     assert_equal({
+      "id" => SECOND_SAMPLE, "revision" => 2, "changedAt" => 3,
       "deviceID" => PHONE, "changedByDeviceID" => PHONE,
       "payload" => { "field" => "nickname" },
-    }, upgraded.fetch("recordingDeviceMetadataChanges").last)
+    }, upgraded.fetch("recordingDeviceMetadataChanges")[1])
   end
 
   def test_released_v7_and_v8_preserve_manual_only_canadian_history
@@ -101,7 +107,7 @@ class UpgradeBackupTest < Minitest::Test
     manifest["samples"] = [gps_sample.merge("timestamp" => 1000.25)]
     original = Marshal.load(Marshal.dump(manifest["samples"].first))
 
-    upgraded = upgrade_manifest(manifest, source_profile: profile)
+    upgraded = upgrade_manifest(manifest, source_profile: profile, device_models: PHONE_MODELS)
 
     assert_equal original.merge("recordingDeviceID" => PHONE, "motion" => nil), upgraded.fetch("samples").first
     assert_equal [], upgraded.fetch("sampleAttributionRevisions")
@@ -272,13 +278,13 @@ class UpgradeBackupTest < Minitest::Test
     (1..8).each do |version|
       manifest = version >= 7 ? modern_manifest(version) : base_manifest(version)
       manifest["samples"] = [gps_sample]
-      result = upgrade_manifest(manifest, source_profile: profile)
+      result = upgrade_manifest(manifest, source_profile: profile, device_models: PHONE_MODELS)
       assert_equal PHONE, result.fetch("samples").first.fetch("recordingDeviceID")
       assert_equal [profile], result.fetch("recordingDeviceProfiles")
-      assert_equal result, upgrade_manifest(Marshal.load(Marshal.dump(result)), source_profile: profile)
+      assert_equal result, upgrade_manifest(Marshal.load(Marshal.dump(result)), source_profile: profile, device_models: PHONE_MODELS)
     end
     prototype = base_manifest(7).merge("samples" => [gps_sample], "trackedRegions" => ["california"])
-    result = upgrade_manifest(prototype, source_profile: profile)
+    result = upgrade_manifest(prototype, source_profile: profile, device_models: PHONE_MODELS)
     assert_equal PHONE, result.fetch("samples").first.fetch("recordingDeviceID")
     assert_equal [{ "region" => "us-CA", "appearance" => nil, "order" => 0 }], result.fetch("primaryRegions")
   end
@@ -289,7 +295,7 @@ class UpgradeBackupTest < Minitest::Test
       manifest["recordingDeviceProfiles"] = [profile] if include_profile
       manifest["samples"] = [gps_sample.merge("recordingDeviceID" => PHONE), gps_sample.merge("id" => SECOND_SAMPLE)]
       manifest["sampleAttributionRevisions"] = [revision.merge("sampleID" => SECOND_SAMPLE, "updatedAt" => 50)]
-      result = upgrade_manifest(manifest)
+      result = upgrade_manifest(manifest, device_models: PHONE_MODELS)
       assert_equal [PHONE, PHONE], result.fetch("samples").map { |sample| sample.fetch("recordingDeviceID") }
       assert_equal PHONE, result.fetch("sampleAttributionRevisions").first.fetch("changedByDeviceID")
       assert_equal include_profile ? [profile] : [], result.fetch("recordingDeviceProfiles")
@@ -304,7 +310,7 @@ class UpgradeBackupTest < Minitest::Test
       revision.merge("changedByDeviceID" => TABLET), revision.merge("id" => SECOND_SAMPLE),
     ]
     assert_rejected { upgrade_manifest(Marshal.load(Marshal.dump(manifest))) }
-    upgraded = upgrade_manifest(manifest, source_profile: { "id" => PHONE })
+    upgraded = upgrade_manifest(manifest, source_profile: { "id" => PHONE }, device_models: PHONE_MODELS)
     assert_equal [TABLET, PHONE], upgraded.fetch("samples").map { |row| row.fetch("recordingDeviceID") }
     assert_equal [TABLET, PHONE], upgraded.fetch("sampleAttributionRevisions").map { |row| row.fetch("changedByDeviceID") }
     assert_equal [profile], upgraded.fetch("recordingDeviceProfiles")
@@ -331,14 +337,14 @@ class UpgradeBackupTest < Minitest::Test
       "sampleAttributionRevisions" => [revision],
     )
     assert_rejected { upgrade_manifest(manifest) }
-    assert_equal PHONE, upgrade_manifest(manifest, source_profile: { "id" => PHONE })
+    assert_equal PHONE, upgrade_manifest(manifest, source_profile: { "id" => PHONE }, device_models: PHONE_MODELS)
       .fetch("sampleAttributionRevisions").first.fetch("changedByDeviceID")
   end
 
   def test_missing_origin_on_a_duplicate_uses_the_same_record_even_with_two_devices
     rows = [gps_sample, gps_sample.merge("recordingDeviceID" => TABLET)]
     manifest = modern_manifest(8).merge("recordingDeviceProfiles" => [profile], "samples" => rows)
-    result = upgrade_manifest(manifest, source_profile: { "id" => PHONE })
+    result = upgrade_manifest(manifest, source_profile: { "id" => PHONE }, device_models: PHONE_MODELS)
     assert_equal [TABLET, TABLET], result.fetch("samples").map { |row| row.fetch("recordingDeviceID") }
     assert_equal [profile], result.fetch("recordingDeviceProfiles")
   end
@@ -347,20 +353,20 @@ class UpgradeBackupTest < Minitest::Test
     source = modern_manifest(8).merge("samples" => [gps_sample])
     driver = UpgradeAndVerify.new(["input.zip", "output.zip"])
     [100, 200].each do |time|
-      result = upgrade_manifest(Marshal.load(Marshal.dump(source)).merge("exportedAt" => time), source_profile: profile)
+      result = upgrade_manifest(Marshal.load(Marshal.dump(source)).merge("exportedAt" => time), source_profile: profile, device_models: PHONE_MODELS)
       assert_equal [profile], result.fetch("recordingDeviceProfiles")
       assert driver.send(:added_source_profile?, profile, source, result)
       result.fetch("recordingDeviceProfiles").clear
       assert_raises(RuntimeError) { driver.send(:added_source_profile?, profile, source, result) }
     end
     empty = modern_manifest(8).merge("samples" => [])
-    assert_empty upgrade_manifest(empty, source_profile: profile).fetch("recordingDeviceProfiles")
+    assert_empty upgrade_manifest(empty, source_profile: profile, device_models: PHONE_MODELS).fetch("recordingDeviceProfiles")
   end
 
   def test_profileless_legacy_record_requires_a_complete_original_profile
     manifest = modern_manifest(8).merge("samples" => [gps_sample])
     assert_rejected { upgrade_manifest(manifest) }
-    assert_rejected { upgrade_manifest(manifest, source_profile: { "id" => PHONE }) }
+    assert_rejected { upgrade_manifest(manifest, source_profile: { "id" => PHONE }, device_models: PHONE_MODELS) }
     assert_rejected { upgrade_manifest(manifest, source_profile: profile.except("registeredAt")) }
     assert_rejected { upgrade_manifest(manifest, source_profile: profile.merge("id" => "not-a-device")) }
   end
@@ -378,7 +384,7 @@ class UpgradeBackupTest < Minitest::Test
       gps_sample.merge("source" => { "manual" => {} }, "recordingDeviceID" => TABLET),
       gps_sample.merge("id" => SECOND_SAMPLE, "source" => { "evidenceImplied" => { "id" => SAMPLE, "kind" => { "photo" => {} } } }),
     ]
-    result = upgrade_manifest(modern_manifest(8).merge("samples" => Marshal.load(Marshal.dump(samples))), source_profile: profile)
+    result = upgrade_manifest(modern_manifest(8).merge("samples" => Marshal.load(Marshal.dump(samples))), source_profile: profile, device_models: PHONE_MODELS)
     assert_equal samples, result.fetch("samples")
     assert_empty result.fetch("recordingDeviceProfiles")
   end
@@ -389,6 +395,8 @@ class UpgradeBackupTest < Minitest::Test
       output = File.join(work, "converted.zip")
       mapping = File.join(work, "phone.json")
       File.write(mapping, JSON.generate(profile))
+      models = File.join(work, "models.json")
+      File.write(models, JSON.generate(PHONE_MODELS))
       asset_bytes = "\x00\xff\x08synthetic".b
       manifest = modern_manifest(8).merge(
         "samples" => [gps_sample],
@@ -401,7 +409,7 @@ class UpgradeBackupTest < Minitest::Test
         assert system("zip", "-q", "-r", input, ".", chdir: staging)
       end
       original = File.binread(input)
-      capture_io { main([input, output, "--source-profile", mapping]) }
+      capture_io { main([input, output, "--source-profile", mapping, "--device-models", models]) }
       verified = File.binread(output)
       assert_equal original, File.binread(input)
       assert_equal asset_bytes, Open3.capture3("unzip", "-p", output, "assets/proof", binmode: true).first
@@ -458,10 +466,94 @@ class UpgradeBackupTest < Minitest::Test
       { "sampleAttributionRevisions" => [PHONE, TABLET].map { |id| revision.merge("changedByDeviceID" => id) } },
     ]
     invalid.each do |fields|
-      assert_rejected { upgrade_manifest(modern_manifest(CURRENT_FORMAT_VERSION).merge(fields), source_profile: profile) }
+      assert_rejected { upgrade_manifest(modern_manifest(CURRENT_FORMAT_VERSION).merge(fields), source_profile: profile, device_models: PHONE_MODELS) }
     end
     known = modern_manifest(CURRENT_FORMAT_VERSION).merge("sampleAttributionRevisions" => [revision.merge("changedByDeviceID" => TABLET)])
     assert_equal known, upgrade_manifest(known)
+  end
+
+  def test_v9_adds_per_device_model_facts_and_preserves_immutable_profiles_and_names
+    tablet = profile.merge("id" => TABLET, "registeredAt" => 3.125, "systemName" => "iPad", "kind" => { "tablet" => {} })
+    renames = [nil, "Travel Phone"].map.with_index do |name, i|
+      { "id" => [SAMPLE, SECOND_SAMPLE][i], "revision" => i, "deviceID" => PHONE, "changedByDeviceID" => TABLET,
+        "changedAt" => 5 + i, "payload" => { "field" => "nickname", "nickname" => name } }
+    end
+    source = modern_manifest(9).merge("recordingDeviceProfiles" => [tablet, profile], "recordingDeviceMetadataChanges" => renames,
+                                     "recordingDeviceRemovals" => [{ "deviceID" => TABLET, "removedByDeviceID" => PHONE }])
+    models = PHONE_MODELS.merge(TABLET.delete_prefix("store://devices/") => "iPad99,9")
+    result = upgrade_manifest(Marshal.load(Marshal.dump(source)), device_models: models)
+    facts = [phone_fact, phone_fact.merge(
+      "id" => "96959470-96E9-8A27-B60E-FB546E3CDC66", "deviceID" => TABLET, "changedByDeviceID" => TABLET,
+      "changedAt" => 3.125, "payload" => { "field" => "hardwareModelIdentifier", "hardwareModelIdentifier" => "iPad99,9" },
+    )]
+    assert_equal source.merge("formatVersion" => 10, "recordingDeviceMetadataChanges" => renames + facts), result
+    assert_equal result, upgrade_manifest(Marshal.load(Marshal.dump(result)), source_profile: profile, device_models: models)
+    driver = UpgradeAndVerify.new(["in", "out"])
+    assert_equal 2, driver.send(:verify_model_events!, source, result, models)
+    corrupt = Marshal.load(Marshal.dump(result))
+    corrupt.fetch("recordingDeviceProfiles").first["systemName"] = "Changed"
+    assert_raises(RuntimeError) { driver.send(:verify_model_events!, source, corrupt, models) }
+    corrupt = Marshal.load(Marshal.dump(result))
+    corrupt.fetch("recordingDeviceMetadataChanges").first["revision"] = 10
+    assert_raises(RuntimeError) { driver.send(:verify_model_events!, source, corrupt, models) }
+    corrupt.fetch("recordingDeviceMetadataChanges").shift
+    assert_raises(RuntimeError) { driver.send(:verify_model_events!, source, corrupt, models) }
+  end
+
+  def test_absent_models_need_explicit_original_uuid_mappings
+    source = modern_manifest(9).merge("recordingDeviceProfiles" => [profile, profile.merge("id" => TABLET)])
+    assert_rejected { upgrade_manifest(Marshal.load(Marshal.dump(source)), device_models: PHONE_MODELS) }
+    assert_rejected { upgrade_manifest(source.merge("formatVersion" => 10), device_models: PHONE_MODELS) }
+    assert_rejected { upgrade_manifest(source, device_models: { PHONE => "iPhone16,1" }) }
+    assert_rejected { upgrade_manifest(source, device_models: { PHONE.delete_prefix("store://devices/") => "\u200B\u00a0\n" }) }
+    manual = modern_manifest(9).merge("manualDays" => [{ "regions" => ["ca-ON"] }])
+    assert_equal manual.merge("formatVersion" => 10), upgrade_manifest(manual)
+  end
+
+  def test_current_metadata_rejects_two_fields_in_one_event
+    source = modern_manifest(10)
+    %w[nickname hardwareModelIdentifier].each do |field|
+      event = phone_fact
+      event["id"] = SAMPLE if field == "nickname"
+      event["payload"] = event.fetch("payload").merge("field" => field, "nickname" => "Travel phone")
+      assert_rejected { upgrade_manifest(source.merge("recordingDeviceMetadataChanges" => [event])) }
+    end
+  end
+
+  def test_older_provenance_rules_stay_strict_for_v9
+    source = modern_manifest(9)
+    [{ "samples" => [gps_sample] }, { "sampleAttributionRevisions" => [revision] }].each do |fields|
+      assert_rejected { upgrade_manifest(source.merge(fields), source_profile: profile, device_models: PHONE_MODELS) }
+    end
+  end
+
+  def test_preserves_preexisting_hardware_fact_without_a_map_or_profile
+    [[], [profile]].each do |profiles|
+      [9, 10].each do |version|
+        source = modern_manifest(version).merge("recordingDeviceProfiles" => profiles, "recordingDeviceMetadataChanges" => [phone_fact])
+        assert_equal source.merge("formatVersion" => 10), upgrade_manifest(Marshal.load(Marshal.dump(source)))
+        assert_rejected { upgrade_manifest(source, device_models: PHONE_MODELS.transform_values { "iPhone99,42" }) }
+      end
+    end
+  end
+
+  def test_rejects_invalid_hardware_events_and_event_identity_collisions
+    source = modern_manifest(10).merge("recordingDeviceProfiles" => [profile])
+    invalid = [
+      phone_fact.merge("id" => SECOND_SAMPLE), phone_fact.merge("changedByDeviceID" => TABLET),
+      phone_fact.merge("deviceID" => TABLET), phone_fact.merge("revision" => 1),
+      phone_fact.merge("changedAt" => 1), phone_fact.merge("payload" => { "field" => "hardwareModelIdentifier" }),
+      phone_fact.merge("payload" => { "field" => "hardwareModelIdentifier", "hardwareModelIdentifier" => " " }),
+    ]
+    invalid.each { |row| assert_rejected { upgrade_manifest(source.merge("recordingDeviceMetadataChanges" => [row])) } }
+    disagreeing = phone_fact.merge("payload" => { "field" => "hardwareModelIdentifier", "hardwareModelIdentifier" => "iPhone18,1" })
+    collision = phone_fact.merge("payload" => { "field" => "nickname", "nickname" => "My phone" })
+    [[phone_fact, disagreeing], [disagreeing, phone_fact], [phone_fact, collision]].each do |rows|
+      assert_rejected { upgrade_manifest(source.merge("recordingDeviceMetadataChanges" => rows)) }
+    end
+    assert_rejected { upgrade_manifest(source.merge("formatVersion" => 9, "recordingDeviceMetadataChanges" => [collision]), device_models: PHONE_MODELS) }
+    duplicate = source.merge("recordingDeviceMetadataChanges" => [phone_fact, phone_fact.dup])
+    assert_equal duplicate, upgrade_manifest(Marshal.load(Marshal.dump(duplicate)))
   end
 
   private
@@ -482,6 +574,13 @@ class UpgradeBackupTest < Minitest::Test
 
   def revision
     { "id" => "80000000-0000-0000-0000-000000000001", "sampleID" => SAMPLE, "updatedAt" => 5 }
+  end
+
+  def phone_fact
+    {
+      "id" => PHONE_MODEL_EVENT_ID, "revision" => 0, "changedAt" => 0, "deviceID" => PHONE, "changedByDeviceID" => PHONE,
+      "payload" => { "field" => "hardwareModelIdentifier", "hardwareModelIdentifier" => "iPhone16,1" },
+    }
   end
 
   def profile

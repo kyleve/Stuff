@@ -6,8 +6,8 @@ If Travel Phone records a location and Home iPad corrects it, the saved point sh
 
 - **Request.** On November 20, 2026 the owner asked for a plan covering device names, model-based fallback, and the origin of actions and locations. Their existing history comes from one phone. They selected the offline upgrader for old data.
 - **Operation.** On November 27 the owner approved execution of the full series. Plan PR #547 at `41b1b116b` has no review comments or threads. Main is `a6b213ebe`. The owner selected synthetic archives for this run and asked to leave the live two-device CloudKit test pending.
-- **Stage.** Executing [01](01-location-provenance.md) on `codex/where-location-provenance` in the plan worktree. The backup worker owns the offline converter and its checks, the events worker owns correction authors and the identity worker owns GPS persistence and retry. The primary agent owns the Swift archive and version gates, integration, verification, publication and reporting.
-- **Resume.** Verify and publish 01, then execute 02 and refine 03 using their results. [STU-337](https://linear.app/kve/issue/STU-337)
+- **Stage.** [01](01-location-provenance.md) shipped for review in [PR #573](https://github.com/kyleve/Stuff/pull/573) at `be7c927c7`. Executing [02](02-device-names.md) on `codex/where-device-names`. The identity worker owns setup, local identity and Settings. The events worker owns synced metadata, registration and resolution. The backup worker owns offline conversion and its verification driver. The primary agent owns model labels, archive admission and compatibility, end-to-end checks, review and publication.
+- **Resume.** Verify registration on a generic profile, an upgraded synthetic archive, and setup snapshots. Publish 02 and use its results to refine and execute [03](03-action-attribution.md). [STU-337](https://linear.app/kve/issue/STU-337)
 
 ## User stories
 

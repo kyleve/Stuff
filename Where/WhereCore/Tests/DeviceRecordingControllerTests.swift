@@ -63,21 +63,27 @@ struct DeviceRecordingControllerTests {
         let (controller, store, _, _) = try makeController(enabled: false)
         _ = try await controller.register(authorization: .always)
         let remoteID = RecordingDeviceID(rawValue: UUID())
+        let profile = RecordingDeviceProfile(
+            id: remoteID,
+            systemName: "iPad",
+            kind: .tablet,
+            registeredAt: Self.now,
+            registrationGenerationID: .initial,
+        )
+        try await store.perform { try await store.addRecordingDeviceProfile(profile) }
+        #expect(try await controller.displayNames()[remoteID] == nil)
         try await store.perform {
-            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
-                id: remoteID,
-                systemName: "iPad",
-                kind: .tablet,
-                registeredAt: Self.now,
-                registrationGenerationID: .initial,
+            try await store.addRecordingDeviceMetadataChange(.hardwareModelIdentifier(
+                "iPad99,1",
+                for: profile,
             ))
         }
-        #expect(try await controller.displayNames()[remoteID] == "iPad")
+        #expect(try await controller.displayNames()[remoteID] == "iPad99,1")
         _ = try await controller.rename(remoteID, to: "Old tablet")
         _ = try await controller.rename(remoteID, to: "Travel tablet")
         #expect(try await controller.displayNames()[remoteID] == "Travel tablet")
         _ = try await controller.rename(remoteID, to: "  ")
-        #expect(try await controller.displayNames()[remoteID] == "iPad")
+        #expect(try await controller.displayNames()[remoteID] == "iPad99,1")
         _ = try await controller.rename(remoteID, to: "Travel tablet")
 
         _ = try await controller.remove(remoteID)
@@ -85,6 +91,123 @@ struct DeviceRecordingControllerTests {
         #expect(try await controller.displayNames()[remoteID] == "Travel tablet")
         #expect(try await controller.devices().contains { $0.id == remoteID } == false)
         #expect(try await controller.displayNames()[RecordingDeviceID(rawValue: UUID())] == nil)
+    }
+
+    @Test func registeringAConfirmedInstallationReplaysItsNicknameWithoutOverridingALaterRename(
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let device = CurrentRecordingDevice.preview
+        let context = InstallationRecordingContext(
+            currentDevice: device,
+            registeredAt: Self.now,
+            recordingChoice: .unconfirmed,
+            isRejoining: false,
+        ).confirmingInitialRecording(isEnabled: false, name: " Travel Phone ")
+        let pending = try #require(context.pendingInitialNickname)
+        let existingProfile = RecordingDeviceProfile(
+            id: device.id,
+            systemName: "iPhone",
+            kind: .phone,
+            registeredAt: Self.now,
+            registrationGenerationID: .initial,
+        )
+        try await store.perform { try await store.addRecordingDeviceProfile(existingProfile) }
+        let first = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            installationContext: context,
+            acknowledgeInitialNickname: { _, _ in throw WaitTimeout() },
+        )
+        await #expect(throws: WaitTimeout.self) {
+            try await first.recording.register(authorization: .denied)
+        }
+        let initial = try await store.recordingDeviceMetadataChanges()
+        #expect(initial.count == 2)
+        #expect(initial.first { $0.id == pending.id }?.nickname == "Travel Phone")
+        _ = try await first.recording.rename(device.id, to: "Renamed")
+        let beforeReplay = try await store.recordingDeviceMetadataChanges()
+        let relaunched = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            installationContext: context,
+            acknowledgeInitialNickname: { id, event in
+                #expect(id == device.id)
+                #expect(event == pending.id)
+            },
+        )
+        let configuration = try await relaunched.recording.register(authorization: .denied)
+        #expect(configuration.device.displayName == "Renamed")
+        #expect(configuration.device.modelName == "iPhone 15 Pro")
+        #expect(configuration.device.status == .off)
+        #expect(try await store.recordingDeviceMetadataChanges() == beforeReplay)
+        #expect(try await store.recordingDeviceProfiles() == [existingProfile])
+        _ = try await relaunched.recording.rename(device.id, to: "  iPhone 15 Pro  ")
+        #expect(try await relaunched.recording.displayNames()[device.id] == "iPhone 15 Pro")
+    }
+
+    @Test func registrationRejectsAReusedInstallationIDWithoutPublishingMetadata() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let device = CurrentRecordingDevice.preview
+        let context = InstallationRecordingContext(
+            currentDevice: device,
+            registeredAt: Self.now,
+            recordingChoice: .unconfirmed,
+            isRejoining: false,
+        )
+        .confirmingInitialRecording(isEnabled: false, name: "New name")
+        let conflictingProfile = RecordingDeviceProfile(
+            id: device.id,
+            systemName: "iPad",
+            kind: .tablet,
+            registeredAt: Self.now,
+            registrationGenerationID: .initial,
+        )
+        try await store.perform { try await store.addRecordingDeviceProfile(conflictingProfile) }
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            installationContext: context,
+        )
+        await #expect(throws: RecordingPersistenceError
+            .conflictingImmutableRecord(id: device.id.rawValue))
+        {
+            try await services.recording.register(authorization: .denied)
+        }
+        #expect(try await store.recordingDeviceProfiles() == [conflictingProfile])
+        #expect(try await store.recordingDeviceMetadataChanges().isEmpty)
+    }
+
+    @Test func removalBeforeProfileDeliveryPreventsPublishingModelOrInitialName() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let device = CurrentRecordingDevice.preview
+        let context = InstallationRecordingContext(
+            currentDevice: device,
+            registeredAt: Self.now,
+            recordingChoice: .unconfirmed,
+            isRejoining: false,
+        )
+        .confirmingInitialRecording(isEnabled: false, name: "Retired")
+        try await store.perform {
+            try await store.addRecordingDeviceRemoval(.init(
+                id: .init(rawValue: UUID()),
+                deviceID: device.id,
+                removedAt: Self.now,
+                removedByDeviceID: .init(rawValue: UUID()),
+            ))
+        }
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            installationContext: context,
+            acknowledgeInitialNickname: { _, _ in
+                Issue.record("Retired installation acknowledged its name")
+            },
+        )
+        await #expect(throws: RecordingPersistenceError.currentDeviceRemoved(device.id)) {
+            try await services.recording.register(authorization: .denied)
+        }
+        #expect(try await store.recordingDeviceProfiles().isEmpty)
+        #expect(try await store.recordingDeviceMetadataChanges().isEmpty)
     }
 
     @Test func registrationAppliesLocalChoiceAndWritesAdvisoryStatus() async throws {

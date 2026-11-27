@@ -1,6 +1,6 @@
 # 03 — Identify the device behind saved actions
 
-- Status: outline
+- Status: draft
 - Depends on: [01 — GPS capture and correction](01-location-provenance.md) and [02 — Device names](02-device-names.md)
 - Shared scope: [US-02, US-03](README.md#user-stories), [R-04 through R-07](README.md#requirements) and [X-01 through X-03](README.md#scope-boundaries)
 
@@ -50,12 +50,32 @@ try await backup.restore(archivedEvidence)
 
 Keep existing historical device labels working through the resolver from 02. For the new author fields, compare the records returned by Core with their exported values. This phase requires no new audit rows, screens or controls in the app.
 
-## Refinement trigger
+## Persisted roles
 
-The owner settled coverage and retention on November 20 in [Q-03](README.md#q-03). Refine when 01 demonstrates A-captures/B-corrects through restore and 02 supplies historical names. Walk each inventory row from its real app, intent or extension entry point through the store, sync, archive and any existing reader. List each actor field and its SwiftData and archive representation. Use the existing latest-write or event identity for deduplication. Pair the winning value with its own author when concurrent edits arrive out of order.
+| Archived value | Device field |
+| --- | --- |
+| Manual day, planned stay revision, forecast home revision, saved primary-region choice | `changedByDeviceID` |
+| Evidence item | `addedByDeviceID` |
+| Dismissal | `dismissedByDeviceID` |
+| Manual or evidence-implied point | `assertedByDeviceID`, with the existing evidence link retained |
+| Automatic GPS and its correction history | Plan 01’s `recordingDeviceID` and `changedByDeviceID` |
 
-At refinement, identify which proposed changes make old synced readers or writers incompatible and which make an older ZIP importer lose data. For each incompatible release, follow the [versioning and rollout rules](README.md#versioning-and-rollout). Author a reason describing the changes an owner will see, and extend the strict archive and offline upgrader for each new wire shape. Fill missing actor IDs on surviving old records using the single-phone source mapping. Keep absent notes and fixes optional. Preserve existing tombstones and leave hard-deleted rows absent. Re-export with every known actor unchanged.
+Each role uses the portable installation ID. The offline conversion preserves a known actor before applying a single-phone mapping and can derive an implied point’s author from the linked evidence.
 
-Acceptance evidence should include an offline two-device edit and merge, a manual range created by Siri without a fix, an extension save before and after installation rotation, and a read after device removal. Verify a retained reset or stay deletion names the actor, an issue restore removes the dismissal, and account erasure removes the affected history. Exercise Merge, Replace, interrupted import and export again. Compare actor IDs, existing event IDs and attached bytes.
+## Implementation and verification
 
-**Resume point.** Revised November 27, 2026 for the shared-data history and v8 archive baseline. Use the two prerequisite outcomes to promote this file and select focused tests for each writer, persisted form and existing reading path.
+1. Bind the installation ID to the journal and forecast services at composition. A persisted manual day owns its editor even when its optional audit is absent. Use the receiving mutation’s author whenever the existing additive/authoritative merge selects its audit. Calculated DayPresence values can still lack an actor. Attribute manual and evidence-linked points at their original write and retain their SampleSource, evidence link and capture semantics. Exercise app and intent writes with GPS turned off.
+2. Store the adding installation on each evidence item, including metadata-only shares, and the dismissing installation on each retained dismissal. Preserve both through the SwiftData adapters and backup. Keep existing hard deletes for evidence, restored issues and manual clears. Verify rows and bytes together.
+3. Bind the author to each retained stay and home revision, including deletion and clearing. Preserve timestamps and UUID ordering. For primary region changes, retain the prior author when membership, pick order and appearance are unchanged. Record the editor on each changed region and keep the current removal behavior. Export persisted region choices separately from the picker’s synthesized defaults, so a fresh database can export without inventing an author. Imported regions carry their saved authors through merging and renumbering.
+4. Extend the existing App Group compatibility receipt with a confirmed share author and data generation. Only the host with a valid admission can publish it. Bind it to the account/version, revoke it on identity retirement, and republish after successful registration. Capture the verified grant when composing a share, then compare it before opening the store and in the generation-checked batch that saves evidence and blobs. Check the profile, removal and reset barrier in the transaction, including while the host has yet to observe a remote removal. Test a pending draft across rejoin or account switch, a share with recording Off and an absent grant. Use the existing Open Where recovery.
+5. Advance shared data to 5 with a localized reason and archives to 11. Strictly check authors at export and import. Keep the archive's original actors when rendering or restoring data. In the Ruby converter use an unambiguous original installation or the explicit source mapping for older rows with missing actors. Preserve all existing timestamps, notes, independent revisions, source links, tombstones, attachments and model facts. A strict current archive with missing authors fails before writes. Verify a v10 manual/evidence-only archive with no prior identity by supplying the original profile and its raw model. Merge and Replace onto a third device, then re-export. An existing actor survives even if the mapping names a different original installation. V10 did not distinguish an explicitly selected default region list from an exported computed default. Preserve the rows actually present in that archive under the original phone mapping.
+6. Run the affected Core, UI and intent suites, architecture/host checks, and catalog lint. Exercise a Siri trip range without a GPS fix. Replay two offline stay/home revisions in both orders and repeat one. The winning value and actor follow timestamp and UUID. Exercise both orders for manual days with a missing audit, preserving their existing merge rule. Inspect A’s and B’s records through Merge, Replace and re-export on C. Confirm identity survives remote rename/removal, unchanged regions keep their authors and erased data stays absent. Retain the existing suite for interrupted restore and generation rollback.
+
+A failed or stale transaction keeps the previous value and author together. Re-open the host to refresh a stale share grant. Recover a failed conversion from the original export. Do not advance a cloud account for validation in this run, per the owner's request.
+
+
+## Refinement evidence
+
+Plan 01’s Merge and Replace fixture retains A’s recorder and B’s correction author when restored on C. Plan 02’s Core integration uses the existing registry to resolve the same roles against a familiar iPhone model and an unknown tablet identifier. Its backup verifier uses the original installation UUID for offline model mapping. The share extension currently has the account compatibility receipt but no host author. The receipt can carry a scoped grant after confirmed registration in the real app.
+
+**Resume point.** Finish Plan 02 verification and review. Check its final APIs and publication before promoting this draft.

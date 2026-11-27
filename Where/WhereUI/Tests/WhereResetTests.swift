@@ -544,8 +544,21 @@ private final class CommittedFailingResetInstallationContextStore:
         onboardingContext
     }
 
-    func confirmInitialRecording(isEnabled _: Bool) throws -> InstallationRecordingContext {
+    func confirmInitialRecording(
+        isEnabled _: Bool,
+        name _: String?,
+    ) throws -> InstallationRecordingContext {
         onboardingContext
+    }
+
+    func acknowledgeInitialNickname(
+        deviceID: RecordingDeviceID,
+        eventID: RecordingDeviceMetadataChange.ID,
+    ) {
+        onboardingContext = onboardingContext.acknowledgingInitialNickname(
+            deviceID: deviceID,
+            eventID: eventID,
+        )
     }
 
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {

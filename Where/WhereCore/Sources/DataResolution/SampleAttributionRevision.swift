@@ -53,6 +53,14 @@ public struct SampleAttributionRevision: Identifiable, Hashable, Codable, Sendab
         self.replacementRegions = replacementRegions
     }
 
+    /// Merge can replay the same instant after encoding seconds since 1970. That wire
+    /// representation has less fractional precision than Foundation's reference date.
+    func hasSamePortableValue(as other: Self) -> Bool {
+        id == other.id && sampleID == other.sampleID && changedByDeviceID == other.changedByDeviceID
+            && replacementRegions == other.replacementRegions
+            && updatedAt.timeIntervalSince1970 == other.updatedAt.timeIntervalSince1970
+    }
+
     /// Deterministic last-writer ordering for concurrent CloudKit revisions.
     public static func newer(
         _ lhs: SampleAttributionRevision,

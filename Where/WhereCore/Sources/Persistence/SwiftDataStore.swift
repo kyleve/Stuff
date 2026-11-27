@@ -315,24 +315,29 @@ private enum GenerationScopedFetch {
         let membership = GenerationMembership(generationID)
         let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let modelField = RecordingDeviceMetadataField.hardwareModelIdentifier.rawValue
         return descriptor(predicate: #Predicate {
-            $0.generationID == storedGenerationID ||
+            $0.fieldRaw == modelField || $0.hardwareModelIdentifier != nil || $0
+                .generationID == storedGenerationID ||
                 (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func metadataChanges(
+        in context: ModelContext,
         belongingTo generationID: WhereDataGenerationID,
         changeID: RecordingDeviceMetadataChange.ID,
-    ) -> FetchDescriptor<SDRecordingDeviceMetadataChange> {
+    ) throws -> [SDRecordingDeviceMetadataChange] {
         let membership = GenerationMembership(generationID)
-        let storedGenerationID = membership.storedID
-        let includesLegacy = membership.includesLegacy
-        let storedChangeID = changeID.rawValue
-        return descriptor(predicate: #Predicate {
-            ($0.generationID == storedGenerationID ||
-                (includesLegacy && $0.generationID == nil)) && $0.id == storedChangeID
-        })
+        let storedID = changeID.rawValue
+        let matches =
+            descriptor(predicate: #Predicate<SDRecordingDeviceMetadataChange> { $0.id == storedID })
+        return try context.fetch(matches).filter { row in
+            row.fieldRaw == RecordingDeviceMetadataField.hardwareModelIdentifier.rawValue
+                || row.hardwareModelIdentifier != nil
+                || row.generationID == membership.storedID
+                || (membership.includesLegacy && row.generationID == nil)
+        }
     }
 
     static func checkIns(
@@ -1313,7 +1318,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
         for record in try context.fetch(GenerationScopedFetch.metadataChanges(
             belongingTo: generationID,
-        )) {
+        )) where record.fieldRaw != RecordingDeviceMetadataField.hardwareModelIdentifier.rawValue
+            && record.hardwareModelIdentifier == nil
+        {
             context.delete(record)
         }
         for record in try context.fetch(GenerationScopedFetch.checkIns(
@@ -1418,7 +1425,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             guard let canonical = duplicates.first else {
                 preconditionFailure("A grouped revision must contain at least one value.")
             }
-            guard duplicates.allSatisfy({ $0 == canonical }) else {
+            guard duplicates.allSatisfy({ $0.hasSamePortableValue(as: canonical) }) else {
                 Self.logImmutableConflict(
                     type: String(describing: SampleAttributionRevision.self),
                     id: revisionID.rawValue.uuidString,
@@ -1447,7 +1454,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             context.insert(SDSampleAttributionRevision(value: revision, generationID: generationID))
             return
         }
-        guard existing.allSatisfy({ $0.toValue() == revision }) else {
+        guard existing.allSatisfy({ $0.toValue()?.hasSamePortableValue(as: revision) == true })
+        else {
             throw SampleAttributionPersistenceError.conflictingRevision(id: revision.id)
         }
         for duplicate in existing.dropFirst() {
@@ -1473,6 +1481,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             by: \.deviceID,
         )
         .compactMapValues { $0.max(by: RecordingDeviceMetadataChange.isOrderedBefore) }
+        let hardwareByDevice = try RecordingDeviceMetadataChange.hardwareModels(
+            in: resolvedMetadata,
+            for: resolvedProfiles,
+        )
         let checkInsByDevice = Dictionary(uniqueKeysWithValues: resolvedCheckIns.map {
             ($0.deviceID, $0)
         })
@@ -1483,6 +1495,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 RecordingDevice(
                     profile: $0,
                     nicknameChange: latestNicknames[$0.id],
+                    hardwareModelChange: hardwareByDevice[$0.id],
                     checkIn: checkInsByDevice[$0.id],
                     removal: removalsByDevice[$0.id],
                 )
@@ -1509,7 +1522,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // earliest registration and is prevented on every local write path below.
         return Dictionary(grouping: values, by: \.id)
             .compactMap { id, duplicates in
-                if Set(duplicates).count > 1 {
+                if let first = duplicates.first,
+                   !duplicates.allSatisfy({ $0.hasSamePortableValue(as: first) })
+                {
                     Self.logImmutableConflict(
                         type: String(describing: RecordingDeviceProfile.self),
                         id: id.storeURL.absoluteString,
@@ -1522,8 +1537,22 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
+        try pinMutationHistory()
         let context = mutationContext()
         let id = profile.id.rawValue
+        let modelEventID = RecordingDeviceMetadataChange.hardwareModelEventID(for: profile.id)
+        let existingFacts = try GenerationScopedFetch.metadataChanges(
+            in: context,
+            belongingTo: mutationGenerationID(),
+            changeID: modelEventID,
+        )
+        guard existingFacts
+            .allSatisfy({
+                $0.toValue()?.field == .hardwareModelIdentifier && $0.changedAt?
+                    .timeIntervalSince1970 == profile.registeredAt.timeIntervalSince1970 })
+        else {
+            throw RecordingPersistenceError.conflictingImmutableRecord(id: modelEventID.rawValue)
+        }
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceProfile>(predicate: #Predicate { $0.id == id }),
         )
@@ -1531,7 +1560,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             context.insert(SDRecordingDeviceProfile(value: profile))
             return
         }
-        guard existing.allSatisfy({ $0.toValue() == profile }) else {
+        guard existing.allSatisfy({ $0.toValue()?.hasSamePortableValue(as: profile) == true })
+        else {
             throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
         }
         for duplicate in existing.dropFirst() {
@@ -1548,18 +1578,31 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         let values: [RecordingDeviceMetadataChange] = try context.fetch(descriptor)
             .compactMap { record in
-                let value = record.toValue()
-                if value == nil { Self.logFault(forCorrupt: record) }
+                guard let value = record.toValue() else {
+                    Self.logFault(forCorrupt: record)
+                    if record.fieldRaw == RecordingDeviceMetadataField.hardwareModelIdentifier
+                        .rawValue
+                        || record.hardwareModelIdentifier != nil
+                    {
+                        throw RecordingPersistenceError.incompleteDeviceMetadata
+                    }
+                    return nil
+                }
                 return value
             }
-        return Dictionary(grouping: values, by: \.id)
+        return try Dictionary(grouping: values, by: \.id)
             .compactMap { id, duplicates in
-                if Set(duplicates).count > 1 {
+                if let first = duplicates.first,
+                   !duplicates.allSatisfy({ $0.hasSamePortableValue(as: first) })
+                {
                     Self.logImmutableConflict(
                         type: String(describing: RecordingDeviceMetadataChange.self),
                         id: id.rawValue.uuidString,
                         count: duplicates.count,
                     )
+                    if duplicates.contains(where: { $0.field == .hardwareModelIdentifier }) {
+                        throw RecordingPersistenceError.conflictingImmutableRecord(id: id.rawValue)
+                    }
                 }
                 return duplicates.min(by: RecordingDeviceMetadataChange.isCanonicalBefore)
             }
@@ -1571,11 +1614,29 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     ) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
+        try pinMutationHistory()
         let storedChangeID = change.id.rawValue
-        let existing = try context.fetch(GenerationScopedFetch.metadataChanges(
+        guard change.isValid
+        else { throw RecordingPersistenceError.conflictingImmutableRecord(id: storedChangeID) }
+        if change.field == .hardwareModelIdentifier {
+            let targetID = change.deviceID.rawValue
+            let profiles = try context
+                .fetch(FetchDescriptor<SDRecordingDeviceProfile>(predicate: #Predicate {
+                    $0.id == targetID
+                }))
+            guard profiles
+                .allSatisfy({
+                    $0.registeredAt?.timeIntervalSince1970 == change.changedAt
+                        .timeIntervalSince1970 })
+            else {
+                throw RecordingPersistenceError.conflictingImmutableRecord(id: storedChangeID)
+            }
+        }
+        let existing = try GenerationScopedFetch.metadataChanges(
+            in: context,
             belongingTo: generationID,
             changeID: change.id,
-        ))
+        )
         guard !existing.isEmpty else {
             context.insert(SDRecordingDeviceMetadataChange(
                 value: change,
@@ -1583,7 +1644,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             ))
             return
         }
-        guard existing.allSatisfy({ $0.toValue() == change }) else {
+        guard existing.allSatisfy({ $0.toValue()?.hasSamePortableValue(as: change) == true }) else {
             throw RecordingPersistenceError.conflictingImmutableRecord(id: storedChangeID)
         }
         for duplicate in existing.dropFirst() {
@@ -2855,12 +2916,13 @@ final class SDRecordingDeviceMetadataChange {
     var changedAt: Date?
     var changedByDeviceID: UUID?
     var nickname: String?
+    var hardwareModelIdentifier: String?
 
     init() {}
 
     convenience init(value: RecordingDeviceMetadataChange, generationID: WhereDataGenerationID) {
         self.init()
-        self.generationID = generationID.rawValue
+        self.generationID = value.field == .hardwareModelIdentifier ? nil : generationID.rawValue
         id = value.id.rawValue
         deviceID = value.deviceID.rawValue
         fieldRaw = value.field.rawValue
@@ -2868,6 +2930,7 @@ final class SDRecordingDeviceMetadataChange {
         changedAt = value.changedAt
         changedByDeviceID = value.changedByDeviceID.rawValue
         nickname = value.nickname
+        hardwareModelIdentifier = value.hardwareModelIdentifier
     }
 
     func toValue() -> RecordingDeviceMetadataChange? {
@@ -2880,15 +2943,24 @@ final class SDRecordingDeviceMetadataChange {
               let changedAt,
               let changedByDeviceID
         else { return nil }
-        guard field == .nickname else { return nil }
-        return RecordingDeviceMetadataChange(
+        let payload: RecordingDeviceMetadataPayload
+        switch field {
+            case .nickname:
+                guard hardwareModelIdentifier == nil else { return nil }
+                payload = .nickname(nickname)
+            case .hardwareModelIdentifier:
+                guard let hardwareModelIdentifier, nickname == nil else { return nil }
+                payload = .hardwareModelIdentifier(hardwareModelIdentifier)
+        }
+        let value = RecordingDeviceMetadataChange(
             id: .init(rawValue: id),
             deviceID: RecordingDeviceID(rawValue: deviceID),
             revision: revision,
             changedAt: changedAt,
             changedByDeviceID: RecordingDeviceID(rawValue: changedByDeviceID),
-            payload: .nickname(nickname),
+            payload: payload,
         )
+        return value.isValid ? value : nil
     }
 }
 
