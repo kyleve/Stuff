@@ -101,4 +101,4 @@ Reviewed November 27 against `2f639e987`, including the whole dependency chain a
 
 All four Mermaid flows rendered in local Chromium. The plan checks cover local links and anchors, the 01 → 02 → 03 dependency chain, and agreement between the linked requirements and acceptance fixtures. Swift sketches are illustrative. Device behavior, compatibility and recovery will be verified during implementation.
 
-The plan PR on branch `plan/onboarding-photo-stays` is the review record for STU-185. Implementation has not started.
+Implementation has not started. [Plan PR #570](https://github.com/kyleve/Stuff/pull/570) · [STU-185](https://linear.app/kve/issue/STU-185)
