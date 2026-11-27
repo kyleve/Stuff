@@ -334,10 +334,10 @@
             }
         }
 
-        /// A primary-region selection model seeded with a few US picks + looks,
+        /// A primary-region draft seeded with a few US picks + looks,
         /// for the picker/customization previews and tests.
         @MainActor
-        public static func primaryRegionSelectionModel() -> PrimaryRegionSelectionModel {
+        public static func primaryRegionDraft() -> PrimaryRegionDraft {
             let texas = Region(rawValue: "us-TX")
             let existing: [PrimaryRegion] = [
                 PrimaryRegion(
@@ -361,7 +361,7 @@
             ] + (texas.map {
                 [PrimaryRegion(region: $0, appearance: nil, order: 2)]
             } ?? [])
-            return PrimaryRegionSelectionModel(existing: existing)
+            return PrimaryRegionDraft(existing: existing)
         }
 
         // MARK: - Report models (scene / report + year views)

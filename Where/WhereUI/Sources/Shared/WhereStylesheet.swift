@@ -128,6 +128,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            regionPicker.selectionAnimation = nil
             calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
@@ -1829,23 +1830,10 @@ extension WhereStylesheet {
 // MARK: - Region picker / customization
 
 extension WhereStylesheet {
-    /// Style for the primary-region picker (`RegionPickerView`) and per-region
-    /// customization (`RegionAppearanceEditor`): the selectable-region map fills,
-    /// the color swatch and emoji/symbol tile geometry, and the default North American map
-    /// framing. Generic spacing (grid gaps, section stacks) still comes from
-    /// ``Spacing``. The camera is stored as raw degrees so the stylesheet stays
-    /// MapKit-free; the view assembles the `MKCoordinateRegion`.
+    /// Selection motion for the primary-region picker, plus the swatches
+    /// and glyph tiles in the appearance editor.
     struct RegionPickerStyle: Equatable {
-        /// Corner radius of the map's rounded container.
-        var mapCornerRadius: CGFloat
-        /// Polygon fill opacity for a selected vs unselected region.
-        var selectedFillOpacity: Double
-        var unselectedFillOpacity: Double
-        /// Polygon stroke opacity + width for a selected vs unselected region.
-        var selectedStrokeOpacity: Double
-        var unselectedStrokeOpacity: Double
-        var selectedStrokeWidth: CGFloat
-        var unselectedStrokeWidth: CGFloat
+        var selectionAnimation: Animation? = .smooth(duration: 0.4)
         /// Diameter of a color swatch and the width of its selection ring.
         var colorSwatchSize: CGFloat
         var colorSwatchSelectionRing: CGFloat
@@ -1859,20 +1847,8 @@ extension WhereStylesheet {
         var glyphSelectionStrokeWidth: CGFloat
         /// Background tint opacity of a selected glyph tile.
         var glyphSelectedBackgroundOpacity: Double
-        /// Default map camera framing the US and Canada (raw degrees).
-        var mapCenterLatitude: Double
-        var mapCenterLongitude: Double
-        var mapSpanLatitude: Double
-        var mapSpanLongitude: Double
 
         static let standard = RegionPickerStyle(
-            mapCornerRadius: 12,
-            selectedFillOpacity: 0.55,
-            unselectedFillOpacity: 0.12,
-            selectedStrokeOpacity: 0.9,
-            unselectedStrokeOpacity: 0.35,
-            selectedStrokeWidth: 2,
-            unselectedStrokeWidth: 1,
             colorSwatchSize: 40,
             colorSwatchSelectionRing: 3,
             colorSwatchMinWidth: 44,
@@ -1881,10 +1857,6 @@ extension WhereStylesheet {
             glyphCornerRadius: 6,
             glyphSelectionStrokeWidth: 2,
             glyphSelectedBackgroundOpacity: 0.2,
-            mapCenterLatitude: 52,
-            mapCenterLongitude: -99,
-            mapSpanLatitude: 65,
-            mapSpanLongitude: 95,
         )
     }
 }

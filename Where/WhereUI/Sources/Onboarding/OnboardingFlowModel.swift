@@ -28,7 +28,7 @@ final class OnboardingFlowModel {
     var phase: Phase
     var page = 0
     var theme: WhereTheme
-    var selection = PrimaryRegionSelectionModel()
+    let selection = PrimaryRegionDraft()
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
     var isFinishing = false

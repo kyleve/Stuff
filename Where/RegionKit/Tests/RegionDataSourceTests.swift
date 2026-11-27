@@ -26,7 +26,7 @@ struct RegionDataSourceTests {
             #expect(source.licenseURL == nil)
             #expect(source.license == .publicDomain("US Government works — 17 U.S.C. § 105"))
             #expect(source.nodes.count == 52)
-            #expect(source.nodes.allSatisfy { $0.parentID?.rawValue == "united-states" })
+            #expect(source.nodes.allSatisfy { $0.parentID == .unitedStates })
             let url = try #require(source.sourceURL)
             let role = try #require(source.purposes.first)
             let year = try #require(source.nodes.first?.geometry?[role].year)
@@ -41,7 +41,7 @@ struct RegionDataSourceTests {
     }
 
     @Test func creditsBothCanadianProductsAndTheirOwnServices() throws {
-        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let canada = try #require(catalog.node(id: .canada))
         let members = catalog.children(of: canada)
         let sources = RegionDataSource.all.filter { $0.license == .openGovernmentCanada }
         #expect(sources.count == 2 && members.count == 13)

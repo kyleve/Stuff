@@ -318,6 +318,13 @@ journal intent.
 
 ### Reusable views & styling
 
+- **`ObservableHostingView`** — give it a factory for an observable model and a
+  view builder that receives the model. The factory runs when the host mounts,
+  and the model is retained for that SwiftUI view identity. A changed factory
+  keeps the existing model. Use a new identity when the input calls for a fresh
+  model, and keep edits that span screens in their owning flow.
+  See the [usage example](Sources/Shared/ObservableHostingView.swift).
+
 - **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
   icon, outline, Liquid Glass card treatment, and passport ink. The card stamps into place
   with a quick tilted approach and spring settle, then lifts away on dismissal.
@@ -338,7 +345,7 @@ journal intent.
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
   there is no session behind it: a paged intro,
-  then picking up to five regions in the United States and Canada (map or searchable list) and
+  then picking up to five regions in the United States and Canada and
   giving each a look, then verifying this installation's automatic-recording
   choice. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
@@ -363,11 +370,16 @@ journal intent.
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
   the process-wide `WhereModel`. Settings offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
-  picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
-  `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
+  picker and the stepped color/emoji/icon editor for onboarding.
+  Each picker visit owns a fresh `RegionPickerModel`. The onboarding flow and the Settings
+  sheet each retain a `PrimaryRegionDraft` for edits across screens. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
-  picker for membership changes. The list offers US jurisdictions and Canadian provinces and territories in catalog order.
-  A tap on the map selects the subdivision at that coordinate and highlights it in its own color.
+  picker for membership changes. Picking a region moves its row to the top of the list,
+  newest first. Tap a selected row to remove it. If a backup merge brings the total above
+  five, the latest five appear at the top and the other saved regions stay checked in the list.
+  Browse US and Canadian regions by country or use the bottom search field on iPhone to
+  find a name or postal abbreviation across both countries. Settings also offers shortcuts
+  for regions used in the selected year.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

@@ -112,6 +112,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = mode
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: reducesMotion)
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        #expect((sheet.regionPicker.selectionAnimation != nil) == !reducesMotion)
         #expect(sheet.settings.iconForeground == (mode == .dark ? Color.black : Color.white))
         #expect(sheet.settings
             .flashAnimation == (reducesMotion ? nil : style.settings.flashAnimation))

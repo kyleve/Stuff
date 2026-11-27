@@ -139,8 +139,7 @@ extension RegionOutline {
     }
 }
 
-/// The camera filters drawable overlays. Picker hit testing still asks the
-/// display geometry about the exact tapped coordinate at every zoom.
+/// The map camera filters the outlines drawn in its viewport.
 struct RegionPolygonMap: View {
     let geometry: RegionMapGeometry
     var selectedTitle: String?

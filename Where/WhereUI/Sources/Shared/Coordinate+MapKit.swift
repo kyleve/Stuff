@@ -19,15 +19,3 @@ extension Sequence<Coordinate> {
         map(\.clLocationCoordinate)
     }
 }
-
-extension Coordinate {
-    /// Build a model `Coordinate` from a MapKit/CoreLocation coordinate — the
-    /// reverse of ``clLocationCoordinate``, used to hit-test a map tap against
-    /// the region picker’s display geometry.
-    init(_ clLocationCoordinate: CLLocationCoordinate2D) {
-        self.init(
-            latitude: clLocationCoordinate.latitude,
-            longitude: clLocationCoordinate.longitude,
-        )
-    }
-}

@@ -28,6 +28,9 @@ public struct RegionCatalog: Sendable {
     /// A geographic unit, including countries used to group subdivisions.
     public struct Node: Identifiable, Decodable, Hashable, Sendable {
         public struct ID: RawRepresentable, Codable, Hashable, Sendable {
+            public static let unitedStates = Self(rawValue: "united-states")
+            public static let canada = Self(rawValue: "canada")
+
             public let rawValue: String
             public init(rawValue: String) {
                 self.rawValue = rawValue
