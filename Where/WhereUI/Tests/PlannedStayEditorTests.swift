@@ -18,7 +18,7 @@ struct PlannedStayEditorTests {
             PlannedStayEditor(model: model)
         })
         host.safeAreaRegions = []
-        let gate = TestStore.PlanningOperationGate()
+        let gate = TestStore.OperationGate()
         await store.gateNextPlannedStayWrite(with: gate)
         if fails { await store.failPlannedStays() }
         try await show(host) { controller in

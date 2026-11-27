@@ -6,6 +6,17 @@ import WhereCore
 
 /// Settings drill-in for Where's privacy promise and data management: export
 /// the database, erase the selected year's data, or reset the entire app.
+struct DataSettingsDestination: View {
+    let report: YearReportModel
+    var focus: SettingsFocus?
+
+    var body: some View {
+        ObservableHostingView({ BackupModel(services: report.services) }) { backup in
+            DataSettingsView(report: report, backup: backup, focus: focus)
+        }
+    }
+}
+
 struct DataSettingsView: View {
     let report: YearReportModel
     let backup: BackupModel
@@ -21,6 +32,7 @@ struct DataSettingsView: View {
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
     @State private var presentedShareItem: BackupShareSheet.Item?
+    @State private var exportRequest: UUID?
 
     var body: some View {
         @Bindable var backup = backup
@@ -32,7 +44,7 @@ struct DataSettingsView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
-                BackupSettingsSection(backup: backup, onExport: runExport)
+                BackupSettingsSection(backup: backup, onExport: requestExport)
                 dataSection
                 resetSection
             }
@@ -52,16 +64,19 @@ struct DataSettingsView: View {
         } message: { message in
             Text(message)
         }
+        .task(id: exportRequest) {
+            guard let request = exportRequest else { return }
+            let archive = await backup.exportBackup()
+            guard !Task.isCancelled, exportRequest == request else { return }
+            if let archive { presentedShareItem = BackupShareSheet.Item(url: archive) }
+            exportRequest = nil
+        }
+        .onDisappear { exportRequest = nil }
     }
 
-    /// Build the archive before presenting it. The coordinator retains the
-    /// file until the next export starts.
-    private func runExport() {
-        Task {
-            if let url = await backup.exportBackup() {
-                presentedShareItem = BackupShareSheet.Item(url: url)
-            }
-        }
+    private func requestExport() {
+        guard exportRequest == nil else { return }
+        exportRequest = UUID()
     }
 
     private var eraseTitle: String {
@@ -190,7 +205,7 @@ extension DataSettingsView: SettingsSection {
             DataSettingsView.self,
             title: "Data",
         ) { world in
-            DataSettingsView(report: world.report, backup: world.backup)
+            DataSettingsDestination(report: world.report)
         }
     }
 #endif

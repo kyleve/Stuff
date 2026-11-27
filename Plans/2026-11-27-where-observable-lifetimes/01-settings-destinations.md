@@ -1,6 +1,6 @@
 # 01 — Settings destinations
 
-- Status: ready
+- Status: executing
 - Dependencies: none
 - Shared context: [Overview](README.md)
 
@@ -89,18 +89,19 @@ If export validation fails, hold the store or archive access before dismissing, 
 
 ## Progress
 
-- [ ] Move destination construction and update Flyover and fixtures.
-- [ ] Verify export dismissal and repeated requests.
-- [ ] Verify scheduling across Alerts presentations and session transitions.
+- [x] Move destination construction and update Flyover and fixtures.
+- [x] Verify export dismissal and repeated requests.
+- [x] Verify scheduling across Alerts presentations and session transitions.
 - [ ] Review, document, and publish the implementation.
 
 ## Execution record
 
-Implementation has not started.
+- 2026-11-27. Moved both destination hosts and ran the first focused simulator batch, which passed 51 tests across Phase 1. Independent review identified that an explicit issue-alert edit must reconcile the badge after the permission prompt. The implementation preserves that prerequisite while keeping launch families concurrent. Added mounted Data dismissal and queued-export coverage for the follow-up run.
+- 2026-11-27. The focused iPhone 17 run passed the five Settings and backup suites, including the mounted route change, held export, canceled queued request, and newer notification choice. The architecture run passed 30 rule tests and found no violations. Data and Settings captures passed with recording disabled. The only failure in the combined unit run was the separate Elsewhere interaction test, tracked in Plan 02.
 
 ## Resume point
 
-On execution authorization, reconcile the current Settings, backup, and scheduler source with this design, then start with the typed destination boundary and a held-operation export test.
+Publish the verified Settings changes and attach the implementation PR to the execution record. This step has simulator coverage. A full Flyover interaction run and physical-device sharing are unverified.
 
 ## Outcome
 

@@ -33,8 +33,8 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 ///
 /// Everything else forwards to the backing store so reads stay deterministic.
 actor TestStore: WhereStore {
-    /// Holds one planning read or write at its suspension boundary until the test releases it.
-    actor PlanningOperationGate {
+    /// Holds one store read or write at its suspension boundary until the test releases it.
+    actor OperationGate {
         private enum State {
             case waiting
             case suspended(CheckedContinuation<Void, Never>)
@@ -51,7 +51,7 @@ actor TestStore: WhereStore {
         }
 
         func suspend() async {
-            precondition(!hasArrived, "A planning operation gate must only suspend one operation")
+            precondition(!hasArrived, "An operation gate must only suspend one operation")
             hasArrived = true
             arrival?.resume()
             arrival = nil
@@ -78,8 +78,10 @@ actor TestStore: WhereStore {
     private var recordingDevicesGate: CheckedContinuation<Void, Never>?
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
-    private var nextPlanningOperationGate: PlanningOperationGate?
-    private var nextPlannedStayWriteGate: PlanningOperationGate?
+    private var nextPlanningOperationGate: OperationGate?
+    private var nextPlannedStayWriteGate: OperationGate?
+    private var nextExportReadGate: OperationGate?
+    private(set) var exportSampleReadCount = 0
     private(set) var plannedStayWriteCount = 0
 
     private var shouldFailManualDay = false
@@ -142,16 +144,21 @@ actor TestStore: WhereStore {
         shouldFailPlanningRead = false
     }
 
-    func gateNextPlanningRead(with gate: PlanningOperationGate) {
+    func gateNextPlanningRead(with gate: OperationGate) {
         precondition(nextPlanningOperationGate == nil, "The next planning read already has a gate")
         nextPlanningOperationGate = gate
+    }
+
+    func gateNextExportRead(with gate: OperationGate) {
+        precondition(nextExportReadGate == nil, "The next export read already has a gate")
+        nextExportReadGate = gate
     }
 
     func failPlannedStays() {
         shouldFailPlannedStay = true
     }
 
-    func gateNextPlannedStayWrite(with gate: PlanningOperationGate) {
+    func gateNextPlannedStayWrite(with gate: OperationGate) {
         precondition(nextPlannedStayWriteGate == nil, "The next planning write already has a gate")
         nextPlannedStayWriteGate = gate
     }
@@ -230,7 +237,11 @@ actor TestStore: WhereStore {
     }
 
     func allSamples() async throws -> [LocationSample] {
-        try await backing.allSamples()
+        exportSampleReadCount += 1
+        let gate = nextExportReadGate
+        nextExportReadGate = nil
+        if let gate { await gate.suspend() }
+        return try await backing.allSamples()
     }
 
     func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws

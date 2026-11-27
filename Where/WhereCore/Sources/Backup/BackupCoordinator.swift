@@ -102,6 +102,7 @@ public actor BackupCoordinator {
     /// archive on disk). Actor-isolated, so it survives the UI that triggered
     /// the export being torn down.
     private var previousExportDirectory: URL?
+    private var activeExport: Task<URL, any Error>?
 
     init(
         store: any WhereStore,
@@ -137,11 +138,24 @@ public actor BackupCoordinator {
     /// executor; a UI caller should marshal it back to the main actor (e.g. via
     /// an `AsyncStream`).
     public func exportBackup(
-        onProgress: @Sendable (Double) -> Void = { _ in },
+        onProgress: @escaping @Sendable (Double) -> Void = { _ in },
     ) async throws -> URL {
-        try await Self.logger.measure(.exportBackup) {
-            try await performExport(onProgress: onProgress)
+        while let activeExport {
+            _ = await activeExport.result
+            try Task.checkCancellation()
         }
+        try Task.checkCancellation()
+
+        // Hold ownership across the store read and archive encoding. An accepted
+        // export finishes even if its presenter stops waiting for it.
+        let export = Task {
+            defer { activeExport = nil }
+            return try await Self.logger.measure(.exportBackup) {
+                try await performExport(onProgress: onProgress)
+            }
+        }
+        activeExport = export
+        return try await export.value
     }
 
     /// `exportBackup`'s body, split out so the outer span reads as one leg-by-leg

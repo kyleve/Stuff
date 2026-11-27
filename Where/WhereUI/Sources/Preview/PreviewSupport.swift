@@ -242,10 +242,7 @@
         /// Settings reminders and alerts sub-screen previews/tests.
         @MainActor
         public static func remindersSettingsModel() -> RemindersSettingsModel {
-            RemindersSettingsModel(
-                services: previewServices(),
-                preferences: previewPreferences(),
-            )
+            RemindersSettingsModel(session: loadedSession())
         }
 
         /// A backup export/import model over in-memory services, for the Settings

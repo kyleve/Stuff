@@ -35,6 +35,8 @@ public final class WhereSession: WhereShutdownable {
     var onDeviceRemoved: @MainActor (RecordingDeviceID) -> Void = { _ in }
 
     public func shutdown() async {
+        isRetiring = true
+        let notificationTasks = Array(notificationConfigurationTasks.values)
         let observers = [authorizationTask, recordingConfigurationTask, regionStyleTask]
         observers.forEach { $0?.cancel() }
         authorizationTask = nil
@@ -44,6 +46,10 @@ public final class WhereSession: WhereShutdownable {
         for observer in observers {
             await observer?.value
         }
+        for task in notificationTasks {
+            await task.value
+        }
+        notificationConfigurationTasks.removeAll()
     }
 
     /// A process-unique, monotonically increasing identity for this session.
@@ -139,6 +145,18 @@ public final class WhereSession: WhereShutdownable {
     private var warnedRemindersUnauthorized = false
     private var warnedSummaryUnauthorized = false
     private var warnedIssueAlertsUnauthorized = false
+
+    enum NotificationConfiguration: Hashable {
+        case reminder
+        case summary
+        case issueAlert
+    }
+
+    @ObservationIgnored private var isRetiring = false
+    @ObservationIgnored private var notificationConfigurationTasks: [
+        NotificationConfiguration: Task<Void, Never>
+    ] = [:]
+    private(set) var notificationConfigurationRevision: UInt64 = 0
 
     /// Whether this session has performed its explicit, idempotent registration operation.
     private var didRegisterRecordingDevice = false
@@ -544,12 +562,50 @@ public final class WhereSession: WhereShutdownable {
         try await services.recording.retireForRejoin()
     }
 
+    /// Order edits and lifecycle refreshes within each notification family, while
+    /// preserving launch's parallel work across independent families.
+    @discardableResult
+    func enqueueNotificationConfiguration(
+        _ configuration: NotificationConfiguration,
+        after prerequisite: Task<Void, Never>? = nil,
+    ) -> Task<Void, Never>? {
+        guard !isRetiring else { return nil }
+        let previous = notificationConfigurationTasks[configuration]
+        let task = Task { [weak self] in
+            await previous?.value
+            await prerequisite?.value
+            guard let self, !isRetiring else { return }
+
+            switch configuration {
+                case .reminder: await reconcileReminderConfiguration()
+                case .summary: await reconcileSummaryConfiguration()
+                case .issueAlert: await reconcileIssueAlertConfiguration()
+            }
+            guard !isRetiring else { return }
+            notificationConfigurationRevision &+= 1
+        }
+        notificationConfigurationTasks[configuration] = task
+        return task
+    }
+
+    func applyReminderConfiguration() async {
+        await enqueueNotificationConfiguration(.reminder)?.value
+    }
+
+    func applySummaryConfiguration() async {
+        await enqueueNotificationConfiguration(.summary)?.value
+    }
+
+    func applyIssueAlertConfiguration() async {
+        await enqueueNotificationConfiguration(.issueAlert)?.value
+    }
+
     /// Push the persisted reminder intent to the reminder reconciler and warn if
     /// notifications are enabled but unauthorized. Reads `WherePreferences`
     /// directly (the single source of truth the `RemindersSettingsModel` also
     /// writes), so it re-applies whatever the user last chose. A launch step
     /// (see `WhereLaunch.plan(for:)`); also runs on every foreground.
-    func applyReminderConfiguration() async {
+    private func reconcileReminderConfiguration() async {
         let enabled = preferences.remindersEnabled
         // The reminder reconciler also owns the app-icon badge, whose value folds
         // in the unresolved-issue count — so it needs the issue-alert intent and
@@ -575,7 +631,7 @@ public final class WhereSession: WhereShutdownable {
     /// if enabled but unauthorized. Reads `WherePreferences` directly, mirroring
     /// `applyReminderConfiguration()`. A launch step (see `WhereLaunch.plan(for:)`);
     /// also runs on every foreground.
-    func applySummaryConfiguration() async {
+    private func reconcileSummaryConfiguration() async {
         let enabled = preferences.summaryEnabled
         await services.summary.configure(enabled: enabled, time: preferences.summaryTime)
         let authorized = await services.reminders.isAuthorized()
@@ -594,7 +650,7 @@ public final class WhereSession: WhereShutdownable {
     /// time and scans at the current drift threshold. Reads `WherePreferences`
     /// directly, mirroring `applyReminderConfiguration()`. A launch step (see
     /// `WhereLaunch.plan(for:)`); also runs on every foreground.
-    func applyIssueAlertConfiguration() async {
+    private func reconcileIssueAlertConfiguration() async {
         let enabled = preferences.issueAlertsEnabled
         await services.issueAlerts.configure(
             enabled: enabled,
