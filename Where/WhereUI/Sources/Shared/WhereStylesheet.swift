@@ -18,6 +18,7 @@ struct WhereStylesheet: BStylesheet {
     var size = Size()
     var card = CardStyles.standard
     var locationsBackground = LocationsBackgroundStyle()
+    var locationsDetail = LocationsDetailStyle.standard
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
     var flightStatus = FlightStatusStyle()
@@ -136,6 +137,7 @@ struct WhereStylesheet: BStylesheet {
             settings.flashAnimation = nil
             card.dayCount = .reducedMotion
             locationCardStack.overtake = .reducedMotion
+            locationsDetail = .reducedMotion
             locationWelcome.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
@@ -326,6 +328,30 @@ extension WhereStylesheet {
                 titleFont: .subheadline.weight(.semibold),
             ),
             motion: .standard,
+        )
+    }
+}
+
+// MARK: - Locations detail
+
+extension WhereStylesheet {
+    struct LocationsDetailStyle: Equatable {
+        var animation: Animation
+        var calendarScale: CGFloat?
+
+        var calendarTransition: AnyTransition {
+            guard let calendarScale else { return .opacity }
+            return .scale(scale: calendarScale).combined(with: .opacity)
+        }
+
+        static let standard = LocationsDetailStyle(
+            animation: .smooth(duration: 0.3),
+            calendarScale: 0.86,
+        )
+
+        static let reducedMotion = LocationsDetailStyle(
+            animation: Motion.standard.reducedReveal,
+            calendarScale: nil,
         )
     }
 }

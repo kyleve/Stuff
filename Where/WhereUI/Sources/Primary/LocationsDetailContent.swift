@@ -5,48 +5,81 @@ import WhereCore
 /// The selected calendar and its empty state share the Locations toolbar.
 struct LocationsDetailContent: View {
     let report: YearReportModel
-    @Bindable var navigation: LocationsView.Navigation
-    let calendarPresentation: CalendarPresentationState
-    let showsEstimateCard: Bool
+    let navigation: LocationsView.Navigation
+    let selection: LocationsView.CalendarSelection?
+    let arrangement: AdaptivePaneArrangement
 
     var body: some View {
         Group {
-            if let region = navigation.selectedRegion {
-                CalendarContentView(
-                    focusedRegion: region,
+            if arrangement == .columns {
+                LocationsAnimatedDetail(
                     report: report,
-                    showsEstimateCard: showsEstimateCard,
-                    showsPlanningAction: false,
-                    presentationState: calendarPresentation,
-                    persistenceKey: .region(region),
-                    scrollRole: LocationsView.ScrollRole.calendar,
-                    planningDestination: $navigation.planningDestination,
+                    navigation: navigation,
+                    selection: selection,
                 )
-                .id(region)
+            } else if let selection {
+                LocationsRegionCalendar(
+                    report: report,
+                    navigation: navigation,
+                    selection: selection,
+                    showsEstimateCard: true,
+                )
+                .id(selection.id)
             } else {
-                ContentUnavailableView {
-                    Label(String(localized: .locationsNoRegionTitle), systemSymbol: .calendar)
-                } description: {
-                    if !report.locationRegions.isEmpty {
-                        Text(String(localized: .locationsNoRegionDescription))
-                    }
-                }
+                LocationsNoRegion(showsDescription: !report.locationRegions.isEmpty)
             }
         }
         .toolbar { LocationsToolbar(report: report, navigation: navigation) }
     }
 }
 
+struct LocationsRegionCalendar: View {
+    let report: YearReportModel
+    @Bindable var navigation: LocationsView.Navigation
+    let selection: LocationsView.CalendarSelection
+    let showsEstimateCard: Bool
+    var showsZoomAction = true
+
+    var body: some View {
+        CalendarContentView(
+            focusedRegion: selection.region,
+            report: report,
+            showsEstimateCard: showsEstimateCard,
+            showsPlanningAction: false,
+            showsZoomAction: showsZoomAction,
+            presentationState: selection.presentation,
+            persistenceKey: .region(selection.region),
+            scrollRole: LocationsView.ScrollRole.calendar,
+            planningDestination: $navigation.planningDestination,
+        )
+    }
+}
+
+struct LocationsNoRegion: View {
+    let showsDescription: Bool
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(String(localized: .locationsNoRegionTitle), systemSymbol: .calendar)
+        } description: {
+            if showsDescription {
+                Text(String(localized: .locationsNoRegionDescription))
+            }
+        }
+    }
+}
+
 #if DEBUG
     #Preview {
+        let report = PreviewSupport.loadedYearReportModel()
         let navigation = LocationsView.Navigation()
         let _ = navigation.select(region: .california)
         NavigationStack {
             LocationsDetailContent(
-                report: PreviewSupport.loadedYearReportModel(),
+                report: report,
                 navigation: navigation,
-                calendarPresentation: CalendarPresentationState(mode: .detail),
-                showsEstimateCard: true,
+                selection: LocationsView.CalendarSelection(region: .california, report: report),
+                arrangement: .compact,
             )
         }
         .whereBroadwayRoot()

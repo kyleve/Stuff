@@ -23,14 +23,38 @@ struct LocationsView: View {
             selectedRegion = region
             compactColumn = .detail
         }
+
+        func toggleSelection(of region: Region) {
+            if selectedRegion == region {
+                selectedRegion = nil
+                compactColumn = .sidebar
+            } else {
+                select(region: region)
+            }
+        }
     }
 
     enum ScrollRole: Hashable { case calendar }
 
+    struct CalendarSelection: Identifiable {
+        let region: Region
+        let presentation: CalendarPresentationState
+        var id: ObjectIdentifier {
+            ObjectIdentifier(presentation)
+        }
+
+        @MainActor init(region: Region, report: YearReportModel) {
+            self.region = region
+            let overview = CalendarModel(report: report, persistenceKey: .region(region))
+                .isOverview(fallback: false)
+            presentation = CalendarPresentationState(mode: overview ? .overview : .detail)
+        }
+    }
+
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
     @State private var navigation: LocationsView.Navigation
-    @State private var calendarPresentation: CalendarPresentationState
+    @State private var calendarSelection: CalendarSelection?
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt = TiltProvider()
     @Namespace private var calendarTransition
@@ -47,10 +71,9 @@ struct LocationsView: View {
         let navigation = navigation ?? LocationsView.Navigation()
         if let initialRegion { navigation.select(region: initialRegion) }
         _navigation = State(initialValue: navigation)
-        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
-            report: report,
-            persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
-        ).isOverview(fallback: false) ? .overview : .detail))
+        _calendarSelection = State(initialValue: navigation.selectedRegion.map {
+            CalendarSelection(region: $0, report: report)
+        })
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -67,7 +90,7 @@ struct LocationsView: View {
                     LocationsColumns(browseWidth: stylesheet.adaptivePane.minimumControlsWidth) {
                         expandedBrowseContent
                     } detail: {
-                        detailContent(showsEstimateCard: false)
+                        detailContent(arrangement: .columns)
                     }
                     .navigationTitle(selectedCalendarTitle ?? "")
                     .navigationBarTitleDisplayMode(.inline)
@@ -84,7 +107,7 @@ struct LocationsView: View {
                         .toolbar(removing: .sidebarToggle)
                 } detail: {
                     NavigationStack {
-                        detailContent(showsEstimateCard: true)
+                        detailContent(arrangement: .compact)
                             .navigationTitle(
                                 selectedCalendarTitle ?? String(localized: .primaryCalendar),
                             )
@@ -118,11 +141,8 @@ struct LocationsView: View {
             report: report,
             destination: $navigation.planningDestination,
         ))
-        .onChange(of: navigation.selectedRegion) {
-            calendarPresentation = CalendarPresentationState(mode: CalendarModel(
-                report: report,
-                persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
-            ).isOverview(fallback: false) ? .overview : .detail)
+        .onChange(of: navigation.selectedRegion) { _, region in
+            calendarSelection = region.map { CalendarSelection(region: $0, report: report) }
         }
     }
 
@@ -157,12 +177,12 @@ struct LocationsView: View {
         )
     }
 
-    private func detailContent(showsEstimateCard: Bool) -> LocationsDetailContent {
+    private func detailContent(arrangement: AdaptivePaneArrangement) -> LocationsDetailContent {
         LocationsDetailContent(
             report: report,
             navigation: navigation,
-            calendarPresentation: calendarPresentation,
-            showsEstimateCard: showsEstimateCard,
+            selection: calendarSelection,
+            arrangement: arrangement,
         )
     }
 }
