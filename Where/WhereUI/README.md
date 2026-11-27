@@ -100,7 +100,7 @@ Timeline anchors refer to displayed stay segments or flight identities.
 Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
-Without a region selection, the detail pane shows the year calendar.
+The detail pane shows an empty state until a region is selected.
 When Locations displays both panes, only browsing shows the estimate card.
 The compact calendar push retains its estimate card in detail and overview.
 Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
