@@ -56,6 +56,17 @@
         }
       }
     },
+    "backup.error.missingDeviceModel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device model information is missing. Allow the devices to finish syncing before exporting again, or upgrade the original backup."
+          }
+        }
+      }
+    },
     "backup.error.recoveryRequired" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -154,6 +165,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where now saves which device recorded a location and which device corrected it."
+          }
+        }
+      }
+    },
+    "compatibility.version4.reason" : {
+      "comment" : "Explains the shared data update that lets other installations display a device model.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where can now show the model of each device in your history."
           }
         }
       }

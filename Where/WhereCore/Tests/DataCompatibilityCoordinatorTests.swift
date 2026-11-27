@@ -91,7 +91,7 @@ struct DataCompatibilityCoordinatorTests {
         #expect(viewer.state.allowsStore)
     }
 
-    @Test(arguments: [2, 3])
+    @Test(arguments: [2, 3, 4])
     func recorderExplainsTheUpgradeToAnOlderViewer(version: Int) async throws {
         let newVersion = DataModelVersion(rawValue: version)
         let reason = try #require(newVersion.changeReason)

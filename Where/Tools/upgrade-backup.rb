@@ -1,14 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes legacy Where backups into the current v9 manifest. The automatic-recording feature
+# Reshapes legacy Where backups into the current v10 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
 # v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
 # v6 preserves optional motion readings and adds per-sample attribution history.
 # v7 expands the stay register into independent plans and adds the forecast home-region register.
 # v8 admits Canadian subdivisions. v9 requires GPS capture and correction author device IDs.
+# v10 adds a stable hardware-model fact for each registered installation.
 
 require "json"
+require "digest"
 require "tmpdir"
 require "time"
 require "optparse"
@@ -16,7 +18,7 @@ require "set"
 require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 9
+CURRENT_FORMAT_VERSION = 10
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -330,7 +332,7 @@ def upgrade_location_origins!(manifest, source_version, source_profile)
   each_location_origin(manifest) do |row, key|
     record = [key, record_uuid(row["id"])]
     if row[key].nil?
-      die "current archive is missing #{key}" if source_version == CURRENT_FORMAT_VERSION
+      die "v#{source_version} archive is missing #{key}" if source_version >= 9
       missing << [row, key, record]
     else
       id = device_id(row[key])
@@ -359,7 +361,87 @@ def upgrade_location_origins!(manifest, source_version, source_profile)
   end
 end
 
-def upgrade_manifest(manifest, source_profile: nil)
+HARDWARE_MODEL_FIELD = "hardwareModelIdentifier"
+HARDWARE_MODEL_NAMESPACE = "com.stuff.where.device-hardware-model.v1"
+
+# UUIDv8 shared with RecordingDeviceMetadataChange.hardwareModelEventID(for:).
+def hardware_model_event_id(installation_uuid)
+  digest = Digest::SHA256.digest(HARDWARE_MODEL_NAMESPACE + installation_uuid).bytes.first(16)
+  digest[6] = (digest[6] & 0x0f) | 0x80
+  digest[8] = (digest[8] & 0x3f) | 0x80
+  digest.pack("C*").unpack("H8H4H4H4H12").join("-").upcase
+end
+
+def hardware_model_identifier(value)
+  # Foundation's whitespacesAndNewlines also includes U+200B ZERO WIDTH SPACE.
+  die "hardware model identifier must be a nonblank string" unless value.is_a?(String) && value.match?(/[^[:space:]\u200b]/)
+  value
+end
+
+def device_model_map(mapping)
+  die "device model map must be an object keyed by installation UUID" unless mapping.is_a?(Hash)
+  mapping.each_with_object({}) do |(id, model), result|
+    uuid = record_uuid(id)
+    identifier = hardware_model_identifier(model)
+    die "conflicting model identifiers for the same installation UUID" if result.key?(uuid) && result[uuid] != identifier
+    result[uuid] = identifier
+  end
+end
+
+def upgrade_hardware_models!(manifest, source_version, mapping)
+  models = device_model_map(mapping)
+  metadata = manifest.fetch("recordingDeviceMetadataChanges")
+  profiles = manifest.fetch("recordingDeviceProfiles").to_h { |profile| [device_id(profile.fetch("id")), profile] }
+  facts = {}
+  nickname_ids = Set.new
+  metadata.each do |event|
+    event_id = record_uuid(event.fetch("id")).upcase
+    target = device_id(event.fetch("deviceID"))
+    uuid = target.delete_prefix("store://devices/")
+    revision = event.fetch("revision")
+    date = event.fetch("changedAt")
+    payload = event.fetch("payload")
+    die "invalid device metadata revision or timestamp" unless revision.is_a?(Integer) && revision.between?(0, (2**63) - 1) && date.is_a?(Numeric) && date.finite?
+    case payload.fetch("field")
+    when "nickname"
+      die "nickname also contains a hardware model" unless payload[HARDWARE_MODEL_FIELD].nil?
+      die "invalid nickname value" unless payload["nickname"].nil? || payload["nickname"].is_a?(String)
+      nickname_ids << event_id
+    when HARDWARE_MODEL_FIELD
+      die "hardware model also contains a nickname" unless payload["nickname"].nil?
+      identifier = hardware_model_identifier(payload[HARDWARE_MODEL_FIELD])
+      unless event_id == hardware_model_event_id(uuid) && revision.zero? && device_id(event.fetch("changedByDeviceID")) == target
+        die "invalid hardware model event ID, revision or author"
+      end
+      die "hardware fact registration time disagrees with profile" if profiles.key?(target) && date != profiles.fetch(target).fetch("registeredAt")
+      die "hardware model mapping disagrees with existing fact" if models.key?(uuid) && models.fetch(uuid) != identifier
+      fact = [identifier, date]
+      die "conflicting hardware model facts for one installation" if facts.key?(target) && facts[target] != fact
+      facts[target] = fact
+    else
+      die "unknown device metadata field"
+    end
+  end
+
+  # Keep a valid fact delivered before its profile. A complete profile, even one since
+  # removed, must acquire exactly one model identity before a legacy archive can become v10.
+  (profiles.keys | facts.keys).sort.each do |target|
+    uuid = target.delete_prefix("store://devices/")
+    id = hardware_model_event_id(uuid)
+    die "a nickname uses the reserved hardware model event ID" if nickname_ids.include?(id)
+    next if facts.key?(target)
+    die "v#{source_version} archive profile is missing its hardware model fact" if source_version >= 10
+    model = models[uuid]
+    die "missing original hardware identifier for #{uuid}. Pass --device-models FILE" unless model
+    metadata << {
+      "id" => id, "deviceID" => target, "revision" => 0,
+      "changedAt" => profiles.fetch(target).fetch("registeredAt"), "changedByDeviceID" => target,
+      "payload" => { "field" => HARDWARE_MODEL_FIELD, HARDWARE_MODEL_FIELD => model },
+    }
+  end
+end
+
+def upgrade_manifest(manifest, source_profile: nil, device_models: {})
   source_version = source_format_version(manifest)
   manifest = manifest.except("recordingDevices", "recordingDeviceCheckIns", "recordingPolicyChanges")
   # Released v7 and v8 already have the current region, day, date and planning shapes.
@@ -373,6 +455,7 @@ def upgrade_manifest(manifest, source_profile: nil)
   upgrade_location_origins!(manifest, source_version, source_profile)
   validate_duplicate_samples!(manifest.fetch("samples"))
   validate_revisions!(manifest.fetch("sampleAttributionRevisions"))
+  upgrade_hardware_models!(manifest, source_version, device_models)
   manifest.merge("formatVersion" => CURRENT_FORMAT_VERSION)
 end
 
@@ -426,9 +509,11 @@ end
 
 def main(argv)
   profile_path = nil
+  model_map_path = nil
   parser = OptionParser.new do |options|
-    options.banner = "Usage: ruby Where/Tools/upgrade-backup.rb INPUT.zip [OUTPUT.zip] [--source-profile FILE]"
+    options.banner = "Usage: ruby Where/Tools/upgrade-backup.rb INPUT.zip [OUTPUT.zip] [--source-profile FILE] [--device-models FILE]"
     options.on("--source-profile FILE", "Original installation profile or selection JSON") { |path| profile_path = path }
+    options.on("--device-models FILE", "JSON object mapping installation UUIDs to raw hardware model identifiers") { |path| model_map_path = path }
     options.on("-h", "--help", "Show usage") { puts options; return }
   end
   arguments = parser.parse(argv)
@@ -443,13 +528,20 @@ def main(argv)
     die "output would overwrite the source profile" if File.identical?(profile_path, output)
   end
 
+  models = {}
+  if model_map_path
+    die "output would overwrite the device model map" if File.identical?(model_map_path, output)
+    models = JSON.parse(File.read(model_map_path))
+  end
+
   Dir.mktmpdir("where-backup-upgrade") do |work|
     run_or_die("unzip", "-q", File.expand_path(input), "-d", work)
     manifest_path = File.join(work, MANIFEST_NAME)
     die "#{MANIFEST_NAME} not found in archive (is this a Where backup?)" unless File.exist?(manifest_path)
 
     manifest = JSON.parse(File.read(manifest_path))
-    File.write(manifest_path, JSON.pretty_generate(sort_deep(upgrade_manifest(manifest, source_profile: source_profile))) + "\n")
+    upgraded = upgrade_manifest(manifest, source_profile: source_profile, device_models: models)
+    File.write(manifest_path, JSON.pretty_generate(sort_deep(upgraded)) + "\n")
     Dir.mktmpdir(".where-backup-output-", File.dirname(output)) do |staging|
       zipped = File.join(staging, "backup.zip")
       Dir.chdir(work) { run_or_die("zip", "-q", "-r", zipped, ".") }

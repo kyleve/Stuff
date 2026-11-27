@@ -118,6 +118,7 @@ struct BackupServiceTests {
                 changedByDeviceID: recordingDeviceID,
                 payload: .nickname("Travel iPad"),
             ),
+            .hardwareModelIdentifier("iPad13,18", for: recordingDeviceProfileFixtures()[0]),
         ]
     }
 
@@ -153,7 +154,7 @@ struct BackupServiceTests {
             trackedRegions: [],
             primaryRegions: [],
             recordingDeviceProfiles: recordingDeviceProfileFixtures(),
-            recordingDeviceMetadataChanges: [],
+            recordingDeviceMetadataChanges: recordingDeviceMetadataFixtures(),
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
@@ -292,7 +293,7 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test(arguments: [5, 6, 7, 8, BackupArchive.currentFormatVersion + 1])
+    @Test(arguments: [5, 6, 7, 8, 9, BackupArchive.currentFormatVersion + 1])
     func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded(version: Int) {
         let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
 
@@ -363,6 +364,45 @@ struct BackupServiceTests {
         conflicting["changedByDeviceID"] = RecordingDeviceID(rawValue: UUID()).storeURL
             .absoluteString
         manifest["sampleAttributionRevisions"] = [reset, conflicting]
+        #expect(throws: BackupService.BackupError.invalidRecordingData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRequiresTheModelOfEachArchivedProfile() throws {
+        var manifest = try #require(
+            JSONSerialization
+                .jsonObject(with: BackupService.makeEncoder()
+                    .encode(Self.archive())) as? [String: Any],
+        )
+        manifest["recordingDeviceMetadataChanges"] = []
+        #expect(throws: BackupService.BackupError.missingDeviceModel) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func modelFactMustMatchRegistrationAndEveryReplay() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(JSONSerialization
+            .jsonObject(with: encoder.encode(Self.archive())) as? [String: Any])
+        let profile = Self.recordingDeviceProfileFixtures()[0]
+        let fact = RecordingDeviceMetadataChange.hardwareModelIdentifier("iPhone16,1", for: profile)
+        var encoded = try #require(JSONSerialization
+            .jsonObject(with: encoder.encode(fact)) as? [String: Any])
+        encoded["changedAt"] = profile.registeredAt.timeIntervalSince1970 + 1
+        manifest["recordingDeviceMetadataChanges"] = [encoded]
+        #expect(throws: BackupService.BackupError.invalidRecordingData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+        let conflicting = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+            "iPad13,18",
+            for: profile,
+        )
+        manifest["recordingDeviceMetadataChanges"] = try JSONSerialization
+            .jsonObject(with: encoder.encode([
+                fact,
+                conflicting,
+            ]))
         #expect(throws: BackupService.BackupError.invalidRecordingData) {
             try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
         }

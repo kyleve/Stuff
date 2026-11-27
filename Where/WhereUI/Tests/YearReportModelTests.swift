@@ -625,12 +625,17 @@ struct YearReportModelTests {
         let remoteID = RecordingDeviceID(rawValue: UUID())
         let registeredAt = Self.day(2026, 3, 1)
         try await store.perform {
-            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+            let profile = RecordingDeviceProfile(
                 id: remoteID,
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: registeredAt,
                 registrationGenerationID: .initial,
+            )
+            try await store.addRecordingDeviceProfile(profile)
+            try await store.addRecordingDeviceMetadataChange(.hardwareModelIdentifier(
+                "iPad13,18",
+                for: profile,
             ))
         }
         let report = YearReportModel(
@@ -650,7 +655,8 @@ struct YearReportModelTests {
             String(localized: .flightStatusDeviceNamed(remoteID.rawValue.uuidString)))
         await report.refreshDataIssueCount(force: true)
         #expect(report
-            .flightDeviceLabel(flight) == String(localized: .flightStatusDeviceNamed("iPad")))
+            .flightDeviceLabel(flight) ==
+            String(localized: .flightStatusDeviceNamed("iPad (10th generation)")))
     }
 
     @Test func liveFlightNoticeIsCurrentDeviceOnlyAndExpiresWithoutRemovingHistory() throws {

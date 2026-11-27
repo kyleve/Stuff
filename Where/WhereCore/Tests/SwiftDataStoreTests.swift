@@ -9,6 +9,159 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    @Test func portableTimestampReplayPreservesOriginalProfileAndMetadataRows() async throws {
+        let date = Date(timeIntervalSinceReferenceDate: 700_000_000.0.nextUp)
+        let wire = Date(timeIntervalSince1970: date.timeIntervalSince1970)
+        #expect(date != wire)
+        let original = RecordingDeviceProfile(
+            id: CurrentRecordingDevice.preview.id,
+            systemName: "iPhone",
+            kind: .phone,
+            registeredAt: date,
+            registrationGenerationID: .initial,
+        )
+        let replay = RecordingDeviceProfile(
+            id: original.id,
+            systemName: original.systemName,
+            kind: original.kind,
+            registeredAt: wire,
+            registrationGenerationID: original.registrationGenerationID,
+        )
+        let fact = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+            "iPhone16,1",
+            for: original,
+        )
+        let replayedFact = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+            "iPhone16,1",
+            for: replay,
+        )
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(original)
+            try await store.addRecordingDeviceMetadataChange(fact)
+        }
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(replay)
+            try await store.addRecordingDeviceMetadataChange(replayedFact)
+        }
+        #expect(try await store.recordingDeviceProfiles() == [original])
+        #expect(try await store.recordingDeviceMetadataChanges() == [fact])
+    }
+
+    @Test func hardwareFactSurvivesReplaceAndReplayWithoutRestoringRetiredNicknames() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let profile = RecordingDeviceProfile(
+            id: CurrentRecordingDevice.preview.id,
+            systemName: "iPhone",
+            kind: .phone,
+            registeredAt: Date(timeIntervalSinceReferenceDate: 100),
+            registrationGenerationID: .initial,
+        )
+        let fact = RecordingDeviceMetadataChange.hardwareModelIdentifier("iPhone16,1", for: profile)
+        let name = RecordingDeviceMetadataChange(
+            id: .init(rawValue: UUID()),
+            deviceID: profile.id,
+            revision: 0,
+            changedAt: profile.registeredAt,
+            changedByDeviceID: Self.generationWriterID,
+            payload: .nickname("Travel"),
+        )
+        try await store.perform { try await store.addRecordingDeviceMetadataChange(fact) }
+        #expect(try await store.recordingDevices().isEmpty)
+        try await store.perform {
+            try await store.addRecordingDeviceMetadataChange(name)
+            try await store.addRecordingDeviceProfile(profile)
+        }
+        #expect(try await store.recordingDevices().first?.displayName == "Travel")
+        _ = try await store.perform {
+            try await store.rotateDataGeneration(
+                reason: .backupReplace,
+                changedBy: Self.generationWriterID,
+                at: Date(),
+            )
+        }
+        try await store.perform { try await store.addRecordingDeviceMetadataChange(fact) }
+        #expect(try await store.recordingDeviceMetadataChanges() == [fact])
+        #expect(try await store.recordingDevices().first?.displayName == "iPhone 15 Pro")
+        let conflict = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+            "iPhone99,1",
+            for: profile,
+        )
+        await #expect(throws: RecordingPersistenceError
+            .conflictingImmutableRecord(id: fact.id.rawValue))
+        {
+            try await store.perform { try await store.addRecordingDeviceMetadataChange(conflict) }
+        }
+        #expect(try await store.recordingDeviceMetadataChanges() == [fact])
+    }
+
+    @Test(arguments: [false, true])
+    func conflictingCloudHardwareFactsFailInBothDeliveryOrders(reversed: Bool) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let profile = RecordingDeviceProfile(
+            id: CurrentRecordingDevice.preview.id,
+            systemName: "iPhone",
+            kind: .phone,
+            registeredAt: Date(timeIntervalSinceReferenceDate: 100),
+            registrationGenerationID: .initial,
+        )
+        let preferred = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+            "iPhone16,1",
+            for: profile,
+        )
+        let other = RecordingDeviceMetadataChange.hardwareModelIdentifier(
+            "iPhone99,1",
+            for: profile,
+        )
+        let context = ModelContext(container)
+        for change in reversed ? [other, preferred] : [preferred, other] {
+            context.insert(SDRecordingDeviceMetadataChange(value: change, generationID: .initial))
+        }
+        try context.save()
+        await #expect(throws: RecordingPersistenceError
+            .conflictingImmutableRecord(id: preferred.id.rawValue))
+        {
+            try await store.recordingDeviceMetadataChanges()
+        }
+    }
+
+    @Test func mismatchedRegistrationDatesFromCloudKitFailInRegistryAndPolicyReads() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let profile = RecordingDeviceProfile(
+            id: CurrentRecordingDevice.preview.id,
+            systemName: "iPhone",
+            kind: .phone,
+            registeredAt: Date(timeIntervalSinceReferenceDate: 100),
+            registrationGenerationID: .initial,
+        )
+        let fact = RecordingDeviceMetadataChange.hardwareModelIdentifier("iPhone16,1", for: profile)
+        let row = SDRecordingDeviceMetadataChange(value: fact, generationID: .initial)
+        row.changedAt = profile.registeredAt.addingTimeInterval(1)
+        context.insert(row)
+        context.insert(SDRecordingDeviceProfile(value: profile))
+        try context.save()
+        let store = SwiftDataStore(modelContainer: container)
+        let expected = RecordingPersistenceError.conflictingImmutableRecord(id: fact.id.rawValue)
+        await #expect(throws: expected) { try await store.recordingDevices() }
+        let resolver = RecordingDevicePolicyResolver(store: store, currentDeviceID: profile.id)
+        await #expect(throws: expected) { try await resolver.snapshot() }
+    }
+
+    @Test func incompleteModelFactFailsBeforeExportCanOmitIt() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let row = SDRecordingDeviceMetadataChange()
+        row.fieldRaw = RecordingDeviceMetadataField.hardwareModelIdentifier.rawValue
+        context.insert(row)
+        try context.save()
+        let store = SwiftDataStore(modelContainer: container)
+        await #expect(throws: RecordingPersistenceError.incompleteDeviceMetadata) {
+            try await store.recordingDeviceMetadataChanges()
+        }
+    }
+
     @Test func planningRowsRoundTripFlexibleWindowsAndRejectPartialPayloads() throws {
         let stay = try PlannedStay(
             id: .init(rawValue: UUID()),

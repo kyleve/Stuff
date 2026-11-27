@@ -138,6 +138,8 @@ public final class FileInstallationRecordingContextStore:
         let deviceID: UUID
         let systemName: String
         let kind: RecordingDeviceKind
+        let hardwareModelIdentifier: String?
+        let pendingInitialNickname: InstallationRecordingContext.PendingNickname?
         let registeredAt: Date
         let automaticRecordingEnabled: Bool?
         let recordingEnabledAt: Date?
@@ -149,6 +151,8 @@ public final class FileInstallationRecordingContextStore:
             case deviceID
             case systemName
             case kind
+            case hardwareModelIdentifier
+            case pendingInitialNickname
             case registeredAt
             case automaticRecordingEnabled
             case recordingEnabledAt
@@ -165,6 +169,8 @@ public final class FileInstallationRecordingContextStore:
             deviceID = context.currentDevice.id.rawValue
             systemName = context.currentDevice.systemName
             kind = context.currentDevice.kind
+            hardwareModelIdentifier = context.currentDevice.hardwareModelIdentifier
+            pendingInitialNickname = context.pendingInitialNickname
             registeredAt = context.registeredAt
             automaticRecordingEnabled = context.automaticRecordingEnabled
             recordingEnabledAt = context.recordingEnabledAt
@@ -173,7 +179,7 @@ public final class FileInstallationRecordingContextStore:
             onboardingImportCompletionID = onboardingImportCompletion?.transactionID
         }
 
-        var value: InstallationRecordingContext {
+        func value(localModelIdentifier: String) -> InstallationRecordingContext {
             let recordingChoice: InstallationRecordingContext.RecordingChoice =
                 switch automaticRecordingEnabled {
                     case nil: .unconfirmed
@@ -187,18 +193,14 @@ public final class FileInstallationRecordingContextStore:
                     id: RecordingDeviceID(rawValue: deviceID),
                     systemName: systemName,
                     kind: kind,
+                    hardwareModelIdentifier: hardwareModelIdentifier ?? localModelIdentifier,
                 ),
                 registeredAt: registeredAt,
                 recordingChoice: recordingChoice,
                 isRejoining: isRejoining,
+                pendingInitialNickname: pendingInitialNickname,
             )
         }
-    }
-
-    private struct LoadedContext {
-        let context: InstallationRecordingContext
-        let backupImportRecovery: BackupCoordinator.DurableImportRecovery?
-        let onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?
     }
 
     private struct SecurityCleanupError: LocalizedError {
@@ -212,6 +214,7 @@ public final class FileInstallationRecordingContextStore:
 
     private let fileURL: URL
     private let fileManager: FileManager
+    private let hardwareModelIdentifier: String
     private let systemName: String
     private let kind: RecordingDeviceKind
     private let makeUUID: @MainActor () -> UUID
@@ -240,6 +243,7 @@ public final class FileInstallationRecordingContextStore:
                 fileURL: URL(filePath: "/invalid/recording-installation-context.json"),
                 fileManager: .default,
                 systemName: device.model,
+                hardwareModelIdentifier: Self.hardwareIdentifier(),
                 kind: Self.kind(for: device.userInterfaceIdiom),
                 makeUUID: { UUID() },
                 now: { Date() },
@@ -253,6 +257,7 @@ public final class FileInstallationRecordingContextStore:
                 .appending(path: Self.fileName),
             fileManager: .default,
             systemName: device.model,
+            hardwareModelIdentifier: Self.hardwareIdentifier(),
             kind: Self.kind(for: device.userInterfaceIdiom),
             makeUUID: { UUID() },
             now: { Date() },
@@ -265,6 +270,7 @@ public final class FileInstallationRecordingContextStore:
         fileURL: URL,
         fileManager: FileManager,
         systemName: String,
+        hardwareModelIdentifier: String,
         kind: RecordingDeviceKind,
         makeUUID: @escaping @MainActor () -> UUID,
         now: @escaping @MainActor () -> Date,
@@ -273,6 +279,7 @@ public final class FileInstallationRecordingContextStore:
             fileURL: fileURL,
             fileManager: fileManager,
             systemName: systemName,
+            hardwareModelIdentifier: hardwareModelIdentifier,
             kind: kind,
             makeUUID: makeUUID,
             now: now,
@@ -284,6 +291,7 @@ public final class FileInstallationRecordingContextStore:
         fileURL: URL,
         fileManager: FileManager,
         systemName: String,
+        hardwareModelIdentifier: String,
         kind: RecordingDeviceKind,
         makeUUID: @escaping @MainActor () -> UUID,
         now: @escaping @MainActor () -> Date,
@@ -292,6 +300,7 @@ public final class FileInstallationRecordingContextStore:
         self.fileURL = fileURL
         self.fileManager = fileManager
         self.systemName = systemName
+        self.hardwareModelIdentifier = hardwareModelIdentifier
         self.kind = kind
         self.makeUUID = makeUUID
         self.now = now
@@ -300,6 +309,7 @@ public final class FileInstallationRecordingContextStore:
 
         let proposed = Self.proposedContext(
             systemName: systemName,
+            hardwareModelIdentifier: hardwareModelIdentifier,
             kind: kind,
             id: makeUUID(),
             registeredAt: now(),
@@ -314,9 +324,12 @@ public final class FileInstallationRecordingContextStore:
                     fileManager: fileManager,
                 )
                 let loaded = try Self.load(from: fileURL, fileManager: fileManager)
-                resolution = .resolved(loaded?.context ?? proposed)
-                backupImportRecovery = loaded?.backupImportRecovery
-                onboardingImportCompletion = loaded?.onboardingImportCompletion
+                resolution = .resolved(loaded?
+                    .value(localModelIdentifier: hardwareModelIdentifier) ?? proposed)
+                backupImportRecovery = loaded?.backupImportRecovery?.value
+                onboardingImportCompletion = loaded?.onboardingImportCompletionID.map {
+                    BackupCoordinator.OnboardingImportCompletion(transactionID: $0)
+                }
             } catch {
                 let resetPendingURL = Self.resetPendingURL(for: fileURL)
                 if fileManager.fileExists(
@@ -343,11 +356,16 @@ public final class FileInstallationRecordingContextStore:
 
     public func confirmInitialRecording(
         isEnabled: Bool,
+        name: String?,
     ) throws -> InstallationRecordingContext {
         let context = try resolution.get()
         if context.automaticRecordingEnabled != nil { return context }
 
-        let confirmed = context.confirmingInitialRecording(isEnabled: isEnabled)
+        let confirmed = context.confirmingInitialRecording(
+            isEnabled: isEnabled,
+            name: name,
+            makeEventID: makeUUID,
+        )
         try persist(
             confirmed,
             backupImportRecovery: backupImportRecovery,
@@ -355,6 +373,21 @@ public final class FileInstallationRecordingContextStore:
         )
         resolution = .resolved(confirmed)
         return confirmed
+    }
+
+    public func acknowledgeInitialNickname(
+        deviceID: RecordingDeviceID,
+        eventID: RecordingDeviceMetadataChange.ID,
+    ) throws {
+        let context = try resolution.get()
+        let updated = context.acknowledgingInitialNickname(deviceID: deviceID, eventID: eventID)
+        guard updated != context else { return }
+        try persist(
+            updated,
+            backupImportRecovery: backupImportRecovery,
+            onboardingImportCompletion: onboardingImportCompletion,
+        )
+        resolution = .resolved(updated)
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
@@ -370,6 +403,7 @@ public final class FileInstallationRecordingContextStore:
     public func rejoin() throws -> InstallationRecordingContext {
         let proposed = Self.proposedContext(
             systemName: systemName,
+            hardwareModelIdentifier: hardwareModelIdentifier,
             kind: kind,
             id: makeUUID(),
             registeredAt: now(),
@@ -420,6 +454,7 @@ public final class FileInstallationRecordingContextStore:
             case .resolved, .failed:
                 proposed = Self.proposedContext(
                     systemName: systemName,
+                    hardwareModelIdentifier: hardwareModelIdentifier,
                     kind: kind,
                     id: makeUUID(),
                     registeredAt: now(),
@@ -467,6 +502,21 @@ public final class FileInstallationRecordingContextStore:
         resolution = .resolved(proposed)
     }
 
+    private static func hardwareIdentifier() -> String {
+        #if targetEnvironment(simulator)
+            if let model = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"],
+               !model.isEmpty
+            {
+                return model
+            }
+        #endif
+        var system = utsname()
+        uname(&system)
+        return withUnsafeBytes(of: &system.machine) {
+            String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self)
+        }
+    }
+
     /// Hardware-family mapping kept at the UIKit composition boundary.
     @_spi(Testing)
     public static func kind(for idiom: UIUserInterfaceIdiom) -> RecordingDeviceKind {
@@ -484,6 +534,7 @@ public final class FileInstallationRecordingContextStore:
 
     private static func proposedContext(
         systemName: String,
+        hardwareModelIdentifier: String,
         kind: RecordingDeviceKind,
         id: UUID,
         registeredAt: Date,
@@ -494,6 +545,7 @@ public final class FileInstallationRecordingContextStore:
                 id: RecordingDeviceID(rawValue: id),
                 systemName: systemName,
                 kind: kind,
+                hardwareModelIdentifier: hardwareModelIdentifier,
             ),
             registeredAt: registeredAt,
             recordingChoice: .unconfirmed,
@@ -520,7 +572,7 @@ public final class FileInstallationRecordingContextStore:
     private static func load(
         from fileURL: URL,
         fileManager: FileManager,
-    ) throws -> LoadedContext? {
+    ) throws -> StoredContext? {
         let directoryURL = fileURL.deletingLastPathComponent()
         guard fileManager.fileExists(atPath: directoryURL.path(percentEncoded: false)) else {
             return nil
@@ -547,7 +599,7 @@ public final class FileInstallationRecordingContextStore:
                     exclusionError: error,
                 )
             }
-            let pendingContext: LoadedContext
+            let pendingContext: StoredContext
             do {
                 pendingContext = try decodeContext(from: pendingURL)
             } catch is DecodingError {
@@ -594,7 +646,7 @@ public final class FileInstallationRecordingContextStore:
         from fileURL: URL,
         directoryURL: URL,
         fileManager: FileManager,
-    ) throws -> LoadedContext? {
+    ) throws -> StoredContext? {
         guard fileManager.fileExists(atPath: fileURL.path(percentEncoded: false)) else {
             return nil
         }
@@ -612,17 +664,10 @@ public final class FileInstallationRecordingContextStore:
         return try decodeContext(from: fileURL)
     }
 
-    private static func decodeContext(from fileURL: URL) throws -> LoadedContext {
-        let stored = try JSONDecoder().decode(
+    private static func decodeContext(from fileURL: URL) throws -> StoredContext {
+        try JSONDecoder().decode(
             StoredContext.self,
             from: Data(contentsOf: fileURL),
-        )
-        return LoadedContext(
-            context: stored.value,
-            backupImportRecovery: stored.backupImportRecovery?.value,
-            onboardingImportCompletion: stored.onboardingImportCompletionID.map {
-                BackupCoordinator.OnboardingImportCompletion(transactionID: $0)
-            },
         )
     }
 

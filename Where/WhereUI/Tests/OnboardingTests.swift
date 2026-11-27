@@ -38,8 +38,16 @@ struct OnboardingModelTests {
         let contextStore = unconfirmedContextStore(kind: .phone)
         let model = makeModel(preferences: makePreferences(), contextStore: contextStore)
 
-        _ = try model.confirmInitialRecordingChoice(isEnabled: true)
-        let retried = try model.confirmInitialRecordingChoice(isEnabled: false)
+        let confirmed = try model.confirmInitialRecordingChoice(
+            isEnabled: true,
+            name: "Travel Phone",
+        )
+        let retried = try model.confirmInitialRecordingChoice(
+            isEnabled: false,
+            name: "Travel Phone",
+        )
+        #expect(retried.pendingInitialNickname?.nickname == "Travel Phone")
+        #expect(retried.pendingInitialNickname == confirmed.pendingInitialNickname)
 
         #expect(retried.automaticRecordingEnabled == false)
         #expect(try contextStore.resolve().automaticRecordingEnabled == false)

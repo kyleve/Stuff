@@ -23,15 +23,17 @@ final class OnboardingFlowModel {
         case failed(String)
     }
 
-    let installationContext: InstallationRecordingContext
+    private(set) var installationContext: InstallationRecordingContext
     let gate: LifecycleGateHandle
     var phase: Phase
     var page = 0
     var theme: WhereTheme
     var selection = PrimaryRegionSelectionModel()
+    var deviceName: String
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
     var isFinishing = false
+    private(set) var confirmationError: String?
     var restoreSelection = OnboardingRestoreSelection()
     var intro = OnboardingIntroState()
     var showImporter = false
@@ -48,6 +50,7 @@ final class OnboardingFlowModel {
     ) {
         self.gate = gate
         self.installationContext = installationContext
+        deviceName = installationContext.initialDisplayName
         phase = startsAtRecordingChoice ? .location : .intro
         theme = initialTheme
         recordingEnabled = installationContext.automaticRecordingEnabled
@@ -105,12 +108,16 @@ final class OnboardingFlowModel {
             intro.activity = .restoringBackup
             phase = .intro
         }
+        confirmationError = nil
         isFinishing = true
         model.performOnboarding { [self] in
             do {
                 let context = try model.confirmInitialRecordingChoice(
                     isEnabled: recordingEnabled,
+                    name: deviceName,
                 )
+                installationContext = context
+                deviceName = context.initialDisplayName
                 guard context.automaticRecordingEnabled != nil else {
                     preconditionFailure("A confirmed installation context must carry its choice.")
                 }
@@ -118,7 +125,10 @@ final class OnboardingFlowModel {
                 Self.logger.installationContextWriteFailed(
                     error: .restricted(.errorDetails, error),
                 )
-                gate.fail(error)
+                confirmationError = error.localizedDescription
+                intro.activity = .browsing
+                phase = .location
+                isFinishing = false
                 return
             }
 

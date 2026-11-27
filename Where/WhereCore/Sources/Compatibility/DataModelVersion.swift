@@ -13,6 +13,7 @@ public struct DataModelVersion: RawRepresentable, Codable, Hashable, Comparable,
         Change(version: baseline, reason: .compatibilityVersion1Reason),
         Change(version: Self(rawValue: 2), reason: .compatibilityVersion2Reason),
         Change(version: Self(rawValue: 3), reason: .compatibilityVersion3Reason),
+        Change(version: Self(rawValue: 4), reason: .compatibilityVersion4Reason),
     ]
     public static let current = changes.last!.version
     public let rawValue: Int

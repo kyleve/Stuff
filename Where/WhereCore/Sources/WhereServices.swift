@@ -146,6 +146,10 @@ public struct WhereServices: WhereShutdownable {
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
             NoopBackupImportRecoveryPersistence(),
+        acknowledgeInitialNickname: @escaping @Sendable (
+            RecordingDeviceID,
+            RecordingDeviceMetadataChange.ID
+        ) async throws -> Void = { _, _ in },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.init(
@@ -161,6 +165,7 @@ public struct WhereServices: WhereShutdownable {
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
+            acknowledgeInitialNickname: acknowledgeInitialNickname,
             now: now,
         )
     }
@@ -179,6 +184,10 @@ public struct WhereServices: WhereShutdownable {
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
             NoopBackupImportRecoveryPersistence(),
+        acknowledgeInitialNickname: @escaping @Sendable (
+            RecordingDeviceID,
+            RecordingDeviceMetadataChange.ID
+        ) async throws -> Void = { _, _ in },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
@@ -276,6 +285,7 @@ public struct WhereServices: WhereShutdownable {
             store: store,
             ingestor: ingestor,
             installationContext: installationContext,
+            acknowledgeInitialNickname: acknowledgeInitialNickname,
             now: now,
             onPolicyChanged: {
                 // A cutoff can remove already-materialized history, so every derived output
@@ -389,6 +399,10 @@ public struct WhereServices: WhereShutdownable {
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
+        acknowledgeInitialNickname: @escaping @Sendable (
+            RecordingDeviceID,
+            RecordingDeviceMetadataChange.ID
+        ) async throws -> Void = { _, _ in },
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
         let tracked = try await store.trackedRegions()
@@ -413,6 +427,7 @@ public struct WhereServices: WhereShutdownable {
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
+            acknowledgeInitialNickname: acknowledgeInitialNickname,
             now: now,
         )
     }

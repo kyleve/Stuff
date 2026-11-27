@@ -29,6 +29,14 @@ public struct RecordingDeviceProfile: Identifiable, Codable, Sendable, Hashable 
         self.registrationGenerationID = registrationGenerationID
     }
 
+    /// The archive uses seconds since 1970, while Date internally uses the 2001 epoch.
+    /// Two values at one portable timestamp can differ by one internal floating-point step.
+    func hasSamePortableValue(as other: Self) -> Bool {
+        id == other.id && systemName == other.systemName && kind == other.kind
+            && registrationGenerationID == other.registrationGenerationID
+            && registeredAt.timeIntervalSince1970 == other.registeredAt.timeIntervalSince1970
+    }
+
     /// Stable winner when CloudKit supplies conflicting immutable rows for one profile id.
     static func isCanonicalBefore(
         _ lhs: RecordingDeviceProfile,

@@ -1,6 +1,6 @@
 # 02 — Name devices during setup and in history
 
-- Status: ready
+- Status: executing
 - Depends on: [01 — Location provenance](01-location-provenance.md). Build on its delivered archive format and shared-data history entry.
 - Shared context: [Overview](README.md)
 
@@ -77,8 +77,20 @@ Run from the repository root during implementation.
 
 If a sidecar write fails, retain the setup input and surface the failure. Retry a failed registration with the staged IDs. After commit, acknowledge a pending sidecar write without reapplying a nickname or replaying a committed restore. On generation change or identity retirement, re-read the current authority before retrying. Preserve the original export if verification fails.
 
-- [ ] Implement and verify registration, name resolution and onboarding.
-- [ ] Verify live registration of the owner's generic profile, strict upgrade and both import strategies.
+- [x] Implement and verify registration, name resolution and onboarding.
+- [x] Verify registration against an existing generic profile, strict upgrade of the synthetic archive and both import strategies.
 - [ ] Review and publish the implementation.
 
-November 27, 2026. This plan now extends the delivered 01 version history and names the lockout reason for model identifiers. On November 20 the owner settled the setup, fallback and scope questions. The immutable-profile conflict found during plan review is addressed in steps 1, 2, 4 and 7. Implementation has not started. After authorization and completion of 01, begin with the existing-profile and two-device resolution tests.
+November 27, 2026. This plan now extends the delivered 01 version history and names the lockout reason for model identifiers. On November 20 the owner settled the setup, fallback and scope questions. The immutable-profile conflict found during plan review is addressed in steps 1, 2, 4 and 7. Execution started on `codex/where-device-names` from verified [PR #573](https://github.com/kyleve/Stuff/pull/573). Start with the existing-profile and two-device resolution tests.
+
+## Execution evidence
+
+The installed Xcode CoreSimulator profiles supplied 136 raw identifiers for 83 named products. Known cellular and Wi-Fi variants resolve to the same iPad name. A new identifier displays its original text.
+
+Review checked the setup handoff through sidecar failure, successful registration and restore. It also caught conflicting metadata fields and mismatched timestamps when CloudKit delivers a model and profile independently. The store now validates the pair when both are available. Profile, model and correction replay compare timestamps at the archive’s actual precision, preserving the existing row. A synthetic two-device test exercises a sub-microsecond registration date through Merge and Replace.
+
+The final `--record never --review` run passed both onboarding and device settings suites on iPhone 17 / iOS 27.2 (20 references). Visual review caught truncated text at AX5 and an outdated iPad Settings fixture. The scrollable setup form now keeps the complete recording recommendation and button visible; the iPad fixture shows the current phone’s model. Two unchanged intro references stayed within their existing tolerance.
+
+The production loader opened the v9-to-v10 synthetic upgrade with two generic source profiles, four metadata events, a removal, two correction revisions, a GPS point and an attachment. The Ruby converter passed 36 tests with 287 assertions.
+
+After the historical-label fixture was updated to deliver its model fact, the final device, archive, launch, settings and report selection passed 239 executed tests. Host, architecture, and catalog checks passed.

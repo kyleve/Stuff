@@ -195,6 +195,7 @@ struct WhereLaunchTests {
             preferences: realPreferences,
             now: { requestedDate },
         )
+        let realInstallation = model.installationRecordingContext
         model.prepareDemoLaunch(configuration: .allIssues)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
@@ -219,6 +220,7 @@ struct WhereLaunchTests {
 
         #expect(!model.isInDemoMode)
         #expect(bootstrap.makeServicesCount == 0)
+        #expect(model.installationRecordingContext == realInstallation)
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {

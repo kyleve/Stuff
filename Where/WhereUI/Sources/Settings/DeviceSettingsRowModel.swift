@@ -26,7 +26,7 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     let id: RecordingDeviceID
-    let systemName: String
+    private(set) var modelName: String
     let kind: RecordingDeviceKind
     let isCurrent: Bool
 
@@ -44,7 +44,7 @@ final class DeviceSettingsRowModel: Identifiable {
 
     init(configuration: RecordingDeviceConfiguration) {
         id = configuration.id
-        systemName = configuration.device.systemName
+        modelName = configuration.device.modelName
         kind = configuration.device.kind
         isCurrent = configuration.isCurrentDevice
         let nickname = configuration.device.nickname ?? ""
@@ -67,7 +67,10 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     var hasUnsavedNickname: Bool {
-        normalizedNickname != confirmedNickname
+        normalizedNickname != (RecordingDeviceName.normalizedNickname(
+            confirmedNickname,
+            fallback: modelName,
+        ) ?? "")
     }
 
     var canSaveNickname: Bool {
@@ -79,8 +82,7 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     var displayName: String {
-        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? systemName : trimmed
+        RecordingDeviceName.displayName(nickname: nickname, fallback: modelName)
     }
 
     var systemSymbol: SFSymbol {
@@ -135,6 +137,7 @@ final class DeviceSettingsRowModel: Identifiable {
     func update(from configuration: RecordingDeviceConfiguration) {
         let newNickname = configuration.device.nickname ?? ""
         if !hasUnsavedNickname { nickname = newNickname }
+        modelName = configuration.device.modelName
         confirmedNickname = newNickname
         if let enabled = configuration.localAutomaticRecordingEnabled {
             if !pendingRecordingIntent { recordingEnabled = enabled }
@@ -145,7 +148,7 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     private var normalizedNickname: String {
-        nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        RecordingDeviceName.normalizedNickname(nickname, fallback: modelName) ?? ""
     }
 
     private func begin(_ operation: Operation) -> Operation {

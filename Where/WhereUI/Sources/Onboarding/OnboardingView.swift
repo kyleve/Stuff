@@ -273,9 +273,22 @@ public struct OnboardingView: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
 
                     VStack(spacing: stylesheet.spacing.large) {
+                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                            Text(String(localized: .settingsDevicesName))
+                                .accessibilityHidden(true)
+                            TextField(
+                                String(localized: .settingsDevicesName),
+                                text: $flow.deviceName,
+                                prompt: Text(flow.installationContext.currentDevice.modelName),
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.done)
+                            .disabled(flow.installationContext.automaticRecordingEnabled != nil)
+                        }
                         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
                             switch flow.deviceDiscovery {
                                 case .idle, .loading:
@@ -301,6 +314,10 @@ public struct OnboardingView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                        if let error = flow.confirmationError {
+                            Label(error, systemSymbol: .exclamationmarkTriangle)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         Button {
                             // Request Always-location only after the user confirms an
                             // enabled choice; the launch's reconcile step picks up
@@ -313,6 +330,7 @@ public struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                     .disabled(
                         flow.isFinishing || model.isCompletingOnboarding
                             || flow.deviceDiscovery == .loading,
@@ -488,7 +506,39 @@ struct OnboardingPage: Identifiable {
                             id: LaunchStepID.onboarding,
                             reason: .userForeground,
                         ),
-                        installationContext: .testing,
+                        installationContext: InstallationRecordingContext(
+                            currentDevice: .preview,
+                            registeredAt: InstallationRecordingContext.testing.registeredAt,
+                            recordingChoice: .unconfirmed,
+                            isRejoining: false,
+                        ),
+                        startsAtRecordingChoice: true,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+                whereSnapshot(
+                    name: "ConfirmedCustomName",
+                    configurations: [SnapshotConfiguration(device: .iPhoneFullContent)],
+                ) {
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        installationContext: InstallationRecordingContext(
+                            currentDevice: .preview,
+                            registeredAt: InstallationRecordingContext.testing.registeredAt,
+                            recordingChoice: .off,
+                            isRejoining: false,
+                            pendingInitialNickname: .init(
+                                id: .init(
+                                    rawValue: UUID(
+                                        uuidString: "00000000-0000-0000-0000-000000000004",
+                                    )!,
+                                ),
+                                nickname: "Travel Phone",
+                            ),
+                        ),
                         startsAtRecordingChoice: true,
                     )
                     .environment(PreviewSupport.onboardingModel())
@@ -511,6 +561,7 @@ struct OnboardingPage: Identifiable {
                                 ),
                                 systemName: "iPad",
                                 kind: .tablet,
+                                hardwareModelIdentifier: "iPad99,7",
                             ),
                             registeredAt: InstallationRecordingContext.testing.registeredAt,
                             recordingChoice: .unconfirmed,

@@ -15,11 +15,15 @@ struct DeviceSettingsSection: View {
     var body: some View {
         Section {
             HStack {
-                TextField(String(localized: .settingsDevicesName), text: $row.nickname)
-                    .submitLabel(.done)
-                    .onSubmit {
-                        Task { await model.saveNickname(row) }
-                    }
+                TextField(
+                    String(localized: .settingsDevicesName),
+                    text: $row.nickname,
+                    prompt: Text(row.modelName),
+                )
+                .submitLabel(.done)
+                .onSubmit {
+                    Task { await model.saveNickname(row) }
+                }
 
                 if row.hasUnsavedNickname {
                     Button(String(localized: .commonSave)) {

@@ -1,6 +1,6 @@
 # 01 — Preserve who recorded a location and who corrected it
 
-- Status: executing
+- Status: complete
 - Depends on: None
 - Shared context: [Overview](README.md)
 
@@ -89,7 +89,7 @@ November 27, 2026. The plan now starts from archive v8 and shared-data history e
 
 - [x] Enforce capture identity and persist each revision author.
 - [x] Deliver strict schema, upgrade and restore together.
-- [ ] Verify acceptance, review and publish the implementation.
+- [x] Verify acceptance, review and publish the implementation.
 
 ## Execution record and outcome
 
@@ -100,6 +100,6 @@ November 27, 2026. Implemented on `codex/where-location-provenance` above `41b1b
 - Independent review found a count mismatch for already-known IDs without a profile and two transaction races. The driver now distinguishes selecting such an ID from adding a profile. Reset selection pins the prior history, and cancellation before the final save rolls back staged revisions.
 - After review fixes, `./test --no-generate WhereCoreTests` passed 921 executed tests and the architecture checks. `./xcstrings --lint` and Swift formatting checks passed. The owner deferred the physical CloudKit exercise. Development and Production schema verification remain release checks.
 
-## Resume point
+## Outcome
 
-Run the Core and UI suites, then use the upgrade verification driver on the synthetic v8 ZIP. The owner asked to leave the live two-device CloudKit exercise pending.
+Delivered in [PR #573](https://github.com/kyleve/Stuff/pull/573) at `be7c927c7`. Plan 02 can reuse the confirmed recorder and editor roles and the strict v9 archive.

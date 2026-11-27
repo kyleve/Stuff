@@ -21,7 +21,7 @@ struct BackupCoordinatorTests {
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let exported = try BackupService().readArchive(at: url).archive
-        #expect(exported.formatVersion == 9)
+        #expect(exported.formatVersion == 10)
         #expect(exported.manualDays == [day])
         #expect(exported.samples.isEmpty)
         #expect(!exported.trackedRegions.contains(ontario))
@@ -112,6 +112,90 @@ struct BackupCoordinatorTests {
             case .replace:
                 #expect(restored == revisions)
         }
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func restoredRecorderAndEditorResolveTheirOwnModels(_ strategy: BackupCoordinator
+        .ImportStrategy) async throws
+    {
+        let source = try Self.makeHarness()
+        let destination = try Self.makeHarness()
+        let registered = Date(timeIntervalSinceReferenceDate: TimeInterval(800_000_000).nextUp)
+        let phone = RecordingDeviceProfile(
+            id: .init(rawValue: UUID()),
+            systemName: "iPhone",
+            kind: .phone,
+            registeredAt: registered,
+            registrationGenerationID: .initial,
+        )
+        let tablet = RecordingDeviceProfile(
+            id: .init(rawValue: UUID()),
+            systemName: "iPad",
+            kind: .tablet,
+            registeredAt: registered,
+            registrationGenerationID: .initial,
+        )
+        let sample = LocationSample(
+            timestamp: registered,
+            coordinate: Coordinate(latitude: 10, longitude: 20),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+            recordingDeviceID: phone.id,
+        )
+        let revision = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: sample.id,
+            updatedAt: registered,
+            changedByDeviceID: tablet.id,
+            replacementRegions: [],
+        )
+        let facts: [RecordingDeviceMetadataChange] = [
+            .hardwareModelIdentifier("iPhone16,1", for: phone),
+            .hardwareModelIdentifier("FutureTablet99,1", for: tablet),
+        ]
+        try await source.store.perform {
+            try await source.store.addRecordingDeviceProfile(phone)
+            try await source.store.addRecordingDeviceProfile(tablet)
+            for fact in facts {
+                try await source.store.addRecordingDeviceMetadataChange(fact)
+            }
+            try await source.store.add(sample: sample)
+            try await source.store.addSampleAttributionRevision(revision)
+        }
+        try await destination.store.perform {
+            try await destination.store.addRecordingDeviceProfile(phone)
+            try await destination.store.addRecordingDeviceMetadataChange(facts[0])
+            try await destination.store.addSampleAttributionRevision(revision)
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: strategy,
+        )
+        if strategy == .merge {
+            _ = try await destination.coordinator.importAndAcknowledgeBackup(
+                from: url,
+                strategy: .merge,
+            )
+        }
+        let names = try await Dictionary(uniqueKeysWithValues: destination.store.recordingDevices()
+            .map { (
+                $0.id,
+                $0.displayName,
+            ) })
+        let reexport = try await destination.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: reexport.deletingLastPathComponent()) }
+        let restored = try BackupService().readArchive(at: reexport).archive
+        let capture = try #require(restored.samples.first?.recordingDeviceID)
+        let author = try #require(restored.sampleAttributionRevisions.first?.changedByDeviceID)
+        #expect(names[capture] == "iPhone 15 Pro")
+        #expect(names[author] == "FutureTablet99,1")
+        let exported = try BackupService().readArchive(at: url).archive
+        #expect(Set(restored.recordingDeviceMetadataChanges) ==
+            Set(exported.recordingDeviceMetadataChanges))
+        #expect(Set(restored.recordingDeviceProfiles) == Set(exported.recordingDeviceProfiles))
+        #expect(restored.sampleAttributionRevisions == exported.sampleAttributionRevisions)
     }
 
     private struct Harness {
@@ -225,12 +309,17 @@ struct BackupCoordinatorTests {
             ))
             try await store.restoreDismissedIssue(dismissal)
             try await store.restorePlannedStayRecord(plannedStay())
-            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+            let profile = RecordingDeviceProfile(
                 id: recordingDeviceID,
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: dismissal.dismissedAt,
                 registrationGenerationID: .initial,
+            )
+            try await store.addRecordingDeviceProfile(profile)
+            try await store.addRecordingDeviceMetadataChange(.hardwareModelIdentifier(
+                "iPad13,18",
+                for: profile,
             ))
             try await store.addRecordingDeviceMetadataChange(RecordingDeviceMetadataChange(
                 id: .init(

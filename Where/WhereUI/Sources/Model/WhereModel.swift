@@ -274,6 +274,7 @@ public final class WhereModel {
     @discardableResult
     public func confirmInitialRecordingChoice(
         isEnabled: Bool,
+        name: String? = nil,
     ) throws -> InstallationRecordingContext {
         let context = try installationContextStore.resolve()
         if let existing = context.automaticRecordingEnabled {
@@ -282,7 +283,10 @@ public final class WhereModel {
             }
             return try installationContextStore.resolve()
         }
-        return try installationContextStore.confirmInitialRecording(isEnabled: isEnabled)
+        return try installationContextStore.confirmInitialRecording(
+            isEnabled: isEnabled,
+            name: name,
+        )
     }
 
     /// Mark the first-run app flow complete after its scope and selections have

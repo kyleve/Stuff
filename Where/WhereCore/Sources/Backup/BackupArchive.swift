@@ -29,7 +29,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 9
+    public static let currentFormatVersion = 10
 
     public let formatVersion: Int
     public let exportedAt: Date

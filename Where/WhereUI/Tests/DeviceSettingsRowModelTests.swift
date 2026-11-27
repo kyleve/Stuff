@@ -54,11 +54,27 @@ struct DeviceSettingsRowModelTests {
         #expect(row.hasUnsavedNickname)
     }
 
+    @Test func clearingNicknameShowsTheLatestSyncedModel() {
+        let row = DeviceSettingsRowModel(configuration: configuration(
+            nickname: "Desk",
+            status: .off,
+        ))
+        row.nickname = ""
+        row.update(from: configuration(nickname: "Desk", status: .off, modelIdentifier: "iPad99,7"))
+        #expect(row.displayName == "iPad99,7")
+        #expect(row.hasUnsavedNickname)
+        row.requestNicknameSave()
+        #expect(row.beginNextOperation() == .rename(""))
+        row.finish(.rename(""))
+        #expect(!row.hasUnsavedNickname)
+    }
+
     private func configuration(
         nickname: String? = nil,
         status: RecordingDeviceStatus,
         isCurrent: Bool = false,
         enabled: Bool? = nil,
+        modelIdentifier: String? = nil,
     ) -> RecordingDeviceConfiguration {
         RecordingDeviceConfiguration(
             device: RecordingDevice(
@@ -70,6 +86,7 @@ struct DeviceSettingsRowModelTests {
                 lastSeenAt: Self.date,
                 removedAt: nil,
                 status: status,
+                hardwareModelIdentifier: modelIdentifier,
             ),
             isCurrentDevice: isCurrent,
             localAutomaticRecordingEnabled: enabled,

@@ -5,6 +5,7 @@ require "json"
 require "open3"
 require "optparse"
 require "pathname"
+require "set"
 require "tmpdir"
 
 # Orchestrate the repository upgrader and independently verify its output. Manifest
@@ -22,6 +23,9 @@ class UpgradeAndVerify
       options.banner = "Usage: ruby upgrade_and_verify.rb INPUT [OUTPUT] [options]"
       options.on("--source-profile FILE", "Original installation profile or selection JSON") do |path|
         @source_profile_path = File.expand_path(path)
+      end
+      options.on("--device-models FILE", "Hardware identifiers keyed by installation UUID") do |path|
+        @device_models_path = File.expand_path(path)
       end
       options.on("--force", "Replace an existing output archive") { @options[:force] = true }
       options.on("-h", "--help", "Show this help") do
@@ -55,6 +59,7 @@ class UpgradeAndVerify
       end
 
       mapping = @source_profile_path ? ["--source-profile", @source_profile_path] : []
+      mapping += ["--device-models", @device_models_path] if @device_models_path
       run_command!(
         "mise", "exec", "--", "ruby", @upgrader, input_zip, @output, *mapping,
         chdir: @repo_root,
@@ -72,6 +77,8 @@ class UpgradeAndVerify
         expected_counts["recordingDeviceProfiles"] += 1
       end
     end
+    models = @device_models_path ? JSON.parse(File.read(@device_models_path)) : {}
+    expected_counts["recordingDeviceMetadataChanges"] += verify_model_events!(source_manifest, upgraded_manifest, models)
     verify_counts!(upgraded_manifest, expected_counts)
     Dir.mktmpdir("where-backup-verification") do |work_directory|
       configuration_path = File.join(work_directory, "configuration.json")
@@ -133,8 +140,7 @@ class UpgradeAndVerify
     counts.merge("primaryRegions" => primary_regions.length)
   end
 
-  # The only collection allowed to grow is the original phone's profile, and only
-  # when an explicitly supplied profile was needed to fill a missing origin.
+  # One profile may be added when an explicitly supplied profile filled a missing origin.
   def added_source_profile?(profile, source, result)
     return false if profile.keys == ["id"]
     selected = profile.fetch("id").downcase
@@ -149,6 +155,42 @@ class UpgradeAndVerify
     return false unless used
     fail_with("upgraded archive does not contain the supplied source profile") unless result.fetch("recordingDeviceProfiles").include?(profile)
     true
+  end
+
+  def verify_model_events!(source, result, models)
+    table = "recordingDeviceMetadataChanges"
+    original = source.fetch(table, [])
+    original_ids = original.map { |row| row.fetch("id").downcase }
+    ids = original_ids.to_set
+    retained, added = result.fetch(table).partition { |row| ids.include?(row.fetch("id").downcase) }
+    fail_with("original metadata event identities changed") unless retained.map { |row| row.fetch("id").downcase }.sort == original_ids.sort
+
+    # Starting at v9 every original record can be compared directly. Earlier versions
+    # have documented transformations for dates, regions, device payloads and attribution.
+    if source.fetch("formatVersion") >= 9
+      obsolete = %w[recordingDevices recordingDeviceCheckIns recordingPolicyChanges]
+      original_data = source.reject { |key, _| key == "formatVersion" || key == table || obsolete.include?(key) }
+      restored_data = result.reject { |key, _| key == "formatVersion" || key == table }
+      unless retained == original && original_data == restored_data
+        fail_with("v9 or later manifest values changed during hardware model upgrade")
+      end
+    end
+
+    field = "hardwareModelIdentifier"
+    original_fact_targets = original.select { |row| row.dig("payload", "field") == field }.map { |row| row.fetch("deviceID").downcase }
+    profiles = result.fetch("recordingDeviceProfiles").to_h { |row| [row.fetch("id").downcase, row] }
+    needed = profiles.keys - original_fact_targets
+    fail_with("unexpected added hardware model targets") unless added.map { |row| row.fetch("deviceID").downcase }.sort == needed.sort
+    model_map = models.transform_keys(&:downcase)
+    added.each do |event|
+      target = event.fetch("deviceID").downcase
+      model = model_map[target.delete_prefix("store://devices/")]
+      unless model && event.fetch("payload") == { "field" => field, field => model } && event.fetch("revision") == 0 &&
+             event.fetch("changedByDeviceID").downcase == target && event.fetch("changedAt") == profiles.fetch(target).fetch("registeredAt")
+        fail_with("added metadata does not match the supplied model and immutable profile")
+      end
+    end
+    added.length
   end
 
   def verify_counts!(manifest, expected_counts)

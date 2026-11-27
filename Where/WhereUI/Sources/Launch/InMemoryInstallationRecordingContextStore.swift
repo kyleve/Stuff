@@ -40,10 +40,25 @@ public final class InMemoryInstallationRecordingContextStore:
 
     public func confirmInitialRecording(
         isEnabled: Bool,
+        name: String?,
     ) throws -> InstallationRecordingContext {
         if onboardingContext.automaticRecordingEnabled != nil { return onboardingContext }
-        onboardingContext = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
+        onboardingContext = onboardingContext.confirmingInitialRecording(
+            isEnabled: isEnabled,
+            name: name,
+            makeEventID: makeUUID,
+        )
         return onboardingContext
+    }
+
+    public func acknowledgeInitialNickname(
+        deviceID: RecordingDeviceID,
+        eventID: RecordingDeviceMetadataChange.ID,
+    ) {
+        onboardingContext = onboardingContext.acknowledgingInitialNickname(
+            deviceID: deviceID,
+            eventID: eventID,
+        )
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
@@ -79,6 +94,7 @@ public final class InMemoryInstallationRecordingContextStore:
                 id: RecordingDeviceID(rawValue: makeUUID()),
                 systemName: onboardingContext.currentDevice.systemName,
                 kind: onboardingContext.currentDevice.kind,
+                hardwareModelIdentifier: onboardingContext.currentDevice.hardwareModelIdentifier,
             ),
             registeredAt: now(),
             recordingChoice: .unconfirmed,
