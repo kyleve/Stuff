@@ -89,8 +89,8 @@ struct PlannedStaysView: View {
                 }
             }
         }
-        .sheet(item: $model.editor) { editor in
-            PlannedStayEditor(model: editor)
+        .sheet(item: $model.editorRoute) { route in
+            PlannedStayEditorDestination(report: model.report, mode: route.mode)
         }
         .task { await model.load() }
     }
@@ -117,13 +117,7 @@ struct PlannedStaysView: View {
                 .homeRegion == nil ? [.isSelected] : [])
 
             NavigationLink {
-                PlanningRegionPickerView(
-                    model: model.regionSelection,
-                    title: String(localized: .plannedStaysHomeRegion),
-                    selectedRegion: model.report.forecasts.planning.homeRegion,
-                ) { region in
-                    try await model.report.forecasts.setHomeRegion(region)
-                }
+                HomeRegionPickerDestination(report: model.report)
             } label: {
                 LabeledContent {
                     HStack {
@@ -167,6 +161,22 @@ struct PlannedStaysView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint(String(localized: .plannedStaysEditHint))
+    }
+}
+
+private struct HomeRegionPickerDestination: View {
+    let report: YearReportModel
+
+    var body: some View {
+        ObservableHostingView({ PlanningRegionSelectionModel(report: report) }) { model in
+            PlanningRegionPickerView(
+                model: model,
+                title: String(localized: .plannedStaysHomeRegion),
+                selectedRegion: report.forecasts.planning.homeRegion,
+            ) { region in
+                try await report.forecasts.setHomeRegion(region)
+            }
+        }
     }
 }
 

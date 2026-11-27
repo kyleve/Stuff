@@ -14,14 +14,19 @@ struct PlannedStayEditorTests {
         await report.refresh()
         let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: .california))
         let state = AdaptivePaneHostState()
+        var mounts = 0
         let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
-            PlannedStayEditor(model: model)
+            PlannedStayEditorDestination {
+                mounts += 1
+                return model
+            }
         })
         host.safeAreaRegions = []
         let gate = TestStore.OperationGate()
         await store.gateNextPlannedStayWrite(with: gate)
         if fails { await store.failPlannedStays() }
         try await show(host) { controller in
+            try await waitForAsync { mounts == 1 }
             let saving = Task { await model.save() }
             await gate.waitUntilReached()
             do {
@@ -33,6 +38,7 @@ struct PlannedStayEditorTests {
                 ] {
                     try await AdaptivePaneTestSupport.resize(controller, state: state, to: pose)
                     #expect(model.isSaving)
+                    #expect(mounts == 1)
                     #expect(model.region == .california)
                     #expect(await store.plannedStayWriteCount == 1)
                 }
