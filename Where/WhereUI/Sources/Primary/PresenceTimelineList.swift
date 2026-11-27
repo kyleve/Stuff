@@ -167,7 +167,7 @@ struct PresenceTimelineList: View {
                             .top,
                             pinsOverview ? 0 : stylesheet.spacing.large,
                         )
-                        .padding(.bottom, stylesheet.spacing.large)
+                        .padding(.bottom, items.last == .estimate ? 0 : stylesheet.spacing.large)
                         .whereContentRoot()
                     }
                     .scrollPosition($position)

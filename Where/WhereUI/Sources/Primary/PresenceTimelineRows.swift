@@ -105,7 +105,8 @@ struct PresenceTimelineRows: View {
                             planningAction: openPlanning.map { action in { action(.list) } },
                         )
                         .padding(.top, previous == nil ? 0 : stylesheet.spacing.large)
-                        .padding(.bottom, next == nil ? 0 : stylesheet.spacing.large)
+                        // Include the final inset in the estimate's bottom-aligned scroll target.
+                        .padding(.bottom, stylesheet.spacing.large)
                 }
             }
             .fixedSize(horizontal: false, vertical: openPlanning == nil)
