@@ -18,6 +18,7 @@ class CIWorkflowTests(unittest.TestCase):
         cls.validation_jobs = json.loads(
             (root / "Tools/ci-validation-jobs.json").read_text()
         )
+        cls.web_lock = json.loads((root / "package-lock.json").read_text())
         cls.github, cls.setup, cls.continued, cls.distribution = json.loads(
             subprocess.check_output(
                 [
@@ -43,6 +44,14 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertEqual(set(triggers), {"push", "pull_request", "workflow_dispatch"})
         self.assertEqual(triggers["pull_request"], {"branches": ["main"]})
         self.assertEqual(triggers["push"], {"branches": ["main"]})
+
+    def test_ci_web_install_excludes_the_backlog_cli(self):
+        self.assertFalse(
+            any(
+                f"/{path}".endswith("/node_modules/@schpet/linear-cli")
+                for path in self.web_lock["packages"]
+            )
+        )
 
     def test_manifest_matches_github_classifier_and_all_workers(self):
         jobs = self.github["jobs"]
