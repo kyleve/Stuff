@@ -255,11 +255,10 @@ The reusable panes also support iPad layouts. There is no HomeView target.
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
-  **`LocationForecastModel`** itinerary and Home-assumption mirror, and
-  **`ElsewhereModel`** catalog resolution and optional place labels), plus
+  **`LocationForecastModel`** itinerary and Home-assumption mirror), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (Settings export progress and failures),
-  **`RemindersSettingsModel`** (notification prefs),
+  (Data destination export progress and failures),
+  **`RemindersSettingsModel`** (Alerts destination notification choices),
   process-scoped **`DiagnosticReportingSettingsModel`** (saved versus effective
   launch channels and revisioned live log-policy application),
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
@@ -279,6 +278,10 @@ The reusable panes also support iPad layouts. There is no HomeView target.
 
 `DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
 `BackupSettingsSection` shows export progress and forwards the export action to that screen.
+The backup coordinator serializes accepted exports for the scope, including requests after navigation.
+The session applies saved notification choices in order per notification family, independently of the Alerts destination.
+The optional Elsewhere tab hosts one `ElsewhereModel` for its catalog projection, place labels,
+cards, and pushed detail. The Places & Your Year gallery hosts its own projection for its Locations example.
 
 ### Flight status and GPS corrections
 

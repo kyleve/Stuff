@@ -17,9 +17,8 @@ import WhereCore
 /// background relaunch never drives a `refresh()` no UI consumes.
 ///
 /// `services` / `preferences` / `now` / `calendar` are exposed so the
-/// view-scoped models a tab builds (`BackupModel`, `RemindersSettingsModel`,
-/// `ResolveModel`) can be constructed from the injected `report` without also
-/// threading the coordinator through.
+/// destination models that use the selected year's data can be constructed from
+/// the injected report.
 @MainActor
 @Observable
 public final class YearReportModel {
@@ -314,8 +313,6 @@ public final class YearReportModel {
         elsewhereInput?.hasVisits == true
     }
 
-    let elsewhere: ElsewhereModel
-
     /// Total distinct days with any tracked presence in the loaded year.
     public var trackedDayCount: Int {
         report?.days.count ?? 0
@@ -361,7 +358,6 @@ public final class YearReportModel {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.services = services
-        elsewhere = ElsewhereModel(resolver: services.elsewhere, namer: LocationNamer())
         if let details {
             loadedYear = LoadedYear(details: details, previous: nil)
         }
@@ -432,7 +428,6 @@ public final class YearReportModel {
         guard year != selectedYear else { return }
         Self.logger.selectedYear(year: .restricted(.domainValue, year))
         selectedYear = year
-        elsewhere.invalidate()
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
         loadedYear = nil

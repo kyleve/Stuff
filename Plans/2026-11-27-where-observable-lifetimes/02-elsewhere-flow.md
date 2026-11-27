@@ -1,6 +1,6 @@
 # 02 — Elsewhere flow
 
-- Status: ready
+- Status: executing
 - Dependencies: none
 - Shared context: [Overview](README.md)
 
@@ -57,7 +57,7 @@ The mounted flow is the stable owner. Changing year invalidates old content and 
 
 1. Add the factory at the Elsewhere flow above its navigation stack. Make the region detail require the flow model and remove `YearReportModel.elsewhere` and the report's UI invalidation call. Keep `elsewhereInput` and `hasElsewhere` on the report.
 2. Give the stable flow one refresh driver and a shared retry intent. Advance the model's request generation when the year actually changes, before any replacement read. Key work by complete input, selected year, visibility, and retry. Preserve the previous same-year projection during loading and error, and let either screen retry. Moving from list to detail must leave the flow's work and shared projection intact. Reject canceled or superseded resolution and naming results on publication. If a day row remains mounted outside the selected tab, gate its name request by visibility as well as coordinate.
-3. Adapt MainTabs, direct Elsewhere and Region Days snapshots, and Flyover to the new owner. Use a deterministic namer and the same prepared instance for both artwork preparation and rendering where capture currently needs them. Keep the existing preparation ordering so snapshots measure settled content.
+3. Adapt MainTabs, direct Elsewhere and Region Days snapshots, and Flyover to the new owner. The Places & Your Year gallery also reads the scene's Elsewhere projection. Give its Locations example a local host and use the same prepared instance for artwork and rendering. Keep the existing preparation ordering so snapshots measure settled content.
 4. Update WhereUI's report and Elsewhere ownership documentation. Verify that tab removal restores Locations and that a later Elsewhere visit creates the flow again.
 
 ## Acceptance and verification
@@ -68,7 +68,7 @@ Run commands from repository root.
 | --- | --- | --- |
 | R-03 | `./test --only WhereUITests/ElsewhereModelTests --only WhereUITests/MainTabsTests` | Removal selects Locations and reappearance works. A held old-year or evidence request cannot replace newer content. Same-year failure retains content and retries successfully. |
 | R-03, R-07 | Mount the shell with a counted factory and controllable resolver. Start without Elsewhere visits, add a visit, push into its details, change evidence without changing counts, then remove the final visit and add one again. Exercise a held request while switching year or leaving the tab. | No model is created while the tab is absent. List and detail share one instance and receive the matching map data. Reopening after removal creates a new instance. Canceled work cannot publish to the previous flow. |
-| R-07, X-03 | `./test --only WhereUISnapshotTests/ElsewhereViewSnapshotTests --only WhereUISnapshotTests/RegionDaysViewSnapshotTests --only WhereUISnapshotTests/MainTabsSnapshotTests` | Direct and shell captures settle with matching cards, artwork, and details. Check Standard and Flat where the existing fixtures provide both. |
+| R-07, X-03 | `./test --snapshots --only WhereUISnapshotTests/ElsewhereViewSnapshotTests --only WhereUISnapshotTests/RegionDaysViewSnapshotTests --only WhereUISnapshotTests/MainTabsSnapshotTests --only WhereUISnapshotTests/PlacesYearFeaturesViewSnapshotTests` | Direct and shell captures settle with matching cards, artwork, and details. Check Standard and Flat where the existing fixtures provide both. |
 | X-02, X-04 | Inspect the scene report, launch, and namer diff against the exclusions. | Report and forecast ownership and the shared geocoder's task contract are preserved. |
 
 ## Recovery
@@ -80,21 +80,23 @@ When a projection or snapshot is stale, compare the selected year, complete inpu
 | Date | Decision | Source |
 | --- | --- | --- |
 | 2026-11-27 | Use a shared Elsewhere flow host and leave visit availability in the scene report. | Ownership audit and current navigation source |
+| 2026-11-27 | Move the gallery's Elsewhere projection into the gallery's Locations example. It is independent of tab navigation. | Execution traced the remaining scene model callers |
 
 ## Progress
 
-- [ ] Move ownership and preserve refresh and retry.
-- [ ] Adapt fixture and capture entry points.
-- [ ] Verify tab, detail, and cancellation behavior.
+- [x] Move ownership and preserve refresh and retry.
+- [x] Adapt fixture and capture entry points.
+- [x] Verify tab, detail, and cancellation behavior.
 - [ ] Review, document, and publish the implementation.
 
 ## Execution record
 
-Implementation has not started.
+- 2026-11-27. Moved Elsewhere resolution into the navigation host and passed the same model to its detail. The first focused Phase 1 run passed 51 tests. Independent review identified a read-only gallery that shared the report's model and a possible ordering dependency between year invalidation and refresh. The gallery now resolves only its own projection, and the navigation driver prepares the year before reading.
+- 2026-11-27. The final mounted `MainTabsTests` rerun passed both tests. The expanded Elsewhere case exercises tab appearance, card navigation, updating the shared projection with the detail open, tab removal, and a new model on reappearance. The model cancellation and retry suite passed in the combined unit run. All seven Phase 1 snapshot tests passed with recording disabled, including the gallery and Regions Days cases. No image references changed.
 
 ## Resume point
 
-On execution authorization, confirm the current tab mount and capture preparation sequence, then move the factory and refresh driver together.
+Publish the verified Elsewhere changes, then advance to Phase 2.
 
 ## Outcome
 

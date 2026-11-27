@@ -10,18 +10,7 @@ struct RegionDaysView: View {
     let region: Region
     let report: YearReportModel
     let model: ElsewhereModel
-    @State private var retrySequence = 0
-
-    private struct Request: Hashable {
-        let input: ElsewhereInput?
-        let retrySequence: Int
-    }
-
-    init(region: Region, report: YearReportModel, model: ElsewhereModel? = nil) {
-        self.region = region
-        self.report = report
-        self.model = model ?? report.elsewhere
-    }
+    let retry: () -> Void
 
     private var history: ElsewhereRegion? {
         model.content(for: report.selectedYear)?.report.regions.first { $0.region == region }
@@ -46,10 +35,6 @@ struct RegionDaysView: View {
         content
             .navigationTitle(region.localizedName)
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: Request(input: report.elsewhereInput, retrySequence: retrySequence)) {
-                if case .failed = report.loadState { await report.refresh() }
-                if let input = report.elsewhereInput { await model.refresh(input) }
-            }
     }
 
     @ViewBuilder
@@ -110,7 +95,7 @@ struct RegionDaysView: View {
     }
 
     private var retryButton: some View {
-        Button(String(localized: .commonRetry)) { retrySequence += 1 }
+        Button(String(localized: .commonRetry), action: retry)
     }
 }
 
@@ -118,8 +103,8 @@ private struct DayRow: View {
     let day: DayPresence
     let coordinate: Coordinate?
     let model: ElsewhereModel
-
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.isElsewhereVisible) private var isVisible
 
     private var placeName: String? {
         coordinate.flatMap { model.cachedPlaceName(for: $0) }
@@ -145,8 +130,8 @@ private struct DayRow: View {
             }
         }
         .padding(.vertical, stylesheet.spacing.xSmall)
-        .task(id: coordinate) {
-            guard let coordinate else { return }
+        .task(id: isVisible ? coordinate : nil) {
+            guard isVisible, let coordinate else { return }
             _ = await model.placeName(for: coordinate)
         }
         .accessibilityElement(children: .combine)
@@ -169,8 +154,14 @@ private struct DayRow: View {
                 },
             ) {
                 NavigationStack {
-                    RegionDaysView(region: Region(rawValue: "us-NV")!, report: report, model: model)
+                    RegionDaysView(
+                        region: Region(rawValue: "us-NV")!,
+                        report: report,
+                        model: model,
+                        retry: {},
+                    )
                 }
+                .modifier(ElsewhereRefresh(report: report, model: model))
             }
         }
     }

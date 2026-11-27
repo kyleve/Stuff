@@ -41,6 +41,7 @@ final class ElsewhereModel {
     }
 
     private var state: State = .idle
+    private var selectedYear: Int?
     private var requestSequence: UInt64 = 0
     private var knownPlaces: [Coordinate: String] = [:]
     private let resolver: any ElsewhereResolving
@@ -68,8 +69,15 @@ final class ElsewhereModel {
         state = .idle
     }
 
+    func prepare(for year: Int) {
+        guard selectedYear != year else { return }
+        selectedYear = year
+        invalidate()
+    }
+
     func refresh(_ input: ElsewhereInput) async {
         guard !Task.isCancelled else { return }
+        prepare(for: input.report.year)
         if case let .loaded(loadedInput, _) = state, loadedInput == input { return }
         requestSequence += 1
         let sequence = requestSequence

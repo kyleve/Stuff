@@ -1,5 +1,6 @@
 import BroadwayUI
 import InstallerKit
+import RegionKit
 import SnapshotKit
 @_spi(Testing) import InstallerKitUI
 import SwiftUI
@@ -13,22 +14,45 @@ struct MainTabsTests {
     @Test func elsewhereTabAppearsForAVisitAndFallsBackAfterItsRemoval() async throws {
         let session = PreviewSupport.loadedSession()
         session.preferences.showsLocationWelcome = false
+        let report = YearReportModel(
+            services: session.services,
+            selectedYear: PreviewSupport.year,
+            preferences: session.preferences,
+            now: session.now,
+        )
+        var elsewheres: [ElsewhereModel] = []
         let root = MainTabs(
             session: session,
-            initialDetails: nil,
-            selectedYear: PreviewSupport.year,
+            report: report,
+            welcome: LocationWelcomeModel(
+                services: session.services,
+                preferences: session.preferences,
+                now: session.now,
+            ),
+            selection: .locations,
+            makeElsewhere: {
+                let model = ElsewhereModel(
+                    resolver: session.services.elsewhere,
+                    namer: PreviewPlaceNamer(),
+                )
+                elsewheres.append(model)
+                return model
+            },
         )
         .environment(session)
         .environment(PreviewSupport.loadedModel())
         .environment(\.scenePhase, .active)
         .whereBroadwayRoot()
-        try await show(UIHostingController(rootView: root)) { host in
-            try await waitForUpdateScene { findTabController(in: host)?.tabs.count == 3 }
-            let tabs = try #require(findTabController(in: host))
+        let controller: UIViewController = UIHostingController(rootView: root)
+        try await TestHostSupport.show(controller) { (_: UIViewController) async throws in
+            try await waitForUpdateScene { findTabController(in: controller)?.tabs.count == 3 }
+            #expect(elsewheres.isEmpty)
+            let tabs = try #require(findTabController(in: controller))
             let date = PreviewSupport.referenceNow
+            let nevada = try #require(Region(rawValue: "us-NV"))
             try await session.services.journal.addManualDay(
                 date: date,
-                regions: [.other],
+                regions: [nevada],
                 audit: nil,
             )
             try await waitForUpdateScene { tabs.tabs.count == 4 }
@@ -37,6 +61,40 @@ struct MainTabsTests {
             if let selected = tabs.selectedViewController {
                 tabs.delegate?.tabBarController?(tabs, didSelect: selected)
             }
+            try await waitForUpdateScene { elsewheres.count == 1 }
+            try await waitForUpdateScene {
+                elsewheres.first?.content(for: report.selectedYear) != nil
+            }
+            try await waitForUpdateScene("the Nevada card") {
+                HostedAccessibility.objects(in: controller.view).contains {
+                    $0.accessibilityLabel?.hasPrefix("\(nevada.localizedName):") == true
+                }
+            }
+            let card = try #require(HostedAccessibility.objects(in: controller.view).first {
+                $0.accessibilityLabel?.hasPrefix("\(nevada.localizedName):") == true
+            })
+            if let control = card as? UIControl { control.sendActions(for: .touchUpInside) }
+            else { try #require(card.accessibilityActivate()) }
+            let detailIsVisible: @MainActor () -> Bool = {
+                HostedAccessibility.isVisible(nevada.localizedName, in: controller.view)
+            }
+            try await waitForUpdateScene("the region detail") { detailIsVisible() }
+            let secondDate = try #require(report.calendar.date(byAdding: .day, value: -1, to: date))
+            try await session.services.journal.addManualDay(
+                date: secondDate,
+                regions: [nevada],
+                audit: nil,
+            )
+            try await waitForUpdateScene("the shared two-day projection in the region detail") {
+                elsewheres.first?.content(for: report.selectedYear)?
+                    .regions.first?.days.count == 2 && detailIsVisible()
+            }
+            #expect(elsewheres.count == 1)
+            try await session.services.journal.addManualDay(
+                date: secondDate,
+                regions: [.california],
+                audit: nil,
+            )
             try await session.services.journal.addManualDay(
                 date: date,
                 regions: [.california],
@@ -44,6 +102,18 @@ struct MainTabsTests {
             )
             try await waitForUpdateScene { tabs.tabs.count == 3 && tabs.selectedIndex == 0 }
             #expect(tabs.tabs.map(\.title) == ["Locations", "Your Year", "Settings"])
+            try await session.services.journal.addManualDay(
+                date: date,
+                regions: [.other],
+                audit: nil,
+            )
+            try await waitForUpdateScene { tabs.tabs.count == 4 }
+            tabs.selectedIndex = 1
+            if let selected = tabs.selectedViewController {
+                tabs.delegate?.tabBarController?(tabs, didSelect: selected)
+            }
+            try await waitForUpdateScene { elsewheres.count == 2 }
+            #expect(elsewheres[0] !== elsewheres[1])
         }
     }
 
