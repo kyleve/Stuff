@@ -6,6 +6,8 @@ Squash merges use the title/body as the commit message. Describe the final resul
 Preserve human edits.
 Prefer `type(scope): imperative description` using [BACKLOG.md](../../../../BACKLOG.md) conventions; prose titles suit cross-cutting work.
 
+Start every PR body with the `## Change counts` section and the Markdown table from `./pr-change-counts`. Use `--base <ref>` for the actual PR base, including the parent branch for a stack slice, and `--head <ref>` when describing a different committed head. Regenerate the table whenever the PR diff changes.
+
 #### Pick a tier
 
 Use the [template](../../../../.github/PULL_REQUEST_TEMPLATE.md) selectively.

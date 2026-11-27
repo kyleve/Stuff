@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+
+CDPATH='' cd "$(dirname "$0")"
+exec python3 -m Tools.pr_change_counts "$@"
