@@ -6667,7 +6667,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "That's the maximum of %lld — deselect one to choose another."
+            "value" : "You can select up to %lld regions. Tap a selected row to remove it."
           }
         }
       }
@@ -6714,6 +6714,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No matching regions"
+          }
+        }
+      }
+    },
+    "regionPicker.overflowCount" : {
+      "comment" : "Selection heading after a backup merge has brought the total above the picker limit. The first number is how many rows appear at the top.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing %1$lld of %2$lld selected"
           }
         }
       }

@@ -305,7 +305,10 @@ enum WhereFormat {
     }
 
     static func regionPickerSelectionCount(selected: Int, max: Int) -> String {
-        String(localized: .regionPickerSelectionCount(selected, max))
+        if selected > max {
+            return String(localized: .regionPickerOverflowCount(max, selected))
+        }
+        return String(localized: .regionPickerSelectionCount(selected, max))
     }
 
     static func regionPickerAtCapacity(max: Int) -> String {

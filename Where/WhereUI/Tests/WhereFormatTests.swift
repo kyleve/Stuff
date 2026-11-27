@@ -10,6 +10,12 @@ import WhereCore
 /// catalog value. A removed/renamed key is caught by the compiler, so these
 /// tests focus on the runtime logic, not that every simple symbol exists.
 struct WhereFormatTests {
+    @Test func pickerHeadingDistinguishesSavedRegionsFromVisibleRowsAfterABackupMerge() {
+        #expect(WhereFormat.regionPickerSelectionCount(selected: 2, max: 5) == "2 of 5 selected")
+        #expect(WhereFormat
+            .regionPickerSelectionCount(selected: 6, max: 5) == "Showing 5 of 6 selected")
+    }
+
     @Test func forecastBoundsPreserveExactPluralizationAndBothRangeEndpoints() {
         #expect(WhereFormat.dayCount(DayBounds(exact: 1)) == "1 day")
         #expect(WhereFormat.dayCount(DayBounds(lower: 94, upper: 105)) == "94–105 days")

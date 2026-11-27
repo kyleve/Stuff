@@ -58,24 +58,6 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test(
-        arguments: [DynamicTypeSize.large, .accessibility1],
-        [BVerticalSizeClass.compact, .regular],
-    )
-    func regionPickerScrollsSelectionsWhenVerticalSpaceIsLimited(
-        size: DynamicTypeSize,
-        vertical: BVerticalSizeClass,
-    ) throws {
-        var context = BContext(traits: .system)
-        context.traitOverrides.contentSizeCategory = .init(size)
-        context.traitOverrides.verticalSizeClass = vertical
-        let sheet = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(sheet.regionPicker
-            .scrollsSelection == (vertical == .compact || size.isAccessibilitySize))
-        #expect(sheet.regionPicker.chipLayout == (size.isAccessibilitySize ? .stacked : .inline))
-    }
-
-    @MainActor
     @Test func accessibilityCollapsesHistoryWithoutChangingItsMeasuredLimits() throws {
         var context = BContext(traits: .system)
         context.traitOverrides.horizontalSizeClass = .regular
@@ -130,6 +112,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = mode
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: reducesMotion)
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        #expect((sheet.regionPicker.selectionAnimation != nil) == !reducesMotion)
         #expect(sheet.settings.iconForeground == (mode == .dark ? Color.black : Color.white))
         #expect(sheet.settings
             .flashAnimation == (reducesMotion ? nil : style.settings.flashAnimation))

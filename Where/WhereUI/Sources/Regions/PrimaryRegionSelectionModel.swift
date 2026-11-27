@@ -20,8 +20,22 @@ public final class PrimaryRegionSelectionModel {
     /// The regions offered, in catalog order.
     public let available: [Region]
 
-    /// Browse groups stay in the order of the offered regions as picks change.
-    let countryGroups: [CountryGroup]
+    struct Browse {
+        let usedThisYear: [Region]
+        let countryGroups: [CountryGroup]
+    }
+
+    /// Countries include all remaining regions. A year shortcut is visible while its country is
+    /// closed.
+    func browse(expandedCountries: Set<RegionCatalog.Node.ID?>) -> Browse {
+        let highlighted = selectedNewestFirst
+        let remaining = available.filter { !highlighted.contains($0) }
+        let groups = CountryGroup.groups(for: remaining)
+        let expanded = groups.filter { expandedCountries.contains($0.id) }.flatMap(\.regions)
+        let shortcutRegions = (usedThisYear ?? []).subtracting(expanded)
+        let shortcuts = remaining.filter { $0 != .other && shortcutRegions.contains($0) }
+        return Browse(usedThisYear: shortcuts, countryGroups: groups)
+    }
 
     struct CountryGroup: Identifiable {
         let country: RegionCatalog.Node?
@@ -62,21 +76,31 @@ public final class PrimaryRegionSelectionModel {
         !searchQuery.isEmpty
     }
 
+    enum SearchResults: Equatable {
+        case noMatches
+        /// All matches already appear in the selected section.
+        case allSelected
+        case available([Region])
+    }
+
     /// Exact postal-code matches precede name matches from either country.
-    var filteredRegions: [Region] {
+    var searchResults: SearchResults {
         let query = searchQuery
-        guard !query.isEmpty else { return available }
         let postalCode = query.uppercased()
         var codeMatches: [Region] = []
         var nameMatches: [Region] = []
         for region in available {
             if code(for: region)?.subdivision == postalCode {
                 codeMatches.append(region)
-            } else if region.localizedName.localizedStandardContains(query) {
+            } else if query.isEmpty || region.localizedName.localizedStandardContains(query) {
                 nameMatches.append(region)
             }
         }
-        return codeMatches + nameMatches
+        let matches = codeMatches + nameMatches
+        guard !matches.isEmpty else { return .noMatches }
+        let highlighted = selectedNewestFirst
+        let remaining = matches.filter { !highlighted.contains($0) }
+        return remaining.isEmpty ? .allSelected : .available(remaining)
     }
 
     func code(for region: Region) -> SubdivisionCode? {
@@ -89,21 +113,23 @@ public final class PrimaryRegionSelectionModel {
     /// The picked regions, in pick order.
     public private(set) var selectedRegions: [Region] = []
 
+    /// A backup merge can restore more than five picks. The newest five appear at the top.
+    /// Earlier picks remain checked in browse and search until the user removes them.
+    var selectedNewestFirst: [Region] {
+        Array(selectedRegions.reversed().prefix(Self.maxSelection))
+    }
+
     /// Per-region appearance drafts. A region without an entry uses its
     /// ``RegionAppearanceCatalog/defaultAppearance(for:)`` until customized.
     private var drafts: [Region: RegionAppearance] = [:]
 
-    /// The picks when the model was created — the stable "Your regions" group
-    /// (so a row doesn't jump between sections as it's toggled). Empty for the
-    /// onboarding picker.
-    private var initialSelection: [Region] = []
-
-    /// Regions with days in the selected year (from the report), used only to
-    /// surface a "used this year" group in the grouped (Settings) list.
-    private var usedThisYear: Set<Region> = []
+    /// Settings supplies the regions with days in the selected year.
+    private var usedThisYear: Set<Region>?
 
     /// Settings enables shortcuts for regions used in the selected year.
-    public private(set) var isGrouped = false
+    public var isGrouped: Bool {
+        usedThisYear != nil
+    }
 
     /// Loggable US and Canadian subdivisions in manifest order.
     public static let supportedRegions: [Region] = {
@@ -139,10 +165,8 @@ public final class PrimaryRegionSelectionModel {
         available: [Region] = PrimaryRegionSelectionModel.supportedRegions,
     ) {
         self.available = available
-        countryGroups = CountryGroup.groups(for: available)
         let offered = Set(available)
         selectedRegions = existing.map(\.region).filter { offered.contains($0) }
-        initialSelection = selectedRegions
         var drafts: [Region: RegionAppearance] = [:]
         for entry in existing {
             if let appearance = entry.appearance { drafts[entry.region] = appearance }
@@ -231,20 +255,8 @@ public final class PrimaryRegionSelectionModel {
         try await services.setPrimaryRegions(desiredPrimaryRegions)
     }
 
-    // MARK: - Grouping (Settings list)
-
-    /// Turn on the grouped list, sourcing the "used this year" group from the
-    /// selected year's regions. The your-regions group stays keyed on the picks
-    /// at open (``initialSelection``), so rows don't jump while editing.
+    /// Use the selected year's report for Settings shortcuts.
     public func applyGrouping(usedThisYear: Set<Region>) {
         self.usedThisYear = usedThisYear
-        isGrouped = true
-    }
-
-    /// The shared three-way grouping of the offered regions — your picks at open
-    /// (the stable reference set), used-this-year, everything else. Valid once
-    /// ``isGrouped`` is true. Internal: the grouping type is a WhereUI detail.
-    var grouping: RegionGrouping {
-        RegionGrouping(available: available, primary: initialSelection, usedThisYear: usedThisYear)
     }
 }

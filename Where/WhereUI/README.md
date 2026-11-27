@@ -366,7 +366,9 @@ journal intent.
   picker and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
-  picker for membership changes. The list shows the current picks as removable chips.
+  picker for membership changes. Picking a region moves its row to the top of the list,
+  newest first. Tap a selected row to remove it. If a backup merge brings the total above
+  five, the latest five appear at the top and the other saved regions stay checked in the list.
   Browse US and Canadian regions by country or search both countries by name or postal
   abbreviation. In Settings, regions used in the selected year are also available as shortcuts.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced

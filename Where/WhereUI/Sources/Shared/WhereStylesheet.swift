@@ -69,11 +69,6 @@ struct WhereStylesheet: BStylesheet {
             category: traits.contentSizeCategory,
         )
 
-        // Let selections scroll away when the keyboard or large type leaves little room for
-        // results.
-        regionPicker.scrollsSelection = traits.contentSizeCategory.isAccessibilitySize ||
-            traits.verticalSizeClass == .compact
-
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             locationWelcome.accessory.copy = .compact
@@ -84,7 +79,6 @@ struct WhereStylesheet: BStylesheet {
             privacyPassportCard.disclosure.layout = .stacked
             themePicker.layout = .stacked
             yearModePicker.layout = .stacked
-            regionPicker.chipLayout = .stacked
             loggedDay.layout = .stacked
             openSourceStamp.layout = .stacked
             plannedStayWarningStamp.layout = .stacked
@@ -134,6 +128,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            regionPicker.selectionAnimation = nil
             calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
@@ -1838,9 +1833,7 @@ extension WhereStylesheet {
     /// Search and selection controls for the primary-region picker, plus the swatches
     /// and glyph tiles in the appearance editor.
     struct RegionPickerStyle: Equatable {
-        // Broadway uses compact height until the host supplies its size class.
-        var scrollsSelection = true
-        var chipLayout = ContentLayout.inline
+        var selectionAnimation: Animation? = .smooth(duration: 0.4)
         var minimumControlHeight: CGFloat = 44
         var searchCornerRadius: CGFloat = 12
         var searchPromptColor: Color = .primary.opacity(0.72)

@@ -15,29 +15,32 @@ struct RegionPickerView: View {
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.medium) {
-            VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                searchField
-                if !stylesheet.regionPicker.scrollsSelection {
-                    selection
-                }
-            }
-            .padding(.horizontal, stylesheet.spacing.xxLarge)
-            .whereContentRoot()
+            searchField
+                .padding(.horizontal, stylesheet.spacing.xxLarge)
+                .whereContentRoot()
 
-            List {
-                if stylesheet.regionPicker.scrollsSelection {
-                    selection
-                        .listRowSeparator(.hidden)
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(rows) { row in
+                        switch row {
+                            case let .message(message): messageRow(message)
+                            case let .country(group): countryRow(group)
+                            case let .region(region, includesCountryCode):
+                                regionRow(region, includesCountryCode: includesCountryCode)
+                        }
+                    }
                 }
-                if model.isSearching {
-                    results
-                } else {
-                    browse
+                .listStyle(.plain)
+                .scrollDismissesKeyboard(.interactively)
+                .whereFormRoot()
+                .onChange(of: model.selectionCount) { previous, current in
+                    if current > previous {
+                        withAnimation(stylesheet.regionPicker.selectionAnimation) {
+                            proxy.scrollTo(Row.ID.message(.selection), anchor: .top)
+                        }
+                    }
                 }
             }
-            .listStyle(.plain)
-            .scrollDismissesKeyboard(.interactively)
-            .whereFormRoot()
         }
         // Settings reuses the selection draft when Manage is opened again.
         .onDisappear { model.searchText = "" }
@@ -104,100 +107,112 @@ struct RegionPickerView: View {
         )
     }
 
-    private var selection: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            if model.hasSelection {
-                Text(WhereFormat.regionPickerSelectionCount(
-                    selected: model.selectionCount,
-                    max: PrimaryRegionSelectionModel.maxSelection,
-                ))
-                .font(.subheadline.weight(.semibold))
-                .accessibilityAddTraits([.isHeader, .updatesFrequently])
+    /// A region has one native list identity wherever it is displayed, so changing selection
+    /// moves the same row between the catalog and the selected rows.
+    private enum Row: Identifiable {
+        case region(Region, includesCountryCode: Bool)
+        case country(PrimaryRegionSelectionModel.CountryGroup)
+        case message(Message)
 
-                switch stylesheet.regionPicker.chipLayout {
-                    case .inline:
-                        ScrollView(.horizontal) {
-                            HStack(spacing: stylesheet.spacing.small) { selectionChips }
-                        }
-                        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-                    case .stacked:
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                            selectionChips
-                        }
+        enum Message: Hashable {
+            case selection
+            case atCapacity
+            case usedThisYear
+            case browse
+            case search
+            case noMatches
+        }
+
+        enum ID: Hashable {
+            case region(Region)
+            case country(RegionCatalog.Node.ID?)
+            case message(Message)
+        }
+
+        var id: ID {
+            switch self {
+                case let .region(region, _): .region(region)
+                case let .country(group): .country(group.id)
+                case let .message(message): .message(message)
+            }
+        }
+    }
+
+    private var rows: [Row] {
+        var rows: [Row] = [.message(.selection)]
+        rows += model.selectedNewestFirst.map { .region($0, includesCountryCode: true) }
+        if model.isAtCapacity { rows.append(.message(.atCapacity)) }
+
+        if model.isSearching {
+            switch model.searchResults {
+                case .noMatches:
+                    rows.append(.message(.noMatches))
+                case .allSelected:
+                    break
+                case let .available(matches):
+                    rows.append(.message(.search))
+                    rows += matches.map { .region($0, includesCountryCode: true) }
+            }
+        } else {
+            let browse = model.browse(expandedCountries: expandedCountries)
+            if !browse.usedThisYear.isEmpty {
+                rows.append(.message(.usedThisYear))
+                rows += browse.usedThisYear.map { .region($0, includesCountryCode: true) }
+            }
+            if !browse.countryGroups.isEmpty {
+                rows.append(.message(.browse))
+                for group in browse.countryGroups {
+                    rows.append(.country(group))
+                    if expandedCountries.contains(group.id) {
+                        rows += group.regions.map { .region($0, includesCountryCode: false) }
+                    }
                 }
+            }
+        }
+        return rows
+    }
 
-                if model.isAtCapacity {
+    private func messageRow(_ message: Row.Message) -> some View {
+        Group {
+            switch message {
+                case .selection:
+                    if model.hasSelection {
+                        heading(WhereFormat.regionPickerSelectionCount(
+                            selected: model.selectionCount,
+                            max: PrimaryRegionSelectionModel.maxSelection,
+                        ))
+                        .accessibilityAddTraits(.updatesFrequently)
+                    } else {
+                        Text(String(localized: .regionPickerSubtitle))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                case .atCapacity:
                     Text(WhereFormat
                         .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-            } else {
-                Text(String(localized: .regionPickerSubtitle))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                case .usedThisYear: heading(String(localized: .regionGroupUsedThisYear))
+                case .browse: heading(String(localized: .regionPickerBrowseByCountry))
+                case .search: heading(String(localized: .regionPickerSearchResults))
+                case .noMatches: ContentUnavailableView.search(text: model.searchText)
             }
         }
+        .listRowSeparator(.hidden)
     }
 
-    private var selectionChips: some View {
-        ForEach(model.selectedRegions, id: \.self) { region in
-            Button {
-                model.toggle(region)
-            } label: {
-                HStack(spacing: stylesheet.spacing.small) {
-                    Text(region.localizedName)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .multilineTextAlignment(.leading)
-                    Image(systemSymbol: .xmark)
-                        .imageScale(.small)
-                }
-                .font(.subheadline.weight(.medium))
-                .padding(.horizontal, stylesheet.spacing.large)
-                .padding(.vertical, stylesheet.spacing.small)
-                .background(.quaternary, in: .capsule)
-                .frame(minHeight: stylesheet.regionPicker.minimumControlHeight)
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(WhereFormat.regionPickerRemoveSelection(region))
-        }
+    private func heading(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .accessibilityAddTraits(.isHeader)
     }
 
-    @ViewBuilder
-    private var results: some View {
-        let matches = model.filteredRegions
-        if matches.isEmpty {
-            ContentUnavailableView.search(text: model.searchText)
-                .listRowSeparator(.hidden)
-        } else {
-            Section(String(localized: .regionPickerSearchResults)) {
-                ForEach(matches, id: \.self) { region in
-                    regionRow(region, includesCountryCode: true)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var browse: some View {
-        if model.isGrouped, !model.grouping.usedThisYear.isEmpty {
-            Section(String(localized: .regionGroupUsedThisYear)) {
-                ForEach(model.grouping.usedThisYear, id: \.self) { region in
-                    regionRow(region, includesCountryCode: true)
-                }
-            }
-        }
-        Section(String(localized: .regionPickerBrowseByCountry)) {
-            ForEach(model.countryGroups) { group in
-                DisclosureGroup(isExpanded: $expandedCountries[includes: group.id]) {
-                    ForEach(group.regions, id: \.self) { region in
-                        regionRow(region, includesCountryCode: false)
-                    }
-                } label: {
-                    countryLabel(group)
-                }
-            }
+    private func countryRow(_ group: PrimaryRegionSelectionModel.CountryGroup) -> some View {
+        // The country's children are sibling list rows so they can move directly into selection.
+        DisclosureGroup(isExpanded: $expandedCountries[includes: group.id]) {
+            EmptyView()
+        } label: {
+            countryLabel(group)
         }
     }
 
@@ -224,18 +239,24 @@ struct RegionPickerView: View {
             includesCountryCode ? "\(code.country) · \(code.subdivision)" : code.subdivision
         }
         return Button {
-            model.toggle(region)
+            withAnimation(stylesheet.regionPicker.selectionAnimation) {
+                model.toggle(region)
+            }
         } label: {
             HStack(spacing: stylesheet.spacing.medium) {
                 Text(style.emoji)
                     .accessibilityHidden(true)
-                Text(region.localizedName)
-                Spacer(minLength: 0)
-                if let codeLabel {
-                    Text(verbatim: codeLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                LabeledContent {
+                    if let codeLabel {
+                        Text(verbatim: codeLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } label: {
+                    Text(region.localizedName)
+                        .multilineTextAlignment(.leading)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if selected {
                     Image(systemSymbol: .checkmark)
                         .fontWeight(.semibold)
@@ -248,6 +269,7 @@ struct RegionPickerView: View {
         }
         .accessibilityLabel(region.localizedName)
         .accessibilityValue(codeLabel ?? "")
+        .accessibilityHint(selected ? WhereFormat.regionPickerRemoveSelection(region) : "")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .disabled(!model.canToggle(region))
     }
