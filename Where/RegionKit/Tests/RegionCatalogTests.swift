@@ -51,13 +51,13 @@ struct RegionCatalogTests {
         let catalog = try RegionHierarchyFixture.catalog()
         let california = try #require(catalog.node(for: .california))
         let us = try #require(catalog.parent(of: california))
-        #expect(us.id.rawValue == "united-states")
+        #expect(us.id == .unitedStates)
         #expect(us.kind == .country)
         #expect(us.region == nil)
         #expect(catalog.parent(of: us) == nil)
         #expect(catalog.children(of: us).map(\.id.rawValue) == RegionHierarchyFixture.usIDs)
         #expect(catalog.children(of: california).isEmpty)
-        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let canada = try #require(catalog.node(id: .canada))
         let ontario = try #require(catalog.node(id: .init(rawValue: "ca-ON")))
         #expect(catalog.children(of: canada) == [ontario])
         #expect(catalog.parent(of: ontario) == canada)
@@ -87,7 +87,7 @@ struct RegionCatalogTests {
         #expect(catalog.node(for: .california)?.kind == .state)
         #expect(catalog.node(id: .init(rawValue: "us-DC"))?.kind == .federalDistrict)
         #expect(catalog.node(id: .init(rawValue: "us-PR"))?.kind == .territory)
-        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let canada = try #require(catalog.node(id: .canada))
         #expect(canada.kind == .country)
         #expect(catalog.parent(of: canada) == nil)
         let eu = try #require(catalog.node(for: .europeanUnion))
@@ -174,7 +174,7 @@ struct RegionCatalogTests {
 
     @Test func bundlePreservesAllGeographicDirectories() throws {
         let catalog = RegionCatalog.shared
-        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let canada = try #require(catalog.node(id: .canada))
         let regions = RegionHierarchyFixture.usIDs + catalog.children(of: canada).map(\.id.rawValue)
         let expected = Set(regions.flatMap { id in
             RegionGeometryPurpose.allCases.map { "\(id.prefix(2))/\(id).\($0.rawValue).twkb" }

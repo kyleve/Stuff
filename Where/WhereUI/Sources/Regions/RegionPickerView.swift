@@ -212,8 +212,8 @@ private struct RegionPickerCountryRow: View {
         return HStack(spacing: stylesheet.spacing.medium) {
             Group {
                 switch group.country?.id {
-                    case .init(rawValue: "united-states"): Text(verbatim: "🇺🇸")
-                    case .init(rawValue: "canada"): Text(verbatim: "🇨🇦")
+                    case .some(.unitedStates): Text(verbatim: "🇺🇸")
+                    case .some(.canada): Text(verbatim: "🇨🇦")
                     default: Image(systemSymbol: .globe)
                 }
             }

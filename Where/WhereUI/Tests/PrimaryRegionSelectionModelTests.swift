@@ -40,11 +40,7 @@ struct PrimaryRegionSelectionModelTests {
         )
         let model = RegionPickerModel(draft: draft)
         let groups = model.browse.countryGroups
-        #expect(groups.map { $0.country?.id.rawValue } == [
-            "united-states",
-            "canada",
-            nil,
-        ])
+        #expect(groups.map(\.id) == [.unitedStates, .canada, nil])
         #expect(groups.map(\.regions) == [
             [.newYork, .california],
             [.ontario],
@@ -64,7 +60,7 @@ struct PrimaryRegionSelectionModelTests {
             [.other],
         ])
 
-        let canada: RegionCatalog.Node.ID = .init(rawValue: "canada")
+        let canada: RegionCatalog.Node.ID = .canada
         model.expandedCountries = [canada]
         let expanded = model.browse
         #expect(expanded.usedThisYear == [.newYork])
@@ -121,7 +117,7 @@ struct PrimaryRegionSelectionModelTests {
 
     @Test func hostedPickerKeepsSelectionsAndCountryExpansionThroughSearch() async throws {
         let model = PrimaryRegionDraft(available: [.newYork, .ontario])
-        let canada = try #require(RegionCatalog.shared.node(id: .init(rawValue: "canada")))
+        let canada = try #require(RegionCatalog.shared.node(id: .canada))
         let picker = NavigationStack {
             RegionPickerView(draft: model)
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
@@ -340,7 +336,7 @@ struct PrimaryRegionSelectionModelTests {
         let collapsed = model.browse
         #expect(collapsed.usedThisYear == [first])
         #expect(collapsed.countryGroups.flatMap(\.regions) == [first, second, extra])
-        model.expandedCountries = [.init(rawValue: "united-states")]
+        model.expandedCountries = [.unitedStates]
         let expanded = model.browse
         #expect(expanded.usedThisYear.isEmpty)
         #expect(expanded.countryGroups.flatMap(\.regions) == [first, second, extra])

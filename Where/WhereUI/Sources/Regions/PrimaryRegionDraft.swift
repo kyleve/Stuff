@@ -23,10 +23,7 @@ public final class PrimaryRegionDraft {
 
     /// Loggable US and Canadian subdivisions in manifest order.
     public static let supportedRegions: [Region] = {
-        let countries: Set<RegionCatalog.Node.ID> = [
-            .init(rawValue: "united-states"),
-            .init(rawValue: "canada"),
-        ]
+        let countries: Set<RegionCatalog.Node.ID> = [.unitedStates, .canada]
         return RegionCatalog.shared.nodes.compactMap { node in
             guard let parent = node.parentID, countries.contains(parent) else { return nil }
             return node.region
@@ -36,7 +33,7 @@ public final class PrimaryRegionDraft {
     /// Loggable US jurisdictions in their canonical order.
     public static var usRegions: [Region] {
         let catalog = RegionCatalog.shared
-        guard let country = catalog.node(id: .init(rawValue: "united-states")) else { return [] }
+        guard let country = catalog.node(id: .unitedStates) else { return [] }
         return catalog.children(of: country).compactMap(\.region)
     }
 

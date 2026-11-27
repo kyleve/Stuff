@@ -21,8 +21,10 @@ into it for lookup. RegionKit depends only on
   (Day-count *ranking* lives in `WhereCore`, not here.)
 - **`RegionCatalog`** reads all geographic nodes from the bundled `regions.json`.
   Use `node(for:)` for a loggable region or `node(id:)` for any node. A node has a
-  jurisdiction `kind`, localized name and optional loggable `region`. Each US or
-  Canadian subdivision carries its parent ID and a pair of boundaries.
+  jurisdiction `kind`, localized name and optional loggable `region`. Use
+  `RegionCatalog.Node.ID.unitedStates` and `.canada` to identify the country
+  nodes. Each US or Canadian subdivision carries its parent ID and a pair of
+  boundaries.
   `parent(of:)` and `children(of:)` look up its immediate relatives entirely in
   memory. `all` and `entries` preserve the manifest order of loggable regions.
 - **`Coordinate`** — a plain WGS84 latitude/longitude value type (no
