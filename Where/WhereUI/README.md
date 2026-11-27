@@ -369,8 +369,9 @@ journal intent.
   picker for membership changes. Picking a region moves its row to the top of the list,
   newest first. Tap a selected row to remove it. If a backup merge brings the total above
   five, the latest five appear at the top and the other saved regions stay checked in the list.
-  Browse US and Canadian regions by country or search both countries by name or postal
-  abbreviation. In Settings, regions used in the selected year are also available as shortcuts.
+  Browse US and Canadian regions by country or use the bottom search field on iPhone to
+  find a name or postal abbreviation across both countries. Settings also offers shortcuts
+  for regions used in the selected year.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

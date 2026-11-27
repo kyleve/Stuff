@@ -1830,13 +1830,10 @@ extension WhereStylesheet {
 // MARK: - Region picker / customization
 
 extension WhereStylesheet {
-    /// Search and selection controls for the primary-region picker, plus the swatches
+    /// Selection motion for the primary-region picker, plus the swatches
     /// and glyph tiles in the appearance editor.
     struct RegionPickerStyle: Equatable {
         var selectionAnimation: Animation? = .smooth(duration: 0.4)
-        var minimumControlHeight: CGFloat = 44
-        var searchCornerRadius: CGFloat = 12
-        var searchPromptColor: Color = .primary.opacity(0.72)
         /// Diameter of a color swatch and the width of its selection ring.
         var colorSwatchSize: CGFloat
         var colorSwatchSelectionRing: CGFloat

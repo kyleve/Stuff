@@ -8,103 +8,39 @@ import SwiftUI
 struct RegionPickerView: View {
     @Bindable var model: PrimaryRegionSelectionModel
     @State private var expandedCountries: Set<RegionCatalog.Node.ID?> = []
-    @FocusState private var searchFocused: Bool
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
-        VStack(spacing: stylesheet.spacing.medium) {
-            searchField
-                .padding(.horizontal, stylesheet.spacing.xxLarge)
-                .whereContentRoot()
-
-            ScrollViewReader { proxy in
-                List {
-                    ForEach(rows) { row in
-                        switch row {
-                            case let .message(message): messageRow(message)
-                            case let .country(group): countryRow(group)
-                            case let .region(region, includesCountryCode):
-                                regionRow(region, includesCountryCode: includesCountryCode)
-                        }
+        ScrollViewReader { proxy in
+            List {
+                ForEach(rows) { row in
+                    switch row {
+                        case let .message(message): messageRow(message)
+                        case let .country(group): countryRow(group)
+                        case let .region(region, includesCountryCode):
+                            regionRow(region, includesCountryCode: includesCountryCode)
                     }
                 }
-                .listStyle(.plain)
-                .scrollDismissesKeyboard(.interactively)
-                .whereFormRoot()
-                .onChange(of: model.selectionCount) { previous, current in
-                    if current > previous {
-                        withAnimation(stylesheet.regionPicker.selectionAnimation) {
-                            proxy.scrollTo(Row.ID.message(.selection), anchor: .top)
-                        }
+            }
+            .listStyle(.plain)
+            .scrollDismissesKeyboard(.interactively)
+            .whereFormRoot()
+            .onChange(of: model.selectionCount) { previous, current in
+                if current > previous {
+                    withAnimation(stylesheet.regionPicker.selectionAnimation) {
+                        proxy.scrollTo(Row.ID.message(.selection), anchor: .top)
                     }
                 }
             }
         }
+        .searchable(
+            text: $model.searchText,
+            prompt: String(localized: .regionPickerSearchPrompt),
+        )
         // Settings reuses the selection draft when Manage is opened again.
         .onDisappear { model.searchText = "" }
-    }
-
-    private var searchField: some View {
-        let prompt = String(localized: .regionPickerSearchByNameOrAbbreviation)
-        return HStack(spacing: 0) {
-            HStack(spacing: stylesheet.spacing.medium) {
-                Image(systemSymbol: .magnifyingglass)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                TextField(text: $model.searchText) { EmptyView() }
-                    .textFieldStyle(.plain)
-                    // A native placeholder applies extra dimming on this filled surface.
-                    .background(alignment: .leading) {
-                        if model.searchText.isEmpty {
-                            ViewThatFits(in: .horizontal) {
-                                Text(prompt)
-                                Text(String(localized: .regionPickerSearchPrompt))
-                                Text(String(localized: .regionPickerCompactSearchPrompt))
-                            }
-                            .foregroundStyle(stylesheet.regionPicker.searchPromptColor)
-                            .lineLimit(1)
-                            .accessibilityHidden(true)
-                            .allowsHitTesting(false)
-                        }
-                    }
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .focused($searchFocused)
-                    .onSubmit { searchFocused = false }
-                    .accessibilityLabel(prompt)
-            }
-            .padding(.leading, stylesheet.spacing.large)
-            .padding(
-                .trailing,
-                model.searchText.isEmpty ? stylesheet.spacing.large : stylesheet.spacing.medium,
-            )
-            .frame(minHeight: stylesheet.regionPicker.minimumControlHeight)
-            .contentShape(.rect)
-            .simultaneousGesture(TapGesture().onEnded { searchFocused = true })
-
-            if !model.searchText.isEmpty {
-                Button {
-                    model.searchText = ""
-                } label: {
-                    Image(systemSymbol: .xmarkCircleFill)
-                        .foregroundStyle(.secondary)
-                        .frame(
-                            minWidth: stylesheet.regionPicker.minimumControlHeight,
-                            minHeight: stylesheet.regionPicker.minimumControlHeight,
-                        )
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(String(localized: .regionPickerClearSearch))
-            }
-        }
-        .background(
-            .quaternary,
-            in: .rect(cornerRadius: stylesheet.regionPicker.searchCornerRadius),
-        )
     }
 
     /// A region has one native list identity wherever it is displayed, so changing selection
@@ -298,12 +234,15 @@ extension Set<RegionCatalog.Node.ID?> {
         }
 
         static var snapshots: [SnapshotCase] {
-            [
+            // The system search toolbar needs an attached scene to render its glass.
+            var phone = SnapshotConfiguration.Frame.iPhoneFullContent
+            phone.scenePolicy = .retained
+            return [
                 whereSnapshot(
                     name: "AvailableRegions",
                     configurations: [
-                        .init(device: .iPhoneFullContent),
-                        .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
+                        .init(device: phone),
+                        .init(dynamicType: .accessibility5, device: phone),
                     ],
                 ) {
                     NavigationStack {
@@ -312,7 +251,9 @@ extension Set<RegionCatalog.Node.ID?> {
                 },
                 whereSnapshot(
                     name: "Search",
-                    configurations: [.init(device: .iPhoneFullContent)],
+                    configurations: [.init(device: phone)],
+                    // The native clear button finishes appearing after the toolbar mounts.
+                    settle: .settledAtLeast(minDuration: 1.0),
                 ) {
                     NavigationStack {
                         RegionPickerView(model: selectedSnapshotModel(search: "ON"))
@@ -329,8 +270,11 @@ extension Set<RegionCatalog.Node.ID?> {
     #Preview { RegionPickerView.snapshotPreviews }
 
     #Preview("Empty") {
-        RegionPickerView(model: PrimaryRegionSelectionModel())
-            .whereBroadwayRoot()
+        NavigationStack {
+            RegionPickerView(model: PrimaryRegionSelectionModel())
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
+        }
+        .whereBroadwayRoot()
     }
 #endif
 

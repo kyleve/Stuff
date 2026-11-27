@@ -6683,28 +6683,6 @@
         }
       }
     },
-    "regionPicker.clearSearch" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear search"
-          }
-        }
-      }
-    },
-    "regionPicker.compactSearchPrompt" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search"
-          }
-        }
-      }
-    },
     "regionPicker.empty.title" : {
       "comment" : "Title of the empty state when there are no matching regions.",
       "extractionState" : "manual",
@@ -6771,17 +6749,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Search regions"
-          }
-        }
-      }
-    },
-    "regionPicker.searchByNameOrAbbreviation" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search by name or abbreviation"
           }
         }
       }

@@ -104,19 +104,7 @@ struct PrimaryRegionSelectionModelTests {
         }.whereBroadwayRoot())
         try await show(host) { controller in
             for region in [Region.ontario, quebec] {
-                @MainActor func row() -> NSObject? {
-                    HostedAccessibility.objects(in: controller.view).first {
-                        $0.accessibilityLabel == region.localizedName && $0.accessibilityTraits
-                            .contains(.button)
-                    }
-                }
-                try await waitForAsync { row() != nil }
-                let button = try #require(row())
-                if let control = button as? UIControl {
-                    control.sendActions(for: .touchUpInside)
-                } else {
-                    try #require(button.accessibilityActivate())
-                }
+                try await tap(region.localizedName, in: controller.view)
                 try await waitForAsync { model.isSelected(region) }
             }
         }
@@ -131,56 +119,162 @@ struct PrimaryRegionSelectionModelTests {
     @Test func hostedPickerKeepsSelectionsAndCountryExpansionThroughSearch() async throws {
         let model = PrimaryRegionSelectionModel(available: [.newYork, .ontario])
         let canada = try #require(RegionCatalog.shared.node(id: .init(rawValue: "canada")))
-        let host = UIHostingController(rootView: NavigationStack {
+        let picker = NavigationStack {
             RegionPickerView(model: model)
-        }.whereBroadwayRoot())
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .onboardingNext)) {}
+                            .disabled(!model.hasSelection)
+                    }
+                }
+        }.whereBroadwayRoot()
+        let host = UIHostingController(rootView: Optional(picker))
         try await show(host) { controller in
-            @MainActor func button(_ label: String) -> NSObject? {
-                HostedAccessibility.objects(in: controller.view).first {
-                    $0.accessibilityTraits.contains(.button)
-                        && $0.accessibilityLabel?.hasPrefix(label) == true
-                }
-            }
-            @MainActor func tap(_ label: String) async throws {
-                try await waitForAsync { button(label) != nil }
-                let element = try #require(button(label))
-                if let control = element as? UIControl {
-                    control.sendActions(for: .touchUpInside)
-                } else {
-                    try #require(element.accessibilityActivate(), "Activate \(label)")
-                }
-            }
-
-            try await tap(canada.localizedName)
-            try await tap(Region.ontario.localizedName)
+            let view = try #require(controller.view)
+            view.window?.layer.speed = 1
+            defer { endSearch(in: view) }
+            try await tap(canada.localizedName, in: view)
+            try await tap(Region.ontario.localizedName, in: view)
             try await waitForAsync { model.selectedRegions == [.ontario] }
 
-            let field = try #require(HostedAccessibility.objects(in: controller.view)
-                .compactMap { $0 as? UITextField }.first)
-            field.text = "NY"
-            field.sendActions(for: .editingChanged)
+            let field = try await focusBottomSearch(in: controller)
+            field.insertText("NY")
             try await waitForAsync {
-                button(Region.newYork.localizedName)?.accessibilityValue == "US · NY"
+                button(Region.newYork.localizedName, in: view)?.accessibilityValue == "US · NY"
             }
-            try await tap(Region.newYork.localizedName)
+            try await tap(Region.newYork.localizedName, in: view)
             try await waitForAsync {
-                guard let newest = button(Region.newYork.localizedName),
-                      let first = button(Region.ontario.localizedName),
+                guard let newest = button(Region.newYork.localizedName, in: view),
+                      let first = button(Region.ontario.localizedName, in: view),
                       newest.accessibilityTraits.contains(.selected),
                       first.accessibilityTraits.contains(.selected)
                 else { return false }
                 return newest.accessibilityFrame.midY < first.accessibilityFrame.midY
             }
             #expect(model.selectedRegions == [.ontario, .newYork])
-            try await tap(Region.ontario.localizedName)
+            try await tap(Region.ontario.localizedName, in: view)
             try await waitForAsync { model.selectedRegions == [.newYork] }
 
-            try await tap(String(localized: .regionPickerClearSearch))
+            field.selectAll(nil)
+            field.deleteBackward()
             try await waitForAsync {
-                button(Region.ontario.localizedName)?.accessibilityValue == "ON"
+                button(Region.ontario.localizedName, in: view)?.accessibilityValue == "ON"
             }
             #expect(model.searchText.isEmpty)
+            #expect(field.isFirstResponder)
+            field.insertText("NY")
+            try await waitForAsync { model.searchText == "NY" }
+            // Onboarding replaces the picker when advancing and reuses the draft when returning.
+            host.rootView = nil
+            try await waitForAsync { model.searchText.isEmpty && !field.isFirstResponder }
+            host.rootView = picker
+            try await waitForAsync {
+                button(Region.newYork.localizedName, in: view)?.accessibilityTraits
+                    .contains(.selected) == true
+            }
+            #expect(model.selectedRegions == [.newYork])
         }
+    }
+
+    @Test func settingsManageShowsNativeBottomSearchInItsPresentedNavigationStack() async throws {
+        let session = PreviewSupport.loadedSession()
+        let sheet = UIHostingController(rootView: RegionsSettingsView()
+            .environment(session)
+            .whereBroadwayRoot())
+        sheet.modalPresentationStyle = .pageSheet
+        try await show(UIViewController()) { presenter in
+            presenter.view.window?.layer.speed = 1
+            presenter.present(sheet, animated: false)
+            defer {
+                endSearch(in: sheet.view)
+                sheet.presentingViewController?.dismiss(animated: false)
+            }
+            try await tap(String(localized: .settingsRegionsManage), in: sheet.view)
+            let field = try await focusBottomSearch(in: sheet)
+            field.insertText("ON")
+            try await waitForAsync {
+                button(Region.ontario.localizedName, in: sheet.view)?.accessibilityValue == "CA · ON"
+            }
+        }
+    }
+
+    private func button(_ label: String, in view: UIView) -> NSObject? {
+        HostedAccessibility.objects(in: view).first {
+            $0.accessibilityTraits.contains(.button)
+                && $0.accessibilityLabel?.hasPrefix(label) == true
+        }
+    }
+
+    private func tap(_ label: String, in view: UIView) async throws {
+        do { try await waitForAsync { button(label, in: view) != nil } }
+        catch { throw TestHostError("Missing button \(label): \(error)") }
+        let element = try #require(button(label, in: view))
+        if let control = element as? UIControl {
+            control.sendActions(for: .touchUpInside)
+        } else {
+            try #require(element.accessibilityActivate(), "Activate \(label)")
+        }
+    }
+
+    private func endSearch(in view: UIView) {
+        view.window?.endEditing(true)
+        for bar in AdaptivePaneTestSupport.descendants(of: view, matching: UINavigationBar.self) {
+            bar.topItem?.searchController?.isActive = false
+        }
+    }
+
+    private func focusBottomSearch(in controller: UIViewController) async throws
+        -> UISearchTextField
+    {
+        let view = try #require(controller.view)
+        let window = try #require(view.window)
+        @MainActor func isSettled(_ controller: UIViewController) -> Bool {
+            !controller.isBeingPresented && controller.transitionCoordinator == nil
+                && controller.children.allSatisfy(isSettled)
+        }
+        @MainActor func visibleField() -> UISearchTextField? {
+            AdaptivePaneTestSupport.descendants(of: view, matching: UISearchTextField.self)
+                .first { field in
+                    var ancestor: UIView? = field
+                    while let current = ancestor {
+                        if current.isHidden || current.alpha == 0 { return false }
+                        ancestor = current.superview
+                    }
+                    let frame = field.convert(field.bounds, to: view)
+                    return field.window != nil && frame.width > 2 * frame.height &&
+                        frame.height > 0 && view.bounds.contains(frame)
+                }
+        }
+        try await waitForAsync { isSettled(controller) && visibleField() != nil }
+        let field = try #require(visibleField())
+        #expect(field.convert(field.bounds, to: view).midY > view.bounds.midY)
+        let navigationBars = AdaptivePaneTestSupport.descendants(
+            of: view,
+            matching: UINavigationBar.self,
+        )
+        let searchControllers = navigationBars.compactMap { $0.topItem?.searchController }
+        let search = try #require(searchControllers.first)
+        search.isActive = true
+        @MainActor func focusedField() -> UISearchTextField? {
+            AdaptivePaneTestSupport.descendants(of: window, matching: UISearchTextField.self)
+                .first(where: \.isFirstResponder)
+        }
+        // A toolbar can host a presentation copy. UIKit's search bar forwards focus to the editor.
+        try await waitForAsync {
+            if focusedField() != nil { return true }
+            _ = search.searchBar.becomeFirstResponder()
+            return focusedField() != nil
+        }
+        // Focus can transfer before the system field has finished moving above the keyboard.
+        try await waitForAsync {
+            guard let editor = focusedField(), !search.isBeingPresented,
+                  search.transitionCoordinator == nil else { return false }
+            let keyboardTop = view.keyboardLayoutGuide.layoutFrame.minY
+            let frame = editor.convert(editor.bounds, to: view)
+            return frame.maxY <= keyboardTop && keyboardTop - frame.maxY < frame.height * 2
+        }
+        return try #require(focusedField())
     }
 
     @Test func toggleAddsAndRemovesPreservingOrder() throws {
