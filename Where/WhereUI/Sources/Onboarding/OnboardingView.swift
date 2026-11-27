@@ -230,7 +230,7 @@ public struct OnboardingView: View {
 
     private var pickRegions: some View {
         NavigationStack {
-            RegionPickerView(model: flow.selection)
+            RegionPickerView(draft: flow.selection)
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -246,7 +246,7 @@ public struct OnboardingView: View {
     private var customize: some View {
         NavigationStack {
             RegionCustomizeView(
-                model: flow.selection,
+                draft: flow.selection,
                 onBack: { flow.phase = .pickRegions },
                 onFinish: { flow.phase = .location },
             )

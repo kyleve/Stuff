@@ -1,13 +1,50 @@
+import Observation
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
-/// Picks primary regions in onboarding and Settings. Search and country browsing
-/// both edit the same ordered selection.
+/// Mounts a fresh picker model for each visit while the caller retains the edit draft.
 struct RegionPickerView: View {
-    @Bindable var model: PrimaryRegionSelectionModel
-    @State private var expandedCountries: Set<RegionCatalog.Node.ID?> = []
+    private let makeModel: () -> RegionPickerModel
+
+    init(draft: PrimaryRegionDraft, usedThisYear: Set<Region> = []) {
+        self.init { RegionPickerModel(draft: draft, usedThisYear: usedThisYear) }
+    }
+
+    private init(makeModel: @escaping () -> RegionPickerModel) {
+        self.makeModel = makeModel
+    }
+
+    var body: some View {
+        ObservableHostingView(makeModel) { RegionPickerContent(model: $0) }
+    }
+}
+
+private struct ObservableHostingView<Model: Observable, Content: View>: View {
+    let makeModel: () -> Model
+    let content: (Model) -> Content
+    @State private var model: Model?
+
+    init(_ makeModel: @escaping () -> Model, @ViewBuilder content: @escaping (Model) -> Content) {
+        self.makeModel = makeModel
+        self.content = content
+    }
+
+    var body: some View {
+        if let model {
+            content(model)
+        } else {
+            Color.clear.task {
+                guard model == nil else { return }
+                model = makeModel()
+            }
+        }
+    }
+}
+
+private struct RegionPickerContent: View {
+    @Bindable var model: RegionPickerModel
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -21,7 +58,7 @@ struct RegionPickerView: View {
                         case let .country(group):
                             RegionPickerCountryRow(
                                 group: group,
-                                isExpanded: $expandedCountries[includes: group.id],
+                                isExpanded: $model.expandedCountries[includes: group.id],
                             )
                         case let .region(region, includesCountryCode):
                             RegionPickerRegionRow(
@@ -35,7 +72,7 @@ struct RegionPickerView: View {
             .listStyle(.plain)
             .scrollDismissesKeyboard(.interactively)
             .whereFormRoot()
-            .onChange(of: model.selectionCount) { previous, current in
+            .onChange(of: model.draft.selectedRegions.count) { previous, current in
                 if current > previous {
                     withAnimation(stylesheet.regionPicker.selectionAnimation) {
                         proxy.scrollTo(Row.ID.message(.selection), anchor: .top)
@@ -47,15 +84,13 @@ struct RegionPickerView: View {
             text: $model.searchText,
             prompt: String(localized: .regionPickerSearchPrompt),
         )
-        // Settings reuses the selection draft when Manage is opened again.
-        .onDisappear { model.searchText = "" }
     }
 
     /// A region has one native list identity wherever it is displayed, so changing selection
     /// moves the same row between the catalog and the selected rows.
     fileprivate enum Row: Identifiable {
         case region(Region, includesCountryCode: Bool)
-        case country(PrimaryRegionSelectionModel.CountryGroup)
+        case country(RegionPickerModel.CountryGroup)
         case message(Message)
 
         enum Message: Hashable {
@@ -85,7 +120,7 @@ struct RegionPickerView: View {
     private var rows: [Row] {
         var rows: [Row] = [.message(.selection)]
         rows += model.selectedNewestFirst.map { .region($0, includesCountryCode: true) }
-        if model.isAtCapacity { rows.append(.message(.atCapacity)) }
+        if model.draft.isAtCapacity { rows.append(.message(.atCapacity)) }
 
         if model.isSearching {
             switch model.searchResults {
@@ -98,7 +133,7 @@ struct RegionPickerView: View {
                     rows += matches.map { .region($0, includesCountryCode: true) }
             }
         } else {
-            let browse = model.browse(expandedCountries: expandedCountries)
+            let browse = model.browse
             if !browse.usedThisYear.isEmpty {
                 rows.append(.message(.usedThisYear))
                 rows += browse.usedThisYear.map { .region($0, includesCountryCode: true) }
@@ -107,7 +142,7 @@ struct RegionPickerView: View {
                 rows.append(.message(.browse))
                 for group in browse.countryGroups {
                     rows.append(.country(group))
-                    if expandedCountries.contains(group.id) {
+                    if model.expandedCountries.contains(group.id) {
                         rows += group.regions.map { .region($0, includesCountryCode: false) }
                     }
                 }
@@ -118,17 +153,17 @@ struct RegionPickerView: View {
 }
 
 private struct RegionPickerMessageRow: View {
-    let message: RegionPickerView.Row.Message
-    let model: PrimaryRegionSelectionModel
+    let message: RegionPickerContent.Row.Message
+    let model: RegionPickerModel
 
     var body: some View {
         Group {
             switch message {
                 case .selection:
-                    if model.hasSelection {
+                    if model.draft.hasSelection {
                         heading(WhereFormat.regionPickerSelectionCount(
-                            selected: model.selectionCount,
-                            max: PrimaryRegionSelectionModel.maxSelection,
+                            selected: model.draft.selectedRegions.count,
+                            max: PrimaryRegionDraft.maxSelection,
                         ))
                         .accessibilityAddTraits(.updatesFrequently)
                     } else {
@@ -138,7 +173,7 @@ private struct RegionPickerMessageRow: View {
                     }
                 case .atCapacity:
                     Text(WhereFormat
-                        .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
+                        .regionPickerAtCapacity(max: PrimaryRegionDraft.maxSelection))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 case .usedThisYear: heading(String(localized: .regionGroupUsedThisYear))
@@ -158,7 +193,7 @@ private struct RegionPickerMessageRow: View {
 }
 
 private struct RegionPickerCountryRow: View {
-    let group: PrimaryRegionSelectionModel.CountryGroup
+    let group: RegionPickerModel.CountryGroup
     @Binding var isExpanded: Bool
     @Environment(\.stylesheet) private var stylesheet
 
@@ -191,20 +226,20 @@ private struct RegionPickerCountryRow: View {
 private struct RegionPickerRegionRow: View {
     let region: Region
     let includesCountryCode: Bool
-    let model: PrimaryRegionSelectionModel
+    let model: RegionPickerModel
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         let style = regionStyles.style(for: region)
-        let selected = model.isSelected(region)
+        let selected = model.draft.isSelected(region)
         let codeLabel = model.code(for: region).map { code in
             includesCountryCode ? "\(code.country) · \(code.subdivision)" : code.subdivision
         }
         Button {
             withAnimation(stylesheet.regionPicker.selectionAnimation) {
-                model.toggle(region)
+                model.draft.toggle(region)
             }
         } label: {
             HStack(spacing: stylesheet.spacing.medium) {
@@ -235,7 +270,7 @@ private struct RegionPickerRegionRow: View {
         .accessibilityValue(codeLabel ?? "")
         .accessibilityHint(selected ? WhereFormat.regionPickerRemoveSelection(region) : "")
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .disabled(!model.canToggle(region))
+        .disabled(!model.draft.canToggle(region))
     }
 }
 
@@ -251,12 +286,11 @@ extension Set<RegionCatalog.Node.ID?> {
 
 #if DEBUG
     extension RegionPickerView: SnapshotProviding {
-        private static func selectedSnapshotModel(search: String = "")
-            -> PrimaryRegionSelectionModel
-        {
-            let model = PrimaryRegionSelectionModel()
-            model.toggle(.california)
-            model.toggle(.ontario)
+        private static func selectedSnapshotModel(search: String = "") -> RegionPickerModel {
+            let draft = PrimaryRegionDraft()
+            draft.toggle(.california)
+            draft.toggle(.ontario)
+            let model = RegionPickerModel(draft: draft)
             model.searchText = search
             return model
         }
@@ -274,7 +308,7 @@ extension Set<RegionCatalog.Node.ID?> {
                     ],
                 ) {
                     NavigationStack {
-                        RegionPickerView(model: selectedSnapshotModel())
+                        RegionPickerView { selectedSnapshotModel() }
                     }
                 },
                 whereSnapshot(
@@ -284,7 +318,7 @@ extension Set<RegionCatalog.Node.ID?> {
                     settle: .settledAtLeast(minDuration: 1.0),
                 ) {
                     NavigationStack {
-                        RegionPickerView(model: selectedSnapshotModel(search: "ON"))
+                        RegionPickerView { selectedSnapshotModel(search: "ON") }
                             .navigationTitle(String(localized: .settingsRegionsManage))
                             .navigationBarTitleDisplayMode(.inline)
                     }
@@ -299,7 +333,7 @@ extension Set<RegionCatalog.Node.ID?> {
 
     #Preview("Empty") {
         NavigationStack {
-            RegionPickerView(model: PrimaryRegionSelectionModel())
+            RegionPickerView(draft: PrimaryRegionDraft())
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
         }
         .whereBroadwayRoot()
@@ -318,7 +352,7 @@ extension Set<RegionCatalog.Node.ID?> {
                         title: "List",
                         world: world,
                     ) {
-                        RegionPickerView(model: PreviewSupport.primaryRegionSelectionModel())
+                        RegionPickerView(draft: PreviewSupport.primaryRegionDraft())
                     },
                 ],
             )

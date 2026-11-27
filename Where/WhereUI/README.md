@@ -364,7 +364,8 @@ journal intent.
   the process-wide `WhereModel`. Settings offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker and the stepped color/emoji/icon editor for onboarding.
-  `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
+  Each picker visit owns a fresh `RegionPickerModel`. The onboarding flow and the Settings
+  sheet each retain a `PrimaryRegionDraft` for edits across screens. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
   picker for membership changes. Picking a region moves its row to the top of the list,
   newest first. Tap a selected row to remove it. If a backup merge brings the total above

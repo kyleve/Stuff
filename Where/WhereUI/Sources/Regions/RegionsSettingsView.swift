@@ -17,7 +17,7 @@ struct RegionsSettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     /// The shared membership and appearance draft, built once the current picks load.
-    @State private var model: PrimaryRegionSelectionModel?
+    @State private var draft: PrimaryRegionDraft?
     @State private var isSaving = false
     @State private var saveError = SaveErrorAlertState()
 
@@ -35,8 +35,12 @@ struct RegionsSettingsView: View {
         // explicit Cancel/Done points — making the commit boundary clear.
         NavigationStack {
             Group {
-                if let model {
-                    overview(model)
+                if let draft {
+                    overview(draft)
+                        .navigationDestination(for: Destination.self) {
+                            destinationView($0, draft: draft)
+                                .whereScreenBoundary()
+                        }
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,12 +50,6 @@ struct RegionsSettingsView: View {
                                 Button(String(localized: .commonCancel)) { dismiss() }
                             }
                         }
-                }
-            }
-            .navigationDestination(for: Destination.self) { destination in
-                if let model {
-                    destinationView(destination, model: model)
-                        .whereScreenBoundary()
                 }
             }
         }
@@ -72,16 +70,16 @@ struct RegionsSettingsView: View {
         .debugLogInspectable(WhereLog.session(RegionsSettingsViewLog.self))
     }
 
-    private func overview(_ model: PrimaryRegionSelectionModel) -> some View {
+    private func overview(_ draft: PrimaryRegionDraft) -> some View {
         List {
             Section(String(localized: .regionGroupYours)) {
-                if model.selectedRegions.isEmpty {
+                if draft.selectedRegions.isEmpty {
                     Text(String(localized: .settingsRegionsEmpty))
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(model.selectedRegions, id: \.self) { region in
+                    ForEach(draft.selectedRegions, id: \.self) { region in
                         NavigationLink(value: Destination.appearance(region)) {
-                            regionRow(region, model: model)
+                            regionRow(region, draft: draft)
                         }
                     }
                 }
@@ -109,8 +107,8 @@ struct RegionsSettingsView: View {
                     ProgressView()
                         .accessibilityLabel(String(localized: .commonSave))
                 } else {
-                    Button(String(localized: .commonDone)) { save(model) }
-                        .disabled(!model.hasSelection)
+                    Button(String(localized: .commonDone)) { save(draft) }
+                        .disabled(!draft.hasSelection)
                 }
             }
         }
@@ -118,9 +116,9 @@ struct RegionsSettingsView: View {
 
     private func regionRow(
         _ region: Region,
-        model: PrimaryRegionSelectionModel,
+        draft: PrimaryRegionDraft,
     ) -> some View {
-        let appearance = model.appearance(for: region)
+        let appearance = draft[appearanceFor: region]
         return HStack {
             Text(appearance.emoji)
                 .accessibilityHidden(true)
@@ -136,44 +134,44 @@ struct RegionsSettingsView: View {
     @ViewBuilder
     private func destinationView(
         _ destination: Destination,
-        model: PrimaryRegionSelectionModel,
+        draft: PrimaryRegionDraft,
     ) -> some View {
+        @Bindable var draft = draft
         switch destination {
             case let .appearance(region):
-                RegionAppearanceEditor(model: model, region: region)
+                RegionAppearanceEditor(region: region, appearance: $draft[appearanceFor: region])
                     .navigationTitle(region.localizedName)
                     .navigationBarTitleDisplayMode(.inline)
             case .manage:
-                RegionPickerView(model: model)
+                RegionPickerView(draft: draft, usedThisYear: usedThisYear)
                     .navigationTitle(String(localized: .settingsRegionsManage))
                     .navigationBarTitleDisplayMode(.inline)
         }
     }
 
     private func loadIfNeeded() async {
-        guard model == nil else { return }
-        let built: PrimaryRegionSelectionModel
+        guard draft == nil else { return }
+        let built: PrimaryRegionDraft
         do {
             let existing = try await session.services.primaryRegions()
-            built = PrimaryRegionSelectionModel(existing: existing)
+            built = PrimaryRegionDraft(existing: existing)
         } catch {
             Self.logger.primaryRegionsLoadFailed(
                 error: .restricted(.errorDetails, error),
             )
             // Fall back to an empty picker rather than a stuck spinner.
-            built = PrimaryRegionSelectionModel()
+            built = PrimaryRegionDraft()
         }
-        built.applyGrouping(usedThisYear: usedThisYear)
-        model = built
+        draft = built
     }
 
-    private func save(_ model: PrimaryRegionSelectionModel) {
+    private func save(_ draft: PrimaryRegionDraft) {
         guard !isSaving else { return }
         saveError.message = nil
         isSaving = true
         Task {
             do {
-                try await model.commit(using: session)
+                try await draft.commit(using: session)
                 dismiss()
             } catch {
                 Self.logger.primaryRegionsSaveFailed(

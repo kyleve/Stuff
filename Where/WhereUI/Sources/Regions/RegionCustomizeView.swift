@@ -6,22 +6,16 @@ import WhereCore
 
 /// Editor for one region's look: color, emoji, and icon grids picked from the
 /// predefined `RegionAppearanceCatalog`, above a live `RegionSummaryCard`
-/// preview that reflects the in-progress draft. Writes straight into the shared
-/// ``PrimaryRegionSelectionModel`` draft; reused by the onboarding stepping flow
-/// and the Settings editor.
+/// preview that reflects the in-progress appearance. The caller owns the draft.
 struct RegionAppearanceEditor: WhereScreen {
-    @Bindable var model: PrimaryRegionSelectionModel
     let region: Region
+    @Binding var appearance: RegionAppearance
 
     /// Matches the Locations card's live sheen response while this editor is
     /// visible; the card uses its static pose until the first sample arrives.
     @State private var tilt = TiltProvider()
 
     @Environment(\.stylesheet) private var stylesheet
-
-    private var appearance: RegionAppearance {
-        model.appearance(for: region)
-    }
 
     var contentPadding: WhereContentPadding {
         .none
@@ -82,7 +76,7 @@ struct RegionAppearanceEditor: WhereScreen {
             ForEach(RegionAppearanceCatalog.colors, id: \.self) { token in
                 let isSelected = appearance.color == token
                 Button {
-                    model.setColor(token, for: region)
+                    appearance.color = token
                 } label: {
                     Circle()
                         .fill(token.color)
@@ -118,7 +112,7 @@ struct RegionAppearanceEditor: WhereScreen {
             ForEach(RegionAppearanceCatalog.emojis, id: \.self) { emoji in
                 let isSelected = appearance.emoji == emoji
                 Button {
-                    model.setEmoji(emoji, for: region)
+                    appearance.emoji = emoji
                 } label: {
                     Text(emoji)
                         .font(.title2)
@@ -136,7 +130,7 @@ struct RegionAppearanceEditor: WhereScreen {
             ForEach(RegionAppearanceCatalog.symbols, id: \.self) { symbol in
                 let isSelected = appearance.symbolName == symbol
                 Button {
-                    model.setSymbol(symbol, for: region)
+                    appearance.symbolName = symbol
                 } label: {
                     Image(systemSymbol: symbol.sfSymbol)
                         .font(.title3)
@@ -173,7 +167,7 @@ struct RegionAppearanceEditor: WhereScreen {
 /// when they go back before the first (so onboarding returns to the picker and
 /// the Settings editor returns to its pick phase).
 struct RegionCustomizeView: View {
-    @Bindable var model: PrimaryRegionSelectionModel
+    @Bindable var draft: PrimaryRegionDraft
     var onBack: () -> Void = {}
     var onFinish: () -> Void = {}
 
@@ -182,13 +176,13 @@ struct RegionCustomizeView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     private var regions: [Region] {
-        model.selectedRegions
+        draft.selectedRegions
     }
 
     var body: some View {
         Group {
             if let region = currentRegion {
-                RegionAppearanceEditor(model: model, region: region)
+                RegionAppearanceEditor(region: region, appearance: $draft[appearanceFor: region])
                     .id(region)
                     .transition(.opacity)
             } else {
@@ -259,11 +253,9 @@ struct RegionCustomizeView: View {
 
 #if DEBUG
     #Preview("Editor") {
-        RegionAppearanceEditor(
-            model: PreviewSupport.primaryRegionSelectionModel(),
-            region: .california,
-        )
-        .whereBroadwayRoot()
+        @Previewable @Bindable var draft = PreviewSupport.primaryRegionDraft()
+        RegionAppearanceEditor(region: .california, appearance: $draft[appearanceFor: .california])
+            .whereBroadwayRoot()
     }
 
     extension RegionCustomizeView: SnapshotProviding {
@@ -274,7 +266,7 @@ struct RegionCustomizeView: View {
                 measurementReadiness: .immediate,
             ) {
                 NavigationStack {
-                    RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
+                    RegionCustomizeView(draft: PreviewSupport.primaryRegionDraft())
                 }
             }
 
@@ -284,15 +276,15 @@ struct RegionCustomizeView: View {
                 measurementReadiness: .immediate,
             ) {
                 NavigationStack {
-                    RegionCustomizeView(model: neutralPreviewModel())
+                    RegionCustomizeView(draft: neutralPreviewDraft())
                 }
             }
         }
 
-        private static func neutralPreviewModel() -> PrimaryRegionSelectionModel {
-            let model = PreviewSupport.primaryRegionSelectionModel()
-            model.setColor(.slate, for: .california)
-            return model
+        private static func neutralPreviewDraft() -> PrimaryRegionDraft {
+            let draft = PreviewSupport.primaryRegionDraft()
+            draft[appearanceFor: .california].color = .slate
+            return draft
         }
     }
 
@@ -308,7 +300,7 @@ struct RegionCustomizeView: View {
             title: "Customize Regions",
         ) { _ in
             RegionCustomizeView(
-                model: PreviewSupport.primaryRegionSelectionModel(),
+                draft: PreviewSupport.primaryRegionDraft(),
             )
         }
     }
