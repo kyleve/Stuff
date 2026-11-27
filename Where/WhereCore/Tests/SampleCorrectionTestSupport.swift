@@ -39,6 +39,12 @@ enum SampleCorrectionTestSupport {
         }
     }
 
+    static let editingDevice = CurrentRecordingDevice(
+        id: RecordingDeviceID(rawValue: FlightTrajectoryFixtures.sampleID(9001)),
+        systemName: "Review iPad",
+        kind: .tablet,
+    )
+
     static let attribution = FlightRegions()
     static let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -94,6 +100,12 @@ enum SampleCorrectionTestSupport {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
+            installationContext: InstallationRecordingContext(
+                currentDevice: editingDevice,
+                registeredAt: FlightTrajectoryFixtures.start,
+                recordingChoice: .off,
+                isRejoining: false,
+            ),
             attributor: attribution,
             aggregator: aggregator,
             now: { now },

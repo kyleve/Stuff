@@ -123,6 +123,7 @@ public protocol WhereStore: Sendable {
     func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision]
     /// Insert an immutable revision, accepting identical retries and rejecting conflicting
     /// identities.
+    /// Cancellation observed before the outer save discards the staged revisions.
     /// Must run inside `perform { ... }`; the sample may arrive later through CloudKit.
     func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws
 
@@ -184,6 +185,7 @@ public protocol WhereStore: Sendable {
     func clear(
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
+        changedBy deviceID: RecordingDeviceID,
     ) async throws
 
     /// Every persisted dismissed data-resolution issue id. Used by the scanner

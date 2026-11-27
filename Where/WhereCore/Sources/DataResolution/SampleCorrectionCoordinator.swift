@@ -7,6 +7,7 @@ public struct SampleCorrectionCoordinator: Sendable {
     private static let logger = WhereLog.reporting(SampleCorrectionCoordinatorLog.self)
     private let store: any WhereStore
     private let reports: ReportReader
+    private let currentDeviceID: RecordingDeviceID
     private let calendar: Calendar
     private let now: @Sendable () -> Date
     private let onCommitted: @Sendable () async -> Void
@@ -14,12 +15,14 @@ public struct SampleCorrectionCoordinator: Sendable {
     init(
         store: any WhereStore,
         reports: ReportReader,
+        currentDeviceID: RecordingDeviceID,
         calendar: Calendar,
         now: @escaping @Sendable () -> Date,
         onCommitted: @escaping @Sendable () async -> Void,
     ) {
         self.store = store
         self.reports = reports
+        self.currentDeviceID = currentDeviceID
         self.calendar = calendar
         self.now = now
         self.onCommitted = onCommitted
@@ -69,6 +72,7 @@ public struct SampleCorrectionCoordinator: Sendable {
                         id: .init(rawValue: UUID()),
                         sampleID: edit.sampleID,
                         updatedAt: timestamp,
+                        changedByDeviceID: currentDeviceID,
                         replacementRegions: edit.replacementRegions,
                     ))
                 }
@@ -121,6 +125,7 @@ public struct SampleCorrectionCoordinator: Sendable {
                             now: now(),
                             after: prior,
                         ),
+                        changedByDeviceID: currentDeviceID,
                         replacementRegions: correction.action == .includeInFlight ? [] : nil,
                     ))
                     return .applied
@@ -152,7 +157,12 @@ public struct SampleCorrectionCoordinator: Sendable {
     public func reset(sampleIDs: Set<UUID>) async throws {
         guard !sampleIDs.isEmpty else { return }
         try await store.performInCurrentGeneration {
-            try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: store, now: now())
+            try await SampleAttributionReset.write(
+                sampleIDs: sampleIDs,
+                changedBy: currentDeviceID,
+                store: store,
+                now: now(),
+            )
         }
         await onCommitted()
     }

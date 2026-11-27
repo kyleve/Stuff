@@ -32,7 +32,10 @@ enum RecordedFlightArchiveFixture {
         }
     }
 
-    static func makeArchiveFile(fixture: RecordedFlightFixture) throws -> URL {
+    static func makeArchiveFile(
+        fixture: RecordedFlightFixture,
+        revisions: [SampleAttributionRevision],
+    ) throws -> URL {
         let samples = fixture.samples
         let first = try #require(samples.min { $0.timestamp < $1.timestamp })
         let deviceID = try #require(first.recordingDeviceID)
@@ -57,7 +60,7 @@ enum RecordedFlightArchiveFixture {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
-            sampleAttributionRevisions: [],
+            sampleAttributionRevisions: revisions,
             blobs: [:],
             exportedAt: fixture.now,
             archiveName: "recorded-flight.zip",

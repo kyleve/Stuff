@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the standalone read path the controller (and, later, the reminder /
 /// daily-summary reconcilers) delegate every report read to.
@@ -30,6 +30,7 @@ struct ReportReaderTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
@@ -109,6 +110,7 @@ struct ReportReaderTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -127,18 +129,21 @@ struct ReportReaderTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 15,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-04-15T12:00:00-04:00"),
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 25,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2025-04-15T12:00:00-04:00"),
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 35,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
 
@@ -158,12 +163,14 @@ struct ReportReaderTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 15,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         let second = LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T13:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7751, longitude: -122.4196),
             horizontalAccuracy: 8,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform {
             try await store.add(sample: first)
@@ -243,6 +250,7 @@ struct ReportReaderTests {
                     coordinate: coordinate,
                     horizontalAccuracy: 10,
                     source: .gpsVisit,
+                    recordingDeviceID: CurrentRecordingDevice.preview.id,
                 ))
             }
         }
@@ -304,6 +312,7 @@ struct ReportReaderTests {
                 id: .init(rawValue: UUID()),
                 sampleID: first.id,
                 updatedAt: first.timestamp,
+                changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
                 replacementRegions: [],
             ))
         }
@@ -325,12 +334,14 @@ struct ReportReaderTests {
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-03-16T12:00:00-07:00"),
                 coordinate: midOcean,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
             // A manual coordinate must not feed the speed-based day samples.
             try await store.add(sample: LocationSample(

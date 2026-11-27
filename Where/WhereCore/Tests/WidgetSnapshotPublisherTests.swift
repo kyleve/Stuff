@@ -2,7 +2,7 @@ import Foundation
 import RegionKit
 import SwiftData
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the freshness gate (`refreshIfStale`) and the hot-path change
 /// detection (`publishAfterIngest`) the controller delegates every widget
@@ -79,6 +79,7 @@ struct WidgetSnapshotPublisherTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
             ))
         }
         await publisher.publish()
@@ -132,6 +133,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform { try await store.add(sample: sf) }
         await publisher.publish() // today now counts California
@@ -143,6 +145,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 37.7750, longitude: -122.4195),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         await publisher.publishAfterIngest(of: sf2)
         #expect(await refresher.publishCount == 1)
@@ -156,6 +159,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         try await store.perform { try await store.add(sample: sf) }
         await publisher.publish()
@@ -167,6 +171,7 @@ struct WidgetSnapshotPublisherTests {
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
         await publisher.publishAfterIngest(of: nyc)
         #expect(await refresher.publishCount == 2)

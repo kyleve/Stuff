@@ -17,6 +17,14 @@ struct DataModelVersionTests {
             "Where can now save visits to Canadian provinces and territories.")
     }
 
+    @Test func versionThreeExplainsRecordingAndCorrectionDevices() throws {
+        let version = DataModelVersion(rawValue: 3)
+        #expect(DataModelVersion.current >= version)
+        let reason = try #require(version.changeReason)
+        #expect(reason.localized(preferredLocales: [Locale(identifier: "en")]) ==
+            "Where now saves which device recorded a location and which device corrected it.")
+    }
+
     @Test func publishedReasonIncludesEveryTranslationAndSkipsMissingOnes() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).bundle")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

@@ -96,6 +96,8 @@ public actor LocationIngestor: WhereShutdownable {
     /// exactly once (first `start()`); afterwards `retryQueue` is authoritative
     /// and a reload could lose items the outbox failed to persist.
     private var didLoadDurableBacklog = false
+    /// A failed rewrite must be retried even if every rejected entry has left the in-memory queue.
+    private var needsOutboxRewrite = false
 
     /// Hard cap on the retry queue. Once reached, the oldest pending sample is
     /// dropped to make room for the newest. Production uses ~12 hours of
@@ -185,10 +187,12 @@ public actor LocationIngestor: WhereShutdownable {
         // remain authorized while the replacement attempt fails.
         await closeRecordingAuthority()
         try await prepareRetryBacklog()
-        let retained = retryQueue.filter { $0.dataGenerationID == dataGenerationID }
+        let retained = retryQueue.filter {
+            $0.dataGenerationID == dataGenerationID && $0.hasReplayableOrigin
+        }
         if retained.count != retryQueue.count {
             retryQueue = retained
-            try await outbox.save(retryQueue)
+            try await persistRetryQueue()
         }
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
@@ -218,9 +222,6 @@ public actor LocationIngestor: WhereShutdownable {
         if !restored.isEmpty {
             Self.logger.restoredBacklog(count: .shared(.count, restored.count))
         }
-        // Rows written before device provenance existed intentionally remain unstamped and
-        // legacy-visible. Re-attributing them to this installation would make them depend on
-        // a device identity that did not exist when they were captured.
         retryQueue = restored + retryQueue
         didLoadDurableBacklog = true
     }
@@ -329,6 +330,7 @@ public actor LocationIngestor: WhereShutdownable {
     /// sample can enter the queue while the durable clear is suspended.
     public func discardRetryBacklog() async throws {
         try await outbox.clear()
+        needsOutboxRewrite = false
         retryQueue.removeAll()
     }
 
@@ -381,8 +383,7 @@ public actor LocationIngestor: WhereShutdownable {
     /// persisted sample refreshes readers via the store's change signal.
     ///
     /// Single-flight: a call while a capture is already in flight is a no-op.
-    /// Only a *GPS* sample suppresses the fix; a manual entry for today doesn't,
-    /// since it isn't a passive-tracking data point. The recording-authority gate
+    /// Only a GPS sample from this installation suppresses the fix. The recording-authority gate
     /// is checked before acquisition and again before persistence, so a synced Off
     /// policy can revoke a fix already in flight.
     public func captureTodayIfNeeded(now: Date) {
@@ -408,9 +409,7 @@ public actor LocationIngestor: WhereShutdownable {
         do {
             let existing = try await LocationHistoryReader(store: store).samples(in: interval)
             if existing.contains(where: {
-                $0.source.isGPS
-                    && ($0.recordingDeviceID == recordingDeviceID
-                        || $0.recordingDeviceID == nil)
+                $0.source.isGPS && $0.recordingDeviceID == recordingDeviceID
             }) { return }
         } catch {
             // Fail closed: if today's samples can't be read we skip rather than
@@ -480,27 +479,36 @@ public actor LocationIngestor: WhereShutdownable {
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
         guard case let .open(dataGenerationID, _) = recordingAuthority else { return }
-        let sample = sample.recorded(by: recordingDeviceID)
+        let captured: LocationSample
         do {
-            let drainedDays = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
+            captured = try sample.recorded(by: recordingDeviceID)
+        } catch {
+            Self.logger.persistFailed(
+                sampleID: .restricted(.identifier, String(describing: sample.id)),
+                error: .restricted(.errorDetails, error),
+            )
+            return
+        }
+        var drainedDays: Set<Date> = []
+        var liveSample: LocationSample?
+        do {
+            drainedDays = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
             try await store.perform(expectedDataGenerationID: dataGenerationID) {
-                try await store.add(sample: sample)
+                try await store.add(sample: captured)
             }
-            var changedDays = drainedDays
-            changedDays.insert(calendar.startOfDay(for: sample.timestamp))
-            await Self.logger.measure(.postPersist, budget: .seconds(2)) {
-                await onPersisted(IngestOutcome(
-                    changedDays: changedDays,
-                    liveSample: sample,
-                    needsFullWidgetRebuild: !drainedDays.isEmpty,
-                ))
-            }
+            liveSample = captured
+        } catch let error as LocationSampleOriginError {
+            Self.logger.persistFailed(
+                sampleID: .restricted(.identifier, String(describing: sample.id)),
+                error: .restricted(.errorDetails, error),
+            )
         } catch RecordingPersistenceError.dataGenerationChanged {
             // A reset/Replace revoked the authority this sample was admitted
             // under. Stop immediately and never put the known-stale sample into
             // the durable retry sidecar; reconciliation will reopen recording
             // only after resolving policy in the winning generation.
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
+            return
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.) are surfaced
             // via typed `WhereLog` events rather than silently dropped. The stream keeps
@@ -510,9 +518,12 @@ public actor LocationIngestor: WhereShutdownable {
                 sampleID: .restricted(.identifier, String(describing: sample.id)),
                 error: .restricted(.errorDetails, error),
             )
-            enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
+            enqueueForRetry(LocationOutboxEntry(
+                sample: captured,
+                dataGenerationID: dataGenerationID,
+            ))
             do {
-                try await outbox.save(retryQueue)
+                try await persistRetryQueue()
             } catch {
                 Self.logger.retryBacklogPersistenceFailed(
                     error: .restricted(.errorDetails, error),
@@ -521,6 +532,28 @@ public actor LocationIngestor: WhereShutdownable {
                 // fail closed until reconciliation can reopen recording with durable storage.
                 await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
             }
+        }
+
+        guard liveSample != nil || !drainedDays.isEmpty else { return }
+        var changedDays = drainedDays
+        if let liveSample { changedDays.insert(calendar.startOfDay(for: liveSample.timestamp)) }
+        let outcome = IngestOutcome(
+            changedDays: changedDays,
+            liveSample: liveSample,
+            needsFullWidgetRebuild: !drainedDays.isEmpty,
+        )
+        await Self.logger.measure(.postPersist, budget: .seconds(2)) {
+            await onPersisted(outcome)
+        }
+    }
+
+    private func persistRetryQueue() async throws {
+        do {
+            try await outbox.save(retryQueue)
+            needsOutboxRewrite = false
+        } catch {
+            needsOutboxRewrite = true
+            throw error
         }
     }
 
@@ -540,7 +573,10 @@ public actor LocationIngestor: WhereShutdownable {
     ) async throws -> Set<Date> {
         // Spanned below the guard, so the common case — nothing queued, which is
         // every drain on a healthy device — records nothing at all.
-        guard !retryQueue.isEmpty else { return [] }
+        guard !retryQueue.isEmpty else {
+            if needsOutboxRewrite { try await persistRetryQueue() }
+            return []
+        }
         let pending = retryQueue
         retryQueue.removeAll(keepingCapacity: true)
         var persistedDays: Set<Date> = []
@@ -565,6 +601,11 @@ public actor LocationIngestor: WhereShutdownable {
                     }
                     generationChanged = true
                     break
+                } catch let error as LocationSampleOriginError {
+                    Self.logger.persistFailed(
+                        sampleID: .restricted(.identifier, String(describing: sample.id)),
+                        error: .restricted(.errorDetails, error),
+                    )
                 } catch {
                     Self.logger.retryStillFailing(
                         sampleID: .restricted(.identifier, String(describing: sample.id)),
@@ -580,7 +621,7 @@ public actor LocationIngestor: WhereShutdownable {
                 dayCount: .shared(.count, persistedDays.count),
             )
         }
-        try await outbox.save(retryQueue)
+        try await persistRetryQueue()
         if generationChanged {
             throw RecordingPersistenceError.dataGenerationChanged
         }

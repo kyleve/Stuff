@@ -95,6 +95,12 @@ public enum SampleSource: Sendable, Hashable, Codable {
     ]
 }
 
+/// Permanent origin errors at the boundary between a fresh fix and durable history.
+public enum LocationSampleOriginError: Error, Equatable, Sendable {
+    case missingRecordingDevice(sampleID: UUID)
+    case conflictingOrigin(sampleID: UUID)
+}
+
 /// A single point-in-time observation of where the user was. The smallest
 /// unit of data that flows through `WhereCore`.
 public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
@@ -103,8 +109,8 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     public let coordinate: Coordinate
     public let horizontalAccuracy: Double
     public let source: SampleSource
-    /// Installation that produced an automatic GPS sample. Nil for legacy
-    /// samples and user-asserted/manual data.
+    /// Capturing installation for persisted GPS. A fresh sensor fix can remain unassigned
+    /// while a caller uses it for a transient location query.
     public let recordingDeviceID: RecordingDeviceID?
     /// Sensor readings when the source supplies valid speed or altitude evidence.
     public let motion: LocationMotion?
@@ -127,10 +133,36 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.motion = motion
     }
 
-    /// Stamp an automatic sample with the installation that received it.
-    /// User-asserted samples intentionally remain device-agnostic.
-    func recorded(by deviceID: RecordingDeviceID) -> LocationSample {
+    /// Compare the source identity persisted by SwiftData. Evidence labels are display metadata.
+    func hasSameOrigin(as other: Self) -> Bool {
+        hasOrigin(source: other.source, recordingDeviceID: other.recordingDeviceID)
+    }
+
+    func hasOrigin(
+        source other: SampleSource,
+        recordingDeviceID deviceID: RecordingDeviceID?,
+    ) -> Bool {
+        source.discriminator == other.discriminator
+            && source.evidenceId == other.evidenceId
+            && source.evidenceKind?.discriminator == other.evidenceKind?.discriminator
+            && recordingDeviceID == deviceID
+    }
+
+    func validateRecordingOrigin() throws {
+        if source.isGPS, recordingDeviceID == nil {
+            throw LocationSampleOriginError.missingRecordingDevice(sampleID: id)
+        }
+    }
+
+    /// Only fresh GPS fixes acquire the local installation's identity.
+    func recorded(by deviceID: RecordingDeviceID) throws -> LocationSample {
         guard source.isGPS else { return self }
+        if let recordingDeviceID {
+            guard recordingDeviceID == deviceID else {
+                throw LocationSampleOriginError.conflictingOrigin(sampleID: id)
+            }
+            return self
+        }
         return LocationSample(
             id: id,
             timestamp: timestamp,

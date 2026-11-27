@@ -14,12 +14,14 @@ struct LocationHistoryReaderTests {
             id: .init(rawValue: FlightTrajectoryFixtures.sampleID(201)),
             sampleID: samples[0].id,
             updatedAt: FlightTrajectoryFixtures.date(minutes: 3),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: [.newYork],
         )
         let exclusion = SampleAttributionRevision(
             id: .init(rawValue: FlightTrajectoryFixtures.sampleID(202)),
             sampleID: samples[1].id,
             updatedAt: FlightTrajectoryFixtures.date(minutes: 3),
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
             replacementRegions: [],
         )
         try await h.store.perform {
@@ -46,6 +48,7 @@ struct LocationHistoryReaderTests {
                 id: .init(rawValue: FlightTrajectoryFixtures.sampleID(203)),
                 sampleID: samples[0].id,
                 updatedAt: FlightTrajectoryFixtures.date(minutes: 4),
+                changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
                 replacementRegions: [],
             ))
         }
@@ -56,6 +59,68 @@ struct LocationHistoryReaderTests {
         #expect(restored.samples.map(\.regions) == [[.california], [.california]])
         #expect(restored.rawSamples == samples)
         #expect(restored.revisions.count == 5)
+        let resets = restored.revisions.filter { $0.replacementRegions == nil }
+        #expect(Set(resets.map(\.sampleID)) == Set(samples.map(\.id)))
+        #expect(Set(resets.map(\.changedByDeviceID)) ==
+            [SampleCorrectionTestSupport.editingDevice.id])
+    }
+
+    @Test func correctionRetainsBothOriginsWhenEditorRemovalAndProfileArriveSeparately(
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let reader = LocationHistoryReader(store: store)
+        let editor = SampleCorrectionTestSupport.editingDevice
+        let sample = FlightTrajectoryFixtures.sample(401, minutes: 1, east: 0)
+        let revision = SampleAttributionRevision(
+            id: .init(rawValue: FlightTrajectoryFixtures.sampleID(402)),
+            sampleID: sample.id,
+            updatedAt: FlightTrajectoryFixtures.date(minutes: 2),
+            changedByDeviceID: editor.id,
+            replacementRegions: [.newYork],
+        )
+        let interval = DateInterval(start: FlightTrajectoryFixtures.start, end: revision.updatedAt)
+        try await store.perform { try await store.addSampleAttributionRevision(revision) }
+        #expect(try await store.allSampleAttributionRevisions() == [revision])
+        #expect(try await reader.samples(in: interval).isEmpty)
+
+        try await store.perform { try await store.add(sample: sample) }
+        let corrected = try await reader.projection(
+            in: interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(corrected.rawSamples == [sample])
+        #expect(corrected.revisions == [revision])
+        #expect(corrected.samples.map(\.regions) == [[.newYork]])
+
+        // An editor's removal must never cut off the recorder's GPS.
+        try await store.perform {
+            try await store.addRecordingDeviceRemoval(.init(
+                id: .init(rawValue: FlightTrajectoryFixtures.sampleID(403)),
+                deviceID: editor.id,
+                removedAt: FlightTrajectoryFixtures.start,
+                removedByDeviceID: FlightTrajectoryFixtures.device,
+            ))
+        }
+        let afterRemoval = try await reader.projection(
+            in: interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(afterRemoval == corrected)
+
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(.init(
+                id: editor.id,
+                systemName: editor.systemName,
+                kind: editor.kind,
+                registeredAt: FlightTrajectoryFixtures.start,
+                registrationGenerationID: .initial,
+            ))
+        }
+        let afterProfile = try await reader.projection(
+            in: interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(afterProfile == corrected)
     }
 
     @Test func removalCutoffsPrecedeCorrectionsAndNonGPSAttributionIsUnaffected() async throws {
@@ -80,6 +145,7 @@ struct LocationHistoryReaderTests {
                     id: .init(rawValue: UUID()),
                     sampleID: sample.id,
                     updatedAt: FlightTrajectoryFixtures.date(minutes: 10),
+                    changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
                     replacementRegions: [.newYork],
                 ))
             }

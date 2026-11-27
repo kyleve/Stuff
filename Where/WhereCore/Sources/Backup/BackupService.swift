@@ -111,6 +111,8 @@ public struct BackupService: Sendable {
         archiveName: String? = nil,
     ) throws -> URL {
         try Self.validateRecordingData(
+            samples: samples,
+            profiles: recordingDeviceProfiles,
             metadataChanges: recordingDeviceMetadataChanges,
             sampleAttributionRevisions: sampleAttributionRevisions,
         )
@@ -212,7 +214,6 @@ public struct BackupService: Sendable {
         let archive = try Self.logger.measure(.decodeManifest) {
             try Self.decodeManifest(Data(contentsOf: manifestURL))
         }
-        try Self.validateRecordingData(archive)
 
         let blobs = try Self.loadAssets(archive.assets, from: extractDir)
         return ReadResult(archive: archive, blobs: blobs)
@@ -258,6 +259,12 @@ public struct BackupService: Sendable {
             stays: archive.plannedStayRecords,
             homes: archive.homeRegionRecords,
         )
+        try validateRecordingData(
+            samples: archive.samples,
+            profiles: archive.recordingDeviceProfiles,
+            metadataChanges: archive.recordingDeviceMetadataChanges,
+            sampleAttributionRevisions: archive.sampleAttributionRevisions,
+        )
         return archive
     }
 
@@ -282,17 +289,23 @@ public struct BackupService: Sendable {
     /// Validate invariants that synthesized `Decodable` cannot route through the public
     /// initializers. Kept separate so malformed input is rejected before the import transaction,
     /// rather than being committed and silently disappearing from later materialized reads.
-    static func validateRecordingData(_ archive: BackupArchive) throws {
-        try validateRecordingData(
-            metadataChanges: archive.recordingDeviceMetadataChanges,
-            sampleAttributionRevisions: archive.sampleAttributionRevisions,
-        )
-    }
-
     private static func validateRecordingData(
+        samples: [LocationSample],
+        profiles: [RecordingDeviceProfile],
         metadataChanges: [RecordingDeviceMetadataChange],
         sampleAttributionRevisions: [SampleAttributionRevision],
     ) throws {
+        var previousByID: [UUID: LocationSample] = [:]
+        for sample in samples {
+            do { try sample.validateRecordingOrigin() }
+            catch { throw BackupError.invalidRecordingData }
+            if let previous = previousByID.updateValue(sample, forKey: sample.id),
+               !sample.hasSameOrigin(as: previous)
+            { throw BackupError.invalidRecordingData }
+        }
+        for duplicates in Dictionary(grouping: profiles, by: \.id).values {
+            guard Set(duplicates).count == 1 else { throw BackupError.invalidRecordingData }
+        }
         guard metadataChanges.allSatisfy({ $0.revision >= 0 }) else {
             throw BackupError.invalidRecordingData
         }

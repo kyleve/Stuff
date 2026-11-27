@@ -170,6 +170,7 @@ struct BackupServiceTests {
                 id: .init(rawValue: UUID()),
                 sampleID: sampleID,
                 updatedAt: exportDate.addingTimeInterval(Double(offset)),
+                changedByDeviceID: recordingDeviceID,
                 replacementRegions: regions,
             )
         }
@@ -291,7 +292,7 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test(arguments: [5, 6, 7, 9])
+    @Test(arguments: [5, 6, 7, 8, BackupArchive.currentFormatVersion + 1])
     func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded(version: Int) {
         let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
 
@@ -302,6 +303,68 @@ struct BackupServiceTests {
             #expect(rejectedVersion == version)
         } catch {
             Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func manifestRejectsMissingOrConflictingGPSOrigin(conflicting: Bool) throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        let gps = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder.encode(Self.sampleFixtures()[0])) as? [String: Any],
+        )
+        var other = gps
+        if conflicting {
+            other["recordingDeviceID"] = RecordingDeviceID(rawValue: UUID()).storeURL.absoluteString
+            manifest["samples"] = [gps, other]
+        } else {
+            other.removeValue(forKey: "recordingDeviceID")
+            manifest["samples"] = [other]
+        }
+        #expect(throws: BackupService.BackupError.invalidRecordingData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRequiresCorrectionAuthorsBeforeRestore() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        var reset = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder
+                    .encode(Self.attributionFixtures().last)) as? [String: Any],
+        )
+        reset.removeValue(forKey: "changedByDeviceID")
+        manifest["sampleAttributionRevisions"] = [reset]
+        do {
+            _ = try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+            Issue.record("The backup accepted a reset without an editing device.")
+        } catch let DecodingError.keyNotFound(key, _) {
+            #expect(key.stringValue == "changedByDeviceID")
+        }
+    }
+
+    @Test func currentManifestRejectsConflictingCorrectionAuthors() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        let reset = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder
+                    .encode(Self.attributionFixtures().last)) as? [String: Any],
+        )
+        var conflicting = reset
+        conflicting["changedByDeviceID"] = RecordingDeviceID(rawValue: UUID()).storeURL
+            .absoluteString
+        manifest["sampleAttributionRevisions"] = [reset, conflicting]
+        #expect(throws: BackupService.BackupError.invalidRecordingData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
         }
     }
 

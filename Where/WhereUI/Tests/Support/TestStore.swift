@@ -337,8 +337,9 @@ actor TestStore: WhereStore {
     func clear(
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
+        changedBy deviceID: RecordingDeviceID,
     ) async throws {
-        try await backing.clear(in: interval, manualDays: dayRange)
+        try await backing.clear(in: interval, manualDays: dayRange, changedBy: deviceID)
     }
 
     func dismissedIssueIDs() async throws -> Set<DataIssueID> {

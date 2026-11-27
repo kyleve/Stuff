@@ -59,6 +59,7 @@ struct LocationOutboxTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
         )
     }
 
@@ -72,6 +73,41 @@ struct LocationOutboxTests {
         #expect(try await loadedSamples(from: outbox) == samples)
     }
 
+    @Test func anUnstampedFixCannotReplaceTheDurableQueue() async throws {
+        let url = tempURL()
+        defer { cleanup(url) }
+        let outbox = FileLocationOutbox(fileURL: url)
+        let raw = LocationSample(
+            timestamp: Date(),
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+        )
+        let captured = try raw.recorded(by: CurrentRecordingDevice.preview.id)
+        try await outbox.save(entries([captured]))
+        await #expect(throws: LocationSampleOriginError.missingRecordingDevice(sampleID: raw.id)) {
+            try await outbox.save(entries([raw]))
+        }
+        #expect(try await loadedSamples(from: FileLocationOutbox(fileURL: url)) == [captured])
+    }
+
+    @Test func legacyQueueMigrationKeepsOnlyIdentifiedGPS() async throws {
+        let url = tempURL()
+        defer { cleanup(url) }
+        let raw = LocationSample(
+            timestamp: Date(),
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsVisit,
+        )
+        let captured = sample("2026-03-15T12:00:00Z")
+        try write([raw, captured], to: url)
+        let outbox = FileLocationOutbox(fileURL: url)
+        #expect(try await loadedSamples(from: outbox) == [captured])
+        await outbox.closeJournalForTesting()
+        #expect(try await loadedSamples(from: FileLocationOutbox(fileURL: url)) == [captured])
+    }
+
     @Test func retryJournalPreservesGPSMotion() async throws {
         let url = tempURL()
         defer { cleanup(url) }
@@ -81,6 +117,7 @@ struct LocationOutboxTests {
             coordinate: Coordinate(latitude: 40, longitude: -100),
             horizontalAccuracy: 10,
             source: .gpsSignificantChange,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
             motion: LocationMotion(
                 speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
                 altitude: .init(meters: 10500, accuracyMeters: 12),

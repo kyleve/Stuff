@@ -20,6 +20,9 @@ class UpgradeAndVerify
     @options = { force: false }
     parser = OptionParser.new do |options|
       options.banner = "Usage: ruby upgrade_and_verify.rb INPUT [OUTPUT] [options]"
+      options.on("--source-profile FILE", "Original installation profile or selection JSON") do |path|
+        @source_profile_path = File.expand_path(path)
+      end
       options.on("--force", "Replace an existing output archive") { @options[:force] = true }
       options.on("-h", "--help", "Show this help") do
         puts options
@@ -51,8 +54,9 @@ class UpgradeAndVerify
         @input
       end
 
+      mapping = @source_profile_path ? ["--source-profile", @source_profile_path] : []
       run_command!(
-        "mise", "exec", "--", "ruby", @upgrader, input_zip, @output,
+        "mise", "exec", "--", "ruby", @upgrader, input_zip, @output, *mapping,
         chdir: @repo_root,
       )
     end
@@ -62,6 +66,12 @@ class UpgradeAndVerify
     destination_version = integer_format_version(upgraded_manifest, "upgraded")
     current_version = upgrader_current_version
     fail_with("upgraded format is v#{destination_version}; expected v#{current_version}") unless destination_version == current_version
+    if @source_profile_path
+      profile = JSON.parse(File.read(@source_profile_path))
+      if added_source_profile?(profile, source_manifest, upgraded_manifest)
+        expected_counts["recordingDeviceProfiles"] += 1
+      end
+    end
     verify_counts!(upgraded_manifest, expected_counts)
     Dir.mktmpdir("where-backup-verification") do |work_directory|
       configuration_path = File.join(work_directory, "configuration.json")
@@ -121,6 +131,24 @@ class UpgradeAndVerify
     primary_regions = manifest.fetch("primaryRegions", manifest.fetch("trackedRegions", []))
     fail_with("source manifest primaryRegions must be an array") unless primary_regions.is_a?(Array)
     counts.merge("primaryRegions" => primary_regions.length)
+  end
+
+  # The only collection allowed to grow is the original phone's profile, and only
+  # when an explicitly supplied profile was needed to fill a missing origin.
+  def added_source_profile?(profile, source, result)
+    return false if profile.keys == ["id"]
+    selected = profile.fetch("id").downcase
+    return false if source.fetch("recordingDeviceProfiles", []).any? { |item| item.fetch("id").downcase == selected }
+    used = { "samples" => "recordingDeviceID", "sampleAttributionRevisions" => "changedByDeviceID" }.any? do |table, field|
+      result_rows = result.fetch(table)
+      source.fetch(table, []).each_with_index.any? do |row, index|
+        restored = result_rows[index]
+        row[field].nil? && restored && restored["id"] == row["id"] && restored[field]&.downcase == selected
+      end
+    end
+    return false unless used
+    fail_with("upgraded archive does not contain the supplied source profile") unless result.fetch("recordingDeviceProfiles").include?(profile)
+    true
   end
 
   def verify_counts!(manifest, expected_counts)

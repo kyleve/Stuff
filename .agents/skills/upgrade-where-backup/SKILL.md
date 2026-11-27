@@ -11,11 +11,14 @@ Load the `running-tests` skill. Verification must run through `./test`.
 Run the bundled driver from the repository root:
 
 ```bash
-ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb INPUT [OUTPUT]
+ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb INPUT [OUTPUT] [--source-profile FILE]
 ```
 
 `INPUT` may be an unpacked backup directory or ZIP. `OUTPUT` defaults to a
-sibling named `<input>-upgraded.zip`. The driver:
+sibling named `<input>-upgraded.zip`. For historical GPS or corrections with an
+ambiguous or missing source, pass the original phone's reusable profile JSON.
+See the [v9 mapping format](../../../Where/WhereCore/BACKUP_FORMAT.md#version-9-contents).
+Keep that file with the original backup for repeat upgrades. The driver:
 
 1. Reads the source manifest and records the counts that migration must preserve.
 2. Creates a temporary input ZIP when necessary.

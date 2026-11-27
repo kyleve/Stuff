@@ -306,7 +306,18 @@ struct FlightFixtureExporterTests {
 
     @Test func archiveExportWritesReloadableJSONAndRefusesOverwrite() throws {
         let fixture = try RecordedFlightFixture.load(.resumedCruise)
-        let archiveURL = try RecordedFlightArchiveFixture.makeArchiveFile(fixture: fixture)
+        let first = try #require(fixture.samples.min { $0.timestamp < $1.timestamp })
+        let revision = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: first.id,
+            updatedAt: fixture.now,
+            changedByDeviceID: SampleCorrectionTestSupport.editingDevice.id,
+            replacementRegions: [],
+        )
+        let archiveURL = try RecordedFlightArchiveFixture.makeArchiveFile(
+            fixture: fixture,
+            revisions: [revision],
+        )
         defer {
             do {
                 try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
@@ -314,7 +325,6 @@ struct FlightFixtureExporterTests {
                 Issue.record(error, "Could not remove the fixture export test archive")
             }
         }
-        let first = try #require(fixture.samples.min { $0.timestamp < $1.timestamp })
         let outputURL = archiveURL.deletingLastPathComponent().appendingPathComponent("flight.json")
         let configuration = FlightFixtureExporter.Configuration(
             backupPath: archiveURL.path,
@@ -333,6 +343,11 @@ struct FlightFixtureExporterTests {
         #expect(reloaded.samples == fixture.samples)
         #expect(reloaded.now == fixture.now)
         let bytes = try Data(contentsOf: outputURL)
+        let json = String(decoding: bytes, as: UTF8.self)
+        #expect(json
+            .localizedCaseInsensitiveContains(revision.changedByDeviceID.rawValue.uuidString) ==
+            false)
+        #expect(json.localizedCaseInsensitiveContains(revision.id.rawValue.uuidString) == false)
         #expect(throws: CocoaError.self) {
             try exportArchiveFixture(configuration: configuration)
         }

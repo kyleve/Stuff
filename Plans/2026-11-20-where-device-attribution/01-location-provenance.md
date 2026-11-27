@@ -1,6 +1,6 @@
 # 01 — Preserve who recorded a location and who corrected it
 
-- Status: ready
+- Status: executing
 - Depends on: None
 - Shared context: [Overview](README.md)
 
@@ -87,14 +87,19 @@ November 27, 2026. The plan now starts from archive v8 and shared-data history e
 
 ## Progress
 
-- [ ] Enforce capture identity and persist each revision author.
-- [ ] Deliver strict schema, upgrade and restore together.
+- [x] Enforce capture identity and persist each revision author.
+- [x] Deliver strict schema, upgrade and restore together.
 - [ ] Verify acceptance, review and publish the implementation.
 
 ## Execution record and outcome
 
-Planning only. Implementation and runtime verification await an execution request.
+November 27, 2026. Implemented on `codex/where-location-provenance` above `41b1b116b`. A captured fix retains its recorder across retries, correction, and both restore strategies. Immutable revisions retain their editor. The destination re-exports the same actors and motion.
+
+- `./test --no-generate WhereCoreTests WhereUITests` passed 1,641 executed tests. Store and controller tests cover independent delivery, recording Off, correction/reset authors, and original observations surviving removal cutoffs.
+- The offline verification driver upgraded a synthetic v8 ZIP to v9 and loaded it with the production decoder. It preserved one GPS sample, two revisions, one evidence item and its attachment. Ruby passed 30 tests and 206 assertions. The owner selected synthetic archives for this run.
+- Independent review found a count mismatch for already-known IDs without a profile and two transaction races. The driver now distinguishes selecting such an ID from adding a profile. Reset selection pins the prior history, and cancellation before the final save rolls back staged revisions.
+- After review fixes, `./test --no-generate WhereCoreTests` passed 921 executed tests and the architecture checks. `./xcstrings --lint` and Swift formatting checks passed. The owner deferred the physical CloudKit exercise. Development and Production schema verification remain release checks.
 
 ## Resume point
 
-After authorization, begin with the two-device persistence tests in steps 1–3 and carry their fixture through both archive strategies.
+Run the Core and UI suites, then use the upgrade verification driver on the synthetic v8 ZIP. The owner asked to leave the live two-device CloudKit exercise pending.

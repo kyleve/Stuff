@@ -1,4 +1,4 @@
-# Where backup format v8
+# Where backup format v9
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -22,6 +22,7 @@ Current imports require the current schema, including its required collections.
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
 | 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 | 8 | Adds Canadian province and territory IDs to the region values a writer can store. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
+| 9 | Requires a capture installation on every GPS observation and an author on every sample-attribution revision. | [Version 9 contents](#version-9-contents) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -93,3 +94,50 @@ the archive before it changes any rows. This protection also applies when a ZIP 
 Upgrading a current-lineage v7 backup to v8 changes only its format version and preserves
 the IDs in the archive. The current catalog accepts Canadian provinces and territories as
 tracking choices. The account-wide data version is checked separately when the app opens synced history.
+
+## Version 9 contents
+
+A GPS sample stores the installation that observed it in `recordingDeviceID`.
+Each sample-attribution revision stores the installation that made the correction
+in `changedByDeviceID`, including exclusions and resets. Both fields use
+`store://devices/<uuid>`. If a tablet corrects a phone's fix, Merge and Replace
+preserve both original IDs. A revision can arrive before its sample or either
+device profile. Manual and evidence-implied samples keep their original values.
+
+The offline upgrader fills missing origins in v1–v8 single-phone archives. It preserves
+existing capture and author IDs, immutable profiles, raw observations, timestamps,
+region values such as `ca-ON`, and evidence bytes. A matching record with the same
+UUID can supply its own origin. Otherwise, the upgrader uses the single installation
+identified by the archive's profile, samples, or device and correction history.
+A manual-only archive with no corrections needs no source mapping.
+
+When the archive contains several possible installations, select the original
+phone. Save its existing installation ID in a JSON file such as `original-phone.json`.
+If the archive predates device profiles and contains no usable installation ID,
+supply the full profile. This illustrative profile uses the initial registration
+generation and a Unix timestamp in seconds.
+
+```json
+{
+  "id": "store://devices/50a308e2-1630-41c1-af3c-b42e8b1c4588",
+  "systemName": "Original iPhone",
+  "kind": { "phone": {} },
+  "registeredAt": 1698796800,
+  "registrationGenerationID": { "rawValue": "00000000-0000-0000-0000-0000000000E0" }
+}
+```
+
+Use the original profile if available. If you must supply a historical identity
+for a phone that never had one, choose its UUID once and retain the same descriptor
+for all its backups. For an ID already present in records or profiles, a file
+containing just its `id` field suffices, even if its profile has yet to sync. Conflicting immutable profile values stop conversion before
+the output file is replaced. The upgrader adds a supplied profile only when it
+uses that profile to fill a missing origin.
+
+```sh
+ruby .agents/skills/upgrade-where-backup/scripts/upgrade_and_verify.rb old.zip upgraded.zip --source-profile original-phone.json
+```
+
+A current v9 archive must already carry the required origins. The production
+decoder checks it before restoring any rows. Preserve the original ZIP and
+verify a separate upgraded copy before replacing an old phone's store.

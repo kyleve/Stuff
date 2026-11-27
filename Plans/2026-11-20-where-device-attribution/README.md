@@ -5,8 +5,9 @@ If Travel Phone records a location and Home iPad corrects it, the saved point sh
 ## Planning checkpoint
 
 - **Request.** On November 20, 2026 the owner asked for a plan covering device names, model-based fallback, and the origin of actions and locations. Their existing history comes from one phone. They selected the offline upgrader for old data.
-- **Stage.** The owner settled the setup, model label and history choices on November 20. On November 27 the owner requested a revision against the merged main branch (`a6b213ebe`). The revised versioning, rollout and upgrade steps are ready for review. [Linear STU-337](https://linear.app/kve/issue/STU-337/name-where-devices-and-retain-their-role-in-location-and-action)
-- **Resume.** Implementation awaits a separate request. Start with [01](01-location-provenance.md#resume-point), then use its tested archive format in 02.
+- **Operation.** On November 27 the owner approved execution of the full series. Plan PR #547 at `41b1b116b` has no review comments or threads. Main is `a6b213ebe`. The owner selected synthetic archives for this run and asked to leave the live two-device CloudKit test pending.
+- **Stage.** Executing [01](01-location-provenance.md) on `codex/where-location-provenance` in the plan worktree. The backup worker owns the offline converter and its checks, the events worker owns correction authors and the identity worker owns GPS persistence and retry. The primary agent owns the Swift archive and version gates, integration, verification, publication and reporting.
+- **Resume.** Verify and publish 01, then execute 02 and refine 03 using their results. [STU-337](https://linear.app/kve/issue/STU-337)
 
 ## User stories
 
@@ -107,4 +108,4 @@ Reviewed November 20, 2026 against `1b04fdd2c`. The review traced all seven requ
 - **Readiness.** 01 and 02 are ready in order. 03 is an outline awaiting their implementation evidence. All product questions are closed.
 - **Validation on November 27.** Checked relative links and anchors, dependency order and referenced test suites against the merged tree. `./test` passed its architecture and host checks and selected zero affected iOS bundles. The backup upgrader passed 16 tests and 61 assertions. Runtime acceptance of the proposed changes, including the two-device CloudKit check, awaits implementation.
 
-Implementation awaits a separate request. [Planning PR #547](https://github.com/kyleve/Stuff/pull/547)
+The owner approved implementation on November 27. [Planning PR #547](https://github.com/kyleve/Stuff/pull/547)
