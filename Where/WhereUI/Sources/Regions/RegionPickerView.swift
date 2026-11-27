@@ -10,17 +10,25 @@ struct RegionPickerView: View {
     @State private var expandedCountries: Set<RegionCatalog.Node.ID?> = []
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         ScrollViewReader { proxy in
             List {
                 ForEach(rows) { row in
                     switch row {
-                        case let .message(message): messageRow(message)
-                        case let .country(group): countryRow(group)
+                        case let .message(message):
+                            RegionPickerMessageRow(message: message, model: model)
+                        case let .country(group):
+                            RegionPickerCountryRow(
+                                group: group,
+                                isExpanded: $expandedCountries[includes: group.id],
+                            )
                         case let .region(region, includesCountryCode):
-                            regionRow(region, includesCountryCode: includesCountryCode)
+                            RegionPickerRegionRow(
+                                region: region,
+                                includesCountryCode: includesCountryCode,
+                                model: model,
+                            )
                     }
                 }
             }
@@ -45,7 +53,7 @@ struct RegionPickerView: View {
 
     /// A region has one native list identity wherever it is displayed, so changing selection
     /// moves the same row between the catalog and the selected rows.
-    private enum Row: Identifiable {
+    fileprivate enum Row: Identifiable {
         case region(Region, includesCountryCode: Bool)
         case country(PrimaryRegionSelectionModel.CountryGroup)
         case message(Message)
@@ -107,8 +115,13 @@ struct RegionPickerView: View {
         }
         return rows
     }
+}
 
-    private func messageRow(_ message: Row.Message) -> some View {
+private struct RegionPickerMessageRow: View {
+    let message: RegionPickerView.Row.Message
+    let model: PrimaryRegionSelectionModel
+
+    var body: some View {
         Group {
             switch message {
                 case .selection:
@@ -142,17 +155,23 @@ struct RegionPickerView: View {
             .font(.headline)
             .accessibilityAddTraits(.isHeader)
     }
+}
 
-    private func countryRow(_ group: PrimaryRegionSelectionModel.CountryGroup) -> some View {
+private struct RegionPickerCountryRow: View {
+    let group: PrimaryRegionSelectionModel.CountryGroup
+    @Binding var isExpanded: Bool
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         // The country's children are sibling list rows so they can move directly into selection.
-        DisclosureGroup(isExpanded: $expandedCountries[includes: group.id]) {
+        DisclosureGroup(isExpanded: $isExpanded) {
             EmptyView()
         } label: {
-            countryLabel(group)
+            label
         }
     }
 
-    private func countryLabel(_ group: PrimaryRegionSelectionModel.CountryGroup) -> some View {
+    private var label: some View {
         let name = group.country?.localizedName ?? String(localized: .regionGroupMore)
         let count = WhereFormat.regionPickerRegionCount(group.regions.count)
         return HStack(spacing: stylesheet.spacing.medium) {
@@ -167,14 +186,23 @@ struct RegionPickerView: View {
             LabeledContent(name) { Text(count) }
         }
     }
+}
 
-    private func regionRow(_ region: Region, includesCountryCode: Bool) -> some View {
+private struct RegionPickerRegionRow: View {
+    let region: Region
+    let includesCountryCode: Bool
+    let model: PrimaryRegionSelectionModel
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
         let style = regionStyles.style(for: region)
         let selected = model.isSelected(region)
         let codeLabel = model.code(for: region).map { code in
             includesCountryCode ? "\(code.country) · \(code.subdivision)" : code.subdivision
         }
-        return Button {
+        Button {
             withAnimation(stylesheet.regionPicker.selectionAnimation) {
                 model.toggle(region)
             }
