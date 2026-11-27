@@ -2,7 +2,7 @@ import Foundation
 import RegionKit
 import WhereCore
 
-/// Continuous recorded stays interleaved with flights. Only departures can split a stay.
+/// Recorded stays split at interior visit starts and flight departures, interleaved with flights.
 /// Splitting changes presentation only: each region-day remains in exactly one segment.
 enum PresenceJourneyItem: Identifiable, Hashable {
     enum ID: Hashable {
@@ -39,12 +39,14 @@ enum PresenceJourneyItem: Identifiable, Hashable {
                 && seen.insert($0.id).inserted
         }.sorted(by: flightOrder)
         let yearStart = CalendarDay(year: year, month: 1, day: 1).startOfDay(in: calendar)
-        let boundaries = Set(flights.map { max(yearStart, calendar.startOfDay(for: $0.startedAt)) })
+        let boundaries = Set(stints.map(\.start))
+            .union(flights.map { max(yearStart, calendar.startOfDay(for: $0.startedAt)) })
             .sorted()
         var result: [Self] = []
         for stint in stints {
             var start = stint.start
-            // A departure on the last day keeps that day with the departing stay.
+            // A shorter visit interrupts a longer stay at its first day. Shared
+            // endpoint days stay intact so departures remain before flight rows.
             for boundary in boundaries where boundary > stint.start && boundary < stint.end {
                 guard let end = calendar.date(byAdding: .day, value: -1, to: boundary) else {
                     preconditionFailure("Calendar cannot find the day before a timeline boundary")

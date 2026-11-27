@@ -18,13 +18,6 @@ struct PresenceTimelineListTests {
             end: today.startOfDay(in: calendar),
             dayCount: 5,
         )
-        let overlappingDay = today.adding(days: -2).startOfDay(in: calendar)
-        let overlappingVisit = RegionStint(
-            region: .ontario,
-            start: overlappingDay,
-            end: overlappingDay,
-            dayCount: 1,
-        )
         let plan = try PlannedStay(
             id: .init(rawValue: UUID()),
             region: joins ? .newYork : .california,
@@ -43,18 +36,17 @@ struct PresenceTimelineListTests {
             today: today,
         )
         let items = PresenceTimelineRows.Item.ordered(
-            recorded: [.stay(current), .stay(overlappingVisit)],
+            recorded: [.stay(current)],
             planned: planned,
             estimateDay: today,
             calendar: calendar,
         )
         let currentRow = PresenceTimelineList.RowID.recorded(current.id)
-        let overlappingRow = PresenceTimelineList.RowID.recorded(overlappingVisit.id)
         let firstPlan = PresenceTimelineList.RowID.planned(.stay(plan.id))
         let laterPlan = PresenceTimelineList.RowID.planned(.stay(later.id))
         #expect(items.map(\.id) == (joins
-                ? [overlappingRow, currentRow, firstPlan, .estimate, laterPlan]
-                : [currentRow, overlappingRow, .estimate, firstPlan, laterPlan]))
+                ? [currentRow, firstPlan, .estimate, laterPlan]
+                : [currentRow, .estimate, firstPlan, laterPlan]))
     }
 
     @Test func aRemountedTimelineRestoresItsBrowsedRowWithoutSelectionState() async throws {

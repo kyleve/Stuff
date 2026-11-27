@@ -77,7 +77,7 @@ struct PresenceJourneyItemTests {
         ) == [.flight(uncertain)])
     }
 
-    @Test func flightSplitsOverlappingStaysWithoutChangingAnyRegionDay() {
+    @Test func splitsOverlappingStaysWithoutChangingAnyRegionDay() {
         let stints = [Region.california, .newYork].map {
             RegionStint(region: $0, start: date(1), end: date(5), dayCount: 5)
         }
@@ -172,7 +172,7 @@ struct PresenceJourneyItemTests {
     }
 
     @Test(arguments: [false, true])
-    func overlappingVisitKeepsNewYorkContinuousThroughDeparture(reversed: Bool) {
+    func shorterVisitInterruptsNewYorkBeforeTheSeptember20Flight(reversed: Bool) {
         let days = (13 ... 23).map { day in
             var regions: Set<Region> = []
             if day <= 20 { regions.insert(.newYork) }
@@ -194,14 +194,20 @@ struct PresenceJourneyItemTests {
             .stay(RegionStint(
                 region: .newYork,
                 start: date(13, month: 9),
-                end: date(20, month: 9),
-                dayCount: 8,
+                end: date(13, month: 9),
+                dayCount: 1,
             )),
             .stay(RegionStint(
                 region: .other,
                 start: date(14, month: 9),
                 end: date(14, month: 9),
                 dayCount: 1,
+            )),
+            .stay(RegionStint(
+                region: .newYork,
+                start: date(14, month: 9),
+                end: date(20, month: 9),
+                dayCount: 7,
             )),
             .flight(flight),
             .stay(RegionStint(

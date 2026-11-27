@@ -48,7 +48,7 @@ The timeline inserts a plane in a circle at departure, with supported travel per
 When arrival timing is uncertain, it labels that uncertainty and shows the later ground observation separately.
 A flight can split a displayed regional stay into segments without changing residency totals.
 A stay that began before departure and ends that day remains intact before the flight. The arrival stay follows the flight.
-Overlapping visits keep their continuous date spans. Shared days remain counted once for each region.
+Shorter visits interrupt longer displayed stays at their start day. Shared days remain counted once for each region.
 One-day recorded visits use less vertical padding and grow with their text instead of reserving the minimum height of longer stays.
 These indicators have no separate action and remain visible after correction dismissal.
 

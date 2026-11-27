@@ -29,28 +29,15 @@ struct PresenceTimelineRows: View {
             let divider = recorded.firstIndex {
                 CalendarDay(from: $0.start, in: calendar) > estimateDay
             } ?? recorded.endIndex
-            let history = recorded[..<divider]
-            var beforeEstimate = history.map(Self.recorded)
-            var laterPlans = planned[...]
-            if let plan = planned.first {
-                let afterLastFlight = history.lastIndex {
-                    if case .flight = $0 { return true }
-                    return false
-                }.map { $0 + 1 } ?? history.startIndex
-                let plannedRow = Self.planned(plan)
-                if let current = history[afterLastFlight...].lastIndex(where: {
-                    plannedRow.continues(.recorded($0), calendar: calendar)
-                }) {
-                    // A shorter overlapping visit can appear after the current stay.
-                    // Keep the current stay and the first planned segment together.
-                    let currentRow = beforeEstimate.remove(at: current)
-                    beforeEstimate.append(currentRow)
-                    beforeEstimate.append(plannedRow)
-                    laterPlans = laterPlans.dropFirst()
-                }
+            var beforeEstimate = recorded[..<divider].map(Self.recorded)
+            var laterPlans = planned.map(Self.planned)[...]
+            if let firstPlan = laterPlans.first,
+               firstPlan.continues(beforeEstimate.last, calendar: calendar)
+            {
+                beforeEstimate.append(laterPlans.removeFirst())
             }
             return beforeEstimate + [.estimate] + recorded[divider...].map(Self.recorded)
-                + laterPlans.map(Self.planned)
+                + laterPlans
         }
 
         func continues(_ previous: Self?, calendar: Calendar) -> Bool {
