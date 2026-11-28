@@ -562,8 +562,9 @@ public final class WhereSession: WhereShutdownable {
         try await services.recording.retireForRejoin()
     }
 
-    /// Order edits and lifecycle refreshes within each notification family, while
-    /// preserving launch's parallel work across independent families.
+    /// Each family waits for its last reconciliation before reading current preferences.
+    /// Different families can run in parallel at launch. The issue-alert toggle supplies
+    /// its alert reconciliation as a prerequisite for updating the app badge.
     @discardableResult
     func enqueueNotificationConfiguration(
         _ configuration: NotificationConfiguration,
