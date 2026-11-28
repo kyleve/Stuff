@@ -22,24 +22,14 @@ struct OnboardingThemeSelectionView: View {
                         .foregroundStyle(Color.accentColor)
                         .accessibilityHidden(true)
 
-                    VStack(spacing: stylesheet.spacing.large) {
-                        Text(.onboardingThemeTitle)
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-                        Text(.onboardingThemeDescription)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
+                    OnboardingHeading(
+                        title: Text(.onboardingThemeTitle),
+                        description: Text(.onboardingThemeDescription),
+                    )
 
                     WhereThemePicker(selection: selection, onSelect: onSelect)
 
-                    Button(action: onContinue) {
-                        Text(.onboardingContinue)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    OnboardingThemeContinueButton(action: onContinue)
 
                     Spacer(minLength: 0)
                 }
@@ -54,22 +44,26 @@ struct OnboardingThemeSelectionView: View {
     }
 }
 
+private struct OnboardingThemeContinueButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(.onboardingContinue)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+    }
+}
+
 #if DEBUG
     private struct OnboardingThemeSelectionSnapshotRoot: View {
         @State var selection: WhereTheme
-        @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
             ZStack {
-                LinearGradient(
-                    colors: [
-                        stylesheet.palette.onboarding.backgroundTop,
-                        stylesheet.palette.onboarding.backgroundBottom,
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom,
-                )
-                .ignoresSafeArea()
+                OnboardingBackground()
 
                 OnboardingThemeSelectionView(
                     selection: selection,

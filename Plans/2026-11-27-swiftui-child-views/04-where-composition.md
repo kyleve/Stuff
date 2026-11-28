@@ -49,3 +49,7 @@ The month and day renderers retain their eager grid rows and stable scroll IDs. 
 ### Locations
 
 The Locations screen retains navigation, its selection, tilt provider, calendar namespace and mounted sheet bindings. Its complete 61-line region card button owns the transition, ranking geometry, tap target and accessibility. The compact navigator (20), content (22) and screen (31) have separate files. Both small state views share the screen file. The pane container kept module visibility because its preview and hosted test also construct it. The nine Locations and pane behavior suites passed, including selecting and clearing a pane, restoring scroll and keeping a flight review sheet mounted across folds. Locations snapshots passed with recording disabled.
+
+### Root, tabs, lockout and onboarding
+
+The root owns compatibility and session identity. MainTabs owns selection and the scene report. The gate-mounted onboarding model owns the draft, file selection and completion. The device recovery screen owns its nine-line message and complete ten-line Rejoin control. The tab, readiness, compatibility, launch, failure, onboarding and reset suites passed. The root, tabs, splash, failure, lockout and both onboarding image suites passed on iPhone 17. The actual Rejoin tap on a removed installation is outside those hosted runs.

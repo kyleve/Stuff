@@ -31,10 +31,6 @@ public struct OnboardingView: View {
     @Environment(\.stylesheet) private var stylesheet
     @State private var flow: OnboardingFlowModel
 
-    private var deviceKind: RecordingDeviceKind {
-        flow.installationContext.currentDevice.kind
-    }
-
     public init(
         gate: LifecycleGateHandle,
         installationContext: InstallationRecordingContext,
@@ -65,46 +61,35 @@ public struct OnboardingView: View {
         ))
     }
 
-    private let pages = OnboardingPage.all
-
     public var body: some View {
         Group {
             switch flow.phase {
-                case .intro: introScreen
+                case .intro: OnboardingIntroScreen(flow: flow)
                 case .theme:
                     OnboardingThemeSelectionView(
                         selection: flow.theme,
                         onSelect: { flow.selectTheme($0, using: model) },
                         onContinue: flow.continueAfterThemeSelection,
                     )
-                case .pickRegions: pickRegions
-                case .customize: customize
-                case .location: location
+                case .pickRegions: OnboardingRegionSelection(flow: flow)
+                case .customize: OnboardingRegionCustomization(flow: flow)
+                case .location: OnboardingRecordingChoice(flow: flow)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [
-                    stylesheet.palette.onboarding.backgroundTop,
-                    stylesheet.palette.onboarding.backgroundBottom,
-                ],
-                startPoint: .top,
-                endPoint: .bottom,
-            )
-            .ignoresSafeArea(),
-        )
+        .background(OnboardingBackground())
         .animation(stylesheet.motion.reducedReveal, value: flow.phase)
         .onDisappear { flow.discardPendingRestore() }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
         .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
     }
+}
 
-    // MARK: - Intro
+private struct OnboardingIntroScreen: View {
+    let flow: OnboardingFlowModel
 
-    @ViewBuilder
-    private var introScreen: some View {
+    var body: some View {
         if flow.intro.isBuildingDemo {
             // The launch splash, captioned for the work: entering demo mode
             // ends in a relaunch through that same splash, so borrowing it
@@ -120,115 +105,15 @@ public struct OnboardingView: View {
             // do) rather than an inline spinner.
             AppIconLoadingView(caption: String(localized: .onboardingRestoring))
         } else {
-            introPages
+            OnboardingIntroPages(flow: flow)
         }
     }
+}
 
-    private var introPages: some View {
-        VStack(spacing: stylesheet.spacing.xxxLarge) {
-            TabView(selection: $flow.page) {
-                ForEach(pages.indices, id: \.self) { index in
-                    GeometryReader { geometry in
-                        pageView(pages[index])
-                            .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                            .frame(minHeight: geometry.size.height)
-                            .whereScreenRoot(padding: .none)
-                            .scrollBounceBehavior(.basedOnSize)
-                    }
-                    .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
+private struct OnboardingRegionSelection: View {
+    let flow: OnboardingFlowModel
 
-            introFooter
-                .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                .padding(.bottom, stylesheet.spacing.xxxLarge)
-                .whereContentRoot()
-        }
-        .fileImporter(
-            isPresented: $flow.showImporter,
-            allowedContentTypes: [.zip],
-            onCompletion: flow.handleRestoreSelection,
-        )
-        .confirmationDialog(
-            String(localized: .settingsBackupImportStrategyTitle),
-            isPresented: $flow.showRestoreStrategyDialog,
-            titleVisibility: .visible,
-            presenting: flow.restoreSelection.selectedURL,
-        ) { _ in
-            Button(String(localized: .onboardingRestoreMergeRecommended)) {
-                flow.chooseRestoreStrategy(OnboardingRestoreSelection.recommendedStrategy)
-            }
-            Button(String(localized: .settingsBackupReplace), role: .destructive) {
-                flow.chooseRestoreStrategy(.replace)
-            }
-            Button(String(localized: .settingsDataCancel), role: .cancel) {
-                flow.discardPendingRestore()
-            }
-        } message: { _ in
-            Text(String(localized: .settingsBackupImportStrategyMessage))
-        }
-        .alert(
-            flow.failureTitle,
-            isPresented: $flow.intro.isShowingFailure,
-            presenting: flow.intro.failure,
-        ) { _ in
-            Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { failure in
-            // Formatted here rather than stored: the state keeps the error
-            // itself, so nothing has to decide how to say it before it's shown.
-            Text(failure.error.localizedDescription)
-        }
-    }
-
-    private func pageView(_ page: OnboardingPage) -> some View {
-        VStack(spacing: stylesheet.spacing.xxxLarge) {
-            Spacer(minLength: 0)
-            Image(systemSymbol: page.symbol)
-                .font(stylesheet.typography.onboardingIcon)
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
-            VStack(spacing: stylesheet.spacing.large) {
-                Text(page.title)
-                    .font(.largeTitle.bold())
-                    .multilineTextAlignment(.center)
-                Text(page.description)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            // Keep the final line clear of the page indicator when content scrolls.
-            Spacer(minLength: stylesheet.spacing.xxxLarge)
-        }
-    }
-
-    private var introFooter: some View {
-        VStack(spacing: stylesheet.spacing.medium) {
-            Button {
-                withAnimation { flow.advanceIntro(pageCount: pages.count) }
-            } label: {
-                Text(String(localized: .onboardingContinue))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-
-            // Returning users can skip the manual setup by restoring a backup;
-            // the restore's progress replaces the intro with the loading view.
-            Button(String(localized: .onboardingRestoreBackup)) { flow.showImporter = true }
-                .controlSize(.large)
-
-            // And anyone can look around first, without handing over a
-            // location permission or leaving anything on their device.
-            Button(String(localized: .onboardingTryDemo)) { flow.enterDemoMode(using: model) }
-                .controlSize(.large)
-        }
-        .disabled(flow.intro.isBuildingDemo)
-    }
-
-    // MARK: - Pick regions
-
-    private var pickRegions: some View {
+    var body: some View {
         NavigationStack {
             RegionPickerView(draft: flow.selection)
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
@@ -240,10 +125,12 @@ public struct OnboardingView: View {
                 }
         }
     }
+}
 
-    // MARK: - Customize
+private struct OnboardingRegionCustomization: View {
+    let flow: OnboardingFlowModel
 
-    private var customize: some View {
+    var body: some View {
         NavigationStack {
             RegionCustomizeView(
                 draft: flow.selection,
@@ -252,101 +139,52 @@ public struct OnboardingView: View {
             )
         }
     }
+}
 
-    // MARK: - Location
+struct OnboardingBackground: View {
+    @Environment(\.stylesheet.palette.onboarding) private var palette
 
-    private var location: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: stylesheet.spacing.xxxLarge) {
-                    Spacer(minLength: 0)
-                    Image(systemSymbol: deviceKind.systemSymbol)
-                        .font(stylesheet.typography.onboardingIcon)
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-                    VStack(spacing: stylesheet.spacing.large) {
-                        Text(recordingTitle)
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-                        Text(String(localized: .onboardingRecordingDescription))
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    Spacer(minLength: 0)
-
-                    VStack(spacing: stylesheet.spacing.large) {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                            switch flow.deviceDiscovery {
-                                case .idle, .loading:
-                                    ProgressView(String(localized: .onboardingRecordingChecking))
-                                case let .ready(recommendation):
-                                    if recommendation.recentRecordingDevice != nil {
-                                        Label(
-                                            String(localized: .onboardingRecordingRecent),
-                                            systemSymbol: .iphoneRadiowavesLeftAndRight,
-                                        )
-                                    }
-                                case let .failed(description):
-                                    Label(description, systemSymbol: .icloudSlash)
-                                        .foregroundStyle(.secondary)
-                            }
-                            Toggle(
-                                String(localized: .settingsDevicesAutomaticRecording),
-                                isOn: $flow.recordingEnabled,
-                            )
-                            Text(recordingRecommendation)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Button {
-                            // Request Always-location only after the user confirms an
-                            // enabled choice; the launch's reconcile step picks up
-                            // whatever the system grants.
-                            flow.finish(using: model)
-                        } label: {
-                            Text(String(localized: .onboardingContinue))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    }
-                    .disabled(
-                        flow.isFinishing || model.isCompletingOnboarding
-                            || flow.deviceDiscovery == .loading,
-                    )
-                }
-                .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                .padding(.bottom, stylesheet.spacing.xxxLarge)
-                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
-                .whereContentRoot()
-            }
-            .scrollBounceBehavior(.basedOnSize)
-        }
-        .task { await flow.discoverRecordingDevices(using: model) }
+    var body: some View {
+        LinearGradient(
+            colors: [
+                palette.backgroundTop,
+                palette.backgroundBottom,
+            ],
+            startPoint: .top,
+            endPoint: .bottom,
+        )
+        .ignoresSafeArea()
     }
+}
 
-    private var recordingTitle: LocalizedStringResource {
-        switch deviceKind {
-            case .phone: .onboardingRecordingPhoneTitle
-            case .tablet: .onboardingRecordingTabletTitle
-            case .computer, .watch, .other: .onboardingRecordingOtherTitle
+struct OnboardingHeading: View {
+    let title: Text
+    let description: Text
+    @Environment(\.stylesheet.spacing) private var spacing
+
+    var body: some View {
+        VStack(spacing: spacing.large) {
+            title
+                .font(.largeTitle.bold())
+                .multilineTextAlignment(.center)
+            description
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
+}
 
-    private var recordingRecommendation: LocalizedStringResource {
-        let recommendsEnabled = if case let .ready(recommendation) = flow.deviceDiscovery {
-            recommendation.isEnabled
-        } else {
-            flow.installationContext.recommendedRecordingEnabled
+struct OnboardingContinueButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(String(localized: .onboardingContinue))
+                .frame(maxWidth: .infinity)
         }
-        if recommendsEnabled {
-            return .onboardingRecordingRecommendationOn
-        } else {
-            return .onboardingRecordingRecommendationOff
-        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
     }
 }
 

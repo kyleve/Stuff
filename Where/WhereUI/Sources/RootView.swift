@@ -110,131 +110,79 @@ public struct RootView: View {
 
     public var body: some View {
         RootStyledContent { stylesheet in
-            rootContent(stylesheet: stylesheet)
+            ZStack {
+                Group {
+                    if model.compatibility.isBlocking(model) {
+                        DataCompatibilityView(state: model.compatibility.coordinator.state) {
+                            await model.compatibility.refresh(model: model)
+                        }
+                    } else {
+                        WhereSessionLaunch(
+                            model: model,
+                            launcher: launcher,
+                            style: stylesheet.launch,
+                            isPresentationVisible: isLifecyclePresentationVisible,
+                        )
+                    }
+                }
+                // Extend the app content's safe area by the floating HUD's footprint so
+                // scroll views behind the non-modal window inset and their last rows
+                // clear it. Scoped to the content only — never the sibling overlay/toast
+                // layers below — so the overlay's own geometry can't feed back on itself.
+                #if DEBUG
+                .safeAreaPadding(developerOverlayInsets)
+                #endif
+
+                // The floating developer launcher/accordion sits above every launch
+                // phase and tab so its tools are reachable from anywhere (even logged
+                // out). Selected tools open in its HUD. The whole surface is DEBUG-only
+                // and compiled out of release entirely.
+                #if DEBUG
+                    DeveloperOverlay(tabBarInset: developerTabBarInset)
+                    // High-severity log toasts float above everything, including the
+                    // developer overlay, so a warning/error is visible wherever it fires.
+                    DeveloperToastOverlay(center: toastCenter)
+                #endif
+            }
+            #if DEBUG
+            .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
+            .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
+            .environment(\.periscopeInspector, inspector)
+            .task { configureDeveloperLogging() }
+            .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
+                configureDeveloperLogging()
+            }
+            #endif
+            // Seed the app's root logging context so any view that logs freeform via
+            // `\.logContext` emits under the "Where" scope rather than a bare root.
+            .logContext(WhereLog.root)
+            .environment(model)
+            .environment(updates)
+            // The logged-in session appears once the launch's `start-session`
+            // step builds it. Injected as an optional `Observable`, so the
+            // `TabView`'s `@Environment(WhereSession.self)` views resolve it
+            // (they only render at `.ready`, by which point it's present) and
+            // re-inject when a reset rebuilds it. The DEBUG developer overlay
+            // reads it optionally — it can appear before login.
+            .environment(model.session)
+            .environment(\.primaryAppIconName, primaryAppIconName)
+            #if DEBUG
+                .environment(developerLaunchController)
+                .environment(\.cardDesignerModel, cardDesigner)
+                .environment(
+                    \.cardDesignerConfiguration,
+                    cardDesigner.appliesToApp ? cardDesigner.configuration : nil,
+                )
+            #endif
+                // Which world the app is in, seeded once here so no view has to
+                // ask the model. Reading the model's mode tracks its scope state,
+                // so entering or leaving demo mode re-renders what branches on it.
+                .demoMode(of: model)
         }
         .whereBroadwayRoot(
             theme: model.theme,
             regionStyles: model.session?.regionStyles ?? .default,
         )
-    }
-
-    private func rootContent(stylesheet: WhereStylesheet) -> some View {
-        ZStack {
-            Group {
-                if model.compatibility.isBlocking(model) {
-                    DataCompatibilityView(state: model.compatibility.coordinator.state) {
-                        await model.compatibility.refresh(model: model)
-                    }
-                } else {
-                    LifecycleContainer(
-                        launcher,
-                        transition: stylesheet.launch.reveal.transition,
-                        animation: stylesheet.launch.revealAnimation,
-                        minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
-                        isPresentationVisible: isLifecyclePresentationVisible,
-                        splash: { _ in
-                            if model.isBuildingLaunchDemo {
-                                LaunchSplashView(caption: .work(
-                                    title: String(localized: .demoBuildingTitle),
-                                    subtitle: String(localized: .demoBuildingSubtitle),
-                                ))
-                            } else {
-                                LaunchSplashView()
-                            }
-                        },
-                        failure: { WhereLifecycleFailureView(failure: $0) },
-                        gates: {
-                            // The gate precedes every world-building step, so there is
-                            // no session (and no open store) behind it yet — onboarding
-                            // builds the scope it commits regions with, through the model.
-                            // The monitor completes this gate after admission. The outer
-                            // branch owns lockout UI; keep a registration while it drains.
-                            GateView(for: CompatibilityGate.self) { _, _ in
-                                LaunchSplashView()
-                            }
-                            GateView(for: OnboardingGate.self) { handle, _ in
-                                OnboardingView(
-                                    gate: handle,
-                                    installationContext: model.installationRecordingContext,
-                                    startsAtRecordingChoice: model.hasOnboarded,
-                                    initialTheme: model.theme,
-                                )
-                            }
-                        },
-                    ) { session in
-                        // `.ready` carries the session the launch produced — the app
-                        // surface cannot render without it. `MainTabs` owns the
-                        // scene-scoped `YearReportModel` and gets a fresh one whenever
-                        // a reset rebuilds the session. Keyed on the session's
-                        // monotonic `id` (never reused within the process) rather than
-                        // its address, so a rebuilt session can't collide with a freed
-                        // one and skip the rebuild.
-                        if session.isCurrentDeviceRemoved {
-                            RemovedDeviceView(model: model, session: session)
-                        } else {
-                            MainTabs(
-                                session: session,
-                                initialDetails: model.initialYearDetails,
-                                selectedYear: model.initialSelectedYear,
-                            )
-                            .id(session.id)
-                        }
-                    }
-                }
-            }
-            // Extend the app content's safe area by the floating HUD's footprint so
-            // scroll views behind the non-modal window inset and their last rows
-            // clear it. Scoped to the content only — never the sibling overlay/toast
-            // layers below — so the overlay's own geometry can't feed back on itself.
-            #if DEBUG
-            .safeAreaPadding(developerOverlayInsets)
-            #endif
-
-            // The floating developer launcher/accordion sits above every launch
-            // phase and tab so its tools are reachable from anywhere (even logged
-            // out). Selected tools open in its HUD. The whole surface is DEBUG-only
-            // and compiled out of release entirely.
-            #if DEBUG
-                DeveloperOverlay(tabBarInset: developerTabBarInset)
-                // High-severity log toasts float above everything, including the
-                // developer overlay, so a warning/error is visible wherever it fires.
-                DeveloperToastOverlay(center: toastCenter)
-            #endif
-        }
-        #if DEBUG
-        .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
-        .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
-        .environment(\.periscopeInspector, inspector)
-        .task { configureDeveloperLogging() }
-        .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
-            configureDeveloperLogging()
-        }
-        #endif
-        // Seed the app's root logging context so any view that logs freeform via
-        // `\.logContext` emits under the "Where" scope rather than a bare root.
-        .logContext(WhereLog.root)
-        .environment(model)
-        .environment(updates)
-        // The logged-in session appears once the launch's `start-session`
-        // step builds it. Injected as an optional `Observable`, so the
-        // `TabView`'s `@Environment(WhereSession.self)` views resolve it
-        // (they only render at `.ready`, by which point it's present) and
-        // re-inject when a reset rebuilds it. The DEBUG developer overlay
-        // reads it optionally — it can appear before login.
-        .environment(model.session)
-        .environment(\.primaryAppIconName, primaryAppIconName)
-        #if DEBUG
-            .environment(developerLaunchController)
-            .environment(\.cardDesignerModel, cardDesigner)
-            .environment(
-                \.cardDesignerConfiguration,
-                cardDesigner.appliesToApp ? cardDesigner.configuration : nil,
-            )
-        #endif
-            // Which world the app is in, seeded once here so no view has to
-            // ask the model. Reading the model's mode tracks its scope state,
-            // so entering or leaving demo mode re-renders what branches on it.
-            .demoMode(of: model)
     }
 
     private var isLifecyclePresentationVisible: Bool {
