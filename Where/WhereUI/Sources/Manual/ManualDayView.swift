@@ -60,8 +60,14 @@ struct ManualDayView: View {
 
         Form {
             switch fields {
-                case let .add(add): addContent(add)
-                case let .edit(edit): editContent(edit)
+                case let .add(add):
+                    ManualDayAddSections(add: add, pending: pending)
+                case let .edit(edit):
+                    ManualDayEditSections(
+                        edit: edit,
+                        pending: pending,
+                        confirmDelete: { showDeleteConfirmation = true },
+                    )
             }
         }
         .animation(.default, value: pending)
@@ -119,130 +125,6 @@ struct ManualDayView: View {
         .debugLogInspectable(WhereLog.session(ManualDayViewLog.self))
     }
 
-    // MARK: - Mode-specific content
-
-    @ViewBuilder
-    private func addContent(_ add: AddFields) -> some View {
-        @Bindable var add = add
-
-        Section {
-            Picker(String(localized: .manualEntryPickerLabel), selection: $add.dateSpan) {
-                ForEach(DateSpan.allCases) { span in
-                    Text(span.title).tag(span)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("where_manual_mode")
-
-            datePickers(add)
-        } footer: {
-            Text(addDateFooter(add))
-        }
-        // Keep the range's end from drifting before its start when the user
-        // moves the start forward (the end picker's range only clamps display).
-        .onChange(of: add.startDate) { _, newValue in
-            if add.endDate < newValue {
-                add.endDate = newValue
-            }
-        }
-
-        regionsSection(add.regions)
-        noteSection(note: $add.note)
-        savingSection
-    }
-
-    @ViewBuilder
-    private func editContent(_ edit: EditFields) -> some View {
-        @Bindable var edit = edit
-
-        Section {
-            LabeledContent(
-                String(localized: .loggedDaysEditDate),
-                value: fixedDateText(edit.day.displayDate),
-            )
-        }
-
-        regionsSection(edit.regions)
-        noteSection(note: $edit.note)
-
-        Section {
-            Button(role: .destructive) {
-                showDeleteConfirmation = true
-            } label: {
-                Label(String(localized: .loggedDaysDelete), systemSymbol: .trash)
-            }
-            .disabled(pending != nil)
-        } footer: {
-            Text(String(localized: .loggedDaysDeleteFooter))
-        }
-
-        savingSection
-
-        if let audit = edit.day.audit {
-            ManualEntryAuditSection(audit: audit)
-        }
-    }
-
-    /// `WhereDatePicker` renders a deterministic stand-in under snapshot capture
-    /// (the live compact capsule's date format depends on the real-world date,
-    /// so no reference image containing it is stable across days) — the capture
-    /// handling stays inside the wrapper, not here.
-    @ViewBuilder
-    private func datePickers(_ add: AddFields) -> some View {
-        @Bindable var add = add
-        switch add.dateSpan {
-            case .singleDay:
-                WhereDatePicker(
-                    String(localized: .manualDay),
-                    selection: $add.startDate,
-                    latest: Date(),
-                    displayedComponents: .date,
-                )
-            case .range:
-                WhereDatePicker(
-                    String(localized: .manualFrom),
-                    selection: $add.startDate,
-                    latest: Date(),
-                    displayedComponents: .date,
-                )
-                WhereDatePicker(
-                    String(localized: .manualThrough),
-                    selection: $add.endDate,
-                    earliest: add.startDate,
-                    latest: Date(),
-                    displayedComponents: .date,
-                )
-        }
-    }
-
-    // MARK: - Shared sections
-
-    @ViewBuilder
-    private func regionsSection(_ regions: RegionSelectionState) -> some View {
-        if regions.isGrouped {
-            // Your regions / Used this year / More — the shared grouped sections,
-            // with day-membership toggles as the row.
-            GroupedRegionSections(
-                grouping: regions.grouping,
-                yoursFooter: String(localized: .manualRegionsFooter),
-            ) { region in
-                if let item = regions.item(for: region) {
-                    RegionToggleRow(item: item)
-                }
-            }
-        } else {
-            // Tracked set not loaded yet (or a preview without services): show
-            // the flat catalog list, matching the pre-grouping behavior.
-            Section {
-                ForEach(regions.items) { RegionToggleRow(item: $0) }
-            } header: {
-                Text(String(localized: .manualRegionsHeader))
-            } footer: {
-                Text(String(localized: .manualRegionsFooter))
-            }
-        }
-    }
-
     /// The region-selection state for the active mode.
     private var activeRegions: RegionSelectionState {
         switch fields {
@@ -274,31 +156,6 @@ struct ManualDayView: View {
         }
     }
 
-    private func noteSection(note: Binding<String>) -> some View {
-        Section {
-            TextField(
-                String(localized: .manualNotePlaceholder),
-                text: note,
-                axis: .vertical,
-            )
-            .lineLimit(3, reservesSpace: true)
-            .disabled(pending != nil)
-        } header: {
-            Text(String(localized: .manualNoteHeader))
-        } footer: {
-            Text(String(localized: .manualNoteFooter))
-        }
-    }
-
-    @ViewBuilder
-    private var savingSection: some View {
-        if pending == .saving {
-            Section {
-                SavingStatusRow(text: String(localized: .manualSavingStatus))
-            }
-        }
-    }
-
     // MARK: - Derived state
 
     private var navigationTitle: String {
@@ -317,17 +174,6 @@ struct ManualDayView: View {
             case let .edit(edit):
                 return !edit.regions.selectedRegions.isEmpty && edit.hasChanges
         }
-    }
-
-    private func addDateFooter(_ add: AddFields) -> String {
-        switch add.dateSpan {
-            case .singleDay: String(localized: .manualSingleDayFooter)
-            case .range: WhereFormat.manualRangeFooter(count: add.dayCount)
-        }
-    }
-
-    private func fixedDateText(_ date: Date) -> String {
-        date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
     }
 
     // MARK: - Writes
@@ -402,6 +248,145 @@ struct ManualDayView: View {
                 pending = nil
             }
         }
+    }
+}
+
+private struct ManualDayAddSections: View {
+    @Bindable var add: ManualDayView.AddFields
+    let pending: ManualDayView.PendingWrite?
+
+    var body: some View {
+        ManualDayDatesSection(add: add)
+        ManualDayRegionsSection(regions: add.regions)
+        ManualDayNoteSection(note: $add.note, isWriting: pending != nil)
+        ManualDaySavingSection(isSaving: pending == .saving)
+    }
+}
+
+private struct ManualDayEditSections: View {
+    @Bindable var edit: ManualDayView.EditFields
+    let pending: ManualDayView.PendingWrite?
+    let confirmDelete: () -> Void
+
+    var body: some View {
+        ManualDayRecordedDate(date: edit.day.displayDate)
+        ManualDayRegionsSection(regions: edit.regions)
+        ManualDayNoteSection(note: $edit.note, isWriting: pending != nil)
+        ManualDayDeleteSection(isWriting: pending != nil, confirm: confirmDelete)
+        ManualDaySavingSection(isSaving: pending == .saving)
+        if let audit = edit.day.audit {
+            ManualEntryAuditSection(audit: audit)
+        }
+    }
+}
+
+private struct ManualDayDatesSection: View {
+    @Bindable var add: ManualDayView.AddFields
+
+    var body: some View {
+        Section {
+            ManualDaySpanPicker(dateSpan: $add.dateSpan)
+            ManualDayDatePickers(add: add)
+        } footer: {
+            Text(footer)
+        }
+        // Keep the range's end from drifting before its start when the user
+        // moves the start forward (the end picker's range only clamps display).
+        .onChange(of: add.startDate) { _, newValue in
+            if add.endDate < newValue {
+                add.endDate = newValue
+            }
+        }
+    }
+
+    private var footer: String {
+        switch add.dateSpan {
+            case .singleDay: String(localized: .manualSingleDayFooter)
+            case .range: WhereFormat.manualRangeFooter(count: add.dayCount)
+        }
+    }
+}
+
+private struct ManualDaySpanPicker: View {
+    @Binding var dateSpan: ManualDayView.DateSpan
+
+    var body: some View {
+        Picker(String(localized: .manualEntryPickerLabel), selection: $dateSpan) {
+            ForEach(ManualDayView.DateSpan.allCases) { span in
+                Text(span.title).tag(span)
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("where_manual_mode")
+    }
+}
+
+private struct ManualDayRecordedDate: View {
+    let date: Date
+
+    var body: some View {
+        Section {
+            LabeledContent(
+                String(localized: .loggedDaysEditDate),
+                value: date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()),
+            )
+        }
+    }
+}
+
+private struct ManualDayRegionsSection: View {
+    let regions: RegionSelectionState
+
+    var body: some View {
+        if regions.isGrouped {
+            // Your regions / Used this year / More — the shared grouped sections,
+            // with day-membership toggles as the row.
+            GroupedRegionSections(
+                grouping: regions.grouping,
+                yoursFooter: String(localized: .manualRegionsFooter),
+            ) { region in
+                if let item = regions.item(for: region) {
+                    RegionToggleRow(item: item)
+                }
+            }
+        } else {
+            // Tracked set not loaded yet (or a preview without services): show
+            // the flat catalog list, matching the pre-grouping behavior.
+            Section {
+                ForEach(regions.items) { RegionToggleRow(item: $0) }
+            } header: {
+                Text(String(localized: .manualRegionsHeader))
+            } footer: {
+                Text(String(localized: .manualRegionsFooter))
+            }
+        }
+    }
+}
+
+private struct ManualDayDeleteSection: View {
+    let isWriting: Bool
+    let confirm: () -> Void
+
+    var body: some View {
+        Section {
+            DeleteLoggedDayButton(isWriting: isWriting, confirm: confirm)
+        } footer: {
+            Text(String(localized: .loggedDaysDeleteFooter))
+        }
+    }
+}
+
+private struct DeleteLoggedDayButton: View {
+    let isWriting: Bool
+    let confirm: () -> Void
+
+    var body: some View {
+        Button(role: .destructive) {
+            confirm()
+        } label: {
+            Label(String(localized: .loggedDaysDelete), systemSymbol: .trash)
+        }
+        .disabled(isWriting)
     }
 }
 

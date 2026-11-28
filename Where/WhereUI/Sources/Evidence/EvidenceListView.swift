@@ -38,17 +38,12 @@ struct EvidenceListView: View {
     }
 
     var body: some View {
-        content
+        EvidenceListContent(state: model.loadState, add: { showingAdd = true })
             .navigationTitle(WhereFormat.evidenceListTitle(year: report.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label(String(localized: .evidenceAdd), systemSymbol: .plus)
-                    }
-                    .accessibilityIdentifier("where_add_evidence_button")
+                    AddEvidenceButton(add: { showingAdd = true })
                 }
             }
             .navigationDestination(for: Evidence.self) { evidence in
@@ -69,29 +64,43 @@ struct EvidenceListView: View {
     private func reloadAfterCompose() {
         Task { await model.load(for: report.selectedYear) }
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
-        switch model.loadState {
+private struct EvidenceListContent: View {
+    let state: EvidenceListModel.LoadState
+    let add: () -> Void
+
+    var body: some View {
+        switch state {
             case .idle, .loading:
                 AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .loaded(items):
-                list(items)
+                EvidenceItemsList(items: items)
             case .empty:
-                emptyState
+                EmptyEvidenceList(add: add)
             case let .failed(message):
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .evidenceFailedTitle),
-                        systemSymbol: .exclamationmarkIcloud,
-                    )
-                } description: {
-                    Text(message)
-                }
+                EvidenceLoadFailure(message: message)
         }
     }
+}
 
-    private func list(_ items: [Evidence]) -> some View {
+private struct AddEvidenceButton: View {
+    let add: () -> Void
+
+    var body: some View {
+        Button {
+            add()
+        } label: {
+            Label(String(localized: .evidenceAdd), systemSymbol: .plus)
+        }
+        .accessibilityIdentifier("where_add_evidence_button")
+    }
+}
+
+private struct EvidenceItemsList: View {
+    let items: [Evidence]
+
+    var body: some View {
         List {
             // Newest first reads best for a growing archive; the store returns
             // ascending by `capturedAt`.
@@ -103,14 +112,18 @@ struct EvidenceListView: View {
         }
         .listStyle(.plain)
     }
+}
 
-    private var emptyState: some View {
+private struct EmptyEvidenceList: View {
+    let add: () -> Void
+
+    var body: some View {
         ContentUnavailableView {
             Label(String(localized: .evidenceEmptyTitle), systemSymbol: .paperclip)
         } description: {
             Text(String(localized: .evidenceEmptyDescription))
         } actions: {
-            Button(String(localized: .evidenceAdd)) { showingAdd = true }
+            Button(String(localized: .evidenceAdd)) { add() }
         }
     }
 }
@@ -134,43 +147,6 @@ extension EvidenceListView: SettingsSection {
                 case .attachments: splitKeywords(String(localized: .settingsKeywordsAttachments))
             }
         }
-    }
-}
-
-/// One evidence row: kind glyph, kind name, capture date, and a note snippet.
-private struct EvidenceRow: View {
-    let evidence: Evidence
-
-    @Environment(\.stylesheet) private var stylesheet
-
-    var body: some View {
-        HStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: evidence.kind.symbol)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: stylesheet.size.statusIconWidth)
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(evidence.kind.displayName)
-                    .font(.headline)
-                Text(evidence.capturedAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let note = evidence.note, !note.isEmpty {
-                    Text(note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-        }
-        .padding(.vertical, stylesheet.spacing.xxSmall)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
-        )
-        // Log View Mode: reveal an inspect badge that opens this archive's
-        // evidence-scope events. A no-op in release.
-        .debugLogInspectable(WhereLog.evidence)
     }
 }
 

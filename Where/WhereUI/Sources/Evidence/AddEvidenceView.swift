@@ -11,7 +11,6 @@ import WhereCore
 /// on save. Presented from the evidence list's "+".
 struct AddEvidenceView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.stylesheet) private var stylesheet
 
     @State private var model: AddEvidenceModel
     @State private var showingFileImporter = false
@@ -36,9 +35,17 @@ struct AddEvidenceView: View {
 
         NavigationStack {
             Form {
-                attachmentSection
-                detailsSection
-                noteSection
+                EvidenceAttachmentSection(
+                    attachment: model.attachment,
+                    photoItem: $photoItem,
+                    chooseFile: { showingFileImporter = true },
+                    remove: {
+                        model.removeAttachment()
+                        photoItem = nil
+                    },
+                )
+                EvidenceDetailsSection(model: model)
+                EvidenceNoteSection(note: $model.note)
             }
             .navigationTitle(String(localized: .evidenceAdd))
             .navigationBarTitleDisplayMode(.inline)
@@ -47,14 +54,13 @@ struct AddEvidenceView: View {
                     Button(String(localized: .commonCancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: .evidenceFormSave)) {
+                    SaveEvidenceButton(isSaving: model.isSaving) {
                         Task {
                             if await model.save() {
                                 dismiss()
                             }
                         }
                     }
-                    .disabled(model.isSaving)
                 }
             }
             .fileImporter(
@@ -84,76 +90,6 @@ struct AddEvidenceView: View {
             // Log View Mode: reveal an inspect badge for this compose form's
             // events (attachment-pick / save). A no-op in release.
             .debugLogInspectable(WhereLog.evidence(AddEvidenceModelLog.self))
-        }
-    }
-
-    private var attachmentSection: some View {
-        Section {
-            if let attachment = model.attachment {
-                attachmentSummary(attachment)
-                Button(role: .destructive) {
-                    model.removeAttachment()
-                    photoItem = nil
-                } label: {
-                    Label(String(localized: .evidenceFormRemove), systemSymbol: .trash)
-                }
-            } else {
-                Button {
-                    showingFileImporter = true
-                } label: {
-                    Label(String(localized: .evidenceFormChooseFile), systemSymbol: .doc)
-                }
-                PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label(String(localized: .evidenceFormChoosePhoto), systemSymbol: .photo)
-                }
-            }
-        } header: {
-            Text(String(localized: .evidenceFormAttachmentHeader))
-        }
-    }
-
-    private func attachmentSummary(_ attachment: PickedAttachment) -> some View {
-        HStack {
-            Label(
-                attachment.filename ?? String(localized: .evidenceFormAttachmentHeader),
-                systemSymbol: .paperclip,
-            )
-            .lineLimit(1)
-            .truncationMode(.middle)
-            Spacer(minLength: stylesheet.spacing.medium)
-            Text(attachment.data.count.formatted(.byteCount(style: .file)))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-    }
-
-    private var detailsSection: some View {
-        @Bindable var model = model
-        return Section {
-            Picker(String(localized: .evidenceFormKind), selection: $model.kind) {
-                ForEach(EvidenceKind.knownCases, id: \.self) { kind in
-                    Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
-                }
-            }
-            if case .other = model.kind {
-                TextField(String(localized: .evidenceFormOtherLabel), text: $model.otherLabel)
-            }
-            DatePicker(String(localized: .evidenceFormDate), selection: $model.capturedAt)
-        }
-    }
-
-    private var noteSection: some View {
-        @Bindable var model = model
-        return Section {
-            TextField(
-                String(localized: .evidenceFormNotePlaceholder),
-                text: $model.note,
-                axis: .vertical,
-            )
-            .lineLimit(3, reservesSpace: true)
-        } header: {
-            Text(String(localized: .evidenceFormNote))
         }
     }
 
@@ -212,6 +148,119 @@ struct AddEvidenceView: View {
             } catch {
                 model.reportAttachmentError(error)
             }
+        }
+    }
+}
+
+private struct SaveEvidenceButton: View {
+    let isSaving: Bool
+    let save: () -> Void
+
+    var body: some View {
+        Button(String(localized: .evidenceFormSave), action: save)
+            .disabled(isSaving)
+    }
+}
+
+private struct EvidenceAttachmentSection: View {
+    let attachment: PickedAttachment?
+    @Binding var photoItem: PhotosPickerItem?
+    let chooseFile: () -> Void
+    let remove: () -> Void
+
+    var body: some View {
+        Section {
+            if let attachment {
+                EvidenceAttachmentSummary(attachment: attachment)
+                RemoveEvidenceAttachmentButton(remove: remove)
+            } else {
+                ChooseEvidenceFileButton(choose: chooseFile)
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    Label(String(localized: .evidenceFormChoosePhoto), systemSymbol: .photo)
+                }
+            }
+        } header: {
+            Text(String(localized: .evidenceFormAttachmentHeader))
+        }
+    }
+}
+
+private struct EvidenceAttachmentSummary: View {
+    let attachment: PickedAttachment
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        HStack {
+            Label(
+                attachment.filename ?? String(localized: .evidenceFormAttachmentHeader),
+                systemSymbol: .paperclip,
+            )
+            .lineLimit(1)
+            .truncationMode(.middle)
+            Spacer(minLength: stylesheet.spacing.medium)
+            Text(attachment.data.count.formatted(.byteCount(style: .file)))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+}
+
+private struct RemoveEvidenceAttachmentButton: View {
+    let remove: () -> Void
+
+    var body: some View {
+        Button(role: .destructive) {
+            remove()
+        } label: {
+            Label(String(localized: .evidenceFormRemove), systemSymbol: .trash)
+        }
+    }
+}
+
+private struct ChooseEvidenceFileButton: View {
+    let choose: () -> Void
+
+    var body: some View {
+        Button {
+            choose()
+        } label: {
+            Label(String(localized: .evidenceFormChooseFile), systemSymbol: .doc)
+        }
+    }
+}
+
+private struct EvidenceDetailsSection: View {
+    @Bindable var model: AddEvidenceModel
+
+    var body: some View {
+        Section {
+            Picker(String(localized: .evidenceFormKind), selection: $model.kind) {
+                ForEach(EvidenceKind.knownCases, id: \.self) { kind in
+                    Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
+                }
+            }
+            if case .other = model.kind {
+                TextField(String(localized: .evidenceFormOtherLabel), text: $model.otherLabel)
+            }
+            DatePicker(String(localized: .evidenceFormDate), selection: $model.capturedAt)
+        }
+    }
+}
+
+private struct EvidenceNoteSection: View {
+    @Binding var note: String
+
+    var body: some View {
+        Section {
+            TextField(
+                String(localized: .evidenceFormNotePlaceholder),
+                text: $note,
+                axis: .vertical,
+            )
+            .lineLimit(3, reservesSpace: true)
+        } header: {
+            Text(String(localized: .evidenceFormNote))
         }
     }
 }

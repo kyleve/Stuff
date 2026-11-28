@@ -13,9 +13,8 @@ struct ElsewhereView: View {
     var isSelected: Bool
 
     @State private var retryTrigger = EventTrigger()
-    @Environment(\.stylesheet) private var stylesheet
+
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.regionStyles) private var regionStyles
 
     private struct Request: Hashable {
         let input: ElsewhereInput?
@@ -52,13 +51,31 @@ struct ElsewhereView: View {
 
     var body: some View {
         NavigationStack {
-            screen
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background {
-                    LocationsBackground(regions: backgroundRegions)
-                        .ignoresSafeArea()
+            Group {
+                if let content = model.content(for: report.selectedYear) {
+                    ElsewhereRegionList(
+                        content: content,
+                        report: report,
+                        model: model,
+                        failureMessage: failureMessage,
+                        retry: { retryTrigger.fire() },
+                    )
+                } else if let failureMessage {
+                    ElsewhereLoadFailure(message: failureMessage) {
+                        ElsewhereRetryButton(retry: { retryTrigger.fire() })
+                    }
+                } else {
+                    ProgressView(String(localized: .secondaryLoading))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .navigationBarTitleDisplayMode(.inline)
+            }
+
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background {
+                LocationsBackground(regions: backgroundRegions)
+                    .ignoresSafeArea()
+            }
+            .navigationBarTitleDisplayMode(.inline)
         }
         .task(id: request) {
             guard request.isVisible else { return }
@@ -69,88 +86,6 @@ struct ElsewhereView: View {
             await model.refresh(input)
         }
         .debugLogInspectable(WhereLog.session(ElsewhereModelLog.self))
-    }
-
-    @ViewBuilder
-    private var screen: some View {
-        if let content = model.content(for: report.selectedYear) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
-                    if let failureMessage {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                            Label(failureMessage, systemSymbol: .exclamationmarkIcloud)
-                            retryButton
-                        }
-                    }
-                    if content.regions.isEmpty {
-                        emptyState
-                    } else {
-                        GlassEffectContainer(spacing: stylesheet.spacing.large) {
-                            VStack(spacing: stylesheet.spacing.large) {
-                                ForEach(content.regions) { item in
-                                    NavigationLink {
-                                        RegionDaysView(
-                                            region: item.region,
-                                            report: report,
-                                            model: model,
-                                        )
-                                    } label: {
-                                        RegionSummaryCard(
-                                            regionDays: RegionDays(
-                                                region: item.region,
-                                                days: item.days.count,
-                                            ),
-                                            places: content.placeNames[item.region],
-                                            variant: .elsewhere,
-                                            year: report.selectedYear,
-                                            recordedPoints: content.cardLocations
-                                                .pointsByRegion[item.region] ?? [],
-                                            showsRecordedPoints: report.showsRecordedLocationDots,
-                                            recordedPointsID: content.cardLocations.id,
-                                        )
-                                    }
-                                    .buttonStyle(stylesheet.card[.elsewhere].buttonStyle(
-                                        tint: regionStyles.style(for: item.region).tint,
-                                    ))
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding()
-                .whereContentRoot()
-            }
-            .defaultScrollAnchor(.center, for: .alignment)
-            .scrollBounceBehavior(.basedOnSize)
-            .accessibilityIdentifier("where_elsewhere_list")
-        } else if let failureMessage {
-            ContentUnavailableView {
-                Label(
-                    String(localized: .commonLoadErrorTitle),
-                    systemSymbol: .exclamationmarkIcloud,
-                )
-            } description: {
-                Text(failureMessage)
-            } actions: {
-                retryButton
-            }
-        } else {
-            ProgressView(String(localized: .secondaryLoading))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    private var retryButton: some View {
-        Button(String(localized: .commonRetry)) { retryTrigger.fire() }
-            .buttonStyle(.bordered)
-    }
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label(String(localized: .secondaryEmptyTitle), systemSymbol: .globeAmericas)
-        } description: {
-            Text(String(localized: .secondaryEmptyDescription))
-        }
     }
 }
 
