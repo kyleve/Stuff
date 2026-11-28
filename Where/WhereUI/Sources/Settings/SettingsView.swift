@@ -83,24 +83,10 @@ struct SettingsView: View {
                 ideal: stylesheet.adaptivePane.minimumDetailWidth,
             )
         } detail: {
-            NavigationStack(path: $navigation.path) {
-                Group {
-                    if let route = navigation.selectedRoute {
-                        destination(for: route)
-                    } else {
-                        ContentUnavailableView(
-                            String(localized: .settingsTitle),
-                            systemSymbol: .gearshape,
-                        )
-                    }
-                }
-                .navigationDestination(for: SettingsRoute.self) { route in
-                    destination(for: route)
-                }
-            }
-            .navigationSplitViewColumnWidth(
-                min: stylesheet.adaptivePane.minimumDetailWidth,
-                ideal: stylesheet.adaptivePane.minimumDetailWidth,
+            SettingsDetailColumn(
+                navigation: navigation,
+                report: report,
+                minimumWidth: stylesheet.adaptivePane.minimumDetailWidth,
             )
         }
         .navigationSplitViewStyle(.balanced)
@@ -116,11 +102,6 @@ struct SettingsView: View {
         }
     }
 
-    private func destination(for route: SettingsRoute) -> some View {
-        SettingsDestinationView(route: route, report: report)
-            .whereScreenBoundary()
-    }
-
     /// Regions with days in the selected report year, so the region editor can
     /// surface a "used this year" group (grouping order only — it doesn't affect
     /// what's saved). `.other` isn't a pickable region, so it's dropped.
@@ -130,100 +111,36 @@ struct SettingsView: View {
     }
 }
 
-/// The shared typed destination builder for both adaptive navigation and standalone panes.
-private struct SettingsDestinationView: View {
-    let route: SettingsRoute
+private struct SettingsDetailColumn: View {
+    @Bindable var navigation: SettingsView.Navigation
     let report: YearReportModel
-    @Environment(UpdateModel.self) private var updates: UpdateModel?
-    @Environment(\.isInDemoMode) private var isInDemoMode
-    @Environment(WhereSession.self) private var session
-    @Environment(WhereModel.self) private var model
-    @Environment(\.primaryAppIconName) private var primaryAppIconName
+    let minimumWidth: CGFloat
 
     var body: some View {
-        switch route.destination {
-            case .attachments:
-                EvidenceListView(report: report)
-            case .loggedDays:
-                LoggedDaysView(report: report)
-            case .devices:
-                DevicesSettingsView(session: session, focus: route.focus)
-            case .regions:
-                // Regions is presented as a sheet (`isSheet`), so it's never
-                // routed here; this arm only keeps the switch exhaustive.
-                EmptyView()
-            case .alerts:
-                AlertsSettingsDestination(report: report, session: session, focus: route.focus)
-            case .appearance:
-                AppearanceSettingsView(report: report, focus: route.focus)
-            case .year:
-                VisibleYearSettingsView(report: report, focus: route.focus)
-            case .placesYear:
-                PlacesYearFeaturesView(report: report, focus: route.focus)
-            case .recording:
-                RecordingFeaturesView(
-                    authorizationStatus: session.authorizationStatus,
-                    isTracking: session.isTracking,
-                    focus: route.focus,
-                )
-            case .privacyBackups:
-                PrivacyBackupsFeaturesView(
-                    configuration: model.diagnosticReporting.effectiveConfiguration,
-                    focus: route.focus,
-                )
-            case .siri:
-                SiriFeaturesView(
-                    focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
-                )
-            case .widgets:
-                WidgetFeaturesView(
-                    focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
-                )
-            case .shareEvidence:
-                ShareEvidenceFeaturesView(
-                    report: report,
-                    focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
-                )
-            case .estimatedTime:
-                EstimatedTimeFeaturesView(report: report, focus: route.focus)
-            case .insightsAccuracy:
-                InsightsAccuracyFeaturesView(
-                    report: report,
-                    focus: route.focus,
-                )
-            case .personalization:
-                PersonalizationFeaturesView(
-                    report: report,
-                    focus: route.focus,
-                    primaryAppIconName: primaryAppIconName,
-                )
-            case .data:
-                DataSettingsDestination(report: report, focus: route.focus)
-            case .privacyDiagnostics:
-                PrivacyDiagnosticsSettingsView(focus: route.focus)
-            case .updates:
-                if let updates, !isInDemoMode {
-                    DevelopmentUpdatesView(model: updates, focus: route.focus)
+        NavigationStack(path: $navigation.path) {
+            Group {
+                if let route = navigation.selectedRoute {
+                    destination(for: route)
+                } else {
+                    ContentUnavailableView(
+                        String(localized: .settingsTitle),
+                        systemSymbol: .gearshape,
+                    )
                 }
-            case .about:
-                AboutSettingsView(
-                    focus: route.focus,
-                    diagnosticReportingConfiguration: model.diagnosticReporting
-                        .effectiveConfiguration,
-                )
+            }
+            .navigationDestination(for: SettingsRoute.self) { route in
+                destination(for: route)
+            }
         }
+        .navigationSplitViewColumnWidth(
+            min: minimumWidth,
+            ideal: minimumWidth,
+        )
     }
 
-    private var featureDiscoveryPresentation: FeatureDiscoveryPresentation {
-        FeatureDiscoveryPresentation(
-            report: report.report,
-            selectedYear: report.selectedYear,
-            referenceDate: report.referenceDate,
-            calendar: report.calendar,
-        )
+    private func destination(for route: SettingsRoute) -> some View {
+        SettingsDestinationView(route: route, report: report)
+            .whereScreenBoundary()
     }
 }
 
@@ -235,7 +152,7 @@ private struct SettingsDestinationView: View {
                 configurations: [SnapshotConfiguration(device: DuoLayoutSnapshotFixture
                         .browseColumn)],
             ) {
-                snapshotList(report: PreviewSupport.loadedYearReportModel())
+                SettingsSnapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
             }
@@ -247,7 +164,7 @@ private struct SettingsDestinationView: View {
                     SnapshotConfiguration(device: .iPadFullContent, snapshotType: .accessibility),
                 ],
             ) {
-                snapshotList(report: PreviewSupport.loadedYearReportModel())
+                SettingsSnapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
             }
@@ -255,7 +172,7 @@ private struct SettingsDestinationView: View {
                 name: "UpdateAvailable",
                 configurations: .fullContentPhoneLightDark,
             ) {
-                snapshotList(report: PreviewSupport.loadedYearReportModel())
+                SettingsSnapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(InstallerPreview.model(.available))
@@ -264,7 +181,7 @@ private struct SettingsDestinationView: View {
                 name: "LocalBuild",
                 configurations: .fullContentPhoneLightDark,
             ) {
-                snapshotList(report: PreviewSupport.loadedYearReportModel())
+                SettingsSnapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(InstallerPreview.model(.local))
@@ -275,7 +192,7 @@ private struct SettingsDestinationView: View {
                 name: "DemoMode",
                 configurations: .fullContentPhoneLightDark,
             ) {
-                snapshotList(report: PreviewSupport.loadedYearReportModel())
+                SettingsSnapshotList(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)
@@ -284,7 +201,7 @@ private struct SettingsDestinationView: View {
                 name: "RecordingConfigurationWarning",
                 configurations: .fullContentPhoneLightDark,
             ) {
-                snapshotList(
+                SettingsSnapshotList(
                     report: PreviewSupport.loadedYearReportModel(),
                     recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
                 )
@@ -292,11 +209,13 @@ private struct SettingsDestinationView: View {
                 .environment(PreviewSupport.loadedSession())
             }
         }
+    }
 
-        private static func snapshotList(
-            report: YearReportModel,
-            recordingWarning: RecordingConfigurationWarningModel? = nil,
-        ) -> some View {
+    private struct SettingsSnapshotList: View {
+        let report: YearReportModel
+        var recordingWarning: RecordingConfigurationWarningModel?
+
+        var body: some View {
             NavigationStack {
                 SettingsContent(report: report, recordingWarning: recordingWarning)
                     .navigationDestination(for: SettingsRoute.self) { route in
