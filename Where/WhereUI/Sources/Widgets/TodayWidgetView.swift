@@ -18,7 +18,6 @@ public struct TodayWidgetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
 
     private var regions: [Region] {
         snapshot.orderedDayRegions
@@ -26,26 +25,19 @@ public struct TodayWidgetView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(String(localized: .widgetTodayTitle))
-                    .font(.caption2.weight(.semibold))
-                    .textCase(.uppercase)
-                    .tracking(1)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Text(snapshot.day, format: .dateTime.month(.abbreviated).day())
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.tertiary)
-            }
+            TodayWidgetHeader(day: snapshot.day)
 
             Spacer(minLength: 0)
 
             if let hero = regions.first, regions.count == 1 {
-                heroRegion(hero)
+                TodayWidgetHero(region: hero)
             } else if regions.isEmpty {
-                emptyContent
+                HomeWidgetEmptyState(
+                    symbol: .locationSlash,
+                    title: String(localized: .widgetTodayEmpty),
+                )
             } else {
-                regionList
+                TodayWidgetRegionList(regions: regions)
             }
 
             Spacer(minLength: 0)
@@ -55,12 +47,33 @@ public struct TodayWidgetView: View {
         .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
         .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
+}
 
-    /// The common case — one region so far today — gets the full passport
-    /// treatment: big emoji, serif uppercase name in the region's tint.
-    private func heroRegion(_ region: Region) -> some View {
+private struct TodayWidgetHeader: View {
+    let day: Date
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            HomeWidgetTitle(title: String(localized: .widgetTodayTitle))
+            Spacer(minLength: 0)
+            Text(day, format: .dateTime.month(.abbreviated).day())
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+/// The common case — one region so far today — gets the full passport
+/// treatment: big emoji, serif uppercase name in the region's tint.
+private struct TodayWidgetHero: View {
+    let region: Region
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
         let style = regionStyles.style(for: region)
-        return VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             Text(style.emoji)
                 .font(.largeTitle)
                 .accessibilityHidden(true)
@@ -73,35 +86,40 @@ public struct TodayWidgetView: View {
                 .minimumScaleFactor(0.6)
         }
     }
+}
 
-    /// A multi-region day (e.g. a CA→NY flight) lists each region compactly.
-    private var regionList: some View {
+/// A multi-region day (e.g. a CA→NY flight) lists each region compactly.
+private struct TodayWidgetRegionList: View {
+    let regions: [Region]
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(regions, id: \.self) { region in
-                let style = regionStyles.style(for: region)
-                HStack(spacing: stylesheet.spacing.small) {
-                    Text(style.emoji)
-                        .font(.caption)
-                        .accessibilityHidden(true)
-                    Text(region.localizedName)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(style.tint)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
+                TodayWidgetRegionRow(region: region)
             }
         }
     }
+}
 
-    private var emptyContent: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Image(systemSymbol: .locationSlash)
-                .font(.title3)
-                .foregroundStyle(.tertiary)
+private struct TodayWidgetRegionRow: View {
+    let region: Region
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
+        let style = regionStyles.style(for: region)
+        HStack(spacing: stylesheet.spacing.small) {
+            Text(style.emoji)
+                .font(.caption)
                 .accessibilityHidden(true)
-            Text(String(localized: .widgetTodayEmpty))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+            Text(region.localizedName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(style.tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
     }
 }

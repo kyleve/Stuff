@@ -16,9 +16,6 @@ public struct YearTotalsRectangularAccessoryView: View {
         self.snapshot = snapshot
     }
 
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
-
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: Self.maxRows)
     }
@@ -26,35 +23,60 @@ public struct YearTotalsRectangularAccessoryView: View {
     public var body: some View {
         Group {
             if ranked.isEmpty {
-                Label(
-                    String(localized: .widgetYearEmpty),
-                    systemSymbol: .calendarBadgeExclamationmark,
-                )
-                .font(.caption)
+                YearTotalsAccessoryEmptyState()
             } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(ranked) { entry in
-                        HStack(spacing: stylesheet.spacing.xSmall) {
-                            Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
-                                .font(.caption2)
-                                .accessibilityHidden(true)
-                            Text(entry.region.localizedName)
-                                .font(.caption2)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                            Spacer(minLength: stylesheet.spacing.xSmall)
-                            Text(entry.days, format: .number)
-                                .font(.caption.weight(.bold))
-                                .monospacedDigit()
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                YearTotalsAccessoryRows(ranked: ranked)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
         .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
+    }
+}
+
+private struct YearTotalsAccessoryRow: View {
+    let entry: RegionDays
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
+        HStack(spacing: stylesheet.spacing.xSmall) {
+            Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
+                .font(.caption2)
+                .accessibilityHidden(true)
+            Text(entry.region.localizedName)
+                .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: stylesheet.spacing.xSmall)
+            Text(entry.days, format: .number)
+                .font(.caption.weight(.bold))
+                .monospacedDigit()
+        }
+    }
+}
+
+private struct YearTotalsAccessoryEmptyState: View {
+    var body: some View {
+        Label(
+            String(localized: .widgetYearEmpty),
+            systemSymbol: .calendarBadgeExclamationmark,
+        )
+        .font(.caption)
+    }
+}
+
+private struct YearTotalsAccessoryRows: View {
+    let ranked: [RegionDays]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(ranked) { entry in
+                YearTotalsAccessoryRow(entry: entry)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

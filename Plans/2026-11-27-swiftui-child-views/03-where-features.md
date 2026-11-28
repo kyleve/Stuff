@@ -56,3 +56,7 @@ About’s 20-line version section has its own file. The footer and stamp now liv
 ### Settings navigation, device lab and evidence gallery
 
 The 72-line Settings destination has its own file. The demo exit (8) and warning link (15) remain complete controls. The 45-line device layout preview retains synthetic geometry and the screen owns loading and reset. The gallery's adaptive share-source list (37) and individual source (20) have their own files. Three smaller single-parent panels moved beside the gallery. Settings search, the recording warning model, device lab and evidence gallery behavior passed. Settings, device lab and evidence gallery snapshot comparisons passed.
+
+### WhereUI widget rendering
+
+The Today and Year Totals roots keep family selection and accessible summaries. Both use the shared home-widget title and empty state. Ranking tests and six reference-image suites passed on iPhone 17, covering populated, empty, rectangular, circular, inline and compatibility renders. The WidgetKit extension host is tracked separately in plan 04.
