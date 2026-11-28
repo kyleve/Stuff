@@ -13,30 +13,57 @@ struct UpdateHero<Action: View>: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: style.spacing))
             : AnyLayout(HStackLayout(alignment: .top, spacing: style.spacing))
         layout {
-            artwork
-            VStack(alignment: .leading, spacing: style.textSpacing) {
-                channelLabel
-                    .textCase(.uppercase)
-                    .font(style.badgeFont)
-                    .foregroundStyle(.tint)
-                    .padding(.horizontal, style.badgeHorizontalPadding)
-                    .padding(.vertical, style.badgeVerticalPadding)
-                    .background(style.badgeFill, in: .capsule)
-                Text(verbatim: branding.name)
-                    .font(style.titleFont)
-                    .accessibilityAddTraits(.isHeader)
-                Text(verbatim: branding.subtitle)
-                    .font(style.subtitleFont)
-                    .foregroundStyle(.secondary)
-                action
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            UpdateHeroArtwork(branding: branding)
+            UpdateHeroDetails(branding: branding, channelLabel: channelLabel, action: action)
         }
     }
+}
 
-    private var artwork: some View {
+private struct UpdateHeroDetails<Action: View>: View {
+    let branding: AppUpdateBranding
+    let channelLabel: Text
+    let action: Action
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
         let style = stylesheet.hero
-        return ZStack {
+        VStack(alignment: .leading, spacing: style.textSpacing) {
+            UpdateChannelBadge(label: channelLabel)
+            Text(verbatim: branding.name)
+                .font(style.titleFont)
+                .accessibilityAddTraits(.isHeader)
+            Text(verbatim: branding.subtitle)
+                .font(style.subtitleFont)
+                .foregroundStyle(.secondary)
+            action
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct UpdateChannelBadge: View {
+    let label: Text
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.hero
+        label
+            .textCase(.uppercase)
+            .font(style.badgeFont)
+            .foregroundStyle(.tint)
+            .padding(.horizontal, style.badgeHorizontalPadding)
+            .padding(.vertical, style.badgeVerticalPadding)
+            .background(style.badgeFill, in: .capsule)
+    }
+}
+
+private struct UpdateHeroArtwork: View {
+    let branding: AppUpdateBranding
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.hero
+        ZStack {
             style.iconFill
             if let icon = branding.icon {
                 icon.resizable().scaledToFit()

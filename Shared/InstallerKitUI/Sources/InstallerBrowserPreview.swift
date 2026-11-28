@@ -141,12 +141,20 @@
             )])
         }
 
-        static func navigation(to route: UpdateBrowserView.Route, model: UpdateModel) -> some View {
-            NavigationStack(path: .constant([route])) {
-                UpdateChannelsView(model: model)
-                    .updateBrowserDestinations(model: model, branding: InstallerPreview.branding)
+        struct Navigation: View {
+            let route: UpdateBrowserView.Route
+            let model: UpdateModel
+
+            var body: some View {
+                NavigationStack(path: .constant([route])) {
+                    UpdateChannelsView(model: model)
+                        .updateBrowserDestinations(
+                            model: model,
+                            branding: InstallerPreview.branding,
+                        )
+                }
+                .installerBroadwayRoot()
             }
-            .installerBroadwayRoot()
         }
     }
 #endif

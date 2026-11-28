@@ -36,3 +36,7 @@ Accept a batch when every confirmed issue has been fixed and its rendering and i
 | Shared harnesses and Broadway, remaining `Shared/` | Reconcile roots, fixtures and small single-parent views by module. Keep `SnapshotCase.framed` configuration and capture hooks on their APIs. Use `SnapshotCaseTests`, `SnapshotImageRenderingTests` and `BRootViewTests` for their corresponding components. Exercise a changed BroadwayCatalog screen in its app. The empty catalog suite establishes no rendered result. |
 
 Apply each slice against its recorded parent. Format and remeasure its complete children, then exercise the named behavior and image suites through `./test --record never --only <bundle>/<suite>`. Compare any failure against the parent before publication. Resume with the first unverified slice and reconcile its paths against the original inventories.
+
+### Installer build browser
+
+UpdateBuildRow and UpdateChangeLink each have 22-line bodies in their own files. The 10-line history link and nine-line workflow row live beside their parents. The six-line commit row and five-line notice each have several callers. The browser, history and build destinations use the same typed routes in production and the hosted test. All 13 Installer behavior tests and five snapshot tests passed on iPhone 17 with recording disabled. The final helper recount for this module found zero qualifying opaque child helpers.

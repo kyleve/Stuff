@@ -7,62 +7,88 @@ struct UpdateBuildView: View {
     let model: UpdateModel
     let branding: AppUpdateBranding
     let selection: UpdateBuildBrowser.Selection
-    @Environment(\.installerStylesheet) private var stylesheet
 
     var body: some View {
         UpdateBrowserPage(model: model) {
             if let build = model.state.snapshot?.browser.build(for: selection) {
-                UpdateHero(
-                    branding: branding,
-                    channelLabel: Text(verbatim: selection.channel.rawValue),
-                ) {
-                    Text(
-                        .installerBuildNumber(
-                            "\(build.release.id.run).\(build.release.id.attempt)",
-                        ),
-                    )
-                    .font(stylesheet.hero.subtitleFont)
-                    .foregroundStyle(.secondary)
-                    if build.isInstalled {
-                        Label(
-                            String(localized: .installerInstalled),
-                            systemSymbol: .checkmarkCircle,
-                        )
-                        .font(stylesheet.hero.subtitleFont)
-                    } else {
-                        UpdateInstallLink(title: .installerInstallBuild, release: build.release)
-                    }
-                }
-                NavigationLink(value: UpdateBrowserView.Route.history(selection.channel)) {
-                    Label(
-                        String(localized: .installerBuildHistory),
-                        systemSymbol: .clockArrowCirclepath,
-                    )
-                    .font(stylesheet.browser.actionFont)
-                    .frame(maxWidth: .infinity, minHeight: stylesheet.browser.minimumHeight)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
-                UpdateBuildSummary(release: build.release)
-                UpdateChanges(
-                    changes: build.changesSincePreviousBuild,
-                    installed: model.installed,
-                    scope: .previousBuild,
-                )
-                UpdateBuildInformation(
-                    channel: selection.channel,
-                    release: build.release,
-                    installed: model.installed,
-                )
+                UpdateSelectedBuild(build: build, installed: model.installed, branding: branding)
             } else {
-                UpdateCard(title: .installerBuildUnavailable) {
-                    Text(.installerBuildUnavailableMessage)
-                        .font(stylesheet.card.bodyFont)
-                        .foregroundStyle(.secondary)
-                }
+                UpdateNoticeCard(
+                    title: .installerBuildUnavailable,
+                    message: .installerBuildUnavailableMessage,
+                )
             }
         }
         .navigationTitle(String(localized: .installerBuildDetails))
+    }
+}
+
+private struct UpdateSelectedBuild: View {
+    let build: UpdateBuildBrowser.Build
+    let installed: InstalledBuild
+    let branding: AppUpdateBranding
+
+    var body: some View {
+        UpdateHero(
+            branding: branding,
+            channelLabel: Text(verbatim: build.selection.channel.rawValue),
+        ) {
+            UpdateSelectedBuildAction(build: build)
+        }
+        UpdateBuildHistoryLink(channel: build.selection.channel)
+        UpdateBuildSummary(release: build.release)
+        UpdateChanges(
+            changes: build.changesSincePreviousBuild,
+            installed: installed,
+            scope: .previousBuild,
+        )
+        UpdateBuildInformation(
+            channel: build.selection.channel,
+            release: build.release,
+            installed: installed,
+        )
+    }
+}
+
+private struct UpdateSelectedBuildAction: View {
+    let build: UpdateBuildBrowser.Build
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        Text(
+            .installerBuildNumber(
+                "\(build.release.id.run).\(build.release.id.attempt)",
+            ),
+        )
+        .font(stylesheet.hero.subtitleFont)
+        .foregroundStyle(.secondary)
+        if build.isInstalled {
+            Label(
+                String(localized: .installerInstalled),
+                systemSymbol: .checkmarkCircle,
+            )
+            .font(stylesheet.hero.subtitleFont)
+        } else {
+            UpdateInstallLink(title: .installerInstallBuild, release: build.release)
+        }
+    }
+}
+
+private struct UpdateBuildHistoryLink: View {
+    let channel: InstalledBuild.Channel
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        NavigationLink(value: UpdateBrowserView.Route.history(channel)) {
+            Label(
+                String(localized: .installerBuildHistory),
+                systemSymbol: .clockArrowCirclepath,
+            )
+            .font(stylesheet.browser.actionFont)
+            .frame(maxWidth: .infinity, minHeight: stylesheet.browser.minimumHeight)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
     }
 }
 
@@ -78,8 +104,8 @@ struct UpdateBuildView: View {
                         .fullContentPhoneLightDark,
                     measurementReadiness: .immediate,
                 ) {
-                    InstallerBrowserPreview.navigation(
-                        to: .build(scenario.selection),
+                    InstallerBrowserPreview.Navigation(
+                        route: .build(scenario.selection),
                         model: scenario.model,
                     )
                 }

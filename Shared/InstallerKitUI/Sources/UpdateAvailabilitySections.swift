@@ -18,7 +18,7 @@ struct UpdateAvailabilitySections<SectionDecoration: ViewModifier>: View {
                     installed: installed,
                 )
             case let .retired(main):
-                UpdateAvailabilityNotice(
+                UpdateNoticeCard(
                     title: .installerRetiredTitle,
                     message: main == nil ? .installerRetiredUnavailable : .installerRetiredMessage,
                 )
@@ -31,26 +31,12 @@ struct UpdateAvailabilitySections<SectionDecoration: ViewModifier>: View {
                     )
                 }
             case .unpublished:
-                UpdateAvailabilityNotice(
+                UpdateNoticeCard(
                     title: .installerNoPublishedBuild,
                     message: .installerUnpublished,
                 )
             case .local, .current, nil:
                 EmptyView()
-        }
-    }
-}
-
-private struct UpdateAvailabilityNotice: View {
-    let title: LocalizedStringResource
-    let message: LocalizedStringResource
-    @Environment(\.installerStylesheet) private var stylesheet
-
-    var body: some View {
-        UpdateCard(title: title) {
-            Text(message)
-                .font(stylesheet.card.bodyFont)
-                .foregroundStyle(.secondary)
         }
     }
 }

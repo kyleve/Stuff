@@ -7,16 +7,6 @@ struct UpdateBrowserView: View {
     enum Route: Hashable {
         case build(UpdateBuildBrowser.Selection)
         case history(InstalledBuild.Channel)
-
-        @MainActor @ViewBuilder
-        func destination(model: UpdateModel, branding: AppUpdateBranding) -> some View {
-            switch self {
-                case let .build(selection):
-                    UpdateBuildView(model: model, branding: branding, selection: selection)
-                case let .history(channel):
-                    UpdateHistoryView(model: model, channel: channel)
-            }
-        }
     }
 
     let model: UpdateModel
@@ -37,10 +27,25 @@ struct UpdateBrowserView: View {
     }
 }
 
+struct UpdateBrowserDestination: View {
+    let route: UpdateBrowserView.Route
+    let model: UpdateModel
+    let branding: AppUpdateBranding
+
+    var body: some View {
+        switch route {
+            case let .build(selection):
+                UpdateBuildView(model: model, branding: branding, selection: selection)
+            case let .history(channel):
+                UpdateHistoryView(model: model, channel: channel)
+        }
+    }
+}
+
 extension View {
     func updateBrowserDestinations(model: UpdateModel, branding: AppUpdateBranding) -> some View {
         navigationDestination(for: UpdateBrowserView.Route.self) { route in
-            route.destination(model: model, branding: branding)
+            UpdateBrowserDestination(route: route, model: model, branding: branding)
         }
     }
 }

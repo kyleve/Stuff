@@ -27,8 +27,12 @@ struct UpdateBrowserTestHost: View {
             UpdateChannelsView(model: model)
                 .onAppear { navigation.visiblePage = .channels }
                 .navigationDestination(for: UpdateBrowserView.Route.self) { route in
-                    route.destination(model: model, branding: InstallerPreview.branding)
-                        .onAppear { navigation.visiblePage = .destination(route) }
+                    UpdateBrowserDestination(
+                        route: route,
+                        model: model,
+                        branding: InstallerPreview.branding,
+                    )
+                    .onAppear { navigation.visiblePage = .destination(route) }
                 }
         }
         .installerBroadwayRoot()
