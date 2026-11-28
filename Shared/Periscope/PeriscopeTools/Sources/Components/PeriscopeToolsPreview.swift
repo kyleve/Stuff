@@ -9,7 +9,9 @@
     }
 
     struct PeriscopeToolsPreview<Content: View>: View {
-        private enum FixtureError: Error { case missingSeededEvent }
+        private enum FixtureError: Error {
+            case missingSeededEvent
+        }
 
         @ViewBuilder let content: (PeriscopePreviewFixture) -> Content
         @State private var result: Result<PeriscopePreviewFixture, Error>?
