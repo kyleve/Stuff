@@ -11,11 +11,27 @@ struct CardSurfaceButtonStyle<SurfaceShape: Shape>: PrimitiveButtonStyle {
             case .reflective:
                 PlainButtonStyle().makeBody(configuration: configuration)
             case let .matte(style):
-                Button(configuration).buttonStyle(PressedTintStyle(
+                MatteButton(
+                    configuration: configuration,
                     tint: tint,
                     opacity: style.pressedTintOpacity,
                     shape: shape,
-                ))
+                )
+        }
+    }
+
+    private struct MatteButton: View {
+        let configuration: PrimitiveButtonStyleConfiguration
+        let tint: Color
+        let opacity: Double
+        let shape: SurfaceShape
+
+        var body: some View {
+            Button(configuration).buttonStyle(PressedTintStyle(
+                tint: tint,
+                opacity: opacity,
+                shape: shape,
+            ))
         }
     }
 
@@ -35,3 +51,9 @@ struct CardSurfaceButtonStyle<SurfaceShape: Shape>: PrimitiveButtonStyle {
         }
     }
 }
+
+#if DEBUG
+    import SnapshotKit
+
+    #Preview { LocationsView.snapshotPreviews }
+#endif

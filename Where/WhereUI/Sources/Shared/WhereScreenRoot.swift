@@ -26,13 +26,26 @@ struct WhereScreenRoot<Content: View>: View {
             let _ = diagnostics.reportNesting()
             content
         } else {
-            ScrollView {
-                content
-                    .padding(padding.insets(standard: style.standardPadding))
-                    .whereContentRoot()
-            }
-            .environment(\.whereContentWidth, width ?? inheritedWidth)
+            ContentRootScroll(
+                padding: padding.insets(standard: style.standardPadding),
+                width: width ?? inheritedWidth,
+            ) { content }
         }
+    }
+}
+
+private struct ContentRootScroll<Content: View>: View {
+    let padding: EdgeInsets
+    let width: WhereContentWidth
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ScrollView {
+            content
+                .padding(padding)
+                .whereContentRoot()
+        }
+        .environment(\.whereContentWidth, width)
     }
 }
 

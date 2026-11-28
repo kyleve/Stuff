@@ -66,24 +66,28 @@ private struct StaggeredRevealModifier: ViewModifier {
 }
 
 #if DEBUG
-    #Preview("Static") {
-        StaggeredRevealScope {
-            VStack(alignment: .leading) {
-                Label(
-                    String(localized: .settingsExploreSiriTitle),
-                    systemSymbol: .waveform,
-                )
-                .staggeredReveal(order: 0)
+    #Preview("Static") { StaggeredRevealExample() }
 
-                Label(
-                    String(localized: .settingsExploreWidgetsTitle),
-                    systemSymbol: .rectangle3Group,
-                )
-                .staggeredReveal(order: 1)
+    private struct StaggeredRevealExample: View {
+        var body: some View {
+            StaggeredRevealScope {
+                VStack(alignment: .leading) {
+                    Label(
+                        String(localized: .settingsExploreSiriTitle),
+                        systemSymbol: .waveform,
+                    )
+                    .staggeredReveal(order: 0)
+
+                    Label(
+                        String(localized: .settingsExploreWidgetsTitle),
+                        systemSymbol: .rectangle3Group,
+                    )
+                    .staggeredReveal(order: 1)
+                }
+                .padding()
             }
-            .padding()
+            .environment(\.isCapturingSnapshot, true)
+            .whereBroadwayRoot()
         }
-        .environment(\.isCapturingSnapshot, true)
-        .whereBroadwayRoot()
     }
 #endif

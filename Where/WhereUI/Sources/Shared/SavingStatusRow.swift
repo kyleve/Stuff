@@ -19,10 +19,14 @@ struct SavingStatusRow: View {
 }
 
 #if DEBUG
-    #Preview {
-        Form {
-            Section {
-                SavingStatusRow(text: "Capturing location…")
+    #Preview { SavingStatusExample() }
+
+    private struct SavingStatusExample: View {
+        var body: some View {
+            Form {
+                Section {
+                    SavingStatusRow(text: "Capturing location…")
+                }
             }
         }
     }

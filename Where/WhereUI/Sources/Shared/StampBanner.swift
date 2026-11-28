@@ -13,35 +13,17 @@ struct StampBanner<Content: View>: View {
         let shape = ContainerRelativeShape()
         Group {
             if style.layout == .stacked {
-                VStack(alignment: .leading, spacing: style.contentSpacing) {
-                    HStack {
-                        PassportSeal(
-                            systemSymbol: systemSymbol,
-                            tint: style.tint.opacity(ink.sealOpacity),
-                        )
-                        Spacer(minLength: 0)
-                        if showsAccessory {
-                            Image(systemSymbol: .arrowUpRight)
-                                .foregroundStyle(style.tint.opacity(ink.accessoryOpacity))
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    content
-                }
+                StackedStampBanner(
+                    systemSymbol: systemSymbol,
+                    style: style,
+                    showsAccessory: showsAccessory,
+                ) { content }
             } else {
-                HStack(spacing: style.contentSpacing) {
-                    PassportSeal(
-                        systemSymbol: systemSymbol,
-                        tint: style.tint.opacity(ink.sealOpacity),
-                    )
-                    content
-                    Spacer(minLength: 0)
-                    if showsAccessory {
-                        Image(systemSymbol: .arrowUpRight)
-                            .foregroundStyle(style.tint.opacity(ink.accessoryOpacity))
-                            .accessibilityHidden(true)
-                    }
-                }
+                InlineStampBanner(
+                    systemSymbol: systemSymbol,
+                    style: style,
+                    showsAccessory: showsAccessory,
+                ) { content }
             }
         }
         .padding(style.padding)
@@ -66,6 +48,68 @@ struct StampBanner<Content: View>: View {
         }
         .contentShape(shape)
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct StampBannerHeader: View {
+    let systemSymbol: SFSymbol
+    let style: WhereStylesheet.StampBannerStyle
+    let showsAccessory: Bool
+
+    var body: some View {
+        HStack {
+            PassportSeal(
+                systemSymbol: systemSymbol,
+                tint: style.tint.opacity(style.ink.sealOpacity),
+            )
+            Spacer(minLength: 0)
+            if showsAccessory {
+                Image(systemSymbol: .arrowUpRight)
+                    .foregroundStyle(style.tint.opacity(style.ink.accessoryOpacity))
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+private struct StackedStampBanner<Content: View>: View {
+    let systemSymbol: SFSymbol
+    let style: WhereStylesheet.StampBannerStyle
+    let showsAccessory: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: style.contentSpacing) {
+            StampBannerHeader(
+                systemSymbol: systemSymbol,
+                style: style,
+                showsAccessory: showsAccessory,
+            )
+            content
+        }
+    }
+}
+
+private struct InlineStampBanner<Content: View>: View {
+    let systemSymbol: SFSymbol
+    let style: WhereStylesheet.StampBannerStyle
+    let showsAccessory: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: style.contentSpacing) {
+            PassportSeal(
+                systemSymbol: systemSymbol,
+                tint: style.tint.opacity(style.ink.sealOpacity),
+            )
+            content
+            Spacer(minLength: 0)
+            if showsAccessory {
+                Image(systemSymbol: .arrowUpRight)
+                    .foregroundStyle(style.tint.opacity(style.ink.accessoryOpacity))
+                    .accessibilityHidden(true)
+            }
+        }
     }
 }
 

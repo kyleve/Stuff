@@ -53,32 +53,14 @@ struct WhereDatePicker: View {
         }
     }
 
-    @ViewBuilder
-    private var livePicker: some View {
-        if let earliest, let latest {
-            DatePicker(
-                title,
-                selection: $selection,
-                in: earliest ... latest,
-                displayedComponents: displayedComponents,
-            )
-        } else if let latest {
-            DatePicker(
-                title,
-                selection: $selection,
-                in: ...latest,
-                displayedComponents: displayedComponents,
-            )
-        } else if let earliest {
-            DatePicker(
-                title,
-                selection: $selection,
-                in: earliest...,
-                displayedComponents: displayedComponents,
-            )
-        } else {
-            DatePicker(title, selection: $selection, displayedComponents: displayedComponents)
-        }
+    private var livePicker: WhereLiveDatePicker {
+        WhereLiveDatePicker(
+            title: title,
+            selection: $selection,
+            earliest: earliest,
+            latest: latest,
+            displayedComponents: displayedComponents,
+        )
     }
 
     /// A capsule showing the date for a `.date` picker, or the time of day for a
@@ -118,25 +100,13 @@ private struct SnapshotDatePickerStandIn: View {
 
     var body: some View {
         if let accessibilityTitle {
-            row
+            SnapshotDatePickerRow(title: title, formattedSelection: formattedSelection)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(accessibilityTitle)
                 .accessibilityValue(formattedSelection)
                 .accessibilityAddTraits(.isButton)
         } else {
-            row
-        }
-    }
-
-    private var row: some View {
-        LabeledContent(title) {
-            Text(formattedSelection)
-                .foregroundStyle(.primary)
-                // Mimics the compact picker's system capsule chrome — fixed
-                // system-control geometry, not themed stylesheet tokens.
-                .padding(.horizontal, 11)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemFill), in: .capsule)
+            SnapshotDatePickerRow(title: title, formattedSelection: formattedSelection)
         }
     }
 
@@ -170,6 +140,23 @@ private struct SnapshotDatePickerStandIn: View {
             calendar: calendar,
             timeZone: timeZone,
         )
+    }
+}
+
+private struct SnapshotDatePickerRow: View {
+    let title: String
+    let formattedSelection: String
+
+    var body: some View {
+        LabeledContent(title) {
+            Text(formattedSelection)
+                .foregroundStyle(.primary)
+                // Mimics the compact picker's system capsule chrome — fixed
+                // system-control geometry, not themed stylesheet tokens.
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .background(Color(.tertiarySystemFill), in: .capsule)
+        }
     }
 }
 

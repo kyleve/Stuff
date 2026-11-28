@@ -13,15 +13,7 @@ struct PassportSeal: View {
         ZStack {
             Circle()
                 .strokeBorder(tint, lineWidth: style.outerLineWidth)
-            Circle()
-                .strokeBorder(
-                    tint.opacity(0.65),
-                    style: StrokeStyle(
-                        lineWidth: style.innerLineWidth,
-                        dash: [style.dashLength, style.dashSpacing],
-                    ),
-                )
-                .padding(style.innerInset)
+            PassportSealInnerRing(tint: tint)
             Image(systemSymbol: systemSymbol)
                 .font(style.symbolFont)
                 .foregroundStyle(tint)
@@ -30,6 +22,24 @@ struct PassportSeal: View {
         .fixedSize()
         .rotationEffect(.degrees(style.rotationDegrees))
         .accessibilityHidden(true)
+    }
+}
+
+private struct PassportSealInnerRing: View {
+    @Environment(\.stylesheet) private var stylesheet
+    let tint: Color
+
+    var body: some View {
+        let style = stylesheet.passportSeal
+        Circle()
+            .strokeBorder(
+                tint.opacity(0.65),
+                style: StrokeStyle(
+                    lineWidth: style.innerLineWidth,
+                    dash: [style.dashLength, style.dashSpacing],
+                ),
+            )
+            .padding(style.innerInset)
     }
 }
 

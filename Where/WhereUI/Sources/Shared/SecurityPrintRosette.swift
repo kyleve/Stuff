@@ -63,17 +63,21 @@ struct SecurityPrintRosette: View {
 }
 
 #if DEBUG
-    #Preview {
-        let rosette = WhereStylesheet.default.privacyPassportCard.rosette
-        SecurityPrintRosette(
-            tint: .accentColor,
-            wobble: rosette.wobble,
-            lineWidth: rosette.lineWidth,
-            primaryRingSpacing: rosette.primaryRingSpacing,
-            secondaryRingSpacing: rosette.secondaryRingSpacing,
-            primaryOpacity: rosette.primaryOpacity,
-            secondaryOpacity: rosette.secondaryOpacity,
-        )
-        .frame(width: 360, height: 120)
+    #Preview { SecurityPrintExample() }
+
+    private struct SecurityPrintExample: View {
+        var body: some View {
+            let rosette = WhereStylesheet.default.privacyPassportCard.rosette
+            SecurityPrintRosette(
+                tint: .accentColor,
+                wobble: rosette.wobble,
+                lineWidth: rosette.lineWidth,
+                primaryRingSpacing: rosette.primaryRingSpacing,
+                secondaryRingSpacing: rosette.secondaryRingSpacing,
+                primaryOpacity: rosette.primaryOpacity,
+                secondaryOpacity: rosette.secondaryOpacity,
+            )
+            .frame(width: 360, height: 120)
+        }
     }
 #endif

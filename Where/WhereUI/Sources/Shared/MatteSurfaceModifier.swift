@@ -15,14 +15,7 @@ struct MatteSurfaceModifier<SurfaceShape: InsettableShape>: ViewModifier {
                     .background(shape.fill(style.fill.color(tint: tint)))
                     .clipShape(shape)
                     .overlay {
-                        // Expand before stroking inward so the outline blends with the surrounding
-                        // background.
-                        shape.inset(by: -style.outline.width).strokeBorder(
-                            tint.opacity(style.outline.opacity),
-                            lineWidth: style.outline.width,
-                        )
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+                        MatteOutline(shape: shape, tint: tint, outline: style.outline)
                     }
                     .contentShape(shape)
                     .shadow(
@@ -31,6 +24,23 @@ struct MatteSurfaceModifier<SurfaceShape: InsettableShape>: ViewModifier {
                         y: style.shadow.offsetY,
                     )
         }
+    }
+}
+
+private struct MatteOutline<SurfaceShape: InsettableShape>: View {
+    let shape: SurfaceShape
+    let tint: Color
+    let outline: WhereStylesheet.MatteSurface.Outline
+
+    var body: some View {
+        // Expand before stroking inward so the outline blends with the surrounding
+        // background.
+        shape.inset(by: -outline.width).strokeBorder(
+            tint.opacity(outline.opacity),
+            lineWidth: outline.width,
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -43,3 +53,9 @@ extension View {
         modifier(MatteSurfaceModifier(treatment: treatment, tint: tint, shape: shape))
     }
 }
+
+#if DEBUG
+    import SnapshotKit
+
+    #Preview { LocationsView.snapshotPreviews }
+#endif
