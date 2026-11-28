@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The selected variant control in the focused inspector.
-struct FlyoverFocusedVariantPicker<ScreenID: Hashable>: View {
+/// Selects the same screen variant from either the overview or the focused inspector.
+struct FlyoverVariantPicker<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
 
@@ -19,3 +19,9 @@ struct FlyoverFocusedVariantPicker<ScreenID: Hashable>: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

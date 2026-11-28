@@ -52,43 +52,12 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
 
         GeometryReader { proxy in
             ScrollView([.horizontal, .vertical]) {
-                ZStack(alignment: .topLeading) {
-                    ForEach(catalog.groups, id: \.id) { group in
-                        if let frame = layout.groupFrames[group.id] {
-                            FlyoverGroupBackdrop(title: group.title, frame: frame)
-                        }
-                    }
-
-                    ForEach(layout.depthBands) { band in
-                        FlyoverDepthBandBackdrop(band: band)
-                    }
-
-                    FlyoverConnectorCanvas(catalog: catalog, layout: layout)
-
-                    ForEach(catalog.screens, id: \.id) { screen in
-                        if let frame = layout.screenFrames[screen.id],
-                           renderPlan.shouldDisplay(frame)
-                        {
-                            FlyoverScreenFrame(
-                                screen: screen,
-                                catalog: catalog,
-                                model: model,
-                                rendersContent: liveScreenIDs.contains(screen.id),
-                            )
-                            .position(x: frame.midX, y: frame.midY)
-                        }
-                    }
-                }
-                .frame(
-                    width: layout.canvasSize.width,
-                    height: layout.canvasSize.height,
-                    alignment: .topLeading,
-                )
-                .scaleEffect(model.zoom, anchor: .topLeading)
-                .frame(
-                    width: layout.canvasSize.width * model.zoom,
-                    height: layout.canvasSize.height * model.zoom,
-                    alignment: .topLeading,
+                FlyoverGraph(
+                    catalog: catalog,
+                    model: model,
+                    layout: layout,
+                    renderPlan: renderPlan,
+                    liveScreenIDs: liveScreenIDs,
                 )
                 .simultaneousGesture(magnificationGesture)
             }
@@ -114,13 +83,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                 }
             }
             .overlay(alignment: .topTrailing) {
-                Button("Fit All", systemSymbol: .arrowUpLeftAndArrowDownRight) {
-                    fitAll(layout: layout, in: proxy.size)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(stylesheet.canvas.overlayControlSize)
-                .fixedSize()
-                .padding(stylesheet.canvas.overlayPadding)
+                FlyoverFitAllButton { fitAll(layout: layout, in: proxy.size) }
             }
             .task {
                 applyInitialGroupWidthFit(layout: layout, in: proxy.size)
@@ -208,3 +171,24 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
         ).allZoom
     }
 }
+
+private struct FlyoverFitAllButton: View {
+    let fit: () -> Void
+    @Environment(\.flyoverStylesheet) private var stylesheet
+
+    var body: some View {
+        Button("Fit All", systemSymbol: .arrowUpLeftAndArrowDownRight) {
+            fit()
+        }
+        .buttonStyle(.bordered)
+        .controlSize(stylesheet.canvas.overlayControlSize)
+        .fixedSize()
+        .padding(stylesheet.canvas.overlayPadding)
+    }
+}
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

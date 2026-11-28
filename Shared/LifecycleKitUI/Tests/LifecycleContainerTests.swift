@@ -219,16 +219,14 @@ struct LifecycleContainerTests {
         #expect(runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
+        let showSplash = {
+            splashWasShown = true
+            splashIsVisible = true
+        }
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .milliseconds(200),
-            splash: { _ in
-                ProbeView {
-                    splashWasShown = true
-                    splashIsVisible = true
-                }
-                .onDisappear { splashIsVisible = false }
-            },
+            splash: { _ in ProbeView(mark: showSplash).onDisappear { splashIsVisible = false } },
         ) { _ in
             ProbeView { content = true }
         }
@@ -262,10 +260,8 @@ struct LifecycleContainerTests {
                 minimumSplashDuration: .milliseconds(100),
                 isPresentationVisible: isVisible,
                 splash: { _ in
-                    ProbeView {
-                        splashIsVisible = true
-                    }
-                    .onDisappear { splashIsVisible = false }
+                    ProbeView { splashIsVisible = true }
+                        .onDisappear { splashIsVisible = false }
                 },
                 failure: { _ in EmptyView() },
             ) { _ in

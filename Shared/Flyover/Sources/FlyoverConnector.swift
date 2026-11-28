@@ -1,39 +1,19 @@
 import SwiftUI
 
-/// Draws navigation relationships as vector views without a graph-sized bitmap texture.
-struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
-    let catalog: FlyoverCatalog<ScreenID>
-    let layout: FlyoverLayoutResult<ScreenID>
+struct FlyoverConnector<ScreenID: Hashable>: View {
+    let transition: FlyoverTransition<ScreenID>
+    let source: CGRect
+    let destination: CGRect
     @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(catalog.transitions.indices, id: \.self) { index in
-                let transition = catalog.transitions[index]
-                if let source = layout.screenFrames[transition.source],
-                   let destination = layout.screenFrames[transition.destination]
-                {
-                    connector(transition, from: source, to: destination)
-                }
-            }
-        }
-        .frame(width: layout.canvasSize.width, height: layout.canvasSize.height)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
-    private func connector(
-        _ transition: FlyoverTransition<ScreenID>,
-        from source: CGRect,
-        to destination: CGRect,
-    ) -> some View {
         let style = stylesheet.connector
         let geometry = FlyoverConnectorGeometry(
             source: source,
             destination: destination,
             style: style,
         )
-        return ZStack(alignment: .topLeading) {
+        ZStack(alignment: .topLeading) {
             Path { path in
                 path.move(to: geometry.start)
                 path.addCurve(
@@ -84,3 +64,9 @@ extension FlyoverTransition.Kind {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

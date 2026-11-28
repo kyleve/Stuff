@@ -44,3 +44,7 @@ UpdateBuildRow and UpdateChangeLink each have 22-line bodies in their own files.
 ### Snapshot preview and capture fixtures
 
 SnapshotCase keeps lazy preview construction, trait application and capture readiness. Its 16-line preview frame shares the file. The grid keeps its per-image geometry capture. The seven-line centered accessibility button owns its action, original label, padding and frame. The native bar fixture now measures 13 lines and stays with the tests that exercise its actual tab, stack and scrolling geometry.
+
+### Flyover, Broadway Catalog and lifecycle
+
+The complete Fit All, Reset All and Render Preview buttons live with their Flyover parents. The 39-line connector owns its file. FlyoverControlBar and FlyoverOverview remain visible to their snapshot harness. Broadway Catalog keeps its eight-line home view beside the app and the scroll fixture keeps its six-line target rows. LifecycleContainer keeps one mounted destination across readiness and gate transitions.

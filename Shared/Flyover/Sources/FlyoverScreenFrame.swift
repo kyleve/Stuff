@@ -10,19 +10,10 @@ struct FlyoverScreenFrame<ScreenID: Hashable>: View {
     @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        let style = stylesheet.screen
         VStack(spacing: 0) {
             FlyoverScreenHeader(screen: screen, model: model)
 
-            Group {
-                if rendersContent {
-                    FlyoverScreenContent(screen: screen, model: model, isOverview: true)
-                } else {
-                    FlyoverScreenPlaceholder(screen: screen, model: model)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: style.contentMaximumHeight)
-            .background(style.contentShade.opacity(style.contentShadeOpacity))
+            FlyoverScreenViewport(screen: screen, model: model, rendersContent: rendersContent)
 
             Divider()
 
@@ -54,14 +45,70 @@ private struct FlyoverScreenPlaceholder<ScreenID: Hashable>: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: style.messageMaximumWidth)
-            Button("Render Preview", systemSymbol: .playFill) {
-                model.preview(screen)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(style.controlSize)
+            FlyoverRenderPreviewButton { model.preview(screen) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(screen.title), preview paused")
     }
 }
+
+private struct FlyoverScreenViewport<ScreenID: Hashable>: View {
+    let screen: FlyoverScreen<ScreenID>
+    let model: FlyoverModel<ScreenID>
+    let rendersContent: Bool
+    @Environment(\.flyoverStylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.screen
+        Group {
+            if rendersContent {
+                FlyoverScreenContent(screen: screen, model: model, isOverview: true)
+            } else {
+                FlyoverScreenPlaceholder(screen: screen, model: model)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: style.contentMaximumHeight)
+        .background(style.contentShade.opacity(style.contentShadeOpacity))
+    }
+}
+
+private struct FlyoverRenderPreviewButton: View {
+    let render: () -> Void
+    @Environment(\.flyoverStylesheet) private var stylesheet
+
+    var body: some View {
+        Button("Render Preview", systemSymbol: .playFill) {
+            render()
+        }
+        .buttonStyle(.bordered)
+        .controlSize(stylesheet.screen.placeholder.controlSize)
+    }
+}
+
+/// The title and focus action at the top of a Flyover overview card.
+private struct FlyoverScreenHeader<ScreenID: Hashable>: View {
+    let screen: FlyoverScreen<ScreenID>
+    let model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
+
+    var body: some View {
+        HStack {
+            Text(screen.title)
+                .font(stylesheet.screen.header.font)
+                .lineLimit(1)
+            Spacer()
+            Button("Inspect \(screen.title)", systemSymbol: .arrowUpLeftAndArrowDownRight) {
+                model.focus(screen)
+            }
+            .labelStyle(.iconOnly)
+        }
+        .padding(stylesheet.screen.header.padding)
+    }
+}
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

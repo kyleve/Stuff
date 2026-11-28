@@ -285,12 +285,7 @@ private struct NativeScrollProbe: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack {
-                ForEach(0 ..< 30, id: \.self) { index in
-                    Text(index.formatted()).frame(height: 80).id(index)
-                }
-            }
-            .scrollTargetLayout()
+            ScrollTargetRows()
         }
         .scrollPosition($position)
         .onScrollTargetVisibilityChange(idType: Int.self) { fixture.visible = $0 }
@@ -316,5 +311,16 @@ private struct NativeScrollProbe: View {
             )
         }
         fixture.observedInitial = fixture.initial
+    }
+}
+
+private struct ScrollTargetRows: View {
+    var body: some View {
+        LazyVStack {
+            ForEach(0 ..< 30, id: \.self) { index in
+                Text(index.formatted()).frame(height: 80).id(index)
+            }
+        }
+        .scrollTargetLayout()
     }
 }

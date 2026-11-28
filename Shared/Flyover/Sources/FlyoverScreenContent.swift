@@ -23,22 +23,11 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
         )
         let previewLoadKey = model.previewLoadKey(for: screen)
 
-        Group {
-            if let loadedContent, loadedContent.id == contentID {
-                switch screen.navigationContainer {
-                    case .stack:
-                        NavigationStack {
-                            loadedContent.content
-                        }
-                    case .none:
-                        loadedContent.content
-                }
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityLabel("Loading \(screen.title)")
-            }
-        }
+        FlyoverLoadedScreen(
+            navigationContainer: screen.navigationContainer,
+            content: loadedContent?.id == contentID ? loadedContent?.content : nil,
+            title: screen.title,
+        )
         .snapshotTraits(
             model.configuration(
                 for: screen,
@@ -121,3 +110,32 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
         let content: AnyView
     }
 }
+
+private struct FlyoverLoadedScreen: View {
+    let navigationContainer: FlyoverNavigationContainer
+    let content: AnyView?
+    let title: String
+
+    var body: some View {
+        if let content {
+            switch navigationContainer {
+                case .stack:
+                    NavigationStack {
+                        content
+                    }
+                case .none:
+                    content
+            }
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("Loading \(title)")
+        }
+    }
+}
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

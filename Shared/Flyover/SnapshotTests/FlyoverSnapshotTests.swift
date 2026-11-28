@@ -130,24 +130,7 @@ struct FlyoverSnapshotTests {
                     id: FlyoverVariantID("populated"),
                     title: "Populated",
                 ) {
-                    List {
-                        SnapshotCard(
-                            title: title,
-                            subtitle: "Populated state",
-                            color: color,
-                        )
-                        SnapshotCard(
-                            title: "Secondary",
-                            subtitle: "Additional content",
-                            color: color.opacity(0.75),
-                        )
-                    }
-                    .navigationTitle(title)
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Button("Add", systemSymbol: .plus, action: {})
-                        }
-                    }
+                    FlyoverSnapshotList(title: title, color: color)
                 },
                 FlyoverVariant(
                     id: FlyoverVariantID("empty"),
@@ -189,5 +172,31 @@ private struct SnapshotCard: View {
             }
         }
         .padding()
+    }
+}
+
+private struct FlyoverSnapshotList: View {
+    let title: String
+    let color: Color
+
+    var body: some View {
+        List {
+            SnapshotCard(
+                title: title,
+                subtitle: "Populated state",
+                color: color,
+            )
+            SnapshotCard(
+                title: "Secondary",
+                subtitle: "Additional content",
+                color: color.opacity(0.75),
+            )
+        }
+        .navigationTitle(title)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Add", systemSymbol: .plus, action: {})
+            }
+        }
     }
 }
