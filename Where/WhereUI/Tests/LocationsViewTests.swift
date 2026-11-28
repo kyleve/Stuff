@@ -12,60 +12,94 @@ struct LocationsViewTests {
     @Test func screenCompositionKeepsViewValuesWithinStackBudget() {
         #expect(MemoryLayout<LocationsView.Body>.size < 16384)
     }
+
+    @MainActor
+    @Test func outgoingCalendarsKeepTheirOwnPresentationUntilDiscarded() throws {
+        let calendars = LocationsView.CalendarPresentations()
+        let outgoing = CalendarPresentationState(mode: .detail)
+        calendars.select(region: .california, presentation: outgoing)
+        let first = try #require(calendars.selected)
+
+        let incoming = CalendarPresentationState(mode: .overview)
+        calendars.select(region: .california, presentation: incoming)
+        let next = try #require(calendars.selected)
+
+        #expect(calendars[first] === outgoing)
+        #expect(calendars[next] === incoming)
+
+        calendars.discard(first)
+        calendars.discard(next)
+        #expect(calendars[first] == nil)
+        #expect(calendars[next] === incoming)
+    }
 }
 
 /// These tests resize native navigation in the shared test host window.
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
-    @Test func openingWithoutARegionShowsAnEmptyDetailUntilSelection() async throws {
+    @Test func regionCardsSwitchAndClearTheExpandedCalendar() async throws {
         let world = try await WhereFlyoverWorld.build()
+        world.report.preferences.setCalendarOverview(true, forKey: .region(.newYork))
         let state = AdaptivePaneHostState()
         let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
             LocationsView(report: world.report)
         }.bScrollRestorationScope())
         host.safeAreaRegions = []
         try await show(host) { controller in
+            controller.view.window?.layer.speed = 1
             let emptyTitle = String(localized: .locationsNoRegionTitle)
+            let showYear = String(localized: .calendarShowYear)
+            let showMonths = String(localized: .calendarShowMonths)
+            @MainActor func isVisible(_ label: String) -> Bool {
+                HostedAccessibility.isVisible(label, in: controller.view)
+            }
+            @MainActor func calendarTitle(for region: Region) -> String {
+                WhereFormat.calendarRegionTitle(region: region, year: world.report.selectedYear)
+            }
+            @MainActor func tapCard(for region: Region) throws {
+                let card = try #require(HostedAccessibility.objects(in: controller.view).first {
+                    $0.accessibilityLabel?.hasPrefix("\(region.localizedName):") == true
+                        && $0.accessibilityTraits.contains(.button)
+                })
+                if let control = card as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                } else {
+                    try #require(card.accessibilityActivate())
+                }
+            }
+
             try await AdaptivePaneTestSupport.resize(controller, state: state, to: .innerPortrait)
             try await waitForStage("empty detail on the open Duo") {
-                HostedAccessibility.isVisible(emptyTitle, in: controller.view)
+                isVisible(emptyTitle)
             }
-            #expect(HostedAccessibility.isVisible(
-                String(localized: .primaryCalendar),
-                in: controller.view,
-            ) == false)
-            #expect(HostedAccessibility.isVisible(
-                String(localized: .calendarShowYear),
-                in: controller.view,
-            ) == false)
+            #expect(isVisible(String(localized: .primaryCalendar)) == false)
+            #expect(isVisible(showYear) == false)
 
-            let card = try #require(HostedAccessibility.objects(in: controller.view).first {
-                $0.accessibilityLabel?.hasPrefix("California:") == true
-                    && $0.accessibilityTraits.contains(.button)
-            })
-            if let control = card as? UIControl {
-                control.sendActions(for: .touchUpInside)
-            } else {
-                try #require(card.accessibilityActivate())
+            let californiaTitle = calendarTitle(for: .california)
+            let newYorkTitle = calendarTitle(for: .newYork)
+            try tapCard(for: .california)
+            try await waitForStage("California detail calendar") {
+                isVisible(californiaTitle) && isVisible(showYear) && !isVisible(emptyTitle)
             }
+            try tapCard(for: .newYork)
+            try await waitForStage("New York calendar in its saved overview mode") {
+                isVisible(newYorkTitle) && isVisible(showMonths) && !isVisible(showYear)
+            }
+            try tapCard(for: .newYork)
+            try await waitForStage("empty detail after deselecting New York") {
+                isVisible(emptyTitle) && !isVisible(newYorkTitle) && !isVisible(showMonths)
+            }
+            #expect(world.report.preferences.calendarOverview(forKey: .region(.newYork)) == true)
 
-            let calendarTitle = WhereFormat.calendarRegionTitle(
-                region: .california,
-                year: world.report.selectedYear,
-            )
-            try await waitForStage("selected region calendar") {
-                HostedAccessibility.isVisible(calendarTitle, in: controller.view)
+            try tapCard(for: .california)
+            try await waitForStage("California detail after reselection") {
+                isVisible(californiaTitle) && isVisible(showYear) && !isVisible(emptyTitle)
             }
-            #expect(HostedAccessibility.isVisible(emptyTitle, in: controller.view) == false)
 
             try await AdaptivePaneTestSupport.resize(controller, state: state, to: .outerPortrait)
             try await waitForStage("selected region calendar stays open when folded") {
-                HostedAccessibility.isVisible(calendarTitle, in: controller.view)
-                    && HostedAccessibility.isVisible(
-                        String(localized: .calendarShowYear),
-                        in: controller.view,
-                    )
+                isVisible(californiaTitle) && isVisible(showYear)
             }
         }
     }

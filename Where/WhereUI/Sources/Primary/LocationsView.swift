@@ -23,16 +23,67 @@ struct LocationsView: View {
             selectedRegion = region
             compactColumn = .detail
         }
+
+        func toggleSelection(of region: Region) {
+            if selectedRegion == region {
+                selectedRegion = nil
+                compactColumn = .sidebar
+            } else {
+                select(region: region)
+            }
+        }
     }
 
     enum ScrollRole: Hashable {
         case calendar
     }
 
+    /// Each opening has a distinct ID because an earlier opening may still be animating.
+    struct CalendarSelection: Identifiable, Hashable {
+        struct ID: Hashable {
+            private let value = UUID()
+        }
+
+        let id = ID()
+        let region: Region
+    }
+
+    /// Keeps the zoom state of the selected calendar and any calendars still animating out.
+    @MainActor @Observable
+    final class CalendarPresentations {
+        private(set) var selected: CalendarSelection?
+        private var presentations: [CalendarSelection.ID: CalendarPresentationState] = [:]
+
+        func select(region: Region, presentation: CalendarPresentationState) {
+            let selection = CalendarSelection(region: region)
+            presentations[selection.id] = presentation
+            selected = selection
+        }
+
+        func deselect() {
+            selected = nil
+        }
+
+        subscript(_ selection: CalendarSelection) -> CalendarPresentationState? {
+            presentations[selection.id]
+        }
+
+        func discard(_ selection: CalendarSelection) {
+            guard selection.id != selected?.id else { return }
+            presentations.removeValue(forKey: selection.id)
+        }
+
+        func retain(_ displayed: [CalendarSelection]) {
+            let visibleIDs = Set(displayed.map(\.id))
+            presentations = presentations
+                .filter { $0.key == selected?.id || visibleIDs.contains($0.key) }
+        }
+    }
+
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
     @State private var navigation: LocationsView.Navigation
-    @State private var calendarPresentation: CalendarPresentationState
+    @State private var calendarPresentations: CalendarPresentations
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt = TiltProvider()
     @Namespace private var calendarTransition
@@ -51,10 +102,10 @@ struct LocationsView: View {
             navigation.select(region: initialRegion)
         }
         _navigation = State(initialValue: navigation)
-        _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
+        _calendarPresentations = State(initialValue: Self.makeCalendarPresentations(
+            for: navigation.selectedRegion,
             report: report,
-            persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
-        ).isOverview(fallback: false) ? .overview : .detail))
+        ))
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -71,7 +122,7 @@ struct LocationsView: View {
                     LocationsColumns(browseWidth: stylesheet.adaptivePane.minimumControlsWidth) {
                         expandedBrowseContent
                     } detail: {
-                        detailContent(showsEstimateCard: false)
+                        detailContent(arrangement: .columns)
                     }
                     .navigationTitle(selectedCalendarTitle ?? "")
                     .navigationBarTitleDisplayMode(.inline)
@@ -88,7 +139,7 @@ struct LocationsView: View {
                         .toolbar(removing: .sidebarToggle)
                 } detail: {
                     NavigationStack {
-                        detailContent(showsEstimateCard: true)
+                        detailContent(arrangement: .compact)
                             // The compact zoom carries this paper over the outgoing region cards.
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .visitedRegionsBackground(report)
@@ -125,12 +176,36 @@ struct LocationsView: View {
             report: report,
             destination: $navigation.planningDestination,
         ))
-        .onChange(of: navigation.selectedRegion) {
-            calendarPresentation = CalendarPresentationState(mode: CalendarModel(
-                report: report,
-                persistenceKey: navigation.selectedRegion.map(CalendarZoomKey.region),
-            ).isOverview(fallback: false) ? .overview : .detail)
+        .onChange(of: navigation.selectedRegion) { _, region in
+            Self.selectCalendar(for: region, in: calendarPresentations, report: report)
         }
+        .environment(calendarPresentations)
+    }
+
+    static func makeCalendarPresentations(
+        for region: Region?,
+        report: YearReportModel,
+    ) -> CalendarPresentations {
+        let calendars = CalendarPresentations()
+        selectCalendar(for: region, in: calendars, report: report)
+        return calendars
+    }
+
+    private static func selectCalendar(
+        for region: Region?,
+        in calendars: CalendarPresentations,
+        report: YearReportModel,
+    ) {
+        guard let region else {
+            calendars.deselect()
+            return
+        }
+        let overview = CalendarModel(report: report, persistenceKey: .region(region))
+            .isOverview(fallback: false)
+        calendars.select(
+            region: region,
+            presentation: CalendarPresentationState(mode: overview ? .overview : .detail),
+        )
     }
 
     private var selectedCalendarTitle: String? {
@@ -164,12 +239,12 @@ struct LocationsView: View {
         )
     }
 
-    private func detailContent(showsEstimateCard: Bool) -> LocationsDetailContent {
+    private func detailContent(arrangement: AdaptivePaneArrangement) -> LocationsDetailContent {
         LocationsDetailContent(
             report: report,
             navigation: navigation,
-            calendarPresentation: calendarPresentation,
-            showsEstimateCard: showsEstimateCard,
+            selection: calendarPresentations.selected,
+            arrangement: arrangement,
         )
     }
 }

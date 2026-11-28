@@ -70,8 +70,13 @@ struct LocationsCardsView: View {
                     motion: stylesheet.locationCardStack.overtake,
                 ) {
                     ForEach(presentedCards) { item in
+                        let isSelected = showsSelection && navigation.selectedRegion == item.region
                         Button {
-                            navigation.select(region: item.region)
+                            if showsSelection {
+                                navigation.toggleSelection(of: item.region)
+                            } else {
+                                navigation.select(region: item.region)
+                            }
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
@@ -120,7 +125,8 @@ struct LocationsCardsView: View {
                                     y: elevation.lift.offsetY,
                                 )
                         }
-                        .accessibilityHint(String(localized: .primaryCardCalendarHint))
+                        .accessibilityHint(String(localized: isSelected
+                                ? .primaryCardClearSelectionHint : .primaryCardCalendarHint))
                         .locationCardOvertakeEffect(
                             region: item.region,
                             presentation: cardPresentation,
@@ -129,7 +135,7 @@ struct LocationsCardsView: View {
                         .locationCardRankingRegion(item.region)
                         .id(item.region)
                         .presenceSelection(
-                            showsSelection && navigation.selectedRegion == item.region,
+                            isSelected,
                             cornerRadius: stylesheet.card[cardVariant].cornerRadius,
                         )
                     }
