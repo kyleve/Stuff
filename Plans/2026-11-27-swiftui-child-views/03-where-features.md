@@ -84,3 +84,7 @@ The 21-line destructive removal control carries its own confirmation. The device
 ### Evidence, logged days and Elsewhere
 
 The evidence, manual-day and Elsewhere screens keep their loaders, drafts, navigation and saves. LoggedDayButton owns the full selectable row. Region and day links keep their typed destinations, day identity and accessibility. Manual entry and day relabeling share the same note and saving sections. The retry, reset, audit and empty presentations retain their original conditions.
+
+### Developer overlay, Card Designer and Region Map
+
+Card Designer keeps its observed configuration, native sliders, ranges and reset callbacks. Large editor sections own files and small single-parent controls share their owner’s file. DeveloperOverlay retains presentation state. The 23-line RegionMapLegendButton owns selection, its checkmark, hit shape and accessibility. The map still owns geometry loading and its live camera. The shared 27-line launch-mode button owns its label, hit target, Voice Control strings and action. Both small mode wrappers stay with the menu.

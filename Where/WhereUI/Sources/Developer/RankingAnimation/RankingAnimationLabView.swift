@@ -1,5 +1,5 @@
-import SFSafeSymbols
 #if DEBUG
+    import SFSafeSymbols
     import SnapshotKit
     import SwiftUI
 
@@ -19,24 +19,11 @@ import SFSafeSymbols
 
         var body: some View {
             Form {
-                Section {
-                    RankingAnimationPreview(
-                        model: model,
-                        motion: previewMotion,
-                        isVisible: isPreviewVisible,
-                    )
-
-                    Button(action: model.playNextOvertake) {
-                        Label(
-                            String(localized: .rankingAnimationPlay),
-                            systemSymbol: .playFill,
-                        )
-                    }
-                } header: {
-                    Text(String(localized: .rankingAnimationPreview))
-                } footer: {
-                    Text(String(localized: .rankingAnimationDelayFooter))
-                }
+                RankingAnimationPreviewSection(
+                    model: model,
+                    motion: previewMotion,
+                    isVisible: isPreviewVisible,
+                )
 
                 RankingAnimationControls(motion: $motion, reset: resetMotion)
             }
@@ -80,6 +67,103 @@ import SFSafeSymbols
             title: "Ranking Animation Lab",
         ) { _ in
             RankingAnimationLabView()
+        }
+    }
+
+    private struct RankingOvertakePlayButton: View {
+        let action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                Label(
+                    String(localized: .rankingAnimationPlay),
+                    systemSymbol: .playFill,
+                )
+            }
+        }
+    }
+
+    private struct RankingAnimationPreviewSection: View {
+        let model: RankingAnimationLabModel
+        let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+        let isVisible: Bool
+
+        var body: some View {
+            Section {
+                RankingAnimationPreview(
+                    model: model,
+                    motion: motion,
+                    isVisible: isVisible,
+                )
+
+                RankingOvertakePlayButton(action: model.playNextOvertake)
+            } header: {
+                Text(String(localized: .rankingAnimationPreview))
+            } footer: {
+                Text(String(localized: .rankingAnimationDelayFooter))
+            }
+        }
+    }
+
+    /// The production ranked-card stack stripped only of navigation destinations
+    /// so the lab can replay its real delay and overtake treatment in place.
+    private struct RankingAnimationPreview: View {
+        let model: RankingAnimationLabModel
+        let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+        let isVisible: Bool
+
+        @Environment(\.stylesheet) private var stylesheet
+
+        var body: some View {
+            let presentedCards = model.presentation.presented(model.current)
+
+            LocationCardRankingStack(
+                spacing: stylesheet.spacing.xxLarge,
+                presentation: model.presentation,
+                motion: motion,
+            ) {
+                ForEach(presentedCards) { item in
+                    RankingAnimationRegionCard(item: item, model: model, motion: motion)
+                }
+            }
+            .reconcilesLocationCards(
+                current: model.current,
+                year: RankingAnimationLabModel.year,
+                isVisible: isVisible,
+                presentation: model.presentation,
+                motion: motion,
+            )
+        }
+    }
+
+    #Preview {
+        RankingAnimationPreview(
+            model: RankingAnimationLabModel(),
+            motion: .standard,
+            isVisible: true,
+        )
+        .padding()
+        .whereBroadwayRoot()
+    }
+
+    private struct RankingAnimationRegionCard: View {
+        let item: RegionDays
+        let model: RankingAnimationLabModel
+        let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+
+        var body: some View {
+            RegionSummaryCard(
+                regionDays: item,
+                interactive: false,
+                yearLength: 365,
+                year: RankingAnimationLabModel.year,
+            )
+            .locationCardOvertakeEffect(
+                region: item.region,
+                presentation: model.presentation,
+                motion: motion,
+            )
+            .locationCardRankingRegion(item.region)
         }
     }
 #endif

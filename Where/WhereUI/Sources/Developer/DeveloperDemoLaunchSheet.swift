@@ -8,7 +8,7 @@
 
     @MainActor
     @Observable
-    private final class DeveloperDemoLaunchSheetModel {
+    final class DeveloperDemoLaunchSheetModel {
         var missingDays: Bool
         var borderDrift: Bool
         var abruptChange: Bool
@@ -58,41 +58,13 @@
         }
 
         var body: some View {
-            @Bindable var model = model
             NavigationStack {
                 Form {
-                    Section {
-                        Toggle(
-                            WhereFormat.resolutionSectionHeader(.missingDays),
-                            isOn: $model.missingDays,
-                        )
-                        Toggle(
-                            WhereFormat.resolutionSectionHeader(.borderDrift),
-                            isOn: $model.borderDrift,
-                        )
-                        Toggle(
-                            WhereFormat.resolutionSectionHeader(.abruptChange),
-                            isOn: $model.abruptChange,
-                        )
-                        Toggle(
-                            WhereFormat.resolutionSectionHeader(.flightDay),
-                            isOn: $model.flightDay,
-                        )
-                    } header: {
-                        Text(String(localized: .developerDemoIssuesHeader))
-                    } footer: {
-                        Text(String(localized: .developerDemoIssuesFooter))
-                    }
+                    DeveloperDemoIssuesSection(model: model)
 
                     if case .demo = controller.nextLaunch {
                         Section {
-                            Button(
-                                String(localized: .developerDemoCancelScheduled),
-                                role: .destructive,
-                            ) {
-                                controller.useRegularApplicationOnNextLaunch()
-                                dismiss()
-                            }
+                            CancelScheduledDemoButton(controller: controller)
                         }
                     }
                 }
@@ -143,5 +115,21 @@
 
     #Preview {
         DeveloperDemoLaunchSheet.snapshotPreviews
+    }
+
+    private struct CancelScheduledDemoButton: View {
+        let controller: WhereDeveloperLaunchController
+
+        @Environment(\.dismiss) private var dismiss
+
+        var body: some View {
+            Button(
+                String(localized: .developerDemoCancelScheduled),
+                role: .destructive,
+            ) {
+                controller.useRegularApplicationOnNextLaunch()
+                dismiss()
+            }
+        }
     }
 #endif

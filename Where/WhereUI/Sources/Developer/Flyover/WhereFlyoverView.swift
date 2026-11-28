@@ -1,6 +1,6 @@
-import SFSafeSymbols
 #if DEBUG
     import Flyover
+    import SFSafeSymbols
     import SwiftUI
 
     /// Where's DEBUG-only host for the generic Flyover browser.
@@ -16,13 +16,7 @@ import SFSafeSymbols
                     case let .loaded(catalog):
                         FlyoverView(catalog: catalog)
                     case let .failed(message):
-                        ContentUnavailableView {
-                            Label("Flyover failed to load", systemSymbol: .exclamationmarkTriangle)
-                        } description: {
-                            Text(message)
-                        } actions: {
-                            Button("Try Again", action: loader.retry)
-                        }
+                        FlyoverLoadFailure(message: message, retry: loader.retry)
                 }
             }
             .task(id: loader.retryTrigger) {
@@ -33,5 +27,20 @@ import SFSafeSymbols
 
     #Preview {
         WhereFlyoverView()
+    }
+
+    private struct FlyoverLoadFailure: View {
+        let message: String
+        let retry: () -> Void
+
+        var body: some View {
+            ContentUnavailableView {
+                Label("Flyover failed to load", systemSymbol: .exclamationmarkTriangle)
+            } description: {
+                Text(message)
+            } actions: {
+                Button("Try Again", action: retry)
+            }
+        }
     }
 #endif

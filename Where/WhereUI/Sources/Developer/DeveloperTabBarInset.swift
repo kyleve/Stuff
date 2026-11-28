@@ -16,6 +16,7 @@ extension View {
 }
 
 #if DEBUG
+    import SnapshotKit
     import UIKit
 
     /// Carries the floating tab bar's edge insets from `MainTabs` up to ``RootView``,
@@ -55,25 +56,32 @@ extension View {
 
     private struct DeveloperTabBarInsetReporter: ViewModifier {
         @State private var windowInsets = UIEdgeInsets.zero
-        /// The attached window supplies physical insets; convert them using the live direction.
-        @Environment(\.layoutDirection) private var layoutDirection
 
         func body(content: Content) -> some View {
             content.background {
-                GeometryReader { proxy in
-                    Color.clear
-                        .background {
-                            DeveloperWindowInsetsReader { windowInsets = $0 }
-                        }
-                        .preference(
-                            key: DeveloperTabBarInsetKey.self,
-                            value: DeveloperBarInsets.additional(
-                                content: proxy.safeAreaInsets,
-                                window: windowInsets,
-                                direction: layoutDirection,
-                            ),
-                        )
-                }
+                DeveloperTabBarInsetMeasurement(windowInsets: $windowInsets)
+            }
+        }
+    }
+
+    private struct DeveloperTabBarInsetMeasurement: View {
+        @Binding var windowInsets: UIEdgeInsets
+        @Environment(\.layoutDirection) private var layoutDirection
+
+        var body: some View {
+            GeometryReader { proxy in
+                Color.clear
+                    .background {
+                        DeveloperWindowInsetsReader { windowInsets = $0 }
+                    }
+                    .preference(
+                        key: DeveloperTabBarInsetKey.self,
+                        value: DeveloperBarInsets.additional(
+                            content: proxy.safeAreaInsets,
+                            window: windowInsets,
+                            direction: layoutDirection,
+                        ),
+                    )
             }
         }
     }
@@ -155,5 +163,9 @@ extension View {
                 }
             }
         }
+    }
+
+    #Preview("Tab bar insets") {
+        MainTabs.snapshotPreviews
     }
 #endif

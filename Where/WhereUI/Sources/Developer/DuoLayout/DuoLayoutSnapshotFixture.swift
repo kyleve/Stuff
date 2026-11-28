@@ -85,19 +85,7 @@
                     case .idle, .loading:
                         ProgressView(String(localized: .primaryLoading))
                     case let .loaded(world):
-                        MainTabs(
-                            world: world,
-                            tab: fixture.tab,
-                            region: fixture.selection == .region ? .california : nil,
-                            settingsRoute: fixture
-                                .selection == .settings ? SettingsRoute(.appearance) : nil,
-                            yearMode: fixture.selection == .timeline ? .timeline : .calendar,
-                        )
-                        .environment(world.model)
-                        .environment(world.session)
-                        .environment(\.isInDemoMode, true)
-                        .environment(\.demoExitPresentation, .embedded)
-                        .environment(\.regionOutlinePathCache, fixture.artwork)
+                        DuoLayoutLoadedScene(world: world, fixture: fixture)
                     case let .failed(error):
                         ContentUnavailableView(
                             String(localized: .commonLoadErrorTitle),
@@ -108,6 +96,27 @@
             }
             .adaptivePaneReservedRegions(pose.regions)
             .task { await fixture.prepare() }
+        }
+    }
+
+    private struct DuoLayoutLoadedScene: View {
+        let world: WhereFlyoverWorld
+        let fixture: DuoLayoutSnapshotFixture
+
+        var body: some View {
+            MainTabs(
+                world: world,
+                tab: fixture.tab,
+                region: fixture.selection == .region ? .california : nil,
+                settingsRoute: fixture
+                    .selection == .settings ? SettingsRoute(.appearance) : nil,
+                yearMode: fixture.selection == .timeline ? .timeline : .calendar,
+            )
+            .environment(world.model)
+            .environment(world.session)
+            .environment(\.isInDemoMode, true)
+            .environment(\.demoExitPresentation, .embedded)
+            .environment(\.regionOutlinePathCache, fixture.artwork)
         }
     }
 #endif

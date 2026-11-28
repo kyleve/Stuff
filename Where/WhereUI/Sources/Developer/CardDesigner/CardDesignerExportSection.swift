@@ -1,5 +1,5 @@
-import SFSafeSymbols
 #if DEBUG
+    import SFSafeSymbols
     import SwiftUI
     import UIKit
 
@@ -11,52 +11,20 @@ import SFSafeSymbols
         var body: some View {
             Section {
                 Toggle(String(localized: .cardDesignerDiffOnly), isOn: $diffOnly)
-                ShareLink(
-                    item: CardDesignerJSONExport(
-                        configuration: configuration,
-                        diffOnly: diffOnly,
-                    ),
-                    preview: SharePreview(String(localized: .cardDesignerJsonExport)),
-                ) {
-                    Label(
-                        String(localized: .cardDesignerShareJSON),
-                        systemSymbol: .docBadgeGearshape,
-                    )
-                }
-                Button(action: copyJSON) {
-                    Label(
-                        String(
-                            localized: copiedFormat == .json
-                                ? .cardDesignerCopiedJSON
-                                : .cardDesignerCopyJSON,
-                        ),
-                        systemSymbol: copiedFormat == .json ? .checkmark : .documentOnDocument,
-                    )
-                }
-                ShareLink(
-                    item: CardDesignerSwiftExport(
-                        source: CardDesignerSwiftExporter.source(
-                            for: configuration,
-                            diffOnly: diffOnly,
-                        ),
-                    ),
-                    preview: SharePreview(String(localized: .cardDesignerSwiftExport)),
-                ) {
-                    Label(
-                        String(localized: .cardDesignerShareSwift),
-                        systemSymbol: .swift,
-                    )
-                }
-                Button(action: copySwift) {
-                    Label(
-                        String(
-                            localized: copiedFormat == .swift
-                                ? .cardDesignerCopiedSwift
-                                : .cardDesignerCopySwift,
-                        ),
-                        systemSymbol: copiedFormat == .swift ? .checkmark : .documentOnDocument,
-                    )
-                }
+                CardDesignerJSONShareLink(configuration: configuration, diffOnly: diffOnly)
+                CardDesignerCopyButton(
+                    copied: copiedFormat == .json,
+                    copyTitle: .cardDesignerCopyJSON,
+                    copiedTitle: .cardDesignerCopiedJSON,
+                    action: copyJSON,
+                )
+                CardDesignerSwiftShareLink(configuration: configuration, diffOnly: diffOnly)
+                CardDesignerCopyButton(
+                    copied: copiedFormat == .swift,
+                    copyTitle: .cardDesignerCopySwift,
+                    copiedTitle: .cardDesignerCopiedSwift,
+                    action: copySwift,
+                )
             } header: {
                 Text(String(localized: .cardDesignerExport))
             } footer: {
@@ -92,6 +60,64 @@ import SFSafeSymbols
     #Preview {
         Form {
             CardDesignerExportSection(configuration: .standard)
+        }
+    }
+
+    private struct CardDesignerJSONShareLink: View {
+        let configuration: CardDesignerConfiguration
+        let diffOnly: Bool
+
+        var body: some View {
+            ShareLink(
+                item: CardDesignerJSONExport(
+                    configuration: configuration,
+                    diffOnly: diffOnly,
+                ),
+                preview: SharePreview(String(localized: .cardDesignerJsonExport)),
+            ) {
+                Label(
+                    String(localized: .cardDesignerShareJSON),
+                    systemSymbol: .docBadgeGearshape,
+                )
+            }
+        }
+    }
+
+    private struct CardDesignerSwiftShareLink: View {
+        let configuration: CardDesignerConfiguration
+        let diffOnly: Bool
+
+        var body: some View {
+            ShareLink(
+                item: CardDesignerSwiftExport(
+                    source: CardDesignerSwiftExporter.source(
+                        for: configuration,
+                        diffOnly: diffOnly,
+                    ),
+                ),
+                preview: SharePreview(String(localized: .cardDesignerSwiftExport)),
+            ) {
+                Label(
+                    String(localized: .cardDesignerShareSwift),
+                    systemSymbol: .swift,
+                )
+            }
+        }
+    }
+
+    private struct CardDesignerCopyButton: View {
+        let copied: Bool
+        let copyTitle: LocalizedStringResource
+        let copiedTitle: LocalizedStringResource
+        let action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                Label(
+                    String(localized: copied ? copiedTitle : copyTitle),
+                    systemSymbol: copied ? .checkmark : .documentOnDocument,
+                )
+            }
         }
     }
 #endif

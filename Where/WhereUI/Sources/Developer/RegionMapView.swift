@@ -25,7 +25,6 @@ public struct RegionMapView: View {
     @State private var selectedTitle: String?
     @State private var cameraPosition: MapCameraPosition = .automatic
 
-    @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
     /// Public so the standalone `RegionViewer` app (a separate module) can
@@ -34,76 +33,30 @@ public struct RegionMapView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            kindPicker
-            stateContent
+            RegionMapKindPicker(kind: $kind)
+            switch outlines {
+                case .none:
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case let .some(.failure(error)):
+                    RegionMapLoadError(error: error)
+                case let .some(.success(loaded)) where loaded.groups.isEmpty:
+                    RegionMapEmptyState()
+                case let .some(.success(loaded)):
+                    RegionMapOverview(
+                        data: loaded,
+                        isLoading: loaded.kind != kind,
+                        selectedTitle: selectedTitle,
+                        cameraPosition: $cameraPosition,
+                        color: color(for:),
+                        legendColor: { color(forTitle: $0.title, region: $0.region) },
+                        select: select,
+                    )
+            }
         }
         .navigationTitle(String(localized: .regionMapTitle))
         .navigationBarTitleDisplayMode(.inline)
         .task(id: kind) { await load() }
-    }
-
-    private var kindPicker: some View {
-        Picker(String(localized: .regionMapKindPicker), selection: $kind) {
-            ForEach(RegionGeometryPurpose.allCases, id: \.self) { kind in
-                Text(WhereFormat.regionMapKind(kind)).tag(kind)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding()
-    }
-
-    @ViewBuilder
-    private var stateContent: some View {
-        switch outlines {
-            case .none:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .some(.failure(error)):
-                ContentUnavailableView(
-                    String(localized: .regionMapLoadErrorTitle),
-                    systemSymbol: .exclamationmarkTriangle,
-                    description: Text(error.localizedDescription),
-                )
-            case let .some(.success(loaded)) where loaded.groups.isEmpty:
-                ContentUnavailableView(
-                    String(localized: .regionMapEmptyTitle),
-                    systemSymbol: .map,
-                    description: Text(String(localized: .regionMapEmptyDescription)),
-                )
-            case let .some(.success(loaded)):
-                VStack(spacing: 0) {
-                    map(for: loaded)
-                        .overlay {
-                            if loaded.kind != kind {
-                                ProgressView()
-                            }
-                        }
-                    legend(for: loaded)
-                }
-        }
-    }
-
-    private func map(for data: MapData) -> some View {
-        RegionOutlinesMap(
-            geometry: data.geometry,
-            selectedTitle: selectedTitle,
-            frame: data.frame(for: selectedTitle),
-            cameraPosition: $cameraPosition,
-            color: color(for:),
-        )
-        .frame(maxHeight: .infinity)
-        .accessibilityLabel(String(localized: .regionMapMapAccessibility))
-    }
-
-    private func legend(for data: MapData) -> some View {
-        RegionMapLegend(
-            kind: data.kind,
-            groups: data.groups,
-            selectedTitle: selectedTitle,
-            color: { color(forTitle: $0.title, region: $0.region) },
-            onSelect: select,
-        )
-        .frame(height: stylesheet.regionMap[.overview].height)
     }
 
     // MARK: - Data
@@ -141,7 +94,7 @@ public struct RegionMapView: View {
         cameraPosition = loaded.frame(for: title).map(MapCameraPosition.region) ?? .automatic
     }
 
-    private struct MapData {
+    struct MapData {
         let kind: RegionGeometryPurpose
         let geometry: RegionMapGeometry
         let groups: [RegionMapLegendGroup]
@@ -252,7 +205,7 @@ public struct RegionMapView: View {
 /// view's own overlays (the region polygons) still render for real in the
 /// stand-in — only the tile substrate is replaced — per the
 /// `\.isCapturingSnapshot` carve-out (see SnapshotKit's `SnapshotCaptureFlag`).
-private struct RegionOutlinesMap: View {
+struct RegionOutlinesMap: View {
     let geometry: RegionMapGeometry
     let selectedTitle: String?
     let frame: MKCoordinateRegion?
@@ -282,6 +235,42 @@ private struct RegionOutlinesMap: View {
     private func overlayStyle(for outline: RegionOutline) -> RegionMapOverlayStyle {
         let tint = color(outline)
         return RegionMapOverlayStyle(fill: tint.opacity(0.25), stroke: tint, lineWidth: 1.5)
+    }
+}
+
+private struct RegionMapKindPicker: View {
+    @Binding var kind: RegionGeometryPurpose
+
+    var body: some View {
+        Picker(String(localized: .regionMapKindPicker), selection: $kind) {
+            ForEach(RegionGeometryPurpose.allCases, id: \.self) { kind in
+                Text(WhereFormat.regionMapKind(kind)).tag(kind)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding()
+    }
+}
+
+private struct RegionMapLoadError: View {
+    let error: any Error
+
+    var body: some View {
+        ContentUnavailableView(
+            String(localized: .regionMapLoadErrorTitle),
+            systemSymbol: .exclamationmarkTriangle,
+            description: Text(error.localizedDescription),
+        )
+    }
+}
+
+private struct RegionMapEmptyState: View {
+    var body: some View {
+        ContentUnavailableView(
+            String(localized: .regionMapEmptyTitle),
+            systemSymbol: .map,
+            description: Text(String(localized: .regionMapEmptyDescription)),
+        )
     }
 }
 
@@ -341,7 +330,6 @@ private struct RegionOutlinesMap: View {
 
         private struct CoastMaps: View {
             let prepared: CoastalComparison
-            @Environment(\.regionStyles) private var styles
             private let frame = MKCoordinateRegion(
                 center: .init(latitude: 40.91, longitude: -73.02),
                 span: .init(latitudeDelta: 0.65, longitudeDelta: 1.35),
@@ -350,16 +338,11 @@ private struct RegionOutlinesMap: View {
             var body: some View {
                 VStack {
                     ForEach(RegionGeometryPurpose.allCases, id: \.self) { purpose in
-                        Text(WhereFormat.regionMapKind(purpose))
-                        if let geometry = prepared.maps[purpose] {
-                            RegionOutlinesMap(
-                                geometry: geometry,
-                                selectedTitle: Region.newYork.localizedName,
-                                frame: frame,
-                                cameraPosition: .constant(.region(frame)),
-                                color: { _ in styles.style(for: .newYork).tint },
-                            )
-                        }
+                        CoastalMapPanel(
+                            purpose: purpose,
+                            geometry: prepared.maps[purpose],
+                            frame: frame,
+                        )
                     }
                 }
                 .background(.background)
@@ -367,6 +350,27 @@ private struct RegionOutlinesMap: View {
                     do { try await prepared.load() }
                     catch is CancellationError { return }
                     catch { assertionFailure("Cannot load coastal comparison: \(error)") }
+                }
+            }
+        }
+
+        private struct CoastalMapPanel: View {
+            let purpose: RegionGeometryPurpose
+            let geometry: RegionMapGeometry?
+            let frame: MKCoordinateRegion
+
+            @Environment(\.regionStyles) private var regionStyles
+
+            var body: some View {
+                Text(WhereFormat.regionMapKind(purpose))
+                if let geometry {
+                    RegionOutlinesMap(
+                        geometry: geometry,
+                        selectedTitle: Region.newYork.localizedName,
+                        frame: frame,
+                        cameraPosition: .constant(.region(frame)),
+                        color: { _ in regionStyles.style(for: .newYork).tint },
+                    )
                 }
             }
         }

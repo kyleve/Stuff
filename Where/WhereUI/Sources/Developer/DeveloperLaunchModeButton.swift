@@ -1,11 +1,13 @@
 #if DEBUG
     import SFSafeSymbols
     import SwiftUI
-    import WhereCore
 
-    /// Opens the one-shot demo configuration for the next process launch.
-    struct DeveloperDemoModeRow: View {
-        @Bindable var controller: WhereDeveloperLaunchController
+    #Preview { DeveloperOverlayPreview(presentation: .menu) }
+
+    struct DeveloperLaunchModeButton: View {
+        let title: String
+        let subtitle: String?
+        let systemSymbol: SFSymbol
         let action: () -> Void
 
         @Environment(\.stylesheet) private var stylesheet
@@ -15,16 +17,16 @@
             Button(action: action) {
                 Label {
                     VStack(alignment: .leading, spacing: menu.subtitleSpacing) {
-                        Text(String(localized: .developerDemoNextLaunch))
-                        if case let .demo(configuration) = controller.nextLaunch {
-                            Text(summary(for: configuration))
+                        Text(title)
+                        if let subtitle {
+                            Text(subtitle)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
-                    Image(systemSymbol: .playRectangleOnRectangle)
+                    Image(systemSymbol: systemSymbol)
                         .frame(width: menu.iconWidth)
                 }
                 .padding(.horizontal, menu.horizontalPadding)
@@ -37,18 +39,7 @@
                 .regular.interactive(),
                 in: RoundedRectangle(cornerRadius: menu.cornerRadius),
             )
-            .accessibilityInputLabels([String(localized: .developerDemoNextLaunch)])
+            .accessibilityInputLabels([title])
         }
-
-        private func summary(for configuration: DemoDataBuilder.Configuration) -> String {
-            guard !configuration.issueCategories.isEmpty else {
-                return String(localized: .developerDemoCleanBaseline)
-            }
-            return WhereFormat.resolutionCategoryList(configuration.issueCategories)
-        }
-    }
-
-    #Preview {
-        DeveloperOverlayPreview(presentation: .menu)
     }
 #endif
