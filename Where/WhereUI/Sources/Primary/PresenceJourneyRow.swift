@@ -36,24 +36,18 @@ struct PresenceJourneyRow: View {
                 .frame(width: rail.nodeSize)
 
             countLayout {
-                VStack(alignment: .leading, spacing: row.labelSpacing) {
-                    Text(stint.region.localizedName)
-                        .font(.headline)
-                    Text(dateRange)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(WhereFormat.dayCount(stint.dayCount))
-                    .font(.subheadline.bold())
-                    .monospacedDigit()
-                    .padding(.horizontal, row.countHorizontalPadding)
-                    .padding(.vertical, row.countVerticalPadding)
-                    .background {
-                        Capsule()
-                            .fill(style.tint.opacity(row.countFillOpacity))
-                    }
+                RecordedJourneyLabels(
+                    regionName: stint.region.localizedName,
+                    dateRange: dateRange,
+                    spacing: row.labelSpacing,
+                )
+                JourneyDayCountBadge(
+                    text: WhereFormat.dayCount(stint.dayCount),
+                    font: .subheadline.bold(),
+                    horizontalPadding: row.countHorizontalPadding,
+                    verticalPadding: row.countVerticalPadding,
+                    fill: style.tint.opacity(row.countFillOpacity),
+                )
             }
             .frame(minHeight: proportionalHeight)
             .padding(.horizontal, row.horizontalPadding)
@@ -87,6 +81,23 @@ struct PresenceJourneyRow: View {
                 days: stint.dayCount,
             ),
         )
+    }
+}
+
+private struct RecordedJourneyLabels: View {
+    let regionName: String
+    let dateRange: String
+    let spacing: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            Text(regionName)
+                .font(.headline)
+            Text(dateRange)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -10,7 +10,6 @@ struct YearRibbon: View {
     let calendar: Calendar
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         let timeline = stylesheet.timeline
@@ -27,37 +26,18 @@ struct YearRibbon: View {
                 .monospacedDigit()
 
             VStack(spacing: ribbon.monthLabelSpacing) {
-                HStack(spacing: 0) {
-                    ForEach(monthStarts, id: \.self) { month in
-                        Text(month, format: .dateTime.month(.narrow))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
+                YearRibbonMonths(monthStarts: monthStarts)
 
                 if ribbon.separatesRegions {
                     VStack(spacing: ribbon.regionSpacing) {
                         ForEach(regions, id: \.self) { region in
-                            VStack(
-                                alignment: .leading,
+                            YearRibbonRegion(
+                                region: region,
+                                days: days,
+                                year: year,
+                                calendar: calendar,
                                 spacing: ribbon.regionLabelSpacing,
-                            ) {
-                                let style = regionStyles.style(for: region)
-                                Label {
-                                    Text(region.localizedName)
-                                } icon: {
-                                    Text(style.emoji)
-                                }
-                                .font(.caption)
-
-                                YearRibbonBand(
-                                    days: days,
-                                    year: year,
-                                    calendar: calendar,
-                                    isolatedRegion: region,
-                                )
-                            }
+                            )
                         }
                     }
                 } else {
@@ -86,6 +66,49 @@ struct YearRibbon: View {
                     overview.border,
                     lineWidth: overview.borderWidth,
                 )
+        }
+    }
+}
+
+private struct YearRibbonMonths: View {
+    let monthStarts: [Date]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(monthStarts, id: \.self) { month in
+                Text(month, format: .dateTime.month(.narrow))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+}
+
+private struct YearRibbonRegion: View {
+    let region: Region
+    let days: [DayPresence]
+    let year: Int
+    let calendar: Calendar
+    let spacing: CGFloat
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            let style = regionStyles.style(for: region)
+            Label {
+                Text(region.localizedName)
+            } icon: {
+                Text(style.emoji)
+            }
+            .font(.caption)
+
+            YearRibbonBand(
+                days: days,
+                year: year,
+                calendar: calendar,
+                isolatedRegion: region,
+            )
         }
     }
 }

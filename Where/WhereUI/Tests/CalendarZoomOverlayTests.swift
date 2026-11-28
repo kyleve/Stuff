@@ -28,14 +28,12 @@ struct CalendarZoomOverlayTests {
         let source = try #require(zoom.phase)
         var mounts: [CalendarPresentationState.Mode: Int] = [:]
         var finished: CalendarZoomTransitionState.ID?
-        @ViewBuilder func overlay(_ phase: CalendarZoomTransitionState.Phase?) -> some View {
-            if let phase {
-                CalendarZoomOverlay(phase: phase) { _, mode in
-                    Color.blue.onAppear { mounts[mode, default: 0] += 1 }
-                } completion: { finished = $0 }
-                    .transaction { $0.animation = nil }
-            }
-        }
+
+        var overlay = CalendarZoomOverlayFixture(
+            phase: nil,
+            mounted: { mounts[$0, default: 0] += 1 },
+            finished: { finished = $0 },
+        )
 
         func measuredDestination() throws -> CalendarZoomTransitionState.Phase {
             zoom.updateMeasurement(.init(
@@ -48,16 +46,33 @@ struct CalendarZoomOverlayTests {
         }
 
         let initialPhase = try destinationAlreadyReady ? measuredDestination() : source
-        let host = UIHostingController(rootView: overlay(nil))
+        let host = UIHostingController(rootView: overlay)
         try await show(host) { host in
             host.view.window?.layer.speed = 1
-            host.rootView = overlay(initialPhase)
+            overlay.phase = initialPhase
+            host.rootView = overlay
             if !destinationAlreadyReady {
                 try await waitForAsync { mounts[.overview] == 1 }
-                host.rootView = try overlay(measuredDestination())
+                overlay.phase = try measuredDestination()
+                host.rootView = overlay
             }
             try await waitForAsync { finished == source.source.id }
             #expect(mounts == [.overview: 1, .detail: 1])
+        }
+    }
+}
+
+private struct CalendarZoomOverlayFixture: View {
+    var phase: CalendarZoomTransitionState.Phase?
+    let mounted: (CalendarPresentationState.Mode) -> Void
+    let finished: (CalendarZoomTransitionState.ID) -> Void
+
+    var body: some View {
+        if let phase {
+            CalendarZoomOverlay(phase: phase) { _, mode in
+                Color.blue.onAppear { mounted(mode) }
+            } completion: { finished($0) }
+                .transaction { $0.animation = nil }
         }
     }
 }

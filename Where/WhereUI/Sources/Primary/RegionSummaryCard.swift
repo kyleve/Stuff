@@ -82,7 +82,7 @@ struct RegionSummaryCard: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @Environment(\.regionStyles) private var regionStyles
     #if DEBUG
         // The live designer draft is a runtime override, outside the cached base slice.
@@ -112,14 +112,6 @@ struct RegionSummaryCard: View {
         styleOverride ?? regionStyles.style(for: regionDays.region)
     }
 
-    private var recordedFraction: Double {
-        fraction(for: regionDays.days)
-    }
-
-    private var estimatedFraction: Double? {
-        estimatedDays.map { fraction(for: $0.upper) }
-    }
-
     /// Paper artwork uses the original region color. Dark glass uses a pale
     /// derivative while interactive Liquid Glass illuminates nearby surfaces.
     private var securityPrintTint: Color {
@@ -132,19 +124,6 @@ struct RegionSummaryCard: View {
 
     private var foregroundPrintTint: Color {
         card.paper == nil ? card.contentTint.apply(to: securityPrintTint) : style.tint
-    }
-
-    private var cardShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
-    }
-
-    private var barHeight: CGFloat {
-        card.progressBarHeight
-    }
-
-    private func fraction(for days: Int) -> Double {
-        guard yearLength > 0 else { return 0 }
-        return min(1, max(0, Double(days) / Double(yearLength)))
     }
 
     private var regionArtworkLoadID: RegionArtworkLoadID {
@@ -175,88 +154,6 @@ struct RegionSummaryCard: View {
             recordedDays: regionDays.days,
             estimatedDays: estimatedDays,
         )
-    }
-
-    /// A circular rubber-stamp "entry" impression: the region glyph and year
-    /// ringed by the region name, tilted as if pressed onto the page. The arc
-    /// lettering is dropped on the small compact cards where it can't be read.
-    private var entryStamp: some View {
-        EntryStamp(
-            title: regionDays.region.localizedName.uppercased(),
-            year: year,
-            symbol: style.symbol,
-            tint: foregroundPrintTint,
-            style: card.entryStamp,
-            regionPath: regionPaths?.stamp ?? Path(),
-            regionShape: card.regionShape,
-        )
-    }
-
-    /// A faint, region-tinted "security print" behind the content: a guilloché
-    /// rosette of subtly wobbling concentric rings plus an oversized region
-    /// glyph and microprinted silhouette border, the way a passport page is
-    /// printed beneath its stamps.
-    private var stampPaper: some View {
-        // Read the main-actor `style.tint` and the value-type `rosette` spec once
-        // here so the nonisolated `Canvas` renderer closure captures `Sendable`
-        // values rather than reaching back into main-actor state.
-        let tint = securityPrintTint
-        let rosette = card.rosette
-        let rosetteFill = cardStyles.rosetteFill
-        return ZStack {
-            SecurityPrintRosette(
-                tint: tint,
-                wobble: rosette.wobble,
-                lineWidth: rosette.lineWidth,
-                primaryRingSpacing: rosette.primaryRingSpacing,
-                secondaryRingSpacing: rosette.secondaryRingSpacing,
-                primaryOpacity: rosetteFill.primary,
-                secondaryOpacity: rosetteFill.secondary,
-            )
-
-            if
-                let regionShape = card.regionShape,
-                let regionPath = regionPaths?.microprint,
-                !regionPath.isEmpty
-            {
-                RegionOutlineSecurityBorder(
-                    paths: [regionPath],
-                    tint: tint,
-                    cornerRadius: card.cornerRadius,
-                    inset: regionShape.securityBorder.inset,
-                    glyphSize: regionShape.securityBorder.glyphSize,
-                    spacing: regionShape.securityBorder.spacing,
-                    opacity: regionShape.securityBorder.opacity,
-                )
-            }
-
-            if
-                let regionShape = card.regionShape,
-                let regionPath = regionPaths?.watermark,
-                !regionPath.isEmpty
-            {
-                RegionOutlineArtwork(
-                    path: regionPath,
-                    tint: tint,
-                    style: regionShape.watermark,
-                    constellationPoints: showsRecordedPoints
-                        ? regionPaths?.constellation ?? []
-                        : [],
-                    constellationStyle: cardStyles.constellation,
-                )
-            } else {
-                Image(systemSymbol: style.symbol)
-                    .font(.system(size: card.watermarkFontSize))
-                    .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
-                    .rotationEffect(.degrees(-14))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
-            }
-        }
-        .blendMode(card.paper == nil ? cardStyles.securityPrint.backgroundBlendMode : .normal)
-        .clipShape(cardShape)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     private func loadRegionOutlines(_ regionOutlinePathCache: RegionOutlinePathCache) async
@@ -301,41 +198,30 @@ struct RegionSummaryCard: View {
         )
     }
 
-    private var content: some View {
-        let regionName = Text(regionDays.region.localizedName)
-            .font(card.regionNameTypography.font)
-            .tracking(card.regionNameTracking)
-            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
-            .allowsTightening(true)
-            .minimumScaleFactor(0.7)
-            .foregroundStyle(contentTint)
-            .opacity(card.paper == nil ? cardStyles.nameOpacity : 1)
-
-        return VStack(alignment: .leading, spacing: card.contentSpacing) {
+    var body: some View {
+        VStack(alignment: .leading, spacing: card.contentSpacing) {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
-                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                    regionName
-                    if let caption {
-                        Text(caption)
-                            .font(.caption2.weight(.semibold))
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .foregroundStyle(card.paper == nil
-                                ? AnyShapeStyle(.secondary)
-                                : AnyShapeStyle(contentTint))
-                    }
-                    if let places {
-                        Label(places, systemSymbol: .mappinAndEllipse)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(contentTint)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
+                RegionCardLabels(
+                    name: regionDays.region.localizedName,
+                    caption: caption,
+                    places: places,
+                    card: card,
+                    contentTint: contentTint,
+                    nameOpacity: cardStyles.nameOpacity,
+                )
 
                 Spacer(minLength: 0)
 
                 if renderPurpose == .content {
-                    entryStamp
+                    EntryStamp(
+                        title: regionDays.region.localizedName.uppercased(),
+                        year: year,
+                        symbol: style.symbol,
+                        tint: foregroundPrintTint,
+                        style: card.entryStamp,
+                        regionPath: regionPaths?.stamp ?? Path(),
+                        regionShape: card.regionShape,
+                    )
                 }
             }
 
@@ -359,42 +245,15 @@ struct RegionSummaryCard: View {
             }
 
             if card.showsProgress {
-                Capsule()
-                    .fill(.quaternary)
-                    .frame(height: barHeight)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { proxy in
-                            ZStack(alignment: .leading) {
-                                if let estimatedFraction {
-                                    Capsule()
-                                        .fill(securityPrintTint.opacity(
-                                            cardStyles.estimatedProgressOpacity,
-                                        ))
-                                        .frame(width: proxy.size.width * estimatedFraction)
-                                    if let estimatedDays, !estimatedDays.isExact {
-                                        Capsule()
-                                            .fill(securityPrintTint.opacity(
-                                                cardStyles.estimatedProgressOpacity,
-                                            ))
-                                            .frame(width: proxy.size
-                                                .width * fraction(for: estimatedDays.lower))
-                                        Rectangle()
-                                            .fill(securityPrintTint)
-                                            .frame(width: barHeight / 3)
-                                            .offset(x: proxy.size
-                                                .width * fraction(for: estimatedDays.lower))
-                                    }
-                                }
-                                Capsule()
-                                    .fill(contentTint)
-                                    .frame(width: proxy.size.width * recordedFraction)
-                            }
-                            .frame(width: proxy.size.width, height: barHeight, alignment: .leading)
-                            .clipShape(.capsule)
-                        }
-                    }
-                    .frame(height: barHeight)
-                    .accessibilityHidden(true)
+                RegionCardProgress(
+                    recordedDays: regionDays.days,
+                    estimatedDays: estimatedDays,
+                    yearLength: yearLength,
+                    barHeight: card.progressBarHeight,
+                    contentTint: contentTint,
+                    securityPrintTint: securityPrintTint,
+                    estimatedProgressOpacity: cardStyles.estimatedProgressOpacity,
+                )
             }
         }
         // What makes the count's `.contentTransition` run at all — one morphs
@@ -404,27 +263,33 @@ struct RegionSummaryCard: View {
         .animation(dayCount.animation, value: estimatedDays)
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background { stampPaper }
-    }
-
-    var body: some View {
-        content
-            .modifier(RegionCardSurface(
+        .background {
+            RegionCardSecurityPrint(
                 card: card,
-                glassTintOpacity: cardStyles.glassTintOpacity,
-                tint: style.tint,
-                interactive: interactive,
-                tilt: tilt,
-            ))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityValue(places ?? "")
-            .regionArtworkTask(
-                id: regionArtworkLoadID,
-                displayKey: regionArtworkLoadID.staticArtworkID,
-                model: artworkModel,
-                load: loadRegionOutlines,
+                cardStyles: cardStyles,
+                tint: securityPrintTint,
+                symbol: style.symbol,
+                regionPaths: regionPaths,
+                showsRecordedPoints: showsRecordedPoints,
             )
+        }
+
+        .modifier(RegionCardSurface(
+            card: card,
+            glassTintOpacity: cardStyles.glassTintOpacity,
+            tint: style.tint,
+            interactive: interactive,
+            tilt: tilt,
+        ))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(places ?? "")
+        .regionArtworkTask(
+            id: regionArtworkLoadID,
+            displayKey: regionArtworkLoadID.staticArtworkID,
+            model: artworkModel,
+            load: loadRegionOutlines,
+        )
     }
 }
 
@@ -452,116 +317,12 @@ struct RegionArtworkLoadID: Equatable {
     }
 }
 
-/// A circular rubber-stamp impression — double ring, centered region glyph and
-/// year, with the region name curved along the top arc — tilted as if an
-/// official pressed it onto a passport page. The card stylesheet owns its
-/// complete drawing treatment for both regular and compact cards.
-private struct EntryStamp: View {
-    let title: String
-    let year: Int
-    let symbol: SFSymbol
-    let tint: Color
-    let style: WhereStylesheet.CardStyle.EntryStamp
-    let regionPath: Path
-    let regionShape: WhereStylesheet.CardStyle.RegionShape?
-
-    var body: some View {
-        let size = style.size
-        ZStack {
-            Circle()
-                .strokeBorder(
-                    tint.opacity(style.outerRing.opacity),
-                    lineWidth: size * style.outerRing.lineWidthFraction,
-                )
-            Circle()
-                .strokeBorder(
-                    tint.opacity(style.innerRing.opacity),
-                    style: StrokeStyle(
-                        lineWidth: size * style.innerRing.lineWidthFraction,
-                        dash: [
-                            size * style.innerRing.dash.lengthFraction,
-                            size * style.innerRing.dash.spacingFraction,
-                        ],
-                    ),
-                )
-                .padding(size * style.innerRing.insetFraction)
-
-            VStack(spacing: size * style.content.spacingFraction) {
-                if let regionShape, !regionPath.isEmpty {
-                    RegionOutlineArtwork(
-                        path: regionPath,
-                        tint: tint,
-                        style: regionShape.stamp,
-                    )
-                    .frame(
-                        width: size * style.content.artworkExtent.width,
-                        height: size * style.content.artworkExtent.height,
-                    )
-                } else {
-                    Image(systemSymbol: symbol)
-                        .font(style.content.symbolFont.font(for: size))
-                }
-                Text(verbatim: String(year))
-                    .font(style.content.yearFont.font(for: size))
-                    .monospacedDigit()
-            }
-            .foregroundStyle(tint.opacity(style.content.opacity))
-
-            if let arc = style.arc {
-                ArcText(
-                    text: title,
-                    size: size,
-                    tint: tint,
-                    style: arc,
-                )
-            }
-        }
-        .frame(width: size, height: size)
-        .rotationEffect(.degrees(style.rotationDegrees))
-        .accessibilityHidden(true)
-    }
-}
-
 /// The cached render artifacts both card sizes consume together.
-private struct RegionArtworkPaths {
+struct RegionArtworkPaths {
     let watermark: Path
     let stamp: Path
     let microprint: Path
     let constellation: [RegionLocationConstellationLayout.Point]
-}
-
-/// Lays out `text` along the upper arc of a circle of the given `radius`,
-/// centered at twelve o'clock — the curved lettering of a rubber stamp. The
-/// angular span grows with the character count (capped) so short and long
-/// region names both stay legible.
-private struct ArcText: View {
-    let text: String
-    let size: CGFloat
-    let tint: Color
-    let style: WhereStylesheet.CardStyle.EntryStamp.Arc
-
-    var body: some View {
-        let characters = Array(text)
-        let sweep = min(
-            style.maximumSweepDegrees,
-            Double(characters.count) * style.sweepDegreesPerCharacter,
-        )
-        ZStack {
-            ForEach(Array(characters.enumerated()), id: \.offset) { index, character in
-                Text(String(character))
-                    .font(style.font.font(for: size))
-                    .foregroundStyle(tint.opacity(style.opacity))
-                    .offset(y: -size * style.radiusFraction)
-                    .rotationEffect(angle(at: index, count: characters.count, sweep: sweep))
-            }
-        }
-    }
-
-    private func angle(at index: Int, count: Int, sweep: Double) -> Angle {
-        guard count > 1 else { return .zero }
-        let fraction = Double(index) / Double(count - 1) - 0.5
-        return .degrees(fraction * sweep)
-    }
 }
 
 #if DEBUG

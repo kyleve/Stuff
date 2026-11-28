@@ -28,60 +28,35 @@ struct PlannedPresenceJourneyCardContent: View {
 
         countLayout {
             if position.isJoinedContinuation {
-                if row.stacksDayCount {
-                    VStack(alignment: .leading, spacing: row.labelSpacing) {
-                        Text(regionName)
-                            .font(.subheadline.bold())
-                        Text(dateRange)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    HStack(spacing: planned.joinedLabelSpacing) {
-                        Text(regionName)
-                            .font(.subheadline.bold())
-                            .layoutPriority(1)
-                        Text(dateRange)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                JoinedPlanLabels(
+                    regionName: regionName,
+                    dateRange: dateRange,
+                    row: row,
+                    planned: planned,
+                )
+                JourneyDayCountBadge(
+                    text: WhereFormat.dayCount(dayCount),
+                    font: .caption.bold(),
+                    horizontalPadding: planned.joinedCountHorizontalPadding,
+                    verticalPadding: planned.joinedCountVerticalPadding,
+                    fill: tint.opacity(row.countFillOpacity / 2),
+                )
 
-                Text(WhereFormat.dayCount(dayCount))
-                    .font(.caption.bold())
-                    .monospacedDigit()
-                    .padding(.horizontal, planned.joinedCountHorizontalPadding)
-                    .padding(.vertical, planned.joinedCountVerticalPadding)
-                    .background {
-                        Capsule()
-                            .fill(tint.opacity(row.countFillOpacity / 2))
-                    }
             } else {
-                VStack(alignment: .leading, spacing: row.labelSpacing) {
-                    Text(regionName)
-                        .font(.headline)
-                    Text(dateRange)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(detailLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .opacity(planned.labelOpacity)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(WhereFormat.dayCount(dayCount))
-                    .font(.subheadline.bold())
-                    .monospacedDigit()
-                    .padding(.horizontal, row.countHorizontalPadding)
-                    .padding(.vertical, row.countVerticalPadding)
-                    .background {
-                        Capsule()
-                            .fill(tint.opacity(row.countFillOpacity / 2))
-                    }
+                PlannedJourneyLabels(
+                    regionName: regionName,
+                    dateRange: dateRange,
+                    detailLabel: detailLabel,
+                    row: row,
+                    planned: planned,
+                )
+                JourneyDayCountBadge(
+                    text: WhereFormat.dayCount(dayCount),
+                    font: .subheadline.bold(),
+                    horizontalPadding: row.countHorizontalPadding,
+                    verticalPadding: row.countVerticalPadding,
+                    fill: tint.opacity(row.countFillOpacity / 2),
+                )
             }
         }
         .frame(minHeight: proportionalHeight)
@@ -92,6 +67,29 @@ struct PlannedPresenceJourneyCardContent: View {
                 ? planned.joinedVerticalPadding
                 : row.verticalPadding,
         )
+    }
+}
+
+private struct PlannedJourneyLabels: View {
+    let regionName: String
+    let dateRange: String
+    let detailLabel: String
+    let row: WhereStylesheet.TimelineStyle.Row
+    let planned: WhereStylesheet.TimelineStyle.Planned
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: row.labelSpacing) {
+            Text(regionName)
+                .font(.headline)
+            Text(dateRange)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(detailLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .opacity(planned.labelOpacity)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

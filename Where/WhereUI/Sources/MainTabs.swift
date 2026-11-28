@@ -722,3 +722,60 @@ private struct RecordingConfigurationWarningTabLabel: View {
         }
     }
 #endif
+
+/// Compact acquisition or recovery status hosted above the app's tab bar.
+struct LocationWelcomeStatusAccessory: View {
+    let accessory: LocationWelcomeModel.Accessory
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        switch accessory {
+            case .locating:
+                LocationFindingStatus(style: style)
+
+            case let .actionRequired(action):
+                LocationSettingsButton(style: style, action: action)
+        }
+    }
+
+    private var style: WhereStylesheet.LocationWelcomeStyle.Accessory {
+        stylesheet.locationWelcome.accessory
+    }
+}
+
+private struct LocationFindingStatus: View {
+    let style: WhereStylesheet.LocationWelcomeStyle.Accessory
+    @MotionIsStatic private var motionIsStatic
+
+    var body: some View {
+        HStack(spacing: style.contentSpacing) {
+            if motionIsStatic {
+                Image(systemSymbol: .locationFill)
+                    .font(.system(size: style.symbolSize, weight: .semibold))
+                    .accessibilityHidden(true)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
+            }
+            Text(String(localized: .locationWelcomeFinding))
+                .font(style.titleFont)
+        }
+        .padding(.horizontal, style.horizontalPadding)
+        .padding(.vertical, style.verticalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+#if DEBUG
+    #Preview("Finding") {
+        LocationWelcomeStatusAccessory(accessory: .locating)
+            .whereBroadwayRoot()
+    }
+
+    #Preview("Action required") {
+        LocationWelcomeStatusAccessory(accessory: .actionRequired(.preciseLocation))
+            .whereBroadwayRoot()
+    }
+#endif

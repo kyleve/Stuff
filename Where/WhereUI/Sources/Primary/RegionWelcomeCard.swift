@@ -46,125 +46,29 @@ struct RegionWelcomeCard: View {
                 PassportSeal(systemSymbol: regionStyle.symbol, tint: regionStyle.tint)
             }
 
-            VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                Text(title)
-                    .font(.title2.bold())
-                    .fontDesign(.serif)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(String(localized: .locationWelcomeMessage(
-                    presentation.region.localizedName,
-                )))
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .accessibilityElement(children: .combine)
+            RegionWelcomeHeading(title: title, regionName: presentation.region.localizedName)
 
             if planStayAction != nil {
-                Button(
-                    String(localized: .locationForecastEditStay),
-                    systemSymbol: .calendarBadgeClock,
-                    action: planStay,
-                )
-                .buttonStyle(LocationForecastEndorsementButtonStyle(
-                    tint: regionStyle.tint,
-                    expands: true,
-                    controls: stylesheet.locationForecast.controls,
-                    ink: stylesheet.locationForecast.ink,
-                ))
+                RegionWelcomePlanButton(tint: regionStyle.tint, planStay: planStay)
             }
         }
         .padding(welcome.padding)
         .frame(maxWidth: welcome.maxWidth)
         .background {
-            ZStack {
-                if welcome.surface.usesReflection {
-                    shape.fill(.clear)
-                        .glassEffect(
-                            .regular.tint(regionStyle.tint.opacity(welcome.glassTintOpacity)),
-                            in: shape,
-                        )
-
-                    shape.fill(.background)
-                        .opacity(welcome.paperOpacity)
-                }
-
-                ZStack {
-                    SecurityPrintRosette(
-                        tint: regionStyle.tint,
-                        wobble: stylesheet.card.regular.rosette.wobble,
-                        lineWidth: stylesheet.card.regular.rosette.lineWidth,
-                        primaryRingSpacing: stylesheet.card.regular.rosette.primaryRingSpacing,
-                        secondaryRingSpacing: stylesheet.card.regular.rosette.secondaryRingSpacing,
-                        primaryOpacity: stylesheet.card.rosetteFill.primary,
-                        secondaryOpacity: stylesheet.card.rosetteFill.secondary,
-                    )
-
-                    if
-                        let regionShape = stylesheet.card.regular.regionShape,
-                        let microprint = regionPaths?.microprint,
-                        !microprint.isEmpty
-                    {
-                        RegionOutlineSecurityBorder(
-                            paths: [microprint],
-                            tint: regionStyle.tint,
-                            cornerRadius: welcome.cornerRadius,
-                            inset: regionShape.securityBorder.inset,
-                            glyphSize: regionShape.securityBorder.glyphSize,
-                            spacing: regionShape.securityBorder.spacing,
-                            opacity: regionShape.securityBorder.opacity,
-                        )
-                    }
-
-                    if
-                        let artwork = stylesheet.card.regular.regionShape,
-                        let watermark = regionPaths?.watermark,
-                        !watermark.isEmpty
-                    {
-                        RegionOutlineArtwork(
-                            path: watermark,
-                            tint: regionStyle.tint,
-                            style: artwork.watermark,
-                        )
-                    }
-                }
-                .blendMode(stylesheet.card.securityPrint.backgroundBlendMode)
-            }
-            .clipShape(shape)
-            .allowsHitTesting(false)
+            RegionWelcomeBackground(
+                welcome: welcome,
+                tint: regionStyle.tint,
+                microprint: regionPaths?.microprint,
+                watermark: regionPaths?.watermark,
+            )
         }
         .matteSurface(welcome.surface, tint: regionStyle.tint, in: shape)
         .overlay(alignment: .topTrailing) {
-            Button(action: dismissAction) {
-                Label(String(localized: .locationWelcomeDismiss), systemSymbol: .xmark)
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .background {
-                if welcome.close.surface.usesReflection {
-                    Circle()
-                        .fill(.background)
-                        .opacity(welcome.paperOpacity)
-                }
-            }
-            .buttonStyle(welcome.close.buttonStyle(tint: regionStyle.tint))
-            .modifier(RegionWelcomeCloseSurface(style: welcome.close, tint: regionStyle.tint))
-            .contentShape(Circle())
-            .shadow(
-                color: regionStyle.tint.opacity(welcome.close.glow.opacity),
-                radius: welcome.close.glow.radius,
-                y: welcome.close.glow.offsetY,
+            RegionWelcomeDismissButton(
+                welcome: welcome,
+                tint: regionStyle.tint,
+                dismissAction: dismissAction,
             )
-            .shadow(
-                color: .black.opacity(welcome.close.lift.opacity),
-                radius: welcome.close.lift.radius,
-                y: welcome.close.lift.offsetY,
-            )
-            .offset(welcome.close.offset)
         }
         .shadow(
             color: regionStyle.tint.opacity(welcome.glow.opacity),
@@ -201,6 +105,50 @@ struct RegionWelcomeCard: View {
     private struct ArtworkPaths {
         let watermark: Path
         let microprint: Path
+    }
+}
+
+private struct RegionWelcomeHeading: View {
+    let title: String
+    let regionName: String
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
+            Text(title)
+                .font(.title2.bold())
+                .fontDesign(.serif)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(String(localized: .locationWelcomeMessage(
+                regionName,
+            )))
+            .font(.body)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct RegionWelcomePlanButton: View {
+    let tint: Color
+    let planStay: () -> Void
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Button(
+            String(localized: .locationForecastEditStay),
+            systemSymbol: .calendarBadgeClock,
+            action: planStay,
+        )
+        .buttonStyle(LocationForecastEndorsementButtonStyle(
+            tint: tint,
+            expands: true,
+            controls: stylesheet.locationForecast.controls,
+            ink: stylesheet.locationForecast.ink,
+        ))
     }
 }
 
