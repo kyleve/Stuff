@@ -27,7 +27,9 @@
         func waitForActivation() async {
             guard let mount = await nextMount() else { return }
             for await ready in Observations({ mount.didActivate }) {
-                if ready || Task.isCancelled { return }
+                if ready || Task.isCancelled {
+                    return
+                }
             }
         }
 

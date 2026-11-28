@@ -448,9 +448,9 @@ struct FlightFixtureExporterTests {
                 try #require(afterEndpoint.sampleID == exported.sampleIDs[beforeEndpoint.sampleID])
                 switch (beforeEndpoint.reason, afterEndpoint.reason) {
                     case let (
-                    .recordingGap(beforeDuration, beforeSpeed),
-                    .recordingGap(afterDuration, afterSpeed)
-                ):
+                        .recordingGap(beforeDuration, beforeSpeed),
+                        .recordingGap(afterDuration, afterSpeed)
+                    ):
                         try #require(abs(beforeDuration - afterDuration) < 0.000001)
                         try #require(abs(beforeSpeed - afterSpeed) < 0.000001)
                     case let (.recordedSpeed(beforeSpeed), .recordedSpeed(afterSpeed)):

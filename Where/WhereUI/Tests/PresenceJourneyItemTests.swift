@@ -92,7 +92,9 @@ struct PresenceJourneyItemTests {
         #expect(items[2] == .flight(flight))
         for region in [Region.california, .newYork] {
             let segments = items.compactMap { item -> RegionStint? in
-                if case let .stay(stint) = item, stint.region == region { return stint }
+                if case let .stay(stint) = item, stint.region == region {
+                    return stint
+                }
                 return nil
             }
             #expect(segments.map(\.dayCount) == [2, 3])
@@ -111,8 +113,12 @@ struct PresenceJourneyItemTests {
         let end = CalendarDay(year: 2026, month: 10, day: 23)
         let days = start.days(through: end).map { day in
             var regions: Set<Region> = []
-            if day <= departure { regions.insert(.california) }
-            if day == start || day >= departure { regions.insert(.newYork) }
+            if day <= departure {
+                regions.insert(.california)
+            }
+            if day == start || day >= departure {
+                regions.insert(.newYork)
+            }
             return DayPresence(day: day, regions: regions)
         }
         let report = YearReport(year: 2026, days: days, totals: [:])
@@ -175,9 +181,15 @@ struct PresenceJourneyItemTests {
     func shorterVisitInterruptsNewYorkBeforeTheSeptember20Flight(reversed: Bool) {
         let days = (13 ... 23).map { day in
             var regions: Set<Region> = []
-            if day <= 20 { regions.insert(.newYork) }
-            if day == 14 { regions.insert(.other) }
-            if day >= 20 { regions.insert(.california) }
+            if day <= 20 {
+                regions.insert(.newYork)
+            }
+            if day == 14 {
+                regions.insert(.other)
+            }
+            if day >= 20 {
+                regions.insert(.california)
+            }
             return DayPresence(day: CalendarDay(year: 2026, month: 9, day: day), regions: regions)
         }
         let report = YearReport(year: 2026, days: days, totals: [:])

@@ -92,7 +92,9 @@ struct RegionCardLocationsTests {
     ) async {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
-            if predicate() { return }
+            if predicate() {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(predicate(), "location details were not refreshed before timeout")

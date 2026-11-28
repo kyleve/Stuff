@@ -34,8 +34,12 @@ public struct RecordingDeviceProfile: Identifiable, Codable, Sendable, Hashable 
         _ lhs: RecordingDeviceProfile,
         _ rhs: RecordingDeviceProfile,
     ) -> Bool {
-        if lhs.registeredAt != rhs.registeredAt { return lhs.registeredAt < rhs.registeredAt }
-        if lhs.systemName != rhs.systemName { return lhs.systemName < rhs.systemName }
+        if lhs.registeredAt != rhs.registeredAt {
+            return lhs.registeredAt < rhs.registeredAt
+        }
+        if lhs.systemName != rhs.systemName {
+            return lhs.systemName < rhs.systemName
+        }
         if lhs.kind.persistenceDiscriminator != rhs.kind.persistenceDiscriminator {
             return lhs.kind.persistenceDiscriminator < rhs.kind.persistenceDiscriminator
         }

@@ -29,5 +29,7 @@ enum DataCompatibilityLog {
         }
     }
 
-    enum SpanName: String { case verify }
+    enum SpanName: String {
+        case verify
+    }
 }

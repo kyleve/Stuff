@@ -37,7 +37,10 @@ struct PresenceTimelineList: View {
     private let suppliedPlanningDestination: Binding<PlannedStaysDestination?>?
     @State private var localPlanningDestination: PlannedStaysDestination?
     @BScrollPosition<RowID, Int> private var position: ScrollPosition
-    enum ScrollRole: Hashable { case timeline }
+    enum ScrollRole: Hashable {
+        case timeline
+    }
+
     private var planningDestination: Binding<PlannedStaysDestination?> {
         suppliedPlanningDestination ?? $localPlanningDestination
     }

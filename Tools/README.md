@@ -1,5 +1,16 @@
 # Stuff Tools
 
+## Swift layout
+
+`./swiftformat` expands comma-separated enum cases and closure bodies passed to
+`ObservableHostingView`. Put a single enum case on its own line as well. When
+the model factory is a closure literal, write it as the first trailing closure
+and label the view closure `content:`. A named factory stays inside parentheses.
+
+The macOS Tool Tests job checks those additional conventions with Xcode's SwiftSyntax. Run
+`python3 -m Tools.swift_layout_lint` to check tracked Swift files or pass paths
+to check individual files.
+
 ## Python and web lint
 
 Run `mise install` and `mise exec -- npm ci` after a tool-pin change.

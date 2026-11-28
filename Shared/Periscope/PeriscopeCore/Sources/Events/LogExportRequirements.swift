@@ -22,7 +22,9 @@ public enum LogExportRequirements: Equatable, Sendable {
 
     /// Conservative defaults for the existing declaration and emission classifications.
     public static func classified(exposure: LogFieldExposure, kind: LogFieldKind) -> Self {
-        if exposure == .shareable { return .baseline(requiring: []) }
+        if exposure == .shareable {
+            return .baseline(requiring: [])
+        }
         switch kind {
             case .identifier: return .diagnostic(requiring: [.identifiers])
             case .location: return .diagnostic(requiring: [.location])
@@ -52,8 +54,16 @@ public enum LogExportRequirements: Equatable, Sendable {
 
 /// Stable requirement tags and sorted control identities, independent of associated-value coding.
 extension LogExportRequirements: Codable {
-    private enum CodingKeys: String, CodingKey { case mode, controls }
-    private enum Mode: String, Codable { case baseline, diagnostic, never }
+    private enum CodingKeys: String, CodingKey {
+        case mode
+        case controls
+    }
+
+    private enum Mode: String, Codable {
+        case baseline
+        case diagnostic
+        case never
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)

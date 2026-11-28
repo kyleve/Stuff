@@ -130,10 +130,12 @@ public enum RegionGeometryCatalog {
                     catalog: catalog,
                     resourceURL: resourceURL,
                 )
-                if !polygons.isEmpty { entries.append(RegionPolygons(
-                    region: region,
-                    polygons: polygons,
-                )) }
+                if !polygons.isEmpty {
+                    entries.append(RegionPolygons(
+                        region: region,
+                        polygons: polygons,
+                    ))
+                }
             }
             let result = RegionDisplayGeometry(entries: entries)
             try Task.checkCancellation()
@@ -211,7 +213,9 @@ public enum RegionGeometryCatalog {
         }
 
         func outlines(for region: Region) throws -> [RegionOutline] {
-            if let outlines = cached[region] { return outlines }
+            if let outlines = cached[region] {
+                return outlines
+            }
             let outlines = try RegionLog.geometryCatalog.measure(
                 .loadRegionOutlines(region),
                 budget: .seconds(1),

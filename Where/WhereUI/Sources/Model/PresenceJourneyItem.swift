@@ -60,13 +60,17 @@ enum PresenceJourneyItem: Identifiable, Hashable {
         return result.sorted { lhs, rhs in
             let left = lhs.sortDay(calendar: calendar, yearStart: yearStart)
             let right = rhs.sortDay(calendar: calendar, yearStart: yearStart)
-            if left != right { return left < right }
+            if left != right {
+                return left < right
+            }
             switch (lhs, rhs) {
                 case let (.flight(a), .flight(b)): return flightOrder(a, b)
                 case (.flight, .stay): return true
                 case (.stay, .flight): return false
                 case let (.stay(a), .stay(b)):
-                    if a.end != b.end { return a.end < b.end }
+                    if a.end != b.end {
+                        return a.end < b.end
+                    }
                     return Region.declarationOrder[a.region, default: 0]
                         < Region.declarationOrder[b.region, default: 0]
             }
@@ -74,7 +78,9 @@ enum PresenceJourneyItem: Identifiable, Hashable {
     }
 
     private static func flightOrder(_ lhs: FlightAssessment, _ rhs: FlightAssessment) -> Bool {
-        if lhs.startedAt != rhs.startedAt { return lhs.startedAt < rhs.startedAt }
+        if lhs.startedAt != rhs.startedAt {
+            return lhs.startedAt < rhs.startedAt
+        }
         if lhs.id.departureSampleID != rhs.id.departureSampleID {
             return lhs.id.departureSampleID.uuidString < rhs.id.departureSampleID.uuidString
         }

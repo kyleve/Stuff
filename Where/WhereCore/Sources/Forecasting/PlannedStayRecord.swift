@@ -30,7 +30,9 @@ public struct PlannedStayRecord: Hashable, Sendable, Codable, Identifiable {
     /// Deterministic last-writer ordering for duplicate rows produced by
     /// eventually-consistent CloudKit writes.
     public static func newer(_ lhs: PlannedStayRecord, than rhs: PlannedStayRecord) -> Bool {
-        if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+        if lhs.updatedAt != rhs.updatedAt {
+            return lhs.updatedAt > rhs.updatedAt
+        }
         return lhs.id.uuidString > rhs.id.uuidString
     }
 }

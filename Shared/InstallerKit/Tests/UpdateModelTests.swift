@@ -96,7 +96,9 @@ struct UpdateModelTests {
         let preferences = MemoryUpdatePreferences()
         let service = makeService(preferences, client: client)
         let model = UpdateModel(service: service)
-        if hasPrevious { await model.refresh(force: true) }
+        if hasPrevious {
+            await model.refresh(force: true)
+        }
         let previous = model.state.snapshot
         let cached = preferences.installerUpdates.cached
         client.held = true

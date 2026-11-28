@@ -86,38 +86,37 @@ struct MonthGridView: View {
                 .unavailableForeground)
     }
 
+    @ViewBuilder
     private var monthSummary: some View {
-        Group {
-            if !compact, !month.regionTotals.isEmpty {
-                MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
-            }
-            ForEach(
-                (compact ? [] : planningSummary)
-                    .filter { focusedRegion == nil || $0.region == focusedRegion },
-                id: \.region,
-            ) { summary in
-                VStack(alignment: .leading, spacing: calendar.month.footerSpacing) {
-                    if summary.plannedDays.upper > 0 {
-                        planningSummaryRow(
-                            region: summary.region,
-                            days: summary.plannedDays,
-                            kind: summary.plannedDays.isExact
-                                ? .planningCalendarPlanned : .planningCalendarPossible,
-                            symbol: summary.plannedDays.isExact ? .lineDiagonal : .circleDashed,
-                        )
-                    }
-                    if summary.homeDays.upper > 0 {
-                        planningSummaryRow(
-                            region: summary.region,
-                            days: summary.homeDays,
-                            kind: .planningCalendarHome,
-                            symbol: .house,
-                        )
-                    }
+        if !compact, !month.regionTotals.isEmpty {
+            MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
+        }
+        ForEach(
+            (compact ? [] : planningSummary)
+                .filter { focusedRegion == nil || $0.region == focusedRegion },
+            id: \.region,
+        ) { summary in
+            VStack(alignment: .leading, spacing: calendar.month.footerSpacing) {
+                if summary.plannedDays.upper > 0 {
+                    planningSummaryRow(
+                        region: summary.region,
+                        days: summary.plannedDays,
+                        kind: summary.plannedDays.isExact
+                            ? .planningCalendarPlanned : .planningCalendarPossible,
+                        symbol: summary.plannedDays.isExact ? .lineDiagonal : .circleDashed,
+                    )
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                if summary.homeDays.upper > 0 {
+                    planningSummaryRow(
+                        region: summary.region,
+                        days: summary.homeDays,
+                        kind: .planningCalendarHome,
+                        symbol: .house,
+                    )
+                }
             }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -235,8 +234,12 @@ struct MonthGridView: View {
         let key = CalendarDay(from: day.date, in: dateCalendar)
         guard let presence = plannedPresence(key) else { return [:] }
         var regions = presence.possibleRegions
-        if let home = presence.homeAssumption { regions.insert(home.region) }
-        if let focusedRegion { regions = regions.intersection([focusedRegion]) }
+        if let home = presence.homeAssumption {
+            regions.insert(home.region)
+        }
+        if let focusedRegion {
+            regions = regions.intersection([focusedRegion])
+        }
         return Dictionary(uniqueKeysWithValues: regions.compactMap { region in
             presence.membership(in: region).map { (region, $0) }
         })
@@ -460,8 +463,12 @@ struct DayCell: View {
                 WhereFormat.planningMembership(membership),
             ))
         }
-        if day.hasEvidence { values.append(String(localized: .calendarAttachmentAccessibility)) }
-        if day.hasFlight { values.append(String(localized: .historyFlight)) }
+        if day.hasEvidence {
+            values.append(String(localized: .calendarAttachmentAccessibility))
+        }
+        if day.hasFlight {
+            values.append(String(localized: .historyFlight))
+        }
         return values.joined(separator: "; ")
     }
 

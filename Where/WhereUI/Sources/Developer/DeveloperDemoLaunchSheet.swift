@@ -23,10 +23,18 @@
 
         var configuration: DemoDataBuilder.Configuration {
             var categories: Set<DataIssueCategory> = []
-            if missingDays { categories.insert(.missingDays) }
-            if borderDrift { categories.insert(.borderDrift) }
-            if abruptChange { categories.insert(.abruptChange) }
-            if flightDay { categories.insert(.flightDay) }
+            if missingDays {
+                categories.insert(.missingDays)
+            }
+            if borderDrift {
+                categories.insert(.borderDrift)
+            }
+            if abruptChange {
+                categories.insert(.abruptChange)
+            }
+            if flightDay {
+                categories.insert(.flightDay)
+            }
             return DemoDataBuilder.Configuration(issueCategories: categories)
         }
     }

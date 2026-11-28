@@ -2,7 +2,9 @@ import PeriscopeCore
 
 @LogScope("RegionAttribution")
 enum RegionAttributionLog {
-    enum SpanName: Hashable { case rebuild }
+    enum SpanName: Hashable {
+        case rebuild
+    }
 
     @LogEvent("tracked-regions-read-failed", level: .warning, version: 2)
     struct TrackedRegionsReadFailed {

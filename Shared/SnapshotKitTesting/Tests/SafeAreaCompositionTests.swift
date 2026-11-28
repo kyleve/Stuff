@@ -39,7 +39,8 @@ struct SafeAreaCompositionTests {
                 @MainActor func navigationControllers(in controller: UIViewController)
                     -> [UINavigationController]
                 {
-                    if let navigation = controller as? UINavigationController { return [navigation]
+                    if let navigation = controller as? UINavigationController {
+                        return [navigation]
                     }
                     return controller.children.flatMap { navigationControllers(in: $0) }
                 }
@@ -55,7 +56,9 @@ struct SafeAreaCompositionTests {
                     #expect(controller.view.safeAreaInsets.bottom >= insets.bottom)
                 }
                 @MainActor func fields(in view: UIView) -> [UITextField] {
-                    if let field = view as? UITextField { return [field] }
+                    if let field = view as? UITextField {
+                        return [field]
+                    }
                     return view.subviews.flatMap { fields(in: $0) }
                 }
                 let searchFields = fields(in: host.view)

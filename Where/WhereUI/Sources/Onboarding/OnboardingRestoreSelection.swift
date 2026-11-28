@@ -47,7 +47,11 @@ struct OnboardingRestoreSelection {
     }
 
     var strategy: BackupCoordinator.ImportStrategy? {
-        if case let .ready(_, strategy) = state { strategy } else { nil }
+        if case let .ready(_, strategy) = state {
+            strategy
+        } else {
+            nil
+        }
     }
 
     var readyImport: ReadyImport? {
@@ -65,7 +69,11 @@ struct OnboardingRestoreSelection {
     }
 
     var committedSummary: BackupCoordinator.ImportSummary? {
-        if case let .committed(summary) = state { summary } else { nil }
+        if case let .committed(summary) = state {
+            summary
+        } else {
+            nil
+        }
     }
 
     mutating func select(url: URL, hasScopedAccess: Bool) {

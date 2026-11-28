@@ -22,8 +22,12 @@ enum RecordedFlightArchiveFixture {
         let loadedRegions: [Region] = [.california, .newYork, .ontario]
 
         func region(at coordinate: Coordinate) -> Region {
-            if coordinate.longitude > -40 { return .california }
-            if (-64 ... -61).contains(coordinate.longitude) { return .ontario }
+            if coordinate.longitude > -40 {
+                return .california
+            }
+            if (-64 ... -61).contains(coordinate.longitude) {
+                return .ontario
+            }
             return .newYork
         }
 

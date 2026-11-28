@@ -19,11 +19,12 @@ public protocol SnapshotProviding {
     @MainActor @SnapshotCaseBuilder static var snapshots: [SnapshotCase] { get }
 }
 
+@MainActor
 extension SnapshotProviding {
     /// A scrollable cutsheet of every case's non-accessibility variants, for an
     /// Xcode `#Preview`. Accessibility captures are excluded because their
     /// annotation renderer belongs to the test-only `SnapshotKitTesting` product.
-    @MainActor public static var snapshotPreviews: some View {
+    public static var snapshotPreviews: some View {
         SnapshotCutsheet(cases: snapshots)
     }
 }

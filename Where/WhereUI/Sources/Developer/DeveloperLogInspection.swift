@@ -13,7 +13,6 @@ extension View {
     /// With the developer overlay's Log View Mode on, wrapped views gain a badge
     /// that opens the newest events in `log`'s scope subtree — e.g. wrap an
     /// evidence row in `WhereLog.evidence` to see everything logged under it.
-    @ViewBuilder
     func debugLogInspectable(_ log: Log<some LogScopeDefinition>) -> some View {
         #if DEBUG
             logInspectable(log)

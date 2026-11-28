@@ -25,7 +25,9 @@ struct GroupedRegionSections<Row: View>: View {
                 } header: {
                     Text(String(localized: .regionGroupYours))
                 } footer: {
-                    if let yoursFooter { Text(yoursFooter) }
+                    if let yoursFooter {
+                        Text(yoursFooter)
+                    }
                 }
             }
 

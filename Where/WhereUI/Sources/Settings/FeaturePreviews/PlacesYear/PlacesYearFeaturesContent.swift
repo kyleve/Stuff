@@ -35,7 +35,9 @@ struct PlacesYearFeaturesContent: View {
             }
         }
         .task(id: report.elsewhereInput) {
-            if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
+            if let input = report.elsewhereInput {
+                await report.elsewhere.refresh(input)
+            }
         }
         .featureMarketingRow(order: 1)
         .settingsRow(PlacesYearFeaturesView.Item.locations, restingBackground: .clear)

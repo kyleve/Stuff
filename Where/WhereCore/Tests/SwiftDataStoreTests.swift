@@ -1372,9 +1372,13 @@ struct SwiftDataStoreTests {
             try await store.perform(expectedDataGenerationID: .initial) {
                 try await store.readSnapshot {
                     _ = try await store.allSamples()
-                    if !afterSnapshot { await pause() }
+                    if !afterSnapshot {
+                        await pause()
+                    }
                 }
-                if afterSnapshot { await pause() }
+                if afterSnapshot {
+                    await pause()
+                }
                 // A later snapshot must retain the first snapshot's guard,
                 // even if its own reads now include the external commit.
                 try await store.readSnapshot {

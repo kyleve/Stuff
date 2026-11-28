@@ -1,10 +1,10 @@
 import InstallerKit
-#if DEBUG
-    @_spi(Testing) import InstallerKitUI
-#endif
 import SnapshotKit
 import SwiftUI
 import WhereCore
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
 
 /// History-free recovery shared by cold launch and live session retirement.
 struct DataCompatibilityView: View {

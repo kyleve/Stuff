@@ -16,13 +16,17 @@ enum RegionGeometryReader {
 
     static func polygons(at url: URL) throws -> [GeoPolygon] {
         let entry = cache.withLock { cache in
-            if let existing = cache.object(forKey: url as NSURL) { return existing }
+            if let existing = cache.object(forKey: url as NSURL) {
+                return existing
+            }
             let entry = Entry()
             cache.setObject(entry, forKey: url as NSURL)
             return entry
         }
         return try entry.polygons.withLock { stored in
-            if let stored { return stored }
+            if let stored {
+                return stored
+            }
             let data = try Data(contentsOf: url, options: .mappedIfSafe)
             let polygons = try url.pathExtension == "twkb"
                 ? TinyWKB.polygons(in: data) : GeoJSON.polygons(in: data)

@@ -30,7 +30,11 @@ enum WhereStartupState {
     }
 
     var session: WhereSession? {
-        if case let .running(session) = self { session } else { nil }
+        if case let .running(session) = self {
+            session
+        } else {
+            nil
+        }
     }
 
     var bootstrap: (any WhereScopeAssembling)? {

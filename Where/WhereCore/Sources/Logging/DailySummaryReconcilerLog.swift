@@ -3,7 +3,9 @@ import PeriscopeCore
 /// Structured events for `DailySummaryReconciler`.
 @LogScope("DailySummaryReconciler")
 enum DailySummaryReconcilerLog {
-    enum SpanName: Hashable { case reconcile }
+    enum SpanName: Hashable {
+        case reconcile
+    }
 
     @LogEvent("reconcile-failed", level: .error, version: 2)
     struct ReconcileFailed {

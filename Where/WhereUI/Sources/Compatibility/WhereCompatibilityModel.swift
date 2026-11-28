@@ -79,7 +79,10 @@ public final class WhereCompatibilityModel {
         // A new installation can choose recording without opening history. Discovery and Finish
         // still require admission; an established viewer has no role-change escape hatch.
         if model.permitsRecordingChoice,
-           case .blocked(.recordingDeviceRequired) = coordinator.state { return false }
+           case .blocked(.recordingDeviceRequired) = coordinator.state
+        {
+            return false
+        }
         return !coordinator.state.allowsStore
             || model.activeScope?.compatibilityEvents.isAdmitted == false
     }
@@ -97,8 +100,11 @@ public final class WhereCompatibilityModel {
         guard foreground else { return }
         foregroundTask = Task { [weak self, weak model] in
             while !Task.isCancelled {
-                if let self, let model { await refresh(model: model) }
-                else { return }
+                if let self, let model {
+                    await refresh(model: model)
+                } else {
+                    return
+                }
                 guard let wait = self?.waitForNextPoll else { return }
                 do { try await wait() }
                 catch is CancellationError { return }
@@ -113,8 +119,11 @@ public final class WhereCompatibilityModel {
         remoteTask = Task { [weak self, weak model] in
             for await _ in changes {
                 guard !Task.isCancelled else { break }
-                if let self, let model { await refresh(model: model) }
-                else { break }
+                if let self, let model {
+                    await refresh(model: model)
+                } else {
+                    break
+                }
             }
         }
     }

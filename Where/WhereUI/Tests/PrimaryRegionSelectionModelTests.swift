@@ -240,7 +240,9 @@ struct PrimaryRegionSelectionModelTests {
                 .first { field in
                     var ancestor: UIView? = field
                     while let current = ancestor {
-                        if current.isHidden || current.alpha == 0 { return false }
+                        if current.isHidden || current.alpha == 0 {
+                            return false
+                        }
                         ancestor = current.superview
                     }
                     let frame = field.convert(field.bounds, to: view)
@@ -264,7 +266,9 @@ struct PrimaryRegionSelectionModelTests {
         }
         // A toolbar can host a presentation copy. UIKit's search bar forwards focus to the editor.
         try await waitForAsync {
-            if focusedField() != nil { return true }
+            if focusedField() != nil {
+                return true
+            }
             _ = search.searchBar.becomeFirstResponder()
             return focusedField() != nil
         }

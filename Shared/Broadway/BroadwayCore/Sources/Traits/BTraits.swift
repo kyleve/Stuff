@@ -137,8 +137,9 @@ public protocol BTraitsValue: Hashable {
     ) -> Observer
 }
 
+@MainActor
 extension BTraitsValue {
-    @MainActor public static func currentValue(
+    public static func currentValue(
         from _: UIViewController,
     ) -> Self {
         defaultValue

@@ -36,7 +36,9 @@ struct EvidenceDetailView: View {
         .navigationTitle(model.evidence.kind.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if model.blobState == .idle { await model.load() }
+            if model.blobState == .idle {
+                await model.load()
+            }
         }
         // Log View Mode: reveal an inspect badge for this screen's
         // evidence-detail events (blob-load failures). A no-op in release.

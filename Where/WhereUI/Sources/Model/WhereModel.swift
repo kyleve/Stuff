@@ -76,7 +76,9 @@ public final class WhereModel {
 
     /// A demo can be locked out, but its simulated permission and consent cannot publish metadata.
     private var usesInstallationRecording: Bool {
-        if case .retiring = startupState { return false }
+        if case .retiring = startupState {
+            return false
+        }
         return switch launchDemoState {
             case .pending, .building: false
             case .inactive: activeScope?.compatibilityEvents.permitsVersionPublication ?? true
@@ -104,7 +106,9 @@ public final class WhereModel {
 
     /// Whether the cold-launch splash is currently building a requested demo.
     var isBuildingLaunchDemo: Bool {
-        if case .building = launchDemoState { return true }
+        if case .building = launchDemoState {
+            return true
+        }
         return false
     }
 
@@ -670,7 +674,9 @@ public final class WhereModel {
     /// built it up front). The re-driven launch after a reset rebuilds a fresh
     /// session here over the retained (now-erased) scope.
     func startSession(scope: WhereScope) -> WhereSession {
-        if let session { return session }
+        if let session {
+            return session
+        }
         let session = WhereSession(
             scope: scope,
             installationContextStore: scope.installationContextStore,

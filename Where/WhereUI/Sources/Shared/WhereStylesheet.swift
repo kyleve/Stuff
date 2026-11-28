@@ -220,7 +220,11 @@ extension WhereStylesheet {
         }
 
         struct Accessory: Equatable {
-            enum Copy: Equatable { case full, compact }
+            enum Copy: Equatable {
+                case full
+                case compact
+            }
+
             var copy = Copy.full
             var contentSpacing: CGFloat
             var horizontalPadding: CGFloat

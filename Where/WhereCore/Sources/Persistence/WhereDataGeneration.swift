@@ -201,11 +201,8 @@ public struct WhereDataGeneration: Identifiable, Codable, Sendable, Hashable {
 
         let syntheticID = resetConflictID(for: resetHeads)
         guard syntheticID != initial.id,
-              changes.contains(where: { $0.id == syntheticID }) == false
-        else {
-            throw RecordingPersistenceError.incompleteDataGenerationHistory
-        }
-        guard let maximumRevision = resetHeads.map(\.revision).max(),
+              changes.contains(where: { $0.id == syntheticID }) == false,
+              let maximumRevision = resetHeads.map(\.revision).max(),
               maximumRevision < Int64.max,
               let changedAt = resetHeads.map(\.changedAt).max(),
               let issuer = resetHeads.max(by: isPreferredBefore)?.changedByDeviceID

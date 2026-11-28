@@ -230,7 +230,11 @@ struct DataCompatibilityCoordinatorTests {
         try await waitForCompatibility { await transport.isReadHeld }
         await transport.changeAccount()
         try await waitForCompatibility {
-            if case .blocked = coordinator.state { true } else { false }
+            if case .blocked = coordinator.state {
+                true
+            } else {
+                false
+            }
         }
         await transport.releaseRead()
         await refresh.value

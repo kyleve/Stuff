@@ -17,7 +17,9 @@ struct PlannedStayEditorDestination: View {
     }
 
     var body: some View {
-        ObservableHostingView(makeModel) { PlannedStayEditor(model: $0) }
+        ObservableHostingView(makeModel) {
+            PlannedStayEditor(model: $0)
+        }
     }
 }
 
@@ -89,7 +91,9 @@ struct PlannedStayEditor: View {
                     Section {
                         Button(String(localized: .plannedStayEditorDelete), role: .destructive) {
                             Task {
-                                if await model.delete() { dismiss() }
+                                if await model.delete() {
+                                    dismiss()
+                                }
                             }
                         }
                     }
@@ -115,7 +119,9 @@ struct PlannedStayEditor: View {
                     } else {
                         Button(String(localized: .commonSave)) {
                             Task {
-                                if await model.save() { dismiss() }
+                                if await model.save() {
+                                    dismiss()
+                                }
                             }
                         }
                         .disabled(!model.canSave)

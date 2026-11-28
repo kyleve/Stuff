@@ -584,7 +584,9 @@ struct YearReportModelTests {
             ))
         }
         _ = try await services.recording.rename(remoteID, to: "Travel tablet")
-        if removedBeforeLoad { _ = try await services.recording.remove(remoteID) }
+        if removedBeforeLoad {
+            _ = try await services.recording.remove(remoteID)
+        }
         let report = YearReportModel(
             services: services,
             selectedYear: 2026,
@@ -1032,7 +1034,9 @@ struct YearReportModelTests {
     ) async {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
-            if predicate() { return }
+            if predicate() {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(predicate(), "condition was not met before timeout")

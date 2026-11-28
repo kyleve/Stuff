@@ -323,12 +323,17 @@ struct DiagnosticReportingSettingsModelTests {
 }
 
 private actor ApplyAttempts {
-    enum Failure: Error { case firstAttempt }
+    enum Failure: Error {
+        case firstAttempt
+    }
+
     private var count = 0
 
     func apply(_: RemoteLoggingConfiguration) throws {
         count += 1
-        if count == 1 { throw Failure.firstAttempt }
+        if count == 1 {
+            throw Failure.firstAttempt
+        }
     }
 }
 

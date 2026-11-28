@@ -83,7 +83,9 @@ public struct SampleCorrectionCoordinator: Sendable {
             Self.logger.reviewInvalidated()
             return try await refreshedReview(for: proposal)
         }
-        if case .applied = result { await onCommitted() }
+        if case .applied = result {
+            await onCommitted()
+        }
         return result
     }
 
@@ -132,7 +134,9 @@ public struct SampleCorrectionCoordinator: Sendable {
             Self.logger.reviewInvalidated()
             return try await .stale(pointReview(for: correction))
         }
-        if case .applied = result { await onCommitted() }
+        if case .applied = result {
+            await onCommitted()
+        }
         return result
     }
 

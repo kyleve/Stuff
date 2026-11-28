@@ -129,7 +129,11 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// The in-flight (or most recently finished) drive task, if `run()` has
     /// been called.
     private var currentTask: Task<Void, Never>? {
-        if case let .running(_, task) = state { task } else { nil }
+        if case let .running(_, task) = state {
+            task
+        } else {
+            nil
+        }
     }
 
     /// Walk the plan once. Safe to call repeatedly; only the first call
@@ -269,7 +273,9 @@ public final class LifecycleRunner<Launch: Sendable> {
         var value = input
         var index = 0
         while index < nodes.count {
-            if Task.isCancelled { return .cancelled }
+            if Task.isCancelled {
+                return .cancelled
+            }
 
             switch nodes[index] {
                 case let .step(node):
@@ -305,13 +311,17 @@ public final class LifecycleRunner<Launch: Sendable> {
                     }
 
                 case let .gate(node):
-                    if memo[node.id] != nil { break }
+                    if memo[node.id] != nil {
+                        break
+                    }
                     guard node.modes.contains(reason.modeSet) else { break }
                     // A skipped gate is *not* memoized: `isNeeded` re-evaluates
                     // on the promotion re-drive, so a gate skipped headless
                     // still shows once the launch is user-visible.
                     guard await node.isNeeded(value) else { break }
-                    if Task.isCancelled { return .cancelled }
+                    if Task.isCancelled {
+                        return .cancelled
+                    }
                     let handle = LifecycleGateHandle(node: node, reason: reason, value: value)
                     phase = .awaitingGate(handle)
                     do {
@@ -375,21 +385,37 @@ public final class LifecycleRunner<Launch: Sendable> {
 @MainActor
 extension LifecycleRunner.Phase {
     public var isLaunching: Bool {
-        if case .launching = self { true } else { false }
+        if case .launching = self {
+            true
+        } else {
+            false
+        }
     }
 
     public var isReady: Bool {
-        if case .ready = self { true } else { false }
+        if case .ready = self {
+            true
+        } else {
+            false
+        }
     }
 
     /// The trunk's output, once the launch finished.
     public var readyValue: Launch? {
-        if case let .ready(value) = self { value } else { nil }
+        if case let .ready(value) = self {
+            value
+        } else {
+            nil
+        }
     }
 
     /// The context of the currently running trunk step, if any.
     public var runningContext: LifecycleStepContext? {
-        if case let .running(context) = self { context } else { nil }
+        if case let .running(context) = self {
+            context
+        } else {
+            nil
+        }
     }
 
     /// The id of the currently running trunk step, if any.
@@ -399,12 +425,20 @@ extension LifecycleRunner.Phase {
 
     /// The handle of the gate the trunk is parked at, if any.
     public var gateHandle: LifecycleGateHandle? {
-        if case let .awaitingGate(handle) = self { handle } else { nil }
+        if case let .awaitingGate(handle) = self {
+            handle
+        } else {
+            nil
+        }
     }
 
     /// The failure, if the launch failed.
     public var failure: LifecycleFailure? {
-        if case let .failed(failure) = self { failure } else { nil }
+        if case let .failed(failure) = self {
+            failure
+        } else {
+            nil
+        }
     }
 
     /// Whether the step with `id` is the one currently running. Handy in

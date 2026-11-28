@@ -22,7 +22,11 @@ public actor DeviceRecordingController: WhereShutdownable {
         case on(enabledAt: Date)
 
         var isEnabled: Bool {
-            if case .on = self { true } else { false }
+            if case .on = self {
+                true
+            } else {
+                false
+            }
         }
     }
 

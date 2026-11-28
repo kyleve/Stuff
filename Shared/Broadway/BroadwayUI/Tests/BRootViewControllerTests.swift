@@ -86,7 +86,7 @@ import UIKit
             root.view.layoutIfNeeded()
             guard
                 let overridesVC = root.children
-                .first as? BTraitOverridesViewController<UIViewController>,
+                    .first as? BTraitOverridesViewController<UIViewController>,
                 let leaf = overridesVC.content,
                 let rootContext = root.context
             else {
@@ -114,7 +114,7 @@ import UIKit
             root.view.layoutIfNeeded()
             guard
                 let overridesVC = root.children
-                .first as? BTraitOverridesViewController<UIViewController>,
+                    .first as? BTraitOverridesViewController<UIViewController>,
                 let rootContext = root.context
             else {
                 Issue.record("Expected override container and root context")

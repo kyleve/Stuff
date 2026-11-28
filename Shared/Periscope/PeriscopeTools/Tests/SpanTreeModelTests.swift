@@ -213,7 +213,9 @@ struct SpanTreeModelTests {
         defer { running.cancel() }
 
         _ = await waitUntil {
-            if case .loaded = model.state { return true }
+            if case .loaded = model.state {
+                return true
+            }
             return false
         }
 
@@ -253,8 +255,8 @@ struct SpanTreeModelTests {
             spanEnded(span, name: "work", at: date(1), duration: .seconds(1), scope: root.id),
         ])
         let closed = await waitUntil {
-            guard case let .loaded(tree) = model.state else { return false }
-            guard tree.count == 1, let node = tree.first else { return false }
+            guard case let .loaded(tree) = model.state, tree.count == 1,
+                  let node = tree.first else { return false }
             return !node.isOpen && node.measuredDuration == .seconds(1)
         }
         #expect(closed)

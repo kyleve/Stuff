@@ -239,7 +239,9 @@ struct SettingsSearchResult: Identifiable {
 
     /// Case-insensitive match on the title or any keyword.
     func matches(_ query: String) -> Bool {
-        if title.localizedStandardContains(query) { return true }
+        if title.localizedStandardContains(query) {
+            return true
+        }
         return keywords.contains { $0.localizedStandardContains(query) }
     }
 }

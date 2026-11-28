@@ -126,7 +126,10 @@ public enum AmbientLog {
     @LogEvent("app-lifecycle")
     public struct AppLifecycle: AmbientLogEvent {
         public enum Phase: String, Codable, Sendable, CaseIterable {
-            case background, foreground, active, inactive
+            case background
+            case foreground
+            case active
+            case inactive
         }
 
         @LogField(exposure: .shareable, kind: .category)
@@ -153,7 +156,11 @@ public enum AmbientLog {
     @LogEvent("thermal-state")
     public struct ThermalState: AmbientLogEvent {
         public enum Condition: String, Codable, Sendable, CaseIterable {
-            case nominal, fair, serious, critical, unknown
+            case nominal
+            case fair
+            case serious
+            case critical
+            case unknown
         }
 
         @LogField(exposure: .shareable, kind: .category)
@@ -226,13 +233,19 @@ public enum AmbientLog {
     @LogEvent("network")
     public struct Network: Hashable, AmbientLogEvent {
         public enum Status: String, Codable, Sendable, CaseIterable {
-            case satisfied, unsatisfied
+            case satisfied
+            case unsatisfied
             case requiresConnection = "requires-connection"
             case unknown
         }
 
         public enum Interface: String, Codable, Sendable {
-            case wifi, cellular, wired, loopback, other, unknown
+            case wifi
+            case cellular
+            case wired
+            case loopback
+            case other
+            case unknown
         }
 
         @LogField(exposure: .shareable, kind: .category)

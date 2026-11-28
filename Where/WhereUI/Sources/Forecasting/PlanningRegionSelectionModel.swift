@@ -46,7 +46,9 @@ final class PlanningRegionSelectionModel {
     }
 
     var isSaving: Bool {
-        if case .saving = selectionState { return true }
+        if case .saving = selectionState {
+            return true
+        }
         return false
     }
 
@@ -60,7 +62,9 @@ final class PlanningRegionSelectionModel {
     }
 
     func load() async {
-        if case .loading = loadState { return }
+        if case .loading = loadState {
+            return
+        }
         loadState = .loading
         do {
             let regions = try await report.services.primaryRegions()

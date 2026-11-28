@@ -56,7 +56,9 @@ public struct GPSCorrectionReview: Identifiable, Hashable, Sendable {
     }
 
     public var isPending: Bool {
-        if case .pending = state { return true }
+        if case .pending = state {
+            return true
+        }
         return false
     }
 

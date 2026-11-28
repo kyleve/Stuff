@@ -1681,7 +1681,9 @@ private func waitUntil(
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while ContinuousClock.now < deadline {
-        if try await condition() { return }
+        if try await condition() {
+            return
+        }
         try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("waitUntil timed out")
@@ -1860,7 +1862,9 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     func add(sample: LocationSample) async throws {
-        if shouldFail { throw ToggleFailingStoreError() }
+        if shouldFail {
+            throw ToggleFailingStoreError()
+        }
         try await backing.add(sample: sample)
     }
 
@@ -1939,7 +1943,9 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     func setManualDay(_ day: DayPresence) async throws {
-        if failCorrections, day.isAuthoritative { throw ToggleFailingStoreError() }
+        if failCorrections, day.isAuthoritative {
+            throw ToggleFailingStoreError()
+        }
         try await backing.setManualDay(day)
     }
 

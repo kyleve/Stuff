@@ -34,7 +34,9 @@ struct LocationsView: View {
         }
     }
 
-    enum ScrollRole: Hashable { case calendar }
+    enum ScrollRole: Hashable {
+        case calendar
+    }
 
     /// Each opening has a distinct ID because an earlier opening may still be animating.
     struct CalendarSelection: Identifiable, Hashable {
@@ -96,7 +98,9 @@ struct LocationsView: View {
         self.report = report
         self.openElsewhere = openElsewhere
         let navigation = navigation ?? LocationsView.Navigation()
-        if let initialRegion { navigation.select(region: initialRegion) }
+        if let initialRegion {
+            navigation.select(region: initialRegion)
+        }
         _navigation = State(initialValue: navigation)
         _calendarPresentations = State(initialValue: Self.makeCalendarPresentations(
             for: navigation.selectedRegion,

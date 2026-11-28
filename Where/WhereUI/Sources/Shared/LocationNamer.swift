@@ -62,14 +62,20 @@ actor LocationNamer: PlaceNaming {
 
     func name(for coordinate: Coordinate) async -> String? {
         let key = key(for: coordinate)
-        if let cached = cache[key] { return cached }
-        if let existing = inFlight[key] { return await existing.value }
+        if let cached = cache[key] {
+            return cached
+        }
+        if let existing = inFlight[key] {
+            return await existing.value
+        }
 
         let task = Task { await Self.reverseGeocode(coordinate) }
         inFlight[key] = task
         let name = await task.value
         inFlight[key] = nil
-        if let name { cache[key] = name }
+        if let name {
+            cache[key] = name
+        }
         return name
     }
 

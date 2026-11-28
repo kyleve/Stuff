@@ -1,7 +1,7 @@
 import BroadwayUI
 import InstallerKit
-import SnapshotKit
 @_spi(Testing) import InstallerKitUI
+import SnapshotKit
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -106,7 +106,9 @@ struct MainTabsTestsDuo {
                     .contains { field in
                         var ancestor: UIView? = field
                         while let view = ancestor {
-                            if view.isHidden || view.alpha == 0 { return false }
+                            if view.isHidden || view.alpha == 0 {
+                                return false
+                            }
                             ancestor = view.superview
                         }
                         let frame = field.convert(field.bounds, to: controller.view)

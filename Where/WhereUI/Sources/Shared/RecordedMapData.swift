@@ -105,8 +105,12 @@ struct RecordedMapData {
     ) -> MKMapPoint {
         var point = MKMapPoint(coordinate.clLocationCoordinate)
         let width = MKMapRect.world.size.width
-        if point.x - referenceX > width / 2 { point.x -= width }
-        if point.x - referenceX < -width / 2 { point.x += width }
+        if point.x - referenceX > width / 2 {
+            point.x -= width
+        }
+        if point.x - referenceX < -width / 2 {
+            point.x += width
+        }
         return point
     }
 

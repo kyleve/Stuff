@@ -30,7 +30,9 @@ struct SnapshotAccessibilityViewportTests {
                 try SnapshotAccessibilityViewport.withUnclippedNavigationBars(in: subject) {
                     #expect(labels(in: capturedBar) == ["Offscreen action"])
                     #expect(labels(in: unrelatedBar).isEmpty)
-                    if throwsDuringCapture { throw CaptureFailure.expected }
+                    if throwsDuringCapture {
+                        throw CaptureFailure.expected
+                    }
                 }
                 #expect(!throwsDuringCapture)
             } catch CaptureFailure.expected {
@@ -115,7 +117,9 @@ struct SnapshotAccessibilityViewportTests {
                     #expect(window.transform == transform)
                     #expect(window.center == center)
                     #expect(pathView.accessibilityPath?.bounds == path)
-                    if throwsDuringCapture { throw CaptureFailure.expected }
+                    if throwsDuringCapture {
+                        throw CaptureFailure.expected
+                    }
                 }
                 #expect(!throwsDuringCapture)
             } catch CaptureFailure.expected {
@@ -161,7 +165,9 @@ struct SnapshotAccessibilityViewportTests {
         (bar.accessibilityElements as? [NSObject] ?? []).compactMap(\.accessibilityLabel)
     }
 
-    private enum CaptureFailure: Error { case expected }
+    private enum CaptureFailure: Error {
+        case expected
+    }
 }
 
 /// Reproduces native off-screen element filtering independently of UIKit's

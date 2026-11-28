@@ -26,7 +26,10 @@ enum ElsewhereTestSupport {
         var winners: [UUID: SampleAttributionRevision] = [:]
         for revision in revisions {
             if let old = winners[revision.sampleID],
-               !SampleAttributionRevision.newer(revision, than: old) { continue }
+               !SampleAttributionRevision.newer(revision, than: old)
+            {
+                continue
+            }
             winners[revision.sampleID] = revision
         }
         let history = LocationHistoryProjection(

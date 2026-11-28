@@ -24,6 +24,11 @@
     "ref": "30516b42ab972ffa2569e5efcfee81135da466d3",
     "version": "0.17.2"
   },
+  "SwiftFormat": {
+    "repo": "nicklockwood/SwiftFormat",
+    "ref": "d5ca3e440886ea8b3d5b405928b1dae5e80d7ce2",
+    "version": "0.64.7"
+  },
   "Stylelint": {
     "repo": "stylelint/stylelint",
     "ref": "bc06c7cdb1413de3d8dc939b33af138ab7e59df1",

@@ -31,7 +31,9 @@ struct FlightTrajectoryAnalyzerTests {
         if let selected = environment["WHERE_FLIGHT_FUZZ_PROFILE"] {
             let selectedProfile = try #require(FlightTrajectoryGenerator
                 .Profile(rawValue: selected))
-            if profile != selectedProfile { return }
+            if profile != selectedProfile {
+                return
+            }
         }
         let seeds: [UInt64]
         if let replay = environment["WHERE_FLIGHT_FUZZ_SEED"] {
@@ -155,7 +157,9 @@ struct FlightTrajectoryAnalyzerTests {
                 #expect(lateFlights
                     .allSatisfy { !$0.completedDays(in: calendar).contains(lateDay) })
             }
-            if scenario.expectedFlights == 0 { continue }
+            if scenario.expectedFlights == 0 {
+                continue
+            }
             let anchor = scenario.samples[2]
             let conflict = LocationSample(
                 id: Fixtures.sampleID(99999),
