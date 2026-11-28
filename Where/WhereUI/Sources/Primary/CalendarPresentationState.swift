@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import WhereCore
@@ -24,7 +25,7 @@ final class CalendarPresentationState {
     private(set) var availableMonths: Set<CalendarDay> = []
     private(set) var estimateMonth: CalendarDay?
     private(set) var rejectedTarget: Target?
-    private(set) var rejectionCount = 0
+    private(set) var rejectionTrigger = EventTrigger()
 
     init(mode: Mode) {
         self.mode = mode
@@ -48,7 +49,7 @@ final class CalendarPresentationState {
         guard let destination else { return false }
         guard isAvailable(destination) else {
             rejectedTarget = destination
-            rejectionCount += 1
+            rejectionTrigger.fire()
             return false
         }
         mode = .detail

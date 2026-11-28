@@ -281,8 +281,11 @@ struct RemindersSettingsModelTests {
         let reopened = RemindersSettingsModel(session: session)
         #expect(reopened.summaryEnabled)
         reopened.summaryEnabled = false
+        var expected = session.notificationConfigurationTrigger
+        expected.fire()
+        expected.fire()
         await gate.release()
-        await waitUntil { session.notificationConfigurationRevision == 2 }
+        await waitUntil { session.notificationConfigurationTrigger == expected }
         #expect(await scheduler.lastEnabled == false)
         #expect(!preferences.summaryEnabled)
     }

@@ -44,7 +44,7 @@ struct AlertsSettingsView: View {
         }
         .navigationTitle(String(localized: .settingsAlertsGroup))
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: reminders.authorizationRefreshID) {
+        .task(id: reminders.authorizationRefreshTrigger) {
             await reminders.refreshNotificationAuthorization()
         }
     }

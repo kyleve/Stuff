@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import RegionKit
@@ -14,7 +15,7 @@ final class PlannedStaysModel {
     }
 
     struct EditorRoute: Identifiable {
-        let id: UUID
+        let id: PresentationID<EditorRoute>
         let mode: PlannedStayEditorModel.Mode
     }
 
@@ -56,11 +57,11 @@ final class PlannedStaysModel {
     }
 
     func add() {
-        editorRoute = EditorRoute(id: UUID(), mode: .new(initialRegion: initialRegion))
+        editorRoute = EditorRoute(id: PresentationID(), mode: .new(initialRegion: initialRegion))
     }
 
     func edit(_ stay: PlannedStay) {
-        editorRoute = EditorRoute(id: UUID(), mode: .edit(stay))
+        editorRoute = EditorRoute(id: PresentationID(), mode: .edit(stay))
     }
 
     func usesDefiniteOverlap(_ stay: PlannedStay) -> Bool {

@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import WhereCore
@@ -14,7 +15,7 @@ final class DevicesSettingsModel {
             case refresh
         }
 
-        let id = UUID()
+        let id = PresentationID<Failure>()
         let context: Context
         let message: String
     }

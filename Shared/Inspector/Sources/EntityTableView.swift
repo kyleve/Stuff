@@ -51,7 +51,7 @@ struct EntityTableView: View {
         // same number of pages from a fresh context.
         .task { if !hasLoaded { await load() } }
         .refreshable { await load() }
-        .onChange(of: model.mutationGeneration) {
+        .onChange(of: model.mutationTrigger) {
             Task { await load() }
         }
         .navigationDestination(item: $selectedRow) { row in

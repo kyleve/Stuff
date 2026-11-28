@@ -79,7 +79,7 @@ final class FlyoverModel<ScreenID: Hashable> {
         return FlyoverPreviewReadiness<ScreenID>.LoadKey(
             screenID: screen.id,
             variantID: variant(for: screen).id,
-            generation: state.generation,
+            resetTrigger: state.resetTrigger,
         )
     }
 
@@ -111,7 +111,7 @@ final class FlyoverModel<ScreenID: Hashable> {
         screen.resetAction()
         let state = state(for: screen)
         state.variantID = screen.variants[0].id
-        state.generation += 1
+        state.resetTrigger.fire()
     }
 
     func resetAll(_ catalog: FlyoverCatalog<ScreenID>) {

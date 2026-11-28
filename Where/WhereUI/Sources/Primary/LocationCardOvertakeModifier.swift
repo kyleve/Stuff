@@ -34,7 +34,7 @@ struct LocationCardOvertakeModifier: ViewModifier {
         .zIndex(isWinner ? 1 : 0)
         .keyframeAnimator(
             initialValue: AnimationValues(),
-            trigger: presentation.overtakeTrigger,
+            trigger: presentation.lastReleasedOvertakeID,
         ) { content, values in
             content
                 .offset(x: values.lateralOffset)

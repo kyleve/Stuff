@@ -1,3 +1,4 @@
+import BroadwayCore
 @testable import Flyover
 import Testing
 
@@ -28,8 +29,10 @@ struct FlyoverPreviewReadinessTests {
 
     @Test func changedExpectationSupersedesStaleCompletions() async {
         let readiness = FlyoverPreviewReadiness<TestScreen>()
-        let firstGeneration = key(.first, generation: 0)
-        let secondGeneration = key(.first, generation: 1)
+        var resetTrigger = EventTrigger()
+        let firstGeneration = key(.first, resetTrigger: resetTrigger)
+        resetTrigger.fire()
+        let secondGeneration = key(.first, resetTrigger: resetTrigger)
         readiness.expect([firstGeneration])
         readiness.beganLoading(firstGeneration)
 
@@ -79,12 +82,12 @@ struct FlyoverPreviewReadinessTests {
 
     private func key(
         _ screenID: TestScreen,
-        generation: Int = 0,
+        resetTrigger: EventTrigger = .init(),
     ) -> FlyoverPreviewReadiness<TestScreen>.LoadKey {
         FlyoverPreviewReadiness<TestScreen>.LoadKey(
             screenID: screenID,
             variantID: FlyoverVariantID("default"),
-            generation: generation,
+            resetTrigger: resetTrigger,
         )
     }
 

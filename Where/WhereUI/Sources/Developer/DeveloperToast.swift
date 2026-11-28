@@ -1,4 +1,5 @@
 #if DEBUG
+    import BroadwayCore
     import Observation
     import PeriscopeCore
     import PeriscopeTools
@@ -19,7 +20,7 @@
         /// One transient banner for a logged record at or above the alert
         /// threshold.
         struct Toast: Identifiable, Equatable {
-            let id = UUID()
+            let id = PresentationID<Toast>()
             let level: LogLevel
             let title: String
             let message: String

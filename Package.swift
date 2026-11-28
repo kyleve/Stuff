@@ -128,6 +128,7 @@ let package = Package(
         .target(
             name: "Inspector",
             dependencies: [
+                .target(name: "BroadwayCore"),
                 .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/Inspector/Sources",

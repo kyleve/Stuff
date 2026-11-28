@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import PeriscopeCore
@@ -61,7 +62,7 @@ public final class YearReportModel {
         /// Bumped by `rescanForIssues()` so a manual "Find issues now" re-keys
         /// the inputs and reloads the Resolve list even when nothing else
         /// (year / report / threshold) changed.
-        let manualScanToken: Int
+        let manualScanTrigger: EventTrigger
         let evidenceRevision: UUID
         let scanRevision: UUID?
         let scanError: String?
@@ -70,7 +71,7 @@ public final class YearReportModel {
     /// Incremented by `rescanForIssues()`; folded into `dataIssueScanInputs` so a
     /// forced rescan reloads the Resolve list. Observed (so the `.task(id:)`
     /// re-fires), never persisted.
-    private var manualScanToken = 0
+    private var manualScanTrigger = EventTrigger()
     private var evidenceRevision = UUID()
     private var scanRequestID = UUID()
     private var isActive = false
@@ -285,7 +286,7 @@ public final class YearReportModel {
             year: selectedYear,
             report: report,
             driftThreshold: driftThreshold,
-            manualScanToken: manualScanToken,
+            manualScanTrigger: manualScanTrigger,
             evidenceRevision: evidenceRevision,
             scanRevision: dataIssueScan?.revision,
             scanError: dataIssueScanError,
@@ -486,7 +487,7 @@ public final class YearReportModel {
     /// live writes. Its token also refreshes an already-open review after failure.
     public func rescanForIssues() async {
         await refreshDataIssueCount(force: true)
-        manualScanToken += 1
+        manualScanTrigger.fire()
     }
 
     /// Reassess raw evidence even if its aggregate region/day set did not change.

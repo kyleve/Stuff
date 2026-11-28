@@ -33,6 +33,16 @@ struct PlannedStaysModelTests {
             return
         }
         #expect(stay == completed)
+        let firstID = try #require(model.editorRoute?.id)
+        model.editorRoute = nil
+        model.edit(completed)
+        let reopened = try #require(model.editorRoute)
+        #expect(reopened.id != firstID)
+        guard case let .edit(reopenedStay) = reopened.mode else {
+            Issue.record("Reopening must edit the same stay")
+            return
+        }
+        #expect(reopenedStay.id == completed.id)
     }
 
     @Test func historicalGapChoiceClearsHomeWithoutDeletingPlans() async throws {

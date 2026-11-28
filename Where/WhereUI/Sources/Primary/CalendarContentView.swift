@@ -300,8 +300,8 @@ struct CalendarContentView: View {
                 )
             }
         })
-        .sensoryFeedback(.impact(weight: .light), trigger: presentation.rejectionCount)
-        .onChange(of: presentation.rejectionCount) {
+        .sensoryFeedback(.impact(weight: .light), trigger: presentation.rejectionTrigger)
+        .onChange(of: presentation.rejectionTrigger) {
             AccessibilityNotification.Announcement(String(localized: .calendarMonthUnavailable))
                 .post()
         }
@@ -490,7 +490,7 @@ struct CalendarContentView: View {
             String(localized: .calendarMonthUnavailable))
         .modifier(CalendarOverviewFeedback(
             rejected: presentation.rejectedTarget == destination,
-            trigger: presentation.rejectionCount,
+            trigger: presentation.rejectionTrigger,
         ))
     }
 
