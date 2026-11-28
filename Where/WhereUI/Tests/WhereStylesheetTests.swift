@@ -318,6 +318,7 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.overview.usesSpatialMotion == false)
         #expect(resolved.calendar.overview.animation == .easeInOut(duration: 0.25))
+        #expect(resolved.locationsDetail.calendarScale == nil)
         #expect(resolved.card.dayCount == .reducedMotion)
         #expect(resolved.locationCardStack.overtake == .reducedMotion)
         #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)

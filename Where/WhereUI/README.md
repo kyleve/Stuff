@@ -101,6 +101,8 @@ Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
 The detail pane shows an empty state until a region is selected.
+Tap the selected card again to clear the detail pane. Calendars grow into view
+and shrink away as the selection changes. Reduce Motion uses a crossfade.
 One region-outline background spans both Locations panes and follows the selected year's visits.
 When Locations displays both panes, only browsing shows the estimate card.
 In compact layouts, the region calendar carries its own patterned paper through the card zoom.
