@@ -352,10 +352,12 @@ struct WhereCompatibilityModelTests {
             try await activateButton(updatesLabel, in: controller.view)
             let updates = try await presentedSheet(from: controller)
 
-            try await activateButton("Other Builds", in: updates.view)
-            let browser = try await presentedSheet(from: updates)
-            try await activateButton(doneLabel, in: browser.view)
-            try await waitForAsync { updates.presentedViewController == nil }
+            for _ in 0 ..< 2 {
+                try await activateButton("Other Builds", in: updates.view)
+                let browser = try await presentedSheet(from: updates)
+                try await activateButton(doneLabel, in: browser.view)
+                try await waitForAsync { updates.presentedViewController == nil }
+            }
 
             try await activateButton(doneLabel, in: updates.view)
             try await waitForAsync {
@@ -371,8 +373,10 @@ struct WhereCompatibilityModelTests {
 
     private func activateButton(_ label: String, in view: UIView) async throws {
         try await waitForAsync { HostedAccessibility.isVisible(label, in: view) }
-        let button = try #require(HostedAccessibility.objects(in: view)
-            .first { $0.accessibilityLabel == label })
+        let button = try #require(HostedAccessibility.objects(in: view).first {
+            $0.accessibilityLabel == label && $0.accessibilityTraits.contains(.button)
+                && $0.accessibilityFrame.intersects(view.convert(view.bounds, to: nil))
+        }, "Visible button named \(label)")
         if let control = button as? UIControl {
             control.sendActions(for: .touchUpInside)
         } else {

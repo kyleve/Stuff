@@ -4,26 +4,34 @@ import SwiftUI
 struct UpdateBuildSummary: View {
     let release: UpdateCatalog.Release
     var title: LocalizedStringResource?
-    @Environment(\.installerStylesheet) private var stylesheet
 
     var body: some View {
         UpdateCard(title: title) {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: stylesheet.summary.spacing) {
-                metric(.installerVersion, value: release.buildDetails?.version)
-                metric(
-                    .installerDownload,
-                    value: release.buildDetails?.sizeBytes.formatted(.byteCount(style: .file)),
-                )
-                metric(
-                    .installerRequiresOS,
-                    value: release.buildDetails.map { $0.minimumOSVersion + "+" },
-                )
-                metric(
-                    .installerPublished,
-                    value: release.publishedAt
-                        .formatted(.dateTime.month(.abbreviated).day().year()),
-                )
-            }
+            UpdateBuildMetrics(release: release)
+        }
+    }
+}
+
+private struct UpdateBuildMetrics: View {
+    let release: UpdateCatalog.Release
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: stylesheet.summary.spacing) {
+            UpdateBuildMetric(title: .installerVersion, value: release.buildDetails?.version)
+            UpdateBuildMetric(
+                title: .installerDownload,
+                value: release.buildDetails?.sizeBytes.formatted(.byteCount(style: .file)),
+            )
+            UpdateBuildMetric(
+                title: .installerRequiresOS,
+                value: release.buildDetails.map { $0.minimumOSVersion + "+" },
+            )
+            UpdateBuildMetric(
+                title: .installerPublished,
+                value: release.publishedAt
+                    .formatted(.dateTime.month(.abbreviated).day().year()),
+            )
         }
     }
 
@@ -37,8 +45,14 @@ struct UpdateBuildSummary: View {
             case .single: [GridItem(.flexible(), alignment: .leading)]
         }
     }
+}
 
-    private func metric(_ title: LocalizedStringResource, value: String?) -> some View {
+private struct UpdateBuildMetric: View {
+    let title: LocalizedStringResource
+    let value: String?
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
         VStack(spacing: stylesheet.summary.itemSpacing) {
             Text(title)
                 .font(stylesheet.summary.labelFont)
