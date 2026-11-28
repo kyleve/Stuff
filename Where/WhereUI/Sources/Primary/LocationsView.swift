@@ -36,14 +36,16 @@ struct LocationsView: View {
 
     enum ScrollRole: Hashable { case calendar }
 
-    struct CalendarSelection: Identifiable {
+    /// One opening of a region's calendar. Its instance identity keeps
+    /// animation callbacks tied to that opening when a region is reselected.
+    @MainActor
+    final class CalendarSelection: Identifiable {
         let region: Region
         let presentation: CalendarPresentationState
 
-        /// A region can be reselected before its previous animation completes.
-        /// Each completion must address the specific calendar instance.
-        var id: ObjectIdentifier {
-            ObjectIdentifier(presentation)
+        init(region: Region, presentation: CalendarPresentationState) {
+            self.region = region
+            self.presentation = presentation
         }
     }
 

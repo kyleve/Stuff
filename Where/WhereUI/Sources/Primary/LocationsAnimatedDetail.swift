@@ -1,8 +1,11 @@
+import Observation
 import SwiftUI
 
 /// Animates mounted calendars so native scroll content moves in both directions.
 struct LocationsAnimatedDetail: View {
-    private struct Presentation {
+    /// The Observation macro emits the nested type's conformance at file scope.
+    @MainActor @Observable
+    fileprivate final class Presentation {
         var current: LocationsView.CalendarSelection?
         var revealedID: LocationsView.CalendarSelection.ID?
         var calendars: [LocationsView.CalendarSelection]
@@ -33,13 +36,15 @@ struct LocationsAnimatedDetail: View {
 
     var body: some View {
         let motion = stylesheet.locationsDetail
+        let currentID = presentation.current?.id
+        let revealedID = presentation.revealedID
         ZStack {
-            if presentation.current == nil {
+            if currentID == nil {
                 LocationsNoRegion(showsDescription: !report.locationRegions.isEmpty)
                     .transition(.opacity)
             }
             ForEach(presentation.calendars) { calendar in
-                let isVisible = calendar.id == presentation.revealedID
+                let isVisible = calendar.id == revealedID
                 LocationsRegionCalendar(
                     report: report,
                     navigation: navigation,
@@ -52,7 +57,7 @@ struct LocationsAnimatedDetail: View {
                 .opacity(isVisible ? 1 : 0)
                 .allowsHitTesting(isVisible)
                 .accessibilityHidden(!isVisible)
-                .zIndex(calendar.id == presentation.current?.id ? 2 : 1)
+                .zIndex(calendar.id == currentID ? 2 : 1)
                 .transition(.identity)
             }
         }
