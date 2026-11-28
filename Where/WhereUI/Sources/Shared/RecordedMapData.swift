@@ -26,6 +26,7 @@ struct RecordedMapData {
     init(points: [RecordedMapPoint], routes: [Route]) {
         struct Bucket: Hashable {
             let attribution: RecordedMapPoint.Attribution
+            let isPhoto: Bool
             let latitude: Int
             let longitude: Int
         }
@@ -34,11 +35,15 @@ struct RecordedMapData {
         for point in points where Self.isValid(point.coordinate) {
             let bucket = Bucket(
                 attribution: point.attribution,
+                isPhoto: point.isPhoto,
                 latitude: Int((point.coordinate.latitude * 100).rounded()),
                 longitude: Int((point.coordinate.longitude * 100).rounded()),
             )
             if let existing = bestByBucket[bucket] {
-                if point.horizontalAccuracy < existing.horizontalAccuracy {
+                if point.horizontalAccuracy >= 0,
+                   existing.horizontalAccuracy < 0 || point.horizontalAccuracy < existing
+                       .horizontalAccuracy
+                {
                     bestByBucket[bucket] = point
                 }
             } else {

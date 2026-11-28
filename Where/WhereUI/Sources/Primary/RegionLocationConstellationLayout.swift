@@ -57,7 +57,10 @@ enum RegionLocationConstellationLayout {
             )
             if var candidate = candidates[cell] {
                 candidate.sampleCount += 1
-                if point.horizontalAccuracy < candidate.point.horizontalAccuracy {
+                if point.horizontalAccuracy >= 0,
+                   candidate.point.horizontalAccuracy < 0 || point.horizontalAccuracy < candidate
+                       .point.horizontalAccuracy
+                {
                     candidate.point = point
                 }
                 candidates[cell] = candidate

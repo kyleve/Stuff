@@ -71,7 +71,7 @@ class UpgradeBackupTest < Minitest::Test
     }, upgraded.fetch("recordingDeviceMetadataChanges").last)
   end
 
-  def test_released_v7_changes_only_the_version_and_v8_is_idempotent
+  def test_released_v7_and_v8_change_only_the_version_and_v9_is_idempotent
     legacy = base_manifest(7).merge(
       "manualDays" => [
         { "day" => { "year" => 2026, "month" => 7, "day" => 1 }, "regions" => %w[us-CA canada], "isAuthoritative" => true },
@@ -81,11 +81,12 @@ class UpgradeBackupTest < Minitest::Test
       "plannedStayRecords" => [], "homeRegionRecords" => [], "sampleAttributionRevisions" => [],
     )
     upgraded = upgrade_manifest(Marshal.load(Marshal.dump(legacy)))
-    assert_equal legacy.merge("formatVersion" => 8), upgraded
+    assert_equal upgraded, upgrade_manifest(legacy.merge("formatVersion" => 8))
+    assert_equal legacy.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgraded
     upgraded.fetch("manualDays").first.fetch("regions") << "ca-ON"
     assert_equal upgraded, upgrade_manifest(Marshal.load(Marshal.dump(upgraded)))
     obsolete = { "recordingDevices" => ["old-device"], "recordingDeviceCheckIns" => ["old-check-in"], "recordingPolicyChanges" => ["old-policy"] }
-    assert_equal legacy.merge("formatVersion" => 8), upgrade_manifest(legacy.merge(obsolete))
+    assert_equal legacy.merge("formatVersion" => CURRENT_FORMAT_VERSION), upgrade_manifest(legacy.merge(obsolete))
     assert_equal upgraded, upgrade_manifest(upgraded.merge(obsolete))
   end
 

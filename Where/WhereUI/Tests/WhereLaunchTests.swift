@@ -331,6 +331,185 @@ struct WhereLaunchTests {
         #expect(launcher.phase.readyValue === model.session)
     }
 
+    @Test func freshPhotoScanToFinishWithRecordingOff() async throws {
+        let date = Date(timeIntervalSince1970: 1_780_750_800)
+        let reader = FixturePhotoLibrary(date: date)
+        let installation = makeInstallationRecordingContextStore()
+        let preferences = makePreferences()
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .denied)
+        let services = WhereServices(store: store, locationSource: source)
+        let bootstrap = ScriptedBootstrap(services: services)
+        let model = WhereModel(
+            preferences: preferences,
+            installationContextStore: installation,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { source }),
+            photoLocationReader: reader,
+            now: { date },
+        )
+        await model.compatibility.refresh(model: model)
+        let gate = LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground)
+        let flow = OnboardingFlowModel(
+            gate: gate,
+            installationContext: installation.onboardingContext,
+            startsAtRecordingChoice: false,
+            initialTheme: .standard,
+        )
+        flow.continueAfterThemeSelection()
+        flow.photo.begin()
+        let attempt = try #require(flow.photo.attempt)
+        let scanned = await flow.photo.scan(attempt, using: model, selection: flow.selection)
+        #expect(scanned)
+        let review = try #require(flow.photo.review)
+        try review.draft.decide(#require(review.draft.pendingGaps.first), include: true)
+        review.preparePicker()
+        #expect(bootstrap.makeServicesCount == 0)
+        #expect(flow.selection.suggestedDays[.ontario] == 5)
+        #expect(flow.selection.selectedRegions.isEmpty)
+        flow.selection.toggle(.california)
+        flow.recordingEnabled = false
+        flow.finish(using: model)
+        try await waitUntil { !model.isCompletingOnboarding }
+        #expect(model.hasOnboarded)
+        #expect(installation.onboardingContext.automaticRecordingEnabled == false)
+        #expect(installation.photoHistoryReceipt?.acknowledged == true)
+        #expect(try await store.primaryRegions().map(\.region) == [.california])
+        #expect(try await services.reports.yearReport(for: 2026).totals == [.ontario: 5])
+        #expect(try await store.allSamples().count == 2)
+    }
+
+    @Test(arguments: [PhotoLibraryAccess.full, .unavailable])
+    func emptyOrUnavailablePhotoLibraryLeavesManualSetupAvailable(
+        access: PhotoLibraryAccess,
+    ) async throws {
+        let date = Date(timeIntervalSince1970: 1_780_750_800)
+        let reader = FixturePhotoLibrary(date: date, grant: access, empty: true)
+        let installation = makeInstallationRecordingContextStore()
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installation,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+            photoLocationReader: reader,
+            now: { date },
+        )
+        await model.compatibility.refresh(model: model)
+        let photo = OnboardingPhotoHistory()
+        let selection = PrimaryRegionDraft()
+        photo.begin()
+        let attempt = try #require(photo.attempt)
+        let found = await photo.scan(attempt, using: model, selection: selection)
+        #expect(!found)
+        #expect(photo.state == (access == .full ? .empty : .unavailable))
+        #expect(photo.review == nil)
+        selection.toggle(.california)
+        #expect(selection.hasSelection)
+        #expect(bootstrap.makeServicesCount == 0)
+    }
+
+    @Test func preAdmissionReviewAndReverifiedReceiptNeverReplayDraft() async throws {
+        let date = Date(timeIntervalSince1970: 1_780_750_800)
+        let transport = LaunchCompatibilityTransport(version: 1)
+        let coordinator = DataCompatibilityCoordinator(
+            transport: transport,
+            receipts: LaunchCompatibilityReceipt(),
+            version: .current,
+        )
+        let installation = makeInstallationRecordingContextStore()
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
+        let bootstrap = ScriptedBootstrap(services: services)
+        let preferences = makePreferences()
+        let model = WhereModel(
+            preferences: preferences,
+            installationContextStore: installation,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: coordinator),
+            installationLocation: .init(makeSource: { ScriptedLocationSource()
+            }),
+            photoLocationReader: FixturePhotoLibrary(date: date),
+            now: { date },
+        )
+        await coordinator.refresh { .disabled }
+        #expect(!coordinator.state.allowsStore)
+        let photo = OnboardingPhotoHistory()
+        let selection = PrimaryRegionDraft()
+        photo.begin()
+        let attempt = try #require(photo.attempt)
+        let scanned = await photo.scan(attempt, using: model, selection: selection)
+        #expect(scanned)
+        #expect(bootstrap.makeServicesCount == 0)
+        await transport.setVersion(DataModelVersion.current.rawValue)
+        await coordinator.refresh { .disabled }
+        let domain = try coordinator.requireAccess().domain
+        let token = try await services.preparePhotoReceipt(in: domain)
+        try model.rememberPhotoReceipt(token)
+        photo.receipt = token
+        let draft = try #require(photo.review?.draft.approved)
+        selection.toggle(.california)
+        let picks = selection.desiredPrimaryRegions
+        _ = try await services.commitPhotoHistory(
+            draft,
+            primary: picks,
+            receipt: token,
+            resolution: nil,
+        )
+        let scope = WhereScope.fake(
+            services: services,
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+        await transport.changeDomain(domain)
+        try await waitUntil { !coordinator.state.allowsStore }
+        await #expect(throws: DataCompatibilityFailure.self) {
+            try await photo.save(using: model, scope: scope, selection: selection)
+        }
+        #expect(installation.photoHistoryReceipt == token)
+        #expect(!model.hasOnboarded)
+        selection.toggle(.ontario)
+        await coordinator.refresh { .disabled }
+        let finished = try await photo.save(using: model, scope: scope, selection: selection)
+        #expect(finished)
+        #expect(installation.photoHistoryReceipt?.acknowledged == true)
+        #expect(try await services.primaryRegions() == picks)
+        #expect(try await store.allSamples().count == 2)
+    }
+
+    @Test(arguments: [false, true])
+    func coldPhotoReceiptCompletesWithoutLibraryAccess(acknowledged: Bool) async throws {
+        let installation = makeInstallationRecordingContextStore()
+        let store = try SwiftDataStore.inMemory()
+        let reopened = WhereServices(store: store, locationSource: ScriptedLocationSource())
+        var receipt = try await reopened.preparePhotoReceipt(in: .local)
+        let original = receipt
+        try await store.perform { try await store.addBackupImportReceipt(
+            id: original.id,
+            installationID: original.installationID,
+        ) }
+        receipt.acknowledged = acknowledged
+        installation.setPhotoHistoryReceipt(receipt)
+        let bootstrap = ScriptedBootstrap(services: reopened)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installation,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+            compatibility: .init(coordinator: .local(version: .current)),
+            installationLocation: .init(makeSource: { ScriptedLocationSource() }),
+        )
+        let needed = await OnboardingGate(model: model).isNeeded(())
+        #expect(!needed)
+        #expect(model.hasOnboarded)
+        #expect(installation.photoHistoryReceipt?.acknowledged == true)
+    }
+
     @Test func coldPreparedOnboardingImportWithoutReceiptReturnsToOnboarding() async throws {
         let installationStore = makeInstallationRecordingContextStore()
         let details = Self.onboardingRecoveryDetails()
@@ -684,5 +863,32 @@ struct WhereBootstrapStorageTests {
     /// it, rather than failing.
     @Test func durableLogStorageStaysInMemoryUnderTheTestRunner() {
         #expect(WhereBootstrap.logStorage == .inMemory)
+    }
+}
+
+private struct FixturePhotoLibrary: PhotoLocationReading {
+    let date: Date
+    var grant: PhotoLibraryAccess = .limited
+    var empty = false
+    func access(requestIfNeeded _: Bool) async -> PhotoLibraryAccess {
+        grant
+    }
+
+    func enumerate(
+        in _: DateInterval,
+        consume: @Sendable ([PhotoObservation], Int, Int) async throws -> Void,
+    ) async throws {
+        if empty {
+            try await consume([], 0, 0); return
+        }
+        let batch = [date.addingTimeInterval(-4 * 86400), date].compactMap { time in
+            PhotoObservation(
+                capturedAt: time,
+                addedAt: time,
+                coordinate: .init(latitude: 43.65, longitude: -79.38),
+                accuracy: 12,
+            )
+        }
+        try await consume(batch, batch.count, batch.count)
     }
 }

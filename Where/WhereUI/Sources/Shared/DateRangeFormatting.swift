@@ -4,7 +4,9 @@ import WhereCore
 enum DateRangeFormatting {
     /// Abbreviated month/day span, e.g. "Jan 3" or "Jan 3 – Jan 7".
     static func abbreviated(start: Date, end: Date, calendar: Calendar = .current) -> String {
-        let format = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        var format = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        format.calendar = calendar
+        format.timeZone = calendar.timeZone
         if calendar.isDate(start, inSameDayAs: end) {
             return start.formatted(format)
         }

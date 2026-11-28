@@ -22,12 +22,12 @@ struct OnboardingFlowModelTests {
         #expect(model.phase == .theme)
     }
 
-    @Test func normalThemeSelectionContinuesToRegionSelection() {
+    @Test func normalThemeSelectionOffersPhotoBackfill() {
         let model = makeModel(startsAtRecordingChoice: false)
 
         model.continueAfterThemeSelection()
 
-        #expect(model.phase == .pickRegions)
+        #expect(model.phase == .photos)
     }
 
     @Test func restoredThemeSelectionContinuesToRecordingConfirmation() {

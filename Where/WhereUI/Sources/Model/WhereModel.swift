@@ -25,6 +25,7 @@ import PeriscopeCore
 @Observable
 public final class WhereModel {
     public let compatibility: WhereCompatibilityModel
+    let photoLocationReader: (any PhotoLocationReading)?
     let installationLocation: InstallationLocation
     private var onboardingTask: Task<Void, Never>?
 
@@ -252,7 +253,9 @@ public final class WhereModel {
     /// Whether the sidecar says onboarding crossed or may have crossed an import commit. The
     /// launch gate uses this one narrow exception to open the store before offering Restore.
     var hasInterruptedOnboardingImport: Bool {
-        onboardingImportRecovery.hasInterruptedImport
+        onboardingImportRecovery
+            .hasInterruptedImport ||
+            (!hasOnboarded && installationContextStore.photoHistoryReceipt != nil)
     }
 
     /// Reassert the backed-up preference from the sidecar's terminal import authority. The
@@ -272,6 +275,21 @@ public final class WhereModel {
             in: scope,
             completeOnboarding: completeOnboarding,
         )
+    }
+
+    var onboardingPhotoDate: Date {
+        now()
+    }
+
+    func rememberPhotoReceipt(_ receipt: PhotoHistoryReceipt?) throws {
+        try installationContextStore.setPhotoHistoryReceipt(receipt)
+    }
+
+    func acknowledgePhotoReceipt(_ receipt: PhotoHistoryReceipt) throws {
+        var terminal = receipt
+        terminal.acknowledged = true
+        try installationContextStore.setPhotoHistoryReceipt(terminal)
+        completeOnboarding()
     }
 
     /// Persist this installation's explicit onboarding choice, including a changed retry.
@@ -374,6 +392,7 @@ public final class WhereModel {
         logSystem: Periscope,
         compatibility: WhereCompatibilityModel,
         installationLocation: InstallationLocation,
+        photoLocationReader: (any PhotoLocationReading)? = nil,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -382,6 +401,7 @@ public final class WhereModel {
     ) {
         self.compatibility = compatibility
         self.installationLocation = installationLocation
+        self.photoLocationReader = photoLocationReader
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
@@ -420,6 +440,7 @@ public final class WhereModel {
         logSystem: Periscope,
         compatibility: WhereCompatibilityModel,
         installationLocation: InstallationLocation,
+        photoLocationReader: (any PhotoLocationReading)? = nil,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -436,6 +457,7 @@ public final class WhereModel {
         )
         self.compatibility = compatibility
         self.installationLocation = installationLocation
+        self.photoLocationReader = photoLocationReader
         self.preferences = preferences
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,

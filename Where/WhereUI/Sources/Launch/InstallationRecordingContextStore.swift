@@ -142,6 +142,7 @@ public final class FileInstallationRecordingContextStore:
         let automaticRecordingEnabled: Bool?
         let recordingEnabledAt: Date?
         let isRejoining: Bool
+        let photoHistoryReceipt: PhotoHistoryReceipt?
         let backupImportRecovery: BackupImportRecovery?
         let onboardingImportCompletionID: UUID?
 
@@ -153,12 +154,14 @@ public final class FileInstallationRecordingContextStore:
             case automaticRecordingEnabled
             case recordingEnabledAt
             case isRejoining
+            case photoHistoryReceipt
             case backupImportRecovery
             case onboardingImportCompletionID
         }
 
         init(
             _ context: InstallationRecordingContext,
+            photoHistoryReceipt: PhotoHistoryReceipt?,
             backupImportRecovery: BackupCoordinator.DurableImportRecovery?,
             onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?,
         ) {
@@ -169,6 +172,7 @@ public final class FileInstallationRecordingContextStore:
             automaticRecordingEnabled = context.automaticRecordingEnabled
             recordingEnabledAt = context.recordingEnabledAt
             isRejoining = context.isRejoining
+            self.photoHistoryReceipt = photoHistoryReceipt
             self.backupImportRecovery = backupImportRecovery.map(BackupImportRecovery.init)
             onboardingImportCompletionID = onboardingImportCompletion?.transactionID
         }
@@ -197,6 +201,7 @@ public final class FileInstallationRecordingContextStore:
 
     private struct LoadedContext {
         let context: InstallationRecordingContext
+        let photoHistoryReceipt: PhotoHistoryReceipt?
         let backupImportRecovery: BackupCoordinator.DurableImportRecovery?
         let onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?
     }
@@ -217,6 +222,7 @@ public final class FileInstallationRecordingContextStore:
     private let makeUUID: @MainActor () -> UUID
     private let now: @MainActor () -> Date
     private var resolution: Resolution
+    public private(set) var photoHistoryReceipt: PhotoHistoryReceipt?
     public private(set) var backupImportRecovery: BackupCoordinator.DurableImportRecovery?
     public private(set) var onboardingImportCompletion:
         BackupCoordinator.OnboardingImportCompletion?
@@ -295,6 +301,7 @@ public final class FileInstallationRecordingContextStore:
         self.kind = kind
         self.makeUUID = makeUUID
         self.now = now
+        photoHistoryReceipt = nil
         backupImportRecovery = nil
         onboardingImportCompletion = nil
 
@@ -315,6 +322,7 @@ public final class FileInstallationRecordingContextStore:
                 )
                 let loaded = try Self.load(from: fileURL, fileManager: fileManager)
                 resolution = .resolved(loaded?.context ?? proposed)
+                photoHistoryReceipt = loaded?.photoHistoryReceipt
                 backupImportRecovery = loaded?.backupImportRecovery
                 onboardingImportCompletion = loaded?.onboardingImportCompletion
             } catch {
@@ -352,6 +360,7 @@ public final class FileInstallationRecordingContextStore:
         let confirmed = context.confirmingInitialRecording(isEnabled: isEnabled)
         try persist(
             confirmed,
+            photoHistoryReceipt: photoHistoryReceipt,
             backupImportRecovery: backupImportRecovery,
             onboardingImportCompletion: onboardingImportCompletion,
         )
@@ -363,6 +372,7 @@ public final class FileInstallationRecordingContextStore:
         let updated = try resolution.get().settingAutomaticRecordingEnabled(isEnabled, at: now())
         try persist(
             updated,
+            photoHistoryReceipt: photoHistoryReceipt,
             backupImportRecovery: backupImportRecovery,
             onboardingImportCompletion: onboardingImportCompletion,
         )
@@ -379,11 +389,22 @@ public final class FileInstallationRecordingContextStore:
         )
         try persist(
             proposed,
+            photoHistoryReceipt: photoHistoryReceipt,
             backupImportRecovery: backupImportRecovery,
             onboardingImportCompletion: onboardingImportCompletion,
         )
         resolution = .resolved(proposed)
         return proposed
+    }
+
+    public func setPhotoHistoryReceipt(_ receipt: PhotoHistoryReceipt?) throws {
+        try persist(
+            resolution.get(),
+            photoHistoryReceipt: receipt,
+            backupImportRecovery: backupImportRecovery,
+            onboardingImportCompletion: onboardingImportCompletion,
+        )
+        photoHistoryReceipt = receipt
     }
 
     public func setBackupImportRecovery(
@@ -392,6 +413,7 @@ public final class FileInstallationRecordingContextStore:
         let context = try resolution.get()
         try persist(
             context,
+            photoHistoryReceipt: photoHistoryReceipt,
             backupImportRecovery: recovery,
             onboardingImportCompletion: onboardingImportCompletion,
         )
@@ -404,6 +426,7 @@ public final class FileInstallationRecordingContextStore:
         let context = try resolution.get()
         try persist(
             context,
+            photoHistoryReceipt: photoHistoryReceipt,
             backupImportRecovery: backupImportRecovery,
             onboardingImportCompletion: completion,
         )
@@ -439,6 +462,7 @@ public final class FileInstallationRecordingContextStore:
                 throw cleanupError
             }
             if wasAlreadyCommitted {
+                photoHistoryReceipt = nil
                 backupImportRecovery = nil
                 onboardingImportCompletion = nil
                 resolution = .resolved(proposed)
@@ -447,6 +471,7 @@ public final class FileInstallationRecordingContextStore:
         }
 
         guard fileManager.fileExists(atPath: directoryURL.path(percentEncoded: false)) else {
+            photoHistoryReceipt = nil
             backupImportRecovery = nil
             onboardingImportCompletion = nil
             resolution = .resolved(proposed)
@@ -457,6 +482,7 @@ public final class FileInstallationRecordingContextStore:
         // directory still exists, or it has the reset-pending name and can never be loaded as a
         // live installation again. Deleting the retired copy is retryable cleanup after that.
         try fileManager.moveItem(at: directoryURL, to: resetPendingURL)
+        photoHistoryReceipt = nil
         backupImportRecovery = nil
         onboardingImportCompletion = nil
         do {
@@ -621,6 +647,7 @@ public final class FileInstallationRecordingContextStore:
         )
         return LoadedContext(
             context: stored.value,
+            photoHistoryReceipt: stored.photoHistoryReceipt,
             backupImportRecovery: stored.backupImportRecovery?.value,
             onboardingImportCompletion: stored.onboardingImportCompletionID.map {
                 BackupCoordinator.OnboardingImportCompletion(transactionID: $0)
@@ -630,6 +657,7 @@ public final class FileInstallationRecordingContextStore:
 
     private func persist(
         _ context: InstallationRecordingContext,
+        photoHistoryReceipt: PhotoHistoryReceipt?,
         backupImportRecovery: BackupCoordinator.DurableImportRecovery?,
         onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?,
     ) throws {
@@ -650,6 +678,7 @@ public final class FileInstallationRecordingContextStore:
         // of defense beyond the already-excluded directory.
         try JSONEncoder().encode(StoredContext(
             context,
+            photoHistoryReceipt: photoHistoryReceipt,
             backupImportRecovery: backupImportRecovery,
             onboardingImportCompletion: onboardingImportCompletion,
         )).write(

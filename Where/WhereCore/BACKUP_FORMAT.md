@@ -1,4 +1,4 @@
-# Where backup format v8
+# Where backup format v9
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -22,6 +22,7 @@ Current imports require the current schema, including its required collections.
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
 | 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 | 8 | Adds Canadian province and territory IDs to the region values a writer can store. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
+| 9 | Preserves reviewed photo locations, stay attribution and approval dates. | [Photo history](Sources/PhotoHistory/PhotoHistoryCommit.swift) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -93,3 +94,7 @@ the archive before it changes any rows. This protection also applies when a ZIP 
 Upgrading a current-lineage v7 backup to v8 changes only its format version and preserves
 the IDs in the archive. The current catalog accepts Canadian provinces and territories as
 tracking choices. The account-wide data version is checked separately when the app opens synced history.
+
+## Version 9 contents
+
+A photo sample keeps its capture instant, coordinate and available horizontal accuracy. Its source stores the observed region and day, reviewed region and day, and approval instant. Unknown accuracy uses the Core Location negative sentinel. Reviewed gap days have no map point. Their manual-day rows retain the original audit and a separate photo approval timestamp. The v8 upgrade preserves every record and changes the manifest version. The archive excludes transaction receipts and installation sidecar markers.

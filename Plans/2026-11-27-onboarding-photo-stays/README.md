@@ -2,10 +2,10 @@
 
 ## Planning checkpoint
 
-- Updated November 27, 2026, against `2f639e987`.
+- Planned against `2f639e987` and implemented November 27, 2026.
 - The user requested a plan for current-year photo GPS backfill during Where onboarding, followed by stay correction and selection of primary regions using the result.
-- Planning and review are complete. [STU-185](https://linear.app/kve/issue/STU-185) owns the work. The latest revision incorporates the user’s photo-source and timing decision (Q-06). The scan and stay-review plans are ready, in that order. The final save is an outline pending Q-05.
-- The next action is implementation of 01 if requested. After 02 produces a reviewed draft, refine 03 using its recovery and compatibility fixtures. Implementation awaits a separate request.
+- Planning and review are complete. [STU-185](https://linear.app/kve/issue/STU-185) owns the work. The latest revision incorporates the user’s photo-source and timing decision (Q-06). The approved photo point carries original and reviewed days and regions. Q-05 is resolved in the final save plan.
+- Execution authorized November 27. Plan PR #570 at `695c111ab` has no conversation, review or inline feedback. Phase 01 landed on the implementation branch in [PR #579](https://github.com/kyleve/Stuff/pull/579). Phase 02 delivered the stay editor, suggestions and nine verified snapshots. Phase 03 delivered and verified the integrated route, transaction, compatibility and recovery. All three phases are complete on the implementation branch. The user selected simulator fixtures for acceptance.
 
 ## Experience
 
@@ -68,9 +68,9 @@ With eight missing days, the review shows separate stays. A person who remembers
 
 | Order | Deliverable | Horizon |
 | --- | --- | --- |
-| 1 | [Read photo locations](01-read-photo-locations.md). Supply dated, on-device photo observations and permission outcomes without opening the real scope. | Detail now |
-| 2 | [Review stays and choose regions](02-review-stays.md). Exercise gap decisions, corrections and ranking against a reproducible draft. | Detail now, depends on 01 |
-| 3 | [Save approved history and finish onboarding](03-finish-onboarding.md). Integrate the route and verify stored data, recovery and compatibility. | Outline, depends on 02 |
+| 1 | [Read photo locations](01-read-photo-locations.md). Supply dated, on-device photo observations and permission outcomes without opening the real scope. | Complete |
+| 2 | [Review stays and choose regions](02-review-stays.md). Exercise gap decisions, corrections and ranking against a reproducible draft. | Complete |
+| 3 | [Save approved history and finish onboarding](03-finish-onboarding.md). Integrate the route and verify stored data, recovery and compatibility. | Complete |
 
 ```mermaid
 flowchart LR
@@ -83,7 +83,7 @@ flowchart LR
     Finish --> Save["Save approved history and choices"]
 ```
 
-The first two deliverables establish the evidence and review inputs that the final writer must reproduce. Keep production navigation in 03 so onboarding always offers a complete route. After 02, refine 03 using its approved payload and a current compatibility audit. Each numbered file owns its implementation sketch and acceptance checks.
+The first two deliverables establish the evidence and review inputs that the final writer must reproduce. The third deliverable connects the production route, stores the approved payload, and handles compatibility and recovery. Each numbered file owns its implementation sketch and acceptance checks.
 
 ## Questions and resolutions
 
@@ -93,7 +93,7 @@ The first two deliverables establish the evidence and review inputs that the fin
 | Q-02 | closed | The user chose to keep approved GPS points as photo-sourced history, plus stay corrections. Reviewed in R-07, the 02 handoff and 03. | Confirmed gap days produce zero invented coordinates. |
 | Q-03 | closed | The user chose suggestions by days spent, with manual primary selection. Reviewed in R-06 and 02. | Approval of the history starts the picker with zero primaries selected. |
 | Q-04 | closed | The user set the maximum bridge to seven missing days. Reviewed in R-04 and 02. | The seven/eight fixtures count intervening calendar dates only. |
-| Q-05 | deferred | Which persisted attribution and completion receipt will reproduce the approved draft across unselected regions, retries, sync and restore? This depends on the concrete approved payload and the writer versions at execution. | Blocks readiness of [03](03-finish-onboarding.md) only. At refinement, trace the report, backup and Finish paths with an unselected-region and crash/retry fixture and specify the writable format and recovery boundary. |
+| Q-05 | closed | Which persisted attribution and completion receipt will reproduce the approved draft across unselected regions, retries, sync and restore? This depends on the concrete approved payload and the writer versions at execution. | Store reviewed day and region beside photo source metadata. Use an installation sidecar token and matching generation-bound transaction receipt. See the execution steps in [03](03-finish-onboarding.md). |
 | Q-06 | closed | On November 27 the user chose identifiable Shared Album exclusion and the five-minute window from PR #201. This narrows the original authorized-library scan in R-02. | Reviewed the source guard, inclusive cutoff, missing timestamps and quick-save limitation in 01 and the onboarding offer in 03. |
 
 ## Plan review and delivery
@@ -102,4 +102,4 @@ Reviewed November 27 against `2f639e987`, including the whole dependency chain a
 
 All four Mermaid flows rendered in local Chromium. The plan checks cover local links and anchors, the 01 → 02 → 03 dependency chain, and agreement between the linked requirements and acceptance fixtures. Swift sketches are illustrative. Device behavior, compatibility and recovery will be verified during implementation.
 
-Implementation has not started. [Plan PR #570](https://github.com/kyleve/Stuff/pull/570) · [STU-185](https://linear.app/kve/issue/STU-185)
+All three deliverables are on [implementation PR #579](https://github.com/kyleve/Stuff/pull/579). Human review and merge remain. [Plan PR #570](https://github.com/kyleve/Stuff/pull/570) · [STU-185](https://linear.app/kve/issue/STU-185)

@@ -1,6 +1,6 @@
 # 03 — Save the reviewed year and finish onboarding
 
-- Status: outline
+- Status: complete
 - Depends on: [02 — Review stays](02-review-stays.md)
 - Shared context: [Overview](README.md)
 
@@ -53,13 +53,35 @@ let outcome = try await store.perform(expectedDataGenerationID: reviewedGenerati
 
 ## Refinement trigger and outcome evidence
 
-After 02 demonstrates explicit gap confirmation and corrected rankings, use its approved-draft fixture to resolve [Q-05](README.md#questions-and-resolutions). Choose the persisted representation of reviewed attribution, idempotent point identity, transaction receipt and launch acknowledgment. Trace one accepted observation, one relabeled stay and one approved gap through a cold read, backup and retry before marking this plan ready.
+The phase 02 fixture demonstrated explicit gap confirmation, preserved original captures and corrected rankings. That evidence resolved [Q-05](README.md#questions-and-resolutions) and established the storage, backup and acknowledgment steps below.
 
 - In Core, prove the calendar totals and visible photo points agree with the draft after reopen, a later primary edit, backup merge, backup replace and external upgrade. Exercise two regions on one day, a removed assignment, an existing authoritative day, a concurrent change, save failure and duplicate Finish.
 - Include a photo just after local midnight on January 1. Approve the stay, change to a time zone where that instant falls on December 31, and reopen both year reports. The original point keeps its capture instant. The approved stay keeps its reviewed calendar day, including in the presence of year-bounded fetches. [Day identity](../../Where/WhereCore/Sources/Days/AGENTS.md)
 - In launch tests, stop immediately after commit and before the onboarding preference. Relaunch with Photos access revoked. The app can finish once from the committed result. Verify compatibility retirement and reset cannot revive that attempt. Exercise skip, denial, restore, demo, headless promotion and the second-device recording choice. [WhereLaunchTests](../../Where/WhereUI/Tests/WhereLaunchTests.swift) · [BackupCoordinatorTests](../../Where/WhereCore/Tests/BackupCoordinatorTests.swift)
-- On a device, grant limited access to known photos covering a travel day, several photos in one region, an image without GPS and a short gap. Repeat with full access to a test library containing a known Shared Album asset and a main-library image saved more than five minutes after capture. Verify that neither supplies a point or changes a stay or region count. Exercise cancellation during a larger scan and restart it. Review and edit a stay, explicitly confirm or decline the gap, leave a visited region unselected, then finish with recording off. Verify the photo provenance, points and expected day totals after relaunch. Exercise the manual picker after denial and the accessible labels for permission, correction, suggestions and retry.
+- The user chose simulator fixtures for acceptance on November 27. Under that boundary, simulate limited access to known photos covering a travel day, several photos in one region, an image without GPS and a short gap. Exercise full access and the PhotoKit adapter with a known Shared Album asset and a main-library image saved more than five minutes after capture. Verify that neither supplies a point or changes a stay or region count. Exercise cancellation during a larger scan and restart it. Review and edit a stay, explicitly confirm or decline the gap, leave a visited region unselected, then finish with recording off. Verify the photo provenance, points and expected day totals after relaunch. Exercise the manual picker after denial and the accessible labels for permission, correction, suggestions and retry.
 
 ## Decisions and resume point
 
-The November 27 product choices [Q-01–Q-04](README.md#questions-and-resolutions) govern gap confirmation, photo retention, active region selection and the seven-missing-day suggestion limit. [Q-05](README.md#questions-and-resolutions) affects this plan's storage and recovery design. Refine it with the reviewed draft and a failure-injection fixture after 02 completes. Implementation has not started.
+The November 27 product choices [Q-01–Q-04](README.md#questions-and-resolutions) govern gap confirmation, photo retention, active region selection and the seven-missing-day suggestion limit. The phase 02 fixture now produces the accepted original capture, reviewed day and region, and separate asserted days. Its move and co-presence regression tests passed. This resolves Q-05.
+
+## Execution steps
+
+1. Add a distinct photo sample source carrying the observed and reviewed region/day and approval time. Hash the capture instant and coordinates for a stable identity. Store day keys with the sample. Project these rows by reviewed day and attribution in reports, widgets and maps, including across New Year. Keep raw trajectory reads timed by capture. Bump the strict archive to 9 and model version to 3. The external v8 upgrade preserves rows and changes the version.
+2. Write accepted points, day assertions, explicit primary rows and an installation-scoped receipt in a generation-guarded transaction. Read conflicting days and picks inside the snapshot. Show affected dates and regions, offer to keep prior entries or apply the reviewed additions, recheck on retry, preserve old audit details. Reconcile day-dependent outputs after save.
+3. Write the receipt token, domain and generation into the installation sidecar before the transaction. Compare the receipt during ordinary Finish and launch recovery before acknowledgment. A superseded or uncommitted token cannot replay the draft. Keep backup-import recovery independent.
+4. Connect the optional fresh-onboarding scan, cancellable progress, review, picker and Finish. Continue to the manual picker after skip, denial or empty results. Pass the reviewed history only after explicit Finish. Route failed commits back to the final page with retry.
+5. Run the focused scanner, editor, persistence, backup, admission and onboarding suites and architecture checks. Verify stable stored capture data in different calendar zones and in both backup strategies. Recheck snapshots, the installation sidecar and the combined diff before publication.
+
+### Plan review
+
+November 27, 2026 against `982916f20` and the verified phase 02 draft. Review traced the moved June 2 capture to its June 3 reviewed assignment, the accepted gap to audited day assertions, and an unselected region through the existing tracked-only projection. The store supports a single rollback boundary and installation-scoped receipts. A backed-up preference alone cannot distinguish an interrupted write. The sidecar must retain the independent operation identity. Acceptance uses simulator fixtures by user direction. System permission prompts on personal hardware and a live VoiceOver session are outside the verification evidence.
+
+## Execution record
+
+The integrated route is on [implementation PR #579](https://github.com/kyleve/Stuff/pull/579). A simulator fixture scanned two Ontario photos under limited access, confirmed the three intervening days, selected California and finished with recording off. It retained two photo points and five Ontario days. Cold-store and backup tests covered both calendar years around January 1, later primary changes, rejection and approval of conflicting days, atomic rollback, repeated Finish, merge, replace, and clearing by reviewed year.
+
+Independent review caught a committed receipt that could be lost during lockout, a stale decision after an existing entry disappeared, and a year-clear operation that still used capture time. The writer now revalidates conflict evidence and uses the approved day for destructive year selection. Temporary lockout retains the pending sidecar. On a fresh account that needs a recording device to publish the data version, a local scan can still proceed. Only a current admission can write, and recovery requires a matching committed receipt.
+
+The complete Where Core, UI and host unit bundles passed 1,698 simulator tests. The standalone architecture check, Swift formatting check, string-catalog normalization and local document links passed. The user selected simulator fixtures for acceptance. No personal library or physical device was accessed. Accessibility snapshots expose the region and date range on each gap decision.
+
+Final verification passed 42 compatibility and launch tests plus both snapshot tests, covering 14 images. The new admission fixture scanned with the store gated, simulated a postcommit account invalidation, and recovered the same receipt without applying a changed list of picks. The independently reviewed implementation is ready for human review in PR #579.

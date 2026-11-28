@@ -127,7 +127,7 @@ struct StoreRemoteChangeSourceTests {
     }
 }
 
-private struct TemporaryHistoryStore {
+struct TemporaryHistoryStore {
     let directory: URL
     let container: ModelContainer
 

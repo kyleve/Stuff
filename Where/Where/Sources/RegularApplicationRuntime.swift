@@ -180,6 +180,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             logSystem: .shared,
             compatibility: compatibility,
             installationLocation: installationLocation,
+            photoLocationReader: PhotoKitLocationLibrary(),
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )

@@ -75,6 +75,7 @@ private struct RegionPickerContent: View {
         enum Message: Hashable {
             case selection
             case atCapacity
+            case suggested
             case usedThisYear
             case browse
             case search
@@ -115,6 +116,10 @@ private struct RegionPickerContent: View {
             }
         } else {
             let browse = model.browse
+            if !browse.suggested.isEmpty {
+                rows.append(.message(.suggested))
+                rows += browse.suggested.map { .region($0, includesCountryCode: true) }
+            }
             if !browse.usedThisYear.isEmpty {
                 rows.append(.message(.usedThisYear))
                 rows += browse.usedThisYear.map { .region($0, includesCountryCode: true) }
@@ -157,6 +162,7 @@ private struct RegionPickerMessageRow: View {
                         .regionPickerAtCapacity(max: PrimaryRegionDraft.maxSelection))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                case .suggested: heading(String(localized: .photoReviewSuggestions))
                 case .usedThisYear: heading(String(localized: .regionGroupUsedThisYear))
                 case .browse: heading(String(localized: .regionPickerBrowseByCountry))
                 case .search: heading(String(localized: .regionPickerSearchResults))
@@ -218,6 +224,7 @@ private struct RegionPickerRegionRow: View {
         let codeLabel = model.code(for: region).map { code in
             includesCountryCode ? "\(code.country) · \(code.subdivision)" : code.subdivision
         }
+        let dayCount = model.draft.suggestedDays[region].map { WhereFormat.dayCount($0) }
         Button {
             withAnimation(stylesheet.regionPicker.selectionAnimation) {
                 model.draft.toggle(region)
@@ -233,8 +240,7 @@ private struct RegionPickerRegionRow: View {
                             .foregroundStyle(.secondary)
                     }
                 } label: {
-                    Text(region.localizedName)
-                        .multilineTextAlignment(.leading)
+                    RegionPickerRegionLabel(region: region, dayCount: dayCount)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if selected {
@@ -248,10 +254,27 @@ private struct RegionPickerRegionRow: View {
             .contentShape(.rect)
         }
         .accessibilityLabel(region.localizedName)
-        .accessibilityValue(codeLabel ?? "")
+        .accessibilityValue([codeLabel, dayCount].compactMap(\.self).joined(separator: ", "))
         .accessibilityHint(selected ? WhereFormat.regionPickerRemoveSelection(region) : "")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .disabled(!model.draft.canToggle(region))
+    }
+}
+
+private struct RegionPickerRegionLabel: View {
+    let region: Region
+    let dayCount: String?
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(region.localizedName)
+                .multilineTextAlignment(.leading)
+            if let dayCount {
+                Text(dayCount)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

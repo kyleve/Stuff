@@ -1,6 +1,6 @@
 # 02 — Review photo-backed stays and suggest primary regions
 
-- Status: ready
+- Status: complete
 - Depends on: [01 — Read current-year photo locations](01-read-photo-locations.md)
 - Shared context: [Overview](README.md)
 
@@ -90,10 +90,10 @@ November 27, 2026. The user chose seven missing days, individual gap confirmatio
 
 ## Progress
 
-- [ ] Define and test the Core draft and approved-history handoff.
-- [ ] Deliver and verify the editable review screen and ranked manual picker.
-- [ ] Review and publish this deliverable.
+- [x] Define and test the Core draft and approved-history handoff.
+- [x] Deliver and verify the editable review screen and ranked manual picker.
+- [x] Review and publish this deliverable.
 
 ## Execution record, resume point and outcome
 
-Implementation has not started. After authorization and completion of 01, verify its actual observation identity, calendar and outside-catalog output, then start with the matched Ontario fixture. Record suite results and the reviewed-history interface for 03.
+Delivered in [PR #579](https://github.com/kyleve/Stuff/pull/579). Four focused draft and model tests passed. The snapshot assertion passed all nine pending-gap, confirmed-stay and ranked-picker images on iPhone, iPad and accessibility-size iPhone. Fresh review identified two loss cases. Moving a stay now preserves its capture, and adding another region on a confirmed day preserves both. Date formatting uses the scan calendar. Manual VoiceOver and device-library verification remain part of integrated acceptance.

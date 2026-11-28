@@ -22,17 +22,21 @@ public struct DayPresence: Hashable, Sendable, Codable {
     /// the device was at the time. `nil` for GPS-derived days and the
     /// aggregator's own report-output days (which are never user entries).
     public let audit: ManualEntryAudit?
+    /// Independent approval time when reviewed photo days were added to an existing entry.
+    public let photoApprovedAt: Date?
 
     public init(
         day: CalendarDay,
         regions: Set<Region>,
         isAuthoritative: Bool = false,
         audit: ManualEntryAudit? = nil,
+        photoApprovedAt: Date? = nil,
     ) {
         self.day = day
         self.regions = regions
         self.isAuthoritative = isAuthoritative
         self.audit = audit
+        self.photoApprovedAt = photoApprovedAt
     }
 
     /// Convenience for producers that hold a `Date` and the calendar that
@@ -44,12 +48,14 @@ public struct DayPresence: Hashable, Sendable, Codable {
         regions: Set<Region>,
         isAuthoritative: Bool = false,
         audit: ManualEntryAudit? = nil,
+        photoApprovedAt: Date? = nil,
     ) {
         self.init(
             day: CalendarDay(from: date, in: calendar),
             regions: regions,
             isAuthoritative: isAuthoritative,
             audit: audit,
+            photoApprovedAt: photoApprovedAt,
         )
     }
 

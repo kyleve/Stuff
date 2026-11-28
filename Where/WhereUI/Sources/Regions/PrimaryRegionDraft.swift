@@ -54,6 +54,21 @@ public final class PrimaryRegionDraft {
         self.drafts = drafts
     }
 
+    private(set) var suggestedDays: [Region: Int] = [:]
+
+    func suggestRegions(from totals: [Region: Int]) {
+        let eligible = Set(available)
+        suggestedDays = totals.filter { eligible.contains($0.key) && $0.value > 0 }
+    }
+
+    var suggestedRegions: [Region] {
+        Region.rankedByDayCount(
+            suggestedDays,
+            days: { $0.value },
+            region: { $0.key },
+        ).map(\.key)
+    }
+
     public var isAtCapacity: Bool {
         selectedRegions.count >= Self.maxSelection
     }

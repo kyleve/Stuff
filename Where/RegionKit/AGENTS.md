@@ -37,9 +37,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   publishers' boundaries overlap. Resolve confidence against the same
   tracked set, including an earlier region whose edge can change the match.
 - **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads
-  only the selected geometries. Core's injected `ElsewhereResolver` may lazily
-  parse the full loggable catalog on its actor for read-only historical
-  enrichment. Hierarchy traversal reads metadata alone. Rendering fidelity,
+  only the selected geometries. Core’s `ElsewhereResolver` and the opt-in photo scanner may lazily
+  parse the full loggable catalog on their actors for read-only historical attribution. Hierarchy traversal reads metadata alone. Rendering fidelity,
   MapKit conversion and render-artifact caches belong to consumers.
 - **Credit bundled geometry in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity. It derives its

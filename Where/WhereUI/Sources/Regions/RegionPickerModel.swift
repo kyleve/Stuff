@@ -22,6 +22,7 @@ final class RegionPickerModel {
     }
 
     struct Browse {
+        let suggested: [Region]
         let usedThisYear: [Region]
         let countryGroups: [CountryGroup]
     }
@@ -33,9 +34,11 @@ final class RegionPickerModel {
         let remaining = draft.available.filter { !highlighted.contains($0) }
         let groups = CountryGroup.groups(for: remaining)
         let expanded = groups.filter { expandedCountries.contains($0.id) }.flatMap(\.regions)
-        let shortcutRegions = usedThisYear.subtracting(expanded)
+        let suggested = draft.suggestedRegions
+            .filter { !highlighted.contains($0) && !expanded.contains($0) }
+        let shortcutRegions = usedThisYear.subtracting(expanded).subtracting(suggested)
         let shortcuts = remaining.filter { $0 != .other && shortcutRegions.contains($0) }
-        return Browse(usedThisYear: shortcuts, countryGroups: groups)
+        return Browse(suggested: suggested, usedThisYear: shortcuts, countryGroups: groups)
     }
 
     struct CountryGroup: Identifiable {
