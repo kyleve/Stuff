@@ -93,7 +93,8 @@ The recount also reports 117 small views with a matching filename. These include
 - WidgetKit displayed Today small and Day Counts small and medium in the gallery. The medium Day Counts widget also rendered its live empty state on the Home Screen.
 - Inspector selected a row, cancelled its native deletion confirmation, returned to its table and loaded the next page. Periscope opened both Spans destinations, returned to Logs, filtered, searched and exported its seeded record.
 - The Privacy prompt exposed Cancel and the destructive action. Native cancellation preserved revision 2 and all three policy copies. Activating the destructive action in a fresh in-memory fixture advanced it to revision 3.
-- Broadway Catalog launched on the simulator and RegionViewer built for Mac Catalyst. The physical-device Siri or Shortcuts invocation remains pending at the maintainer’s request.
+- Broadway Catalog launched on the simulator. RegionViewer selected Alabama, reset with Show all, switched from Display to Tracking, and toggled the selection off on iOS 27.2. Its Mac Catalyst build succeeded. The binary requires macOS 27.2 and this Mac runs 27.0, so the live interaction ran in the iPhone host.
+- The physical-device Siri or Shortcuts invocation remains pending at the maintainer’s request.
 
 After maintainer review and merge, run the recount on the merged source, update the agent guidance against the verified examples, and close STU-352 when the acceptance record is complete.
 
