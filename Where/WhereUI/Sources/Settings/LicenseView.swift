@@ -12,15 +12,21 @@ struct LicenseView: WhereScreen {
 
     var content: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xxLarge) {
-            header
-            notice
+            LicenseHeader(credit: credit)
+            LicenseNotice(credit: credit)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .navigationTitle(credit.name)
         .navigationBarTitleDisplayMode(.inline)
     }
+}
 
-    private var header: some View {
+private struct LicenseHeader: View {
+    let credit: SoftwareCredit
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
             Text(credit.license.name)
                 .font(.headline)
@@ -33,9 +39,12 @@ struct LicenseView: WhereScreen {
             }
         }
     }
+}
 
-    @ViewBuilder
-    private var notice: some View {
+private struct LicenseNotice: View {
+    let credit: SoftwareCredit
+
+    var body: some View {
         // The report carries the notice inline, so there is no file to fail to
         // load — an empty one would mean the generator wrote a credit without
         // text, which it refuses to do.
@@ -62,13 +71,8 @@ struct LicenseView: WhereScreen {
                 ],
                 measurementReadiness: .immediate,
             ) {
-                NavigationStack {
-                    LicenseView(
-                        credit: PreviewSupport.sampleCredit(
-                            noticeText: PreviewSupport.sampleNotice,
-                        ),
-                    )
-                }
+                let credit = PreviewSupport.sampleCredit(noticeText: PreviewSupport.sampleNotice)
+                NavigationStack { LicenseView(credit: credit) }
             }
             whereSnapshot(
                 name: "NoNotice",

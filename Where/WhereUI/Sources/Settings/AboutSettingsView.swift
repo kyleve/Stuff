@@ -20,7 +20,6 @@ import WhereCore
 struct AboutSettingsView: View {
     var focus: SettingsFocus?
 
-    @Environment(\.stylesheet) private var stylesheet
     private let buildInfo: BuildInfo
     private let attribution: AttributionManifest?
     private let dataSources: [RegionDataSource]
@@ -53,10 +52,22 @@ struct AboutSettingsView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
-                versionSection
-                dependenciesSection
-                developmentToolsSection
-                dataSourcesSection
+                AboutVersionSection(buildInfo: buildInfo)
+                AboutCreditsSection(
+                    credits: attribution?.credits(ofKind: .library) ?? [],
+                    emptyMessage: emptyMessage,
+                    header: String(localized: .settingsAboutDependenciesHeader),
+                    footer: String(localized: .settingsAboutDependenciesFooter),
+                )
+                .settingsRow(Item.dependencies)
+                AboutCreditsSection(
+                    credits: attribution?.credits(ofKind: .developmentTool) ?? [],
+                    emptyMessage: emptyMessage,
+                    header: String(localized: .settingsAboutDevelopmentToolsHeader),
+                    footer: String(localized: .settingsAboutDevelopmentToolsFooter),
+                )
+                .settingsRow(Item.developmentTools)
+                AboutDataSourcesSection(dataSources: dataSources)
                 AboutOpenSourceFooter()
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -68,145 +79,11 @@ struct AboutSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: Version
-
-    private var versionSection: some View {
-        Section {
-            LabeledContent(
-                String(localized: .settingsAboutVersionRow),
-                value: WhereFormat.aboutValue(buildInfo.version),
-            )
-            LabeledContent(
-                String(localized: .settingsAboutBuildRow),
-                value: WhereFormat.aboutValue(buildInfo.build),
-            )
-            LabeledContent(
-                String(localized: .settingsAboutCommitRow),
-                value: WhereFormat.aboutCommit(buildInfo.commit),
-            )
-        } header: {
-            Text(String(localized: .settingsAboutVersionHeader))
-        } footer: {
-            Text(String(localized: .settingsAboutVersionFooter))
-        }
-        // Selectable so a bug report can carry the exact commit rather than a
-        // squinted-at transcription of it.
-        .textSelection(.enabled)
-        .settingsRow(Item.version)
-    }
-
-    // MARK: Open source
-
-    private var dependenciesSection: some View {
-        creditSection(
-            kind: .library,
-            header: String(localized: .settingsAboutDependenciesHeader),
-            footer: String(localized: .settingsAboutDependenciesFooter),
-        )
-        .settingsRow(Item.dependencies)
-    }
-
-    // MARK: Development tools
-
-    private var developmentToolsSection: some View {
-        creditSection(
-            kind: .developmentTool,
-            header: String(localized: .settingsAboutDevelopmentToolsHeader),
-            footer: String(localized: .settingsAboutDevelopmentToolsFooter),
-        )
-        .settingsRow(Item.developmentTools)
-    }
-
-    private func creditSection(
-        kind: SoftwareCredit.Kind,
-        header: String,
-        footer: String,
-    ) -> some View {
-        let credits = attribution?.credits(ofKind: kind) ?? []
-        return Section {
-            if credits.isEmpty {
-                // Keyed on *this section* being empty, not on the report being
-                // absent: a report that carries only libraries would otherwise
-                // render the tools header and footer over no rows, and a footer
-                // still promising a list to tap through reads as a broken screen
-                // rather than as an empty one.
-                Text(String(localized: emptyMessage))
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(credits) { credit in
-                    // A closure-form link, not a `SettingsRoute`: routes are the
-                    // top-level group vocabulary, and a leaf pushed from inside
-                    // one group would need its own `navigationDestination`.
-                    NavigationLink {
-                        LicenseView(credit: credit)
-                            .whereScreenBoundary()
-                    } label: {
-                        LabeledContent(credit.name) {
-                            Text(credit.version)
-                        }
-                    }
-                }
-            }
-        } header: {
-            Text(header)
-        } footer: {
-            Text(footer)
-        }
-    }
-
     /// Why a section is empty, which the reader needs distinguished: no report
     /// at all means the whole build is unattributed, while an empty section of
     /// a real report means only that this kind has nothing in it.
     var emptyMessage: LocalizedStringResource {
         attribution == nil ? .settingsAboutAttributionUnavailable : .settingsAboutAttributionNone
-    }
-
-    // MARK: Data sources
-
-    private var dataSourcesSection: some View {
-        Section {
-            ForEach(dataSources, id: \.name) { source in
-                dataSourceRow(source)
-            }
-        } header: {
-            Text(String(localized: .settingsAboutDataSourcesHeader))
-        } footer: {
-            Text(String(localized: .settingsAboutDataSourcesFooter))
-        }
-        .settingsRow(Item.dataSources)
-    }
-
-    private func dataSourceRow(_ source: RegionDataSource) -> some View {
-        // Everything below the name is stacked rather than trailing-aligned: a
-        // boundary set's name is long enough to wrap, and a trailing count that
-        // sometimes drops to its own line reads as a different layout per row.
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Text(source.name)
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                // Only the prose is dimmed — a link tinted secondary alongside
-                // it stops reading as tappable.
-                Group {
-                    Text(source.purposes.map(WhereFormat.regionMapKind)
-                        .formatted(.list(type: .and)))
-                    Text(WhereFormat.regionDataSourceRegionCount(source.nodes.count))
-                    Text(WhereFormat.regionDataSourceFidelity(source.fidelity))
-                    Text(WhereFormat.regionDataSourceLicense(source.license))
-                }
-                .foregroundStyle(.secondary)
-                if let url = source.sourceURL {
-                    Link(WhereFormat.regionDataSourcePublisher(url), destination: url)
-                }
-                if let url = source.licenseURL {
-                    Link(destination: url) { Text(verbatim: "Open Government Licence – Canada") }
-                }
-                if let url = source.obtainedFromURL {
-                    Link(WhereFormat.regionDataSourceObtainedFrom(url), destination: url)
-                }
-            }
-            .font(.caption)
-        }
-        .lineLimit(nil)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -245,6 +122,117 @@ extension AboutSettingsView: SettingsSection {
     }
 }
 
+private struct AboutCreditsSection: View {
+    let credits: [SoftwareCredit]
+    let emptyMessage: LocalizedStringResource
+    let header: String
+    let footer: String
+
+    var body: some View {
+        Section {
+            if credits.isEmpty {
+                // Keyed on *this section* being empty, not on the report being
+                // absent: a report that carries only libraries would otherwise
+                // render the tools header and footer over no rows, and a footer
+                // still promising a list to tap through reads as a broken screen
+                // rather than as an empty one.
+                Text(String(localized: emptyMessage))
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(credits) { credit in
+                    // A closure-form link, not a `SettingsRoute`: routes are the
+                    // top-level group vocabulary, and a leaf pushed from inside
+                    // one group would need its own `navigationDestination`.
+                    AboutLicenseLink(credit: credit)
+                }
+            }
+        } header: {
+            Text(header)
+        } footer: {
+            Text(footer)
+        }
+    }
+}
+
+private struct AboutLicenseLink: View {
+    let credit: SoftwareCredit
+
+    var body: some View {
+        NavigationLink {
+            LicenseView(credit: credit)
+                .whereScreenBoundary()
+        } label: {
+            LabeledContent(credit.name) {
+                Text(credit.version)
+            }
+        }
+    }
+}
+
+private struct AboutDataSourcesSection: View {
+    let dataSources: [RegionDataSource]
+
+    var body: some View {
+        Section {
+            ForEach(dataSources, id: \.name) { source in
+                AboutDataSourceRow(source: source)
+            }
+        } header: {
+            Text(String(localized: .settingsAboutDataSourcesHeader))
+        } footer: {
+            Text(String(localized: .settingsAboutDataSourcesFooter))
+        }
+        .settingsRow(AboutSettingsView.Item.dataSources)
+    }
+}
+
+private struct AboutDataSourceFacts: View {
+    let source: RegionDataSource
+
+    var body: some View {
+        Group {
+            Text(source.purposes.map(WhereFormat.regionMapKind)
+                .formatted(.list(type: .and)))
+            Text(WhereFormat.regionDataSourceRegionCount(source.nodes.count))
+            Text(WhereFormat.regionDataSourceFidelity(source.fidelity))
+            Text(WhereFormat.regionDataSourceLicense(source.license))
+        }
+        .foregroundStyle(.secondary)
+    }
+}
+
+private struct AboutDataSourceRow: View {
+    let source: RegionDataSource
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        // Everything below the name is stacked rather than trailing-aligned: a
+        // boundary set's name is long enough to wrap, and a trailing count that
+        // sometimes drops to its own line reads as a different layout per row.
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+            Text(source.name)
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                // Only the prose is dimmed — a link tinted secondary alongside
+                // it stops reading as tappable.
+                AboutDataSourceFacts(source: source)
+                if let url = source.sourceURL {
+                    Link(WhereFormat.regionDataSourcePublisher(url), destination: url)
+                }
+                if let url = source.licenseURL {
+                    Link(destination: url) { Text(verbatim: "Open Government Licence – Canada") }
+                }
+                if let url = source.obtainedFromURL {
+                    Link(WhereFormat.regionDataSourceObtainedFrom(url), destination: url)
+                }
+            }
+            .font(.caption)
+        }
+        .lineLimit(nil)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 #if DEBUG
     extension AboutSettingsView: SnapshotProviding {
         /// Every state the screen has, which for this screen means every degree
@@ -264,28 +252,20 @@ extension AboutSettingsView: SettingsSection {
                 // otherwise quiet transition before accessibility annotation.
                 settle: .settledAtLeast(minDuration: 1.5),
             ) {
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.stampedBuildInfo(),
-                        attribution: PreviewSupport.sampleAttribution(),
-                    )
-                }
-                .environment(PreviewSupport.loadedModel())
+                AboutSettingsSnapshot(
+                    buildInfo: PreviewSupport.stampedBuildInfo(),
+                    attribution: PreviewSupport.sampleAttribution(),
+                )
             }
             whereSnapshot(
                 name: "DirtyTree",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
-                        attribution: PreviewSupport.sampleAttribution(),
-                    )
-                }
-                .environment(PreviewSupport.loadedModel())
+                AboutSettingsSnapshot(
+                    buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
+                    attribution: PreviewSupport.sampleAttribution(),
+                )
             }
             whereSnapshot(
                 name: "Unattributed",
@@ -294,14 +274,10 @@ extension AboutSettingsView: SettingsSection {
             ) {
                 // What a bundle outside the app target shows: honest unknowns and
                 // an explicit "no report" rather than blank rows and empty sections.
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.unstampedBuildInfo(),
-                        attribution: nil,
-                    )
-                }
-                .environment(PreviewSupport.loadedModel())
+                AboutSettingsSnapshot(
+                    buildInfo: PreviewSupport.unstampedBuildInfo(),
+                    attribution: nil,
+                )
             }
             whereSnapshot(
                 name: "LibrariesOnly",
@@ -312,15 +288,23 @@ extension AboutSettingsView: SettingsSection {
                 // image because the failure mode is purely visual: a header and
                 // footer over no rows, promising a list that isn't there.
                 let libraries = PreviewSupport.sampleAttribution().credits(ofKind: .library)
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.stampedBuildInfo(),
-                        attribution: AttributionManifest(credits: libraries),
-                    )
-                }
-                .environment(PreviewSupport.loadedModel())
+                AboutSettingsSnapshot(
+                    buildInfo: PreviewSupport.stampedBuildInfo(),
+                    attribution: AttributionManifest(credits: libraries),
+                )
             }
+        }
+    }
+
+    private struct AboutSettingsSnapshot: View {
+        let buildInfo: BuildInfo
+        let attribution: AttributionManifest?
+
+        var body: some View {
+            NavigationStack {
+                AboutSettingsView(focus: nil, buildInfo: buildInfo, attribution: attribution)
+            }
+            .environment(PreviewSupport.loadedModel())
         }
     }
 
@@ -338,5 +322,66 @@ extension AboutSettingsView: SettingsSection {
                 .push(to: LicenseView.flyoverID),
             ],
         )
+    }
+#endif
+
+/// A compact passport-style sign-off linking the About screen to Where's source.
+struct AboutOpenSourceFooter: View {
+    static let projectURL = URL(string: "https://github.com/kyleve/Stuff")!
+
+    @Environment(\.stylesheet) private var stylesheet
+    var body: some View {
+        Link(destination: Self.projectURL) {
+            StampBanner(
+                systemSymbol: .chevronLeftForwardslashChevronRight,
+                style: stylesheet.openSourceStamp,
+                showsAccessory: true,
+            ) {
+                AboutOpenSourceStampText()
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+#if DEBUG
+    #Preview("Source footer") { AboutSourceFooterPreview() }
+
+    private struct AboutSourceFooterPreview: View {
+        var body: some View {
+            Form {
+                AboutOpenSourceFooter()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+            }
+            .whereBroadwayRoot()
+        }
+    }
+#endif
+
+/// Keeps the source stamp's title and action together across adaptive layouts.
+private struct AboutOpenSourceStampText: View {
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.openSourceStamp
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+            Text(LocalizedStringResource.settingsAboutSourceTitle)
+                .font(style.titleFont)
+                .bold()
+                .foregroundStyle(style.tint.opacity(style.ink.titleOpacity))
+            Text(LocalizedStringResource.settingsAboutSourceAction)
+                .font(style.detailFont)
+                .foregroundStyle(style.tint.opacity(style.ink.detailOpacity))
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Source stamp") {
+        AboutOpenSourceStampText()
+            .padding()
+            .whereBroadwayRoot()
     }
 #endif
