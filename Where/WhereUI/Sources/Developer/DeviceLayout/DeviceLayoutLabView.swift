@@ -18,34 +18,17 @@
         }
 
         @Environment(\.stylesheet) private var stylesheet
-        /// Forward the live appearance into the synthetic UIKit and SwiftUI trait host.
-        @Environment(\.colorScheme) private var colorScheme
 
         var body: some View {
             VStack(spacing: stylesheet.spacing.medium) {
-                HStack {
-                    Text(String(localized: .developerDeviceTitle))
-                        .font(.headline)
-                    Spacer()
-                    Button(String(localized: .developerDeviceReset), action: state.reset)
-                        .buttonStyle(.bordered)
-                }
-                Picker(String(localized: .developerDeviceLayout), selection: $state.configuration) {
-                    Section(String(localized: .developerDevicesPhone)) {
-                        deviceOptions(idiom: .phone)
-                    }
-                    Section(String(localized: .developerDevicesTablet)) {
-                        deviceOptions(idiom: .pad)
-                    }
-                    Section(String(localized: .developerDevicesDuo)) {
-                        ForEach(SnapshotConfiguration.DuoPose.allCases) { pose in
-                            Text(pose.title).tag(DeviceLayoutConfiguration.duo(pose))
-                        }
-                    }
-                }
-                .pickerStyle(.menu)
-                preview
-                    .id(ObjectIdentifier(state.model))
+                DeviceLayoutLabHeader(reset: state.reset)
+                DeviceLayoutLabPicker(configuration: $state.configuration)
+                DeviceLayoutLabPreview(
+                    model: state.model,
+                    configuration: state.configuration,
+                    initialRegion: initialRegion,
+                )
+                .id(ObjectIdentifier(state.model))
                 Text(String(localized: .developerDeviceNote))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -54,99 +37,6 @@
             .padding(stylesheet.spacing.medium)
             .background(.background)
             .task(id: state.loadID) { await state.model.load() }
-        }
-
-        private func deviceOptions(idiom: SnapshotConfiguration.Frame.LayoutTraits
-            .InterfaceIdiom) -> some View
-        {
-            ForEach(SnapshotConfiguration.DeviceProfile.allCases
-                .filter { $0.idiom == idiom })
-            { profile in
-                ForEach(SnapshotConfiguration.DeviceProfile.Orientation
-                    .allCases)
-                { orientation in
-                    let configuration = DeviceLayoutConfiguration.device(profile, orientation)
-                    Text(configuration.title).tag(configuration)
-                }
-            }
-        }
-
-        @ViewBuilder
-        private var screen: some View {
-            switch state.model.state {
-                case .idle, .loading:
-                    ProgressView(String(localized: .primaryLoading))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case let .loaded(world):
-                    MainTabs(world: world, region: initialRegion)
-                        .environment(world.model)
-                        .environment(world.session)
-                        .environment(\.isInDemoMode, true)
-                        .environment(\.demoExitPresentation, .embedded)
-                case let .failed(error):
-                    ContentUnavailableView {
-                        Label(
-                            String(localized: .commonLoadErrorTitle),
-                            systemSymbol: .exclamationmarkTriangle,
-                        )
-                    } description: {
-                        Text(error.localizedDescription)
-                    } actions: {
-                        Button(
-                            String(localized: .developerDeviceRetry),
-                            action: state.model.retry,
-                        )
-                    }
-            }
-        }
-
-        private var preview: some View {
-            GeometryReader { proxy in
-                let configuration = state.configuration
-                let insets = configuration.frame.safeAreaInsets
-                let chrome = stylesheet.deviceLayoutLab
-                let deviceSize = CGSize(
-                    width: configuration.size.width + chrome.bezelWidth * 2,
-                    height: configuration.size.height + chrome.bezelWidth * 2,
-                )
-                let deviceShape = RoundedRectangle(
-                    cornerRadius: chrome.screenCornerRadius + chrome.bezelWidth,
-                )
-                let scale = min(
-                    1,
-                    min(
-                        proxy.size.width / deviceSize.width,
-                        proxy.size.height / deviceSize.height,
-                    ),
-                )
-                screen
-                    .safeAreaPadding(EdgeInsets(
-                        top: insets.top,
-                        leading: insets.leading,
-                        bottom: insets.bottom,
-                        trailing: insets.trailing,
-                    ))
-                    .frame(width: configuration.size.width, height: configuration.size.height)
-                    .background(.background)
-                    .adaptivePaneReservedRegions(configuration.regions)
-                    .whereBroadwayRoot()
-                    .snapshotTraits(SnapshotConfiguration(
-                        colorScheme: colorScheme,
-                        device: configuration.frame,
-                    ))
-                    .frame(width: configuration.size.width, height: configuration.size.height)
-                    .clipShape(RoundedRectangle(cornerRadius: chrome.screenCornerRadius))
-                    .padding(chrome.bezelWidth)
-                    .background(chrome.bezelColor, in: deviceShape)
-                    .overlay {
-                        deviceShape.strokeBorder(.secondary, lineWidth: chrome.outlineWidth)
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                    }
-                    .scaleEffect(scale)
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .clipped()
-            }
         }
     }
 
@@ -214,6 +104,58 @@
             navigationContainer: .none,
         ) { _ in
             DeviceLayoutLabView()
+        }
+    }
+
+    private struct DeviceLayoutLabHeader: View {
+        let reset: () -> Void
+
+        var body: some View {
+            HStack {
+                Text(String(localized: .developerDeviceTitle))
+                    .font(.headline)
+                Spacer()
+                Button(String(localized: .developerDeviceReset), action: reset)
+                    .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private struct DeviceLayoutLabPicker: View {
+        @Binding var configuration: DeviceLayoutConfiguration
+
+        var body: some View {
+            Picker(String(localized: .developerDeviceLayout), selection: $configuration) {
+                Section(String(localized: .developerDevicesPhone)) {
+                    DeviceLayoutOptions(idiom: .phone)
+                }
+                Section(String(localized: .developerDevicesTablet)) {
+                    DeviceLayoutOptions(idiom: .pad)
+                }
+                Section(String(localized: .developerDevicesDuo)) {
+                    ForEach(SnapshotConfiguration.DuoPose.allCases) { pose in
+                        Text(pose.title).tag(DeviceLayoutConfiguration.duo(pose))
+                    }
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+
+    private struct DeviceLayoutOptions: View {
+        let idiom: SnapshotConfiguration.Frame.LayoutTraits.InterfaceIdiom
+
+        var body: some View {
+            ForEach(SnapshotConfiguration.DeviceProfile.allCases
+                .filter { $0.idiom == idiom })
+            { profile in
+                ForEach(SnapshotConfiguration.DeviceProfile.Orientation
+                    .allCases)
+                { orientation in
+                    let configuration = DeviceLayoutConfiguration.device(profile, orientation)
+                    Text(configuration.title).tag(configuration)
+                }
+            }
         }
     }
 #endif

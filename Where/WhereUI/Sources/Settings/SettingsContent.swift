@@ -66,27 +66,26 @@ struct SettingsContent: View {
         List(selection: $navigation.selectedRoute) {
             if isSearching {
                 ForEach(searchResults) { result in
-                    searchNavigationRow(result)
+                    SettingsRouteRow(route: SettingsRoute(result), present: present) {
+                        SettingsSearchLabel(result: result)
+                    }
                 }
             } else {
                 if recordingWarning.isPresented {
-                    recordingWarningSection
+                    SettingsRecordingWarningSection(dismiss: recordingWarning.dismiss)
                 }
                 if isInDemoMode, demoExitPresentation == .session {
-                    demoSection
+                    SettingsDemoSection(exit: exitDemoMode)
                 }
                 ForEach(SettingsListSection.allCases, id: \.self) { section in
                     let destinations = section.destinations.filter(isAvailable)
                     if !destinations.isEmpty {
-                        Section {
-                            ForEach(destinations, id: \.self) { destination in
-                                groupNavigationRow(destination)
-                            }
-                        } header: {
-                            if let headerTitle = section.headerTitle {
-                                Text(headerTitle)
-                            }
-                        }
+                        SettingsGroupSection(
+                            section: section,
+                            destinations: destinations,
+                            subtitle: subtitle(for:),
+                            present: present,
+                        )
                     }
                 }
             }
@@ -105,81 +104,12 @@ struct SettingsContent: View {
         }
     }
 
-    private var recordingWarningSection: some View {
-        Section {
-            NavigationLink(value: SettingsRoute(.devices)) {
-                Label {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(.settingsRecordingWarningTitle)
-                            .font(.headline)
-                        Text(.settingsRecordingWarningMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                } icon: {
-                    Image(systemSymbol: .exclamationmarkTriangleFill)
-                        .foregroundStyle(.yellow)
-                        .accessibilityHidden(true)
-                }
-            }
-            Button(.settingsRecordingWarningDismiss, role: .cancel) {
-                recordingWarning.dismiss()
-            }
-        }
-    }
-
-    /// The way out of demo mode, at the very top of the list where a temporary
-    /// state belongs — above the real settings rather than filed among them.
-    ///
-    /// No confirmation: there is nothing to lose. Demo data was never saved,
-    /// and leaving is exactly what quitting the app would do anyway, so a
-    /// "are you sure?" would overstate the stakes.
-    private var demoSection: some View {
-        Section {
-            Button {
-                exitDemoMode()
-            } label: {
-                Label(
-                    String(localized: .settingsDemoExit),
-                    systemSymbol: .rectanglePortraitAndArrowRight,
-                )
-            }
-        } header: {
-            Text(String(localized: .settingsDemoHeader))
-        } footer: {
-            Text(String(localized: .settingsDemoFooter))
-        }
-    }
-
     /// Tear the demo world down and re-drive the launch, through the same
     /// `LifecycleProxy` the reset flow uses. The relaunch parks on the
     /// onboarding gate (or resolves straight through for someone who had
     /// already onboarded before trying the demo).
     private func exitDemoMode() {
         Task { await lifecycle.teardown(WhereLaunch.exitDemoPlan(for: model), input: session) }
-    }
-
-    /// A top-level row that either pushes its sub-screen or, for a sheet group
-    /// (Regions), presents it modally.
-    @ViewBuilder
-    private func groupNavigationRow(_ destination: SettingsDestination) -> some View {
-        if destination.isSheet {
-            Button { present(destination) } label: { groupRow(destination) }
-                .tint(.primary)
-        } else {
-            NavigationLink(value: SettingsRoute(destination)) { groupRow(destination) }
-        }
-    }
-
-    /// A search-result row that mirrors the group row's push-vs-sheet routing.
-    @ViewBuilder
-    private func searchNavigationRow(_ result: SettingsSearchResult) -> some View {
-        if result.destination.isSheet {
-            Button { present(result.destination) } label: { searchRow(result) }
-                .tint(.primary)
-        } else {
-            NavigationLink(value: SettingsRoute(result)) { searchRow(result) }
-        }
     }
 
     /// Present a sheet group. Non-sheet destinations are pushed via
@@ -193,23 +123,6 @@ struct SettingsContent: View {
                  .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
                  .data, .privacyDiagnostics, .updates, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
-        }
-    }
-
-    /// A top-level drill-in row: icon + group title, with a value subtitle where
-    /// one is cheap and useful (location status, the report year).
-    private func groupRow(_ destination: SettingsDestination) -> some View {
-        LabeledContent {
-            if let subtitle = subtitle(for: destination) {
-                Text(subtitle)
-                    .foregroundStyle(.secondary)
-            }
-        } label: {
-            Label {
-                Text(destination.rowTitle)
-            } icon: {
-                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
-            }
         }
     }
 
@@ -232,10 +145,104 @@ struct SettingsContent: View {
                 nil
         }
     }
+}
 
-    /// A search result row: the owning group's icon beside the setting's name
-    /// over its parent group, so a result reads as belonging to its section.
-    private func searchRow(_ result: SettingsSearchResult) -> some View {
+private struct SettingsRecordingWarningSection: View {
+    let dismiss: () -> Void
+
+    var body: some View {
+        Section {
+            RecordingWarningLink()
+            Button(.settingsRecordingWarningDismiss, role: .cancel) {
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct RecordingWarningLink: View {
+    var body: some View {
+        NavigationLink(value: SettingsRoute(.devices)) {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(.settingsRecordingWarningTitle)
+                        .font(.headline)
+                    Text(.settingsRecordingWarningMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemSymbol: .exclamationmarkTriangleFill)
+                    .foregroundStyle(.yellow)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+/// The way out of demo mode, at the very top of the list where a temporary
+/// state belongs — above the real settings rather than filed among them.
+///
+/// No confirmation: there is nothing to lose. Demo data was never saved,
+/// and leaving is exactly what quitting the app would do anyway, so a
+/// "are you sure?" would overstate the stakes.
+private struct SettingsDemoSection: View {
+    let exit: () -> Void
+
+    var body: some View {
+        Section {
+            ExitDemoButton(exit: exit)
+        } header: {
+            Text(String(localized: .settingsDemoHeader))
+        } footer: {
+            Text(String(localized: .settingsDemoFooter))
+        }
+    }
+}
+
+private struct ExitDemoButton: View {
+    let exit: () -> Void
+
+    var body: some View {
+        Button {
+            exit()
+        } label: {
+            Label(
+                String(localized: .settingsDemoExit),
+                systemSymbol: .rectanglePortraitAndArrowRight,
+            )
+        }
+    }
+}
+
+/// A top-level drill-in row: icon + group title, with a value subtitle where
+/// one is cheap and useful (location status, the report year).
+private struct SettingsGroupLabel: View {
+    let destination: SettingsDestination
+    let subtitle: String?
+
+    var body: some View {
+        LabeledContent {
+            if let subtitle {
+                Text(subtitle)
+                    .foregroundStyle(.secondary)
+            }
+        } label: {
+            Label {
+                Text(destination.rowTitle)
+            } icon: {
+                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
+            }
+        }
+    }
+}
+
+/// A search result row: the owning group's icon beside the setting's name
+/// over its parent group, so a result reads as belonging to its section.
+private struct SettingsSearchLabel: View {
+    let result: SettingsSearchResult
+
+    var body: some View {
         Label {
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.title)
@@ -252,6 +259,89 @@ struct SettingsContent: View {
     }
 }
 
+private struct SettingsRouteRow<Content: View>: View {
+    let route: SettingsRoute
+    let present: (SettingsDestination) -> Void
+    @ViewBuilder let label: Content
+
+    var body: some View {
+        if route.destination.isSheet {
+            Button { present(route.destination) } label: { label }
+                .tint(.primary)
+        } else {
+            NavigationLink(value: route) { label }
+        }
+    }
+}
+
+private struct SettingsGroupSection: View {
+    let section: SettingsListSection
+    let destinations: [SettingsDestination]
+    let subtitle: (SettingsDestination) -> String?
+    let present: (SettingsDestination) -> Void
+
+    var body: some View {
+        Section {
+            ForEach(destinations, id: \.self) { destination in
+                SettingsRouteRow(route: SettingsRoute(destination), present: present) {
+                    SettingsGroupLabel(destination: destination, subtitle: subtitle(destination))
+                }
+            }
+        } header: {
+            if let headerTitle = section.headerTitle {
+                Text(headerTitle)
+            }
+        }
+    }
+}
+
 #if DEBUG
     #Preview { SettingsView.snapshotPreviews }
+#endif
+
+/// The colored rounded-square icon chip for a top-level settings row (iOS-Settings
+/// style): an SF Symbol centered on a per-section color. The glyph is white in
+/// light mode and black in dark mode; the chip geometry comes from
+/// `WhereStylesheet.SettingsStyle`.
+private struct SettingsIcon: View {
+    let systemSymbol: SFSymbol
+    let color: Color
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let settings = stylesheet.settings
+        Image(systemSymbol: systemSymbol)
+            .font(.system(size: settings.iconSymbolSize, weight: .semibold))
+            .foregroundStyle(settings.iconForeground)
+            .frame(width: settings.iconSize, height: settings.iconSize)
+            .background(
+                color,
+                in: RoundedRectangle(cornerRadius: settings.iconCornerRadius, style: .continuous),
+            )
+            // Decorative: the row's text carries the accessibility label.
+            .accessibilityHidden(true)
+    }
+}
+
+#if DEBUG
+    #Preview("Settings icons") { SettingsIconPreview() }
+
+    private struct SettingsIconPreview: View {
+        var body: some View {
+            List {
+                ForEach(SettingsDestination.allCases, id: \.self) { destination in
+                    Label {
+                        Text(destination.rowTitle)
+                    } icon: {
+                        SettingsIcon(
+                            systemSymbol: destination.systemSymbol,
+                            color: destination.iconColor,
+                        )
+                    }
+                }
+            }
+            .whereBroadwayRoot()
+        }
+    }
 #endif
