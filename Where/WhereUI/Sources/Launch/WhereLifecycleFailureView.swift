@@ -63,7 +63,6 @@ struct WhereLifecycleFailureView: View {
         case committed(WhereLifecycleFailurePresentation)
     }
 
-    @Environment(\.stylesheet) private var stylesheet
     private let content: Content
 
     init(failure: LifecycleFailure) {
@@ -85,26 +84,44 @@ struct WhereLifecycleFailureView: View {
             case let .generic(failure):
                 LifecycleFailureView(failure: failure)
             case let .committed(presentation):
-                GeometryReader { geometry in
-                    ScrollView {
-                        VStack(spacing: stylesheet.spacing.large) {
-                            Image(systemSymbol: presentation.systemSymbol)
-                                .font(.largeTitle)
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                            Text(presentation.title)
-                                .font(.title.bold())
-                                .accessibilityAddTraits(.isHeader)
-                            Text(presentation.message)
-                                .foregroundStyle(.secondary)
-                        }
-                        .multilineTextAlignment(.center)
-                        .padding(stylesheet.spacing.xxxLarge)
-                        .frame(maxWidth: .infinity, minHeight: geometry.size.height)
-                    }
-                    .scrollBounceBehavior(.basedOnSize)
-                }
-                .background(Color(.systemBackground).ignoresSafeArea())
+                CommittedLifecycleFailure(presentation: presentation)
+        }
+    }
+}
+
+private struct CommittedLifecycleFailure: View {
+    let presentation: WhereLifecycleFailurePresentation
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                CommittedFailureMessage(presentation: presentation)
+                    .multilineTextAlignment(.center)
+                    .padding(stylesheet.spacing.xxxLarge)
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .background(Color(.systemBackground).ignoresSafeArea())
+    }
+}
+
+private struct CommittedFailureMessage: View {
+    let presentation: WhereLifecycleFailurePresentation
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        VStack(spacing: stylesheet.spacing.large) {
+            Image(systemSymbol: presentation.systemSymbol)
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(presentation.title)
+                .font(.title.bold())
+                .accessibilityAddTraits(.isHeader)
+            Text(presentation.message)
+                .foregroundStyle(.secondary)
         }
     }
 }

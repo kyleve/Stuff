@@ -110,17 +110,22 @@ struct LaunchSplashView: View {
             primaryAppIconName: primaryAppIconName,
         )
         ZStack {
-            background
+            LaunchSplashBackground(palette: splash)
             RadarPingBackground(tint: splash.iconGlow)
-            icon(named: imageName)
+            LaunchSplashIcon(
+                name: imageName,
+                size: stylesheet.size.launchIcon,
+                glow: splash.iconGlow,
+                pulsing: $pulsing,
+                motionIsStatic: motionIsStatic,
+            )
 
             if showCaption {
-                VStack {
-                    Spacer()
-                    captionView
-                        .padding(.bottom, stylesheet.size.launchCaptionBottomInset)
-                }
-                .transition(.opacity)
+                LaunchSplashCaptionPlacement(
+                    title: captionTitle,
+                    subtitle: captionSubtitle,
+                    bottomInset: stylesheet.size.launchCaptionBottomInset,
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -146,46 +151,74 @@ struct LaunchSplashView: View {
             withAnimation(stylesheet.launch.captionAnimation) { showCaption = true }
         }
     }
+}
 
-    /// The text below the icon — the slow-launch reassurance, or the named
-    /// work being waited on. The radar and pulsing icon already say "working",
-    /// so this is just text, pinned light since the backdrop is always dark.
-    private var captionView: some View {
-        VStack(spacing: stylesheet.spacing.small) {
-            Text(captionTitle)
+private struct LaunchSplashCaptionPlacement: View {
+    let title: String
+    let subtitle: String
+    let bottomInset: CGFloat
+
+    var body: some View {
+        VStack {
+            Spacer()
+            LaunchSplashCaption(title: title, subtitle: subtitle)
+                .padding(.bottom, bottomInset)
+        }
+        .transition(.opacity)
+    }
+}
+
+/// The text below the icon — the slow-launch reassurance, or the named
+/// work being waited on. The radar and pulsing icon already say "working",
+/// so this is just text, pinned light since the backdrop is always dark.
+private struct LaunchSplashCaption: View {
+    let title: String
+    let subtitle: String
+    @Environment(\.stylesheet.spacing) private var spacing
+
+    var body: some View {
+        VStack(spacing: spacing.small) {
+            Text(title)
                 .font(.headline)
-            Text(captionSubtitle)
+            Text(subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .foregroundStyle(.primary)
         .multilineTextAlignment(.center)
-        .padding(.horizontal, stylesheet.spacing.xxxLarge)
+        .padding(.horizontal, spacing.xxxLarge)
     }
+}
 
-    /// A subtle vignette — a touch lighter at the center, falling to black — so
-    /// the icon and rings have some depth instead of floating on flat black.
-    private var background: some View {
+/// A subtle vignette — a touch lighter at the center, falling to black — so
+/// the icon and rings have some depth instead of floating on flat black.
+private struct LaunchSplashBackground: View {
+    let palette: WhereStylesheet.Palette.Splash
+
+    var body: some View {
         RadialGradient(
-            colors: [splash.vignetteCenter, splash.vignetteEdge],
+            colors: [palette.vignetteCenter, palette.vignetteEdge],
             center: .center,
             startRadius: 0,
             endRadius: 520,
         )
         .ignoresSafeArea()
     }
+}
 
-    private func icon(named name: String) -> some View {
-        let cornerRadius = stylesheet.size.launchIcon * AppIconImage.cornerRadiusRatio
-        return AppIconImage(name: name, size: stylesheet.size.launchIcon, bordered: false)
+private struct LaunchSplashIcon: View {
+    let name: String
+    let size: CGFloat
+    let glow: Color
+    @Binding var pulsing: Bool
+    let motionIsStatic: Bool
+
+    var body: some View {
+        let cornerRadius = size * AppIconImage.cornerRadiusRatio
+        AppIconImage(name: name, size: size, bordered: false)
             .scaleEffect(pulsing ? 1.1 : 1)
             .background {
-                // A soft brand-tinted glow that breathes with the pulse.
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(splash.iconGlow)
-                    .blur(radius: 44)
-                    .opacity(pulsing ? 0.55 : 0.3)
-                    .scaleEffect(pulsing ? 1.3 : 0.85)
+                LaunchSplashGlow(radius: cornerRadius, glow: glow, pulsing: pulsing)
             }
             .onAppear {
                 guard !motionIsStatic else { return }
@@ -196,70 +229,18 @@ struct LaunchSplashView: View {
     }
 }
 
-/// Concentric "sonar" rings that expand outward from the center and fade as
-/// they grow, staggered so a new ring sets off before the previous one
-/// dissolves. Driven by a `TimelineView` clock and drawn in a `Canvas`, so
-/// there's no per-ring view state to keep in sync; pausing the clock (static
-/// motion — see ``MotionIsStatic``) renders a single static frame of
-/// staggered rings.
-///
-/// Snapshot captures additionally pin the phase to a constant — a paused
-/// `TimelineView` still reports the wall-clock pause time, which would leak
-/// run-dependent ring radii/opacities into the image.
-private struct RadarPingBackground: View {
-    @MotionIsStatic private var motionIsStatic
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
-
-    var tint: Color = .white
-
-    private let ringCount = 4
-    private let period: Double = 3.6
-    private let minRadius: CGFloat = 56
-    private let maxOpacity: Double = 0.32
+private struct LaunchSplashGlow: View {
+    let radius: CGFloat
+    let glow: Color
+    let pulsing: Bool
 
     var body: some View {
-        // `motionIsStatic` pauses the clock (no ticks under Reduce Motion or
-        // capture); `isCapturingSnapshot` additionally pins the phase, since a
-        // paused `TimelineView` still reports its wall-clock pause instant —
-        // which would leak run-dependent ring radii/opacities into the capture.
-        TimelineView(.animation(paused: motionIsStatic)) { timeline in
-            Canvas { context, size in
-                let now = timeline.radarPhaseClock(capturingSnapshot: isCapturingSnapshot)
-                let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let maxRadius = max(size.width, size.height) * 0.75
-                for index in 0 ..< ringCount {
-                    let phase = ringPhase(now: now, index: index)
-                    let radius = minRadius + (maxRadius - minRadius) * phase
-                    let opacity = (1 - phase) * maxOpacity
-                    let rect = CGRect(
-                        x: center.x - radius,
-                        y: center.y - radius,
-                        width: radius * 2,
-                        height: radius * 2,
-                    )
-                    let circle = Circle().path(in: rect)
-                    context.fill(circle, with: .color(tint.opacity(opacity * 0.12)))
-                    context.stroke(circle, with: .color(tint.opacity(opacity)), lineWidth: 1.5)
-                }
-            }
-            .accessibilityHidden(true)
-        }
-    }
-
-    /// Each ring's progress through one expand-and-fade cycle, in `0..<1`,
-    /// offset by its index so the rings are evenly spaced around the loop.
-    private func ringPhase(now: Double, index: Int) -> Double {
-        let raw = now / period + Double(index) / Double(ringCount)
-        return raw - raw.rounded(.down)
-    }
-}
-
-extension TimelineViewDefaultContext {
-    /// The radar rings' animation-phase clock: the wall-clock time normally, or
-    /// a pinned constant under snapshot capture so the rings freeze at a
-    /// deterministic phase (see `RadarPingBackground`).
-    fileprivate func radarPhaseClock(capturingSnapshot: Bool) -> Double {
-        capturingSnapshot ? 0 : date.timeIntervalSinceReferenceDate
+        // A soft brand-tinted glow that breathes with the pulse.
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(glow)
+            .blur(radius: 44)
+            .opacity(pulsing ? 0.55 : 0.3)
+            .scaleEffect(pulsing ? 1.3 : 0.85)
     }
 }
 

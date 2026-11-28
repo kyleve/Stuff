@@ -9,7 +9,6 @@ import WhereCore
 /// History-free recovery shared by cold launch and live session retirement.
 struct DataCompatibilityView: View {
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.openURL) private var openURL
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.primaryAppIconName) private var primaryAppIconName
     @Environment(UpdateModel.self) private var updates: UpdateModel?
@@ -65,14 +64,7 @@ struct DataCompatibilityView: View {
             if case let .blocked(.updateRequired(_, reason)) = state,
                let explanation = reason?.localized(preferredLocales: Locale.preferredLocales)
             {
-                GroupBox {
-                    Text(verbatim: explanation)
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                } label: {
-                    Text(.compatibilityUpdateReasonTitle)
-                        .frame(maxWidth: .infinity)
-                }
+                CompatibilityUpdateReason(explanation: explanation)
             }
             if case .checking = state {
                 ProgressView()
@@ -81,22 +73,9 @@ struct DataCompatibilityView: View {
                     CompatibilityAppUpdatesButton(model: updates)
                 }
             } else {
-                Button(String(localized: .compatibilityRetry)) {
-                    isRetrying = true
-                    Task {
-                        await retry()
-                        isRetrying = false
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(isRetrying)
+                CompatibilityRetryButton(isRetrying: $isRetrying, retry: retry)
                 if case .blocked(.locationPermissionRequired) = state {
-                    Button(String(localized: .compatibilityOpenSettings)) {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            openURL(url)
-                        }
-                    }
+                    CompatibilityOpenSettingsButton()
                 }
             }
         }
@@ -119,15 +98,69 @@ private struct CompatibilityAppUpdatesButton: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
             .sheet(isPresented: $showsUpdates) {
-                NavigationStack {
-                    DevelopmentUpdatesView(model: model, focus: nil)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(String(localized: .commonDone)) { showsUpdates = false }
-                            }
-                        }
-                }
+                CompatibilityUpdatesSheet(model: model) { showsUpdates = false }
             }
+    }
+}
+
+private struct CompatibilityUpdateReason: View {
+    let explanation: String
+
+    var body: some View {
+        GroupBox {
+            Text(verbatim: explanation)
+                .font(.subheadline)
+                .frame(maxWidth: .infinity)
+        } label: {
+            Text(.compatibilityUpdateReasonTitle)
+                .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+private struct CompatibilityRetryButton: View {
+    @Binding var isRetrying: Bool
+    let retry: @MainActor () async -> Void
+
+    var body: some View {
+        Button(String(localized: .compatibilityRetry)) {
+            isRetrying = true
+            Task {
+                await retry()
+                isRetrying = false
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .disabled(isRetrying)
+    }
+}
+
+private struct CompatibilityOpenSettingsButton: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button(String(localized: .compatibilityOpenSettings)) {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                openURL(url)
+            }
+        }
+    }
+}
+
+private struct CompatibilityUpdatesSheet: View {
+    let model: UpdateModel
+    let done: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            DevelopmentUpdatesView(model: model, focus: nil)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .commonDone)) { done() }
+                    }
+                }
+        }
     }
 }
 
