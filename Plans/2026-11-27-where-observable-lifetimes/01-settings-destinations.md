@@ -104,6 +104,7 @@ If export validation fails, hold the store or archive access before dismissing, 
 - 2026-11-27. Moved both destination hosts and ran the first focused simulator batch, which passed 51 tests across Phase 1. Independent review identified that an explicit issue-alert edit must reconcile the badge after the permission prompt. The implementation preserves that prerequisite while keeping launch families concurrent. Added mounted Data dismissal and queued-export coverage for the follow-up run.
 - 2026-11-27. The focused iPhone 17 run passed the five Settings and backup suites, including the mounted route change, held export, canceled queued request, and newer notification choice. The architecture run passed 30 rule tests and found no violations. Data and Settings captures passed with recording disabled. The only failure in the combined unit run was the separate Elsewhere interaction test, tracked in Plan 02.
 - 2026-11-27. Review feedback read at 20:18 EST against `6b88da9c2` changed R-01 to a view-owned export. The earlier queued-export check is historical. Its replacement holds a read across cancellation and retry, then verifies the retry archive is still tracked for cleanup.
+- 2026-11-27. The focused run at `3a0fb707f` passed all 41 tests across Backup, Alerts, and the planner on iPhone 17 with iOS 27.2. The mounted Data case passed with native share sheet dismissal awaited before archive cleanup.
 
 ## Resume point
 

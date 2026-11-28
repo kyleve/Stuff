@@ -4,7 +4,7 @@
 
 - Updated 2026-11-27 against main at `c41708712`.
 - Operation is revision. Elsewhere retains its shared cache. Data Settings now owns cancellation of its export request.
-- Stage is review follow-up for [PR #578](https://github.com/kyleve/Stuff/pull/578). [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks the retained work.
+- Stage is review handoff for [PR #578](https://github.com/kyleve/Stuff/pull/578). The review follow-up is verified at `3a0fb707f`. [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks the retained work.
 - Test evidence and limits are recorded in [Settings](01-settings-destinations.md#execution-record), [Elsewhere history](02-elsewhere-flow.md#execution-record), and the [follow-ups](03-picker-editor-confirmation.md#execution-record).
 
 ## Outcome and scope
@@ -101,6 +101,7 @@ No open product decisions. The [Phase 2 plan](03-picker-editor-confirmation.md) 
 - Planning and implementation are recorded in [PR #578](https://github.com/kyleve/Stuff/pull/578), open for review against main.
 - The pre-withdrawal simulator run passed 98 tests. The two snapshot runs passed 11 tests with recording disabled. The architecture run passed 30 rule tests and found no violations. Those runs verified the earlier revision.
 - After withdrawal, independent review confirmed that all nine Elsewhere source and test files match the baseline. On iPhone 17 with iOS 27.2, 23 focused tests and five snapshot tests passed. Architecture checks passed, and snapshot recording was disabled.
+- After the review follow-up, 41 focused simulator tests and four snapshot tests passed on the iPhone 17 simulator. The snapshots covered Data, Settings, Planned Stays, and Privacy & Diagnostics with recording disabled.
 - Review focus is dismissal during export, saved schedule ordering across presentations, and preservation of active editor state.
 
 ## Outcome

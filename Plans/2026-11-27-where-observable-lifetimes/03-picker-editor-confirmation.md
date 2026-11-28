@@ -104,6 +104,7 @@ When a draft is recreated during resize, inspect the sheet item ID and the host'
 - 2026-11-27. Refined and reviewed the plan after Phase 1 passed mounted and settled snapshot checks. Traced the native Home push, planner and direct editor sheets, and the DEBUG diagnostics toggle against the source at `41de638f0`. The same destination and fixture conventions apply. No blocking questions remain.
 - 2026-11-27. The initial Phase 2 simulator run passed 40 tests, including a fresh Home search after popping and reopening, held editor saves during fold changes, and rejection of superseded reporting policy. The four Phase 2 snapshot tests matched byte for byte with recording disabled. Independent review identified the accessibility parser import needed by hosted tests on fresh simulator processes. The changed traversal tests now import it explicitly.
 - 2026-11-27. The final combined iPhone 17 and iOS 27.2 run passed 98 tests across 16 suites. That run includes mounted abandonment and reopening of the native diagnostics prompt and the Flyover data and demo-world checks. Both snapshot runs passed all 11 tests with recording disabled. Architecture checks, SF Symbol lint, SwiftFormat lint, and diff whitespace checks passed.
+- 2026-11-27. The mounted Home test initially read the outgoing query during reopening. At `3a0fb707f` it waits for the reopened search field to settle, and passed with the four other focused suites after the Data test awaited share sheet dismissal.
 
 ## Resume point
 
