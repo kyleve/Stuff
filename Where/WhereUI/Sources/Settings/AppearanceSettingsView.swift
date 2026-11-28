@@ -11,11 +11,7 @@ struct AppearanceSettingsView: View {
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
-    @Environment(WhereModel.self) private var model
     @State private var estimatedTimeSettings: EstimatedTimeAndPlanningSettingsModel
-    #if DEBUG
-        @Environment(\.cardDesignerModel) private var cardDesignerModel
-    #endif
 
     init(report: YearReportModel, focus: SettingsFocus? = nil) {
         self.report = report
@@ -26,122 +22,21 @@ struct AppearanceSettingsView: View {
     }
 
     var body: some View {
-        @Bindable var report = report
         @Bindable var estimatedTimeSettings = estimatedTimeSettings
         SettingsFocusScope(focus: focus) {
             Form {
-                Section {
-                    WhereThemePicker(selection: model.theme) {
-                        model.selectTheme($0)
-                    }
-                    .settingsRow(Item.theme)
-                } header: {
-                    Text(.settingsAppearanceThemeHeader)
-                } footer: {
-                    Text(.settingsAppearanceThemeFooter)
-                }
+                AppearanceThemeSection()
 
-                Section {
-                    Toggle(isOn: $report.showsRecordedLocationDots) {
-                        Label(
-                            String(localized: .settingsAppearanceLocationDotsToggle),
-                            systemSymbol: .mappinAndEllipse,
-                        )
-                    }
-                    .settingsRow(Item.locationDots)
-                } footer: {
-                    Text(String(localized: .settingsAppearanceLocationDotsFooter))
-                }
+                AppearanceRecordedDotsSection(report: report)
 
-                Section {
-                    Toggle(isOn: $report.showsLocationWelcome) {
-                        Label(
-                            String(localized: .settingsAppearanceLocationWelcomeToggle),
-                            systemSymbol: .sparkles,
-                        )
-                    }
-                    .settingsRow(Item.locationWelcome)
+                AppearanceWelcomeSection(report: report)
 
-                    #if DEBUG
-                        Button(action: report.resetLocationWelcome) {
-                            Label(
-                                String(localized: .settingsAppearanceLocationWelcomeResetTitle),
-                                systemSymbol: .arrowCounterclockwise,
-                            )
-                        }
-                        .disabled(!report.showsLocationWelcome)
-                        .settingsRow(Item.resetLocationWelcome)
-                    #endif
-                } footer: {
-                    VStack(alignment: .leading) {
-                        Text(String(localized: .settingsAppearanceLocationWelcomeFooter))
-                        #if DEBUG
-                            Text(String(localized: .settingsAppearanceLocationWelcomeResetFooter))
-                        #endif
-                    }
-                }
+                AppearanceForecastSection(estimatedTimeSettings: estimatedTimeSettings)
 
-                Section {
-                    Toggle(isOn: $estimatedTimeSettings.isEnabled) {
-                        HStack {
-                            Label(
-                                String(localized: .settingsAppearanceLocationForecastsToggle),
-                                systemSymbol: .chartLineUptrendXyaxis,
-                            )
-                            if estimatedTimeSettings.isUpdating {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                        }
-                    }
-                    .disabled(estimatedTimeSettings.isUpdating)
-                    .settingsRow(Item.locationForecasts)
-                } footer: {
-                    Text(String(localized: .settingsAppearanceLocationForecastsFooter))
-                }
-
-                Section {
-                    // A sheet (not a push) so the icon picker's Done/commit point
-                    // is explicit, matching the app's other editor flows.
-                    Button {
-                        showAppIcon = true
-                    } label: {
-                        Label(String(localized: .settingsAppIconLink), systemSymbol: .appBadge)
-                    }
-                    .tint(.primary)
-                    .settingsRow(Item.appIcon)
-                } footer: {
-                    Text(String(localized: .settingsAppIconFooter))
-                }
+                AppearanceAppIconSection(showAppIcon: { showAppIcon = true })
 
                 #if DEBUG
-                    if let cardDesignerModel {
-                        Section {
-                            NavigationLink {
-                                CardDesignerStudioView(model: cardDesignerModel)
-                            } label: {
-                                Label(
-                                    String(localized: .cardDesignerTitle),
-                                    systemSymbol: .paintpalette,
-                                )
-                            }
-                            .settingsRow(Item.cardDesigner)
-
-                            NavigationLink {
-                                RankingAnimationLabView()
-                            } label: {
-                                Label(
-                                    String(localized: .rankingAnimationTitle),
-                                    systemSymbol: .arrowUpArrowDown,
-                                )
-                            }
-                            .settingsRow(Item.rankingAnimation)
-                        } header: {
-                            Text(String(localized: .cardDesignerSettingsHeader))
-                        } footer: {
-                            Text(String(localized: .cardDesignerSettingsFooter))
-                        }
-                    }
+                    AppearanceDeveloperSection()
                 #endif
             }
             .whereFormRoot()
@@ -219,6 +114,136 @@ extension AppearanceSettingsView: SettingsSection {
                         splitKeywords(String(localized: .rankingAnimationSettingsKeywords))
                 #endif
             }
+        }
+    }
+}
+
+#if DEBUG
+    private struct AppearanceWelcomeResetButton: View {
+        let report: YearReportModel
+
+        var body: some View {
+            Button(action: report.resetLocationWelcome) {
+                Label(
+                    String(localized: .settingsAppearanceLocationWelcomeResetTitle),
+                    systemSymbol: .arrowCounterclockwise,
+                )
+            }
+            .disabled(!report.showsLocationWelcome)
+            .settingsRow(AppearanceSettingsView.Item.resetLocationWelcome)
+        }
+    }
+#endif
+
+private struct AppearanceAppIconButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(String(localized: .settingsAppIconLink), systemSymbol: .appBadge)
+        }
+        .tint(.primary)
+        .settingsRow(AppearanceSettingsView.Item.appIcon)
+    }
+}
+
+private struct AppearanceThemeSection: View {
+    @Environment(WhereModel.self) private var model
+
+    var body: some View {
+        Section {
+            WhereThemePicker(selection: model.theme) {
+                model.selectTheme($0)
+            }
+            .settingsRow(AppearanceSettingsView.Item.theme)
+        } header: {
+            Text(.settingsAppearanceThemeHeader)
+        } footer: {
+            Text(.settingsAppearanceThemeFooter)
+        }
+    }
+}
+
+private struct AppearanceRecordedDotsSection: View {
+    @Bindable var report: YearReportModel
+
+    var body: some View {
+        Section {
+            Toggle(isOn: $report.showsRecordedLocationDots) {
+                Label(
+                    String(localized: .settingsAppearanceLocationDotsToggle),
+                    systemSymbol: .mappinAndEllipse,
+                )
+            }
+            .settingsRow(AppearanceSettingsView.Item.locationDots)
+        } footer: {
+            Text(String(localized: .settingsAppearanceLocationDotsFooter))
+        }
+    }
+}
+
+private struct AppearanceWelcomeSection: View {
+    @Bindable var report: YearReportModel
+
+    var body: some View {
+        Section {
+            Toggle(isOn: $report.showsLocationWelcome) {
+                Label(
+                    String(localized: .settingsAppearanceLocationWelcomeToggle),
+                    systemSymbol: .sparkles,
+                )
+            }
+            .settingsRow(AppearanceSettingsView.Item.locationWelcome)
+
+            #if DEBUG
+                AppearanceWelcomeResetButton(report: report)
+            #endif
+        } footer: {
+            VStack(alignment: .leading) {
+                Text(String(localized: .settingsAppearanceLocationWelcomeFooter))
+                #if DEBUG
+                    Text(String(localized: .settingsAppearanceLocationWelcomeResetFooter))
+                #endif
+            }
+        }
+    }
+}
+
+private struct AppearanceForecastSection: View {
+    @Bindable var estimatedTimeSettings: EstimatedTimeAndPlanningSettingsModel
+
+    var body: some View {
+        Section {
+            Toggle(isOn: $estimatedTimeSettings.isEnabled) {
+                HStack {
+                    Label(
+                        String(localized: .settingsAppearanceLocationForecastsToggle),
+                        systemSymbol: .chartLineUptrendXyaxis,
+                    )
+                    if estimatedTimeSettings.isUpdating {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+            }
+            .disabled(estimatedTimeSettings.isUpdating)
+            .settingsRow(AppearanceSettingsView.Item.locationForecasts)
+        } footer: {
+            Text(String(localized: .settingsAppearanceLocationForecastsFooter))
+        }
+    }
+}
+
+private struct AppearanceAppIconSection: View {
+    let showAppIcon: () -> Void
+
+    var body: some View {
+        Section {
+            // A sheet (not a push) so the icon picker's Done/commit point
+            // is explicit, matching the app's other editor flows.
+            AppearanceAppIconButton(action: showAppIcon)
+        } footer: {
+            Text(String(localized: .settingsAppIconFooter))
         }
     }
 }

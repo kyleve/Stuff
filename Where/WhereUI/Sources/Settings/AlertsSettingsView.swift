@@ -34,11 +34,19 @@ struct AlertsSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
-                remindersSection
-                summarySection
-                issueAlertsSection
-                dataResolutionSection
-                findIssuesSection
+                DailyReminderSection(reminders: reminders, openSettings: openNotificationSettings)
+                DailySummarySection(reminders: reminders, openSettings: openNotificationSettings)
+                IssueAlertsSection(reminders: reminders, openSettings: openNotificationSettings)
+                DataResolutionSection(report: report)
+                FindIssuesSection(
+                    isScanningForIssues: isScanningForIssues,
+                    lastScanIssueCount: lastScanIssueCount,
+                    scan: findIssues,
+                )
+                // The shown count is for the current year at the current threshold;
+                // drop it once either changes so it can't linger as a stale result.
+                .onChange(of: report.selectedYear) { lastScanIssueCount = nil }
+                .onChange(of: report.driftThreshold) { lastScanIssueCount = nil }
             }
             .whereFormRoot()
         }
@@ -49,177 +57,8 @@ struct AlertsSettingsView: View {
         }
     }
 
-    private var remindersSection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.remindersEnabled) {
-                Label(String(localized: .settingsRemindersToggle), systemSymbol: .bellBadge)
-            }
-            .settingsRow(Item.dailyReminder)
-
-            if reminders.remindersEnabled {
-                WhereDatePicker(
-                    String(localized: .settingsRemindersTime),
-                    selection: $reminders.reminderTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
-
-                if !reminders.notificationsAuthorized {
-                    Button {
-                        openSystemSettings(openURL)
-                    } label: {
-                        Label(
-                            String(localized: .settingsRemindersOpenSettings),
-                            systemSymbol: .bellSlash,
-                        )
-                    }
-                }
-            }
-        } header: {
-            Text(String(localized: .settingsRemindersHeader))
-        } footer: {
-            Text(remindersFooter)
-        }
-    }
-
-    private var remindersFooter: String {
-        if reminders.remindersEnabled, !reminders.notificationsAuthorized {
-            return String(localized: .settingsRemindersDeniedFooter)
-        }
-        return String(localized: .settingsRemindersFooter)
-    }
-
-    private var summarySection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.summaryEnabled) {
-                Label(
-                    String(localized: .settingsSummaryToggle),
-                    systemSymbol: .chartBarDocHorizontal,
-                )
-            }
-            .settingsRow(Item.dailySummary)
-
-            if reminders.summaryEnabled {
-                WhereDatePicker(
-                    String(localized: .settingsSummaryTime),
-                    selection: $reminders.summaryTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
-
-                if !reminders.notificationsAuthorized {
-                    Button {
-                        openSystemSettings(openURL)
-                    } label: {
-                        Label(
-                            String(localized: .settingsRemindersOpenSettings),
-                            systemSymbol: .bellSlash,
-                        )
-                    }
-                }
-            }
-        } header: {
-            Text(String(localized: .settingsSummaryHeader))
-        } footer: {
-            Text(summaryFooter)
-        }
-    }
-
-    private var summaryFooter: String {
-        if reminders.summaryEnabled, !reminders.notificationsAuthorized {
-            return String(localized: .settingsSummaryDeniedFooter)
-        }
-        return String(localized: .settingsSummaryFooter)
-    }
-
-    private var issueAlertsSection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.issueAlertsEnabled) {
-                Label(
-                    String(localized: .settingsIssueAlertsToggle),
-                    systemSymbol: .checklistChecked,
-                )
-            }
-            .settingsRow(Item.issueAlerts)
-
-            if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-                Button {
-                    openSystemSettings(openURL)
-                } label: {
-                    Label(
-                        String(localized: .settingsRemindersOpenSettings),
-                        systemSymbol: .bellSlash,
-                    )
-                }
-            }
-        } header: {
-            Text(String(localized: .settingsIssueAlertsHeader))
-        } footer: {
-            Text(issueAlertsFooter)
-        }
-    }
-
-    private var issueAlertsFooter: String {
-        if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-            return String(localized: .settingsIssueAlertsDeniedFooter)
-        }
-        return String(localized: .settingsIssueAlertsFooter)
-    }
-
-    private var dataResolutionSection: some View {
-        @Bindable var report = report
-        return Section {
-            Picker(
-                String(localized: .settingsResolutionThreshold),
-                selection: $report.driftThreshold,
-            ) {
-                ForEach(DriftThreshold.allCases, id: \.self) { threshold in
-                    Text(WhereFormat.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
-                        .tag(threshold)
-                }
-            }
-            .settingsRow(Item.dataResolution)
-        } header: {
-            Text(String(localized: .settingsResolutionHeader))
-        } footer: {
-            Text(String(localized: .settingsResolutionFooter))
-        }
-    }
-
-    private var findIssuesSection: some View {
-        Section {
-            Button {
-                findIssues()
-            } label: {
-                if isScanningForIssues {
-                    SavingStatusRow(text: String(localized: .settingsFindIssuesScanning))
-                } else {
-                    Label(String(localized: .settingsFindIssues), systemSymbol: .magnifyingglass)
-                }
-            }
-            .disabled(isScanningForIssues)
-            .settingsRow(Item.findIssues)
-
-            if let count = lastScanIssueCount, !isScanningForIssues {
-                Label {
-                    Text(WhereFormat.settingsFindIssuesResult(count: count))
-                } icon: {
-                    Image(systemSymbol: count == 0 ? .checkmarkCircle : .checklist)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-        } header: {
-            Text(String(localized: .settingsFindIssuesHeader))
-        } footer: {
-            Text(String(localized: .settingsFindIssuesFooter))
-        }
-        .animation(.default, value: isScanningForIssues)
-        // The shown count is for the current year at the current threshold;
-        // drop it once either changes so it can't linger as a stale result.
-        .onChange(of: report.selectedYear) { lastScanIssueCount = nil }
-        .onChange(of: report.driftThreshold) { lastScanIssueCount = nil }
+    private func openNotificationSettings() {
+        openSystemSettings(openURL)
     }
 
     /// Force a fresh data-issue scan past the ~3h throttle, then surface the
@@ -272,15 +111,164 @@ extension AlertsSettingsView: SettingsSection {
     }
 }
 
-#if DEBUG
-    #Preview {
-        NavigationStack {
-            AlertsSettingsView(
-                report: PreviewSupport.loadedYearReportModel(),
-                reminders: PreviewSupport.remindersSettingsModel(),
+private struct IssueAlertsSection: View {
+    @Bindable var reminders: RemindersSettingsModel
+    let openSettings: () -> Void
+
+    var body: some View {
+        Section {
+            NotificationOptionToggle(
+                isOn: $reminders.issueAlertsEnabled,
+                title: .settingsIssueAlertsToggle,
+                symbol: .checklistChecked,
+                item: .issueAlerts,
+            )
+
+            if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
+                OpenNotificationSettingsButton(openSettings: openSettings)
+            }
+        } header: {
+            Text(String(localized: .settingsIssueAlertsHeader))
+        } footer: {
+            Text(issueAlertsFooter)
+        }
+    }
+
+    private var issueAlertsFooter: String {
+        if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
+            return String(localized: .settingsIssueAlertsDeniedFooter)
+        }
+        return String(localized: .settingsIssueAlertsFooter)
+    }
+}
+
+struct OpenNotificationSettingsButton: View {
+    let openSettings: () -> Void
+
+    var body: some View {
+        Button {
+            openSettings()
+        } label: {
+            Label(
+                String(localized: .settingsRemindersOpenSettings),
+                systemSymbol: .bellSlash,
             )
         }
-        .whereBroadwayRoot()
+    }
+}
+
+struct NotificationOptionToggle: View {
+    @Binding var isOn: Bool
+    let title: LocalizedStringResource
+    let symbol: SFSymbol
+    let item: AlertsSettingsView.Item
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            Label(String(localized: title), systemSymbol: symbol)
+        }
+        .settingsRow(item)
+    }
+}
+
+private struct DataResolutionSection: View {
+    @Bindable var report: YearReportModel
+
+    var body: some View {
+        Section {
+            DriftThresholdPicker(threshold: $report.driftThreshold)
+        } header: {
+            Text(String(localized: .settingsResolutionHeader))
+        } footer: {
+            Text(String(localized: .settingsResolutionFooter))
+        }
+    }
+}
+
+private struct DriftThresholdPicker: View {
+    @Binding var threshold: DriftThreshold
+
+    var body: some View {
+        Picker(
+            String(localized: .settingsResolutionThreshold),
+            selection: $threshold,
+        ) {
+            ForEach(DriftThreshold.allCases, id: \.self) { threshold in
+                Text(WhereFormat.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
+                    .tag(threshold)
+            }
+        }
+        .settingsRow(AlertsSettingsView.Item.dataResolution)
+    }
+}
+
+private struct FindIssuesButton: View {
+    let isScanning: Bool
+    let scan: () -> Void
+
+    var body: some View {
+        Button {
+            scan()
+        } label: {
+            if isScanning {
+                SavingStatusRow(text: String(localized: .settingsFindIssuesScanning))
+            } else {
+                Label(String(localized: .settingsFindIssues), systemSymbol: .magnifyingglass)
+            }
+        }
+        .disabled(isScanning)
+        .settingsRow(AlertsSettingsView.Item.findIssues)
+    }
+}
+
+private struct FindIssuesResult: View {
+    let count: Int
+
+    var body: some View {
+        Label {
+            Text(WhereFormat.settingsFindIssuesResult(count: count))
+        } icon: {
+            Image(systemSymbol: count == 0 ? .checkmarkCircle : .checklist)
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+}
+
+private struct FindIssuesSection: View {
+    let isScanningForIssues: Bool
+    let lastScanIssueCount: Int?
+    let scan: () -> Void
+
+    var body: some View {
+        Section {
+            FindIssuesButton(isScanning: isScanningForIssues, scan: scan)
+
+            if let count = lastScanIssueCount, !isScanningForIssues {
+                FindIssuesResult(count: count)
+            }
+        } header: {
+            Text(String(localized: .settingsFindIssuesHeader))
+        } footer: {
+            Text(String(localized: .settingsFindIssuesFooter))
+        }
+        .animation(.default, value: isScanningForIssues)
+    }
+}
+
+#if DEBUG
+    #Preview { AlertsSettingsPreview() }
+
+    private struct AlertsSettingsPreview: View {
+        var body: some View {
+            NavigationStack {
+                AlertsSettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    reminders: PreviewSupport.remindersSettingsModel(),
+                )
+            }
+            .whereBroadwayRoot()
+        }
     }
 #endif
 

@@ -43,44 +43,7 @@ struct DevicesSettingsView: View {
             focus: focus,
             revealWhen: model.state.isReadyForSearchFocus,
         ) {
-            Form {
-                switch model.state {
-                    case .idle, .loading:
-                        Section {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
-                            }
-                        }
-                    case let .failed(failure):
-                        Section {
-                            ContentUnavailableView(
-                                String(localized: .settingsDevicesLoadFailed),
-                                systemSymbol: .exclamationmarkIcloud,
-                                description: Text(failure.message),
-                            )
-                            Button(String(localized: .commonRetry)) {
-                                Task { await model.retry() }
-                            }
-                        }
-                    case .empty:
-                        Section {
-                            ContentUnavailableView(
-                                String(localized: .settingsDevicesLoadFailed),
-                                systemSymbol: .exclamationmarkIcloud,
-                            )
-                            Button(String(localized: .commonRetry)) {
-                                Task { await model.retry() }
-                            }
-                        }
-                    case .loaded:
-                        ForEach(model.rows) { row in
-                            DeviceSettingsSection(model: model, row: row)
-                        }
-                }
-            }
-            .whereFormRoot()
+            DevicesSettingsForm(model: model)
         }
         .navigationTitle(String(localized: .settingsDevicesTitle))
         .navigationBarTitleDisplayMode(.inline)
