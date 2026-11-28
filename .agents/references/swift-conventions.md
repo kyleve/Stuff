@@ -24,6 +24,8 @@ Module instructions add local contracts to these repository conventions.
 
 - Shorthand type aliases preserve the final component: `typealias Episode = FlightGroundInference.Episode`. Keep the qualified name when it conflicts locally.
 - Use named structs for multi-field values that escape a function. Tuples are limited to ad-hoc local returns, not properties, collection elements, or public API.
+- Keep data structs as values with independent state across copies. A `let` property can still point every copy at the same mutable object, even through an optional or collection.
+  Store shared mutable objects, such as `@Observable` models, in the component that owns their lifetime. If the value needs to identify that state, carry a typed ID for the entity or occurrence it represents.
 - Group large flat types into nested values and focused child types.
 - Keep identities `Hashable` and domain-specific, including UUID identities. Prefer concrete types or generics; use `AnyHashable` only at heterogeneous or nongeneric boundaries.
   Never use raw strings as identity types.
