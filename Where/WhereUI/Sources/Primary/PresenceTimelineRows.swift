@@ -53,95 +53,23 @@ struct PresenceTimelineRows: View {
     let forecasts: [LocationForecast]
     let openPlanning: ((PlannedStaysDestination) -> Void)?
 
-    @Environment(\.stylesheet) private var stylesheet
-
     var body: some View {
         ForEach(items.enumerated(), id: \.element.id) { index, item in
             let previous = index > items.startIndex ? items[index - 1] : nil
             let next = index + 1 < items.endIndex ? items[index + 1] : nil
-            let calendar = report.calendar
-            let isFirst = previous == nil || previous == .estimate
-            let isLast = next == nil || next == .estimate
-            Group {
-                switch item {
-                    case let .recorded(.stay(stint)):
-                        PresenceJourneyRow(
-                            stint: stint,
-                            calendar: calendar,
-                            daysInYear: report.daysInSelectedYear,
-                            isFirst: isFirst,
-                            isLast: isLast,
-                            cardPosition: next?.continues(item, calendar: calendar) == true
-                                ? .top : .standalone,
-                        )
-                    case let .recorded(.flight(flight)):
-                        FlightJourneyRow(
-                            flight: flight,
-                            calendar: calendar,
-                            isFirst: isFirst,
-                            isLast: isLast,
-                        )
-                    case let .planned(plan):
-                        let row = PlannedPresenceJourneyRow(
-                            item: plan,
-                            calendar: calendar,
-                            daysInYear: report.daysInSelectedYear,
-                            isFirst: isFirst,
-                            isLast: isLast,
-                            cardPosition: item.continues(previous, calendar: calendar)
-                                ? .bottom : .standalone,
-                        )
-                        if let openPlanning {
-                            EditableTimelinePlan(row: row) { edit(plan, openPlanning: openPlanning)
-                            }
-                        } else {
-                            row
-                        }
-                    case .estimate:
-                        LocationForecastPanel(
-                            forecasts: forecasts,
-                            microprintRegions: report.ranking.primary.map(\.region),
-                            homeRegion: report.forecasts.planning.homeRegion,
-                            planningAction: openPlanning.map { action in { action(.list) } },
-                        )
-                        .padding(.top, previous == nil ? 0 : stylesheet.spacing.large)
-                        // Include the final inset in the estimate's bottom-aligned scroll target.
-                        .padding(.bottom, stylesheet.spacing.large)
-                }
-            }
+
+            PresenceTimelineItemRow(
+                item: item,
+                previous: previous,
+                next: next,
+                report: report,
+                forecasts: forecasts,
+                openPlanning: openPlanning,
+            )
+
             .fixedSize(horizontal: false, vertical: openPlanning == nil)
             .id(item.id)
         }
-    }
-
-    private func edit(
-        _ item: PlanningTimelineItem,
-        openPlanning: (PlannedStaysDestination) -> Void,
-    ) {
-        if case let .stay(interval) = item,
-           let stay = report.forecasts.planning.stays.first(where: { $0.id == interval.stayID })
-        {
-            openPlanning(.edit(stay))
-        } else {
-            openPlanning(.list)
-        }
-    }
-}
-
-private struct EditableTimelinePlan: View {
-    let row: PlannedPresenceJourneyRow
-    let edit: () -> Void
-
-    var body: some View {
-        Button(action: edit) { row }
-            .buttonStyle(.plain)
-            .contextMenu {
-                Button(
-                    String(localized: .plannedStaysTitle),
-                    systemSymbol: .calendarBadgeClock,
-                    action: edit,
-                )
-            }
     }
 }
 

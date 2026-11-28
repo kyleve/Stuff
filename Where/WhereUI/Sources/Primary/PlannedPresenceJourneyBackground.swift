@@ -15,19 +15,12 @@ struct PlannedPresenceJourneyBackground: View {
 
         ZStack {
             if position.isJoinedContinuation {
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [
-                            tint.opacity(row.fillOpacity),
-                            tint.opacity(planned.fillOpacity),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom,
-                    )
-                    .frame(height: planned.transitionHeight)
+                JourneyTransitionFill(
+                    top: tint.opacity(row.fillOpacity),
+                    bottom: tint.opacity(planned.fillOpacity),
+                    height: planned.transitionHeight,
+                )
 
-                    tint.opacity(planned.fillOpacity)
-                }
             } else {
                 shape
                     .fill(tint.opacity(planned.fillOpacity))
@@ -42,22 +35,32 @@ struct PlannedPresenceJourneyBackground: View {
             .opacity(planned.hatchOpacity)
             .mask {
                 if position.isJoinedContinuation {
-                    VStack(spacing: 0) {
-                        LinearGradient(
-                            colors: [.clear, .white],
-                            startPoint: .top,
-                            endPoint: .bottom,
-                        )
-                        .frame(height: planned.transitionHeight)
+                    JourneyTransitionFill(
+                        top: .clear,
+                        bottom: .white,
+                        height: planned.transitionHeight,
+                    )
 
-                        Color.white
-                    }
                 } else {
                     Color.white
                 }
             }
         }
         .clipShape(shape)
+    }
+}
+
+private struct JourneyTransitionFill: View {
+    let top: Color
+    let bottom: Color
+    let height: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+                .frame(height: height)
+            bottom
+        }
     }
 }
 

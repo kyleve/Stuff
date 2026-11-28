@@ -27,21 +27,14 @@ struct LocationWelcomeOverlay: View {
                         x: geometry.contentBounds.midX,
                         y: geometry.contentBounds.maxY,
                     ))
-                    ScrollView {
-                        RegionWelcomeCard(
-                            presentation: presentation,
-                            dismissAction: dismissAction,
-                            planStayAction: planStayAction,
-                        )
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                        .padding(.vertical, stylesheet.spacing.xxxLarge)
-                        .frame(maxWidth: .infinity, minHeight: area.height)
-                        .accessibilityFocused($isCardFocused)
-                    }
-                    .scrollBounceBehavior(.basedOnSize)
-                    .frame(width: area.width, height: area.height)
-                    .position(x: area.midX, y: area.midY)
+
+                    LocationWelcomeCardScroll(
+                        presentation: presentation,
+                        area: area,
+                        dismissAction: dismissAction,
+                        planStayAction: planStayAction,
+                        focus: $isCardFocused,
+                    )
                 }
                 .contentShape(Rectangle())
                 .accessibilityAddTraits(.isModal)
@@ -58,6 +51,33 @@ struct LocationWelcomeOverlay: View {
             }
         }
         .animation(stylesheet.locationWelcome.motion.scrimAnimation, value: presentation)
+    }
+}
+
+private struct LocationWelcomeCardScroll: View {
+    let presentation: LocationWelcomeModel.Presentation
+    let area: CGRect
+    let dismissAction: () -> Void
+    let planStayAction: ((Region) -> Void)?
+    let focus: AccessibilityFocusState<Bool>.Binding
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        ScrollView {
+            RegionWelcomeCard(
+                presentation: presentation,
+                dismissAction: dismissAction,
+                planStayAction: planStayAction,
+            )
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, stylesheet.spacing.xxxLarge)
+            .padding(.vertical, stylesheet.spacing.xxxLarge)
+            .frame(maxWidth: .infinity, minHeight: area.height)
+            .accessibilityFocused(focus)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(width: area.width, height: area.height)
+        .position(x: area.midX, y: area.midY)
     }
 }
 

@@ -48,22 +48,33 @@ struct PresenceJourneyRail: View {
                 }
             }
 
-            ZStack {
-                Circle()
-                    .fill(tint.opacity(rail.nodeFillOpacity))
-                Circle()
-                    .stroke(tint, lineWidth: rail.nodeStrokeWidth)
-                switch marker {
-                    case let .region(emoji): Text(emoji).font(rail.nodeEmojiFont)
-                    case .flight:
-                        Image(systemSymbol: .airplane).font(timeline.flight.iconFont)
-                            .foregroundStyle(tint)
-                }
-            }
-            .frame(width: rail.nodeSize, height: rail.nodeSize)
+            PresenceJourneyMarker(tint: tint, marker: marker, timeline: timeline)
         }
         .frame(width: rail.nodeSize)
         .accessibilityHidden(true)
+    }
+}
+
+private struct PresenceJourneyMarker: View {
+    let tint: Color
+    let marker: PresenceJourneyRail.Marker
+    let timeline: WhereStylesheet.TimelineStyle
+
+    var body: some View {
+        let rail = timeline.rail
+        ZStack {
+            Circle()
+                .fill(tint.opacity(rail.nodeFillOpacity))
+            Circle()
+                .stroke(tint, lineWidth: rail.nodeStrokeWidth)
+            switch marker {
+                case let .region(emoji): Text(emoji).font(rail.nodeEmojiFont)
+                case .flight:
+                    Image(systemSymbol: .airplane).font(timeline.flight.iconFont)
+                        .foregroundStyle(tint)
+            }
+        }
+        .frame(width: rail.nodeSize, height: rail.nodeSize)
     }
 }
 

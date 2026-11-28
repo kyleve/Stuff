@@ -76,20 +76,14 @@ struct PresenceTimelineListTests {
         )
         let store = BScrollRestorationStore()
         let capture = ScrollPositionCapture()
-        func timeline() -> some View {
-            PresenceTimelineList(report: model)
-                .overlay {
-                    ScrollPositionProbe(
-                        PresenceTimelineList.self,
-                        role: PresenceTimelineList.ScrollRole.timeline,
-                        context: report.year,
-                        idType: PresenceTimelineList.RowID.self,
-                        capture: capture,
-                    )
-                }
-                .whereBroadwayRoot()
-                .bScrollRestorationScope(store)
-        }
+
+        let timeline = PresenceTimelineRestorationFixture(
+            model: model,
+            year: report.year,
+            capture: capture,
+            store: store,
+        )
+
         func waitForTimeline(
             _ stage: String,
             in view: UIView,
@@ -110,7 +104,7 @@ struct PresenceTimelineListTests {
                 )
             }
         }
-        let first = UIHostingController(rootView: timeline())
+        let first = UIHostingController(rootView: timeline)
         try await show(first) { _ in
             try await waitForTimeline("initial estimate", in: first.view) {
                 capture.binding?.wrappedValue
@@ -135,7 +129,7 @@ struct PresenceTimelineListTests {
             #expect(row.accessibilityTraits.contains(.button) == false)
             #expect(row.accessibilityTraits.contains(.selected) == false)
         }
-        let second = UIHostingController(rootView: timeline())
+        let second = UIHostingController(rootView: timeline)
         try await show(second) { _ in
             try await waitForTimeline("restored row", in: second.view) {
                 capture.binding?.wrappedValue
@@ -143,5 +137,27 @@ struct PresenceTimelineListTests {
                     && HostedAccessibility.isVisible(label, in: second.view)
             }
         }
+    }
+}
+
+private struct PresenceTimelineRestorationFixture: View {
+    let model: YearReportModel
+    let year: Int
+    let capture: ScrollPositionCapture
+    let store: BScrollRestorationStore
+
+    var body: some View {
+        PresenceTimelineList(report: model)
+            .overlay {
+                ScrollPositionProbe(
+                    PresenceTimelineList.self,
+                    role: PresenceTimelineList.ScrollRole.timeline,
+                    context: year,
+                    idType: PresenceTimelineList.RowID.self,
+                    capture: capture,
+                )
+            }
+            .whereBroadwayRoot()
+            .bScrollRestorationScope(store)
     }
 }

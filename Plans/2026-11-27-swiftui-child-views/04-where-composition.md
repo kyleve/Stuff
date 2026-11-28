@@ -53,3 +53,7 @@ The Locations screen retains navigation, its selection, tilt provider, calendar 
 ### Root, tabs, lockout and onboarding
 
 The root owns compatibility and session identity. MainTabs owns selection and the scene report. The gate-mounted onboarding model owns the draft, file selection and completion. The device recovery screen owns its nine-line message and complete ten-line Rejoin control. The tab, readiness, compatibility, launch, failure, onboarding and reset suites passed. The root, tabs, splash, failure, lockout and both onboarding image suites passed on iPhone 17. The actual Rejoin tap on a removed installation is outside those hosted runs.
+
+### Timeline, region cards and welcome
+
+The timeline owns its scroll position, stable item identities, planning destination and sheet. The named item row switches between the existing semantic row types. Region cards retain accessibility and rendering inputs. The welcome overlay keeps its animation and dismissal lifetime. The complete dismissal and location-settings buttons carry their action, label, styling and hit target.

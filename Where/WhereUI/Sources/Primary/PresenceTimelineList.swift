@@ -45,8 +45,6 @@ struct PresenceTimelineList: View {
         suppliedPlanningDestination ?? $localPlanningDestination
     }
 
-    @Environment(\.stylesheet) private var stylesheet
-
     init(
         report: YearReportModel,
         presentation: Presentation = .full,
@@ -95,21 +93,13 @@ struct PresenceTimelineList: View {
 
         Group {
             if presentation == .excerpt {
-                if yearReport == nil {
-                    Text(.settingsExploreHistoryUnavailable).font(.subheadline)
-                } else if recordedItems.isEmpty, plannedItems.isEmpty {
-                    Text(.settingsExploreHistoryEmpty).font(.subheadline)
-                } else {
-                    VStack(spacing: 0) {
-                        PresenceTimelineRows(
-                            items: recordedItems.suffix(2).map(PresenceTimelineRows.Item.recorded)
-                                + plannedItems.prefix(2).map(PresenceTimelineRows.Item.planned),
-                            report: report,
-                            forecasts: [],
-                            openPlanning: nil,
-                        )
-                    }
-                }
+                PresenceTimelineExcerpt(
+                    hasReport: yearReport != nil,
+                    recordedItems: recordedItems,
+                    plannedItems: plannedItems,
+                    report: report,
+                )
+
             } else if report.report == nil, report.loadState == .loading {
                 AppIconLoadingView(caption: String(localized: .primaryLoading))
             } else if case let .failed(error) = report.loadState {
@@ -119,72 +109,21 @@ struct PresenceTimelineList: View {
                     description: Text(error.message),
                 )
             } else if recordedItems.isEmpty, plannedItems.isEmpty {
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .timelineEmptyTitle),
-                        systemSymbol: .calendarDayTimelineLeft,
-                    )
-                } description: {
-                    Text(String(localized: .timelineEmptyDescription))
-                }
+                EmptyPresenceTimeline()
+
             } else {
-                let pinsOverview = presentation == .full && stylesheet.timeline.overview
-                    .pinsToViewport
-
-                VStack(spacing: 0) {
-                    if pinsOverview {
-                        YearRibbon(
-                            days: yearReport?.days ?? [],
-                            year: report.selectedYear,
-                            calendar: report.calendar,
-                        )
-                        .padding(.horizontal, stylesheet.spacing.xxLarge)
-                        .padding(.vertical, stylesheet.spacing.large)
-                        .whereContentRoot()
-                    }
-                    ScrollView {
-                        // Measure this year's overview, stays, and forecast together.
-                        // Lazy row estimates can move the overview above the content
-                        // origin when a bottom-anchored viewport expands.
-                        VStack(spacing: stylesheet.spacing.large) {
-                            if presentation == .full, !pinsOverview {
-                                YearRibbon(
-                                    days: yearReport?.days ?? [],
-                                    year: report.selectedYear,
-                                    calendar: report.calendar,
-                                )
-                            }
-
-                            VStack(spacing: 0) {
-                                PresenceTimelineRows(
-                                    items: items,
-                                    report: report,
-                                    forecasts: forecasts,
-                                    openPlanning: { planningDestination.wrappedValue = $0 },
-                                )
-                            }
-                            .scrollTargetLayout()
-                        }
-                        .padding(.horizontal, stylesheet.spacing.xxLarge)
-                        .padding(
-                            .top,
-                            pinsOverview ? 0 : stylesheet.spacing.large,
-                        )
-                        .padding(.bottom, items.last == .estimate ? 0 : stylesheet.spacing.large)
-                        .whereContentRoot()
-                    }
-                    .scrollPosition($position)
-                    .task(id: TimelineLayoutID(
-                        year: report.selectedYear,
+                PresenceTimelineScroll(
+                    report: report,
+                    items: items,
+                    forecasts: forecasts,
+                    awaitsForecast: awaitsForecast,
+                    position: $position,
+                    openPlanning: { planningDestination.wrappedValue = $0 },
+                    positionTimeline: { positionTimeline(
                         items: items,
-                        awaitsForecast: awaitsForecast,
-                    )) {
-                        guard !Task.isCancelled, !awaitsForecast else { return }
-                        positionTimeline(items: items, hasEstimate: !forecasts.isEmpty)
-                    }
-                    .defaultScrollAnchor(.bottom, for: .initialOffset)
-                    .id(report.selectedYear)
-                }
+                        hasEstimate: !forecasts.isEmpty,
+                    ) },
+                )
             }
         }
         .modifier(PlanningPresentation(
@@ -195,21 +134,10 @@ struct PresenceTimelineList: View {
         .toolbar {
             if presentation != .excerpt, report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        String(localized: .plannedStaysTitle),
-                        systemSymbol: .calendarBadgeClock,
-                    ) {
-                        planningDestination.wrappedValue = .list
-                    }
+                    TimelinePlanningButton { planningDestination.wrappedValue = .list }
                 }
             }
         }
-    }
-
-    private struct TimelineLayoutID: Equatable {
-        let year: Int
-        let items: [PresenceTimelineRows.Item]
-        let awaitsForecast: Bool
     }
 
     private func positionTimeline(items: [PresenceTimelineRows.Item], hasEstimate: Bool) {
@@ -227,6 +155,44 @@ struct PresenceTimelineList: View {
             } else {
                 _position.scrollTo(edge: .bottom)
             }
+        }
+    }
+}
+
+private struct PresenceTimelineExcerpt: View {
+    let hasReport: Bool
+    let recordedItems: [PresenceJourneyItem]
+    let plannedItems: [PlanningTimelineItem]
+    let report: YearReportModel
+
+    var body: some View {
+        if !hasReport {
+            Text(.settingsExploreHistoryUnavailable).font(.subheadline)
+        } else if recordedItems.isEmpty, plannedItems.isEmpty {
+            Text(.settingsExploreHistoryEmpty).font(.subheadline)
+        } else {
+            VStack(spacing: 0) {
+                PresenceTimelineRows(
+                    items: recordedItems.suffix(2).map(PresenceTimelineRows.Item.recorded)
+                        + plannedItems.prefix(2).map(PresenceTimelineRows.Item.planned),
+                    report: report,
+                    forecasts: [],
+                    openPlanning: nil,
+                )
+            }
+        }
+    }
+}
+
+private struct EmptyPresenceTimeline: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label(
+                String(localized: .timelineEmptyTitle),
+                systemSymbol: .calendarDayTimelineLeft,
+            )
+        } description: {
+            Text(String(localized: .timelineEmptyDescription))
         }
     }
 }
