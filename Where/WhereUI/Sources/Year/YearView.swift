@@ -106,7 +106,7 @@ private struct YearModePicker: View {
 
         layout {
             ForEach(YearMode.allCases, id: \.self) { candidate in
-                segment(candidate)
+                YearModeButton(candidate: candidate, mode: $mode, selection: selection)
             }
         }
         .padding(stylesheet.spacing.small)
@@ -125,10 +125,18 @@ private struct YearModePicker: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .yearSegmentPicker))
     }
+}
 
-    private func segment(_ candidate: YearMode) -> some View {
+private struct YearModeButton: View {
+    let candidate: YearMode
+    @Binding var mode: YearMode
+    let selection: Namespace.ID
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         let isSelected = candidate == mode
-        return Button {
+        Button {
             withAnimation(.snappy(duration: 0.28)) { mode = candidate }
         } label: {
             Label(candidate.title, systemSymbol: candidate.systemSymbol)
