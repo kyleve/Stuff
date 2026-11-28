@@ -102,13 +102,8 @@ struct RegionArtworkTaskTests {
         let secondCache = RegionOutlinePathCache()
         var loads = 0
 
-        func content(region: Region, cache: RegionOutlinePathCache?) -> some View {
-            Color.clear
-                .regionArtworkTask(id: region, model: model) { cache in
-                    loads += 1
-                    return ObjectIdentifier(cache)
-                }
-                .environment(\.regionOutlinePathCache, cache)
+        func content(region: Region, cache: RegionOutlinePathCache?) -> ArtworkProbe {
+            ArtworkProbe(region: region, cache: cache, model: model) { loads += 1 }
         }
 
         let host = UIHostingController(rootView: content(region: .ontario, cache: firstCache))
@@ -122,6 +117,22 @@ struct RegionArtworkTaskTests {
             host.rootView = content(region: .newYork, cache: nil)
             try waitFor { model.artwork(for: .newYork) == nil }
             #expect(loads == 3)
+        }
+    }
+
+    private struct ArtworkProbe: View {
+        let region: Region
+        let cache: RegionOutlinePathCache?
+        let model: RegionArtworkModel<Region, ObjectIdentifier>
+        let didLoad: @MainActor () -> Void
+
+        var body: some View {
+            Color.clear
+                .regionArtworkTask(id: region, model: model) { cache in
+                    didLoad()
+                    return ObjectIdentifier(cache)
+                }
+                .environment(\.regionOutlinePathCache, cache)
         }
     }
 }

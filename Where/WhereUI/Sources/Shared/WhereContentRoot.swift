@@ -33,13 +33,17 @@ private struct WhereContentRootModifier: ViewModifier {
 }
 
 #if DEBUG
-    #Preview {
-        ScrollView {
-            Color.accentColor
-                .frame(height: 160)
-                .padding()
-                .whereContentRoot()
+    #Preview { ContentWidthExample() }
+
+    private struct ContentWidthExample: View {
+        var body: some View {
+            ScrollView {
+                Color.accentColor
+                    .frame(height: 160)
+                    .padding()
+                    .whereContentRoot()
+            }
+            .whereBroadwayRoot()
         }
-        .whereBroadwayRoot()
     }
 #endif

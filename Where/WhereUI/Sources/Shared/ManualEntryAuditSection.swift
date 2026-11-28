@@ -38,17 +38,21 @@ struct ManualEntryAuditSection: View {
 #if DEBUG
     import RegionKit
 
-    #Preview {
-        Form {
-            ManualEntryAuditSection(audit: ManualEntryAudit(
-                recordedAt: .now,
-                note: "Corrected after reviewing my boarding pass.",
-                location: CapturedLocation(
-                    coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
-                    horizontalAccuracy: 12,
-                    timestamp: .now,
-                ),
-            ))
+    #Preview { ManualEntryAuditExample() }
+
+    private struct ManualEntryAuditExample: View {
+        var body: some View {
+            Form {
+                ManualEntryAuditSection(audit: ManualEntryAudit(
+                    recordedAt: .now,
+                    note: "Corrected after reviewing my boarding pass.",
+                    location: CapturedLocation(
+                        coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                        horizontalAccuracy: 12,
+                        timestamp: .now,
+                    ),
+                ))
+            }
         }
     }
 #endif

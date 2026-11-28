@@ -116,10 +116,10 @@ struct WhereFormRootTests {
         var body: some View {
             Group {
                 switch kind {
-                    case .form: Form { rows }
-                    case .list: List { rows }
-                    case .plain: List { rows }.listStyle(.plain)
-                    case .sidebar: List { rows }.listStyle(.sidebar)
+                    case .form: Form { NativeRows(state: state) }
+                    case .list: List { NativeRows(state: state) }
+                    case .plain: List { NativeRows(state: state) }.listStyle(.plain)
+                    case .sidebar: List { NativeRows(state: state) }.listStyle(.sidebar)
                 }
             }
             .whereFormRoot(state.override)
@@ -128,8 +128,12 @@ struct WhereFormRootTests {
             }
             .whereContentWidth(state.width)
         }
+    }
 
-        private var rows: some View {
+    private struct NativeRows: View {
+        let state: FormState
+
+        var body: some View {
             Section("Section") {
                 NativeProbe(state: state)
                     .listRowInsets(EdgeInsets())

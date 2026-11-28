@@ -64,3 +64,7 @@ The Today and Year Totals roots keep family selection and accessible summaries. 
 ### Region appearance, resolution and flight review
 
 The region color button measures 25 lines and the Settings overview 22, each in its own file. Emoji and symbol buttons measure 11 and 13 and share the appearance editor file. Flight resolution keeps the issue list (26), edited point (29), and save status (24) in separate files. The review-point action remains one button with the same input labels, disabled state and selection. Flight-review, resolution, region-selection and map data behavior passed. The appearance, Settings, resolution, flight-detail, point-row and status banner snapshots passed.
+
+### Shared presentation and fixture roots
+
+The typed theme option owns its complete selection button and selected trait. The year menu, live date picker, app icon indicator and matte card primitive retain the original bindings, environment and action routing. Drawing stays in Canvas callbacks. Small adornments stay with their parent and capture roots remain independently constructible. The two test fixtures mount their named production subjects.

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -12,16 +13,7 @@ struct VisibleYearSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
-                Section {
-                    LabeledContent(String(localized: .settingsYearLabel)) {
-                        YearSelector(report: report)
-                    }
-                    .settingsRow(Item.reportYear)
-                } header: {
-                    Text(String(localized: .settingsYearHeader))
-                } footer: {
-                    Text(String(localized: .settingsYearFooter))
-                }
+                ReportYearSection(report: report)
             }
             .whereFormRoot()
         }
@@ -69,5 +61,64 @@ extension VisibleYearSettingsView: SettingsSection {
         ) { world in
             VisibleYearSettingsView(report: world.report)
         }
+    }
+#endif
+
+private struct ReportYearSection: View {
+    let report: YearReportModel
+
+    var body: some View {
+        Section {
+            LabeledContent(String(localized: .settingsYearLabel)) {
+                YearSelector(report: report)
+            }
+            .settingsRow(VisibleYearSettingsView.Item.reportYear)
+        } header: {
+            Text(String(localized: .settingsYearHeader))
+        } footer: {
+            Text(String(localized: .settingsYearFooter))
+        }
+    }
+}
+
+/// Toolbar control for choosing which calendar year the reports cover. Reads
+/// and drives the scene's `YearReportModel`.
+private struct YearSelector: View {
+    let report: YearReportModel
+
+    var body: some View {
+        Menu {
+            ForEach(report.selectableYears, id: \.self) { year in
+                YearOptionButton(year: year, report: report)
+            }
+        } label: {
+            Text(report.selectedYear.formatted(.number.grouping(.never)))
+        }
+        .accessibilityIdentifier("where_year_selector")
+    }
+}
+
+private struct YearOptionButton: View {
+    let year: Int
+    let report: YearReportModel
+
+    var body: some View {
+        Button {
+            Task { await report.select(year: year) }
+        } label: {
+            if year == report.selectedYear {
+                Label { Text(year.formatted(.number.grouping(.never))) } icon: {
+                    Image(systemSymbol: .checkmark)
+                }
+            } else {
+                Text(year.formatted(.number.grouping(.never)))
+            }
+        }
+    }
+}
+
+#if DEBUG
+    #Preview {
+        YearSelector(report: PreviewSupport.loadedYearReportModel())
     }
 #endif

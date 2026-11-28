@@ -19,11 +19,15 @@ struct RegionToggleRow: View {
 }
 
 #if DEBUG
-    #Preview {
-        Form {
-            RegionToggleRow(item: RegionToggleItem(region: .california, isOn: true))
-            RegionToggleRow(item: RegionToggleItem(region: .newYork, isOn: false))
+    #Preview { RegionToggleExample() }
+
+    private struct RegionToggleExample: View {
+        var body: some View {
+            Form {
+                RegionToggleRow(item: RegionToggleItem(region: .california, isOn: true))
+                RegionToggleRow(item: RegionToggleItem(region: .newYork, isOn: false))
+            }
+            .whereBroadwayRoot()
         }
-        .whereBroadwayRoot()
     }
 #endif

@@ -24,10 +24,15 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
 
     func body(content: Content) -> some View {
         content.overlay {
-            sheen
-                .clipShape(shape)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            TiltSheenHighlight(
+                activeRoll: activeRoll,
+                activePitch: activePitch,
+                intensity: intensity,
+                glintIntensity: glintIntensity,
+            )
+            .clipShape(shape)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 
@@ -48,8 +53,15 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
     private var glintIntensity: Double {
         usesStaticPose ? staticGlintIntensity : intensity
     }
+}
 
-    private var sheen: some View {
+private struct TiltSheenHighlight: View {
+    let activeRoll: Double
+    let activePitch: Double
+    let intensity: Double
+    let glintIntensity: Double
+
+    var body: some View {
         GeometryReader { proxy in
             let diagonal = max(proxy.size.width, proxy.size.height)
             let glint = UnitPoint(
@@ -60,33 +72,46 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
             ZStack {
                 // A color-neutral luminance wash that slides as the device
                 // rolls, preserving the region tint beneath it.
-                LinearGradient(
-                    colors: Self.luminanceStops,
-                    startPoint: UnitPoint(x: activeRoll * 0.3, y: 0),
-                    endPoint: UnitPoint(x: 1 + activeRoll * 0.3, y: 1),
-                )
-                .opacity(0.28 * intensity)
-                .blendMode(.softLight)
+                LuminanceWash(roll: activeRoll, intensity: intensity)
 
                 // Specular glint that tracks the tilt like a moving light.
-                RadialGradient(
-                    colors: [
-                        Color.white.opacity(0.85 * glintIntensity),
-                        Color.white.opacity(0),
-                    ],
-                    center: glint,
-                    startRadius: 0,
-                    endRadius: diagonal * 0.75,
-                )
-                .blendMode(.softLight)
+                SpecularGlint(center: glint, diagonal: diagonal, intensity: glintIntensity)
             }
         }
     }
+}
 
-    /// Alternating grayscale tones create changing light without introducing a
-    /// second hue into the region's palette.
-    private static var luminanceStops: [Color] {
-        [.white, .gray, .black, .gray, .white]
+private struct LuminanceWash: View {
+    let roll: Double
+    let intensity: Double
+
+    var body: some View {
+        LinearGradient(
+            colors: [.white, .gray, .black, .gray, .white],
+            startPoint: UnitPoint(x: roll * 0.3, y: 0),
+            endPoint: UnitPoint(x: 1 + roll * 0.3, y: 1),
+        )
+        .opacity(0.28 * intensity)
+        .blendMode(.softLight)
+    }
+}
+
+private struct SpecularGlint: View {
+    let center: UnitPoint
+    let diagonal: CGFloat
+    let intensity: Double
+
+    var body: some View {
+        RadialGradient(
+            colors: [
+                Color.white.opacity(0.85 * intensity),
+                Color.white.opacity(0),
+            ],
+            center: center,
+            startRadius: 0,
+            endRadius: diagonal * 0.75,
+        )
+        .blendMode(.softLight)
     }
 }
 

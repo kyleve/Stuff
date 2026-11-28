@@ -44,13 +44,17 @@ struct ObservableHostingView<Model: Observable, Content: View>: View {
         var step = 1
     }
 
-    #Preview {
-        ObservableHostingView {
-            ObservableHostingPreviewModel()
-        } content: { model in
-            VStack {
-                Text(model.step, format: .number)
-                Button(String(localized: .onboardingNext)) { model.step += 1 }
+    #Preview { ObservableHostingExample() }
+
+    private struct ObservableHostingExample: View {
+        var body: some View {
+            ObservableHostingView {
+                ObservableHostingPreviewModel()
+            } content: { model in
+                VStack {
+                    Text(model.step, format: .number)
+                    Button(String(localized: .onboardingNext)) { model.step += 1 }
+                }
             }
         }
     }

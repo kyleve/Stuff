@@ -39,13 +39,17 @@ private struct WhereFormRootModifier: ViewModifier {
 }
 
 #if DEBUG
-    #Preview {
-        Form {
-            Section("Settings") {
-                Text("Native row")
+    #Preview { NativeFormExample() }
+
+    private struct NativeFormExample: View {
+        var body: some View {
+            Form {
+                Section("Settings") {
+                    Text("Native row")
+                }
             }
+            .whereFormRoot()
+            .whereBroadwayRoot()
         }
-        .whereFormRoot()
-        .whereBroadwayRoot()
     }
 #endif
