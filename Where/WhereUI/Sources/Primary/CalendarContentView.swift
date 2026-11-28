@@ -14,6 +14,8 @@ import SwiftUI
 struct CalendarContentView: View {
     private let showsEstimateCard: Bool
     private let showsPlanningAction: Bool
+    private let showsZoomAction: Bool
+    private let onPresentationReady: (() -> Void)?
     enum ScrollRole: Hashable { case detail }
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
     private let model: CalendarModel
@@ -66,16 +68,20 @@ struct CalendarContentView: View {
         report: YearReportModel,
         showsEstimateCard: Bool = true,
         showsPlanningAction: Bool = true,
+        showsZoomAction: Bool = true,
         presentationState: CalendarPresentationState? = nil,
         initialMode: CalendarPresentationState.Mode = .detail,
         persistenceKey: CalendarZoomKey? = nil,
         scrollRole: some Hashable = ScrollRole.detail,
         planningDestination: Binding<PlannedStaysDestination?>? = nil,
+        onPresentationReady: (() -> Void)? = nil,
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
         self.showsEstimateCard = showsEstimateCard
         self.showsPlanningAction = showsPlanningAction
+        self.showsZoomAction = showsZoomAction
+        self.onPresentationReady = onPresentationReady
         suppliedPresentation = presentationState
         suppliedPlanningDestination = planningDestination
         let model = CalendarModel(report: report, persistenceKey: persistenceKey)
@@ -102,6 +108,7 @@ struct CalendarContentView: View {
                             calendarContent(months: months)
                         case let .failure(error):
                             calendarLayoutError(error)
+                                .onAppear { onPresentationReady?() }
                         case nil:
                             AppIconLoadingView(caption: String(localized: .primaryLoading))
                     }
@@ -151,7 +158,7 @@ struct CalendarContentView: View {
             isEnabled: suppliedPlanningDestination == nil,
         ))
         .toolbar {
-            Group {
+            if showsZoomAction {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         changeZoom { toggleZoom() }
@@ -335,6 +342,7 @@ struct CalendarContentView: View {
         // Hide the live tiles while their copies move, leaving the page background visible.
         .opacity(zoom.phase == nil ? 1 : 0)
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
+            let canReveal = onPresentationReady != nil && presentation.year == report.selectedYear
             Color.clear
                 .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
                     CalendarZoomFrames.measure(
@@ -345,6 +353,11 @@ struct CalendarContentView: View {
                     )
                 } action: { value in
                     zoom.updateMeasurement(value)
+                }
+                .onGeometryChange(for: Bool.self) { proxy in
+                    canReveal && proxy.size.width > 0 && proxy.size.height > 0
+                } action: { isReady in
+                    if isReady { onPresentationReady?() }
                 }
                 .allowsHitTesting(false)
         }

@@ -6180,6 +6180,18 @@
         }
       }
     },
+    "primary.card.clearSelectionHint" : {
+      "comment" : "Accessibility hint on a selected region card in the wide Locations layout.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Deselects this region and closes its calendar."
+          }
+        }
+      }
+    },
     "primary.elsewhereOnly.description" : {
       "extractionState" : "manual",
       "localizations" : {
