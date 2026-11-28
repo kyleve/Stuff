@@ -464,6 +464,13 @@ struct MainTabs: View {
                     )
                 }
             }
+            cases.append(adaptiveSnapshot(
+                tab: .locations,
+                pose: .outerPortrait,
+                configuration: SnapshotConfiguration(device: .duoOuterPortrait),
+                selection: .region,
+                buildWorld: buildWorld,
+            ))
             for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop, .book] {
                 cases.append(adaptiveSnapshot(
                     tab: .locations,

@@ -85,6 +85,9 @@ struct LocationsView: View {
                 } detail: {
                     NavigationStack {
                         detailContent(showsEstimateCard: true)
+                            // The compact zoom carries this paper over the outgoing region cards.
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .visitedRegionsBackground(report)
                             .navigationTitle(
                                 selectedCalendarTitle ?? String(localized: .primaryCalendar),
                             )
