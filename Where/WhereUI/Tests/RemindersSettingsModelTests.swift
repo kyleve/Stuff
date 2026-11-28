@@ -2,7 +2,7 @@ import Foundation
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereUI
+@testable import WhereUI
 
 /// Covers `RemindersSettingsModel` — the Settings editing surface for the
 /// reminder + daily-summary schedules. Setting a property persists to the shared
@@ -39,7 +39,25 @@ struct RemindersSettingsModelTests {
     }
 
     private func makeModel(preferences: WherePreferences) throws -> RemindersSettingsModel {
-        try RemindersSettingsModel(services: makeServices(), preferences: preferences)
+        try makeModel(services: makeServices(), preferences: preferences)
+    }
+
+    private func makeModel(
+        services: WhereServices,
+        preferences: WherePreferences,
+    ) -> RemindersSettingsModel {
+        RemindersSettingsModel(session: makeSession(services: services, preferences: preferences))
+    }
+
+    private func makeSession(
+        services: WhereServices,
+        preferences: WherePreferences,
+    ) -> WhereSession {
+        WhereSession(scope: .fake(
+            services: services,
+            preferences: preferences,
+            logSystem: PreviewSupport.logSystem,
+        ))
     }
 
     @Test func reminderSettingsDefaultOnAndPersistAcrossModels() throws {
@@ -93,7 +111,7 @@ struct RemindersSettingsModelTests {
             reminderScheduler: reminderSpy,
             summaryScheduler: NoopDailySummaryScheduler(),
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         model.remindersEnabled = true
 
@@ -112,7 +130,7 @@ struct RemindersSettingsModelTests {
             reminderScheduler: reminderSpy,
             summaryScheduler: NoopDailySummaryScheduler(),
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         model.remindersEnabled = false
 
@@ -129,7 +147,7 @@ struct RemindersSettingsModelTests {
             reminderScheduler: reminderSpy,
             summaryScheduler: NoopDailySummaryScheduler(),
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         let newTime = ReminderTime(hour: 7, minute: 30)
         model.reminderTime = newTime
@@ -146,7 +164,7 @@ struct RemindersSettingsModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: summarySpy,
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         model.summaryEnabled = true
 
@@ -163,7 +181,7 @@ struct RemindersSettingsModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: summarySpy,
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         model.summaryEnabled = false
 
@@ -179,7 +197,7 @@ struct RemindersSettingsModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: summarySpy,
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         let newTime = ReminderTime(hour: 9, minute: 15)
         model.summaryTime = newTime
@@ -217,7 +235,7 @@ struct RemindersSettingsModelTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: alertSpy,
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         model.issueAlertsEnabled = true
 
@@ -238,13 +256,35 @@ struct RemindersSettingsModelTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: alertSpy,
         )
-        let model = RemindersSettingsModel(services: services, preferences: preferences)
+        let model = makeModel(services: services, preferences: preferences)
 
         model.issueAlertsEnabled = false
 
         await waitUntil { await alertSpy.reconcileCount >= 1 }
         #expect(await alertSpy.lastEnabled == false)
         #expect(await alertSpy.authorizationRequests == 0)
+    }
+
+    @Test func reopenedAlertsKeepsTheNewestChoiceWhileAnEarlierApplyFinishes() async throws {
+        let preferences = makePreferences()
+        preferences.summaryEnabled = false
+        let gate = TestStore.OperationGate()
+        let scheduler = SpyDailySummaryScheduler(firstApplyGate: gate)
+        let services = try makeServices(
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: scheduler,
+        )
+        let session = makeSession(services: services, preferences: preferences)
+        RemindersSettingsModel(session: session).summaryEnabled = true
+        await gate.waitUntilReached()
+
+        let reopened = RemindersSettingsModel(session: session)
+        #expect(reopened.summaryEnabled)
+        reopened.summaryEnabled = false
+        await gate.release()
+        await waitUntil { session.notificationConfigurationRevision == 2 }
+        #expect(await scheduler.lastEnabled == false)
+        #expect(!preferences.summaryEnabled)
     }
 
     /// The setters reconcile off an unstructured `Task`, so poll the (actor) spy
@@ -298,6 +338,11 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
     private(set) var reconcileCount = 0
     private(set) var lastEnabled: Bool?
     private(set) var lastTime: ReminderTime?
+    private let firstApplyGate: TestStore.OperationGate?
+
+    init(firstApplyGate: TestStore.OperationGate? = nil) {
+        self.firstApplyGate = firstApplyGate
+    }
 
     func requestAuthorization() async -> Bool {
         authorizationRequests += 1
@@ -310,6 +355,7 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
 
     func reconcile(enabled: Bool, time: ReminderTime, body _: String) async {
         reconcileCount += 1
+        if reconcileCount == 1 { await firstApplyGate?.suspend() }
         lastEnabled = enabled
         lastTime = time
     }

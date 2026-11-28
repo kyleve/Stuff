@@ -5,29 +5,28 @@ import SwiftUI
 import WhereCore
 
 /// Creates or edits one stay without changing tracking or the other stays.
-struct PlannedStayEditor: View {
-    @State private var model: PlannedStayEditorModel
-    @State private var showsManageRegions = false
-    @Environment(\.dismiss) private var dismiss
+struct PlannedStayEditorDestination: View {
+    private let makeModel: () -> PlannedStayEditorModel
 
-    init(
-        report: YearReportModel,
-        stay: PlannedStay? = nil,
-        initialRegion: Region? = nil,
-    ) {
-        _model = State(initialValue: PlannedStayEditorModel(
-            report: report,
-            mode: stay.map(PlannedStayEditorModel.Mode.edit) ?? .new(initialRegion: initialRegion),
-        ))
+    init(report: YearReportModel, mode: PlannedStayEditorModel.Mode) {
+        self.init { PlannedStayEditorModel(report: report, mode: mode) }
     }
 
-    init(model: PlannedStayEditorModel) {
-        _model = State(initialValue: model)
+    init(makeModel: @escaping () -> PlannedStayEditorModel) {
+        self.makeModel = makeModel
     }
 
     var body: some View {
-        @Bindable var model = model
+        ObservableHostingView(makeModel) { PlannedStayEditor(model: $0) }
+    }
+}
 
+struct PlannedStayEditor: View {
+    @Bindable var model: PlannedStayEditorModel
+    @State private var showsManageRegions = false
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
         NavigationStack {
             Form {
                 if let error = model.report.forecasts.loadFailure {
@@ -180,14 +179,17 @@ struct PlannedStayEditor: View {
                 name: "NewStay",
                 configurations: .fullContentScreenRepresentative,
             ) {
-                PlannedStayEditor(report: PreviewSupport.loadedYearReportModel())
+                PlannedStayEditorDestination(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    mode: .new(initialRegion: nil),
+                )
             }
             whereSnapshot(name: "AnyRegion", configurations: .fullContentPhoneLightDark) {
-                PlannedStayEditor(
+                PlannedStayEditorDestination(
                     report: PreviewSupport.loadedYearReportModel(),
-                    initialRegion: PrimaryRegionDraft.supportedRegions.first {
+                    mode: .new(initialRegion: PrimaryRegionDraft.supportedRegions.first {
                         $0 != .newYork && $0 != .california
-                    },
+                    }),
                 )
             }
             whereSnapshot(
@@ -195,9 +197,7 @@ struct PlannedStayEditor: View {
                 configurations: .fullContentScreenRepresentative,
             ) {
                 let report = PreviewSupport.itineraryYearReportModel()
-                PlannedStayEditor(report: report, stay: report.forecasts.planning.stays.first {
-                    !$0.arrival.isExact || !$0.departure.isExact
-                })
+                PlannedStayEditor(model: flexibleEditorModel(report: report))
             }
             whereSnapshot(name: "DefiniteOverlap", configurations: .fullContentPhoneLightDark) {
                 PlannedStayEditor(model: definiteOverlapEditorModel())
@@ -249,7 +249,7 @@ struct PlannedStayEditor: View {
             title: "Planned Stay Editor",
             navigationContainer: .none,
         ) { world in
-            PlannedStayEditor(report: world.report)
+            PlannedStayEditorDestination(report: world.report, mode: .new(initialRegion: nil))
         }
     }
 #endif

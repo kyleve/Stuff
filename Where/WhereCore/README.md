@@ -313,7 +313,8 @@ one it belongs to rather than to a god-object:
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables, planned-stay and home-region revisions, sample-attribution revisions, and evidence blobs
-  to one generation-consistent snapshot. Merge preserves queued locations
+  to one generation-consistent snapshot. Export observes caller cancellation before compression
+  and reclaims an archive if compression finishes after cancellation. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared

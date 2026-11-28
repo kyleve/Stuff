@@ -139,7 +139,8 @@ public actor BackupCoordinator {
     public func exportBackup(
         onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> URL {
-        try await Self.logger.measure(.exportBackup) {
+        try Task.checkCancellation()
+        return try await Self.logger.measure(.exportBackup) {
             try await performExport(onProgress: onProgress)
         }
     }
@@ -176,6 +177,7 @@ public actor BackupCoordinator {
             try await Self.logger.measure(.exportBlobLoad) {
                 var lastPercent = -1
                 for (index, item) in evidence.enumerated() {
+                    try Task.checkCancellation()
                     if let blob = try await store.evidenceBlob(for: item.id) {
                         blobs[item.id] = blob
                     }
@@ -189,6 +191,7 @@ public actor BackupCoordinator {
             }
             return ExportSnapshot(tables: tables, blobs: blobs)
         }
+        try Task.checkCancellation()
         let tables = snapshot.tables
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
@@ -209,6 +212,11 @@ public actor BackupCoordinator {
                 blobs: snapshot.blobs,
             )
         }.value
+        // An in-flight ZIP can finish after cancellation. Reclaim only its own directory.
+        if Task.isCancelled {
+            removeExportDirectory(url.deletingLastPathComponent())
+            throw CancellationError()
+        }
         onProgress(1)
         previousExportDirectory = url.deletingLastPathComponent()
         return url
@@ -252,8 +260,12 @@ public actor BackupCoordinator {
     private func purgePreviousExport() {
         guard let previous = previousExportDirectory else { return }
         previousExportDirectory = nil
+        removeExportDirectory(previous)
+    }
+
+    private func removeExportDirectory(_ directory: URL) {
         do {
-            try FileManager.default.removeItem(at: previous)
+            try FileManager.default.removeItem(at: directory)
         } catch {
             Self.logger.removePreviousExportFailed(
                 error: .restricted(.errorDetails, error),

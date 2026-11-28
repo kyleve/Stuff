@@ -261,8 +261,8 @@ The reusable panes also support iPad layouts. There is no HomeView target.
   **`LocationForecastModel`** itinerary and Home-assumption mirror, and
   **`ElsewhereModel`** catalog resolution and optional place labels), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (Settings export progress and failures),
-  **`RemindersSettingsModel`** (notification prefs),
+  (Data destination export progress and failures),
+  **`RemindersSettingsModel`** (Alerts destination notification choices),
   process-scoped **`DiagnosticReportingSettingsModel`** (saved versus effective
   launch channels and revisioned live log-policy application),
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
@@ -282,6 +282,11 @@ The reusable panes also support iPad layouts. There is no HomeView target.
 
 `DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
 `BackupSettingsSection` shows export progress and forwards the export action to that screen.
+Leaving Data Settings cancels its export request. Reopening Data lets the user export again.
+The session applies saved notification choices in order per notification family, independently of the Alerts destination.
+The Home picker owns its search and selection state. A stay editor owns its draft for one sheet,
+including nested navigation and layout changes. Privacy & Diagnostics owns its personal-data
+confirmation, and the process reporting model applies and discloses the resulting policy.
 
 ### Flight status and GPS corrections
 

@@ -18,9 +18,8 @@ import WhereCore
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
 /// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene injects its report.
-/// This view owns the backup and reminders models above the native navigation container;
-/// the `WhereSession` coordinator (recording/location) and
-/// `WhereModel` (reset) come from the environment via the sub-screens.
+/// Each destination owns its editing state. Sub-screens get the session and
+/// app coordinators from the environment.
 struct SettingsView: View {
     @MainActor @Observable
     final class Navigation {
@@ -45,8 +44,6 @@ struct SettingsView: View {
 
     let report: YearReportModel
     let recordingWarning: RecordingConfigurationWarningModel
-    @State private var backup: BackupModel
-    @State private var reminders: RemindersSettingsModel
     @State private var navigation: SettingsView.Navigation
 
     @Environment(\.stylesheet) private var stylesheet
@@ -64,12 +61,6 @@ struct SettingsView: View {
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
             preferences: report.preferences,
         )
-        _backup = State(initialValue: BackupModel(services: report.services))
-        _reminders = State(initialValue: RemindersSettingsModel(
-            services: report.services,
-            preferences: report.preferences,
-            now: report.now,
-        ))
     }
 
     var body: some View {
@@ -122,7 +113,7 @@ struct SettingsView: View {
     }
 
     private func destination(for route: SettingsRoute) -> some View {
-        SettingsDestinationView(route: route, report: report, backup: backup, reminders: reminders)
+        SettingsDestinationView(route: route, report: report)
             .whereScreenBoundary()
     }
 
@@ -139,8 +130,6 @@ struct SettingsView: View {
 private struct SettingsDestinationView: View {
     let route: SettingsRoute
     let report: YearReportModel
-    let backup: BackupModel
-    let reminders: RemindersSettingsModel
     @Environment(UpdateModel.self) private var updates: UpdateModel?
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(WhereSession.self) private var session
@@ -160,7 +149,7 @@ private struct SettingsDestinationView: View {
                 // routed here; this arm only keeps the switch exhaustive.
                 EmptyView()
             case .alerts:
-                AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
+                AlertsSettingsDestination(report: report, session: session, focus: route.focus)
             case .appearance:
                 AppearanceSettingsView(report: report, focus: route.focus)
             case .year:
@@ -208,7 +197,7 @@ private struct SettingsDestinationView: View {
                     primaryAppIconName: primaryAppIconName,
                 )
             case .data:
-                DataSettingsView(report: report, backup: backup, focus: route.focus)
+                DataSettingsDestination(report: report, focus: route.focus)
             case .privacyDiagnostics:
                 PrivacyDiagnosticsSettingsView(focus: route.focus)
             case .updates:
@@ -304,21 +293,10 @@ private struct SettingsDestinationView: View {
             report: YearReportModel,
             recordingWarning: RecordingConfigurationWarningModel? = nil,
         ) -> some View {
-            let backup = BackupModel(services: report.services)
-            let reminders = RemindersSettingsModel(
-                services: report.services,
-                preferences: report.preferences,
-                now: report.now,
-            )
-            return NavigationStack {
+            NavigationStack {
                 SettingsContent(report: report, recordingWarning: recordingWarning)
                     .navigationDestination(for: SettingsRoute.self) { route in
-                        SettingsDestinationView(
-                            route: route,
-                            report: report,
-                            backup: backup,
-                            reminders: reminders,
-                        )
+                        SettingsDestinationView(route: route, report: report)
                     }
             }
         }

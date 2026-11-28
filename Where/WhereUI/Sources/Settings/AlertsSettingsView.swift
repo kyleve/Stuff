@@ -5,6 +5,20 @@ import WhereCore
 /// Settings drill-in combining the notification-driven alerts (the daily logging
 /// reminder, the daily summary, and issue alerts) with the GPS data-resolution
 /// threshold and the manual "find issues now" scan.
+struct AlertsSettingsDestination: View {
+    let report: YearReportModel
+    let session: WhereSession
+    var focus: SettingsFocus?
+
+    var body: some View {
+        ObservableHostingView {
+            RemindersSettingsModel(session: session)
+        } content: { reminders in
+            AlertsSettingsView(report: report, reminders: reminders, focus: focus)
+        }
+    }
+}
+
 struct AlertsSettingsView: View {
     let report: YearReportModel
     let reminders: RemindersSettingsModel
@@ -30,10 +44,9 @@ struct AlertsSettingsView: View {
         }
         .navigationTitle(String(localized: .settingsAlertsGroup))
         .navigationBarTitleDisplayMode(.inline)
-        // Notification permission can change in the Settings app while we're
-        // away; refresh it when the screen appears so the "allow notifications"
-        // affordance is accurate.
-        .task { await reminders.refreshNotificationAuthorization() }
+        .task(id: reminders.authorizationRefreshID) {
+            await reminders.refreshNotificationAuthorization()
+        }
     }
 
     private var remindersSection: some View {
@@ -277,10 +290,7 @@ extension AlertsSettingsView: SettingsSection {
             AlertsSettingsView.self,
             title: "Alerts Settings",
         ) { world in
-            AlertsSettingsView(
-                report: world.report,
-                reminders: world.reminders,
-            )
+            AlertsSettingsDestination(report: world.report, session: world.session)
         }
     }
 #endif

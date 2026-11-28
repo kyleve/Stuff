@@ -2,18 +2,8 @@ import Foundation
 import Observation
 import WhereCore
 
-/// View-scoped model for the Settings reminder + daily-summary section: the
-/// enable toggles, the time pickers, and whether notifications are authorized.
-/// Owned as `@State` by `SettingsView`, so it's created when the Settings tab is
-/// first shown and torn down with it.
-///
-/// This is the *editing* surface. The launch-time / foreground *application* of
-/// the same schedules (reading `WherePreferences` and pushing to the reconcilers)
-/// stays on the always-on `WhereSession` coordinator, since it must run whether
-/// or not Settings is on screen. Both write through the shared `WherePreferences`
-/// (the single source of truth): an edit here persists and reconciles the
-/// scheduler live; the coordinator re-applies the persisted intent every launch
-/// and foreground.
+/// The Alerts destination owns this editing state. Accepted preference changes
+/// reconcile through the session even when the destination closes.
 @MainActor
 @Observable
 public final class RemindersSettingsModel {
@@ -26,7 +16,7 @@ public final class RemindersSettingsModel {
             guard newValue != remindersEnabledStorage else { return }
             remindersEnabledStorage = newValue
             preferences.remindersEnabled = newValue
-            Task { await applyReminderConfiguration() }
+            session.enqueueNotificationConfiguration(.reminder)
         }
     }
 
@@ -37,7 +27,7 @@ public final class RemindersSettingsModel {
             guard newValue != reminderTimeStorage else { return }
             reminderTimeStorage = newValue
             preferences.reminderTime = newValue
-            Task { await applyReminderConfiguration() }
+            session.enqueueNotificationConfiguration(.reminder)
         }
     }
 
@@ -70,7 +60,7 @@ public final class RemindersSettingsModel {
             guard newValue != summaryEnabledStorage else { return }
             summaryEnabledStorage = newValue
             preferences.summaryEnabled = newValue
-            Task { await applySummaryConfiguration() }
+            session.enqueueNotificationConfiguration(.summary)
         }
     }
 
@@ -81,7 +71,7 @@ public final class RemindersSettingsModel {
             guard newValue != summaryTimeStorage else { return }
             summaryTimeStorage = newValue
             preferences.summaryTime = newValue
-            Task { await applySummaryConfiguration() }
+            session.enqueueNotificationConfiguration(.summary)
         }
     }
 
@@ -114,7 +104,9 @@ public final class RemindersSettingsModel {
             guard newValue != issueAlertsEnabledStorage else { return }
             issueAlertsEnabledStorage = newValue
             preferences.issueAlertsEnabled = newValue
-            Task { await applyIssueAlertConfiguration() }
+            let alert = session.enqueueNotificationConfiguration(.issueAlert)
+            // Set the badge after the issue alert's authorization request settles.
+            session.enqueueNotificationConfiguration(.reminder, after: alert)
         }
     }
 
@@ -136,19 +128,16 @@ public final class RemindersSettingsModel {
     /// Observed backing storage for the issue-alert toggle.
     private var issueAlertsEnabledStorage: Bool
 
-    private let services: WhereServices
+    private let session: WhereSession
     private let preferences: WherePreferences
     private let now: @Sendable () -> Date
     private let calendar: Calendar
 
-    public init(
-        services: WhereServices,
-        preferences: WherePreferences,
-        now: @escaping @Sendable () -> Date = { Date() },
-    ) {
-        self.services = services
+    public init(session: WhereSession) {
+        self.session = session
+        let preferences = session.preferences
         self.preferences = preferences
-        self.now = now
+        now = session.now
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -159,44 +148,15 @@ public final class RemindersSettingsModel {
         issueAlertsEnabledStorage = preferences.issueAlertsEnabled
     }
 
-    /// Refresh whether the system has granted notification permission. Called
-    /// when Settings appears, in case the user changed it in the Settings app.
+    var authorizationRefreshID: UInt64 {
+        session.notificationConfigurationRevision
+    }
+
+    /// Refresh upon entry and when the session finishes applying a choice.
     public func refreshNotificationAuthorization() async {
-        notificationsAuthorized = await services.reminders.isAuthorized()
-    }
-
-    private func applyReminderConfiguration() async {
-        await services.reminders.configure(
-            enabled: remindersEnabled,
-            time: reminderTime,
-            issueAlertsEnabled: issueAlertsEnabled,
-            driftThresholdMeters: Double(preferences.driftThresholdMeters),
-        )
-        await refreshNotificationAuthorization()
-    }
-
-    private func applySummaryConfiguration() async {
-        await services.summary.configure(enabled: summaryEnabled, time: summaryTime)
-        await refreshNotificationAuthorization()
-    }
-
-    /// Reconcile both the issue-alert notification and the reminder reconciler:
-    /// the alert notification fires at the reminder time, and the badge (owned by
-    /// the reminder reconciler) folds in the issue count, so a toggle here has to
-    /// re-push the reminder config too.
-    private func applyIssueAlertConfiguration() async {
-        let driftThresholdMeters = Double(preferences.driftThresholdMeters)
-        await services.issueAlerts.configure(
-            enabled: issueAlertsEnabled,
-            time: reminderTime,
-            driftThresholdMeters: driftThresholdMeters,
-        )
-        await services.reminders.configure(
-            enabled: remindersEnabled,
-            time: reminderTime,
-            issueAlertsEnabled: issueAlertsEnabled,
-            driftThresholdMeters: driftThresholdMeters,
-        )
-        await refreshNotificationAuthorization()
+        let requestedRevision = authorizationRefreshID
+        let authorized = await session.services.reminders.isAuthorized()
+        guard !Task.isCancelled, requestedRevision == authorizationRefreshID else { return }
+        notificationsAuthorized = authorized
     }
 }

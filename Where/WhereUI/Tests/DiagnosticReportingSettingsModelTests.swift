@@ -1,4 +1,7 @@
+import AccessibilitySnapshotParser
 import PeriscopeCore
+import SwiftUI
+import TestHostSupport
 import Testing
 import WhereCore
 @testable import WhereUI
@@ -93,11 +96,12 @@ struct DiagnosticReportingSettingsModelTests {
                 applyRemoteLogging: { _, _ in },
             )
 
-            #expect(model.includePersonalDataToggle)
-            model.includePersonalDataToggle = false
+            let confirmation = DiagnosticPersonalDataConfirmation(reporting: model)
+            #expect(confirmation.includesPersonalData)
+            confirmation.includesPersonalData = false
             await waitUntil { model.applyState != .applying }
 
-            #expect(model.includePersonalDataToggle == false)
+            #expect(!confirmation.includesPersonalData)
             #expect(model.effectiveRemoteLogging.exportPolicy.enabledControls == [custom])
             #expect(preferences.diagnosticReportingConfiguration.remoteLogging.exportPolicy
                 .enabledControls == [custom])
@@ -130,7 +134,7 @@ struct DiagnosticReportingSettingsModelTests {
             #expect(model.effectiveRemoteLogging.exportPolicy.mode == .diagnostic)
         }
 
-        @Test func fullMetadataRequiresConfirmationAndPersistsItsWarningState() async {
+        @Test func fullMetadataRequiresConfirmationAndAReopenedScreenStartsFresh() async throws {
             let preferences = WherePreferences(store: InMemoryKeyValueStore())
             let model = DiagnosticReportingSettingsModel(
                 preferences: preferences,
@@ -138,19 +142,100 @@ struct DiagnosticReportingSettingsModelTests {
                 applyRemoteLogging: { _, _ in },
             )
 
-            model.includePersonalDataToggle = true
+            let first = DiagnosticPersonalDataConfirmation(reporting: model)
+            first.includesPersonalData = true
 
-            #expect(model.isPersonalDataConfirmationPresented)
+            #expect(first.isPresented)
             #expect(model.includesPersonalData == false)
 
-            model.confirmPersonalData()
+            let reopened = DiagnosticPersonalDataConfirmation(reporting: model)
+            #expect(!reopened.isPresented)
+            reopened.includesPersonalData = true
+            let revision = try #require(reopened.pendingRevision)
+            // SwiftUI may dismiss the dialog before it invokes the selected action.
+            reopened.isPresented = false
+            reopened.confirm(revision: revision)
             await waitUntil { model.applyState != .applying }
 
-            #expect(model.isPersonalDataConfirmationPresented == false)
+            #expect(!reopened.isPresented)
             #expect(model.includesPersonalData)
             #expect(preferences.diagnosticReportingConfiguration.remoteLogging.exportPolicy
                 .enabledControls
                 == RemoteLoggingConfiguration.personalDataControls)
+        }
+
+        @Test func aSupersededPolicyCannotUseAnEarlierConfirmation() throws {
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            let model = DiagnosticReportingSettingsModel(
+                preferences: preferences,
+                effectiveConfiguration: .defaults(isDebugBuild: true),
+                applyRemoteLogging: { _, _ in },
+            )
+            let originalLevel = try #require(model.selectedRemoteLevel)
+            let confirmation = DiagnosticPersonalDataConfirmation(reporting: model)
+            confirmation.includesPersonalData = true
+            let revision = try #require(confirmation.pendingRevision)
+
+            model.selectRemoteLevel(nil)
+            model.selectRemoteLevel(originalLevel)
+            #expect(!confirmation.isPresented)
+            confirmation.confirm(revision: revision)
+            #expect(!model.includesPersonalData)
+        }
+
+        @Test func leavingDiagnosticsDiscardsTheNativeConfirmation() async throws {
+            let app = PreviewSupport.loadedModel()
+            let reporting = app.diagnosticReporting
+            reporting.selectRemoteLevel(.warning)
+            reporting.disablePersonalData()
+            let session = PreviewSupport.loadedSession()
+            let item = PrivacyDiagnosticsSettingsView.Item.fullMetadata
+            let result = try #require(PrivacyDiagnosticsSettingsView.searchResults.first {
+                $0.focus == SettingsFocus(item)
+            })
+            let route = SettingsRoute(result)
+            let navigation = SettingsView.Navigation()
+            let root = SettingsView(
+                report: PreviewSupport.loadedYearReportModel(),
+                navigation: navigation,
+                initialRoute: route,
+            )
+            .environment(app)
+            .environment(session)
+            .whereBroadwayRoot()
+            let controller: UIViewController = UIHostingController(rootView: root)
+
+            try await show(controller) { _ in
+                let host = try #require(controller.view.window?.rootViewController)
+                @MainActor func metadataToggle() -> NSObject? {
+                    HostedAccessibility.objects(in: controller.view).first {
+                        $0.accessibilityLabel == item.title
+                    }
+                }
+                try await waitForAsync { metadataToggle() != nil }
+                let control = try #require(metadataToggle())
+                if let toggle = control as? UISwitch {
+                    toggle.setOn(true, animated: false)
+                    toggle.sendActions(for: .valueChanged)
+                } else {
+                    try #require(control.accessibilityActivate())
+                }
+                try await waitForAsync {
+                    AdaptivePaneTestSupport.presentedController(from: host) != nil
+                }
+                let prompt = try #require(AdaptivePaneTestSupport.presentedController(from: host))
+                #expect(!reporting.includesPersonalData)
+                navigation.selectedRoute = SettingsRoute(.alerts)
+                prompt.dismiss(animated: false)
+                try await waitForAsync {
+                    AdaptivePaneTestSupport.presentedController(from: host) == nil
+                        && metadataToggle() == nil
+                }
+                navigation.selectedRoute = route
+                try await waitForAsync { metadataToggle() != nil }
+                #expect(AdaptivePaneTestSupport.presentedController(from: host) == nil)
+                #expect(!reporting.includesPersonalData)
+            }
         }
     #endif
 
