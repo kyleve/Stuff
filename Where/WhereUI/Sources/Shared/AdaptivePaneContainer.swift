@@ -1,21 +1,5 @@
 import SwiftUI
 
-/// Measures one bounded destination. Navigation and presentation owners stay outside it.
-struct AdaptivePaneContainer<Content: View>: View {
-    @Environment(\.stylesheet) private var stylesheet
-    @ViewBuilder var content: (AdaptivePaneArrangement) -> Content
-
-    var body: some View {
-        AdaptivePaneGeometryReader { geometry in
-            content(AdaptivePaneArrangement.resolve(
-                geometry: geometry,
-                style: stylesheet.adaptivePane,
-            ))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-}
-
 /// Shares physical container geometry with pane layout, the welcome overlay, and developer
 /// overlays.
 struct AdaptivePaneGeometryReader<Content: View>: View {
