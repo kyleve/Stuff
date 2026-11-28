@@ -118,16 +118,7 @@ struct PrimaryRegionSelectionModelTests {
     @Test func hostedPickerKeepsSelectionsAndCountryExpansionThroughSearch() async throws {
         let model = PrimaryRegionDraft(available: [.newYork, .ontario])
         let canada = try #require(RegionCatalog.shared.node(id: .canada))
-        let picker = NavigationStack {
-            RegionPickerView(draft: model)
-                .navigationTitle(String(localized: .onboardingRegionsTitle))
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .onboardingNext)) {}
-                            .disabled(!model.hasSelection)
-                    }
-                }
-        }.whereBroadwayRoot()
+        let picker = SearchableRegionPickerFixture(model: model)
         let host = UIHostingController(rootView: Optional(picker))
         try await show(host) { controller in
             let view = try #require(controller.view)
@@ -522,5 +513,22 @@ struct PrimaryRegionSelectionModelTests {
         try await model.commit(using: session)
 
         #expect(try await session.services.trackedRegions() == [.california])
+    }
+}
+
+private struct SearchableRegionPickerFixture: View {
+    let model: PrimaryRegionDraft
+
+    var body: some View {
+        NavigationStack {
+            RegionPickerView(draft: model)
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .onboardingNext)) {}
+                            .disabled(!model.hasSelection)
+                    }
+                }
+        }.whereBroadwayRoot()
     }
 }

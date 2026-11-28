@@ -87,12 +87,7 @@ struct WhereFlyoverWebExportTests {
                                         onReadyToSnapshot: nil,
                                     ),
                                 ) {
-                                    ScrollView {
-                                        VStack(spacing: 0) {
-                                            Color.red.frame(height: 500)
-                                            Color.blue.frame(height: 500)
-                                        }
-                                    }
+                                    FullContentExportFixture()
                                 },
                             ],
                         ),
@@ -262,6 +257,17 @@ struct WhereFlyoverWebExportTests {
             pixelSize: capture.pixelSize,
             scale: capture.scale,
         )
+    }
+}
+
+private struct FullContentExportFixture: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                Color.red.frame(height: 500)
+                Color.blue.frame(height: 500)
+            }
+        }
     }
 }
 

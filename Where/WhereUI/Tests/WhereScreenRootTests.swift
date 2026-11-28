@@ -43,14 +43,7 @@ struct WhereScreenRootTests {
 
     @Test func nestedScreenRootPassesThroughWithoutPaddingOrScrolling() async throws {
         let state = ScreenState()
-        let root = ScreenProbe(state: state)
-            .whereScreenRoot(
-                .fluid,
-                padding: .custom(EdgeInsets(top: 40, leading: 80, bottom: 40, trailing: 80)),
-            )
-            .whereScreenRoot(.wide, padding: .none)
-            .whereContentRootAssertionHandler { state.diagnostics.insert($0) }
-            .whereBroadwayRoot()
+        let root = NestedScreenSurface(state: state)
         let host = UIHostingController(rootView: root)
         host.safeAreaRegions = []
         try await show(host) { controller in
@@ -105,6 +98,21 @@ struct WhereScreenRootTests {
             ScreenProbe(state: state)
                 .whereScreenRoot(state.override, padding: state.padding)
                 .whereContentWidth(state.inherited)
+        }
+    }
+
+    private struct NestedScreenSurface: View {
+        let state: ScreenState
+
+        var body: some View {
+            ScreenProbe(state: state)
+                .whereScreenRoot(
+                    .fluid,
+                    padding: .custom(EdgeInsets(top: 40, leading: 80, bottom: 40, trailing: 80)),
+                )
+                .whereScreenRoot(.wide, padding: .none)
+                .whereContentRootAssertionHandler { state.diagnostics.insert($0) }
+                .whereBroadwayRoot()
         }
     }
 

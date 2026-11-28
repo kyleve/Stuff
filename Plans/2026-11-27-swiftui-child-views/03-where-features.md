@@ -68,3 +68,7 @@ The region color button measures 25 lines and the Settings overview 22, each in 
 ### Shared presentation and fixture roots
 
 The typed theme option owns its complete selection button and selected trait. The year menu, live date picker, app icon indicator and matte card primitive retain the original bindings, environment and action routing. Drawing stays in Canvas callbacks. Small adornments stay with their parent and capture roots remain independently constructible. The two test fixtures mount their named production subjects.
+
+### Remaining mounted test subjects
+
+The searchable region picker, nested screen surface and full-content export retain their native navigation, presentation modifiers and 1,000-point image target. All three live in their owning test files. AdaptivePaneContainerTests measures its named container with a three-line observation callback, and WhereContentRootTests already composes named WidthProbe instances in the single scroller under test. The four WhereUI behavior suites and the hosted Flyover export passed.
