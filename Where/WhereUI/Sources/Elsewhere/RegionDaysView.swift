@@ -46,119 +46,48 @@ struct RegionDaysView: View {
     }
 
     var body: some View {
-        content
-            .navigationTitle(region.localizedName)
-            .navigationBarTitleDisplayMode(.inline)
-            .task(id: Request(input: report.elsewhereInput, retryTrigger: retryTrigger)) {
-                if case .failed = report.loadState {
-                    await report.refresh()
-                }
-                if let input = report.elsewhereInput {
-                    await model.refresh(input)
-                }
-            }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let history, !history.days.isEmpty {
-            VStack(spacing: 0) {
-                if !mapPoints.isEmpty {
-                    RecordedPointsMap(points: mapPoints)
-                }
-                List {
-                    if let failureMessage {
-                        Section {
-                            Label(
-                                failureMessage,
-                                systemSymbol: .exclamationmarkIcloud,
-                            )
-                            retryButton
-                        }
-                    }
-                    Section {
-                        ForEach(history.days, id: \.day) { day in
-                            NavigationLink {
-                                DayRelabelView(day: day, report: report)
-                            } label: {
-                                DayRow(
-                                    day: day,
-                                    coordinate: region == .other ? nil : history.locations
-                                        .first { $0.day == day.day }?
-                                        .points.first?.coordinate,
-                                    model: model,
-                                )
-                            }
-                        }
-                    } footer: {
-                        Text(String(localized: .secondaryRegionFooter))
-                    }
-                }
-                .accessibilityIdentifier("where_region_days_list")
-            }
-        } else if let failureMessage {
-            ContentUnavailableView {
-                Label(
-                    String(localized: .commonLoadErrorTitle),
-                    systemSymbol: .exclamationmarkIcloud,
+        Group {
+            if let history, !history.days.isEmpty {
+                RegionDaysList(
+                    history: history,
+                    region: region,
+                    report: report,
+                    model: model,
+                    mapPoints: mapPoints,
+                    failureMessage: failureMessage,
+                    retry: { retryTrigger.fire() },
                 )
-            } description: {
-                Text(failureMessage)
-            } actions: {
-                retryButton
-            }
-        } else if model.content(for: report.selectedYear) == nil {
-            ProgressView(String(localized: .secondaryLoading))
-        } else {
-            ContentUnavailableView {
-                Label(String(localized: .secondaryRegionEmptyTitle), systemSymbol: .checkmarkCircle)
-            } description: {
-                Text(String(localized: .secondaryRegionEmptyDescription))
+            } else if let failureMessage {
+                ElsewhereLoadFailure(message: failureMessage) {
+                    Button(String(localized: .commonRetry)) { retryTrigger.fire() }
+                }
+            } else if model.content(for: report.selectedYear) == nil {
+                ProgressView(String(localized: .secondaryLoading))
+            } else {
+                EmptyRegionDays()
             }
         }
-    }
 
-    private var retryButton: some View {
-        Button(String(localized: .commonRetry)) { retryTrigger.fire() }
+        .navigationTitle(region.localizedName)
+        .navigationBarTitleDisplayMode(.inline)
+        .task(id: Request(input: report.elsewhereInput, retryTrigger: retryTrigger)) {
+            if case .failed = report.loadState {
+                await report.refresh()
+            }
+            if let input = report.elsewhereInput {
+                await model.refresh(input)
+            }
+        }
     }
 }
 
-private struct DayRow: View {
-    let day: DayPresence
-    let coordinate: Coordinate?
-    let model: ElsewhereModel
-
-    @Environment(\.stylesheet) private var stylesheet
-
-    private var placeName: String? {
-        coordinate.flatMap { model.cachedPlaceName(for: $0) }
-    }
-
+private struct EmptyRegionDays: View {
     var body: some View {
-        HStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: .calendar)
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(day.displayDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
-                    .font(.headline)
-                if let placeName {
-                    Label(placeName, systemSymbol: .mappinAndEllipse)
-                        .font(.subheadline)
-                }
-                Text(WhereFormat
-                    .secondaryRegionCurrent(regions: Region.inCanonicalOrder(day.regions)
-                        .map(\.localizedName).joined(separator: ", ")))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+        ContentUnavailableView {
+            Label(String(localized: .secondaryRegionEmptyTitle), systemSymbol: .checkmarkCircle)
+        } description: {
+            Text(String(localized: .secondaryRegionEmptyDescription))
         }
-        .padding(.vertical, stylesheet.spacing.xSmall)
-        .task(id: coordinate) {
-            guard let coordinate else { return }
-            _ = await model.placeName(for: coordinate)
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 

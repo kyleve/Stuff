@@ -39,7 +39,7 @@ struct DayRelabelView: View {
     /// Which async write is in flight. Saving captures a one-shot GPS fix (see
     /// `LocationSource.requestCurrentLocation()`) so it can take a moment and
     /// warrants a visible status; resetting just clears the day and is quick.
-    private enum PendingWrite {
+    fileprivate enum PendingWrite {
         case saving
         case resetting
     }
@@ -70,7 +70,15 @@ struct DayRelabelView: View {
             if !mapPoints.isEmpty {
                 RecordedPointsMap(points: mapPoints)
             }
-            form
+
+            DayRelabelForm(
+                reason: reason,
+                day: day,
+                regionSelection: regionSelection,
+                note: $note,
+                pending: pending,
+                reset: reset,
+            )
         }
         .navigationTitle(String(localized: .relabelTitle))
         .navigationBarTitleDisplayMode(.inline)
@@ -97,101 +105,6 @@ struct DayRelabelView: View {
         .task(id: day.day) { await loadPoints() }
     }
 
-    private var form: some View {
-        Form {
-            reasonBanner
-
-            Section {
-                LabeledContent(String(localized: .relabelTitle), value: dateText)
-            }
-
-            Section {
-                ForEach(regionSelection.items) { item in
-                    RegionToggleRow(item: item)
-                }
-            } header: {
-                Text(String(localized: .relabelRegionsHeader))
-            } footer: {
-                Text(String(localized: .relabelRegionsFooter))
-            }
-
-            Section {
-                TextField(
-                    String(localized: .manualNotePlaceholder),
-                    text: $note,
-                    axis: .vertical,
-                )
-                .lineLimit(3, reservesSpace: true)
-                .disabled(pending != nil)
-            } header: {
-                Text(String(localized: .manualNoteHeader))
-            } footer: {
-                Text(String(localized: .manualNoteFooter))
-            }
-
-            if pending == .saving {
-                Section {
-                    SavingStatusRow(text: String(localized: .manualSavingStatus))
-                }
-            }
-
-            auditSection
-
-            Section {
-                Button(String(localized: .relabelReset), role: .destructive) { reset() }
-                    .disabled(pending != nil)
-            } footer: {
-                Text(String(localized: .relabelResetFooter))
-            }
-        }
-        .animation(.default, value: pending)
-    }
-
-    /// A short callout explaining why the day was flagged, driven by the
-    /// classifier that routed here. `.none` (plain Elsewhere browsing) shows
-    /// nothing.
-    @ViewBuilder
-    private var reasonBanner: some View {
-        switch reason {
-            case .none:
-                EmptyView()
-            case let .borderDrift(region, meters):
-                banner(
-                    icon: .locationCircle,
-                    text: WhereFormat.relabelReasonBorderDrift(
-                        region: region.localizedName,
-                        distance: meters.map(Self.formattedDistance),
-                    ),
-                )
-            case .travelDay:
-                banner(
-                    icon: .arrowTriangleSwap,
-                    text: String(localized: .relabelReasonTravelDay),
-                )
-            case let .flight(removed):
-                banner(icon: .airplane, text: WhereFormat.relabelReasonFlight(removed: removed))
-        }
-    }
-
-    private func banner(icon: SFSymbol, text: String) -> some View {
-        Section {
-            Label {
-                Text(text)
-            } icon: {
-                Image(systemSymbol: icon)
-                    .foregroundStyle(.tint)
-            }
-            .font(.subheadline)
-        } header: {
-            Text(String(localized: .relabelReasonTitle))
-        }
-    }
-
-    private static func formattedDistance(_ meters: Double) -> String {
-        Measurement(value: meters, unit: UnitLength.meters)
-            .formatted(.measurement(width: .abbreviated, usage: .road))
-    }
-
     private func loadPoints() async {
         let byRegion = await report.locations(onDay: day.day)
         guard !Task.isCancelled else { return }
@@ -204,20 +117,6 @@ struct DayRelabelView: View {
                 )
             }
         }
-    }
-
-    /// Read-only record of the last manual entry for this day (when it came from
-    /// an override): when it was made, its note, and where the device was at the
-    /// time — the audit trail retained for residency reviews.
-    @ViewBuilder
-    private var auditSection: some View {
-        if let audit = day.audit {
-            ManualEntryAuditSection(audit: audit)
-        }
-    }
-
-    private var dateText: String {
-        day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
     private func save() {
@@ -251,6 +150,66 @@ struct DayRelabelView: View {
                 saveError.message = error.localizedDescription
                 pending = nil
             }
+        }
+    }
+}
+
+private struct DayRelabelForm: View {
+    let reason: DayRelabelReason
+    let day: DayPresence
+    let regionSelection: RegionSelectionState
+    @Binding var note: String
+    let pending: DayRelabelView.PendingWrite?
+    let reset: () -> Void
+
+    var body: some View {
+        Form {
+            DayRelabelReasonSection(reason: reason)
+
+            Section {
+                LabeledContent(
+                    String(localized: .relabelTitle),
+                    value: day.displayDate.formatted(.dateTime.month(.abbreviated).day().year()),
+                )
+            }
+            DayRelabelRegionsSection(regionSelection: regionSelection)
+            ManualDayNoteSection(note: $note, isWriting: pending != nil)
+            ManualDaySavingSection(isSaving: pending == .saving)
+            if let audit = day.audit {
+                ManualEntryAuditSection(audit: audit)
+            }
+            DayRelabelResetSection(isWriting: pending != nil, reset: reset)
+        }
+        .animation(.default, value: pending)
+    }
+}
+
+private struct DayRelabelRegionsSection: View {
+    let regionSelection: RegionSelectionState
+
+    var body: some View {
+        Section {
+            ForEach(regionSelection.items) { item in
+                RegionToggleRow(item: item)
+            }
+        } header: {
+            Text(String(localized: .relabelRegionsHeader))
+        } footer: {
+            Text(String(localized: .relabelRegionsFooter))
+        }
+    }
+}
+
+private struct DayRelabelResetSection: View {
+    let isWriting: Bool
+    let reset: () -> Void
+
+    var body: some View {
+        Section {
+            Button(String(localized: .relabelReset), role: .destructive) { reset() }
+                .disabled(isWriting)
+        } footer: {
+            Text(String(localized: .relabelResetFooter))
         }
     }
 }

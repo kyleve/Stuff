@@ -18,7 +18,6 @@ import WhereCore
 struct LoggedDaysView: View {
     let report: YearReportModel
 
-    @Environment(\.stylesheet) private var stylesheet
     @State private var model: LoggedDaysModel
     @State private var showingAdd = false
     @State private var editTarget: EditTarget?
@@ -51,140 +50,44 @@ struct LoggedDaysView: View {
     var body: some View {
         @Bindable var deleteError = deleteError
 
-        content
-            .navigationTitle(WhereFormat.loggedDaysTitle(year: report.selectedYear))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label(String(localized: .loggedDaysAdd), systemSymbol: .plus)
-                    }
-                    .accessibilityIdentifier("where_add_logged_day_button")
-                }
-            }
-            // Load, then keep the list current off the single store-change
-            // signal — no per-action reload wiring needed. Runs while the view
-            // is on screen and is cancelled when it goes away.
-            .task { await model.observe(year: report.selectedYear) }
-            .sheet(isPresented: $showingAdd) {
-                NavigationStack {
-                    ManualDayView(
-                        report: report,
-                        mode: .add(prefill: nil),
-                        showsCancelButton: true,
-                    )
-                }
-            }
-            .sheet(item: $editTarget) { target in
-                NavigationStack {
-                    ManualDayView(
-                        report: report,
-                        mode: .edit(target.day),
-                        showsCancelButton: true,
-                    )
-                }
-            }
-            .alert(
-                String(localized: .loggedDaysDeleteErrorTitle),
-                isPresented: $deleteError.isPresented,
-            ) {
-                Button(String(localized: .commonOk), role: .cancel) {}
-            } message: {
-                if let message = deleteError.message {
-                    Text(message)
-                }
-            }
-            // Log View Mode: reveal an inspect badge for the logged-days list's
-            // events. A no-op in release.
-            .debugLogInspectable(WhereLog.root(LoggedDaysModelLog.self))
-    }
+        LoggedDaysContent(
+            state: model.loadState,
+            filter: $filter,
+            add: { showingAdd = true },
+            edit: { editTarget = EditTarget(day: $0) },
+            delete: delete,
+        )
 
-    @ViewBuilder
-    private var content: some View {
-        switch model.loadState {
-            case .idle, .loading:
-                AppIconLoadingView(caption: String(localized: .primaryLoading))
-            case let .loaded(days):
-                loaded(days)
-            case .empty:
-                emptyState
-            case let .failed(message):
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .loggedDaysFailedTitle),
-                        systemSymbol: .exclamationmarkIcloud,
-                    )
-                } description: {
-                    Text(message)
-                }
-        }
-    }
-
-    /// The Logged/Overridden/All filter pinned above the list, then the matching
-    /// rows — or a "nothing matches this filter" state, distinct from the
-    /// year-has-no-entries `emptyState`.
-    private func loaded(_ days: [DayPresence]) -> some View {
-        let matches = days.filter(filter.matches)
-        return VStack(spacing: 0) {
-            Picker(String(localized: .loggedDaysFilterLabel), selection: $filter) {
-                ForEach(LoggedDaysFilter.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, stylesheet.spacing.small)
-            .accessibilityIdentifier("where_logged_days_filter")
-
-            if matches.isEmpty {
-                noMatchesState
-            } else {
-                list(matches)
+        .navigationTitle(WhereFormat.loggedDaysTitle(year: report.selectedYear))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                AddLoggedDayButton(add: { showingAdd = true })
             }
         }
-        .animation(.default, value: filter)
-    }
-
-    private var noMatchesState: some View {
-        ContentUnavailableView {
-            Label(
-                String(localized: .loggedDaysNoMatchesTitle),
-                systemSymbol: .line3HorizontalDecreaseCircle,
-            )
-        } description: {
-            Text(String(localized: .loggedDaysNoMatchesDescription))
+        // Load, then keep the list current off the single store-change
+        // signal — no per-action reload wiring needed. Runs while the view
+        // is on screen and is cancelled when it goes away.
+        .task { await model.observe(year: report.selectedYear) }
+        .sheet(isPresented: $showingAdd) {
+            LoggedDayEditorSheet(report: report, mode: .add(prefill: nil))
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func list(_ days: [DayPresence]) -> some View {
-        List {
-            ForEach(days, id: \.day) { day in
-                Button {
-                    editTarget = EditTarget(day: day)
-                } label: {
-                    LoggedDayRow(day: day)
-                }
-                .buttonStyle(.plain)
-            }
-            .onDelete { offsets in
-                delete(offsets.map { days[$0] })
+        .sheet(item: $editTarget) { target in
+            LoggedDayEditorSheet(report: report, mode: .edit(target.day))
+        }
+        .alert(
+            String(localized: .loggedDaysDeleteErrorTitle),
+            isPresented: $deleteError.isPresented,
+        ) {
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: {
+            if let message = deleteError.message {
+                Text(message)
             }
         }
-        .listStyle(.plain)
-        .accessibilityIdentifier("where_logged_days_list")
-    }
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label(String(localized: .loggedDaysEmptyTitle), systemSymbol: .calendarBadgePlus)
-        } description: {
-            Text(String(localized: .loggedDaysEmptyDescription))
-        } actions: {
-            Button(String(localized: .loggedDaysAdd)) { showingAdd = true }
-        }
+        // Log View Mode: reveal an inspect badge for the logged-days list's
+        // events. A no-op in release.
+        .debugLogInspectable(WhereLog.root(LoggedDaysModelLog.self))
     }
 
     /// Delete the given manual entries in one transaction (restoring GPS
@@ -226,71 +129,150 @@ extension LoggedDaysView: SettingsSection {
     }
 }
 
-/// One logged day: an icon marking backfill vs. override, the date, the regions
-/// it counts for, a "Logged"/"Overridden" tag, and the audit note if one was
-/// saved with the entry.
-private struct LoggedDayRow: View {
-    let day: DayPresence
+private struct LoggedDaysContent: View {
+    let state: LoggedDaysModel.LoadState
+    @Binding var filter: LoggedDaysFilter
+    let add: () -> Void
+    let edit: (DayPresence) -> Void
+    let delete: ([DayPresence]) -> Void
 
+    var body: some View {
+        switch state {
+            case .idle, .loading:
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
+            case let .loaded(days):
+                FilteredLoggedDays(days: days, filter: $filter, edit: edit, delete: delete)
+            case .empty:
+                EmptyLoggedDays(add: add)
+            case let .failed(message):
+                LoggedDaysLoadFailure(message: message)
+        }
+    }
+}
+
+/// The Logged/Overridden/All filter pinned above the list, then the matching
+/// rows — or a "nothing matches this filter" state, distinct from the
+/// year-has-no-entries empty state.
+private struct FilteredLoggedDays: View {
+    let days: [DayPresence]
+    @Binding var filter: LoggedDaysFilter
+    let edit: (DayPresence) -> Void
+    let delete: ([DayPresence]) -> Void
+
+    var body: some View {
+        let matches = days.filter(filter.matches)
+        VStack(spacing: 0) {
+            LoggedDaysFilterPicker(filter: $filter)
+            if matches.isEmpty {
+                UnmatchedLoggedDays()
+            } else {
+                LoggedDaysRows(days: matches, edit: edit, delete: delete)
+            }
+        }
+        .animation(.default, value: filter)
+    }
+}
+
+private struct LoggedDaysFilterPicker: View {
+    @Binding var filter: LoggedDaysFilter
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        HStack(alignment: .top, spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: day.isAuthoritative ? .pencilCircle : .calendarBadgePlus)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .fixedSize()
-                .frame(minWidth: stylesheet.size.statusIconWidth)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(dateText)
-                    .font(.headline)
-                Text(regionsText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let note = day.audit?.note, !note.isEmpty {
-                    Text(note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(stylesheet.loggedDay.layout == .stacked ? nil : 2)
-                }
-                if stylesheet.loggedDay.layout == .stacked {
-                    kindLabel
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if stylesheet.loggedDay.layout == .inline {
-                Spacer(minLength: stylesheet.spacing.small)
-                kindLabel.fixedSize()
+        Picker(String(localized: .loggedDaysFilterLabel), selection: $filter) {
+            ForEach(LoggedDaysFilter.allCases) { option in
+                Text(option.title).tag(option)
             }
         }
-        .padding(.vertical, stylesheet.spacing.xxSmall)
-        // Make the whole row (including the spacer) tap into the edit sheet.
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
+        .pickerStyle(.segmented)
+        .padding(.horizontal)
+        .padding(.vertical, stylesheet.spacing.small)
+        .accessibilityIdentifier("where_logged_days_filter")
     }
+}
 
-    private var kindLabel: some View {
-        Text(kindText)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+private struct LoggedDaysRows: View {
+    let days: [DayPresence]
+    let edit: (DayPresence) -> Void
+    let delete: ([DayPresence]) -> Void
+
+    var body: some View {
+        List {
+            ForEach(days, id: \.day) { day in
+                LoggedDayButton(day: day) { edit(day) }
+            }
+            .onDelete { offsets in
+                delete(offsets.map { days[$0] })
+            }
+        }
+        .listStyle(.plain)
+        .accessibilityIdentifier("where_logged_days_list")
     }
+}
 
-    private var dateText: String {
-        day.displayDate.formatted(.dateTime.weekday(.abbreviated).month(.wide).day().year())
+private struct AddLoggedDayButton: View {
+    let add: () -> Void
+
+    var body: some View {
+        Button {
+            add()
+        } label: {
+            Label(String(localized: .loggedDaysAdd), systemSymbol: .plus)
+        }
+        .accessibilityIdentifier("where_add_logged_day_button")
     }
+}
 
-    private var kindText: String {
-        day
-            .isAuthoritative ? String(localized: .loggedDaysKindOverridden) :
-            String(localized: .loggedDaysKindLogged)
+private struct LoggedDaysLoadFailure: View {
+    let message: String
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(
+                String(localized: .loggedDaysFailedTitle),
+                systemSymbol: .exclamationmarkIcloud,
+            )
+        } description: {
+            Text(message)
+        }
     }
+}
 
-    /// Region names joined in canonical order so the caption is stable.
-    private var regionsText: String {
-        Region.inCanonicalOrder(day.regions)
-            .map(\.localizedName)
-            .joined(separator: ", ")
+private struct EmptyLoggedDays: View {
+    let add: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(String(localized: .loggedDaysEmptyTitle), systemSymbol: .calendarBadgePlus)
+        } description: {
+            Text(String(localized: .loggedDaysEmptyDescription))
+        } actions: {
+            Button(String(localized: .loggedDaysAdd)) { add() }
+        }
+    }
+}
+
+private struct UnmatchedLoggedDays: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label(
+                String(localized: .loggedDaysNoMatchesTitle),
+                systemSymbol: .line3HorizontalDecreaseCircle,
+            )
+        } description: {
+            Text(String(localized: .loggedDaysNoMatchesDescription))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct LoggedDayEditorSheet: View {
+    let report: YearReportModel
+    let mode: ManualDayView.Mode
+
+    var body: some View {
+        NavigationStack {
+            ManualDayView(report: report, mode: mode, showsCancelButton: true)
+        }
     }
 }
 

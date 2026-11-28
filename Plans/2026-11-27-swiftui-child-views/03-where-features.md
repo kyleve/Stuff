@@ -80,3 +80,7 @@ The planned-stay editor owns dates, destination, validation and persistence. Pla
 ### Devices, appearance, alerts and privacy
 
 The 21-line destructive removal control carries its own confirmation. The device form keeps stable rows and bindings to the live device model. The 21-line personal-data toggle owns the confirmation presenter and keeps the destructive action directly in the native dialog. Appearance, alerts and the privacy passport retain their settings IDs, revision, notification decisions and navigation.
+
+### Evidence, logged days and Elsewhere
+
+The evidence, manual-day and Elsewhere screens keep their loaders, drafts, navigation and saves. LoggedDayButton owns the full selectable row. Region and day links keep their typed destinations, day identity and accessibility. Manual entry and day relabeling share the same note and saving sections. The retry, reset, audit and empty presentations retain their original conditions.
