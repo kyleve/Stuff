@@ -1,6 +1,6 @@
 # 01 — Extract the InstallerKitUI update-page children
 
-**Status** · executing
+**Status** · complete
 
 **Dependency** · none
 
@@ -66,4 +66,4 @@ At the implementation base, the public screen’s body measured four lines. `Upd
 
 The hosted interaction uses `WhereCompatibilityModelTests.updateLockoutCanBrowseAppUpdatesWithoutOpeningHistory` to activate the accessible button on the production page, dismiss the browser, then open and dismiss it again. The pilot source and host test were reviewed against `dbc169471`. No review defects remained.
 
-On an iPhone 17 simulator, the update-page, refresh and compatibility selections passed four behavior tests. Both snapshot suites passed with recording disabled. The combined run used the two InstallerKitUI selections above and the hosted compatibility test. SwiftFormat lint and the architecture checks passed. The next step is to publish this verified pilot and record its PR.
+On an iPhone 17 simulator, the update-page, refresh and compatibility selections passed four behavior tests. Both snapshot suites passed with recording disabled. The combined run used the two InstallerKitUI selections above and the hosted compatibility test. SwiftFormat lint and the architecture checks passed. The reviewed implementation is published at `d1f20b068` in [PR #594](https://github.com/kyleve/Stuff/pull/594). The remaining plans can use its complete-control and state-ownership examples.
