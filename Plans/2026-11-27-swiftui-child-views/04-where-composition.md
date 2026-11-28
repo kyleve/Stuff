@@ -41,3 +41,7 @@ Apply each slice against its recorded parent. Format and remeasure its complete 
 ### Year mode picker
 
 The 17-line `YearModeButton` lives beside the 19-line picker and retains the complete button, hit shape, animation and selected trait. The screen owns the mode and the picker owns the namespace. The hosted Year test activated both modes across all supported fold layouts and confirmed selection and navigation-stack identity. Both Year snapshot tests passed with recording disabled. The next batch covers the eager calendar grid and scroll/zoom owner.
+
+### Calendar grid and zoom
+
+The month and day renderers retain their eager grid rows and stable scroll IDs. The calendar screen keeps both scroll positions, accessibility focus, the zoom transition and planning presentation. The shared calendar scroll view measures 113 lines in its own file. The complete overview month button is 20 lines in its own file. The zoom and planning toolbar controls stay beside their parent. The focused calendar content, month accessibility, snapshot readiness, zoom overlay and zoom transition suites passed, as did the calendar reference images with recording disabled.
