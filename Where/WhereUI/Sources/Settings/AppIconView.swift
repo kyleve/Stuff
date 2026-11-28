@@ -49,15 +49,30 @@ struct AppIconView: View {
                     style: appIcon,
                 )
                 ZStack(alignment: .bottom) {
-                    grids(metrics: grid)
+                    AppIconGrid(
+                        model: model,
+                        metrics: grid,
+                        previewID: preview?.id,
+                        select: select,
+                    )
 
                     if preview != nil {
-                        scrim
+                        AppIconPreviewScrim(dismissPreview: dismissPreview)
                     }
 
                     if let option = preview {
-                        previewPanel(for: option, iconSize: previewIconSize)
-                            .transition(.move(edge: .bottom))
+                        AppIconPreviewPanel(
+                            option: option,
+                            iconSize: previewIconSize,
+                            previewMode: previewMode,
+                            appearanceToggleTrigger: appearanceToggleTrigger,
+                            canApply: !model.isSelected(option) && model.supportsAlternateIcons,
+                            toggleAppearance: toggleAppearance,
+                            apply: { apply(option) },
+                        )
+                        .offset(y: max(dragOffset, 0))
+                        .gesture(dragToDismiss)
+                        .transition(.move(edge: .bottom))
                     }
                 }
                 .navigationTitle(String(localized: .appIconTitle))
@@ -79,158 +94,6 @@ struct AppIconView: View {
         } message: {
             Text(model.applyError ?? "")
         }
-    }
-
-    private func grids(metrics: AppIconGridMetrics) -> some View {
-        ScrollView {
-            LazyVGrid(
-                columns: gridColumns(count: metrics.columnCount),
-                spacing: appIcon.gridSpacing,
-            ) {
-                ForEach(model.options) { option in
-                    cell(for: option, iconSize: metrics.iconSize)
-                }
-            }
-            .padding(appIcon.gridPadding)
-        }
-        .scrollDisabled(preview != nil)
-    }
-
-    private func gridColumns(count: Int) -> [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(), spacing: appIcon.columnSpacing),
-            count: count,
-        )
-    }
-
-    private func cell(for option: AppIconOption, iconSize: CGFloat) -> some View {
-        let isSelected = model.isSelected(option)
-        // Dim this cell's icon while its own panel is up so the grid reads as
-        // backgrounded without fully hiding the icon already enlarged in the
-        // panel. It fades back as the panel slides away (the flip rides the same
-        // `.snappy` animation that drives `preview`).
-        let isPreviewing = preview?.id == option.id
-        return Button {
-            select(option)
-        } label: {
-            VStack(spacing: appIcon.cellSpacing) {
-                AppIconImage(name: option.previewImageName, size: iconSize)
-                    .opacity(isPreviewing ? appIcon.backgroundedCellOpacity : 1)
-
-                HStack(spacing: appIcon.cellLabelSpacing) {
-                    if isSelected {
-                        Image(systemSymbol: .checkmarkCircleFill)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    Text(option.displayName)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundStyle(isSelected ? Color.accentColor : .primary)
-                }
-                .font(.subheadline)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(option.displayName)
-        .accessibilityValue(isSelected ? String(localized: .appIconCurrent) : "")
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-    }
-
-    private var scrim: some View {
-        Rectangle()
-            .fill(appIcon.scrim)
-            .ignoresSafeArea()
-            .transition(.opacity)
-            .onTapGesture { dismissPreview() }
-            .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(String(localized: .commonDone))
-            .accessibilityAction { dismissPreview() }
-    }
-
-    private func previewPanel(for option: AppIconOption, iconSize: CGFloat) -> some View {
-        VStack(spacing: appIcon.panel.spacing) {
-            Capsule()
-                .fill(.secondary.opacity(appIcon.panel.grabberOpacity))
-                .frame(
-                    width: appIcon.panel.grabberSize.width,
-                    height: appIcon.panel.grabberSize.height,
-                )
-                .padding(.top, appIcon.panel.grabberTopPadding)
-
-            Button {
-                toggleAppearance()
-            } label: {
-                previewIcon(for: option, size: iconSize)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(option.displayName)
-            .accessibilityValue(
-                previewMode == .dark
-                    ? String(localized: .appIconAppearanceDark)
-                    : String(localized: .appIconAppearanceLight),
-            )
-            .accessibilityHint(String(localized: .appIconAppearanceHint))
-
-            VStack(spacing: appIcon.panel.textSpacing) {
-                Text(option.displayName)
-                    .font(.title3.weight(.semibold))
-                Text(String(localized: .appIconAppearanceHint))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Button {
-                apply(option)
-            } label: {
-                Text(String(localized: .appIconSet))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(model.isSelected(option) || !model.supportsAlternateIcons)
-        }
-        .padding(.horizontal, appIcon.panel.horizontalPadding)
-        .padding(.bottom, appIcon.panel.bottomPadding)
-        .frame(maxWidth: .infinity)
-        .background {
-            UnevenRoundedRectangle(
-                topLeadingRadius: appIcon.panel.cornerRadius,
-                topTrailingRadius: appIcon.panel.cornerRadius,
-                style: .continuous,
-            )
-            .fill(appIcon.panel.background)
-            .shadow(
-                color: appIcon.panel.shadowColor,
-                radius: appIcon.panel.shadowRadius,
-                y: appIcon.panel.shadowOffsetY,
-            )
-            .ignoresSafeArea(edges: .bottom)
-        }
-        .environment(\.colorScheme, previewMode)
-        .bMode(.init(previewMode))
-        .offset(y: max(dragOffset, 0))
-        .gesture(dragToDismiss)
-    }
-
-    /// The tappable preview icon. Tapping toggles light/dark, which crossfades
-    /// the art and background while this plays a quick scale-down-then-bounce.
-    /// Keyed off `appearanceToggleTrigger` so the bounce only fires on a real tap, not
-    /// when the panel first opens.
-    private func previewIcon(for option: AppIconOption, size: CGFloat) -> some View {
-        AppIconImage(name: option.previewImageName, size: size)
-            .keyframeAnimator(
-                initialValue: 1.0,
-                trigger: appearanceToggleTrigger,
-            ) { content, scale in
-                content.scaleEffect(scale)
-            } keyframes: { _ in
-                KeyframeTrack {
-                    CubicKeyframe(0.82, duration: 0.12)
-                    SpringKeyframe(1.0, duration: 0.42, spring: .bouncy)
-                }
-            }
     }
 
     private var dragToDismiss: some Gesture {
@@ -318,6 +181,167 @@ struct AppIconImage: View {
                 }
             }
             .accessibilityHidden(true)
+    }
+}
+
+private struct AppIconGrid: View {
+    let model: AppIconModel
+    let metrics: AppIconGridMetrics
+    let previewID: AppIconID?
+    let select: (AppIconOption) -> Void
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(
+                columns: gridColumns(count: metrics.columnCount),
+                spacing: appIcon.gridSpacing,
+            ) {
+                ForEach(model.options) { option in
+                    AppIconSelectionButton(
+                        option: option,
+                        iconSize: metrics.iconSize,
+                        isSelected: model.isSelected(option),
+                        isPreviewing: previewID == option.id,
+                        select: { select(option) },
+                    )
+                }
+            }
+            .padding(appIcon.gridPadding)
+        }
+        .scrollDisabled(previewID != nil)
+    }
+
+    private func gridColumns(count: Int) -> [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: appIcon.columnSpacing),
+            count: count,
+        )
+    }
+
+    private var appIcon: WhereStylesheet.AppIconStyle {
+        stylesheet.appIcon
+    }
+}
+
+private struct AppIconPreviewScrim: View {
+    let dismissPreview: () -> Void
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Rectangle()
+            .fill(stylesheet.appIcon.scrim)
+            .ignoresSafeArea()
+            .transition(.opacity)
+            .onTapGesture { dismissPreview() }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(String(localized: .commonDone))
+            .accessibilityAction { dismissPreview() }
+    }
+}
+
+private struct AppIconPreviewPanel: View {
+    let option: AppIconOption
+    let iconSize: CGFloat
+    let previewMode: ColorScheme
+    let appearanceToggleTrigger: EventTrigger
+    let canApply: Bool
+    let toggleAppearance: () -> Void
+    let apply: () -> Void
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let appIcon = stylesheet.appIcon
+        VStack(spacing: appIcon.panel.spacing) {
+            AppIconPreviewGrabber(style: appIcon.panel)
+
+            AppIconPreviewModeButton(
+                option: option,
+                iconSize: iconSize,
+                previewMode: previewMode,
+                appearanceToggleTrigger: appearanceToggleTrigger,
+                toggleAppearance: toggleAppearance,
+            )
+
+            AppIconPreviewDescription(option: option, style: appIcon.panel)
+
+            AppIconSetButton(canApply: canApply, apply: apply)
+        }
+        .padding(.horizontal, appIcon.panel.horizontalPadding)
+        .padding(.bottom, appIcon.panel.bottomPadding)
+        .frame(maxWidth: .infinity)
+        .background { AppIconPreviewBackground(style: appIcon.panel) }
+        .environment(\.colorScheme, previewMode)
+        .bMode(.init(previewMode))
+    }
+}
+
+private struct AppIconPreviewGrabber: View {
+    let style: WhereStylesheet.AppIconStyle.PanelStyle
+
+    var body: some View {
+        Capsule()
+            .fill(.secondary.opacity(style.grabberOpacity))
+            .frame(
+                width: style.grabberSize.width,
+                height: style.grabberSize.height,
+            )
+            .padding(.top, style.grabberTopPadding)
+    }
+}
+
+private struct AppIconPreviewDescription: View {
+    let option: AppIconOption
+    let style: WhereStylesheet.AppIconStyle.PanelStyle
+
+    var body: some View {
+        VStack(spacing: style.textSpacing) {
+            Text(option.displayName)
+                .font(.title3.weight(.semibold))
+            Text(String(localized: .appIconAppearanceHint))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+}
+
+private struct AppIconPreviewBackground: View {
+    let style: WhereStylesheet.AppIconStyle.PanelStyle
+
+    var body: some View {
+        UnevenRoundedRectangle(
+            topLeadingRadius: style.cornerRadius,
+            topTrailingRadius: style.cornerRadius,
+            style: .continuous,
+        )
+        .fill(style.background)
+        .shadow(
+            color: style.shadowColor,
+            radius: style.shadowRadius,
+            y: style.shadowOffsetY,
+        )
+        .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+private struct AppIconSetButton: View {
+    let canApply: Bool
+    let apply: () -> Void
+
+    var body: some View {
+        Button {
+            apply()
+        } label: {
+            Text(String(localized: .appIconSet))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .disabled(!canApply)
     }
 }
 
