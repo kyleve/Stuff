@@ -24,14 +24,14 @@ Area views are available in the Stuff team’s Views page. Completed History cov
 
 ## Access
 
-The root npm dependencies pin `@schpet/linear-cli`.
-Run `mise exec -- npm ci` after a lockfile change.
-Use the repository binary so automated runs use the same version:
+Install the pinned Linear CLI on demand for backlog work. Its lockfile lives in `Tools/Linear`, outside the web tooling install that CI runs.
+Use the repository binary so local and agent runs use the same version.
 
 ```sh
-mise exec -- node_modules/.bin/linear --workspace kve --no-input team list --json
-mise exec -- node_modules/.bin/linear --workspace kve --no-input issue list --team STU --all-assignees --all-states --limit all --json
-mise exec -- node_modules/.bin/linear --workspace kve --no-input issue view STU-123
+mise exec -- npm ci --prefix Tools/Linear
+mise exec -- Tools/Linear/node_modules/.bin/linear --workspace kve --no-input team list --json
+mise exec -- Tools/Linear/node_modules/.bin/linear --workspace kve --no-input issue list --team STU --all-assignees --all-states --limit all --json
+mise exec -- Tools/Linear/node_modules/.bin/linear --workspace kve --no-input issue view STU-123
 ```
 
 Replace `STU-123` with an observed identifier.
@@ -48,7 +48,7 @@ Use explicit team, state, assignee, and pagination options.
 For history and duplicate searches, include archived issues through the API:
 
 ```sh
-mise exec -- node_modules/.bin/linear --workspace kve --no-input api --paginate 'query($after: String) {
+mise exec -- Tools/Linear/node_modules/.bin/linear --workspace kve --no-input api --paginate 'query($after: String) {
   issues(first: 100, after: $after, includeArchived: true,
     filter: {team: {id: {eq: "58134eca-7005-4b28-bffc-3243ca696a1e"}}}) {
     nodes { id identifier title description url archivedAt state { name type } }

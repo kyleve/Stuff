@@ -18,6 +18,7 @@ class CIWorkflowTests(unittest.TestCase):
         cls.validation_jobs = json.loads(
             (root / "Tools/ci-validation-jobs.json").read_text()
         )
+        cls.web_lock = json.loads((root / "package-lock.json").read_text())
         cls.github, cls.setup, cls.continued, cls.distribution = json.loads(
             subprocess.check_output(
                 [
@@ -43,6 +44,14 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertEqual(set(triggers), {"push", "pull_request", "workflow_dispatch"})
         self.assertEqual(triggers["pull_request"], {"branches": ["main"]})
         self.assertEqual(triggers["push"], {"branches": ["main"]})
+
+    def test_ci_web_install_excludes_the_backlog_cli(self):
+        self.assertFalse(
+            any(
+                f"/{path}".endswith("/node_modules/@schpet/linear-cli")
+                for path in self.web_lock["packages"]
+            )
+        )
 
     def test_manifest_matches_github_classifier_and_all_workers(self):
         jobs = self.github["jobs"]
@@ -117,6 +126,20 @@ class CIWorkflowTests(unittest.TestCase):
             command["env"]["CI_BASE_SHA"],
             "${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}",
         )
+
+    def test_web_ci_uses_a_node_only_toolchain_and_headless_browser_install(self):
+        job = self.github["jobs"]["test-web"]
+        self.assertEqual(job["env"]["MISE_ENABLE_TOOLS"], "node")
+        setup = next(
+            step for step in job["steps"] if step.get("uses") == "jdx/mise-action@v3"
+        )
+        self.assertEqual(setup["with"]["install_args"], "node")
+        browsers = next(
+            step["run"]
+            for step in job["steps"]
+            if step.get("name") == "Flyover browser regressions"
+        )
+        self.assertIn("playwright install --only-shell chromium webkit", browsers)
 
     def test_boundary_fixtures_run_in_tool_tests_unless_classified_as_unrelated(self):
         jobs = self.github["jobs"]

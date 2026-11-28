@@ -214,8 +214,6 @@ struct CalendarContentView: View {
         let estimateMonth = months.first(where: showsForecast(after:))
         let visibleMonths = availableMonths
         let overview = presentation.mode == .overview
-        let hasInitializedPosition = onPresentationReady != nil && presentation.year == report
-            .selectedYear
 
         return ScrollView {
             Group {
@@ -341,11 +339,6 @@ struct CalendarContentView: View {
                 _detailPosition.scrollTo(id: target, anchor: _detailPosition.anchor ?? .top)
             }
         }
-        .onGeometryChange(for: Bool.self) { proxy in
-            hasInitializedPosition && proxy.size.width > 0 && proxy.size.height > 0
-        } action: { isReady in
-            if isReady { onPresentationReady?() }
-        }
         // Hide the live tiles while their copies move, leaving the page background visible.
         .opacity(zoom.phase == nil ? 1 : 0)
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
@@ -365,6 +358,16 @@ struct CalendarContentView: View {
         .allowsHitTesting(zoom.phase == nil)
         .accessibilityHidden(zoom.phase != nil)
         .overlay {
+            // Measure the entrance here so the scroll view still reports the month offset.
+            if let onPresentationReady, presentation.year == report.selectedYear {
+                Color.clear
+                    .onGeometryChange(for: Bool.self) { proxy in
+                        proxy.size.width > 0 && proxy.size.height > 0
+                    } action: { isReady in
+                        if isReady { onPresentationReady() }
+                    }
+                    .allowsHitTesting(false)
+            }
             if let phase = zoom.phase {
                 CalendarZoomOverlay(phase: phase, content: { target, mode in
                     zoomTile(target, mode: mode, months: months)

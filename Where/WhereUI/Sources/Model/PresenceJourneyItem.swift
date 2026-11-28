@@ -20,6 +20,13 @@ enum PresenceJourneyItem: Identifiable, Hashable {
         }
     }
 
+    var start: Date {
+        switch self {
+            case let .stay(stint): stint.start
+            case let .flight(flight): flight.startedAt
+        }
+    }
+
     static func items(
         stints: [RegionStint],
         flights: [FlightAssessment],
